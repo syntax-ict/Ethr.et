@@ -7,7 +7,7 @@
 # │ subscription dashboard (owner-read 2026-09-18). That is G0-D = FAIL in   │
 # │ deployment/GATE-0-RESULT.md, and it is the blocker that fired the        │
 # │ pre-registered No-Go -> Option A rule in                                 │
-# │ shared-hosting/SHARED_HOSTING_MIGRATION_PLAN.md §4.                      │
+# │ archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md §4.                   │
 # │                                                                          │
 # │ This file exists so that the exact lines are ready to paste the moment   │
 # │ ask 1 of deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md is answered. It is  │

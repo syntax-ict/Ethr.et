@@ -13,6 +13,8 @@ import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
+import { PasswordStrengthMeter } from "@/components/shared/password-strength";
+import { prepareCsrfCookie } from "@/features/auth/sign-in";
 
 const resetSchema = z
   .object({
@@ -52,7 +54,6 @@ function ResetForm() {
   });
 
   const password = watch("password");
-  const strength = passwordStrength(password, t);
 
   if (!token || !email || !tenant) {
     return (
@@ -76,6 +77,12 @@ function ResetForm() {
   }
 
   async function onSubmit(data: ResetValues) {
+    // Sanctum refuses a signed-out POST with no XSRF cookie (419). This page
+    // is often the first one a browser opens -- a link from an email, or a
+    // bookmark -- so nothing has fetched the cookie yet. Until 2026-10-09 it
+    // did not ask, and every reset and account activation opened from an
+    // email failed with "Reset failed." The login and SMS forms always did.
+    await prepareCsrfCookie();
     await axios.post(
       "/api/v1/auth/password/reset",
       {
@@ -172,27 +179,7 @@ function ResetForm() {
         </FormField>
 
         <div className="space-y-2">
-          {password.length > 0 && (
-            <div className="space-y-1">
-              <div className="flex gap-1 h-1">
-                {[0, 1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className={`flex-1 rounded-full ${
-                      i < strength.score
-                        ? strength.score < 2
-                          ? "bg-destructive"
-                          : strength.score < 3
-                            ? "bg-warning"
-                            : "bg-success"
-                        : "bg-muted"
-                    }`}
-                  />
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">{strength.label}</p>
-            </div>
-          )}
+          <PasswordStrengthMeter password={password} />
         </div>
 
         <FormField
@@ -229,26 +216,6 @@ function ResetForm() {
       </form>
     </div>
   );
-}
-
-function passwordStrength(
-  pw: string,
-  t: (key: string, fallback?: string) => string,
-): { score: number; label: string } {
-  if (pw.length === 0) return { score: 0, label: "" };
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (pw.length >= 12) score++;
-  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
-  if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++;
-  const labels = [
-    t("auth.password_too_weak", "Too weak"),
-    t("auth.password_weak", "Weak"),
-    t("auth.password_fair", "Fair"),
-    t("auth.password_good", "Good"),
-    t("auth.password_strong", "Strong"),
-  ];
-  return { score, label: labels[score] };
 }
 
 /**

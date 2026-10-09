@@ -10,7 +10,9 @@ use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\DashboardDigest;
 use App\Services\CurrentTenant;
+use App\Support\StringList;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -47,7 +49,7 @@ class DashboardDigestController extends Controller
     {
         $this->authorizeDashboardAccess($request);
 
-        $digests = DashboardDigest::query()
+        $digests = $this->visibleTo($request, DashboardDigest::query())
             ->with('branch:id,public_id,name')
             ->where('is_active', true)
             ->orderByDesc('created_at')
@@ -60,6 +62,13 @@ class DashboardDigestController extends Controller
     public function destroy(Request $request, DashboardDigest $dashboardDigest): JsonResponse
     {
         $this->authorizeDashboardAccess($request);
+
+        // 404, not 403, for a digest outside the caller's branch: the same
+        // answer as one that does not exist.
+        abort_unless(
+            $this->visibleTo($request, DashboardDigest::query())->whereKey($dashboardDigest->getKey())->exists(),
+            404,
+        );
 
         $dashboardDigest->update(['is_active' => false]);
         AuditLog::record('dashboard_digest.cancelled', $dashboardDigest);
@@ -74,10 +83,39 @@ class DashboardDigestController extends Controller
             'public_id' => $digest->public_id,
             'branch_name' => $digest->branch?->name,
             'frequency' => $digest->frequency,
-            'recipients' => $digest->recipients,
+            'recipients' => StringList::of($digest->recipients),
             'next_run_at' => $digest->next_run_at,
             'last_run_at' => $digest->last_run_at,
         ];
+    }
+
+    /**
+     * The digests a caller may see and cancel: all of them with
+     * `dashboard.executive`, otherwise only those on the caller's own branch.
+     *
+     * The same rule store() applies, and that ExecutiveDashboardController
+     * applies to every read. index() and destroy() checked only that the
+     * caller held either permission, so every supervisor (who holds
+     * `dashboard.regional`) listed and could cancel every digest in the
+     * tenant, executives' tenant-wide ones included (audit N59). A regional
+     * caller with no branch sees none.
+     *
+     * @param  Builder<DashboardDigest>  $query
+     * @return Builder<DashboardDigest>
+     */
+    private function visibleTo(Request $request, Builder $query): Builder
+    {
+        $user = $request->user();
+
+        if ($user?->hasPermission('dashboard.executive')) {
+            return $query;
+        }
+
+        $branchId = $user?->employee?->branch_id;
+
+        return $branchId === null
+            ? $query->whereRaw('0 = 1')
+            : $query->where('branch_id', $branchId);
     }
 
     /** Read-only endpoints just need either dashboard permission; scope is decided per-write. */

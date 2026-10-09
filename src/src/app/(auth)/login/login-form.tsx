@@ -1,5 +1,6 @@
 "use client";
 
+import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,7 +18,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { apiClient } from "@/api/client";
+import { initiateSso, login, prepareCsrfCookie } from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { tenantHostUrl } from "@/lib/auth/tenant-host";
@@ -42,6 +43,23 @@ const loginSchema = z.object({
   password: z.string().min(1, "auth.invalid_credentials"),
 });
 type LoginForm = z.infer<typeof loginSchema>;
+
+/**
+ * The organisation named by `?org=`, which is where an organisation's entry URL
+ * (`ethr.et/{slug}`, OrganisationEntryController) sends its people.
+ *
+ * It only prefills the field. Nothing is stored until the person signs in, so a
+ * crafted link cannot change the organisation a signed-in browser sends in
+ * X-Tenant. A value that is not a slug is ignored rather than shown.
+ */
+function organisationFromEntryUrl(): string | null {
+  const org = new URLSearchParams(window.location.search)
+    .get("org")
+    ?.trim()
+    .toLowerCase();
+
+  return org && /^[a-z0-9][a-z0-9-]{0,62}$/.test(org) ? org : null;
+}
 
 export function LoginForm() {
   const router = useRouter();
@@ -68,7 +86,7 @@ export function LoginForm() {
     defaultValues: {
       tenant:
         typeof window !== "undefined"
-          ? (localStorage.getItem("tenant") ?? "")
+          ? (organisationFromEntryUrl() ?? localStorage.getItem("tenant") ?? "")
           : "",
       email: "",
       password: "",
@@ -95,7 +113,7 @@ export function LoginForm() {
     }
 
     try {
-      await apiClient.get("/sanctum/csrf-cookie", { baseURL: "" });
+      await prepareCsrfCookie();
     } catch {
       setServerError(
         t(
@@ -107,7 +125,7 @@ export function LoginForm() {
     }
 
     try {
-      const response = await apiClient.post("/auth/login", {
+      const result = await login({
         email: data.email,
         password: data.password,
         tenant: effectiveTenant,
@@ -121,7 +139,7 @@ export function LoginForm() {
         localStorage.removeItem("tenant");
       }
 
-      if (response.data.mfa_required) {
+      if (result.mfa_required) {
         sessionStorage.setItem("mfa_pending", "true");
         router.push("/login/mfa");
         return;
@@ -141,10 +159,28 @@ export function LoginForm() {
       const axiosError = err as {
         response?: {
           status?: number;
-          data?: { detail?: string; errors?: Record<string, string[]> };
+          data?: {
+            detail?: string;
+            errors?: Record<string, string[]>;
+            canonical_url?: string | null;
+          };
         };
         request?: unknown;
       };
+
+      // 409 canonical-address: this organisation signs in at its own address
+      // (its verified custom domain, or its subdomain), never here. The server
+      // answers before it checks the password, so nothing was signed in; the
+      // person signs in again there, where the host-only session cookie will
+      // live. Only an http(s) URL is followed.
+      const canonicalUrl =
+        axiosError.response?.status === 409
+          ? axiosError.response.data?.canonical_url
+          : null;
+      if (canonicalUrl && /^https?:\/\//i.test(canonicalUrl)) {
+        window.location.assign(canonicalUrl);
+        return;
+      }
 
       // RFC-7807 puts the useful text in `errors`, while `detail` stays generic
       // ("The given data was invalid."). The subdomain rule moved server-side,
@@ -201,13 +237,13 @@ export function LoginForm() {
     setServerError("");
 
     try {
-      const response = await apiClient.get(`/sso/saml/${tenant}/initiate`);
+      const redirectUrl = await initiateSso(tenant);
       localStorage.setItem("tenant", tenant);
       // `assign()` rather than `location.href = …`: identical behaviour, but an
       // assignment to a global reads as a mutation to the compiler
       // (react-hooks/immutability). A full navigation is required here — this
       // leaves the app for the identity provider, so the router cannot serve.
-      window.location.assign(response.data.redirect_url);
+      window.location.assign(redirectUrl);
     } catch (err: unknown) {
       const axiosError = err as {
         response?: { status?: number; data?: { detail?: string } };
@@ -283,6 +319,7 @@ export function LoginForm() {
               {t("auth.org_subdomain", "Organization subdomain")}
             </Label>
             <div className="flex items-center rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1">
+              <TenantAddressAffix side="prefix" bordered />
               <Input
                 id="tenant"
                 {...register("tenant")}
@@ -290,9 +327,7 @@ export function LoginForm() {
                 autoComplete="organization"
                 className="border-0 focus-visible:ring-0"
               />
-              <span className="shrink-0 border-l px-3 text-sm text-muted-foreground">
-                .ethr.et
-              </span>
+              <TenantAddressAffix side="suffix" bordered />
             </div>
             {errors.tenant && (
               <p className="text-xs text-destructive">
@@ -306,7 +341,13 @@ export function LoginForm() {
               {t(
                 "auth.subdomain_hint",
                 "Don't know your subdomain? Check the invitation email or ask your administrator.",
-              )}
+              )}{" "}
+              <Link
+                href="/login/find"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {t("auth.find_org_link", "Find your organisation by email")}
+              </Link>
             </p>
           </div>
         )}

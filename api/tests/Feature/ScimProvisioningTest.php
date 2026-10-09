@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\EmployeeStatus;
+use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Models\ApiKey;
 use App\Models\Department;
@@ -62,6 +63,22 @@ test('scim endpoints reject non-scim api keys', function () {
     ]);
 
     $response->assertUnauthorized();
+});
+
+test('scim endpoints refuse a suspended tenant even with a valid token', function () {
+    // ResolveTenant refuses an inactive tenant on host-resolved routes, but SCIM
+    // resolves its tenant from the key, so the check has to live in ScimAuth too.
+    $tenant = createTenant();
+    $token = createScimToken($tenant);
+
+    $this->getJson('/api/v1/scim/v2/Users', ['Authorization' => "Bearer {$token}"])->assertOk();
+
+    $tenant->update(['status' => TenantStatus::SUSPENDED]);
+
+    $response = $this->getJson('/api/v1/scim/v2/Users', ['Authorization' => "Bearer {$token}"]);
+
+    $response->assertForbidden();
+    expect($response->json('schemas.0'))->toBe('urn:ietf:params:scim:api:messages:2.0:Error');
 });
 
 test('scim endpoints reject expired api keys', function () {

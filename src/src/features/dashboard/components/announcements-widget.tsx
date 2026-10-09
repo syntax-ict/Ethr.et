@@ -63,9 +63,10 @@ export function AnnouncementsWidget() {
     );
   }
 
-  const announcements = (data?.data ?? [])
-    .filter((a) => a.status === "published")
-    .slice(0, 3);
+  // No status filter: AnnouncementResource has no `status` field, so filtering
+  // on it dropped every row and this card always said "No announcements".
+  // GET /announcements already returns only published, unexpired ones.
+  const announcements = (data?.data ?? []).slice(0, 3);
 
   return (
     <Card className="transition-shadow duration-300 hover:shadow-md">
@@ -102,8 +103,11 @@ export function AnnouncementsWidget() {
         ) : (
           <div className="space-y-2">
             {announcements.map((ann) => {
+              // "low" (and anything new) falls back to the normal styling.
               const config =
-                priorityConfig[ann.priority] ?? priorityConfig.normal;
+                priorityConfig[ann.priority as keyof typeof priorityConfig] ??
+                priorityConfig.normal;
+              const postedAt = ann.published_at ?? ann.created_at;
               return (
                 <Link
                   key={ann.public_id}
@@ -132,9 +136,7 @@ export function AnnouncementsWidget() {
                     </div>
                   </div>
                   <p className="mt-2 text-[11px] text-muted-foreground/70">
-                    {ann.published_at
-                      ? timeAgo(ann.published_at)
-                      : timeAgo(ann.created_at)}
+                    {postedAt ? timeAgo(postedAt) : null}
                   </p>
                 </Link>
               );

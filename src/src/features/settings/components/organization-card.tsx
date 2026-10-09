@@ -1,10 +1,13 @@
 "use client";
 
+import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import { useState } from "react";
 import { Building2, Loader2, Save } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { apiClient } from "@/api/client";
+import {
+  useUpdateOrganization,
+  type OrganizationUpdate,
+} from "@/features/settings/api";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +68,7 @@ export interface OrganizationCardProps {
 
 export function OrganizationCard({ organization }: OrganizationCardProps) {
   const { t } = useT();
-  const queryClient = useQueryClient();
+  const updateOrganization = useUpdateOrganization();
 
   const [name, setName] = useState(organization?.name ?? "");
   const [type, setType] = useState(organization?.type ?? "private");
@@ -80,28 +83,31 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
     timezone !== (organization?.timezone ?? "Africa/Addis_Ababa") ||
     locale !== (organization?.locale ?? "en");
 
-  const save = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.put("/settings/organization", {
+  // The hook refreshes /auth/me as well as the settings query: the tenant name
+  // is rendered from it in the sidebar and header.
+  function save() {
+    updateOrganization.mutate(
+      {
         name,
         type,
         timezone,
-        locale,
-      });
-      return data;
-    },
-    onSuccess: () => {
-      // The tenant name is rendered from /auth/me in the sidebar and header, so
-      // that has to refetch too, not just the settings query.
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
-      toast.success(t("settings.organization_saved", "Organization updated"));
-    },
-    onError: () =>
-      toast.error(
-        t("settings.organization_save_failed", "Failed to update organization"),
-      ),
-  });
+        locale: locale as OrganizationUpdate["locale"],
+      },
+      {
+        onSuccess: () =>
+          toast.success(
+            t("settings.organization_saved", "Organization updated"),
+          ),
+        onError: () =>
+          toast.error(
+            t(
+              "settings.organization_save_failed",
+              "Failed to update organization",
+            ),
+          ),
+      },
+    );
+  }
 
   return (
     <Card>
@@ -131,14 +137,13 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
               {t("settings.subdomain", "Subdomain")}
             </Label>
             <div className="mt-1 flex items-center gap-2">
+              <TenantAddressAffix side="prefix" />
               <Input
                 id="org-subdomain"
                 value={organization?.subdomain ?? ""}
                 disabled
               />
-              <span className="shrink-0 text-sm text-muted-foreground">
-                .ethr.et
-              </span>
+              <TenantAddressAffix side="suffix" />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               {t("settings.contact_support", "Contact support to change")}
@@ -206,10 +211,10 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
 
         <div className="flex justify-end">
           <Button
-            onClick={() => save.mutate()}
-            disabled={!dirty || save.isPending}
+            onClick={save}
+            disabled={!dirty || updateOrganization.isPending}
           >
-            {save.isPending ? (
+            {updateOrganization.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Save className="mr-2 h-4 w-4" />

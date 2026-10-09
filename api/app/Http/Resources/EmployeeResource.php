@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Http\Resources\Concerns\ExposesPhotoUrls;
+use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin Employee */
 class EmployeeResource extends JsonResource
 {
     use ExposesPhotoUrls;
@@ -23,6 +25,7 @@ class EmployeeResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'employee_code' => $this->employee_code,
+            'has_kiosk_pin' => $this->kiosk_pin !== null,
             'gender' => $this->gender,
             'date_of_birth' => $this->date_of_birth?->format('Y-m-d'),
             'nationality' => $this->nationality,

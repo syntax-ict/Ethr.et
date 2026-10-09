@@ -1,0 +1,402 @@
+{
+    "probe": "ethr-hosting-check",
+    "generated_at": "2026-09-29T16:04:05+00:00",
+    "host": "www.ethr.et",
+    "php_version": "8.3.35",
+    "php_sapi": "fpm-fcgi",
+    "counts": {
+        "VERIFIED": 47,
+        "UNSUPPORTED": 5,
+        "UNKNOWN": 2,
+        "other": 0
+    },
+    "results": [
+        {
+            "section": "PHP",
+            "id": "P1",
+            "item": "PHP >= 8.2",
+            "status": "VERIFIED",
+            "detail": "8.3.35"
+        },
+        {
+            "section": "PHP",
+            "id": "P2",
+            "item": "SAPI / handler",
+            "status": "VERIFIED",
+            "detail": "fpm-fcgi"
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-pdo (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-pdo_mysql (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-mbstring (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-openssl (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-tokenizer (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-xml (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-dom (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-ctype (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-json (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-fileinfo (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-filter (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-hash (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-session (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-curl (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-iconv (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-gd (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-simplexml (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-libxml (MANDATORY)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-intl (optional)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-sodium (optional)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-xmlwriter (optional)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-redis (optional)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-opcache (optional)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-exif (optional)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-phar (optional)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "PHP",
+            "id": "ext",
+            "item": "ext-zip (optional)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "Limits",
+            "id": "L1",
+            "item": "memory_limit (want >= 256M, for payroll and export jobs)",
+            "status": "UNSUPPORTED",
+            "detail": "128M"
+        },
+        {
+            "section": "Limits",
+            "id": "L2",
+            "item": "max_execution_time (want >= 120s, for payroll runs and CSV imports)",
+            "status": "UNSUPPORTED",
+            "detail": "30"
+        },
+        {
+            "section": "Limits",
+            "id": "L3",
+            "item": "upload_max_filesize (want >= 10M, for employee document upload)",
+            "status": "UNSUPPORTED",
+            "detail": "2M"
+        },
+        {
+            "section": "Limits",
+            "id": "L4",
+            "item": "post_max_size (want >= 10M, for employee document upload)",
+            "status": "UNSUPPORTED",
+            "detail": "8M"
+        },
+        {
+            "section": "Runtime",
+            "id": "W0",
+            "item": "PHP SAPI",
+            "status": "VERIFIED",
+            "detail": "fpm-fcgi"
+        },
+        {
+            "section": "Runtime",
+            "id": "W0",
+            "item": "server software",
+            "status": "VERIFIED",
+            "detail": "Apache"
+        },
+        {
+            "section": "Runtime",
+            "id": "W0",
+            "item": "document root",
+            "status": "VERIFIED",
+            "detail": "/data/var/www/vhosts/ethr.et/httpdocs"
+        },
+        {
+            "section": "Runtime",
+            "id": "B5",
+            "item": "Node.js >= 20.9 (needed only to BUILD the frontend)",
+            "status": "UNKNOWN",
+            "detail": "not found from PHP - check Plesk -> Node.js, and see the panel checklist"
+        },
+        {
+            "section": "Process",
+            "id": "PR",
+            "item": "proc_open() available",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "Process",
+            "id": "PR",
+            "item": "exec() available",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "Process",
+            "id": "PR",
+            "item": "shell_exec() available",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "Process",
+            "id": "PR",
+            "item": "symlink() available",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "Process",
+            "id": "PR",
+            "item": "putenv() available",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "Process",
+            "id": "PR",
+            "item": "disable_functions",
+            "status": "VERIFIED",
+            "detail": "opcache_get_status"
+        },
+        {
+            "section": "Filesystem",
+            "id": "ST4",
+            "item": "PHP can write in its own directory",
+            "status": "VERIFIED",
+            "detail": "/data/var/www/vhosts/ethr.et/httpdocs"
+        },
+        {
+            "section": "Filesystem",
+            "id": "ST5",
+            "item": "symlink() works (php artisan storage:link)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "Filesystem",
+            "id": "ST6",
+            "item": "parent directory writable (app above docroot)",
+            "status": "VERIFIED",
+            "detail": "/data/var/www/vhosts/ethr.et"
+        },
+        {
+            "section": "Filesystem",
+            "id": "ST1",
+            "item": "free space on this volume",
+            "status": "VERIFIED",
+            "detail": "1154.77 GB"
+        },
+        {
+            "section": "Network",
+            "id": "H6",
+            "item": "outbound HTTPS (443)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "Network",
+            "id": "H6",
+            "item": "outbound SMTP submission (587)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "Network",
+            "id": "H6",
+            "item": "outbound SMTP implicit TLS (465)",
+            "status": "VERIFIED",
+            "detail": ""
+        },
+        {
+            "section": "Database",
+            "id": "DB",
+            "item": "connection",
+            "status": "UNSUPPORTED",
+            "detail": "SQLSTATE[HY000] [1045] Access denied for user 'ethr'@'localhost' (using password: YES)"
+        },
+        {
+            "section": "Performance",
+            "id": "P1",
+            "item": "CPU: 3M-iteration loop (a modern dedicated core: ~60-120ms)",
+            "status": "VERIFIED",
+            "detail": "56 ms"
+        },
+        {
+            "section": "Performance",
+            "id": "P2",
+            "item": "CPU: 20k string+hash ops",
+            "status": "VERIFIED",
+            "detail": "2 ms"
+        },
+        {
+            "section": "Performance",
+            "id": "P3",
+            "item": "disk: 200 x (write+read 4KB)",
+            "status": "VERIFIED",
+            "detail": "70 ms"
+        },
+        {
+            "section": "Performance",
+            "id": "P4",
+            "item": "database benchmark",
+            "status": "UNKNOWN",
+            "detail": "skipped - no database credentials passed"
+        }
+    ],
+    "reminder": "DELETE THIS FILE FROM THE SERVER NOW.",
+    "cannot_answer": [
+        "cron type and interval",
+        "wildcard DNS / TLS / vhost binding",
+        "reverse-proxy directives",
+        "document-root configuration",
+        "plan quotas",
+        ".htaccess being honoured (use htaccess-canary/)"
+    ]
+}

@@ -8,15 +8,26 @@ use App\Enums\RetirementCaseStatus;
 use App\Enums\RetirementDecision;
 use App\Enums\RetirementType;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * Typed from the casts and the migration's nullability, so PHPStan stops
+ * reading these as their raw string columns.
+ *
+ * @property RetirementType $retirement_type
+ * @property RetirementCaseStatus $status
+ * @property RetirementDecision|null $decision
+ * @property Carbon|null $eligible_retirement_date
+ * @property Carbon|null $decided_at
+ * @property Carbon|null $finalized_at
+ */
 class RetirementCase extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId;
+    use BelongsToTenant, HasFactory, HasPublicId;
 
     protected $fillable = [
         'public_id',

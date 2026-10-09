@@ -114,7 +114,7 @@ describe('a token that still owes MFA', function () {
         $user = createUser([
             'role' => UserRole::TENANT_ADMIN,
             'mfa_enabled' => true,
-            'mfa_secret' => encrypt($secret),
+            'mfa_secret' => $secret,
             'password' => bcrypt('password'),
         ], $tenant);
 

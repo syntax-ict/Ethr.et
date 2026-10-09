@@ -135,8 +135,17 @@ class DeviceController extends Controller
         }
 
         // Preserve all adapter-specific config keys (validated() strips unknowns).
+        // The config holds device credentials that DeviceResource never returns,
+        // so an editor cannot resend them: a key absent from the request keeps its
+        // stored value, and a key sent as null clears it. A change of adapter
+        // replaces the config outright — the old adapter's keys mean nothing to
+        // the new one.
         if ($request->has('connection_config')) {
-            $data['connection_config'] = $request->input('connection_config');
+            $incoming = (array) $request->input('connection_config');
+            $sameAdapter = ($data['adapter_type'] ?? $device->adapter_type) === $device->adapter_type;
+            $data['connection_config'] = $sameAdapter
+                ? array_merge($device->connection_config ?? [], $incoming)
+                : $incoming;
         }
 
         $device->update($data);
@@ -330,15 +339,23 @@ class DeviceController extends Controller
             'events_today' => $totalEvents,
             'last_sync_at' => $lastSync?->created_at?->toIso8601String(),
             'sync_stats_24h' => [
-                'success' => $recentSyncs->get('success', 0),
-                'partial' => $recentSyncs->get('partial', 0),
-                'failed' => $recentSyncs->get('failed', 0),
-                'offline' => $recentSyncs->get('offline', 0),
+                'success' => (int) $recentSyncs->get('success', 0),
+                'partial' => (int) $recentSyncs->get('partial', 0),
+                'failed' => (int) $recentSyncs->get('failed', 0),
+                'offline' => (int) $recentSyncs->get('offline', 0),
             ],
         ]);
     }
 
     // --- Webhook endpoints (called without auth, verified by token) ---
+    //
+    // Each handler owns its vendor's payload shape and its response; the steps
+    // every vendor shares are below them: resolveWebhookDevice() authenticates,
+    // webhookEmployee() finds the badge holder inside the device's tenant,
+    // recordWebhookPunch() hands the punch to the engine, and
+    // markWebhookReceived() stamps the device. The responses stay written out
+    // in each handler because Scramble infers the published response schemas
+    // from these method bodies.
 
     public function webhookHikvision(Request $request): JsonResponse
     {
@@ -357,32 +374,24 @@ class DeviceController extends Controller
             return response()->json(['status' => 'no_badge'], 200);
         }
 
-        $employee = Employee::withoutGlobalScope('tenant')
-            ->where('tenant_id', $device->tenant_id)
-            ->where(function ($q) use ($badge) {
-                $q->where('badge_number', $badge)
-                    ->orWhere('employee_code', $badge);
-            })
-            ->first();
+        $employee = $this->webhookEmployee($device, $badge);
 
         if (! $employee) {
             return response()->json(['status' => 'employee_not_found'], 200);
         }
 
-        $idempotencyKey = "webhook:hik:{$device->id}:{$badge}:{$timestamp}";
+        // A single event, so an engine failure is the request's failure: unlike
+        // the batch handlers this does not catch and skip.
+        $this->recordWebhookPunch(
+            app(AttendanceEngine::class),
+            $device,
+            $employee,
+            'check_in',
+            "webhook:hik:{$device->id}:{$badge}:{$timestamp}",
+            $timestamp,
+        );
 
-        $engine = app(AttendanceEngine::class);
-        $engine->record(new AttendanceInput(
-            employeeId: $employee->id,
-            tenantId: $device->tenant_id,
-            source: AttendanceSource::BIOMETRIC,
-            type: 'check_in',
-            idempotencyKey: $idempotencyKey,
-            deviceId: $device->id,
-            occurredAt: $timestamp,
-        ));
-
-        $device->update(['last_sync_at' => now(), 'status' => 'online']);
+        $this->markWebhookReceived($device);
 
         return response()->json(['status' => 'processed'], 200);
     }
@@ -408,41 +417,12 @@ class DeviceController extends Controller
                 default => 'check_in',
             };
 
-            if (empty($badge)) {
-                continue;
-            }
-
-            $employee = Employee::withoutGlobalScope('tenant')
-                ->where('tenant_id', $device->tenant_id)
-                ->where(function ($q) use ($badge) {
-                    $q->where('badge_number', $badge)
-                        ->orWhere('employee_code', $badge);
-                })
-                ->first();
-
-            if (! $employee) {
-                continue;
-            }
-
-            $idempotencyKey = "webhook:zk:{$device->id}:{$badge}:{$timestamp}";
-
-            try {
-                $engine->record(new AttendanceInput(
-                    employeeId: $employee->id,
-                    tenantId: $device->tenant_id,
-                    source: AttendanceSource::BIOMETRIC,
-                    type: $punchType,
-                    idempotencyKey: $idempotencyKey,
-                    deviceId: $device->id,
-                    occurredAt: $timestamp,
-                ));
+            if ($this->recordBatchedWebhookPunch($engine, $device, 'zk', $badge, $timestamp, $punchType)) {
                 $processed++;
-            } catch (\Throwable) {
-                continue;
             }
         }
 
-        $device->update(['last_sync_at' => now(), 'status' => 'online']);
+        $this->markWebhookReceived($device);
 
         return response()->json(['status' => 'processed', 'count' => $processed], 200);
     }
@@ -466,42 +446,101 @@ class DeviceController extends Controller
             $eventTypeId = (int) ($event['event_type_id'] ?? 0);
             $type = ($eventTypeId >= 0x2000 && $eventTypeId < 0x3000) ? 'check_out' : 'check_in';
 
-            if (empty($badge)) {
-                continue;
-            }
-
-            $employee = Employee::withoutGlobalScope('tenant')
-                ->where('tenant_id', $device->tenant_id)
-                ->where(function ($q) use ($badge) {
-                    $q->where('badge_number', $badge)
-                        ->orWhere('employee_code', $badge);
-                })
-                ->first();
-
-            if (! $employee) {
-                continue;
-            }
-
-            $idempotencyKey = "webhook:sup:{$device->id}:{$badge}:{$timestamp}";
-
-            try {
-                $engine->record(new AttendanceInput(
-                    employeeId: $employee->id,
-                    tenantId: $device->tenant_id,
-                    source: AttendanceSource::BIOMETRIC,
-                    type: $type,
-                    idempotencyKey: $idempotencyKey,
-                    deviceId: $device->id,
-                ));
+            if ($this->recordBatchedWebhookPunch($engine, $device, 'sup', $badge, $timestamp, $type)) {
                 $processed++;
-            } catch (\Throwable) {
-                continue;
             }
         }
 
-        $device->update(['last_sync_at' => now(), 'status' => 'online']);
+        $this->markWebhookReceived($device);
 
         return response()->json(['status' => 'processed', 'count' => $processed], 200);
+    }
+
+    /**
+     * One event from a batch webhook. An event with no badge, no matching
+     * employee, or that the engine refuses is skipped rather than failing the
+     * batch; the return value says whether it was recorded.
+     *
+     * The idempotency key is `webhook:<vendor>:<device id>:<badge>:<timestamp>`,
+     * and `$vendor` is the short prefix each handler has always used (`zk`,
+     * `sup`), so keys already stored still dedupe a redelivered event.
+     */
+    private function recordBatchedWebhookPunch(
+        AttendanceEngine $engine,
+        Device $device,
+        string $vendor,
+        string $badge,
+        mixed $timestamp,
+        string $type,
+    ): bool {
+        if (empty($badge)) {
+            return false;
+        }
+
+        $employee = $this->webhookEmployee($device, $badge);
+
+        if (! $employee) {
+            return false;
+        }
+
+        $idempotencyKey = "webhook:{$vendor}:{$device->id}:{$badge}:{$timestamp}";
+
+        try {
+            $this->recordWebhookPunch($engine, $device, $employee, $type, $idempotencyKey, $timestamp);
+
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * The employee a device badge belongs to, looked up inside the device's own
+     * tenant.
+     *
+     * A webhook carries no session, so there is no resolved tenant and the
+     * `BelongsToTenant` scope would match nothing. The scope is dropped and the
+     * predicate restated from `$device->tenant_id`, which resolveWebhookDevice()
+     * has already authenticated, so a badge can only ever name an employee of
+     * the device's own tenant.
+     */
+    private function webhookEmployee(Device $device, string $badge): ?Employee
+    {
+        return Employee::withoutGlobalScope('tenant')
+            ->where('tenant_id', $device->tenant_id)
+            ->where(function ($q) use ($badge) {
+                $q->where('badge_number', $badge)
+                    ->orWhere('employee_code', $badge);
+            })
+            ->first();
+    }
+
+    /**
+     * Hand one punch to the engine, dated by the event's own time: a webhook is
+     * delayed ingestion, so `occurredAt` is required (see AttendanceInput).
+     */
+    private function recordWebhookPunch(
+        AttendanceEngine $engine,
+        Device $device,
+        Employee $employee,
+        string $type,
+        string $idempotencyKey,
+        mixed $occurredAt,
+    ): void {
+        $engine->record(new AttendanceInput(
+            employeeId: $employee->id,
+            tenantId: $device->tenant_id,
+            source: AttendanceSource::BIOMETRIC,
+            type: $type,
+            idempotencyKey: $idempotencyKey,
+            deviceId: $device->id,
+            occurredAt: $occurredAt,
+        ));
+    }
+
+    private function markWebhookReceived(Device $device): void
+    {
+        $device->update(['last_sync_at' => now(), 'status' => 'online']);
     }
 
     /**

@@ -1,12 +1,13 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Archive, Layers, Save } from "lucide-react";
+import { Archive, Layers, Plus, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,11 +17,49 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
   useAdminPlans,
+  useCreateAdminPlan,
   useRetireAdminPlan,
   useUpdateAdminPlan,
   type AdminPlan,
 } from "@/features/admin/api";
+import { apiErrorMessage } from "@/lib/api/error-message";
 import { useT } from "@/lib/i18n/useT";
+import type { components } from "@/api/generated";
+
+type PlanFeature = components["schemas"]["PlanFeature"];
+
+/**
+ * App\Enums\PlanFeature, each the gate on a group of routes
+ * (RequiresPlanFeature). Neither creating nor editing a plan could set them,
+ * so a plan's features were whatever the seeder wrote (audit N101).
+ */
+const PLAN_FEATURES: readonly PlanFeature[] = [
+  "employee_management",
+  "attendance",
+  "leave",
+  "notifications",
+  "payroll",
+  "reports",
+  "custom_reports",
+  "audit_log",
+  "api_access",
+  "webhooks",
+  "custom_domain",
+];
+
+const FEATURE_FALLBACK: Record<PlanFeature, string> = {
+  employee_management: "Employee management",
+  attendance: "Attendance",
+  leave: "Leave",
+  notifications: "Notifications",
+  payroll: "Payroll",
+  reports: "Reports",
+  custom_reports: "Custom reports",
+  audit_log: "Audit log",
+  api_access: "API access",
+  webhooks: "Webhooks",
+  custom_domain: "Custom domain (add-on)",
+};
 
 /**
  * Super-admin editor for the plan catalog the public pricing page renders.
@@ -39,6 +78,7 @@ import { useT } from "@/lib/i18n/useT";
 export default function AdminPlansPage() {
   const { t } = useT();
   const query = useAdminPlans();
+  const [creating, setCreating] = useState(false);
 
   return (
     <RoleGate minRole="super_admin">
@@ -49,7 +89,17 @@ export default function AdminPlansPage() {
             "admin_plans.description",
             "The catalog the public pricing page reads",
           )}
+          actions={
+            !creating && (
+              <Button onClick={() => setCreating(true)}>
+                <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("admin_plans.new", "New plan")}
+              </Button>
+            )
+          }
         />
+
+        {creating && <NewPlanCard onDone={() => setCreating(false)} />}
 
         <div
           role="note"
@@ -156,6 +206,7 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
     marketing_features_am: toLines(plan.marketing_features_am),
     is_public: plan.is_public,
     is_popular: plan.is_popular,
+    features: plan.features ?? [],
   });
 
   const set = <K extends keyof typeof form>(
@@ -190,11 +241,17 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
         marketing_features_am: fromLines(form.marketing_features_am),
         is_public: form.is_public,
         is_popular: form.is_popular,
+        features: form.features,
       },
       {
         onSuccess: () => toast.success(t("admin_plans.saved", "Plan updated")),
-        onError: () =>
-          toast.error(t("admin_plans.save_failed", "Could not save the plan")),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("admin_plans.save_failed", "Could not save the plan"),
+            ),
+          ),
       },
     );
   };
@@ -333,6 +390,11 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
           </Field>
         </div>
 
+        <FeatureChecklist
+          value={form.features}
+          onChange={(features) => set("features", features)}
+        />
+
         <div className="flex flex-wrap items-center gap-6">
           <ToggleField
             id={ids.isPublic}
@@ -367,6 +429,17 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
                         "Plan withdrawn from sale",
                       ),
                     ),
+                  // A refusal said nothing at all: no handler, no toast.
+                  onError: (err) =>
+                    toast.error(
+                      apiErrorMessage(
+                        err,
+                        t(
+                          "admin_plans.retire_failed",
+                          "Could not withdraw the plan",
+                        ),
+                      ),
+                    ),
                 });
               }}
             >
@@ -374,6 +447,177 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
               {t("admin_plans.retire", "Withdraw from sale")}
             </Button>
           )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * The features a plan includes. A customer on the plan reaches a feature's
+ * screens and API only if it is ticked here.
+ */
+function FeatureChecklist({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (features: string[]) => void;
+}) {
+  const { t } = useT();
+  const groupId = useId();
+
+  return (
+    <fieldset className="space-y-2">
+      <legend id={groupId} className="text-sm font-medium">
+        {t("admin_plans.features", "Included features")}
+      </legend>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {PLAN_FEATURES.map((feature) => {
+          const id = `${groupId}-${feature}`;
+          return (
+            <div key={feature} className="flex items-center gap-2">
+              <Checkbox
+                id={id}
+                checked={value.includes(feature)}
+                onCheckedChange={(checked) =>
+                  onChange(
+                    checked === true
+                      ? [...value, feature]
+                      : value.filter((f) => f !== feature),
+                  )
+                }
+              />
+              <Label htmlFor={id} className="font-normal">
+                {t(`admin_plans.feature.${feature}`, FEATURE_FALLBACK[feature])}
+              </Label>
+            </div>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+/**
+ * A plan starts hidden from the pricing page, so a half-finished one is never
+ * quoted to a customer; the card that appears once it is saved edits the
+ * rest.
+ */
+function NewPlanCard({ onDone }: { onDone: () => void }) {
+  const { t } = useT();
+  const create = useCreateAdminPlan();
+  const ids = { name: useId(), slug: useId(), price: useId() };
+  const [form, setForm] = useState({
+    name: "",
+    slug: "",
+    price: "",
+    features: [
+      "employee_management",
+      "attendance",
+      "leave",
+      "notifications",
+    ] as string[],
+  });
+
+  const onCreate = () => {
+    const priceCents = toCents(form.price);
+    if (priceCents === null) {
+      toast.error(
+        t(
+          "admin_plans.price_invalid",
+          "Enter a price as a number, like 999.00",
+        ),
+      );
+      return;
+    }
+    create.mutate(
+      {
+        name: form.name,
+        slug: form.slug,
+        price_cents: priceCents,
+        is_public: false,
+        features: form.features,
+      },
+      {
+        onSuccess: () => {
+          toast.success(
+            t(
+              "admin_plans.created",
+              "Plan created, hidden from the pricing page",
+            ),
+          );
+          onDone();
+        },
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("admin_plans.create_failed", "Couldn't create the plan"),
+            ),
+          ),
+      },
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("admin_plans.new", "New plan")}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field id={ids.name} label={t("admin_plans.name", "Name")}>
+            <Input
+              id={ids.name}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </Field>
+          <Field
+            id={ids.slug}
+            label={t("admin_plans.slug", "Slug")}
+            hint={t(
+              "admin_plans.slug_hint",
+              "Lower-case letters, digits and hyphens; cannot change later",
+            )}
+          >
+            <Input
+              id={ids.slug}
+              value={form.slug}
+              onChange={(e) =>
+                setForm({ ...form, slug: e.target.value.toLowerCase() })
+              }
+            />
+          </Field>
+          <Field
+            id={ids.price}
+            label={t("admin_plans.price", "Price per month (:currency)", {
+              currency: "ETB",
+            })}
+          >
+            <Input
+              id={ids.price}
+              inputMode="decimal"
+              value={form.price}
+              onChange={(e) => setForm({ ...form, price: e.target.value })}
+            />
+          </Field>
+        </div>
+
+        <FeatureChecklist
+          value={form.features}
+          onChange={(features) => setForm({ ...form, features })}
+        />
+
+        <div className="flex flex-wrap gap-3 pt-2">
+          <Button onClick={onCreate} disabled={create.isPending}>
+            <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+            {t("admin_plans.create", "Create plan")}
+          </Button>
+          <Button variant="outline" onClick={onDone}>
+            {t("common.cancel", "Cancel")}
+          </Button>
         </div>
       </CardContent>
     </Card>

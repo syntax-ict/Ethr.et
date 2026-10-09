@@ -22,8 +22,6 @@ class UpdateProfilePreferencesRequest extends FormRequest
             'locale' => ['nullable', 'string', 'in:en,am,om,ti,so,sid'],
             // Mirrors the header theme menu, high-contrast included.
             'theme' => ['nullable', 'string', 'in:light,dark,system,high-contrast'],
-            // Dual shows Gregorian and Ethiopian side by side; the tenant-level
-            // `ethiopian_calendar` flag decides whether the choice is offered at all.
             'calendar' => ['nullable', 'string', 'in:gregorian,ethiopian,dual'],
         ];
     }

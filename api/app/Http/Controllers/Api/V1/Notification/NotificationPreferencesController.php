@@ -41,9 +41,33 @@ class NotificationPreferencesController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $user = $request->user();
+        return response()->json([
+            'notification_types' => self::NOTIFICATION_TYPES,
+            'channels' => self::CHANNELS,
+            'preferences' => $this->matrixFor($request->user()->id),
+            // Which channels this deployment can actually deliver on. SMS depends
+            // on a configured gateway; without one the client disables the toggle
+            // rather than letting a user opt into nothing.
+            'channel_availability' => [
+                'in_app' => true,
+                'email' => true,
+                'sms' => (bool) app(SmsSender::class)->isAvailable(),
+            ],
+        ]);
+    }
 
-        $stored = NotificationPreference::where('user_id', $user->id)
+    /**
+     * Notification type => channel => enabled, stored choices over defaults.
+     * The `@scramble-return` is for the API contract, which cannot type a map
+     * built by key (it published the matrix as a string).
+     *
+     * @return array<string, array<string, bool>>
+     *
+     * @scramble-return array<string, array<string, bool>>
+     */
+    private function matrixFor(int $userId): array
+    {
+        $stored = NotificationPreference::where('user_id', $userId)
             ->get()
             ->keyBy(fn ($p) => "{$p->notification_type}.{$p->channel}");
 
@@ -63,19 +87,7 @@ class NotificationPreferencesController extends Controller
             }
         }
 
-        return response()->json([
-            'notification_types' => self::NOTIFICATION_TYPES,
-            'channels' => self::CHANNELS,
-            'preferences' => $preferences,
-            // Which channels this deployment can actually deliver on. SMS depends
-            // on a configured gateway; without one the client disables the toggle
-            // rather than letting a user opt into nothing.
-            'channel_availability' => [
-                'in_app' => true,
-                'email' => true,
-                'sms' => app(SmsSender::class)->isAvailable(),
-            ],
-        ]);
+        return $preferences;
     }
 
     public function update(UpdatePreferencesRequest $request): JsonResponse

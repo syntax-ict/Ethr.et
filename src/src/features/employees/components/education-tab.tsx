@@ -16,22 +16,32 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
+import {
+  useAddEducation,
+  useDeleteEducation,
+  useEmployeeEducation,
+} from "../api";
 
-interface Education {
-  public_id: string;
-  institution: string;
-  degree: string;
-  field_of_study?: string;
-  start_year?: number;
-  end_year?: number;
-  gpa?: string;
+/**
+ * The form asks for years, because that is how people remember a degree, but
+ * StoreEducationRequest takes `start_date`, `end_date` and `grade`. Sending
+ * `start_year`, `end_year` and `gpa` — as this form did — had all three
+ * dropped by `validated()`: every record was saved with no dates and no
+ * grade. A year is stored as 1 January of it and only the year is shown.
+ */
+function yearToDate(year: string): string | undefined {
+  return year === "" ? undefined : `${year}-01-01`;
+}
+
+function dateToYear(date: string | null): string | null {
+  return date ? date.slice(0, 4) : null;
 }
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -93,7 +103,6 @@ const EMPTY_EDUCATION: EducationValues = {
 
 export function EducationTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
 
   const {
@@ -107,53 +116,40 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
     defaultValues: EMPTY_EDUCATION,
   });
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["employee", employeeId, "education"],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/employees/${employeeId}/education`,
-      );
-      return data;
-    },
-  });
+  // Through QueryBoundary, so a failed load is not reported as "No education
+  // records".
+  const query = useEmployeeEducation(employeeId);
+  const addEducation = useAddEducation(employeeId);
+  const deleteEducation = useDeleteEducation(employeeId);
 
-  const addEducation = useMutation({
-    mutationFn: async (values: EducationValues) => {
-      const payload = {
-        ...values,
-        start_year: values.start_year ? Number(values.start_year) : undefined,
-        end_year: values.end_year ? Number(values.end_year) : undefined,
-        gpa: values.gpa === "" ? undefined : values.gpa,
-      };
-      const { data } = await apiClient.post(
-        `/employees/${employeeId}/education`,
-        payload,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "education"],
-      });
-      toast.success(t("employee.education.added", "Education added"));
-      setAddOpen(false);
-      reset(EMPTY_EDUCATION);
-    },
-  });
+  async function onAdd(values: EducationValues) {
+    await addEducation.mutateAsync({
+      institution: values.institution,
+      degree: values.degree,
+      field_of_study: values.field_of_study,
+      start_date: yearToDate(values.start_year),
+      end_date: yearToDate(values.end_year),
+      grade: values.gpa === "" ? undefined : values.gpa,
+    });
+    toast.success(t("employee.education.added", "Education added"));
+    setAddOpen(false);
+    reset(EMPTY_EDUCATION);
+  }
 
-  const deleteEducation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiClient.delete(`/employees/${employeeId}/education/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "education"],
-      });
-      toast.success(t("employee.education.deleted", "Education deleted"));
-    },
-  });
-
-  const records: Education[] = data?.data ?? [];
+  function onDelete(id: string) {
+    deleteEducation.mutate(id, {
+      onSuccess: () =>
+        toast.success(t("employee.education.deleted", "Education deleted")),
+      onError: (error) =>
+        toastError(
+          error,
+          t(
+            "employee.education.delete_failed",
+            "Could not delete the education record",
+          ),
+        ),
+    });
+  }
 
   return (
     <Card>
@@ -166,55 +162,67 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
         </Button>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-20 w-full" />
-        ) : records.length === 0 ? (
-          <EmptyState
-            icon={GraduationCap}
-            title={t("employee.education.empty_title", "No education records")}
-            description={t(
-              "employee.education.empty_desc",
-              "Add educational qualifications",
-            )}
-          />
-        ) : (
-          <div className="space-y-2">
-            {records.map((e) => (
-              <div
-                key={e.public_id}
-                className="flex items-start justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-start gap-3">
-                  <GraduationCap className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {e.degree}
-                      {e.field_of_study && ` — ${e.field_of_study}`}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {e.institution}
-                    </p>
-                    {(e.start_year || e.end_year) && (
-                      <p className="text-xs text-muted-foreground">
-                        {e.start_year ?? ""} –{" "}
-                        {e.end_year ??
-                          t("employee.education.present", "Present")}
-                        {e.gpa && ` · GPA: ${e.gpa}`}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteEducation.mutate(e.public_id)}
+        <QueryBoundary
+          query={query}
+          loading={<Skeleton className="h-20 w-full" />}
+          empty={
+            <EmptyState
+              icon={GraduationCap}
+              title={t(
+                "employee.education.empty_title",
+                "No education records",
+              )}
+              description={t(
+                "employee.education.empty_desc",
+                "Add educational qualifications",
+              )}
+            />
+          }
+        >
+          {(records) => (
+            <div className="space-y-2">
+              {records.map((e) => (
+                <div
+                  key={e.public_id}
+                  className="flex items-start justify-between rounded-lg border p-3"
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="flex items-start gap-3">
+                    <GraduationCap className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">
+                        {e.degree}
+                        {e.field_of_study && ` — ${e.field_of_study}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {e.institution}
+                      </p>
+                      {(e.start_date || e.end_date) && (
+                        <p className="text-xs text-muted-foreground">
+                          {dateToYear(e.start_date) ?? ""} –{" "}
+                          {dateToYear(e.end_date) ??
+                            t("employee.education.present", "Present")}
+                        </p>
+                      )}
+                      {e.grade && (
+                        <p className="text-xs text-muted-foreground">
+                          {t("employee.education.gpa", "GPA")}: {e.grade}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(e.public_id)}
+                    aria-label={`${t("common.delete", "Delete")} ${e.degree}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </QueryBoundary>
       </CardContent>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -226,7 +234,7 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
           </DialogHeader>
           <form
             onSubmit={submit(
-              (values) => addEducation.mutateAsync(values),
+              onAdd,
               t("employee.education.add_failed", "Failed to add education"),
             )}
             className="space-y-4"
@@ -251,7 +259,10 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
             >
               <Input
                 {...register("degree")}
-                placeholder="BSc, MSc, MBA..."
+                placeholder={t(
+                  "employee.education.degree_placeholder",
+                  "BSc, MSc, MBA...",
+                )}
                 className="mt-1"
               />
             </FormField>
@@ -263,7 +274,10 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
             >
               <Input
                 {...register("field_of_study")}
-                placeholder="Computer Science..."
+                placeholder={t(
+                  "employee.education.field_of_study_placeholder",
+                  "Computer Science...",
+                )}
                 className="mt-1"
               />
             </FormField>

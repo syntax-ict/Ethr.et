@@ -38,7 +38,7 @@ final class BranchAnalyticsService
                 'headcount' => $headcount,
                 'department_count' => $departmentCount,
             ];
-        })->toArray();
+        })->all();
     }
 
     public function detail(int $tenantId, Branch $branch): array

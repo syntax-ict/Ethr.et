@@ -17,8 +17,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DEFAULT_TIMEZONE } from "@/lib/utils/date";
-import { apiClient } from "@/api/client";
+import {
+  authenticateKiosk,
+  kioskPunch,
+  verifyKioskExit,
+} from "@/features/kiosk/api";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 
 type Screen = "setup" | "kiosk" | "lock";
 type CheckMode = "idle" | "checking" | "success" | "error";
@@ -28,18 +34,24 @@ interface KioskConfig {
   tenantName: string;
   subdomain: string;
   logoPath: string | null;
-  branchName: string;
+  /** Null when the session has no branch; the fallback is translated at render. */
+  branchName: string | null;
   pinRequired: boolean;
   autoResetSeconds: number;
 }
 
+/** `employee_code` is `max:30` in StoreEmployeeRequest; the kiosk accepts the same. */
+const EMPLOYEE_CODE_MAX = 30;
+
 export default function KioskPage() {
+  const { t } = useT();
   const [screen, setScreen] = useState<Screen>("setup");
   const [config, setConfig] = useState<KioskConfig | null>(null);
 
   // Setup form
   const [setupToken, setSetupToken] = useState("");
   const [setupLoading, setSetupLoading] = useState(false);
+  // A translation key, not text, so the message follows a language change.
   const [setupError, setSetupError] = useState("");
 
   // Kiosk state
@@ -54,6 +66,7 @@ export default function KioskPage() {
   // Lock screen
   const [adminPin, setAdminPin] = useState("");
   const [lockError, setLockError] = useState("");
+  const [lockLoading, setLockLoading] = useState(false);
 
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -94,13 +107,13 @@ export default function KioskPage() {
     setSetupLoading(true);
     setSetupError("");
     try {
-      const { data } = await apiClient.post("/kiosk/authenticate", { token });
+      const data = await authenticateKiosk(token);
       const cfg: KioskConfig = {
         token,
         tenantName: data.tenant.name,
         subdomain: data.tenant.subdomain,
         logoPath: data.tenant.logo_path,
-        branchName: data.session.branch?.name ?? "Unknown Branch",
+        branchName: data.session.branch?.name ?? null,
         pinRequired: data.settings.pin_required,
         autoResetSeconds: data.settings.auto_reset_seconds,
       };
@@ -108,7 +121,7 @@ export default function KioskPage() {
       localStorage.setItem("kiosk_token", token);
       setScreen("kiosk");
     } catch {
-      setSetupError("Invalid or inactive kiosk token");
+      setSetupError("kiosk_page.token_invalid");
       localStorage.removeItem("kiosk_token");
     } finally {
       setSetupLoading(false);
@@ -120,7 +133,7 @@ export default function KioskPage() {
       if (pin.length >= 6) return;
       setPin((p) => p + d);
     } else {
-      if (code.length >= 8) return;
+      if (code.length >= EMPLOYEE_CODE_MAX) return;
       setCode((p) => p + d);
     }
   }
@@ -151,29 +164,29 @@ export default function KioskPage() {
 
     setMode("checking");
     try {
-      const { data } = await apiClient.post(
-        "/kiosk/check-in",
-        {
-          employee_code: code,
-          type,
-          pin: config.pinRequired ? pin : undefined,
-          idempotency_key: `kiosk-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        },
-        {
-          headers: { "X-Kiosk-Token": config.token },
-        },
-      );
-      const empName = data.employee_name ?? data.employee?.name ?? "Employee";
+      const data = await kioskPunch(config.token, {
+        employee_code: code,
+        type,
+        pin: config.pinRequired ? pin : undefined,
+        idempotency_key: `kiosk-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      });
+      const empName =
+        data.employee_name ??
+        data.employee?.name ??
+        t("kiosk_page.default_employee");
       setMode("success");
-      setMessage(`${type === "check_in" ? "Welcome" : "Goodbye"}, ${empName}!`);
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
       setMessage(
-        axiosErr.response?.data?.detail ?? "Check-in failed. Please try again.",
+        t(
+          type === "check_in" ? "kiosk_page.welcome" : "kiosk_page.goodbye",
+          undefined,
+          { name: empName },
+        ),
       );
+    } catch (err: unknown) {
+      setMessage(apiErrorDetail(err) ?? t("kiosk_page.check_failed"));
       setMode("error");
     }
-  }, [code, config, pin, showPin, type]);
+  }, [code, config, pin, showPin, type, t]);
 
   function enterFullscreen() {
     document.documentElement.requestFullscreen?.().catch(() => {});
@@ -183,6 +196,31 @@ export default function KioskPage() {
     setScreen("lock");
     setAdminPin("");
     setLockError("");
+  }
+
+  // The server compares the PIN set when the kiosk was registered. Until
+  // 2026-10-09 this screen accepted any four digits (redundancy audit R1).
+  async function confirmExit() {
+    if (!config) return;
+    setLockLoading(true);
+    setLockError("");
+    try {
+      await verifyKioskExit(config.token, adminPin);
+      exitKiosk();
+    } catch (err: unknown) {
+      // A 401 means the kiosk was deactivated or its token regenerated. It
+      // can no longer record anyone, so there is nothing left to protect.
+      if (
+        (err as { response?: { status?: number } })?.response?.status === 401
+      ) {
+        exitKiosk();
+        return;
+      }
+      setAdminPin("");
+      setLockError(apiErrorMessage(err, t("kiosk_page.exit_failed")));
+    } finally {
+      setLockLoading(false);
+    }
   }
 
   function exitKiosk() {
@@ -205,23 +243,25 @@ export default function KioskPage() {
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
                 <KeyRound className="h-7 w-7 text-primary" />
               </div>
-              <h1 className="mt-4 text-2xl font-bold">Kiosk Setup</h1>
+              <h1 className="mt-4 text-2xl font-bold">
+                {t("kiosk_page.setup_title")}
+              </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Enter the kiosk token from your admin dashboard
+                {t("kiosk_page.setup_desc")}
               </p>
             </div>
             <div>
-              <Label>Kiosk Token</Label>
+              <Label>{t("attendance.kiosks_page.kiosk_token")}</Label>
               <Input
                 value={setupToken}
                 onChange={(e) => setSetupToken(e.target.value)}
-                placeholder="Paste kiosk token here"
+                placeholder={t("kiosk_page.token_placeholder")}
                 className="mt-1 font-mono text-xs"
                 autoFocus
               />
             </div>
             {setupError && (
-              <p className="text-sm text-destructive">{setupError}</p>
+              <p className="text-sm text-destructive">{t(setupError)}</p>
             )}
             <Button
               onClick={() => authenticateToken(setupToken)}
@@ -231,7 +271,7 @@ export default function KioskPage() {
               {setupLoading && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Activate Kiosk
+              {t("kiosk_page.activate_kiosk")}
             </Button>
           </CardContent>
         </Card>
@@ -247,16 +287,18 @@ export default function KioskPage() {
           <CardContent className="p-8 space-y-4">
             <div className="text-center">
               <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
-              <h2 className="mt-3 text-xl font-bold">Admin PIN Required</h2>
+              <h2 className="mt-3 text-xl font-bold">
+                {t("kiosk_page.lock_title")}
+              </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Enter admin PIN to exit kiosk mode
+                {t("kiosk_page.lock_desc")}
               </p>
             </div>
             <Input
               type="password"
               value={adminPin}
               onChange={(e) => setAdminPin(e.target.value.replace(/\D/g, ""))}
-              placeholder="Admin PIN"
+              placeholder={t("kiosk_page.admin_pin_placeholder")}
               maxLength={8}
               className="text-center text-2xl tracking-[0.5em] font-mono"
               autoFocus
@@ -272,20 +314,26 @@ export default function KioskPage() {
                 onClick={() => setScreen("kiosk")}
                 className="flex-1"
               >
-                Back
+                {t("common.back")}
               </Button>
               <Button
                 variant="destructive"
+                disabled={lockLoading}
                 onClick={() => {
                   if (adminPin.length >= 4) {
-                    exitKiosk();
+                    void confirmExit();
                   } else {
-                    setLockError("PIN must be at least 4 digits");
+                    setLockError(
+                      t("kiosk_page.pin_too_short", undefined, { min: 4 }),
+                    );
                   }
                 }}
                 className="flex-1"
               >
-                Exit Kiosk
+                {lockLoading && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {t("kiosk_page.exit_kiosk")}
               </Button>
             </div>
           </CardContent>
@@ -305,10 +353,10 @@ export default function KioskPage() {
           </div>
           <div>
             <p className="text-lg font-bold">
-              {config?.tenantName ?? "ETHR Kiosk"}
+              {config?.tenantName ?? t("kiosk_page.default_title")}
             </p>
             <p className="text-xs text-muted-foreground">
-              {config?.branchName}
+              {config?.branchName ?? t("kiosk_page.unknown_branch")}
             </p>
           </div>
         </div>
@@ -343,7 +391,8 @@ export default function KioskPage() {
               variant="ghost"
               size="icon"
               onClick={enterFullscreen}
-              title="Fullscreen"
+              title={t("kiosk_page.fullscreen")}
+              aria-label={t("kiosk_page.fullscreen")}
             >
               <Maximize className="h-4 w-4" />
             </Button>
@@ -351,7 +400,8 @@ export default function KioskPage() {
               variant="ghost"
               size="icon"
               onClick={handleLockExit}
-              title="Exit"
+              title={t("kiosk_page.exit")}
+              aria-label={t("kiosk_page.exit")}
             >
               <Lock className="h-4 w-4" />
             </Button>
@@ -368,11 +418,12 @@ export default function KioskPage() {
             </div>
             <p className="text-4xl font-bold text-foreground">{message}</p>
             <p className="text-sm text-muted-foreground">
-              Recorded at{" "}
-              {now.toLocaleTimeString("en-ET", {
-                hour: "2-digit",
-                minute: "2-digit",
-                timeZone: DEFAULT_TIMEZONE,
+              {t("kiosk_page.recorded_at", undefined, {
+                time: now.toLocaleTimeString("en-ET", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  timeZone: DEFAULT_TIMEZONE,
+                }),
               })}
             </p>
           </div>
@@ -382,7 +433,9 @@ export default function KioskPage() {
               <XCircle className="h-20 w-20 text-destructive" />
             </div>
             <p className="text-3xl font-bold text-foreground">{message}</p>
-            <p className="text-sm text-muted-foreground">Please try again</p>
+            <p className="text-sm text-muted-foreground">
+              {t("kiosk_page.try_again")}
+            </p>
           </div>
         ) : (
           <div className="w-full max-w-md space-y-6">
@@ -397,7 +450,7 @@ export default function KioskPage() {
                     : "text-muted-foreground",
                 )}
               >
-                <LogIn className="h-4 w-4" /> Check In
+                <LogIn className="h-4 w-4" /> {t("common.check_in")}
               </button>
               <button
                 onClick={() => setType("check_out")}
@@ -408,7 +461,7 @@ export default function KioskPage() {
                     : "text-muted-foreground",
                 )}
               >
-                <LogOut className="h-4 w-4" /> Check Out
+                <LogOut className="h-4 w-4" /> {t("common.check_out")}
               </button>
             </div>
 
@@ -417,36 +470,46 @@ export default function KioskPage() {
               <CardContent className="p-6 text-center">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center justify-center gap-1">
                   <KeyRound className="h-3 w-3" />{" "}
-                  {showPin ? "Employee PIN" : "Employee Code"}
+                  {showPin
+                    ? t("kiosk_page.employee_pin")
+                    : t("kiosk_page.employee_code")}
                 </Label>
                 <div className="mt-3 flex justify-center gap-2">
-                  {showPin
-                    ? Array.from({ length: 6 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            "h-12 w-8 rounded border-2 flex items-center justify-center text-2xl font-mono font-bold",
-                            pin[i]
-                              ? "border-primary bg-primary/5"
-                              : "border-muted",
-                          )}
-                        >
-                          {pin[i] ? "•" : ""}
-                        </div>
-                      ))
-                    : Array.from({ length: 8 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            "h-12 w-8 rounded border-2 flex items-center justify-center text-2xl font-mono font-bold",
-                            code[i]
-                              ? "border-primary bg-primary/5"
-                              : "border-muted",
-                          )}
-                        >
-                          {code[i] ?? ""}
-                        </div>
-                      ))}
+                  {showPin ? (
+                    Array.from({ length: 6 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "h-12 w-8 rounded border-2 flex items-center justify-center text-2xl font-mono font-bold",
+                          pin[i]
+                            ? "border-primary bg-primary/5"
+                            : "border-muted",
+                        )}
+                      >
+                        {pin[i] ? "•" : ""}
+                      </div>
+                    ))
+                  ) : (
+                    // A text field, not eight digit boxes: employee codes
+                    // are any string up to 30 characters (the demo format
+                    // is EMP-0001), and a digits-only, 8-long keypad left
+                    // most employees unable to clock in (audit N61). The
+                    // pad below still appends digits; letters and dashes
+                    // come from the tablet's own keyboard.
+                    <Input
+                      aria-label={t("kiosk_page.employee_code")}
+                      value={code}
+                      onChange={(e) =>
+                        setCode(e.target.value.slice(0, EMPLOYEE_CODE_MAX))
+                      }
+                      maxLength={EMPLOYEE_CODE_MAX}
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      disabled={mode === "checking"}
+                      className="h-14 max-w-xs text-center text-2xl font-mono font-bold"
+                    />
+                  )}
                 </div>
                 {showPin && (
                   <button
@@ -456,7 +519,7 @@ export default function KioskPage() {
                       setPin("");
                     }}
                   >
-                    Back to code
+                    {t("kiosk_page.back_to_code")}
                   </button>
                 )}
               </CardContent>
@@ -481,7 +544,7 @@ export default function KioskPage() {
                 onClick={clear}
                 disabled={mode === "checking"}
               >
-                Clear
+                {t("kiosk_page.clear")}
               </Button>
               <Button
                 variant="outline"
@@ -496,6 +559,7 @@ export default function KioskPage() {
                 className="h-16"
                 onClick={backspace}
                 disabled={mode === "checking"}
+                aria-label={t("kiosk_page.delete_digit")}
               >
                 ⌫
               </Button>
@@ -511,16 +575,17 @@ export default function KioskPage() {
             >
               {mode === "checking" ? (
                 <span className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 animate-spin" /> Processing…
+                  <Clock className="h-5 w-5 animate-spin" />{" "}
+                  {t("kiosk_page.processing")}
                 </span>
               ) : showPin ? (
-                "Verify PIN"
+                t("kiosk_page.verify_pin")
               ) : config?.pinRequired ? (
-                "Next → Enter PIN"
+                t("kiosk_page.next_enter_pin")
               ) : type === "check_in" ? (
-                "Check In"
+                t("common.check_in")
               ) : (
-                "Check Out"
+                t("common.check_out")
               )}
             </Button>
           </div>
@@ -528,8 +593,9 @@ export default function KioskPage() {
       </main>
 
       <footer className="border-t bg-muted/30 px-6 py-2 text-center text-xs text-muted-foreground">
-        Type your employee code{config?.pinRequired ? " and PIN" : ""} · Kiosk
-        mode
+        {config?.pinRequired
+          ? t("kiosk_page.footer_with_pin")
+          : t("kiosk_page.footer")}
       </footer>
     </div>
   );

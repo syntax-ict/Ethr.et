@@ -6,6 +6,7 @@ namespace App\Services\Device;
 
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
+use App\Services\Device\Concerns\ReadsFromDevice;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -25,6 +26,8 @@ use Illuminate\Support\Facades\Log;
  */
 final class SupremaAdapter implements DeviceAdapter
 {
+    use ReadsFromDevice;
+
     public function connect(Device $device): bool
     {
         try {
@@ -86,69 +89,43 @@ final class SupremaAdapter implements DeviceAdapter
 
     public function pullEvents(Device $device, ?string $since = null): array
     {
-        try {
-            $query = ['limit' => 200, 'device_id' => $this->deviceId($device)];
-            if ($since) {
-                $query['start_datetime'] = $since;
-            }
-
-            $response = $this->request($device, 'GET', '/api/events?'.http_build_query($query));
-
-            if (! $response->successful()) {
-                return [];
-            }
-
-            $events = [];
-            foreach (($response->json('records') ?? []) as $event) {
-                $events[] = [
-                    'employee_badge' => (string) ($event['user_id'] ?? $event['user']['user_id'] ?? ''),
-                    'timestamp' => $event['datetime'] ?? '',
-                    'type' => $this->mapEventType((int) ($event['event_type_id'] ?? 0)),
-                    'raw' => $event,
-                ];
-            }
-
-            return $events;
-        } catch (\Throwable $e) {
-            Log::error('Suprema pullEvents failed', [
-                'device_id' => $device->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return [];
+        $query = ['limit' => 200, 'device_id' => $this->deviceId($device)];
+        if ($since) {
+            $query['start_datetime'] = $since;
         }
+
+        $response = $this->readDevice('Suprema', fn () => $this->request($device, 'GET', '/api/events?'.http_build_query($query)));
+
+        $events = [];
+        foreach (($response->json('records') ?? []) as $event) {
+            $events[] = [
+                'employee_badge' => (string) ($event['user_id'] ?? $event['user']['user_id'] ?? ''),
+                'timestamp' => $event['datetime'] ?? '',
+                'type' => $this->mapEventType((int) ($event['event_type_id'] ?? 0)),
+                'raw' => $event,
+            ];
+        }
+
+        return $events;
     }
 
     public function pullEnrollments(Device $device): array
     {
-        try {
-            $response = $this->request($device, 'GET', '/api/users?limit=500');
+        $response = $this->readDevice('Suprema', fn () => $this->request($device, 'GET', '/api/users?limit=500'));
 
-            if (! $response->successful()) {
-                return [];
-            }
-
-            $enrollments = [];
-            foreach (($response->json('records') ?? $response->json('users') ?? []) as $user) {
-                $enrollments[] = [
-                    'device_user_id' => (string) ($user['user_id'] ?? ''),
-                    'name' => $user['name'] ?? null,
-                    'card_number' => isset($user['cards'][0]['card_id']) ? (string) $user['cards'][0]['card_id'] : null,
-                    'department' => $user['user_group_id']['name'] ?? null,
-                    'fingerprint_count' => isset($user['fingerprint_templates']) ? (int) $user['fingerprint_templates'] : null,
-                    'face_registered' => isset($user['face_templates']) ? ((int) $user['face_templates']) > 0 : null,
-                ];
-            }
-
-            return $enrollments;
-        } catch (\Throwable $e) {
-            Log::error('Suprema pullEnrollments failed', [
-                'device_id' => $device->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return [];
+        $enrollments = [];
+        foreach (($response->json('records') ?? $response->json('users') ?? []) as $user) {
+            $enrollments[] = [
+                'device_user_id' => (string) ($user['user_id'] ?? ''),
+                'name' => $user['name'] ?? null,
+                'card_number' => isset($user['cards'][0]['card_id']) ? (string) $user['cards'][0]['card_id'] : null,
+                'department' => $user['user_group_id']['name'] ?? null,
+                'fingerprint_count' => isset($user['fingerprint_templates']) ? (int) $user['fingerprint_templates'] : null,
+                'face_registered' => isset($user['face_templates']) ? ((int) $user['face_templates']) > 0 : null,
+            ];
         }
+
+        return $enrollments;
     }
 
     public function pushEventUrl(Device $device, string $callbackUrl): bool
@@ -178,10 +155,14 @@ final class SupremaAdapter implements DeviceAdapter
 
     private function request(Device $device, string $method, string $path, ?array $body = null): Response
     {
-        $config = $device->connection_config;
+        // encrypted:array, but typed as string without a model @property; narrow
+        // it the way GenericHttpAdapter::config() does.
+        $config = $device->getAttribute('connection_config');
+        $config = is_array($config) ? $config : [];
+        DeviceHost::assertAllowed((string) ($config['ip'] ?? ''));
         $port = $config['port'] ?? 443;
         $scheme = $port === 443 ? 'https' : 'http';
-        $baseUrl = "{$scheme}://{$config['ip']}:{$port}";
+        $baseUrl = DeviceHost::baseUrl($scheme, (string) $config['ip'], (string) $port);
 
         // connectTimeout bounds the TCP connect phase so an unreachable device fails fast.
         $request = Http::connectTimeout(2)->timeout(10)

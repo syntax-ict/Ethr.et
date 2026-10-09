@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, type ReactNode, useMemo, useState } from "react";
+import { buildCsv, saveCsv } from "@/lib/utils/csv-export";
 import {
   type ColumnDef,
   type ExpandedState,
@@ -122,11 +123,6 @@ interface DataTableProps<TData> {
   ) => Record<string, string | number | null | undefined>;
   exportFilename?: string;
   className?: string;
-}
-
-function csvCell(value: unknown): string {
-  const text = value == null ? "" : String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 function columnMeta(def: { meta?: unknown }): DataTableColumnMeta {
@@ -300,28 +296,14 @@ export function DataTable<TData>({
       .rows.map((row) => getExportRow(row.original));
     if (rows.length === 0) return;
 
-    const headers = Object.keys(rows[0]);
-    const lines = [
-      headers.map(csvCell).join(","),
-      ...rows.map((row) => headers.map((key) => csvCell(row[key])).join(",")),
-    ];
-
-    const blob = new Blob([lines.join("\n")], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${exportFilename}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    saveCsv(`${exportFilename}.csv`, buildCsv(rows));
   }
 
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-border/60 py-16 text-center">
         <p className="text-sm font-medium text-foreground">
-          Something went wrong loading this data.
+          {t("table.error_loading", "Something went wrong loading this data.")}
         </p>
         {onRetry && (
           <Button
@@ -330,7 +312,7 @@ export function DataTable<TData>({
             className="mt-4"
             onClick={onRetry}
           >
-            Try Again
+            {t("common.try_again", "Try again")}
           </Button>
         )}
       </div>

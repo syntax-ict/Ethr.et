@@ -9,6 +9,7 @@ use App\Models\LeaveType;
 use App\Models\Position;
 use App\Models\Shift;
 use App\Services\Onboarding\OrganizationProvisioner;
+use Illuminate\Support\Carbon;
 
 function provisioner(): OrganizationProvisioner
 {
@@ -147,6 +148,23 @@ describe('OrganizationProvisioner', function () {
         expect($holidays)->toContain('Ethiopian New Year (Enkutatash)');
         // Movable feasts are computed exactly by HolidayService, not skipped.
         expect($holidays)->toContain('Ethiopian Easter (Fasika)');
+    });
+
+    it('seeds this year\'s holidays and next year\'s, so an October sign-up has January\'s', function () {
+        // One run covers one Gregorian year (audit N57). An organisation set up
+        // in October still needs next January's Genna and Timkat.
+        Carbon::setTestNow('2026-10-07 09:00:00');
+        $tenant = createTenant();
+
+        provisioner()->apply($tenant, []);
+
+        $years = Holiday::where('tenant_id', $tenant->id)->get()
+            ->map(fn (Holiday $h) => (int) Carbon::parse($h->date)->format('Y'))
+            ->countBy();
+
+        expect($years->get(2026))->toBe(13)
+            ->and($years->get(2027))->toBe(13);
+        Carbon::setTestNow();
     });
 
     it('does not seed holidays when the template opts out', function () {

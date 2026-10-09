@@ -31,7 +31,7 @@ class AttendanceIntelligenceController extends Controller
         $anomalies = $this->intelligence->getAnomalies($tenant->id, $date);
 
         return response()->json([
-            'date' => $date,
+            'date' => (string) $date,
             'anomalies' => [
                 'count' => $anomalies->count(),
                 'thresholds' => [
@@ -74,17 +74,18 @@ class AttendanceIntelligenceController extends Controller
         $tenant = app(CurrentTenant::class)->get();
         $period = $request->input('period', 'monthly');
 
-        $summary = $this->intelligence->getOvertimeSummary($tenant->id, $period);
-
-        $formatted = array_map(fn ($item) => [
-            'employee_public_id' => $item['employee']?->public_id,
-            'employee_name' => $item['employee']?->name,
-            'total_overtime_minutes' => $item['total_overtime_minutes'],
-            'days_with_overtime' => $item['days_with_overtime'],
-        ], $summary);
+        $formatted = [];
+        foreach ($this->intelligence->getOvertimeSummary($tenant->id, $period) as $item) {
+            $formatted[] = [
+                'employee_public_id' => $item['employee']?->public_id,
+                'employee_name' => $item['employee']?->name,
+                'total_overtime_minutes' => (int) $item['total_overtime_minutes'],
+                'days_with_overtime' => (int) $item['days_with_overtime'],
+            ];
+        }
 
         return response()->json([
-            'period' => $period,
+            'period' => (string) $period,
             'employees' => $formatted,
         ]);
     }

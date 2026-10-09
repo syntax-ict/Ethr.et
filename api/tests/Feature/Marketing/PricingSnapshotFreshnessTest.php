@@ -36,11 +36,10 @@ use Database\Seeders\PlanSeeder;
  * Where the committed snapshot lives, or null when the frontend tree is not
  * reachable from this run.
  *
- * `scripts/pest-isolated.sh` copies `api/` into `/tmp/pest-run` inside the
- * container — the documented workaround for PHP's incomplete directory scan
- * over a Docker Desktop Windows bind mount — and there is no `src/` beside it.
- * Failing there would be a false alarm on the one workflow that exists to make
- * the suite runnable at all.
+ * The suite can run from a copy of `api/` with no `src/` beside it — it did,
+ * through `scripts/pest-isolated.sh`, until the Docker stack went on
+ * 2026-09-30 — and failing there would be a false alarm about a tree the run
+ * simply cannot see.
  *
  * The check is deliberately on the frontend *directory*, not on the snapshot
  * file: an absent tree means "cannot see it from here", while an absent file

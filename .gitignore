@@ -4,8 +4,20 @@ vendor/
 
 # Build output
 .next/
+# `ETHR_TARGET=shared-hosting next build` writes here instead of .next/standalone.
+# 689 files on the last run; nothing was ignoring them.
+src/out/
 api/public/build/
 src/tsconfig.tsbuildinfo
+
+# scripts/shared-hosting/deploy.sh packages the release here (ARTIFACT_DIR).
+# Not ignored until 2026-09-27, and it matters more than a stray directory: the
+# `api.tar.gz` it writes is `tar -C <root> api`, so on any machine where
+# `api/.env` exists the tarball contains APP_KEY and the database password. An
+# untracked-but-committable archive of the production secrets is not a thing to
+# leave to `git add -A`. (The `.prod-test-tmp/` entry that used to sit here went
+# with prod-build-test.sh in 3db9904 — same class of entry, same reason.)
+.deploy-artifacts/
 
 # Environment
 .env
@@ -38,11 +50,6 @@ api/.env.production
 .DS_Store
 Thumbs.db
 
-# Docker volumes
-mariadb_data/
-redis_data/
-minio_data/
-
 # Backups. A single backup directory contains the ENTIRE dataset - salary
 # history, bank details, scanned identity documents - plus every audit_log row.
 # Committing one would be a larger disclosure than any credential in this repo.
@@ -72,10 +79,18 @@ src/lighthouse-reports/
 # the first real run of that gate left it staged.
 src/.lighthouseci/
 src/e2e/.auth/
-docker-compose.override.yml
 
-# Scratch dir created and removed by scripts/prod-build-test.sh
-.prod-test-tmp/
-
-# Claude Code local dev-server wiring (machine-specific, not team config)
+# Claude Code local state (machine-specific, not team config): dev-server wiring,
+# per-user permission grants, and the worktrees the desktop app makes for subagents.
 .claude/launch.json
+.claude/settings.local.json
+.claude/worktrees/
+
+# A local production REHEARSAL: XAMPP Apache + MariaDB serving the Bronze layout
+# (docroot assembly, rendered .htaccess, static export) against an isolated copy of
+# api/ with its own .env. Created by scripts/local-production/up.sh.
+#
+# Ignored because it is a build output containing a generated APP_KEY, a database
+# password and a CRON_TOKEN. Nothing in it is evidence about the Ethio Telecom host —
+# it is my Apache, my MariaDB and my grants. Delete the directory to undo.
+.local-production/

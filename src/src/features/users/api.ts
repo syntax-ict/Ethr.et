@@ -1,42 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 
-export type UserStatus = "active" | "invited" | "inactive" | "suspended";
+type Schemas = components["schemas"];
 
-export interface TenantUser {
-  public_id: string;
-  email: string;
-  /** Optional login handle; usable when the tenant enables the `username` identifier. */
-  username: string | null;
-  phone: string | null;
-  role: string;
+/**
+ * `users.status` is an uncast string column, so the contract says `string`.
+ * Invitation writes `invited`; UpdateUserRequest admits only the other three.
+ */
+export type UserStatus =
+  "invited" | NonNullable<Schemas["UpdateUserRequest"]["status"]>;
+
+export type UserRole = Schemas["UserRole"];
+
+/**
+ * Shapes come from the generated contract; `username` is the optional login
+ * handle, usable when the tenant enables the `username` identifier.
+ */
+export type TenantUser = Omit<Schemas["UserResource"], "status"> & {
   status: UserStatus;
-  locale: string;
-  mfa_enabled: boolean;
-  invited_at: string | null;
-  activated_at: string | null;
-  last_login_at: string | null;
-  custom_role?: { public_id: string; name: string } | null;
-  employee?: { public_id: string; name: string } | null;
-}
+};
 
-export interface InviteUserPayload {
-  email: string;
-  username?: string;
-  role: string;
-  employee_id?: string;
-  custom_role_id?: string;
-  send_activation?: boolean;
-}
-
-export interface UpdateUserPayload {
-  username?: string | null;
-  role?: string;
-  status?: UserStatus;
-  custom_role_id?: string | null;
-  locale?: string;
-}
+export type InviteUserPayload = Schemas["StoreUserRequest"];
+export type UpdateUserPayload = Schemas["UpdateUserRequest"];
 
 export function useUsers(params?: {
   page?: number;
@@ -101,8 +88,25 @@ export function useDeleteUser() {
   });
 }
 
+/**
+ * Turns two-factor authentication off for someone who lost their
+ * authenticator (tenant admin, `users.resetMfa`). They sign in with their
+ * password and set it up again; the server emails them that it happened.
+ */
+export function useResetUserMfa() {
+  const qc = useQueryClient();
+  return useMutation<TenantUser, unknown, string>({
+    mutationFn: async (publicId) =>
+      (await apiClient.post(`/users/${publicId}/mfa/reset`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+type ResendInviteResult =
+  operations["user.resendInvite"]["responses"][200]["content"]["application/json"];
+
 export function useResendInvite() {
-  return useMutation<{ message?: string }, unknown, string>({
+  return useMutation<ResendInviteResult, unknown, string>({
     mutationFn: async (publicId) =>
       (await apiClient.post(`/users/${publicId}/resend-invite`)).data,
   });

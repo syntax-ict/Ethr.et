@@ -6,7 +6,6 @@ namespace App\Models;
 
 use App\Enums\ProfileUpdateStatus;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Database\Factories\ProfileUpdateRequestFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ProfileUpdateRequest extends Model
 {
     /** @use HasFactory<ProfileUpdateRequestFactory> */
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId;
+    use BelongsToTenant, HasFactory, HasPublicId;
 
     /**
      * Profile fields an employee may propose but not apply on their own.

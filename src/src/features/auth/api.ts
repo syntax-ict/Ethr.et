@@ -1,11 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { components, operations } from "@/api/generated";
 import type { User } from "@/api/types";
 
 interface MeResponse {
   user: User;
   /** Abilities resolved server-side from the base role or custom role. */
   permissions: string[];
+  /**
+   * The features the organisation's plan includes, or null when nothing is
+   * restricted (a trial, or no plan). The API refuses a gated action with a
+   * 403; this lets the screen say so first (audit N66).
+   */
+  plan_features?: string[] | null;
   tenant: {
     public_id: string;
     name: string;
@@ -50,10 +57,97 @@ export function useCurrentTenant() {
   });
 }
 
+/**
+ * Which plan features the organisation has. `has()` is true while loading and
+ * for any feature when the plan restricts nothing, so a screen never hides a
+ * paying customer's feature on a guess; the API still has the last word.
+ */
+export function usePlanFeatures() {
+  const query = useQuery({
+    ...meQueryOptions,
+    select: (data: MeResponse) => data.plan_features ?? null,
+  });
+  const features = query.data ?? null;
+
+  return {
+    has: (feature: string): boolean =>
+      features === null || features.includes(feature),
+    isLoading: query.isLoading,
+  };
+}
+
 export function useCurrentPermissions() {
   return useQuery({
     ...meQueryOptions,
     select: (data: MeResponse) => data.permissions ?? [],
+  });
+}
+
+// ── Account security: two-factor setup and password change ──────
+
+/**
+ * `qr_code_url` is an `otpauth://totp/...` URI (Google2FA::getQRCodeUrl), the
+ * thing a QR code encodes — not an image URL. There are no recovery codes;
+ * MfaSetupController::setup() returns these two fields and nothing else.
+ */
+export type MfaSetup =
+  operations["mfaSetup.setup"]["responses"][200]["content"]["application/json"];
+/**
+ * The secret from setup goes back with the first code: setup does not store
+ * it, so enable is where the server first learns which secret to verify.
+ */
+export type EnableMfaPayload = components["schemas"]["EnableMfaRequest"];
+export type DisableMfaPayload = components["schemas"]["DisableMfaRequest"];
+export type ChangePasswordPayload =
+  components["schemas"]["ChangePasswordRequest"];
+export type ChangePasswordResult =
+  operations["passwordReset.change"]["responses"][200]["content"]["application/json"];
+
+/** A fresh, unsaved secret each call; nothing changes until `useEnableMfa`. */
+export function useStartMfaSetup() {
+  return useMutation({
+    mutationFn: async (): Promise<MfaSetup> =>
+      (await apiClient.post("/auth/mfa/setup")).data,
+  });
+}
+
+/** `mfa_enabled` lives on the user, so /auth/me is refetched on success. */
+export function useEnableMfa() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: EnableMfaPayload) =>
+      (await apiClient.post("/auth/mfa/enable", payload)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+    },
+  });
+}
+
+export function useDisableMfa() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: DisableMfaPayload) =>
+      (await apiClient.post("/auth/mfa/disable", payload)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+    },
+  });
+}
+
+/** Revokes every other session server-side, so the session list is stale. */
+export function useChangePassword() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (
+      payload: ChangePasswordPayload,
+    ): Promise<ChangePasswordResult> =>
+      (await apiClient.post("/auth/password/change", payload)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth", "sessions"] });
+    },
   });
 }
 

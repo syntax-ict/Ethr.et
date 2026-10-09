@@ -1,5 +1,6 @@
 "use client";
 
+import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -12,7 +13,11 @@ import { FormField } from "@/components/patterns/FormField";
 import { rules } from "@/lib/forms/rules";
 import { PhoneInput } from "@/components/shared/phone-input";
 import { OtpCodeInput } from "@/components/shared/otp-code-input";
-import { apiClient } from "@/api/client";
+import {
+  prepareCsrfCookie,
+  requestOtp,
+  verifyOtp,
+} from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
@@ -21,10 +26,6 @@ import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-
 const CODE_LENGTH = 6;
 
 type Step = "phone" | "code";
-
-interface OtpVerifyResult {
-  mfa_required: boolean;
-}
 
 export function OtpForm() {
   const router = useRouter();
@@ -93,7 +94,7 @@ export function OtpForm() {
       // Primes the XSRF-TOKEN cookie axios reads for every stateful POST after
       // this. A user who lands here straight from /login (rather than having
       // just submitted a password) has never made a request that would set it.
-      await apiClient.get("/sanctum/csrf-cookie", { baseURL: "" });
+      await prepareCsrfCookie();
     } catch {
       setError(
         t(
@@ -106,10 +107,7 @@ export function OtpForm() {
     }
 
     try {
-      const { data } = await apiClient.post<{ message: string }>(
-        "/auth/otp/request",
-        { phone, tenant: effectiveTenant },
-      );
+      const data = await requestOtp({ phone, tenant: effectiveTenant });
       localStorage.setItem("tenant", effectiveTenant);
       setInfo(data.message);
       setStep("code");
@@ -139,14 +137,7 @@ export function OtpForm() {
     setError("");
 
     try {
-      const { data } = await apiClient.post<OtpVerifyResult>(
-        "/auth/otp/verify",
-        {
-          phone,
-          code,
-          tenant: effectiveTenant,
-        },
-      );
+      const data = await verifyOtp({ phone, code, tenant: effectiveTenant });
 
       if (data.mfa_required) {
         sessionStorage.setItem("mfa_pending", "true");
@@ -255,6 +246,7 @@ export function OtpForm() {
             >
               {(control) => (
                 <div className="flex items-center rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1">
+                  <TenantAddressAffix side="prefix" bordered />
                   <Input
                     {...control}
                     value={tenant}
@@ -263,9 +255,7 @@ export function OtpForm() {
                     autoComplete="organization"
                     className="border-0 focus-visible:ring-0"
                   />
-                  <span className="shrink-0 border-l px-3 text-sm text-muted-foreground">
-                    .ethr.et
-                  </span>
+                  <TenantAddressAffix side="suffix" bordered />
                 </div>
               )}
             </FormField>

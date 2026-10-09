@@ -29,29 +29,58 @@ describe('hasPermission', function () {
             ->and($user->hasPermission('admin.manage'))->toBeFalse();
     });
 
-    it('grants hr_admin HR and finance permissions at level 70', function () {
+    // Level 70 was one grant set under two names, so a Finance Admin could
+    // hire and change bank details and an HR Admin could process payroll
+    // (audit N95, owner decision delegated 2026-10-08).
+    it('grants hr_admin the people side and no payroll', function () {
         $tenant = createTenant();
         $user = createUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         expect($user->hasPermission('employee.create'))->toBeTrue()
             ->and($user->hasPermission('employee.update'))->toBeTrue()
+            ->and($user->hasPermission('employee.updateFinancial'))->toBeTrue()
+            ->and($user->hasPermission('leave.manageTypes'))->toBeTrue()
+            ->and($user->hasPermission('users.invite'))->toBeTrue()
             ->and($user->hasPermission('report.generate'))->toBeTrue()
-            ->and($user->hasPermission('payroll.viewAll'))->toBeTrue()
-            ->and($user->hasPermission('payroll.process'))->toBeTrue()
+            ->and($user->hasPermission('payroll.viewAll'))->toBeFalse()
+            ->and($user->hasPermission('payroll.process'))->toBeFalse()
+            ->and($user->hasPermission('payroll.manageLoan'))->toBeFalse()
             ->and($user->hasPermission('employee.delete'))->toBeFalse()
             ->and($user->hasPermission('settings.manage'))->toBeFalse();
     });
 
-    it('grants finance_admin HR and finance permissions at level 70', function () {
+    it('grants finance_admin the payroll side and no people management', function () {
         $tenant = createTenant();
         $user = createUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
 
         expect($user->hasPermission('payroll.viewAll'))->toBeTrue()
             ->and($user->hasPermission('payroll.process'))->toBeTrue()
-            ->and($user->hasPermission('employee.create'))->toBeTrue()
+            ->and($user->hasPermission('payroll.manageLoan'))->toBeTrue()
+            ->and($user->hasPermission('employee.viewFinancial'))->toBeTrue()
             ->and($user->hasPermission('report.generate'))->toBeTrue()
+            ->and($user->hasPermission('employee.create'))->toBeFalse()
+            ->and($user->hasPermission('employee.transition'))->toBeFalse()
+            ->and($user->hasPermission('users.invite'))->toBeFalse()
             ->and($user->hasPermission('payroll.approve'))->toBeFalse()
             ->and($user->hasPermission('settings.manage'))->toBeFalse();
+    });
+
+    // Whoever processes payroll must not also be able to change the accounts
+    // it pays into, and nobody below tenant admin both processes and releases.
+    it('keeps changing bank details apart from running payroll', function () {
+        $tenant = createTenant();
+
+        foreach (UserRole::cases() as $role) {
+            if (in_array($role, [UserRole::SUPER_ADMIN, UserRole::TENANT_ADMIN], true)) {
+                continue;
+            }
+            $user = createUser(['role' => $role], $tenant);
+
+            expect($user->hasPermission('employee.updateFinancial') && $user->hasPermission('payroll.process'))
+                ->toBeFalse("{$role->value} can both change bank details and process payroll")
+                ->and($user->hasPermission('payroll.process') && $user->hasPermission('payroll.approve'))
+                ->toBeFalse("{$role->value} can both process and approve payroll");
+        }
     });
 
     it('grants supervisor team-level permissions only', function () {
@@ -154,8 +183,8 @@ describe('Permission model', function () {
 // ──────────────────────── Seeder completeness ────────────────────────
 
 describe('PermissionSeeder completeness', function () {
-    it('seeds all 79 permissions', function () {
-        expect(Permission::count())->toBe(79);
+    it('seeds all 80 permissions', function () {
+        expect(Permission::count())->toBe(80);
     });
 
     it('seeds permissions for all non-super-admin roles', function () {

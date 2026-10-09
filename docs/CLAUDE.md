@@ -1,98 +1,10 @@
 # ETHR — Global Development Rules (v2.0)
 
-# AI Execution Policy (Pro/Max)
+> **The model-routing and agent-execution policy that opened this file moved to
+> [`MODEL-ROUTING.md`](MODEL-ROUTING.md) on 2026-10-01** (audit D8): model routing, task
+> decomposition, context management, response policy, large refactors, the build lifecycle,
+> the completion report and the auto-resume protocol. What remains here is the conventions.
 
-## Automatic Model Routing
-
-Prefer the lowest-cost model capable of completing the task.
-
-### Sonnet (Default)
-
-Use Sonnet automatically for:
-
-- CRUD implementation
-- Controllers
-- FormRequests
-- Policies
-- API Resources
-- Models
-- Migrations
-- Frontend components
-- React pages
-- Tailwind styling
-- API hooks
-- Unit tests
-- Feature tests
-- Documentation
-- Translation keys
-- Refactoring under 10 files
-- Bug fixes
-- Formatting
-- Type fixes
-- Lint fixes
-
-Target: 90% of development work.
-
----
-
-### Opus (Escalate Only)
-
-Automatically escalate to Opus when any of these are true:
-
-- Architectural decisions
-- Security review
-- Multi-file refactor (>10 files)
-- Tenant isolation changes
-- Authentication or authorization design
-- Complex debugging after two failed attempts
-- Performance optimization
-- Query optimization
-- Database redesign
-- Event-driven architecture
-- Queue design
-- Offline sync logic
-- PWA synchronization
-- Payroll calculation engine
-- Attendance matching engine
-- Conflict resolution logic
-- Permission system changes
-- Large context analysis (>30 files)
-- Reviewing an entire phase
-- Release readiness audit
-
-Return to Sonnet immediately after the architecture is decided.
-
----
-
-### Never use Opus for
-
-- Formatting
-- Renaming files
-- Small UI changes
-- CSS
-- Translation
-- Documentation only
-- Boilerplate CRUD
-- Simple tests
-- Small bug fixes
-
-These should always stay on Sonnet.
-
----
-
-### Cost Optimization
-
-Before escalating to Opus ask internally:
-
-1. Is this mainly implementation?
-2. Is reasoning actually required?
-3. Can Sonnet complete this safely?
-
-If YES to implementation, remain on Sonnet.
-
-Only escalate when reasoning complexity exceeds implementation complexity.
-
----
 # ========================================================
 # LOCAL DEVELOPMENT POLICY (NON-NEGOTIABLE)
 # ========================================================
@@ -136,50 +48,6 @@ the half that goes.
 - Push only when the owner asks. `origin` is a shared remote, and this
   environment has no non-interactive credentials for it.
 
-# Task Decomposition Rules
-
-Never attempt an entire phase in one execution.
-
-Break work into slices no larger than:
-
-- one feature
-- one controller
-- one policy
-- one page
-- one service
-
-Each slice must compile independently.
-
-Complete:
-
-Analyze → Implement → Test → Commit
-
-before starting another slice.
-
----
-
-# Context Management
-
-Avoid re-reading the entire repository.
-
-At the beginning of each task:
-
-Read:
-
-- CLAUDE.md
-- Relevant phase document
-- Files directly related to the feature
-
-Do not scan unrelated modules.
-
-If more than 30 files are required:
-
-Create an implementation plan first.
-
-Then implement incrementally.
-
----
-
 # Development Priority
 
 Always work in this order:
@@ -199,37 +67,6 @@ Never implement a feature without writing its tests in the same slice.
 
 ---
 
-# Response Policy
-
-Do not explain every generated file.
-
-Output only:
-
-- files changed
-- summary
-- remaining tasks
-- blockers
-
-Keep explanations under 200 words unless asked.
-
-Minimize token usage.
-
----
-
-# Large Refactor Rules
-
-When touching more than 20 files:
-
-Phase 1: Analyze, identify dependencies, produce plan.
-
-Phase 2: Implement.
-
-Phase 3: Run tests.
-
-Never mix planning and implementation in the same large task.
-
----
-
 ## Identity
 
 **ETHR** — Ethiopian Workforce Operating System
@@ -245,9 +82,9 @@ Enterprise-grade, multi-tenant, offline-first HCM SaaS for Ethiopian organizatio
 >
 > | Row | Status |
 > |---|---|
-> | Cache / Queue — Redis 7+ | **Not used in production.** `SHARED_HOSTING_AUDIT.md` §B removed Redis for the shared-hosting target; the queue runs on the `database` driver. Coupling is configuration-only — `audit/BASELINE.md` §6 found no application code calling Redis. |
+> | Cache / Queue — Redis 7+ | **Not used in production.** `archive/migration/SHARED_HOSTING_AUDIT.md` §B removed Redis for the shared-hosting target; the queue runs on the `database` driver. Coupling is configuration-only — `audit/BASELINE.md` §6 found no application code calling Redis. |
 > | Horizon | **Removed entirely**, not merely undeployed — `cdf85d1`. It is absent from `composer.json` and `composer.lock`, and the lockfile carries zero hard `ext-pcntl`/`ext-posix` requires (re-verified 2026-09-18). The old reason given here — that it *would* abort `composer install --no-dev` — described a dependency that no longer exists; `BASELINE.md` §15 row 6 had recorded the resolution while §3a still read as live. |
-> | Real-time — Reverb | **Not deployed.** `BROADCAST_CONNECTION=log` in production. |
+> | Real-time — Reverb | **Not deployed.** `BROADCAST_CONNECTION=null` in production. *(Corrected 2026-09-27: this said `log`. On the Bronze target `log` is forbidden, not merely imprecise — it writes a line per broadcast against a fixed 5 GB quota shared with the database and every uploaded document, and a full quota fails writes while reads keep succeeding. `config/broadcasting.php:40` defaults to `null`, `api/.env.shared-hosting.example:105` sets `null`, and `BroadcastConnectionConfigTest` pins the unset case. Several HISTORICAL documents still say `log` and are left as written — they record what was decided in August, and `MIGRATION_STATE.md:2519` already discusses the discrepancy.)* |
 > | File Storage — MinIO | **Not deployed** for the shared-hosting target; the `local` disk serves documents through signed `temporaryUrl()` routes. |
 >
 > `Infrastructure` likewise still says "Ethiopian VPS"; the production target is
@@ -256,18 +93,18 @@ Enterprise-grade, multi-tenant, offline-first HCM SaaS for Ethiopian organizatio
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Backend | Laravel 12, PHP 8.2 | Sanctum, Horizon, Reverb |
+| Backend | Laravel 12, PHP 8.2 | Sanctum; Reverb is installed but off in production (see the banner above) |
 | Database | MariaDB 10.11 | SQLite in-memory for tests |
-| Cache / Queue | Redis 7+ | Horizon for queue dashboard |
+| Cache / Queue / Session | `database` driver | No Redis, no Horizon; the queue is drained over HTTP by the GitHub Actions cron caller |
 | Frontend | Next.js 16, React 19, TypeScript strict | Tailwind CSS 4, shadcn/ui |
 | Forms | React Hook Form + Zod | Server + client validation |
 | Data Fetching | TanStack Query v5 | Optimistic updates per policy |
 | Tables | TanStack Table v8 | Enterprise DataTable foundation |
-| File Storage | MinIO | S3-compatible, self-hosted |
-| Real-time | Reverb (WebSocket) | In-app notifications, device status |
+| File Storage | Local disk (`FILESYSTEM_DISK=local`) | MinIO until 2026-09-30; shared hosting has no object store |
+| Real-time | Reverb (WebSocket), **opt-in** | Off in production (`BROADCAST_CONNECTION=null`); the client only connects when `NEXT_PUBLIC_REVERB_APP_KEY` is set, else notifications poll |
 | Mobile | PWA (v1.0) | Flutter deferred to v2.0 |
 | Testing | Pest (PHP), Vitest (TS), Playwright (E2E) | Contract tests via OpenAPI types |
-| Infrastructure | Docker, Nginx, Supervisor | Ethiopian VPS compatible |
+| Infrastructure | Plesk shared hosting: Apache + PHP-FPM, MariaDB | Docker/Nginx/Supervisor described the VPS target; see *Deployment Compatibility* below |
 | PDF | DomPDF | Payslips, reports |
 | SMS | Interface-based | LogSms (dev), EthioTelecom (prod) |
 
@@ -281,7 +118,7 @@ These are hard constraints on every slice. No exceptions.
 
 | # | Convention | Detail |
 |---|---|---|
-| 1 | Tenant isolation | `tenant_id` on all scoped tables. `BelongsToTenant` trait with a **fail-closed** global scope (no tenant context applies `whereRaw('0 = 1')`, so absence yields no rows rather than all rows). `TenantIsolationTest` validates every model — run by `./scripts/gates.sh`, **and by CI, which calls that same script** *(corrected 2026-09-22: this said "not by CI, which does not exist yet"; CI has been green since run #66 on 2026-09-16)*. Every `withoutGlobalScope` bypass must re-apply a tenant predicate; **159 sites across 57 files** do, and `tests/Feature/Security/TenantScopeBypassInventoryTest.php` **pins that inventory per file and fails when a count moves** *(corrected 2026-09-22: this said "~147 sites do, nothing enforces it" — the count was stale and the enforcement exists. First re-measured as 161/55, then **corrected to 156/54 the same day**: that count came from `preg_match_all` over raw text, which counted five docblock mentions of `withoutGlobalScopes()` as bypasses. The overcount is a constant +5 predating the first pin — measured against pin commit `21746a9`, the originally-recorded 156 was 151 real plus those same 5 comments — so the five bypasses added between 09-16 and 09-18 were real. Counting is now tokenised, so a comment cannot trip a security gate)*. Note what the pin does and does not buy: it makes adding a bypass a deliberate act. It does not audit the ones already there. |
+| 1 | Tenant isolation | `tenant_id` on all scoped tables. `BelongsToTenant` trait with a **fail-closed** global scope (no tenant context applies `whereRaw('0 = 1')`, so absence yields no rows rather than all rows). `TenantIsolationTest` validates every model — run by `./scripts/gates.sh`, **and by CI, which calls that same script** *(corrected 2026-09-22: this said "not by CI, which does not exist yet"; CI has been green since run #66 on 2026-09-16)*. Every `withoutGlobalScope` bypass must re-apply a tenant predicate; **162 sites across 60 files** do *(2026-10-09, later: 162/60 when `Console/Commands/ResetMfaCommand` joined — `ethr:reset-mfa` turns MFA off for an account no one in the app can reset, a platform super admin or a tenant's only admin; it states `tenant_id` itself, the named tenant's or NULL for platform accounts. 2026-10-09: 161/59 when `Http/Middleware/AuthenticateApiKey` began accepting console API keys — the key lookup is pre-authentication keyed on the presented secret, like `ScimAuth`'s, and the creator lookup states `tenant_id` from the key. 2026-10-08: 159/58 when the platform console began confirming invoice payments (`AdminTenantController::markInvoicePaid`, behind `admin.manage`; it states `tenant_id` from the tenant named in the route, audit N94). 2026-10-07: 158 when the kiosk token lookup moved into `KioskSession::resolveActiveByToken()` — pre-authentication, the token names its own tenant, which a shared kiosk on a single host has no other way to say — and `KioskCheckInController`'s two bypasses became plain scoped queries (audit N47). 2026-10-04: 159/58 when `Services/Auth/OrganisationFinder` joined — "find my organisation" on the apex login, pre-authentication and cross-tenant by design; it selects `tenant_id` alone from `users` and returns only each tenant's subdomain and name, emailed to the address (audit N40). 2026-10-02, later: 158 when `DispatchWebhookJob::failed()` began counting an exhausted delivery against its webhook — audit N18 — stating `tenant_id` like `handle()`. 2026-10-01: 159/57 until three left with dead code — audit B1/B2; then 156 → 154 when `DeviceController`'s three identical webhook employee lookups became one method — audit B9; 2026-10-02: 157/57 when `Support/AuditSubjects` began naming audit actors and subjects by public id — audit N12 — each of its three lookups stating `tenant_id` from the audit row)*, and `tests/Feature/Security/TenantScopeBypassInventoryTest.php` **pins that inventory per file and fails when a count moves** *(corrected 2026-09-22: this said "~147 sites do, nothing enforces it" — the count was stale and the enforcement exists. First re-measured as 161/55, then **corrected to 156/54 the same day**: that count came from `preg_match_all` over raw text, which counted five docblock mentions of `withoutGlobalScopes()` as bypasses. The overcount is a constant +5 predating the first pin — measured against pin commit `21746a9`, the originally-recorded 156 was 151 real plus those same 5 comments — so the five bypasses added between 09-16 and 09-18 were real. Counting is now tokenised, so a comment cannot trip a security gate)*. Note what the pin does and does not buy: it makes adding a bypass a deliberate act. It does not audit the ones already there. |
 | 2 | UTC storage | Store all timestamps in UTC. Display in EAT (Africa/Addis_Ababa, UTC+3). Ethiopia does not observe DST — the +3 offset is constant. |
 | 3 | Integer currency | ETB stored as `BIGINT` minor units (cents). Never use `FLOAT` or `DECIMAL`. Format: `X,XXX.XX ETB`. Use `formatETB(cents)` helper everywhere. |
 | 4 | ULID public IDs | `BIGINT` auto-increment PK (internal). `CHAR(26)` ULID `public_id` (API-facing). Never expose numeric PK in any API response. |
@@ -442,9 +279,9 @@ Primary:          #0F4C75   Deep Teal Blue — authority, trust
 Primary Light:    #3282B8   Interactive blue — buttons, links
 Primary Dark:     #0A2E4A   Sidebar, headers
 Accent:           #E8A838   Ethiopian Gold — highlights, badges
-Success:          #059669   Green
-Warning:          #D97706   Amber
-Destructive:      #DC2626   Red
+Success:          #047857   Green
+Warning:          #92400E   Amber
+Destructive:      #B91C1C   Red
 Neutral 50:       #F8FAFC   Page background
 Neutral 100:      #F1F5F9   Card background
 Neutral 200:      #E2E8F0   Borders
@@ -501,10 +338,10 @@ Ethiopian geometric textile motif (tilf/tibeb pattern) as a subtle decorative bo
   --color-interactive-hover: #3282B8;
   --color-interactive-focus: #0F4C75;
   --color-accent: #E8A838;
-  --color-status-success: #059669;
-  --color-status-warning: #D97706;
-  --color-status-error: #DC2626;
-  --color-status-info: #0284C7;
+  --color-status-success: #047857;
+  --color-status-warning: #92400E;
+  --color-status-error: #B91C1C;
+  --color-status-info: #0369A1;
 }
 
 [data-theme="dark"] {
@@ -605,121 +442,20 @@ Rules for all forms:
 - Amharic line-height: use 1.6-1.8 (vs 1.5 for Latin text).
 
 ---
-# Build Lifecycle
-
-Every task must follow this lifecycle.
-
-Do not skip any step.
-
-Do not mark a task complete until every validation passes.
-
-```
-Read CLAUDE.md
-       |
-Read relevant phase document(s)
-       |
-Analyze current code
-       |
-Verify existing implementation
-       |
-Determine completed vs missing work
-       |
-Understand architecture + dependencies
-       |
-Implement ONE feature slice
-       |
-Backend
-(migration → model → service → controller → FormRequest → Policy → tests)
-       |
-Frontend
-(types → API hooks → components → pages → tests)
-       |
-Run formatter
-(Pint + Prettier)
-       |
-Run static analysis
-(PHPStan + TypeScript)
-       |
-Run Pest tests
-       |
-Run Vitest tests
-       |
-Run TenantIsolationTest
-(if applicable)
-       |
-Verify Browser
-Desktop
-Tablet
-Mobile
-Dark
-Light
-       |
-Fix issues
-       |
-Re-run validation
-       |
-Update documentation
-       |
-Output:
-Files Changed
-Summary
-Remaining Tasks
-Blockers
-       |
-Continue to next highest-priority unfinished feature
-```
-## Completion Report 
-
-After every completed task output ONLY:
-
-Files changed
-
-Summary
-
-Validation performed
-
-Remaining tasks
-
-Known blockers
-
-Do not output Git commands.
-
-Do not generate commit messages.
-
-Do not reference repositories.
-```
-
----
 
 ## Quality Gates
 
 No slice ships without all checks passing.
 
-**Run them with `bash scripts/gates.sh`, not by hand.** It runs all nine
-(Pint, PHPStan, Pest, i18n, Prettier, ESLint, tsc, Vitest, API-contract), keeps
-going after a failure so one run reports all the damage, and applies the
-bind-mount workarounds below automatically. The itemised list that follows is
-the *rationale* for each gate — the script is the enforcement. Anything listed
-here but not wired into the script is not a gate: Prettier and ESLint sat in
-this list unenforced until 2026-08-24, which is how a release audit, rather
-than a gate, is what caught `prettier --check` failing on 36 files.
+**The gates, and how to run them, are in root [`CLAUDE.md` → *Quality gates*](../CLAUDE.md#quality-gates)**:
+`./scripts/gates.sh` and its scopes, what CI runs, and why a green run can lie. This section used
+to restate that list, and the copy had drifted — it said the script "runs all nine" gates when the
+full sweep runs twelve — while a stray code fence left by the section above rendered all of it as
+a code block. *(Replaced with this pointer 2026-10-01, audit D8; the per-slice checklist below is
+unchanged.)*
 
-Performance budgets are separate and opt-in: `bash scripts/gates.sh performance`.
+Per-slice review checklist — a few items are also enforced by a gate, most are not:
 
-- [ ] `bash scripts/pest-isolated.sh` — all green. **Not `php artisan test` or a
-      bare `vendor/bin/pest`**: over the Windows bind mount PHP's recursive
-      directory scan silently collects a fraction of the suite (measured
-      2026-08-21: 22 of 132 test classes) and still exits 0 with a green
-      summary. `scripts/gates.sh` now fails on that undercount instead of
-      reporting success; this script runs the suite where collection is whole.
-- [ ] `npx vitest run` — all green
-- [ ] `bash scripts/phpstan-isolated.sh` — level 6, zero errors. Not
-      `vendor/bin/phpstan` directly: over the bind mount Larastan sees half the
-      migrations, and the missing tables become ~990 phantom "undefined
-      property" errors that drowned this gate for months.
-- [ ] `./vendor/bin/pint --test` — no formatting issues
-- [ ] `npx prettier --check src/` — no formatting issues
-- [ ] `npx tsc --noEmit` — zero type errors
 - [ ] Every endpoint has a `FormRequest`
 - [ ] Every endpoint has a `Policy` using `hasPermission()`
 - [ ] Sensitive operations write to `audit_log`
@@ -741,7 +477,9 @@ Performance budgets are separate and opt-in: `bash scripts/gates.sh performance`
 ```
 Base:        /api/v1/
 Auth:        Authorization: Bearer {sanctum_token}
-Tenant:      Subdomain resolution ({tenant}.ethr.et)
+Tenant:      Host first: custom domain, then {tenant}.ethr.et. On the apex,
+             X-Tenant: {slug} (entry URL ethr.et/{slug}). Membership is
+             always checked against the signed-in user
 Pagination:  ?page=1&per_page=25 (max per_page=100)
 Filtering:   ?filter[field]=value
 Sorting:     ?sort=-created_at
@@ -749,6 +487,40 @@ Includes:    ?include=department,branch
 Search:      ?search=query
 Idempotency: Idempotency-Key: {uuid} (on all write endpoints)
 ```
+
+> **Tenant resolution changed on 2026-10-06, by owner decision.** This line read *"Subdomain
+> resolution ({tenant}.ethr.et)"*, and production cannot serve one: M3 has no vhost, so every
+> tenant host redirects to the Plesk login. `ResolveTenant` now tries, in order:
+>
+> 1. a **custom domain** assigned to one tenant, once **verified** (since 2026-10-08);
+> 2. the **subdomain**;
+> 3. **`X-Tenant`**, honoured on the apex, its `www` alias, and single-host installs only.
+>    It is never honoured on a tenant host, the platform host, or a host this deployment
+>    does not own;
+> 4. the organisation in the **form body**, on login, register and password endpoints.
+>
+> `EnsureUserBelongsToTenant` is what stops a token reading another tenant, whichever selector
+> answered: a member naming someone else's organisation gets 403 `tenant-mismatch`.
+>
+> Two rules follow for new work:
+>
+> - **Never build a tenant link by hand.** Use `FrontendUrl::forTenant()`, or
+>   `FrontendUrl::canonicalOrigin()` for the bare origin. It picks the verified custom domain,
+>   the subdomain only when `TENANCY_SUBDOMAINS=true`, and otherwise `ethr.et/{slug}`. A
+>   hand-built `{tenant}.ethr.et` link points at a host that does not answer, and a link on a
+>   pending custom domain points at one that may not reach ETHR yet.
+> - **A new top-level frontend route needs a reserved slug** in `Tenant::RESERVED_SUBDOMAINS`.
+>   The entry URL shares its namespace with the frontend's pages, and
+>   `PathAndCustomDomainTenancyTest` fails until the name is reserved.
+>
+> **One canonical address per organisation** (owner amendment, 2026-10-08). The entry URL
+> `ethr.et/{slug}` redirects to it, and a sign-in elsewhere on ETHR's own hosts is answered
+> 409 `canonical-address` before the password is checked. A platform admin assigns a custom
+> domain on the tenant's page in the console (`PUT /admin/tenants/{publicId}/domain`). That
+> needs the `custom_domain` plan add-on and stores the domain pending; it resolves only after
+> `POST …/domain/verify` finds its TXT token and CNAME. The decision, its costs and its open
+> gaps are in
+> [`decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md).
 
 Response shapes:
 
@@ -780,7 +552,11 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
 **Backend (Pest):**
 - SQLite `:memory:` for speed
 - `RefreshDatabase` trait on all test classes
-- Full URL for host-based tests: `$this->getJson('http://acme.ethr.et/api/v1/...')`
+- Full URL for host-based tests: `$this->getJson('http://acme.ethr.et/api/v1/...')`. Testing
+  the apex selector also needs production: in `local`/`testing` the header is honoured on every
+  host that does not name a tenant itself, foreign hosts included, so a test of the host
+  restriction proves nothing there. `PathAndCustomDomainTenancyTest`
+  switches the environment with `asProduction()` for that reason
 - `$this->app['auth']->forgetGuards()` between requests that change auth state
 - Assert `assertJsonMissingPath('id')` — never leak numeric PKs
 - No test-only migration files in `database/migrations/`
@@ -797,7 +573,9 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
 
 **E2E (Playwright — Phase 9):**
 - Critical path flows: signup → onboarding → attendance → payroll
-- Run against Docker staging environment
+- Run against any `BASE_URL` — `php artisan serve` + `npm run dev`, or the
+  shared-hosting rehearsal on `:8081` (`scripts/local-production/`). The
+  Dockerised staging stack was removed on 2026-09-30.
 - Test at 375px and 1280px viewport widths
 
 **Tenant Isolation (run by `./scripts/gates.sh`, and by CI, which calls that same script):**
@@ -832,21 +610,22 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
   /routes
     api.php
   /tests
-    /Feature
+    /Feature             HTTP and integration tests; /Feature/Security holds the tenant-isolation pins
     /Unit
-    /Security            TenantIsolationTest, PermissionTest
-    /Performance         ResponseTimeTest
+    /Support             Shared test helpers
+    /Performance         ResponseTimeTest — outside the phpunit testsuites, run with `gates.sh performance`
   /config
   /lang
     /en                  Full coverage (15+ files)
     /am                  Full coverage (15+ files)
 
-/src                    Next.js 16 frontend (the real source is one level down, in src/src)
+/src                    Next.js 16 project root: config, e2e/, public/, scripts/
+  /src                  The real frontend source — every path below is relative to src/src
   /app                  App router pages
     /(auth)              Auth layout pages (login, register, verify)
     /(dashboard)         Dashboard layout pages (all authenticated views)
     /(marketing)         Marketing layout pages (landing, pricing)
-    /(onboarding)        Onboarding layout pages (setup wizard)
+    /(root)              Public site (home, pricing, FAQ, legal) and the locale redirect
     /kiosk               Kiosk mode (standalone layout)
     /offline             Offline fallback page
   /components
@@ -874,10 +653,9 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
     /sw.js              Service worker
     /manifest.json      PWA manifest
 
-/docker                 Docker Compose + service configs
-/docs                   Generated API documentation
-/scripts                Build, deploy, seed, backup scripts
-/infrastructure         Nginx, Supervisor, SSL configs
+/docs                   Project documentation; index at docs/README.md (the API contract is generated into src/src/api/generated.ts)
+/scripts                Build, deploy, backup scripts; /scripts/local-production
+                        assembles and serves the shared-hosting shape on XAMPP
 ```
 
 ---
@@ -956,15 +734,31 @@ type(scope): short description
 ## Deployment Compatibility
 
 > **This list described the VPS target, and three of its rows were measurably
-> wrong — corrected 2026-09-25.** It is kept in the right-hand column because the
-> VPS stack is still the rollback path and `docker-compose.prod.yml` still ships;
-> what changed is which column an agent should design against.
+> wrong — corrected 2026-09-25.** What changed is which column an agent should
+> design against.
 >
-> The production target is **Ethio Telecom shared hosting under Plesk**. The VPS
-> assets are retained only until that cutover is verified — see
-> [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) and
-> [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md), which defines
-> the trigger and records that it **has not fired**.
+> **The right-hand column no longer describes anything in this repository —
+> updated 2026-09-27.** It used to end *"the VPS stack is still the rollback path
+> and `docker-compose.prod.yml` still ships"*. Neither half holds: `3db9904`
+> removed 22 VPS production paths — the whole production compose stack, all of
+> `infrastructure/`, `api/Dockerfile.prod` and `docs/VPS_DEPLOYMENT.md` — at the
+> owner's direction and **before a verified cutover**, so the trigger
+> [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md) defines never
+> fired and **there is no repository-level rollback path**. The column is kept as
+> the specification of the target ETHR was built for, and as the contrast that makes
+> the left column legible; read it as history.
+>
+> **Design against the left column. Only the left column.** Nothing of the Docker
+> setup survives: the development stack (`docker-compose.yml`,
+> `docker-compose.test.yml`, `docker/*`) was removed on 2026-09-30 by owner
+> decision, and local development now runs the shared-hosting shape on XAMPP
+> (`scripts/local-production/`, `LOCAL_SETUP.md`). CI never used it.
+>
+> The production target is **Ethio Telecom shared hosting under Plesk**. See
+> [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) for what has actually
+> been measured on the account, and
+> [`deployment/SHARED-HOSTING-CONTRACT.md`](deployment/SHARED-HOSTING-CONTRACT.md),
+> which outranks every deployment document.
 
 | Production target (shared hosting) | VPS target (rollback path) |
 |---|---|
@@ -986,14 +780,11 @@ Three corrections worth stating rather than silently applying:
   workflow reads it through `node-version-file` — verified 2026-09-25 across all
   four `setup-node` steps. Do not restate that number anywhere else.
 
-  **There is a second declaration, and it is deliberate, not drift:**
-  `docker/frontend/Dockerfile` is `FROM node:22-alpine` and both builds and runs
-  `server.js`. `.nvmrc` governs CI and the gates; the Dockerfile governs the
-  frontend **app runtime**, and the Plesk Node branch cites it as the reason the
-  account's Node 22.23.2 is acceptable (`deployment/VPS-DECOMMISSION.md` §2).
-  `src/package.json` declares no `engines` field, so those two files are the whole
-  story. Satisfying the runtime pin does **not** satisfy the CI pin — do not
-  relax 24 to fit a host.
+  **There used to be a second declaration:** `docker/frontend/Dockerfile` was
+  `FROM node:22-alpine` and governed the frontend app runtime. It went with the
+  Docker stack on 2026-09-30, and the production frontend is a static export
+  with no Node runtime at all (C-5), so `.nvmrc` is now the only Node pin.
+  `src/package.json` declares no `engines` field. Do not relax 24 to fit a host.
 - **`Redis 7+` was never load-bearing.** `grep` over `api/app/` finds **zero**
   calls — measured 2026-09-25, matching `audit/BASELINE.md` §6. The coupling was
   configuration-only, and every config default is now `database` or `local`.
@@ -1172,33 +963,6 @@ IndexedDB queue, so the correct recovery is the client retrying — replay
 returns `duplicate` rather than double-punching (convention #10).
 
 ---
-
-# Auto Resume Protocol
-
-If generation stops for any reason:
-
-- rate limit
-- internet disconnect
-- browser refresh
-- power outage
-- token limit
-
-then the NEXT user message:
-
-Continue
-
-means:
-
-1. Reload entire CLAUDE.md
-2. Read all completed work
-3. Determine unfinished task
-4. Continue exactly where stopped
-5. Do not repeat completed work
-6. Do not ask unnecessary questions
-7. Continue until task completes or another interruption occurs.
-
----
-
 
 # For Every New Session
 

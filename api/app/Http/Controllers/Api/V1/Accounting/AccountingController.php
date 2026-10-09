@@ -11,6 +11,7 @@ use App\Models\ChartOfAccount;
 use App\Models\PayrollRun;
 use App\Services\Accounting\AccountingExportService;
 use App\Services\CurrentTenant;
+use App\Support\Csv;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
@@ -116,25 +117,28 @@ class AccountingController extends Controller
     private function buildCsv(array $journal): string
     {
         $lines = [];
-        $lines[] = implode(',', ['Reference', 'Period', 'Date', 'Account Code', 'Account Name', 'Debit (ETB)', 'Credit (ETB)']);
+        $lines[] = Csv::row(['Reference', 'Period', 'Date', 'Account Code', 'Account Name', 'Debit (ETB)', 'Credit (ETB)']);
 
+        // Amounts through Csv::amount: number_format()'s default comma grouping
+        // wrote "12,345.67" into unquoted cells, so every amount of 1,000 ETB or
+        // more spilled into the next column.
         foreach ($journal['entries'] as $entry) {
-            $lines[] = implode(',', [
+            $lines[] = Csv::row([
                 $journal['reference'],
                 $journal['period'],
                 $journal['date'] ?? '',
                 $entry['account_code'],
-                '"'.str_replace('"', '""', $entry['account_name']).'"',
-                $entry['debit_cents'] > 0 ? number_format($entry['debit_cents'] / 100, 2) : '',
-                $entry['credit_cents'] > 0 ? number_format($entry['credit_cents'] / 100, 2) : '',
+                $entry['account_name'],
+                $entry['debit_cents'] > 0 ? Csv::amount($entry['debit_cents']) : '',
+                $entry['credit_cents'] > 0 ? Csv::amount($entry['credit_cents']) : '',
             ]);
         }
 
-        $lines[] = implode(',', [
+        $lines[] = Csv::row([
             '', 'TOTALS', '',
             '', '',
-            number_format($journal['total_debits_cents'] / 100, 2),
-            number_format($journal['total_credits_cents'] / 100, 2),
+            Csv::amount($journal['total_debits_cents']),
+            Csv::amount($journal['total_credits_cents']),
         ]);
 
         return implode("\n", $lines);

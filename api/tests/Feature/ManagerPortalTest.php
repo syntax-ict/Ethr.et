@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\CorrectionStatus;
 use App\Enums\LeaveStatus;
+use App\Enums\ProfileUpdateStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
@@ -11,6 +12,7 @@ use App\Models\Employee;
 use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\ProfileUpdateRequest;
 
 // ── Manager Dashboard ──
 
@@ -47,6 +49,41 @@ test('employee cannot access manager dashboard', function () {
         ->assertForbidden();
 });
 
+test('the dashboard counts exactly what the approvals queue lists', function () {
+    // It counted pending leave from direct reports only: an HR admin with no
+    // reports saw "All caught up!" while the queue had items, and pending
+    // corrections and profile changes were never counted (audit N63).
+    $tenant = createTenant();
+    $hr = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::HR_ADMIN, 'employee_id' => $hr->id], $tenant));
+
+    $someone = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    LeaveRequest::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $someone->id,
+        'leave_type_id' => LeaveType::factory()->create(['tenant_id' => $tenant->id])->id,
+        'status' => LeaveStatus::PENDING,
+    ]);
+    ProfileUpdateRequest::create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $someone->id,
+        'field_name' => 'phone',
+        'old_value' => '+251911000000',
+        'new_value' => '+251911111111',
+        'status' => ProfileUpdateStatus::PENDING,
+    ]);
+
+    $queue = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/approvals/pending")->assertOk();
+    $counts = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/manager")
+        ->assertOk()
+        ->json('pending_approvals');
+
+    expect($queue->json('total'))->toBe(2)
+        ->and($counts['total'])->toBe($queue->json('total'))
+        ->and($counts['leave'])->toBe(1)
+        ->and($counts['profile_update'])->toBe(1);
+});
+
 // ── Approval Center ──
 
 test('supervisor can view pending approvals', function () {
@@ -74,6 +111,27 @@ test('supervisor can view pending approvals', function () {
     $response->assertOk();
     expect($response->json('total'))->toBe(1);
     expect($response->json('items.0.type'))->toBe('leave');
+});
+
+// Summaries were English strings shown as-is on the Amharic screen, and the
+// leave type's Amharic name went unused (audit N81).
+test('pending approval summaries follow the request language', function () {
+    $tenant = createTenant();
+    $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = createUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
+    test()->actingAs($user);
+    $subordinate = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisor->id]);
+    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Annual Leave', 'name_am' => 'ዓመታዊ ፈቃድ']);
+    LeaveRequest::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $subordinate->id,
+        'leave_type_id' => $leaveType->id,
+        'status' => LeaveStatus::PENDING,
+    ]);
+    $url = "http://{$tenant->subdomain}.ethr.test/api/v1/approvals/pending";
+
+    expect(test()->getJson($url, ['Accept-Language' => 'am'])->json('items.0.summary'))->toStartWith('ዓመታዊ ፈቃድ: ')
+        ->and(test()->getJson($url, ['Accept-Language' => 'en'])->json('items.0.summary'))->toStartWith('Annual Leave: ');
 });
 
 test('pending approvals only shows team requests', function () {

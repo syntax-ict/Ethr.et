@@ -1,93 +1,84 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { components } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
+import { fetchAllPages } from "@/api/fetch-all-pages";
 
-export interface Announcement {
-  public_id: string;
-  title: string;
-  body: string;
-  priority: "normal" | "high" | "urgent";
-  target: "all" | "department" | "branch" | "role";
-  target_id?: string;
-  status: "draft" | "published";
-  published_at: string | null;
-  created_at: string;
-}
+// Shapes come from the generated contract. The hand-written ones they replace
+// had drifted: a `status` field the resource never returns (which emptied the
+// dashboard card), `target` where the API reads `target_type`, and a priority
+// union missing "low".
+export type Announcement = components["schemas"]["AnnouncementResource"];
+export type CreateAnnouncementPayload =
+  components["schemas"]["StoreAnnouncementRequest"];
+export type UpdateAnnouncementPayload =
+  components["schemas"]["UpdateAnnouncementRequest"];
+export type AnnouncementPriority = NonNullable<
+  CreateAnnouncementPayload["priority"]
+>;
 
-export interface CreateAnnouncementPayload {
-  title: string;
-  body: string;
-  priority?: "normal" | "high" | "urgent";
-  target?: "all" | "department" | "branch" | "role";
-  target_id?: string;
-}
+const keys = {
+  all: ["announcements"] as const,
+  list: (params?: { page?: number }) =>
+    ["announcements", "list", params] as const,
+};
 
-export function useAnnouncements(params?: { page?: number }) {
-  return useQuery<PaginatedResponse<Announcement>>({
-    queryKey: ["announcements", params],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/announcements", { params });
-      return data;
-    },
-    staleTime: 5 * 60 * 1000,
+/** Published, unexpired announcements — the API applies both rules. */
+/**
+ * Every live announcement, all pages. The page has no pager and the API pages
+ * at 25, ordered by priority before date, so once there were more than 25 a
+ * recent normal one could fall behind older urgent ones and be unreachable
+ * (audit N70).
+ */
+export function useAllAnnouncements() {
+  return useQuery<Announcement[]>({
+    queryKey: [...keys.list(undefined), "all"],
+    queryFn: () => fetchAllPages<Announcement>("/announcements"),
   });
 }
 
-export function useAnnouncement(publicId: string) {
-  return useQuery<Announcement>({
-    queryKey: ["announcements", publicId],
-    queryFn: async () => {
-      const { data } = await apiClient.get(`/announcements/${publicId}`);
-      return data;
+/** One page, for the dashboard widget, which shows only the top few. */
+export function useAnnouncements(params?: { page?: number }) {
+  return useQuery<PaginatedResponse<Announcement>>({
+    queryKey: keys.list(params),
+    queryFn: async () =>
+      (await apiClient.get("/announcements", { params })).data,
+  });
+}
+
+function useAnnouncementMutation<TVars, TData>(
+  mutationFn: (vars: TVars) => Promise<TData>,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.all });
     },
-    enabled: !!publicId,
-    staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useCreateAnnouncement() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (payload: CreateAnnouncementPayload) => {
-      const { data } = await apiClient.post("/announcements", payload);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["announcements"] });
-    },
-  });
+  return useAnnouncementMutation(
+    async (payload: CreateAnnouncementPayload): Promise<Announcement> =>
+      (await apiClient.post("/announcements", payload)).data,
+  );
 }
 
 export function useUpdateAnnouncement() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      publicId,
-      ...payload
-    }: CreateAnnouncementPayload & { publicId: string }) => {
-      const { data } = await apiClient.put(
-        `/announcements/${publicId}`,
-        payload,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["announcements"] });
-    },
-  });
+  return useAnnouncementMutation(
+    async (vars: {
+      publicId: string;
+      payload: UpdateAnnouncementPayload;
+    }): Promise<Announcement> =>
+      (await apiClient.put(`/announcements/${vars.publicId}`, vars.payload))
+        .data,
+  );
 }
 
 export function useDeleteAnnouncement() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (publicId: string) => {
-      await apiClient.delete(`/announcements/${publicId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["announcements"] });
-    },
+  return useAnnouncementMutation(async (publicId: string): Promise<void> => {
+    await apiClient.delete(`/announcements/${publicId}`);
   });
 }

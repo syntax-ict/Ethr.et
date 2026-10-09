@@ -83,6 +83,38 @@ describe('scheduling permissions and scoping', function () {
             ->assertOk()
             ->assertJsonCount(0, 'digests');
     });
+
+    it('shows a regional holder only their own branch\'s digests, and lets them cancel only those', function () {
+        // index() and destroy() checked only that the caller held a dashboard
+        // permission. Every supervisor holds dashboard.regional, so each listed
+        // and could cancel every digest in the tenant, the executives'
+        // tenant-wide ones included (audit N59).
+        $tenant = createTenant();
+        $ownBranch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $otherBranch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $digest = fn (?int $branchId) => DashboardDigest::create([
+            'tenant_id' => $tenant->id, 'branch_id' => $branchId, 'frequency' => 'weekly',
+            'recipients' => ['x@example.com'], 'next_run_at' => now()->addWeek(),
+        ]);
+        $mine = $digest($ownBranch->id);
+        $theirs = $digest($otherBranch->id);
+        $tenantWide = $digest(null);
+
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $ownBranch->id]);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $employee->id], $tenant);
+
+        $this->getJson('/api/v1/dashboard/digests')
+            ->assertOk()
+            ->assertJsonCount(1, 'digests')
+            ->assertJsonPath('digests.0.public_id', $mine->public_id);
+
+        $this->deleteJson("/api/v1/dashboard/digests/{$theirs->public_id}")->assertNotFound();
+        $this->deleteJson("/api/v1/dashboard/digests/{$tenantWide->public_id}")->assertNotFound();
+        $this->deleteJson("/api/v1/dashboard/digests/{$mine->public_id}")->assertNoContent();
+
+        expect($theirs->fresh()->is_active)->toBeTrue()
+            ->and($tenantWide->fresh()->is_active)->toBeTrue();
+    });
 });
 
 describe('delivery', function () {

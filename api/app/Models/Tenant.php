@@ -6,14 +6,22 @@ namespace App\Models;
 
 use App\Enums\TenantStatus;
 use App\Traits\HasPublicId;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
-/** @property TenantStatus $status */
+/**
+ * @property TenantStatus $status
+ * @property string|null $custom_domain
+ * @property string|null $custom_domain_token
+ * @property Carbon|null $custom_domain_verified_at
+ */
 class Tenant extends Model
 {
     use HasFactory, HasPublicId, SoftDeletes;
@@ -43,6 +51,19 @@ class Tenant extends Model
         'cdn', 'static', 'assets',
         'status', 'support', 'help', 'docs',
         'staging', 'dev', 'test',
+        // Since 2026-10-06 an organisation is also reachable as ethr.et/{slug},
+        // which shares ONE namespace with the frontend's own pages. Every
+        // top-level route below is reserved so no tenant can shadow it, and
+        // PathAndCustomDomainTenancyTest reads src/src/app to keep this list
+        // complete. The locale codes are the marketing site's first segment.
+        'analytics', 'announcements', 'approvals', 'attendance', 'billing',
+        'contact', 'dashboard', 'devices', 'directory', 'employees', 'faq',
+        'features', 'impersonate', 'kiosk', 'leave', 'login', 'logout',
+        'notifications', 'offline', 'og.png', 'organization', 'payroll',
+        'pricing', 'privacy', 'profile', 'register', 'reports', 'settings',
+        'setup', 'shifts', 'terms',
+        'en', 'am', 'om', 'ti', 'so', 'sid',
+        'sanctum', 'up', 'storage', 'icons', 'auth', 'org', 'tenant',
     ];
 
     /**
@@ -74,6 +95,7 @@ class Tenant extends Model
 
     protected $hidden = [
         'id',
+        'custom_domain_token',
     ];
 
     protected function casts(): array
@@ -84,6 +106,7 @@ class Tenant extends Model
             'settings' => 'array',
             'ethiopian_calendar' => 'boolean',
             'trial_ends_at' => 'datetime',
+            'custom_domain_verified_at' => 'datetime',
         ];
     }
 
@@ -111,15 +134,6 @@ class Tenant extends Model
     public function featureFlags(): HasMany
     {
         return $this->hasMany(FeatureFlag::class);
-    }
-
-    /**
-     * Tenant-scoped flag, falling back to the global flag of the same key.
-     * See FeatureFlag::enabled() — an unset flag (tenant or global) is off.
-     */
-    public function hasFeature(string $key): bool
-    {
-        return FeatureFlag::enabled($key, $this);
     }
 
     public function branches(): HasMany
@@ -205,8 +219,56 @@ class Tenant extends Model
             && ! $this->isTrialExpired();
     }
 
+    /**
+     * The query form of isActive(): tenants that are in use, which means active,
+     * or on a trial that has not expired. Per-tenant sweeps select with this.
+     * `where('status', 'active')` skipped every trial tenant, and sign-up puts
+     * every new tenant on a six-month trial. TenantSweepScheduleTest checks
+     * that the two forms agree.
+     *
+     * @param  Builder<Tenant>  $query
+     * @return Builder<Tenant>
+     */
+    public function scopeOperational(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query->where('status', TenantStatus::ACTIVE)
+                ->orWhere(function (Builder $query): void {
+                    $query->where('status', TenantStatus::TRIAL)
+                        ->where(function (Builder $query): void {
+                            $query->whereNull('trial_ends_at')
+                                ->orWhere('trial_ends_at', '>=', now());
+                        });
+                });
+        });
+    }
+
+    /**
+     * A custom domain is an address only once its owner has proved control of
+     * it (CustomDomainVerifier). Until then it is pending: it resolves nothing
+     * and no link is built on it.
+     */
+    public function hasVerifiedCustomDomain(): bool
+    {
+        return $this->custom_domain !== null && $this->custom_domain_verified_at !== null;
+    }
+
     protected static function booted(): void
     {
+        // Any change of domain starts verification over: a fresh token, and
+        // pending until the new name is checked. Here rather than in the
+        // controller so no path (console, tinker, a seeder) can carry one
+        // domain's verification over to another. A save that sets the
+        // verification itself, in the same write, is left alone.
+        static::saving(function (self $tenant): void {
+            if (! $tenant->isDirty('custom_domain') || $tenant->isDirty('custom_domain_verified_at')) {
+                return;
+            }
+
+            $tenant->custom_domain_verified_at = null;
+            $tenant->custom_domain_token = $tenant->custom_domain === null ? null : bin2hex(random_bytes(16));
+        });
+
         // ResolveTenant caches this model under `tenant:{subdomain}` for 5 minutes
         // to skip a DB hit per request. Without busting it here, a super admin
         // suspending a tenant (fraud, abuse, non-payment) leaves that tenant fully
@@ -215,6 +277,41 @@ class Tenant extends Model
         static::saved(function (self $tenant): void {
             Cache::forget("tenant:{$tenant->getOriginal('subdomain')}");
             Cache::forget("tenant:{$tenant->subdomain}");
+            // ResolveTenant caches custom-domain lookups the same way, and a
+            // domain moved or removed must stop resolving at once.
+            foreach (array_filter([$tenant->getOriginal('custom_domain'), $tenant->custom_domain]) as $domain) {
+                Cache::forget('tenant-domain:'.$domain);
+            }
         });
+    }
+
+    /**
+     * A custom domain is stored as a bare, lower-case hostname, because that is
+     * what ResolveTenant compares the request host against. A scheme, port,
+     * path or trailing dot typed into the field would otherwise make the domain
+     * silently never match.
+     *
+     * @return Attribute<string|null, string|null>
+     */
+    protected function customDomain(): Attribute
+    {
+        return Attribute::make(
+            set: static fn (?string $value): ?string => self::normaliseDomain($value),
+        );
+    }
+
+    public static function normaliseDomain(?string $value): ?string
+    {
+        $value = strtolower(trim((string) $value));
+        if ($value === '') {
+            return null;
+        }
+
+        $value = (string) preg_replace('#^[a-z][a-z0-9+.-]*://#', '', $value);
+        $value = explode('/', $value, 2)[0];
+        $value = explode(':', $value, 2)[0];
+        $value = rtrim($value, '.');
+
+        return $value === '' ? null : $value;
     }
 }

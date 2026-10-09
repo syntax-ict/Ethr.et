@@ -17,13 +17,20 @@ this file is about working the repository.
 
 ## Running it locally
 
-Four processes, not two. The README is emphatic about this and it is right:
-without the queue worker no job ever runs, and without Reverb a broadcast throws
-so a *successful* write can still return 500 under `QUEUE_CONNECTION=sync`.
+Local development is the production shape — XAMPP's Apache, PHP and MariaDB,
+no Docker (the Docker stack was removed on 2026-09-30). The full procedure is in
+[`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md); the short form:
 
 ```bash
-docker compose up -d
+scripts/local-production/up.sh        # the Bronze deployment on :8081
+scripts/local-production/verify.sh    # must end "0 failed" (50 checks on 2026-10-09)
 ```
+
+For hot reload, run `php artisan serve` in `api/` and `npm run dev` in `src/`.
+Queued jobs run only when drained — `php artisan queue:work --stop-when-empty`
+locally, the GitHub Actions cron caller in production. Do not switch to
+`QUEUE_CONNECTION=sync` to avoid that: it hides every bug that only a real
+worker shows.
 
 **Node comes from `.nvmrc`** — currently 24, which `nvm use` / `fnm use` picks
 up from the repository root and which CI reads via `node-version-file`. It is
@@ -32,11 +39,9 @@ as well, for reasons that have nothing to do with the application code; that
 pin is what kept `Frontend (i18n, Prettier, ESLint, tsc, Vitest)` red on every
 CI run until 2026-09-16. `docs/audit/BASELINE.md` §12d has the measurements.
 
-`RUN_ALL.ps1`, `START_BACKEND.ps1` and `START_FRONTEND.ps1` are older
-Windows-only launchers that predate the Docker setup. `RUN_ALL.ps1` in
-particular prints "SQLite" while the documented stack is MariaDB on port 3307,
-and it starts neither the worker nor Reverb. Prefer Docker Compose unless you
-know why you want otherwise.
+The old Windows launchers `RUN_ALL.ps1`, `START_BACKEND.ps1` and
+`START_FRONTEND.ps1` were removed on 2026-09-29: `RUN_ALL.ps1` printed
+"SQLite" against a MariaDB stack, and none started the worker or Reverb.
 
 ### `composer install` needs a GitHub token
 
@@ -161,13 +166,32 @@ One entry point, for people and for CI alike:
 ./scripts/gates.sh frontend   # i18n, Prettier, ESLint, tsc, Vitest
 ```
 
-Two more scopes exist:
+More scopes exist:
 
 ```bash
 ./scripts/gates.sh quick      # everything except the test suites — for the hook
 ./scripts/gates.sh docs       # markdown links resolve
 ./scripts/gates.sh security   # composer audit + npm audit (production deps)
+./scripts/gates.sh export     # the Bronze shared-hosting production build
 ```
+
+**`export` is the one to know about if you touch the frontend or `.htaccess`.** It
+runs `ETHR_TARGET=shared-hosting next build` and then asserts the artifact is really
+a static export — the four `__id__` shells, `404.html`, the `_next` bundle, and no
+`server.js`. It is part of `./scripts/gates.sh`, unlike `security` and
+`performance`, because it goes red only when you break the production artifact rather
+than when a third party publishes an advisory.
+
+It exists because until 2026-09-27 **no gate ran `next build` at all**, for either
+target, so the artifact the deployment target actually serves had been verified once
+by hand on one machine. Its first run found that six real routes —
+`/employees/new`, `/employees/import`, `/payroll/{cost-sharing,loans,payslips}` and
+`/devices/dashboard` — were being served the entity-detail shell. See
+`docs/audit/BASELINE.md` §22.
+
+Use `npm run build:shared-hosting` from `src/` for the same thing directly. Do **not**
+write `ETHR_TARGET=shared-hosting npm run build` in a Windows shell: neither cmd.exe
+nor PowerShell accepts that prefix, so you silently get a `standalone` build.
 
 ### Enable the pre-push hook
 
@@ -196,8 +220,10 @@ pushes the workflows really did fail before any gate executed, and
 first fully green one. As of run #431 the seven jobs pass on every push to
 `main`.)*
 
-The seven jobs, named as GitHub reports them — these strings are what a required
-status check must match exactly:
+The nine jobs, named as GitHub reports them — these strings are what a required
+status check must match exactly. *(It was seven until 2026-10-09. The last two
+were added to `gates.yml` later and run unconditionally on every pull request,
+so they are now required too.)*
 
 ```
 Documentation integrity
@@ -207,6 +233,8 @@ Frontend (i18n, Prettier, ESLint, tsc, Vitest)
 Backend (Pint, PHPStan, Pest)
 Backend coverage (PCOV)
 Backend suite on MySQL
+Static export (Bronze shared hosting)
+Deployment rules (.htaccess render + validate)
 ```
 
 `security.yml` is a separate workflow and is **not** one of them. It triggers on
@@ -215,17 +243,26 @@ a schedule and on pull requests touching `composer.json`, `composer.lock`,
 
 ### Branch protection on `main`
 
-**Applied 2026-09-24 and verified enforcing.** Recorded here so it is reviewable
-rather than living only in the repository settings UI. Nothing in this repository
-*applies* it — it is set under *Settings → Branches*, or *Settings → Rules →
-Rulesets* — but it is live, and the verification is below.
+**Applied 2026-09-24, found missing 2026-10-09, re-applied the same day.** Recorded
+here so it is reviewable rather than living only in the repository settings UI.
+Nothing in this repository *applies* it. It is set under *Settings → Rules →
+Rulesets* (ruleset `main`, id 24799448).
+
+**Missing on 2026-10-09.** `GET /repos/syntax-ict/Ethr.et/rulesets` returned `[]`,
+and `GET …/rules/branches/main` returned `[]`, which is the effective-rules view and
+covers rulesets. Classic protection was 404 as well. Nobody knows when or how it
+went. The symptom showed up earlier: GitHub refused auto-merge on PR #176 because
+there were "no required checks". So, again, a control that was documented and
+believed in was not in the path. `docs/audit/REPOSITORY-GOVERNANCE-2026-10-09.md`
+has the record.
 
 | Setting | Value |
 |---|---|
-| Branch name pattern | `main` |
+| Ruleset target | `refs/heads/main` |
+| Enforcement | **Active** (not *Evaluate*) |
 | Require a pull request before merging | on |
 | — Required approvals | **0** |
-| Require status checks to pass | on, with the seven jobs listed above |
+| Require status checks to pass | on, with the nine jobs listed above |
 | — Require branches to be up to date first | on |
 | Block force pushes | on |
 | Restrict deletions | on — **targeting `main` only** |
@@ -259,7 +296,33 @@ as the gap `BASELINE.md` documents at length, a control that is documented and
 believed in but not actually in the path of the thing it is meant to stop. It is
 now in that path.
 
+#### `production` has its own ruleset, and it is deliberately smaller
+
+Ruleset `production` (id 24799471, applied 2026-10-09, active) blocks **force-push
+and deletion** of `refs/heads/production`. That is all it does. It does not require
+a pull request, because nothing ever opens one against `production`: `release.yml`
+pushes each release commit straight to it. Those commits are always fast-forwards
+(see *Branches and releases* below), so blocking non-fast-forward updates costs the
+workflow nothing. It still stops anyone from rewriting the deployment history Plesk
+Git pulls from.
+
 #### Verifying it — and the flag that will lie to you
+
+**Read the effective rules first.** `GET /repos/{owner}/{repo}/rules/branches/{branch}`
+returns every rule that applies to a branch, from rulesets of any origin. When
+nothing applies it returns `[]`, and that is how the 2026-10-09 absence was found.
+Measured after re-applying:
+
+```bash
+gh api repos/syntax-ict/Ethr.et/rules/branches/main --jq '.[].type'
+# deletion  non_fast_forward  pull_request  required_status_checks
+gh api repos/syntax-ict/Ethr.et/rules/branches/production --jq '.[].type'
+# deletion  non_fast_forward
+```
+
+Use this read to find out whether a rule exists, not whether it blocks anything.
+Check each ruleset's `enforcement` as well (`gh api repos/{owner}/{repo}/rulesets`
+must say `active`). The push probe below is still the proof.
 
 **Do not check `protected` on the branches API.** For a **ruleset**, that field
 reads **`false`** on a branch that is fully protected. Measured 2026-09-24:
@@ -293,19 +356,19 @@ from inside that sandbox. And protection does **not** cover branch deletion of
 ordinary pushes succeed, that is a credential or egress limitation, not this
 ruleset; the two were confusable enough here to be worth separating.
 
-### Do not run `vendor/bin/pest` directly over a Docker bind mount
+### Check the collected test count, not only the colour
 
-This is the trap worth knowing. PHP's recursive directory scan returns
+This is the trap worth knowing. PHP's recursive directory scan returned
 incomplete results over a Docker Desktop Windows bind mount. Measured
 2026-08-21: `pest` collected 21 of 132 test classes, ran them, and **exited 0
 with a green summary** — so the suite reported success while proving almost
-nothing, and did so for weeks.
+nothing, and did so for weeks. Larastan failed the same way (990 phantom errors
+on the mount, 0 off it).
 
-`scripts/pest-isolated.sh` copies `api/` off the mount first and carries a
-collection guard that fails loudly on an undercount. `scripts/gates.sh`
-delegates to it automatically when there is no native PHP. Larastan has the same
-problem for the same reason (990 phantom errors on the mount, 0 off it), hence
-`scripts/phpstan-isolated.sh`.
+The Docker stack, and the `pest-isolated.sh` / `phpstan-isolated.sh` scripts
+that worked around it, were removed on 2026-09-30. `scripts/gates.sh` keeps the
+collection guard, which fails loudly on an undercount: any lossy filesystem
+produces the same silent green, so keep the checkout on a plain local disk.
 
 **A native PHP run on a local disk does not have this problem.** If you have PHP
 8.2+ with `pdo_sqlite`, `mbstring`, `gd`, `dom` and `fileinfo`, the full suite
@@ -432,6 +495,64 @@ Work on a short-lived branch and merge, as the existing history does. Explain
 *why* in the body — the comments and commit messages in this repository carry
 an unusual amount of hard-won detail about measured failures, and that is
 deliberate. Keep it up.
+
+### Branches and releases
+
+There are exactly two permanent branches, and they are different kinds of thing.
+
+| Branch | What it is | How it moves |
+|---|---|---|
+| `main` | The source. Every change is integrated here | Pull requests only. The ruleset requires the nine checks and blocks direct pushes, force-pushes and deletion |
+| `production` | **Generated.** The built release tree Plesk Git deploys: `vendor/`, the static export, the rendered `.htaccess` | Only by [`release.yml`](.github/workflows/release.yml). Each push is one `release: <main sha>` commit whose parent is the previous release |
+
+**`production` shares no history with `main`. Never merge, rebase, cherry-pick or
+open a pull request between them.** `git merge-base main production` returns nothing,
+and that is by design. `production`'s history is the deployment history, and its
+commits contain build output that does not belong in the source. A
+"promote `main` to `production`" PR would mix the two and break the Plesk pull.
+
+**The release flow, end to end:**
+
+1. Branch from `main` with a short-lived, prefixed name: `feat/`, `fix/`, `chore/`,
+   `docs/`, `test/`. Dependabot creates its own `dependabot/…` branches.
+2. Open a pull request into `main`. The nine required checks must pass.
+3. Merge it. The repository squash-merges, so a PR becomes one `… (#NNN)` commit,
+   and the head branch is deleted automatically (*Settings → General*, on since
+   2026-10-09).
+4. **Quality gates** runs on the push to `main`. Only if it passes does
+   **Plesk release** build the tree, rehearse two deploys of it, and push
+   `release: <first 12 of the main sha>` to `production`. This step is automatic,
+   but it is not a deployment.
+5. **Going live is manual:** press **Deploy** in Plesk Git, then do the release
+   steps in [`docs/deployment/PLESK-GO-LIVE.md`](docs/deployment/PLESK-GO-LIVE.md).
+   Nothing reaches the host until someone does that.
+
+**Hotfixes use the same flow,** because there is nowhere else for a fix to live.
+Open a `fix/` PR into `main`. Once it merges, step 4 publishes it, then press
+Deploy. Never commit to `production` by hand: the next release is built from
+`main` and would silently drop the change. To roll back, open a revert PR on
+`main`. It goes through the same gates and comes out as a new release.
+
+**Is everything in sync?**
+
+```bash
+git fetch origin --prune
+git rev-list --left-right --count main...origin/main     # 0 0 → local main matches GitHub
+git log -1 --format=%s origin/production                 # release: <sha>
+git rev-parse --short=12 origin/main                     # … should be that <sha>
+```
+
+If `production` names an older sha, **Plesk release** has not finished, or it did
+not publish, for example because Quality gates failed. Read the Actions tab before
+assuming either. Even when the sha matches, that says what is *published*, not what
+is *deployed*. Only the commit Plesk Git shows as deployed answers that.
+
+**Cleaning up a local branch after its PR merges:** `git fetch --prune` drops the
+remote-tracking ref, and `git branch -vv` marks the local branch `[gone]`. Squash
+merges keep `git branch -d` from seeing the branch as merged. Check that its tip
+equals the PR's head commit (`gh pr view <n> --json headRefOid`) before you delete
+it with `-D`.
+`docs/audit/REPOSITORY-GOVERNANCE-2026-10-09.md` records the first time this was done.
 
 ## Security
 

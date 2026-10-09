@@ -57,10 +57,10 @@ final class DepartmentAnalyticsService
                 'attendance_rate' => $attendanceRate,
                 'avg_salary_cents' => (int) round($avgSalary),
             ];
-        })->toArray();
+        })->all();
     }
 
-    public function detail(int $tenantId, Department $department, Carbon $from, Carbon $to): array
+    public function detail(int $tenantId, Department $department, Carbon $from, Carbon $to, ?int $branchId = null): array
     {
         $activeStatuses = [EmployeeStatus::HIRED, EmployeeStatus::PROBATION, EmployeeStatus::CONFIRMED];
 
@@ -68,6 +68,7 @@ final class DepartmentAnalyticsService
             ->where('tenant_id', $tenantId)
             ->where('department_id', $department->id)
             ->whereIn('status', $activeStatuses)
+            ->when($branchId !== null, fn ($q) => $q->where('branch_id', $branchId))
             ->get();
 
         $headcount = $employees->count();

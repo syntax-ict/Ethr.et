@@ -1,7 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
-import type { Employee, EmployeeFormData } from "./types";
+import type { Employee } from "./types";
+
+/**
+ * The create and update bodies come from the contract. The hand-written
+ * `EmployeeFormData` they replace named the relations `department_public_id`,
+ * `branch_public_id` and `position_public_id`; StoreEmployeeRequest reads
+ * `department_id`, `branch_id` and `position_id`, so `validated()` dropped all
+ * three and every employee created from the form had no department, branch or
+ * position — behind a 201 and a success toast.
+ */
+export type CreateEmployeePayload =
+  components["schemas"]["StoreEmployeeRequest"];
+export type UpdateEmployeePayload =
+  components["schemas"]["UpdateEmployeeRequest"];
 
 export function useEmployees(params?: {
   page?: number;
@@ -16,6 +30,21 @@ export function useEmployees(params?: {
       return data;
     },
     staleTime: 2 * 60 * 1000,
+  });
+}
+
+/** Set the employee's kiosk PIN, or remove it with `null` (audit N62). */
+export function useSetKioskPin(publicId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (pin: string | null) => {
+      const { data } = await apiClient.put<
+        operations["attendance.employeeKioskPin"]["responses"][200]["content"]["application/json"]
+      >(`/employees/${publicId}/kiosk-pin`, { pin });
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["employees", publicId] }),
   });
 }
 
@@ -35,8 +64,8 @@ export function useCreateEmployee() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (formData: EmployeeFormData) => {
-      const { data } = await apiClient.post("/employees", formData);
+    mutationFn: async (payload: CreateEmployeePayload) => {
+      const { data } = await apiClient.post("/employees", payload);
       return data;
     },
     onSuccess: () => {
@@ -49,22 +78,9 @@ export function useUpdateEmployee(publicId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (formData: Partial<EmployeeFormData>) => {
-      const { data } = await apiClient.put(`/employees/${publicId}`, formData);
+    mutationFn: async (payload: UpdateEmployeePayload) => {
+      const { data } = await apiClient.put(`/employees/${publicId}`, payload);
       return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
-    },
-  });
-}
-
-export function useDeleteEmployee() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (publicId: string) => {
-      await apiClient.delete(`/employees/${publicId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
@@ -96,12 +112,86 @@ export function useBulkUpdateEmployees() {
   });
 }
 
-export function useEmployeeStats() {
-  return useQuery({
-    queryKey: ["employees", "stats"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/employees/stats");
+// ── Export ─────────────────────────────────────────────────────────
+
+export type EmployeeExport =
+  operations["employeeBulk.export"]["responses"][200]["content"]["application/json"];
+
+/**
+ * Every employee matching `search`, as one CSV the server builds from the
+ * whole filtered set — not the page on screen. A one-shot download, so a plain
+ * function rather than a query.
+ */
+export async function exportEmployees(params: {
+  search?: string;
+}): Promise<EmployeeExport> {
+  const { data } = await apiClient.get<EmployeeExport>("/employees/export", {
+    params: { search: params.search || undefined },
+  });
+  return data;
+}
+
+// ── CSV import (template → preview → commit) ──────────────────────
+
+/**
+ * `errors` is keyed by CSV line number — the header is line 1, so data row
+ * `i` is line `i + 2` — and key 0 is a file-level error (a missing required
+ * column, or no data rows), which comes with no rows at all.
+ */
+export type EmployeeImportPreview =
+  operations["employeeImport.preview"]["responses"][200]["content"]["application/json"];
+
+/**
+ * `skipped` rows carried an import key already used; `matched` rows are a
+ * person who already exists (same code, email, phone or national id). Neither
+ * creates an employee.
+ */
+export type EmployeeImportResult =
+  operations["employeeImport.commit"]["responses"][201]["content"]["application/json"];
+
+export type EmployeeImportTemplate =
+  operations["employeeImport.template"]["responses"][200]["content"]["application/json"];
+
+/** The blank CSV template. The endpoint reads no body; it is only a POST. */
+export async function fetchEmployeeImportTemplate(): Promise<EmployeeImportTemplate> {
+  const { data } = await apiClient.post<EmployeeImportTemplate>(
+    "/employees/import/template",
+  );
+  return data;
+}
+
+/** Parses and validates a CSV server-side; nothing is written. */
+export function usePreviewEmployeeImport() {
+  return useMutation({
+    mutationFn: async (file: File): Promise<EmployeeImportPreview> => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const { data } = await apiClient.post<EmployeeImportPreview>(
+        "/employees/import/preview",
+        fd,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
       return data;
+    },
+  });
+}
+
+export function useCommitEmployeeImport() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (vars: {
+      importKey: string;
+      rows: EmployeeImportPreview["rows"];
+    }): Promise<EmployeeImportResult> => {
+      const { data } = await apiClient.post<EmployeeImportResult>(
+        "/employees/import/commit",
+        { import_key: vars.importKey, rows: vars.rows },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
     },
   });
 }
@@ -216,7 +306,6 @@ export type DisciplinaryAppealStatus = "pending" | "upheld" | "denied";
 
 export interface DisciplinaryInvestigationNote {
   note: string;
-  by: number | null;
   by_name: string | null;
   at: string;
 }
@@ -364,31 +453,12 @@ export function useCloseDisciplinaryCase(publicId: string) {
 
 // ── Employee contracts ──────────────────────────────────────────────
 
-export type ContractType =
-  "probation" | "fixed_term" | "permanent" | "casual" | "consultancy";
+export type ContractType = components["schemas"]["ContractType"];
 
-export type ContractStatus =
-  "active" | "renewed" | "expired" | "terminated_early";
+export type ContractStatus = components["schemas"]["ContractStatus"];
 
-export interface EmployeeContract {
-  public_id: string;
-  reference_number: string | null;
-  contract_type: ContractType;
-  start_date: string;
-  end_date: string | null;
-  salary_cents: number | null;
-  terms: string | null;
-  status: ContractStatus;
-  renewed_from_id?: string | null;
-  ended_at: string | null;
-  end_notes: string | null;
-  is_expired: boolean;
-  expires_soon: boolean;
-  days_until_expiry: number | null;
-  employee_name?: string;
-  employee_public_id?: string;
-  created_at: string;
-}
+export type EmployeeContract =
+  components["schemas"]["EmployeeContractResource"];
 
 export interface ContractInput {
   contract_type: ContractType;
@@ -608,4 +678,246 @@ export function useCancelRetirementCase(publicId: string) {
     publicId,
     (caseId) => `${caseId}/cancel`,
   );
+}
+
+// ── Profile sub-resources (bank, documents, education, emergency contacts) ──
+//
+// Every index below is a bare array: AppServiceProvider calls
+// `JsonResource::withoutWrapping()`, so a non-paginated resource collection has
+// no `data` key. The tabs these replace read `data.data` and rendered their
+// empty state no matter what was on file.
+//
+// Toasts stay with the component, passed as `mutate(vars, { onError })`; a
+// hook owns only the request and what it invalidates.
+
+export type BankDetail = components["schemas"]["BankDetailResource"];
+export type BankDetailPayload = components["schemas"]["StoreBankDetailRequest"];
+
+export type EmployeeDocument =
+  components["schemas"]["EmployeeDocumentResource"];
+
+/** `file` is a `File` on the wire; the contract can only call it a string. */
+export type DocumentUpload = Omit<
+  components["schemas"]["StoreDocumentRequest"],
+  "file"
+> & { file: File };
+
+export type EducationRecord = components["schemas"]["EducationResource"];
+export type EducationPayload = components["schemas"]["StoreEducationRequest"];
+
+export type EmergencyContact =
+  components["schemas"]["EmergencyContactResource"];
+export type EmergencyContactPayload =
+  components["schemas"]["StoreEmergencyContactRequest"];
+
+function subResourceKey(publicId: string, resource: string) {
+  return ["employees", publicId, resource];
+}
+
+function useSubResourceList<T>(publicId: string, resource: string) {
+  return useQuery<T[]>({
+    queryKey: subResourceKey(publicId, resource),
+    queryFn: async () =>
+      (await apiClient.get<T[]>(`/employees/${publicId}/${resource}`)).data,
+    enabled: !!publicId,
+  });
+}
+
+/**
+ * A write to `/employees/{id}/{resource}`. Invalidates that list, plus any
+ * query outside the employee tree that reads the same rows.
+ */
+function useSubResourceWrite<TVars, TData>(
+  publicId: string,
+  resource: string,
+  mutationFn: (vars: TVars) => Promise<TData>,
+  alsoInvalidate: readonly (readonly string[])[] = [],
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: subResourceKey(publicId, resource),
+      });
+      for (const queryKey of alsoInvalidate) {
+        queryClient.invalidateQueries({ queryKey });
+      }
+    },
+  });
+}
+
+export function useEmployeeBankDetails(publicId: string) {
+  return useSubResourceList<BankDetail>(publicId, "bank-details");
+}
+
+export function useAddBankDetail(publicId: string) {
+  return useSubResourceWrite(
+    publicId,
+    "bank-details",
+    async (payload: BankDetailPayload) =>
+      (
+        await apiClient.post<BankDetail>(
+          `/employees/${publicId}/bank-details`,
+          payload,
+        )
+      ).data,
+  );
+}
+
+export function useDeleteBankDetail(publicId: string) {
+  return useSubResourceWrite(publicId, "bank-details", async (id: string) => {
+    await apiClient.delete(`/employees/${publicId}/bank-details/${id}`);
+  });
+}
+
+/**
+ * The executive compliance card counts expiring documents, so a document
+ * upload or deletion refreshes it too.
+ */
+const COMPLIANCE_KEY = ["dashboard", "executive", "compliance"] as const;
+
+export function useEmployeeDocuments(publicId: string) {
+  return useSubResourceList<EmployeeDocument>(publicId, "documents");
+}
+
+export function useUploadEmployeeDocument(publicId: string) {
+  return useSubResourceWrite(
+    publicId,
+    "documents",
+    async (upload: DocumentUpload) => {
+      const fd = new FormData();
+      fd.append("file", upload.file);
+      fd.append("title", upload.title);
+      fd.append("type", upload.type);
+      if (upload.expiry_date) fd.append("expiry_date", upload.expiry_date);
+      return (
+        await apiClient.post<EmployeeDocument>(
+          `/employees/${publicId}/documents`,
+          fd,
+          { headers: { "Content-Type": "multipart/form-data" } },
+        )
+      ).data;
+    },
+    [COMPLIANCE_KEY],
+  );
+}
+
+export function useDeleteEmployeeDocument(publicId: string) {
+  return useSubResourceWrite(
+    publicId,
+    "documents",
+    async (id: string) => {
+      await apiClient.delete(`/employees/${publicId}/documents/${id}`);
+    },
+    [COMPLIANCE_KEY],
+  );
+}
+
+export function useEmployeeEducation(publicId: string) {
+  return useSubResourceList<EducationRecord>(publicId, "education");
+}
+
+export function useAddEducation(publicId: string) {
+  return useSubResourceWrite(
+    publicId,
+    "education",
+    async (payload: EducationPayload) =>
+      (
+        await apiClient.post<EducationRecord>(
+          `/employees/${publicId}/education`,
+          payload,
+        )
+      ).data,
+  );
+}
+
+export function useDeleteEducation(publicId: string) {
+  return useSubResourceWrite(publicId, "education", async (id: string) => {
+    await apiClient.delete(`/employees/${publicId}/education/${id}`);
+  });
+}
+
+export function useEmployeeEmergencyContacts(publicId: string) {
+  return useSubResourceList<EmergencyContact>(publicId, "emergency-contacts");
+}
+
+export function useAddEmergencyContact(publicId: string) {
+  return useSubResourceWrite(
+    publicId,
+    "emergency-contacts",
+    async (payload: EmergencyContactPayload) =>
+      (
+        await apiClient.post<EmergencyContact>(
+          `/employees/${publicId}/emergency-contacts`,
+          payload,
+        )
+      ).data,
+  );
+}
+
+export function useDeleteEmergencyContact(publicId: string) {
+  return useSubResourceWrite(
+    publicId,
+    "emergency-contacts",
+    async (id: string) => {
+      await apiClient.delete(`/employees/${publicId}/emergency-contacts/${id}`);
+    },
+  );
+}
+
+// ── Status transitions (lifecycle) ──────────────────────────────────
+
+export type EmployeeTransition =
+  components["schemas"]["EmployeeTransitionResource"];
+export type TransitionPayload =
+  components["schemas"]["TransitionEmployeeRequest"];
+
+export function useEmployeeTransitions(publicId: string) {
+  return useSubResourceList<EmployeeTransition>(publicId, "transitions");
+}
+
+/**
+ * A transition changes the employee's status, which every employee query and
+ * every dashboard headcount reads, so this refreshes both trees rather than
+ * only the history list.
+ */
+export function useTransitionEmployee(publicId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: TransitionPayload) =>
+      (
+        await apiClient.post<EmployeeTransition>(
+          `/employees/${publicId}/transition`,
+          payload,
+        )
+      ).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+// ── Attendance timeline ─────────────────────────────────────────────
+
+export type AttendanceTimeline =
+  operations["employee.employeeAttendanceTimeline"]["responses"][200]["content"]["application/json"];
+export type AttendanceTimelineDay = AttendanceTimeline["days"][number];
+
+export function useEmployeeAttendanceTimeline(
+  publicId: string,
+  range: { from: string; to: string },
+) {
+  return useQuery<AttendanceTimeline>({
+    queryKey: [...subResourceKey(publicId, "attendance-timeline"), range],
+    queryFn: async () =>
+      (
+        await apiClient.get<AttendanceTimeline>(
+          `/employees/${publicId}/attendance/timeline`,
+          { params: range },
+        )
+      ).data,
+    enabled: !!publicId,
+  });
 }

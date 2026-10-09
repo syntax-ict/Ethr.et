@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
+use App\Support\OutboundHost;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -13,13 +14,17 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Throwable;
 
 class DispatchWebhookJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 5;
+    // One more than the backoff entries: Laravel takes the delay before
+    // retry n from entry n - 1, so with 5 tries the 24 h step was never
+    // reached and the last attempt came about two hours in (audit N18).
+    public int $tries = 6;
 
     public int $timeout = 30;
 
@@ -84,41 +89,39 @@ class DispatchWebhookJob implements ShouldQueue
             return;
         }
 
-        $payloadJson = json_encode($this->payload);
-        $signature = 'sha256='.hash_hmac('sha256', $payloadJson, $webhook->secret);
+        // Re-checked at send time, not only when the URL was saved: the update
+        // request did not apply ExternalUrl until 2026-10-01, so a webhook
+        // created with a public URL could be repointed at an internal one, and
+        // rows saved that way are still in the database. A host that now
+        // resolves inside the network is refused the same way. Not retried —
+        // retrying cannot make an internal address external.
+        $host = parse_url((string) $webhook->url, PHP_URL_HOST);
+        if (! is_string($host) || OutboundHost::isInternal(trim($host, '[]'))) {
+            $this->markFailed($delivery, null, 'Refused: the webhook URL points to an internal address', 0);
+
+            return;
+        }
+
+        // The signed bytes are the bytes sent. Handing the client the array
+        // let it encode the payload a second time; the signature held only
+        // because both encodings happened to use the same flags.
+        $payloadJson = (string) json_encode($this->payload);
+        $signature = 'sha256='.$webhook->sign($payloadJson);
         $attempt = $this->attempts();
 
         try {
+            // Redirects are not followed: the host was checked above, and a 3xx
+            // can point anywhere, including inside the network (audit N18).
             $response = Http::timeout(10)
+                ->withoutRedirecting()
                 ->withHeaders([
-                    'Content-Type' => 'application/json',
                     'X-ETHR-Signature' => $signature,
                     'X-ETHR-Event' => $this->event,
-                    'X-ETHR-Delivery' => (string) $this->deliveryId,
+                    'X-ETHR-Delivery' => (string) $delivery->public_id,
                     'User-Agent' => 'ETHR-Webhooks/1.0',
                 ])
-                ->post($webhook->url, $this->payload);
-
-            $statusCode = $response->status();
-            $body = substr($response->body(), 0, 2000);
-
-            if ($response->successful()) {
-                // Success: reset failure count, record delivery
-                $delivery->update([
-                    'response_status' => $statusCode,
-                    'response_body' => $body,
-                    'attempt' => $attempt,
-                    'delivered_at' => now(),
-                ]);
-
-                $webhook->update([
-                    'failure_count' => 0,
-                    'last_triggered_at' => now(),
-                ]);
-            } else {
-                // HTTP error: increment failures
-                $this->handleDeliveryFailure($webhook, $delivery, $statusCode, $body, $attempt);
-            }
+                ->withBody($payloadJson, 'application/json')
+                ->post((string) $webhook->url);
         } catch (Throwable $e) {
             Log::warning('Webhook delivery failed', [
                 'webhook_id' => $this->webhookId,
@@ -127,35 +130,70 @@ class DispatchWebhookJob implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            $this->handleDeliveryFailure($webhook, $delivery, null, $e->getMessage(), $attempt);
+            $this->recordAttempt($delivery, null, $e->getMessage(), $attempt);
 
-            // Re-throw so the queue retries with backoff
+            // Retried with backoff; failed() counts the delivery once the
+            // retries run out.
             throw $e;
         }
+
+        $statusCode = $response->status();
+        $body = substr($response->body(), 0, 2000);
+
+        if ($response->successful()) {
+            $delivery->update([
+                'response_status' => $statusCode,
+                'response_body' => $body,
+                'attempt' => $attempt,
+                'delivered_at' => now(),
+            ]);
+
+            $webhook->update([
+                'failure_count' => 0,
+                'last_triggered_at' => now(),
+            ]);
+
+            return;
+        }
+
+        $this->recordAttempt($delivery, $statusCode, $body, $attempt);
+
+        // Only network errors were retried; an endpoint answering 500 got one
+        // attempt. A server error, a timeout or a rate limit is worth trying
+        // again, so it is thrown for the queue to retry with backoff.
+        if ($statusCode === 408 || $statusCode === 425 || $statusCode === 429 || $statusCode >= 500) {
+            throw new RuntimeException("Webhook endpoint answered HTTP {$statusCode}");
+        }
+
+        // Any other 4xx, or a redirect: the same request gets the same answer.
+        // Given up now, and counted once.
+        $this->countFailedDelivery($webhook);
     }
 
-    private function handleDeliveryFailure(
-        Webhook $webhook,
-        WebhookDelivery $delivery,
-        ?int $statusCode,
-        string $body,
-        int $attempt,
-    ): void {
-        $newFailureCount = $webhook->failure_count + 1;
-
+    private function recordAttempt(WebhookDelivery $delivery, ?int $statusCode, string $body, int $attempt): void
+    {
         $delivery->update([
             'response_status' => $statusCode,
             'response_body' => $body,
             'attempt' => $attempt,
         ]);
+    }
+
+    /**
+     * One failed delivery, not one failed attempt: counted per attempt, a
+     * delivery retried six times would disable its webhook before the second
+     * one finished. Ten consecutive failed deliveries disable it.
+     */
+    private function countFailedDelivery(Webhook $webhook): void
+    {
+        $newFailureCount = $webhook->failure_count + 1;
 
         $webhook->update(['failure_count' => $newFailureCount]);
 
-        // Auto-disable after 10 consecutive failures
         if ($newFailureCount >= 10) {
             $webhook->update(['is_active' => false]);
 
-            Log::warning('Webhook auto-disabled after 10 consecutive failures', [
+            Log::warning('Webhook auto-disabled after 10 consecutive failed deliveries', [
                 'webhook_id' => $this->webhookId,
                 'url' => $webhook->url,
             ]);
@@ -201,6 +239,16 @@ class DispatchWebhookJob implements ShouldQueue
                 'response_body' => 'Permanently failed: '.$exception->getMessage(),
                 'attempt' => $this->attempts(),
             ]);
+
+            // Retries exhausted: this is where a retried delivery is counted.
+            // Same predicate as handle(), for the same reason.
+            $webhook = Webhook::withoutGlobalScopes()
+                ->where('tenant_id', $this->tenantId)
+                ->find($this->webhookId);
+
+            if ($webhook !== null) {
+                $this->countFailedDelivery($webhook);
+            }
         }
     }
 }

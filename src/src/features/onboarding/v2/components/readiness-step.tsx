@@ -19,9 +19,9 @@ import type { ReadinessLevel } from "../types";
 
 function levelTone(level: ReadinessLevel): string {
   return {
-    ready: "var(--color-status-success, #059669)",
-    needs_attention: "var(--color-status-warning, #D97706)",
-    not_ready: "var(--color-status-error, #DC2626)",
+    ready: "var(--color-status-success, #047857)",
+    needs_attention: "var(--color-status-warning, #92400E)",
+    not_ready: "var(--color-status-error, #B91C1C)",
   }[level];
 }
 
@@ -110,7 +110,7 @@ export function ReadinessStep({ onLive }: { onLive?: () => void }) {
                             <CheckCircle2
                               className="h-3.5 w-3.5 shrink-0"
                               style={{
-                                color: "var(--color-status-success, #059669)",
+                                color: "var(--color-status-success, #047857)",
                               }}
                             />
                           ) : (

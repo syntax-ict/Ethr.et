@@ -1,6 +1,7 @@
 # ETHR Onboarding v2 — Audit, Architecture Decision & Delivery Plan
 
-Status: **Decision document. Not yet implemented.**
+Status: **Decision document — implemented.** The slices in §3 are done and the frontend
+in §4 shipped at `/setup/guided`. §1 records the code as it stood on 2026-07-30.
 Date: 2026-07-30
 Supersedes the onboarding sections of `PHASE_01.md` (S08) once approved.
 
@@ -58,7 +59,7 @@ Decisions taken:
 
 **D5 — Attendance history migration is blocked until `AttendanceEngine` accepts an event timestamp.** This is a prerequisite, not a nice-to-have. Add `occurredAt` to `AttendanceInput`, default `now()`, and thread it through `processCheckIn` / `processCheckOut`. It also fixes a live correctness bug: any device sync with a backlog currently records every event at ingestion time.
 
-**D6 — Login identifiers, not login methods.** Do not build 9 auth paths. Generalize `LoginRequest` from `email` to `identifier`, resolved against a tenant-configured ordered list (`email`, `phone`, `employee_code`, `username`). SSO already has `SsoSetting` + `SsoController` — leave it. OTP/passwordless is deferred: it depends on an SMS layer that does not exist.
+**D6 — Login identifiers, not login methods.** Do not build 9 auth paths. Generalize `LoginRequest` from `email` to `identifier`, resolved against a tenant-configured ordered list (`email`, `phone`, `employee_code`, `username`). SSO already has `SsoSetting` + `SsoController` — leave it. OTP/passwordless is deferred: it depends on an SMS layer that does not exist. *(Since built: the SMS layer is `App\Contracts\SmsSender`, with `LogSmsSender` for development and `EthioTelecomSmsSender` for production, chosen by `sms.driver`; OTP sign-in is `POST /auth/otp/request` and `POST /auth/otp/verify`, used by the `/login/otp` page. Delivery needs the EthioTelecom driver configured.)*
 
 **D7 — AD/LDAP, WhatsApp, and Anviz/Ronald Jack/Matrix/FingerTec/ESSL adapters are deferred.** They need a real device or directory to test against; writing untested vendor adapters is a liability, not a feature. Ship a documented `GenericHttpAdapter` + CSV path that covers them today, and add real adapters when a customer engagement supplies hardware.
 
@@ -98,8 +99,13 @@ Login generalized from email-only to a tenant-configured identifier list via `Au
 `PullDeviceEventsJob` gained a `sinceOverride` for one-off backfills, and
 `POST /devices/{device}/import-history` triggers it with a window (last 30 / 90 /
 from-date / full). Backfilled punches are dated at event time and the incremental
-cursor is preserved. `AttendanceHistoryImportTest`. Adapter-side pagination for
-very large `full` imports is the remaining follow-up (decision D8).
+cursor is preserved. `AttendanceHistoryImportTest`. **Paging closed 2026-10-03**:
+`full` and the scheduled sync now drain the device page by page too, a long
+history is read across a chain of time-budgeted jobs, and the cursor no longer
+steps past a page boundary. Until then a `full` import and every incremental
+sync kept only the first ~100 punches. What remains of decision D8 is vendor
+offset paging for a full page of punches inside one second, which needs real
+hardware to verify. See `DEVICE_INTEGRATION.md` → *Paging through a device*.
 
 **Slice 8 — Readiness & Go Live. ✅ DONE (backend).**
 `ReadinessScorer` — a deterministic weighted rubric over real counts across configuration / data / security, each failing check carrying a remediation deep link. `GET /onboarding/readiness` and `POST /onboarding/go-live` (marks step 7, completes onboarding). `ReadinessScorerTest`. **Launch screen UI deferred (contract ready).**
@@ -126,8 +132,9 @@ The interactive frontend for the onboarding-v2 steps is implemented in
 
 Hooks in `v2/api.ts`, types in `v2/types.ts`. Bilingual (en + am `setup2.*`
 keys), semantic tokens, `QueryBoundary` on every fetch. Type-clean (`tsc`) and
-covered by `test/onboarding-v2.test.tsx`. The existing 6-step `SetupWizard` still
-works; its template step reports the real provisioned count (Slice 0/1).
+covered by `test/onboarding-v2.test.tsx`. The old 6-step `SetupWizard` has been
+removed: `/setup` now redirects to `/setup/guided`, which is also where registration
+lands a new Tenant Admin.
 
 Contract reference: `FRONTEND.md`. Live in-browser verification against a running
 backend + authenticated tenant is the one remaining manual check (the dev server
@@ -152,4 +159,4 @@ Staging tables, source connectors (CSV/Excel/device/manual), conflict review que
 
 ### Out of scope (explicit)
 
-AD/LDAP, WhatsApp invitations, OTP/passwordless login (needs an SMS layer that does not exist), Anviz / Ronald Jack / Matrix / FingerTec / ESSL native adapters, and any LLM-backed configuration. Each is listed with its blocker above.
+AD/LDAP, WhatsApp invitations, Anviz / Ronald Jack / Matrix / FingerTec / ESSL native adapters, and any LLM-backed configuration. Each is listed with its blocker above. OTP sign-in was on this list because no SMS layer existed; both have since been built (see D6).

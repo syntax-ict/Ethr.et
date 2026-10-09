@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { branchesApi, departmentsApi } from "@/features/organization/api";
 import { Suspense, useState } from "react";
 import { CalendarRange, Plus, Users, Building2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,10 +27,21 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import {
+  useAssignShift,
+  useAssignableEmployees,
+  useDeleteShiftAssignment,
+  useEndShiftAssignment,
+  useShiftSchedule,
+  useShifts,
+  type ShiftAssignment,
+} from "@/features/shifts/api";
+import { todayIso, toHHMM } from "@/features/shifts/dates";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useCalendar } from "@/lib/calendar/calendar-context";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 interface AssignmentForm {
   shift_public_id: string;
@@ -39,13 +51,16 @@ interface AssignmentForm {
   effective_to: string;
 }
 
-const EMPTY_FORM: AssignmentForm = {
-  shift_public_id: "",
-  assignable_type: "employee",
-  assignable_public_id: "",
-  effective_from: new Date().toISOString().slice(0, 10),
-  effective_to: "",
-};
+/** A fresh form; built per use so "today" is today, not the day of import. */
+function emptyForm(shiftPublicId = ""): AssignmentForm {
+  return {
+    shift_public_id: shiftPublicId,
+    assignable_type: "employee",
+    assignable_public_id: "",
+    effective_from: todayIso(),
+    effective_to: "",
+  };
+}
 
 const TYPE_ICONS = {
   employee: Users,
@@ -54,96 +69,122 @@ const TYPE_ICONS = {
 };
 
 function AssignmentsContent() {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { formatDate: formatCalendarDate } = useCalendar();
+  // The card printed raw ISO dates while the form beside it set them in the
+  // user's calendar (audit N30). Built from parts, not `new Date(iso)`: that is
+  // UTC midnight, which is the previous day anywhere west of UTC.
+  const showDate = (iso: string | null) => {
+    if (!iso) return "—";
+    const [y, m, d] = iso.split("-").map(Number);
+    return formatCalendarDate(new Date(y, m - 1, d), locale);
+  };
   const TYPE_LABEL: Record<string, string> = {
     Employee: t("shifts_settings_page.employee"),
     Department: t("shifts_settings_page.department"),
     Branch: t("shifts_settings_page.branch"),
   };
-  const qc = useQueryClient();
   const searchParams = useSearchParams();
   const preselectedShift = searchParams.get("shift") ?? "";
 
   const [showDialog, setShowDialog] = useState(!!preselectedShift);
-  const [form, setForm] = useState<AssignmentForm>({
-    ...EMPTY_FORM,
-    shift_public_id: preselectedShift,
-  });
+  const [form, setForm] = useState<AssignmentForm>(() =>
+    emptyForm(preselectedShift),
+  );
 
-  const { data: shifts } = useQuery({
-    queryKey: ["shifts"],
-    queryFn: async () => (await apiClient.get("/shifts?per_page=100")).data,
-  });
+  const { data: shifts } = useShifts();
+  const { data: schedule, isLoading } = useShiftSchedule();
+  const { data: employees } = useAssignableEmployees(
+    form.assignable_type === "employee",
+  );
+  const { data: departments } = departmentsApi.useList();
+  const { data: branches } = branchesApi.useList();
 
-  const { data: schedule, isLoading } = useQuery({
-    queryKey: ["shifts", "schedule"],
-    queryFn: async () =>
-      (await apiClient.get("/shifts/schedule?per_page=100")).data,
-  });
+  const assign = useAssignShift();
+  const endAssignment = useEndShiftAssignment();
+  const deleteAssignment = useDeleteShiftAssignment();
 
-  const { data: employees } = useQuery({
-    queryKey: ["employees", "list"],
-    queryFn: async () => (await apiClient.get("/employees?per_page=200")).data,
-    enabled: form.assignable_type === "employee",
-  });
+  // Ending is `shift.update`, which HR admins hold; deleting is `shift.delete`,
+  // a tenant-admin grant — offered only where the API would allow it.
+  const { hasPermission } = usePermissions();
+  const canEnd = hasPermission("shift.update");
+  const canDelete = hasPermission("shift.delete");
 
-  const { data: departments } = useQuery({
-    queryKey: ["departments"],
-    queryFn: async () =>
-      (await apiClient.get("/organization/departments?per_page=100")).data,
-    enabled: form.assignable_type === "department",
-  });
+  const [ending, setEnding] = useState<ShiftAssignment | null>(null);
+  const [lastDay, setLastDay] = useState("");
 
-  const { data: branches } = useQuery({
-    queryKey: ["branches"],
-    queryFn: async () =>
-      (await apiClient.get("/organization/branches?per_page=100")).data,
-    enabled: form.assignable_type === "branch",
-  });
+  function openEnd(a: ShiftAssignment) {
+    // Today, unless the assignment has not started yet: a last day before
+    // the first is refused, so the earliest valid choice is its first day.
+    const today = todayIso();
+    const from = a.effective_from ?? today;
+    setLastDay(from > today ? from : today);
+    setEnding(a);
+  }
 
-  const assign = useMutation({
-    mutationFn: async (payload: AssignmentForm) => {
-      const body: Record<string, unknown> = {
-        shift_public_id: payload.shift_public_id,
-        assignable_type: payload.assignable_type,
-        assignable_public_id: payload.assignable_public_id,
-        effective_from: payload.effective_from,
-      };
-      if (payload.effective_to) body.effective_to = payload.effective_to;
-      return (await apiClient.post("/shifts/assign", body)).data;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["shifts", "schedule"] });
-      qc.invalidateQueries({ queryKey: ["shifts"] });
-      setShowDialog(false);
-      setForm(EMPTY_FORM);
-      toast.success(t("shift_assignments_page.assigned_success"));
-    },
-    onError: (err: unknown) => {
-      const e = err as {
-        response?: {
-          data?: { detail?: string; errors?: Record<string, string[]> };
-        };
-      };
-      const msg =
-        e.response?.data?.detail ??
-        Object.values(e.response?.data?.errors ?? {})[0]?.[0] ??
-        t("shifts_settings_page.assign_failed");
-      toast.error(msg);
-    },
-  });
+  function submitEnd() {
+    if (!ending) return;
+    endAssignment.mutate(
+      { publicId: ending.public_id, payload: { effective_to: lastDay } },
+      {
+        onSuccess: () => {
+          setEnding(null);
+          toast.success(t("shift_assignments_page.ended_success"));
+        },
+        onError: (err: unknown) =>
+          toast.error(
+            apiErrorMessage(err, t("shift_assignments_page.end_failed")),
+          ),
+      },
+    );
+  }
+
+  function remove(a: ShiftAssignment) {
+    if (!confirm(t("shift_assignments_page.delete_confirm"))) return;
+    deleteAssignment.mutate(a.public_id, {
+      onSuccess: () => toast.success(t("shift_assignments_page.deleted")),
+      // A 409 says the assignment has already taken effect and should be
+      // ended instead; the API's own sentence is the useful one.
+      onError: (err: unknown) =>
+        toast.error(
+          apiErrorMessage(err, t("shift_assignments_page.delete_failed")),
+        ),
+    });
+  }
+
+  function submit() {
+    assign.mutate(
+      {
+        shift_public_id: form.shift_public_id,
+        assignable_type: form.assignable_type,
+        assignable_public_id: form.assignable_public_id,
+        effective_from: form.effective_from,
+        ...(form.effective_to ? { effective_to: form.effective_to } : {}),
+      },
+      {
+        onSuccess: () => {
+          setShowDialog(false);
+          setForm(emptyForm());
+          toast.success(t("shift_assignments_page.assigned_success"));
+        },
+        onError: (err: unknown) =>
+          toast.error(
+            apiErrorMessage(err, t("shifts_settings_page.assign_failed")),
+          ),
+      },
+    );
+  }
 
   const assignments = schedule?.data ?? [];
   const shiftList = shifts?.data ?? [];
 
   // Assignable options based on type
-  const assignableOptions = (() => {
-    if (form.assignable_type === "employee")
-      return (employees?.data ?? []) as { public_id: string; name: string }[];
-    if (form.assignable_type === "department")
-      return (departments?.data ?? []) as { public_id: string; name: string }[];
-    return (branches?.data ?? []) as { public_id: string; name: string }[];
-  })();
+  const assignableOptions: { public_id: string; name: string }[] =
+    form.assignable_type === "employee"
+      ? (employees?.data ?? [])
+      : form.assignable_type === "department"
+        ? (departments?.data ?? [])
+        : (branches?.data ?? []);
 
   return (
     <div className="space-y-6">
@@ -153,7 +194,7 @@ function AssignmentsContent() {
         actions={
           <Button
             onClick={() => {
-              setForm(EMPTY_FORM);
+              setForm(emptyForm());
               setShowDialog(true);
             }}
           >
@@ -183,7 +224,7 @@ function AssignmentsContent() {
             <Button
               className="mt-4"
               onClick={() => {
-                setForm(EMPTY_FORM);
+                setForm(emptyForm());
                 setShowDialog(true);
               }}
             >
@@ -194,61 +235,92 @@ function AssignmentsContent() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {assignments.map(
-            (
-              a: {
-                shift?: { name: string; start_time: string; end_time: string };
-                assignable_type: string;
-                effective_from: string;
-                effective_to: string | null;
-                created_at: string;
-              },
-              i: number,
-            ) => {
-              const Icon =
-                TYPE_ICONS[
-                  a.assignable_type?.toLowerCase() as keyof typeof TYPE_ICONS
-                ] ?? Users;
-              const isActive =
-                !a.effective_to || new Date(a.effective_to) >= new Date();
-              return (
-                <Card key={i}>
-                  <CardContent className="flex items-center gap-4 p-4">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                      <Icon className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium">
-                          {a.shift?.name ??
-                            t("shift_assignments_page.unknown_shift")}
-                        </p>
-                        <Badge variant="outline" className="text-xs">
-                          {TYPE_LABEL[a.assignable_type] ?? a.assignable_type}
-                        </Badge>
-                        <Badge
-                          variant={isActive ? "success" : "secondary"}
-                          className="text-xs"
-                        >
-                          {isActive
-                            ? t("webhooks_page.active")
-                            : t("shift_assignments_page.expired")}
-                        </Badge>
-                      </div>
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        {a.shift?.start_time} – {a.shift?.end_time}
-                        {" · "}
-                        {t("shift_assignments_page.from")} {a.effective_from}
-                        {a.effective_to
-                          ? ` ${t("shift_assignments_page.to_lc")} ${a.effective_to}`
-                          : ` (${t("shift_assignments_page.no_end_date")})`}
+          {assignments.map((a) => {
+            const Icon =
+              TYPE_ICONS[
+                a.assignable_type?.toLowerCase() as keyof typeof TYPE_ICONS
+              ] ?? Users;
+            const today = todayIso();
+            // `effective_to` is the last day the assignment applies, so it is
+            // active through that whole date. Comparing `new Date(effective_to)`
+            // (UTC midnight, 03:00 in Addis) with the current instant marked
+            // it expired from 03:00 on its own last day.
+            const isActive = !a.effective_to || a.effective_to >= today;
+            // Not started yet: the only kind the API lets anyone delete. One
+            // that has taken effect is history and is ended instead.
+            const isUpcoming = !!a.effective_from && a.effective_from > today;
+            const assigneeName =
+              a.assignee.name ?? t("shift_assignments_page.unknown_assignee");
+            return (
+              <Card key={a.public_id}>
+                <CardContent className="flex items-center gap-4 p-4">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <Icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium">
+                        {a.shift?.name ??
+                          a.rotation?.name ??
+                          t("shift_assignments_page.unknown_shift")}
                       </p>
+                      <span className="text-sm text-muted-foreground">
+                        {t("shift_assignments_page.for")}
+                      </span>
+                      <p className="font-medium">{assigneeName}</p>
+                      <Badge variant="outline" className="text-xs">
+                        {TYPE_LABEL[a.assignable_type] ?? a.assignable_type}
+                      </Badge>
+                      <Badge
+                        variant={isActive ? "success" : "secondary"}
+                        className="text-xs"
+                      >
+                        {!isActive
+                          ? t("shift_assignments_page.expired")
+                          : isUpcoming
+                            ? t("shift_assignments_page.upcoming")
+                            : t("webhooks_page.active")}
+                      </Badge>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            },
-          )}
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      {a.shift &&
+                        `${toHHMM(a.shift.start_time)} – ${toHHMM(a.shift.end_time)} · `}
+                      {t("shift_assignments_page.from")}{" "}
+                      {showDate(a.effective_from)}
+                      {a.effective_to
+                        ? ` ${t("shift_assignments_page.to_lc")} ${showDate(a.effective_to)}`
+                        : ` (${t("shift_assignments_page.no_end_date")})`}
+                    </p>
+                  </div>
+                  {isActive && (canEnd || (canDelete && isUpcoming)) && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      {canEnd && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          aria-label={`${t("shift_assignments_page.end")} ${assigneeName}`}
+                          onClick={() => openEnd(a)}
+                        >
+                          {t("shift_assignments_page.end")}
+                        </Button>
+                      )}
+                      {canDelete && isUpcoming && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          aria-label={`${t("common.delete")} ${assigneeName}`}
+                          disabled={deleteAssignment.isPending}
+                          onClick={() => remove(a)}
+                        >
+                          {t("common.delete")}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -280,25 +352,20 @@ function AssignmentsContent() {
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {shiftList.map(
-                    (s: {
-                      public_id: string;
-                      name: string;
-                      start_time: string;
-                      end_time: string;
-                    }) => (
-                      <SelectItem key={s.public_id} value={s.public_id}>
-                        {s.name} ({s.start_time}–{s.end_time})
-                      </SelectItem>
-                    ),
-                  )}
+                  {shiftList.map((s) => (
+                    <SelectItem key={s.public_id} value={s.public_id}>
+                      {s.name} ({toHHMM(s.start_time)}–{toHHMM(s.end_time)})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             {/* Assignable type */}
             <div>
-              <Label>{t("shift_assignments_page.assign_to_required")}</Label>
+              <Label htmlFor="assign-type">
+                {t("shift_assignments_page.assign_to_required")}
+              </Label>
               <Select
                 value={form.assignable_type}
                 onValueChange={(v) =>
@@ -309,7 +376,7 @@ function AssignmentsContent() {
                   }))
                 }
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger id="assign-type" className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -331,7 +398,7 @@ function AssignmentsContent() {
 
             {/* Assignable entity */}
             <div>
-              <Label>
+              <Label htmlFor="assign-target">
                 {form.assignable_type === "employee"
                   ? t("shifts_settings_page.employee")
                   : form.assignable_type === "department"
@@ -345,7 +412,7 @@ function AssignmentsContent() {
                   setForm((f) => ({ ...f, assignable_public_id: v }))
                 }
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger id="assign-target" className="mt-1">
                   <SelectValue
                     placeholder={`${t("shift_assignments_page.select_prefix")} ${form.assignable_type}`}
                   />
@@ -363,8 +430,11 @@ function AssignmentsContent() {
             {/* Date range */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>{t("shifts_settings_page.effective_from")} *</Label>
+                <Label htmlFor="assign-from">
+                  {t("shifts_settings_page.effective_from")} *
+                </Label>
                 <DualCalendarDateInput
+                  id="assign-from"
                   value={form.effective_from}
                   onChange={(v) =>
                     setForm((f) => ({ ...f, effective_from: v }))
@@ -373,8 +443,11 @@ function AssignmentsContent() {
                 />
               </div>
               <div>
-                <Label>{t("shifts_settings_page.effective_to")}</Label>
+                <Label htmlFor="assign-to">
+                  {t("shifts_settings_page.effective_to")}
+                </Label>
                 <DualCalendarDateInput
+                  id="assign-to"
                   value={form.effective_to}
                   onChange={(v) => setForm((f) => ({ ...f, effective_to: v }))}
                   min={form.effective_from}
@@ -392,7 +465,7 @@ function AssignmentsContent() {
               {t("common.cancel")}
             </Button>
             <Button
-              onClick={() => assign.mutate(form)}
+              onClick={submit}
               disabled={
                 !form.shift_public_id ||
                 !form.assignable_public_id ||
@@ -404,6 +477,49 @@ function AssignmentsContent() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               {t("shifts_settings_page.assign_shift")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* End Dialog */}
+      <Dialog
+        open={ending !== null}
+        onOpenChange={(open) => !open && setEnding(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("shift_assignments_page.end_title")}</DialogTitle>
+            <DialogDescription>
+              {t("shift_assignments_page.end_desc")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div>
+            <Label htmlFor="end-last-day">
+              {t("shift_assignments_page.last_day")} *
+            </Label>
+            <DualCalendarDateInput
+              id="end-last-day"
+              value={lastDay}
+              onChange={setLastDay}
+              min={ending?.effective_from ?? undefined}
+              className="mt-1"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEnding(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={submitEnd}
+              disabled={!lastDay || endAssignment.isPending}
+            >
+              {endAssignment.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {t("shift_assignments_page.end")}
             </Button>
           </DialogFooter>
         </DialogContent>

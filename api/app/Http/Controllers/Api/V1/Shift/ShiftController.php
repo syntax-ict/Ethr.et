@@ -11,11 +11,10 @@ use App\Http\Requests\Shift\UpdateShiftRequest;
 use App\Http\Resources\ShiftAssignmentResource;
 use App\Http\Resources\ShiftResource;
 use App\Models\AuditLog;
-use App\Models\Branch;
-use App\Models\Department;
-use App\Models\Employee;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
+use App\Models\ShiftRotation;
+use App\Support\ShiftAssignables;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -96,6 +95,40 @@ class ShiftController extends Controller
     {
         Gate::authorize('shift.delete');
 
+        // A soft-deleted shift drops out of attendance matching (ShiftMatcher
+        // only matches a shift it can load), so deleting one that is still
+        // assigned silently moved its people onto their department's, branch's
+        // or the default shift — and a rotation step naming it became a rest
+        // day. Refused while anything current or future depends on it; an
+        // assignment that ended before today is history and does not block.
+        $inForce = $shift->assignments()
+            ->inForceOnOrAfter(ShiftAssignment::tenantToday())
+            ->count();
+        $rotations = ShiftRotation::query()
+            ->whereHas('steps', fn ($q) => $q->where('shift_id', $shift->id))
+            ->orderBy('name')
+            ->pluck('name');
+
+        if ($inForce > 0 || $rotations->isNotEmpty()) {
+            $reasons = [];
+            if ($inForce > 0) {
+                $reasons[] = $inForce === 1
+                    ? '1 assignment is current or upcoming'
+                    : "{$inForce} assignments are current or upcoming";
+            }
+            if ($rotations->isNotEmpty()) {
+                $reasons[] = 'it is a step in the rotation(s) '.$rotations->implode(', ');
+            }
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/shift-in-use',
+                'title' => 'Shift In Use',
+                'status' => 409,
+                'detail' => 'This shift cannot be deleted: '.implode(', and ', $reasons)
+                    .'. End or reassign those first, or mark the shift inactive.',
+            ], 409)->header('Content-Type', 'application/problem+json');
+        }
+
         $shift->delete();
 
         AuditLog::record('shift.deleted', $shift);
@@ -109,11 +142,8 @@ class ShiftController extends Controller
 
         $shift = Shift::where('public_id', $request->validated('shift_public_id'))->firstOrFail();
 
-        $assignableType = match ($request->validated('assignable_type')) {
-            'employee' => Employee::class,
-            'department' => Department::class,
-            'branch' => Branch::class,
-        };
+        $assignableType = ShiftAssignables::modelFor($request->validated('assignable_type'))
+            ?? throw new \InvalidArgumentException('Unsupported assignable type.');
 
         $assignable = $assignableType::where('public_id', $request->validated('assignable_public_id'))->firstOrFail();
 
@@ -126,7 +156,7 @@ class ShiftController extends Controller
             'effective_to' => $request->validated('effective_to'),
         ]);
 
-        $assignment->load('shift');
+        $assignment->load(ShiftAssignment::resourceRelations());
 
         AuditLog::record('shift.assigned', $shift, [
             'assignable_type' => $request->validated('assignable_type'),
@@ -143,7 +173,7 @@ class ShiftController extends Controller
         Gate::authorize('shift.viewAny');
 
         $query = ShiftAssignment::query()
-            ->with('shift');
+            ->with(ShiftAssignment::resourceRelations());
 
         if ($request->filled('filter.date_from')) {
             $query->where(function ($q) use ($request) {
@@ -157,12 +187,7 @@ class ShiftController extends Controller
         }
 
         if ($request->filled('filter.assignable_type')) {
-            $type = match ($request->input('filter.assignable_type')) {
-                'employee' => Employee::class,
-                'department' => Department::class,
-                'branch' => Branch::class,
-                default => null,
-            };
+            $type = ShiftAssignables::modelFor($request->input('filter.assignable_type'));
             if ($type) {
                 $query->where('assignable_type', $type);
             }

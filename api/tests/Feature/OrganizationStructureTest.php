@@ -234,6 +234,39 @@ describe('departments CRUD', function () {
         expect($tree[0]['children_recursive'][0]['children_recursive'])->toHaveCount(1);
     });
 
+    it('keeps a deleted department\'s children on the chart, as roots', function () {
+        // destroy() soft-deletes, the children keep pointing at it, and the
+        // roots were whereNull('parent_id') only: the live subtree vanished
+        // from the Structure chart (audit N72).
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);
+        $gone = Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Gone']);
+        Department::factory()->create(['tenant_id' => $tenant->id, 'parent_id' => $gone->id, 'name' => 'Orphan']);
+        $gone->delete();
+
+        $names = collect($this->getJson('/api/v1/organization/tree')->assertOk()->json())->pluck('name');
+
+        expect($names)->toContain('Orphan')->not->toContain('Gone');
+    });
+
+    it('refuses to put a department under one of its own sub-departments', function () {
+        // Nothing checked: in A -> B -> A neither is a root, and both subtrees
+        // vanished from the Structure chart (audit N72).
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $a = Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'A']);
+        $b = Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'B', 'parent_id' => $a->id]);
+        $c = Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'C', 'parent_id' => $b->id]);
+
+        foreach ([$c, $b, $a] as $descendantOrSelf) {
+            $this->putJson("/api/v1/organization/departments/{$a->public_id}", [
+                'parent_public_id' => $descendantOrSelf->public_id,
+            ])->assertUnprocessable()->assertJsonValidationErrors('parent_public_id');
+        }
+
+        expect($a->fresh()->parent_id)->toBeNull();
+    });
+
     it('includes employee counts at every level of the tree', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);
@@ -493,6 +526,24 @@ describe('grades CRUD', function () {
             'max_salary_cents' => 500000,
         ])->assertUnprocessable()
             ->assertJsonValidationErrors(['max_salary_cents']);
+    });
+
+    it('refuses an update that would put the maximum below the minimum', function () {
+        // Create checked gte:min_salary_cents; update did not, so an edit could
+        // save max below min, and every salary step then failed the band check
+        // (audit N74). Either side alone can break it.
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $grade = Grade::factory()->create([
+            'tenant_id' => $tenant->id, 'min_salary_cents' => 500000, 'max_salary_cents' => 900000,
+        ]);
+
+        $this->putJson("/api/v1/organization/grades/{$grade->public_id}", ['max_salary_cents' => 100000])
+            ->assertUnprocessable()->assertJsonValidationErrors('max_salary_cents');
+        $this->putJson("/api/v1/organization/grades/{$grade->public_id}", ['min_salary_cents' => 1000000])
+            ->assertUnprocessable()->assertJsonValidationErrors('max_salary_cents');
+        $this->putJson("/api/v1/organization/grades/{$grade->public_id}", ['min_salary_cents' => 600000])
+            ->assertOk();
     });
 
     it('updates a grade', function () {

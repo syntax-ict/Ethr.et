@@ -2,6 +2,16 @@
 
 **Status: built and round-trip tested locally. The rehearsal on the real host has not happened, so the go-live gate is not closed.**
 
+> **2026-10-01: the first section describes the VPS/Docker backup that no longer exists.** The VPS
+> stack was removed in `3db9904` (2026-09-26/27) and the Docker development stack on 2026-09-30.
+> `scripts/backup.sh` and `restore.sh` are retired and refuse to run (`backup.sh` exits 64).
+> Mentions below of `docker-compose.yml`, "on the VPS" and a VPS dump are history.
+> **The live procedure starts at [*The commands*](#the-commands)**: `php artisan ethr:backup`,
+> scheduled daily at 01:00 UTC (`api/routes/console.php:109`) and reaching the host through
+> `POST /api/v1/cron/schedule`. During an incident start with
+> [`../operations/ON-CALL.md`](../operations/ON-CALL.md); every command and the full schedule
+> are in [`../operations/COMMANDS-AND-SCHEDULE.md`](../operations/COMMANDS-AND-SCHEDULE.md).
+
 ETHR holds employee records, bank details, salary history and scanned identity documents for multiple organizations. Master plan §30 sets the standard this document has to meet: *a backup that has never been restored is not considered verified.*
 
 ---
@@ -99,7 +109,7 @@ changes which operation it bites.
 
 `2026_07_22_000001_restrict_audit_log_to_insert_only.php` emits `CREATE TRIGGER` with **no
 `DEFINER` clause** (lines 53 and 95), so the engine assigns whoever ran `migrate`. That is
-the connection's `DB_USERNAME` — `ethr` under `docker-compose.yml`, and on Plesk a
+the connection's `DB_USERNAME` — `ethr` under `docker-compose.yml` (removed 2026-09-30), and on Plesk a
 restricted per-database user issued by the panel (`ENVIRONMENT.md:98`), never `root`. The
 `root@localhost` reading above is therefore a true measurement **of the schema it was run
 against**, not a property ETHR's migration produces everywhere.
@@ -234,7 +244,8 @@ One entry, already registered in `routes/console.php`:
 
 **No `--keep` on that line, deliberately.** The command falls back to
 `config('backup.keep')`, so `BACKUP_KEEP` sets retention per environment — **7**
-on the VPS, **2** on shared hosting. Passing `--keep` here would override the env
+on the VPS *(gone since 2026-09-26)*, **2** on shared hosting, which is also the default
+(`api/config/backup.php`). Passing `--keep` here would override the env
 var on every host, which is the defect this had until 2026-09-23: the command's
 signature carried its own `--keep=7` default, so `config('backup.keep')` and
 `BACKUP_KEEP` were read by nothing and lowering retention on a fixed quota did
@@ -252,13 +263,30 @@ disk actually looks like*.
 
 01:00 UTC (04:00 EAT), deliberately **before** the 02:00 cleanup job, so a backup always exists from before data was pruned rather than after.
 
-On shared hosting this arrives through a single Plesk Scheduled Task running the scheduler every minute:
+On shared hosting this arrives through an **external caller** POSTing to the scheduler
+endpoint on a timer — GitHub Actions, every five minutes:
 
 ```
-* * * * *   cd ~/ethr/api && php artisan schedule:run
+POST /api/v1/cron/schedule     with header  X-Cron-Token: <CRON_TOKEN>
 ```
 
-Whether Plesk offers "Run a command" at all, and at what minimum interval, is **gate G0-D** in `GATE-0-RESULT.md` and is still `NOT VERIFIED`. If only URL-fetch tasks are available, the scheduler has to move behind an authenticated HTTP endpoint — a real design change that is not built.
+**Not through a Plesk Scheduled Task.** This paragraph described one, and offered `G0-D` as
+`NOT VERIFIED`, until 2026-09-28 — all three of its claims were wrong by then:
+
+- **G0-D is `FAIL`, measured**, not unverified: there is no Scheduled Tasks / Task Scheduler /
+  Cron Jobs section on this subscription (owner-read 2026-09-18). Two other passages in *this
+  same file* already said `FAIL`, 85 lines earlier.
+- The "real design change that is not built" **is built** — `CronRunController`, the two
+  endpoints, `VerifyCronToken` behind `throttle:cron`, fail-closed 404 without a token, and a
+  `Cache::lock` returning 409 on overlap. This file cites that controller by line at
+  *Recovering without shell access*.
+- The scheduler entry at 01:00 survives a five-minute caller because `:00` is a multiple of
+  five. An entry scheduled at a minute that is not would **never run** — see
+  `routes/console.php`, which now says so where the times are declared.
+
+Whether the caller is actually running on the account is gate **Q6-x**, and it is open:
+`cron.yml`'s `schedule:` trigger only fires once the workflow is on the default branch, and a
+green `workflow_dispatch` is not evidence that the schedule fires. Record those as two facts.
 
 `--off-host` is deliberately absent from the scheduled line. Off-host credentials may not exist yet, and a scheduled task that fails every night is a scheduled task people mute. Add it once the disk is configured; until then the command warns on **every run** that the backup exists only on the host it protects.
 

@@ -6,17 +6,22 @@ namespace App\Models;
 
 use App\Enums\LeaveStatus;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
-/** @property LeaveStatus $status */
+/**
+ * @property LeaveStatus $status
+ * @property-read Employee|null $employee
+ * @property Carbon|null $start_date
+ * @property Carbon|null $end_date
+ */
 class LeaveRequest extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, SoftDeletes;
+    use BelongsToTenant, HasFactory, HasPublicId, SoftDeletes;
 
     protected $fillable = [
         'public_id',

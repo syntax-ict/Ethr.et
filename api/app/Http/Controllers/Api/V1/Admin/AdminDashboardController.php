@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Admin\PlatformAnalyticsService;
 use App\Services\Admin\SystemHealthService;
+use App\Support\AuditSubjects;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -41,8 +42,12 @@ class AdminDashboardController extends Controller
 
         $query = AuditLog::withoutGlobalScopes()->orderByDesc('created_at');
 
+        // A substring, as on the tenant view: both share one explorer whose
+        // action box is free text, so an exact match made "payroll" find
+        // nothing here and everything there (audit N77).
         if ($request->has('filter.action')) {
-            $query->where('action', $request->input('filter.action'));
+            $action = $request->input('filter.action');
+            $query->where('action', 'like', '%'.$action.'%');
         }
 
         if ($request->has('filter.from')) {
@@ -53,9 +58,10 @@ class AdminDashboardController extends Controller
             $query->whereDate('created_at', '<=', $request->input('filter.to'));
         }
 
-        return AuditLogResource::collection(
-            $query->paginate($request->integer('per_page', 50))
-        );
+        $logs = $query->paginate($request->integer('per_page', 50));
+        AuditSubjects::attach($logs->getCollection());
+
+        return AuditLogResource::collection($logs);
     }
 
     public function failedJobs(Request $request): AnonymousResourceCollection

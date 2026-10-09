@@ -70,7 +70,8 @@ Read-only; confirming the matches happens in the [migration workspace](MIGRATION
 
 `POST /api/v1/devices/{device}/import-history` with `{ window }`:
 `last_30` | `last_90` | `from_date` (+ `from_date`) | `full`. It dispatches
-`PullDeviceEventsJob` with a `sinceOverride`, so the pull is a one-off backfill:
+`PullDeviceEventsJob` with `triggeredBy: 'history_import'` and a `sinceOverride`
+(none for `full`), so the pull is a one-off backfill:
 
 - events are dated at their real event time (`AttendanceInput::$occurredAt`), so
   a 90-day backfill lands 90 days ago, not today;
@@ -78,6 +79,69 @@ Read-only; confirming the matches happens in the [migration workspace](MIGRATION
   next scheduled sync doesn't skip the gap between the backfill window and now;
 - idempotency keys let a backfill safely overlap live syncs.
 
-Note: adapters return up to their per-call cap (~100 events), so `full` history
-against a large device needs adapter-side pagination — a documented follow-up
-(ONBOARDING_V2.md decision D8).
+## Paging through a device (backfills and scheduled syncs alike)
+
+Adapters return up to their per-call cap (~100 events), so one call is never
+assumed to be everything. **Both** a backfill and the five-minutely incremental
+sync drain the device page by page. *(2026-10-03: until then only a backfill
+with a start date paged. `full` and the incremental sync made one call and then
+moved the cursor to now, so anything past the first page was lost for good: a
+device back from a day offline with 400 punches kept 100.)*
+
+- **The cursor stays on each page's latest timestamp**, not one second past it.
+  Vendors disagree on whether `since` is inclusive; stepping past the last event
+  lost the next second's punch on a strictly-after API and a same-second punch
+  on an inclusive one. Punches an inclusive API returns twice are skipped by the
+  job and, across runs, by idempotency key.
+- **A run stops at the moment it began.** Later punches belong to the next
+  incremental sync, which starts its cursor at that moment. This is also what
+  ends a run against an adapter that never runs dry (`MockAdapter`, a device
+  clock running fast).
+- **A run has a time budget** (`devices.pull_time_budget_seconds`, default 20).
+  Production drains the queue in 50-second windows inside an HTTP request, so a
+  long history is read across a chain of jobs: each stops at its budget and
+  queues a continuation from its cursor, which is a backfill and leaves
+  `last_sync_at` alone. An incremental sync moves `last_sync_at` to the moment
+  it began, whether or not it handed work on.
+- **What a time cursor cannot do:** if a full page of punches shares one second,
+  the device's API offers no way past them by time. The run stops, records the
+  sync as `partial` and says so in `error_message`. Getting further would take
+  vendor offset paging (Hikvision `searchResultPosition`, for one), which has not
+  been verified against real hardware and is not built.
+
+Pinned in `tests/Feature/AttendanceHistoryImportTest.php`.
+
+## A failed read is not an empty one
+
+`pullEvents()` and `pullEnrollments()` throw `App\Exceptions\DeviceRequestFailed`
+when the device (or its middleware) is unreachable, answers non-2xx, or answers
+2xx with a body that is not JSON — the three checks in
+`Services\Device\Concerns\ReadsFromDevice`, which every vendor adapter uses. *(2026-10-03: until then each adapter caught
+everything and returned `[]`, which is also what an idle device returns. The job
+could not tell them apart, so a timed-out read looked like "nothing new" and an
+incremental sync moved `last_sync_at` past punches it never read.)*
+
+The job already had the right path for an exception: the device goes to
+`error`, the sync log to `failed`, the job retries once, and after that
+`DeviceSyncFailed` notifies the tenant's admins. It never reaches the cursor
+update, so the next attempt reads from where the last good one stopped.
+
+- A 2xx JSON reply with no events key is still an empty read. ISAPI leaves out
+  `InfoList` when nothing matched, and the vendor quirks beyond that cannot be
+  checked without hardware.
+- The exception's message names the vendor and the HTTP status, never the
+  address or the credentials; the cURL error is chained, not quoted, because it
+  carries the full URL and a generic `base_url` may embed `user:pass@`.
+- **Over HTTP it is a 502.** `bootstrap/app.php` renders `DeviceRequestFailed`
+  as an RFC-7807 problem with `type` `…/errors/device-unreachable` and the
+  translated `device.read_failed` as `detail` — not the exception's message,
+  which is for the sync log. Enrollment discovery used to answer 200 with an
+  empty roster, and staging a migration from a down device used to create an
+  empty batch; staging now reads the device *before* creating the batch, so a
+  failure leaves nothing behind. Both screens already had an error state (the
+  discovery dialog's `QueryBoundary`, the migration step's toast).
+- `connect()` and `getStatus()` still answer `false` / offline on failure:
+  answering "is it up?" with "no" is their job.
+
+Pinned in `tests/Feature/Device/VendorAdapterProtocolTest.php` and
+`tests/Feature/DeviceEnrollmentTest.php`.

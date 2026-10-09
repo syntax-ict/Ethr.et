@@ -85,7 +85,15 @@ class HealthController extends Controller
 
         $services['api'] = 'healthy';
 
-        $allHealthy = ! in_array('unhealthy', $services, true);
+        // A probe that THROWS reports `unavailable`, which is the worse outcome,
+        // so it must degrade the status at least as much as `unhealthy`. This
+        // checked only `unhealthy`: a cache or storage disk that raised an
+        // exception left /health at 200 while one that merely answered wrong
+        // returned 503. `database_read` stays out unless actually `unhealthy`:
+        // `not_configured` is the normal state on shared hosting.
+        $core = array_diff_key($services, ['database_read' => true]);
+        $allHealthy = array_intersect($core, ['unhealthy', 'unavailable']) === []
+            && $services['database_read'] !== 'unhealthy';
 
         // Outside `services` on purpose: everything in there feeds the 503
         // above, and scheduler staleness must not.

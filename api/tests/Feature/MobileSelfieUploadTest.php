@@ -9,7 +9,7 @@ use App\Services\FileStorageService;
 use Illuminate\Support\Facades\Storage;
 
 test('mobile check-in stores the selfie and records its object key', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
 
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
@@ -31,11 +31,11 @@ test('mobile check-in stores the selfie and records its object key', function ()
         ->and($record->photo_path)->toContain('/selfies/')
         ->and($record->photo_path)->not->toStartWith('data:');
 
-    Storage::disk('minio')->assertExists($record->photo_path);
+    Storage::disk('local')->assertExists($record->photo_path);
 });
 
 test('a check-out selfie is kept without overwriting the check-in one', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
 
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
@@ -67,12 +67,12 @@ test('a check-out selfie is kept without overwriting the check-in one', function
         ->and($checkOutPhoto)->toBeString()
         ->and($checkOutPhoto)->not->toBe($checkInPhoto);
 
-    Storage::disk('minio')->assertExists($checkInPhoto);
-    Storage::disk('minio')->assertExists($checkOutPhoto);
+    Storage::disk('local')->assertExists($checkInPhoto);
+    Storage::disk('local')->assertExists($checkOutPhoto);
 });
 
 test('mobile check-in rejects a non-image payload', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
 
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
@@ -86,11 +86,11 @@ test('mobile check-in rejects a non-image payload', function () {
         'photo' => 'data:image/jpeg;base64,'.base64_encode('not really a jpeg'),
     ])->assertStatus(422)->assertJsonPath('errors.photo.0', __('validation.file_magic_bytes_invalid'));
 
-    expect(Storage::disk('minio')->allFiles())->toBeEmpty();
+    expect(Storage::disk('local')->allFiles())->toBeEmpty();
 });
 
 test('mobile check-in rejects an unsupported image type', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
 
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
@@ -106,7 +106,7 @@ test('mobile check-in rejects an unsupported image type', function () {
 });
 
 test('stored selfies are compressed within the mobile byte budget', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
 
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
@@ -117,7 +117,7 @@ test('stored selfies are compressed within the mobile byte budget', function () 
     expect($stored['size'])->toBeLessThanOrEqual(FileStorageService::SELFIE_MAX_BYTES)
         ->and($stored['mime_type'])->toBe('image/jpeg');
 
-    $image = imagecreatefromstring(Storage::disk('minio')->get($stored['path']));
+    $image = imagecreatefromstring(Storage::disk('local')->get($stored['path']));
 
     expect(max(imagesx($image), imagesy($image)))
         ->toBeLessThanOrEqual(FileStorageService::SELFIE_MAX_DIMENSION);

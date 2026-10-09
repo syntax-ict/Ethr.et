@@ -1,26 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 
-export interface CustomRole {
-  public_id: string;
-  name: string;
-  description: string;
-  is_active: boolean;
-  permissions: string[];
-  users_count?: number;
-  created_at: string;
-  updated_at: string;
-}
+type Schemas = components["schemas"];
 
-export interface PermissionEntry {
-  name: string;
-  module: string;
-  action: string;
-  description: string;
-}
+/**
+ * A custom role with its permission names. `index`, `show`, `store` and
+ * `update` all load the relation, which is why the contract marks
+ * `permissions` present here.
+ */
+export type CustomRole =
+  operations["roles.show"]["responses"][200]["content"]["application/json"];
 
-export type PermissionsByModule = Record<string, PermissionEntry[]>;
+/** `GET /permissions`: every permission, keyed by module. */
+export type PermissionsByModule =
+  operations["customRole.permissions"]["responses"][200]["content"]["application/json"];
 
 export function useCustomRoles(params?: {
   page?: number;
@@ -33,18 +28,6 @@ export function useCustomRoles(params?: {
       const { data } = await apiClient.get("/roles", { params });
       return data;
     },
-    staleTime: 30 * 60 * 1000,
-  });
-}
-
-export function useCustomRole(publicId: string) {
-  return useQuery<CustomRole>({
-    queryKey: ["custom-roles", publicId],
-    queryFn: async () => {
-      const { data } = await apiClient.get(`/roles/${publicId}`);
-      return data;
-    },
-    enabled: !!publicId,
     staleTime: 30 * 60 * 1000,
   });
 }
@@ -64,11 +47,7 @@ export function useCreateCustomRole() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: {
-      name: string;
-      description?: string;
-      permissions: string[];
-    }) => {
+    mutationFn: async (payload: Schemas["StoreCustomRoleRequest"]) => {
       const { data } = await apiClient.post("/roles", payload);
       return data as CustomRole;
     },
@@ -82,14 +61,7 @@ export function useUpdateCustomRole(publicId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      payload: Partial<{
-        name: string;
-        description: string;
-        is_active: boolean;
-        permissions: string[];
-      }>,
-    ) => {
+    mutationFn: async (payload: Schemas["UpdateCustomRoleRequest"]) => {
       const { data } = await apiClient.put(`/roles/${publicId}`, payload);
       return data as CustomRole;
     },

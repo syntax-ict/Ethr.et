@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/i18n/useT";
 
 interface SearchInputProps {
   value: string;
@@ -14,15 +15,28 @@ interface SearchInputProps {
 export function SearchInput({
   value,
   onChange,
-  placeholder = "Search...",
+  placeholder,
   debounceMs = 300,
 }: SearchInputProps) {
+  const { t } = useT();
   const [local, setLocal] = useState(value);
 
+  // Emit only text the parent does not already have, and keep the latest
+  // handler in a ref. The timer was re-armed whenever `onChange` changed
+  // identity — every render, for the inline arrows every caller passes — and
+  // fired the unchanged text. Callers reset to page 1 on a search, so Next on
+  // the directory, employees, users and tenants lists bounced back to page 1
+  // 300 ms later (audit N92).
+  const onChangeRef = useRef(onChange);
   useEffect(() => {
-    const timer = setTimeout(() => onChange(local), debounceMs);
+    onChangeRef.current = onChange;
+  });
+
+  useEffect(() => {
+    if (local === value) return;
+    const timer = setTimeout(() => onChangeRef.current(local), debounceMs);
     return () => clearTimeout(timer);
-  }, [local, debounceMs, onChange]);
+  }, [local, value, debounceMs]);
 
   // Resync local state when the parent resets `value` from outside (e.g. a
   // "clear filters" action). Adjusting state during render avoids an extra
@@ -39,7 +53,7 @@ export function SearchInput({
       <Input
         value={local}
         onChange={(e) => setLocal(e.target.value)}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("search_input.placeholder")}
         className="pl-9 pr-8"
       />
       {local && (
@@ -50,7 +64,7 @@ export function SearchInput({
             onChange("");
           }}
           className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground/60 transition-colors hover:text-foreground"
-          aria-label="Clear search"
+          aria-label={t("search_input.clear")}
         >
           <X className="h-3.5 w-3.5" />
         </button>

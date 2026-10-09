@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceStatus;
+use App\Enums\EmployeeStatus;
 use App\Events\AttendanceRecorded;
+use App\Exceptions\AttendanceRefused;
+use App\Exceptions\NoOpenCheckIn;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
@@ -38,10 +41,23 @@ final class AttendanceEngine
             ->first();
 
         if ($settings && ! $settings->isMethodEnabled($input->source->value)) {
-            throw new \RuntimeException(__('attendance.method_disabled'));
+            throw new AttendanceRefused(__('attendance.method_disabled'));
         }
 
         $employee = Employee::findOrFail($input->employeeId);
+
+        // Someone who has left records nothing dated after they left. Nothing
+        // checked this, so a terminated employee's code — on a badge they may
+        // still hold — kept punching into attendance, overtime and payroll.
+        // A punch from their last working day that reaches the server late
+        // (a device backlog) is still dated on or before termination_date
+        // and still counts.
+        if (in_array($employee->status, [EmployeeStatus::RESIGNED, EmployeeStatus::TERMINATED, EmployeeStatus::RETIRED], true)) {
+            $day = $this->resolveMoment($input)->format('Y-m-d');
+            if ($employee->termination_date === null || $day > $employee->termination_date->format('Y-m-d')) {
+                throw new AttendanceRefused(__('attendance.employee_has_left'));
+            }
+        }
 
         if ($input->type === 'check_out') {
             return $this->processCheckOut($input, $employee);
@@ -78,10 +94,10 @@ final class AttendanceEngine
 
         if ($settings?->geofence_required && $input->source->value === 'mobile') {
             if ($input->latitude === null || $input->longitude === null) {
-                throw new \RuntimeException(__('attendance.geofence_location_required'));
+                throw new AttendanceRefused(__('attendance.geofence_location_required'));
             }
             if ($geofenceVerified === false) {
-                throw new \RuntimeException(__('attendance.outside_geofence'));
+                throw new AttendanceRefused(__('attendance.outside_geofence'));
             }
         }
 
@@ -137,18 +153,26 @@ final class AttendanceEngine
     {
         $now = $this->resolveMoment($input);
 
-        $record = AttendanceRecord::withoutGlobalScope('tenant')
+        // Today's open record, or yesterday's when its shift crosses midnight:
+        // a 22:00-06:00 record is dated the night it began, so a lookup on
+        // today's date alone could never close it — the morning check-out
+        // answered 500 and device webhooks dropped the punch.
+        $candidates = AttendanceRecord::withoutGlobalScope('tenant')
             ->where('tenant_id', $input->tenantId)
             ->where('employee_id', $input->employeeId)
-            ->whereDate('date', $now->format('Y-m-d'))
+            ->whereDate('date', '>=', $now->copy()->subDay()->format('Y-m-d'))
+            ->whereDate('date', '<=', $now->format('Y-m-d'))
             ->whereNotNull('check_in')
             ->whereNull('check_out')
             ->with('shift')
             ->latest('check_in')
-            ->first();
+            ->get();
+
+        $record = $candidates->first(fn (AttendanceRecord $r) => $r->date->isSameDay($now))
+            ?? $candidates->first(fn (AttendanceRecord $r) => $r->shift?->crosses_midnight === true);
 
         if (! $record) {
-            throw new \RuntimeException('No open check-in found for today.');
+            throw new NoOpenCheckIn(__('attendance.no_open_check_in'));
         }
 
         $updates = ['check_out' => $now];
@@ -165,6 +189,14 @@ final class AttendanceEngine
 
         if ($record->shift && $record->status === AttendanceStatus::PRESENT) {
             $shiftEnd = $now->copy()->setTimeFromTimeString($record->shift->end_time);
+
+            // A shift that crosses midnight ends the day after it starts:
+            // leaving at 23:30 was compared with this morning's 06:00 and so
+            // never counted as early.
+            if ($record->shift->crosses_midnight && $shiftEnd->lte($record->check_in)) {
+                $shiftEnd->addDay();
+            }
+
             $earlyThreshold = $shiftEnd->copy()->subMinutes($record->shift->early_departure_minutes);
 
             if ($now->lt($earlyThreshold)) {

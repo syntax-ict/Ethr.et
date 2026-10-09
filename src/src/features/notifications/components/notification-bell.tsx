@@ -14,12 +14,16 @@ import {
   useUnreadCount,
   useMarkAsRead,
   useMarkAllAsRead,
+  notificationText,
+  type Notification,
 } from "../api";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 
 export function NotificationBell() {
   const { t } = useT();
+  const { timeAgo } = useDateFormatters();
   const { data: unread } = useUnreadCount();
   const { data: notifData } = useNotifications({ page: 1 });
   const markRead = useMarkAsRead();
@@ -70,45 +74,38 @@ export function NotificationBell() {
           </div>
         ) : (
           <div className="max-h-80 overflow-y-auto">
-            {notifications.map(
-              (n: {
-                id: string;
-                data: Record<string, unknown>;
-                read_at: string | null;
-                created_at: string;
-              }) => (
-                <button
-                  key={n.id}
+            {notifications.map((n: Notification) => (
+              <button
+                key={n.id}
+                className={cn(
+                  "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50",
+                  !n.read_at && "bg-primary/5",
+                )}
+                onClick={() => {
+                  if (!n.read_at) markRead.mutate(n.id);
+                }}
+              >
+                <div
                   className={cn(
-                    "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50",
-                    !n.read_at && "bg-primary/5",
+                    "mt-0.5 h-2 w-2 shrink-0 rounded-full",
+                    n.read_at ? "bg-transparent" : "bg-primary",
                   )}
-                  onClick={() => {
-                    if (!n.read_at) markRead.mutate(n.id);
-                  }}
-                >
-                  <div
+                />
+                <div className="min-w-0 flex-1">
+                  <p
                     className={cn(
-                      "mt-0.5 h-2 w-2 shrink-0 rounded-full",
-                      n.read_at ? "bg-transparent" : "bg-primary",
+                      "text-sm leading-snug",
+                      !n.read_at && "font-medium",
                     )}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={cn(
-                        "text-sm leading-snug",
-                        !n.read_at && "font-medium",
-                      )}
-                    >
-                      {(n.data?.message as string) ?? "New notification"}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {formatTimeAgo(n.created_at)}
-                    </p>
-                  </div>
-                </button>
-              ),
-            )}
+                  >
+                    {notificationText(n) ?? "New notification"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {timeAgo(n.created_at)}
+                  </p>
+                </div>
+              </button>
+            ))}
           </div>
         )}
         <Separator />
@@ -122,14 +119,4 @@ export function NotificationBell() {
       </PopoverContent>
     </Popover>
   );
-}
-
-function formatTimeAgo(dateStr: string): string {
-  const diffMs = Date.now() - new Date(dateStr).getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  return `${Math.floor(diffHr / 24)}d ago`;
 }

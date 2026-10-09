@@ -4,19 +4,25 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Contracts\DnsResolver;
 use App\Contracts\SmsSender;
 use App\Events\AttendanceRecorded;
 use App\Events\DeviceOffline;
 use App\Events\DeviceSyncFailed;
+use App\Events\PayrollApproved;
 use App\Events\PayrollProcessed;
 use App\Events\PayrollRunFailed;
 use App\Events\TenantCreated;
+use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Listeners\InvalidateDashboardCache;
 use App\Listeners\NotifyDeviceOffline;
 use App\Listeners\NotifyDeviceSyncFailed;
 use App\Listeners\NotifyPayrollProcessed;
 use App\Listeners\NotifyPayrollRunFailed;
+use App\Listeners\NotifyPayslipsReleased;
 use App\Listeners\ProvisionTenant;
+use App\Models\AttendanceConflict;
+use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
 use App\Models\DisciplinaryCase;
 use App\Models\Employee;
@@ -30,6 +36,8 @@ use App\Models\RetirementCase;
 use App\Models\ShiftRotation;
 use App\Models\User;
 use App\Notifications\Channels\SmsChannel;
+use App\Policies\AttendanceConflictPolicy;
+use App\Policies\AttendanceCorrectionPolicy;
 use App\Policies\AttendanceRecordPolicy;
 use App\Policies\DisciplinaryCasePolicy;
 use App\Policies\EmployeePolicy;
@@ -39,13 +47,17 @@ use App\Policies\PersonnelActionPolicy;
 use App\Policies\ProfileUpdateRequestPolicy;
 use App\Policies\RetirementCasePolicy;
 use App\Policies\ShiftRotationPolicy;
+use App\Services\Auth\SessionIdleTimeout;
+use App\Services\Dns\SystemDnsResolver;
 use App\Services\Sms\EthioTelecomSmsSender;
 use App\Services\Sms\LogSmsSender;
 use App\Services\Sso\SamlProvider;
 use App\Services\Sso\SsoProviderInterface;
 use App\Support\Scramble\DescribeApiDocument;
 use App\Support\Scramble\GroupOperationsByDomain;
+use App\Support\Scramble\TypeLoadedRelationOverlays;
 use Dedoc\Scramble\Scramble;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -58,6 +70,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\PersonalAccessToken as SanctumToken;
 use Laravel\Sanctum\Sanctum;
 use Sentry\Laravel\Integration;
 
@@ -71,6 +84,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $this->app->bind(SsoProviderInterface::class, SamlProvider::class);
+        $this->app->bind(DnsResolver::class, SystemDnsResolver::class);
 
         $this->app->singleton(SmsSender::class, fn () => match (config('sms.driver')) {
             'ethiotelecom' => new EthioTelecomSmsSender,
@@ -93,7 +107,8 @@ class AppServiceProvider extends ServiceProvider
             // and gives the document real tag prose and server URLs.
             Scramble::configure()
                 ->withOperationTransformers(GroupOperationsByDomain::class)
-                ->withDocumentTransformers(DescribeApiDocument::class);
+                ->withDocumentTransformers(DescribeApiDocument::class)
+                ->withDocumentTransformers(TypeLoadedRelationOverlays::class);
         }
 
         // Fail closed on the single most damaging production misconfiguration:
@@ -114,6 +129,23 @@ class AppServiceProvider extends ServiceProvider
         JsonResource::withoutWrapping();
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+
+        // The tenant's `session_timeout_minutes`, for bearer tokens. Inside the
+        // guard because that is the last point before Sanctum overwrites
+        // `last_used_at` with this request (audit N6).
+        Sanctum::authenticateAccessTokensUsing(
+            fn (SanctumToken $token, bool $isValid): bool => $isValid && ! SessionIdleTimeout::tokenIsIdle($token),
+        );
+
+        // A fresh sign-in starts the idle clock afresh. Without this a browser
+        // that signed out and back in kept its session's old activity stamp,
+        // and the new session could be expired by its first request.
+        Event::listen(Login::class, function (): void {
+            $request = request();
+            if ($request->hasSession()) {
+                $request->session()->put(EnforceSessionIdleTimeout::SESSION_KEY, now()->getTimestamp());
+            }
+        });
 
         // A failed queued job used to leave no trace outside the `failed_jobs`
         // table and the admin dashboard, so nothing announced it. That is how
@@ -147,22 +179,57 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(AttendanceRecorded::class, [InvalidateDashboardCache::class, 'handleAttendance']);
         Event::listen(PayrollProcessed::class, [InvalidateDashboardCache::class, 'handlePayroll']);
         Event::listen(PayrollProcessed::class, NotifyPayrollProcessed::class);
+        Event::listen(PayrollApproved::class, NotifyPayslipsReleased::class);
 
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
 
-        RateLimiter::for('auth', function (Request $request) {
-            return Limit::perMinute(10)->by($request->ip());
+        // Applied to the whole api group (bootstrap/app.php). Five requests a
+        // second sustained per signed-in user is far above what the busiest
+        // page fires, and it caps scripted scraping by one account. Guests are
+        // keyed by IP.
+        RateLimiter::for('api-global', function (Request $request) {
+            return Limit::perMinute(300)->by($request->user()?->id ?: $request->ip());
         });
 
-        // `/health` has to stay unauthenticated — container and uptime probes
-        // cannot log in — but each call fans a single HTTP request out into
-        // five backend round trips (primary DB, read replica, Redis, queue
-        // depth, MinIO). nginx caps /api/v1/* at 60r/m per IP, but that only
-        // covers traffic that actually arrives through nginx; anything bound
-        // straight to the api container bypasses it. 30/min is well above what
-        // any real probe needs.
+        // A kiosk's admin PIN is four to eight digits, guessed at a shared
+        // terminal that holds the token. Five tries a minute per kiosk puts
+        // every four-digit PIN more than a day away; each exit is audited.
+        RateLimiter::for('kiosk-exit', function (Request $request) {
+            return Limit::perMinute(5)->by('kiosk-exit:'.hash('sha256', (string) $request->input('token')));
+        });
+
+        // Unauthenticated, cheap, and cached — but unauthenticated, so bounded
+        // per IP rather than left to the global guest budget alone.
+        RateLimiter::for('public-catalogue', function (Request $request) {
+            return Limit::perMinute(120)->by($request->ip());
+        });
+
+        // Keyed to the account as well as the address. Per IP alone, it counted
+        // every login — successful ones too — so an office behind one NAT
+        // address (the norm here) locked its 11th person out at 8:00.
+        // Guessing one account's password stays at 10/min (and
+        // RateLimitLoginAttempts adds a 15-minute lockout on failures); the
+        // per-IP ceiling still bounds spraying many accounts from one address.
+        RateLimiter::for('auth', function (Request $request) {
+            $account = mb_strtolower(trim((string) ($request->input('identifier')
+                ?? $request->input('email')
+                ?? $request->input('phone')
+                ?? '')));
+
+            return [
+                Limit::perMinute(10)->by('auth-account:'.$account.'|'.$request->ip()),
+                Limit::perMinute(100)->by('auth-ip:'.$request->ip()),
+            ];
+        });
+
+        // `/health` has to stay unauthenticated — uptime probes cannot log in —
+        // but each call fans a single HTTP request out into several backend
+        // round trips (primary DB, read replica, cache, queue depth, storage).
+        // Apache applies no per-IP limit on the shared-hosting target, so this
+        // limiter is the only brake. 30/min is well above what any real probe
+        // needs.
         RateLimiter::for('health', function (Request $request) {
             return Limit::perMinute(30)->by($request->ip());
         });
@@ -221,6 +288,8 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(Employee::class, EmployeePolicy::class);
         Gate::policy(AttendanceRecord::class, AttendanceRecordPolicy::class);
+        Gate::policy(AttendanceCorrection::class, AttendanceCorrectionPolicy::class);
+        Gate::policy(AttendanceConflict::class, AttendanceConflictPolicy::class);
         Gate::policy(PayrollRun::class, PayrollRunPolicy::class);
         Gate::policy(LeaveRequest::class, LeaveRequestPolicy::class);
         Gate::policy(ShiftRotation::class, ShiftRotationPolicy::class);

@@ -2,15 +2,22 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\AttendanceRefused;
+use App\Exceptions\DeviceRequestFailed;
+use App\Http\Controllers\Api\V1\Maintenance\MaintenanceController;
 use App\Http\Middleware\AcceptIdempotencyKeyHeader;
+use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\AuthenticateFromCookie;
 use App\Http\Middleware\BlockImpersonatedActions;
 use App\Http\Middleware\CapPagination;
+use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Http\Middleware\RateLimitLoginAttempts;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
+use App\Http\Middleware\RequireTenantMfaEnrolment;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\VerifyMaintenanceToken;
 use App\Http\Middleware\VerifyUploadedFiles;
 use App\Services\Auth\SessionCookie;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -20,6 +27,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use Sentry\Laravel\Integration;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -32,13 +40,34 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
         apiPrefix: 'api/v1',
+        // The install and release steps, OUTSIDE the api group on purpose: that
+        // group's `api-global` throttle keeps its counters in the database
+        // cache, whose table does not exist until `migrate` — one of these
+        // steps — has run. Only VerifyMaintenanceToken guards them. The path
+        // stays under /api because that is all .htaccess hands to Laravel.
+        then: function (): void {
+            Route::prefix('api/v1/maintenance')
+                ->middleware(VerifyMaintenanceToken::class)
+                ->group(function (): void {
+                    Route::post('/key', [MaintenanceController::class, 'key']);
+                    Route::post('/create-admin', [MaintenanceController::class, 'createAdmin']);
+                    Route::post('/{task}', [MaintenanceController::class, 'run'])
+                        ->where('task', 'migrate|seed|optimize|clear');
+                });
+        },
     )
+    // Listeners are registered once, explicitly, in AppServiceProvider::boot.
+    // Laravel's automatic discovery registered every one of them a second time
+    // — `event:list` showed each twice — so every payslip notice, device alert
+    // and payroll alert was sent twice, and tenant provisioning ran twice.
+    ->withEvents(discover: false)
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
             SecurityHeaders::class,
             AuthenticateFromCookie::class,
             SetLocale::class,
             ResolveTenant::class,
+            AuthenticateApiKey::class,
             CapPagination::class,
             RateLimitLoginAttempts::class,
             VerifyUploadedFiles::class,
@@ -48,6 +77,15 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->statefulApi();
+
+        // Since Laravel 11 the api group carries no throttle unless asked, and
+        // nothing asked: the named limiters applied only where a route listed
+        // one, so every other endpoint — the whole authenticated API, and the
+        // public catalogue — took unlimited requests (measured 2026-10-01:
+        // 400 of 400 returned 200). Shared hosting puts no per-IP brake in
+        // front of PHP, so this is the only one. Route-level limiters still
+        // apply on top.
+        $middleware->throttleApi('api-global');
 
         // Trusted proxies are deliberately NOT configured. This looks like an
         // omission and is not — it was added during the 2026-08-15 domain audit
@@ -107,6 +145,21 @@ return Application::configure(basePath: dirname(__DIR__))
             before: SubstituteBindings::class,
             prepend: RejectUnverifiedMfaToken::class,
         );
+
+        // The tenant security policy (audit N6), for the same two reasons: both
+        // read `$request->user()`, and both must answer before route-model
+        // binding can turn a refused request into a 404. The idle timeout goes
+        // ahead of BlockImpersonatedActions so an expired session is told so
+        // (401) rather than refused for something else; MFA enrolment goes
+        // after RejectUnverifiedMfaToken, which owns a sign-in still owing a code.
+        $middleware->prependToPriorityList(
+            before: BlockImpersonatedActions::class,
+            prepend: EnforceSessionIdleTimeout::class,
+        );
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: RequireTenantMfaEnrolment::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Report to Sentry before the renderers below turn exceptions into RFC-7807
@@ -139,6 +192,41 @@ return Application::configure(basePath: dirname(__DIR__))
                 'status' => $status,
                 'detail' => $e->getMessage() ?: 'An error occurred.',
             ], $status);
+        });
+
+        // A punch the engine refuses (nothing to close, method off, outside
+        // the geofence, employee has left) is the caller's mistake, not a
+        // server fault: 422 from every endpoint, not 500 from the ones that
+        // did not catch it.
+        $exceptions->render(function (AttendanceRefused $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/validation',
+                'title' => 'Validation Failed',
+                'status' => 422,
+                'detail' => $e->getMessage(),
+            ], 422);
+        });
+
+        // A device the request depends on could not be read: unreachable,
+        // non-2xx, or not JSON. The fault is upstream of this server, so 502,
+        // and the caller can retry once the device is back. The detail is a
+        // translated sentence, not the exception's message, which names the
+        // vendor and HTTP status for the sync log and the operator.
+        $exceptions->render(function (DeviceRequestFailed $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/device-unreachable',
+                'title' => 'Bad Gateway',
+                'status' => 502,
+                'detail' => __('device.read_failed'),
+            ], 502);
         });
 
         // Handle validation exceptions (422)

@@ -2,16 +2,9 @@
 //
 // Regenerate the API contract: `api/openapi.json` and `src/api/generated.ts`.
 //
-// This replaces an inline npm script that ran `php artisan scramble:export`
-// directly. On the documented Windows/Docker Desktop setup there is no native
-// `php` — it lives only in the api container — so `npm run generate:api` failed
-// with "php: command not found". That mattered more than a broken convenience
-// script: it is the command `scripts/api-types-check.sh` tells you to run when
-// the gate fails, so the advertised fix for contract drift did not work either,
-// and the contract silently drifted by 14 endpoint groups.
-//
-// Falls back to the container only when there is no native php, so a normal
-// Linux/macOS checkout keeps working unchanged.
+// It is the command `scripts/api-types-check.sh` tells you to run when the
+// contract gate fails. Native PHP only: a Docker-container fallback lived here
+// until 2026-09-30, when the Docker development stack was removed.
 
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -20,7 +13,6 @@ import path from "node:path";
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_ROOT = path.resolve(WEB_DIR, "..");
 const API_DIR = path.join(REPO_ROOT, "api");
-const CONTAINER = process.env.ETHR_API_CONTAINER ?? "et-api-1";
 
 // Everything here uses execFileSync with no shell, deliberately. `execSync` (and
 // any `shell: true`) spawns `process.env.ComSpec` on Windows, and a dev machine
@@ -41,38 +33,13 @@ const has = (cmd, probeArgs) => {
   }
 };
 
-const containerRunning = () => {
-  try {
-    return execFileSync("docker", ["ps", "--format", "{{.Names}}"], {
-      encoding: "utf8",
-    })
-      .split("\n")
-      .some((n) => n.trim() === CONTAINER);
-  } catch {
-    return false;
-  }
-};
-
 // Step 1 — export the OpenAPI spec to api/openapi.json.
 if (has("php", ["-v"])) {
   run("php", ["-d", "memory_limit=512M", "artisan", "scramble:export", "--path=openapi.json"], {
     cwd: API_DIR,
   });
-} else if (containerRunning()) {
-  console.log(`No native php; exporting inside ${CONTAINER}.`);
-  // The container bind-mounts api/, so writing openapi.json there lands in the repo.
-  run("docker", [
-    "exec",
-    CONTAINER,
-    "sh",
-    "-c",
-    "cd /var/www/api && php -d memory_limit=512M artisan scramble:export --path=openapi.json",
-  ]);
 } else {
-  console.error(
-    `✗ no way to run the export: no native php, and container ${CONTAINER} is not running.\n` +
-      `  Start the stack with:  docker compose up -d`,
-  );
+  console.error("✗ no php on PATH — install PHP 8.2+ natively (on Windows, XAMPP).");
   process.exit(1);
 }
 

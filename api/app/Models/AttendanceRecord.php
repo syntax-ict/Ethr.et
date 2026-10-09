@@ -7,7 +7,6 @@ namespace App\Models;
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use App\Traits\NeverDelete;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,10 +20,12 @@ use Illuminate\Support\Carbon;
  * @property AttendanceStatus $status
  * @property Carbon|null $check_in
  * @property Carbon|null $check_out
+ * @property Carbon|null $date
+ * @property array<string, mixed>|null $metadata
  */
 class AttendanceRecord extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, NeverDelete;
+    use BelongsToTenant, HasFactory, HasPublicId, NeverDelete;
 
     protected $fillable = [
         'public_id',
@@ -77,6 +78,7 @@ class AttendanceRecord extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    /** @return BelongsTo<Shift, $this> */
     public function shift(): BelongsTo
     {
         return $this->belongsTo(Shift::class);
@@ -118,6 +120,21 @@ class AttendanceRecord extends Model
      *
      * @return array{0: Carbon, 1: Carbon}|null [start, end]
      */
+    /**
+     * The whole span worked, for a day with no scheduled hours (a weekly rest
+     * day or a public holiday), where all of it is paid as overtime.
+     *
+     * @return array{0: Carbon, 1: Carbon}|null
+     */
+    public function workedWindow(): ?array
+    {
+        if (! $this->check_in || ! $this->check_out || $this->check_out->lte($this->check_in)) {
+            return null;
+        }
+
+        return [$this->check_in->copy(), $this->check_out->copy()];
+    }
+
     public function overtimeWindow(): ?array
     {
         if (! $this->shift || ! $this->check_in || ! $this->check_out) {

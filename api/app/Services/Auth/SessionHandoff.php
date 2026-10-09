@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Auth;
 
+use App\Models\Tenant;
 use App\Support\TenancyDomain;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -104,11 +105,30 @@ class SessionHandoff
     public static function urlFor(string $tenantSubdomain, string $nonce): string
     {
         $domain = TenancyDomain::root();
-        $scheme = Str::startsWith((string) config('app.url'), 'http://') ? 'http' : 'https';
+        $scheme = self::scheme();
 
         // The nonce rides in the fragment. A query parameter would put a bearer
         // credential into nginx access logs and any Referer sent onward — the
         // same reason credentials never appear in this application's URLs.
         return "{$scheme}://{$tenantSubdomain}.{$domain}/impersonate/claim#nonce={$nonce}";
+    }
+
+    /**
+     * Where the browser goes back to when an impersonation ends: the platform
+     * console, on the platform host. The operator's own session there was never
+     * touched by the handoff, so arriving is enough to be signed in as them again.
+     */
+    public static function platformConsoleUrl(): string
+    {
+        $domain = TenancyDomain::root();
+        $scheme = self::scheme();
+        $platform = Tenant::PLATFORM_SUBDOMAIN;
+
+        return "{$scheme}://{$platform}.{$domain}/admin";
+    }
+
+    private static function scheme(): string
+    {
+        return Str::startsWith((string) config('app.url'), 'http://') ? 'http' : 'https';
     }
 }

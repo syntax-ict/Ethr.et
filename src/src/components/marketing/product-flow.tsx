@@ -99,11 +99,11 @@ export function ProductFlow() {
             <span className="relative inline-grid" aria-hidden="true">
               <span className="ethr-flow-pill-offline col-start-1 row-start-1 inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                 <WifiOff className="h-3 w-3" />
-                {t("attendance.source_offline", "Offline")}
+                {t("marketing.product_flow.offline", "Offline")}
               </span>
               <span className="ethr-flow-pill-synced col-start-1 row-start-1 inline-flex items-center gap-1.5 rounded-full border border-status-success/30 bg-status-success/10 px-2.5 py-1 text-xs font-medium text-status-success">
                 <Check className="h-3 w-3" />
-                {t("attendance.mobile_page.synced", "Synced")}
+                {t("marketing.product_flow.synced", "Synced")}
               </span>
             </span>
           </div>
@@ -139,19 +139,19 @@ export function ProductFlow() {
                 "gross minus tax leaves net" without inventing figures. */}
             <div className="flex-1 space-y-1.5" aria-hidden="true">
               <PayrollRow
-                label={t("payroll.gross", "Gross")}
+                label={t("marketing.product_flow.gross", "Gross")}
                 width="100%"
                 tone="bg-primary/30"
                 order={1}
               />
               <PayrollRow
-                label={t("payroll_page.payslips_page.income_tax", "Income Tax")}
+                label={t("marketing.product_flow.income_tax", "Income Tax")}
                 width="34%"
                 tone="bg-status-warning/40"
                 order={2}
               />
               <PayrollRow
-                label={t("payroll.net", "Net")}
+                label={t("marketing.product_flow.net", "Net")}
                 width="66%"
                 tone="bg-status-success/45"
                 order={3}

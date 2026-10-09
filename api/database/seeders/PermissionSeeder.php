@@ -173,6 +173,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'users.invite', 'module' => 'users', 'action' => 'invite', 'description' => 'Invite and provision login accounts'],
             ['name' => 'users.update', 'module' => 'users', 'action' => 'update', 'description' => 'Update user roles, status and access'],
             ['name' => 'users.delete', 'module' => 'users', 'action' => 'delete', 'description' => 'Deactivate login accounts'],
+            ['name' => 'users.resetMfa', 'module' => 'users', 'action' => 'resetMfa', 'description' => 'Reset two-factor authentication for someone who lost their device'],
 
             // Announcement
             ['name' => 'announcement.manage', 'module' => 'announcement', 'action' => 'manage', 'description' => 'Manage announcements'],
@@ -238,31 +239,46 @@ class PermissionSeeder extends Seeder
             'dashboard.regional',
         ];
 
-        // isAtLeast(HR_ADMIN) — level 70+ (HR_ADMIN & FINANCE_ADMIN both at 70)
+        // Level 70 is two roles with different jobs (audit N95, owner decision
+        // delegated 2026-10-08). Until then both held every ability below and
+        // in $finance, so a Finance Admin could hire, transition and change an
+        // employee's bank details, and an HR Admin could process payroll.
+
+        // Both directors: read people's attendance, leave and pay fields,
+        // report on them, and see the unrestricted executive dashboard.
+        $director = [
+            'attendance.viewAll', 'leave.viewAll',
+            'employee.viewFinancial',
+            'report.generate',
+            'dashboard.executive',
+        ];
+
+        // HR Admin: the people side.
         $hrAdmin = [
             'org.create', 'org.update',
-            'attendance.viewAll', 'attendance.manage',
+            'attendance.manage',
             'attendance.viewConflicts', 'attendance.resolveConflicts',
             'shift.create', 'shift.update',
             'device.viewAny', 'device.view',
             'correction.viewAll',
             'holiday.create', 'holiday.update',
-            'leave.manageTypes', 'leave.viewAll', 'leave.adjustBalance',
+            'leave.manageTypes', 'leave.adjustBalance',
             'employee.create', 'employee.update', 'employee.transition',
-            'employee.viewFinancial', 'employee.updateFinancial',
+            // Bank and salary details are HR's, and deliberately not
+            // Finance's: whoever processes payroll must not also be able to
+            // change the accounts it pays into.
+            'employee.updateFinancial',
             'personnel_action.create',
             'disciplinary_case.manage',
             'retirement_case.manage',
             'announcement.manage',
-            'report.generate',
             // Inviting/activating people is part of HR onboarding.
             'users.viewAny', 'users.invite', 'users.update',
-            // HR Director / Finance Director personas: unrestricted (any-branch)
-            // executive dashboard. Both tiers share this bucket at level 70.
-            'dashboard.executive',
         ];
 
-        // isAtLeast(FINANCE_ADMIN) — level 70+ (same level as HR_ADMIN)
+        // Finance Admin: the payroll side. Approving, voiding and reprocessing a
+        // run stay at tenant admin, so the person who processes it is not the
+        // one who releases it.
         $financeAdmin = [
             'payroll.viewAll', 'payroll.process', 'payroll.manageLoan',
             // Same level as manageLoan: recording an employee's cost-sharing
@@ -288,6 +304,10 @@ class PermissionSeeder extends Seeder
             'employee.delete',
             // Deactivating a login is a sensitive, tenant-admin-level action.
             'users.delete',
+            // So is turning off someone else's second factor: it is the way back
+            // for a person who lost their phone, and the way around MFA for anyone
+            // who holds it.
+            'users.resetMfa',
             'apikey.manage',
             'webhook.manage',
             'billing.manage',
@@ -299,9 +319,9 @@ class PermissionSeeder extends Seeder
             'employee' => $everyone,
             'supervisor' => array_merge($everyone, $supervisor),
             'dept_admin' => array_merge($everyone, $supervisor),
-            'finance_admin' => array_merge($everyone, $supervisor, $hrAdmin, $financeAdmin),
-            'hr_admin' => array_merge($everyone, $supervisor, $hrAdmin, $financeAdmin),
-            'tenant_admin' => array_merge($everyone, $supervisor, $hrAdmin, $financeAdmin, $tenantAdmin),
+            'finance_admin' => array_merge($everyone, $supervisor, $director, $financeAdmin),
+            'hr_admin' => array_merge($everyone, $supervisor, $director, $hrAdmin),
+            'tenant_admin' => array_merge($everyone, $supervisor, $director, $hrAdmin, $financeAdmin, $tenantAdmin),
         ];
     }
 }

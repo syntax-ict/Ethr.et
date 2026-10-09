@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { baseMetadata, RootShell } from "../root-shell";
-import { DEFAULT_LOCALE, translateStatic } from "@/lib/i18n/translations";
+import { DEFAULT_LOCALE } from "@/lib/i18n/translations";
+import { serverTranslate } from "@/lib/i18n/public-dictionary";
 import {
   OG_IMAGE_ALT,
   OG_IMAGE_PATH,
@@ -14,32 +15,38 @@ import {
  * inside `<html lang="am">` is the same mismatch the locale prefix exists to
  * remove — in one line instead of a whole page. `/` is the `x-default`, so the
  * site's default language is the right one for it to speak.
+ *
+ * `serverTranslate`, not `translateStatic`: this object is built when the
+ * module loads, and the Amharic dictionary is no longer imported eagerly by
+ * `translations.ts`, so `translateStatic` would find nothing yet and return the
+ * English fallback. `serverTranslate` reads statically imported dictionaries,
+ * on the server only.
  */
 export const metadata: Metadata = {
   ...baseMetadata,
   title: {
-    default: translateStatic(
-      "marketing.meta.site.title",
+    default: serverTranslate(
       DEFAULT_LOCALE,
+      "marketing.meta.site.title",
       "ETHR — Ethiopian Workforce Operating System",
     ),
     template: "%s | ETHR",
   },
-  description: translateStatic(
-    "marketing.meta.site.description",
+  description: serverTranslate(
     DEFAULT_LOCALE,
+    "marketing.meta.site.description",
     "Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations.",
   ),
   openGraph: {
     type: "website",
-    title: translateStatic(
-      "marketing.meta.site.title",
+    title: serverTranslate(
       DEFAULT_LOCALE,
+      "marketing.meta.site.title",
       "ETHR — Ethiopian Workforce Operating System",
     ),
-    description: translateStatic(
-      "marketing.meta.site.description",
+    description: serverTranslate(
       DEFAULT_LOCALE,
+      "marketing.meta.site.description",
       "Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations.",
     ),
     images: [

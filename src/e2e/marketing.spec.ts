@@ -55,6 +55,32 @@ test.describe('public site, anonymous visitor', () => {
     }
   }
 
+  // The design system's faces — Inter for Latin, the self-hosted Noto Sans
+  // Ethiopic for Amharic — were declared, preloaded and never used: the font
+  // variables sat on <body>, so `--font-sans` (declared on :root) was invalid
+  // and every page fell back to Tailwind's preflight system stack. Only a real
+  // browser computes that cascade; jsdom does not, which is why this is here.
+  test('renders in the shipped faces, not the system stack', async ({ page }) => {
+    await page.goto('/am');
+    await page.evaluate(() => document.fonts.ready);
+
+    const fontFamily = await page
+      .locator('h1')
+      .first()
+      .evaluate((el) => getComputedStyle(el).fontFamily);
+    expect(fontFamily).toMatch(/^Inter\b/);
+    expect(fontFamily).toContain('Noto Sans Ethiopic');
+
+    // The Amharic headline is drawn in the Ethiopic face, so the browser has
+    // fetched it: a face no glyph needs stays `unloaded`.
+    const ethiopicLoaded = await page.evaluate(() =>
+      [...document.fonts].some(
+        (face) => face.family.replace(/"/g, '') === 'Noto Sans Ethiopic' && face.status === 'loaded',
+      ),
+    );
+    expect(ethiopicLoaded).toBe(true);
+  });
+
   test('every in-site link resolves to a real route', async ({ page }) => {
     await page.goto('/en');
 
@@ -65,9 +91,15 @@ test.describe('public site, anonymous visitor', () => {
     expect(hrefs.length).toBeGreaterThan(0);
     expect(hrefs.filter((h) => h === '#' || h === '')).toHaveLength(0);
 
+    // Fetched from inside the page, not with page.request: that runs in Node,
+    // and Node on Windows cannot resolve *.localhost (getaddrinfo ENOTFOUND),
+    // while the browser treats it as loopback like the rest of the suite does.
     for (const href of [...new Set(hrefs)]) {
-      const response = await page.request.get(href);
-      expect(response.status(), `${href} should not 404`).toBeLessThan(400);
+      const status = await page.evaluate(
+        async (url) => (await fetch(url, { redirect: 'follow' })).status,
+        href,
+      );
+      expect(status, `${href} should not 404`).toBeLessThan(400);
     }
   });
 

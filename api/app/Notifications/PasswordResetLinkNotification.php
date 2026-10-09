@@ -25,7 +25,7 @@ class PasswordResetLinkNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $email = $notifiable->email ?? '';
-        $frontendUrl = rtrim((string) config('app.frontend_url', 'http://localhost:3000'), '/');
+        $frontendUrl = rtrim((string) config('app.frontend_url'), '/');
 
         $resetUrl = "{$frontendUrl}/login/reset?token={$this->token}&email=".urlencode($email)."&tenant={$this->tenantSubdomain}";
 

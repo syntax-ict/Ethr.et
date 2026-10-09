@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <style>
+        @font-face { font-family: 'Noto Sans Ethiopic'; font-weight: normal; src: url('{{ resource_path('fonts/NotoSansEthiopic-Regular.ttf') }}') format('truetype'); }
+        @font-face { font-family: 'Noto Sans Ethiopic'; font-weight: bold; src: url('{{ resource_path('fonts/NotoSansEthiopic-Bold.ttf') }}') format('truetype'); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #0F172A; padding: 20px; }
+        body { font-family: 'DejaVu Sans', 'Noto Sans Ethiopic', sans-serif; font-size: 10px; color: #0F172A; padding: 20px; }
         .header { text-align: center; border-bottom: 2px solid #0F4C75; padding-bottom: 10px; margin-bottom: 15px; }
         .header h1 { font-size: 14px; color: #0F4C75; }
         .header p { font-size: 9px; color: #64748B; margin-top: 2px; }

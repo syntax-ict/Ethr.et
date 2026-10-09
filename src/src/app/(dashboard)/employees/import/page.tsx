@@ -22,107 +22,95 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useMutation } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import {
+  fetchEmployeeImportTemplate,
+  useCommitEmployeeImport,
+  usePreviewEmployeeImport,
+  type EmployeeImportPreview,
+  type EmployeeImportResult,
+} from "@/features/employees/api";
+import { saveCsv } from "@/lib/utils/csv-export";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-interface PreviewResult {
-  headers: string[];
-  rows: Array<Record<string, string | null>>;
-  errors: Record<number, string[]>;
-}
-
-interface CommitResult {
-  created: number;
-  skipped: number;
-  errors: Record<number, string[]>;
-}
-
 type Step = "upload" | "preview" | "result";
+
+/** `errors[0]` is about the file itself — a missing column, no data rows. */
+const FILE_LEVEL = 0;
+
+/** The CSV line a preview row came from: line 1 is the header. */
+function lineOf(rowIndex: number): number {
+  return rowIndex + 2;
+}
+
+/** Unique per file; the random tail keeps two files in one millisecond apart. */
+function newImportKey(): string {
+  return `import_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export default function EmployeeImportPage() {
   const { t } = useT();
   const router = useRouter();
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<PreviewResult | null>(null);
-  const [result, setResult] = useState<CommitResult | null>(null);
-  const [importKey] = useState(() => `import_${Date.now()}`);
+  const [preview, setPreview] = useState<EmployeeImportPreview | null>(null);
+  const [result, setResult] = useState<EmployeeImportResult | null>(null);
+  /**
+   * One key per previewed file, kept across retries of that file's commit so
+   * a retry is idempotent. It used to be fixed for the life of the page, and
+   * the importer keys a row with no employee_code by its index — so after
+   * "Import another file", every such row at an index the first file had
+   * already used was skipped as "already imported".
+   */
+  const [importKey, setImportKey] = useState(newImportKey);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [templatePending, setTemplatePending] = useState(false);
 
-  const downloadTemplate = useMutation({
-    mutationFn: async () => {
-      const fd = new FormData();
-      const dummy = new Blob([""], { type: "text/csv" });
-      fd.append("file", dummy, "empty.csv");
-      const { data } = await apiClient.post<{
-        template: string;
-        headers: string[];
-      }>("/employees/import/template", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      return data;
-    },
-    onSuccess: (data) => {
-      const csv = data.template || data.headers.join(",") + "\n";
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "employees-import-template.csv";
-      link.click();
-      URL.revokeObjectURL(url);
+  const previewMutation = usePreviewEmployeeImport();
+  const commitMutation = useCommitEmployeeImport();
+
+  async function downloadTemplate() {
+    setTemplatePending(true);
+    try {
+      const data = await fetchEmployeeImportTemplate();
+      saveCsv(
+        "employees-import-template.csv",
+        data.template || data.headers.join(",") + "\n",
+      );
       toast.success(t("employees_import_page.template_downloaded"));
-    },
-    onError: () =>
-      toast.error(t("employees_import_page.template_download_failed")),
-  });
+    } catch {
+      toast.error(t("employees_import_page.template_download_failed"));
+    } finally {
+      setTemplatePending(false);
+    }
+  }
 
-  const previewMutation = useMutation({
-    mutationFn: async (csvFile: File) => {
-      const fd = new FormData();
-      fd.append("file", csvFile);
-      const { data } = await apiClient.post<PreviewResult>(
-        "/employees/import/preview",
-        fd,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
+  /**
+   * Only the rows the preview passed. The commit endpoint validates every row
+   * it is sent (`rows.*.name` required, `rows.*.email` an email, …), so sending
+   * the rows the preview had already flagged failed the whole batch with a
+   * 422 — the page promised "rows with errors will be skipped" and imported
+   * nothing.
+   */
+  function commit() {
+    commitMutation.mutate(
+      { importKey, rows: validRows },
+      {
+        onSuccess: (data) => {
+          setResult(data);
+          setStep("result");
+          if (data.created > 0)
+            toast.success(
+              `${t("employees_import_page.imported")} ${data.created} ${t("employees_import_page.employees")}`,
+            );
         },
-      );
-      return data;
-    },
-    onSuccess: (data) => {
-      setPreview(data);
-      setStep("preview");
-    },
-    onError: () => toast.error(t("employees_import_page.parse_failed")),
-  });
-
-  const commitMutation = useMutation({
-    mutationFn: async () => {
-      if (!preview) throw new Error("No preview");
-      const { data } = await apiClient.post<CommitResult>(
-        "/employees/import/commit",
-        {
-          import_key: importKey,
-          rows: preview.rows,
-        },
-      );
-      return data;
-    },
-    onSuccess: (data) => {
-      setResult(data);
-      setStep("result");
-      if (data.created > 0)
-        toast.success(
-          `${t("employees_import_page.imported")} ${data.created} ${t("employees_import_page.employees")}`,
-        );
-    },
-    onError: () => toast.error(t("employees_import_page.import_failed")),
-  });
+        onError: () => toast.error(t("employees_import_page.import_failed")),
+      },
+    );
+  }
 
   function handleFileSelect(f: File | null) {
     if (!f) return;
@@ -135,7 +123,14 @@ export default function EmployeeImportPage() {
       return;
     }
     setFile(f);
-    previewMutation.mutate(f);
+    previewMutation.mutate(f, {
+      onSuccess: (data) => {
+        setPreview(data);
+        setImportKey(newImportKey());
+        setStep("preview");
+      },
+      onError: () => toast.error(t("employees_import_page.parse_failed")),
+    });
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -152,12 +147,19 @@ export default function EmployeeImportPage() {
     setResult(null);
   }
 
-  const totalRows = preview?.rows?.length ?? 0;
-  const errorRows = preview ? Object.keys(preview.errors).length : 0;
-  const validRows = totalRows - errorRows;
+  // Counted from the rows, not from `Object.keys(errors)`: that also counted
+  // the file-level entry, so a file missing a required column (no rows, one
+  // file error) showed "-1 valid rows" beside an enabled Import button.
+  const fileErrors = preview?.errors[FILE_LEVEL] ?? [];
+  const validRows = preview
+    ? preview.rows.filter((_, i) => !preview.errors[lineOf(i)]?.length)
+    : [];
+  const totalRows = preview?.rows.length ?? 0;
+  const errorRows = totalRows - validRows.length;
+  const validCount = validRows.length;
 
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["manageEmployees"]}>
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
@@ -213,26 +215,27 @@ export default function EmployeeImportPage() {
                         {t("employees_import_page.drag_drop_hint")}
                       </p>
                       <input
+                        ref={fileInputRef}
                         type="file"
                         id="csv-input"
                         accept=".csv,text/csv"
                         className="hidden"
+                        tabIndex={-1}
                         onChange={(e) =>
                           handleFileSelect(e.target.files?.[0] ?? null)
                         }
                       />
-                      <label htmlFor="csv-input">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-3"
-                          asChild
-                        >
-                          <span className="cursor-pointer">
-                            {t("employees_import_page.browse_files")}
-                          </span>
-                        </Button>
-                      </label>
+                      {/* A real button. It was a <span> inside a <label> for a
+                          display:none input, which no keyboard could reach. */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {t("employees_import_page.browse_files")}
+                      </Button>
                       <p className="mt-4 text-xs text-muted-foreground">
                         {t("employees_import_page.format_hint")}
                       </p>
@@ -255,10 +258,10 @@ export default function EmployeeImportPage() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => downloadTemplate.mutate()}
-                  disabled={downloadTemplate.isPending}
+                  onClick={downloadTemplate}
+                  disabled={templatePending}
                 >
-                  {downloadTemplate.isPending ? (
+                  {templatePending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <Download className="mr-2 h-4 w-4" />
@@ -317,7 +320,7 @@ export default function EmployeeImportPage() {
               />
               <StatCard
                 label={t("employees_import_page.valid_rows")}
-                value={validRows}
+                value={validCount}
                 color="green"
               />
               <StatCard
@@ -326,6 +329,23 @@ export default function EmployeeImportPage() {
                 color="red"
               />
             </div>
+
+            {/* The server's own message — the file could not be read as an
+                import at all, and until now nothing on the page said why. */}
+            {fileErrors.length > 0 && (
+              <Card className="border-destructive-edge bg-destructive-soft">
+                <CardContent className="p-4" role="alert">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                    <ul className="space-y-1 text-sm font-medium text-foreground">
+                      {fileErrors.map((message) => (
+                        <li key={message}>{message}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {errorRows > 0 && (
               <Card className="border-warning-edge bg-warning-soft">
@@ -431,16 +451,16 @@ export default function EmployeeImportPage() {
                 {t("common.cancel")}
               </Button>
               <Button
-                onClick={() => commitMutation.mutate()}
-                disabled={commitMutation.isPending || validRows === 0}
+                onClick={commit}
+                disabled={commitMutation.isPending || validCount === 0}
               >
                 {commitMutation.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <UploadIcon className="mr-2 h-4 w-4" />
                 )}
-                {t("employees_import_page.import_prefix")} {validRows}{" "}
-                {validRows !== 1
+                {t("employees_import_page.import_prefix")} {validCount}{" "}
+                {validCount !== 1
                   ? t("employees_import_page.valid_rows_lc")
                   : t("employees_import_page.valid_row_lc")}
               </Button>
@@ -463,9 +483,13 @@ export default function EmployeeImportPage() {
                   value={result.created}
                   color="green"
                 />
+                {/* `matched` is a person who already exists, and was in no
+                    count at all — 10 rows with 4 matches read as 6 created
+                    and nothing else. Both it and `skipped` mean "not created
+                    because already there". */}
                 <StatCard
                   label={t("employees_import_page.skipped")}
-                  value={result.skipped}
+                  value={result.skipped + (result.matched ?? 0)}
                   color="amber"
                 />
                 <StatCard

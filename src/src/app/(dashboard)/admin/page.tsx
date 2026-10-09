@@ -43,27 +43,13 @@ import {
   useRetryFailedJob,
   useRetryAllFailedJobs,
   useDismissFailedJob,
+  servicesNeedingAttention,
 } from "@/features/admin/api";
 import { formatETB } from "@/lib/utils/currency";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-function timeAgo(
-  dateStr: string,
-  t: (key: string, fallback: string) => string,
-): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return t("time.just_now", "just now");
-  if (mins < 60)
-    return `${mins}${t("time.min_short", "m")} ${t("time.ago", "ago")}`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24)
-    return `${hrs}${t("time.hour_short", "h")} ${t("time.ago", "ago")}`;
-  const days = Math.floor(hrs / 24);
-  return `${days}${t("time.day_short", "d")} ${t("time.ago", "ago")}`;
-}
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 
 function formatAction(action: string): string {
   return action.replace(/\./g, " › ").replace(/_/g, " ");
@@ -71,6 +57,7 @@ function formatAction(action: string): string {
 
 export default function AdminConsolePage() {
   const { t } = useT();
+  const { timeAgo } = useDateFormatters();
   const queryClient = useQueryClient();
 
   const {
@@ -101,9 +88,7 @@ export default function AdminConsolePage() {
   const needsMfa = currentUser ? !currentUser.mfa_enabled : false;
 
   const unhealthyServices = health
-    ? Object.entries(health.services).filter(
-        ([, s]) => s.status !== "healthy" && s.status !== "unknown",
-      )
+    ? servicesNeedingAttention(health.services)
     : [];
   const failedJobCount = health?.failed_jobs ?? 0;
   const hasAlerts = unhealthyServices.length > 0 || failedJobCount > 0;
@@ -323,7 +308,7 @@ export default function AdminConsolePage() {
               <div className="flex items-center gap-2">
                 {healthUpdatedAt > 0 && (
                   <span className="text-[10px] tabular-nums text-muted-foreground">
-                    {timeAgo(new Date(healthUpdatedAt).toISOString(), t)}
+                    {timeAgo(new Date(healthUpdatedAt).toISOString())}
                   </span>
                 )}
                 <Button
@@ -559,7 +544,7 @@ export default function AdminConsolePage() {
                           >
                             {job.queue}
                           </Badge>
-                          {timeAgo(job.failed_at, t)}
+                          {timeAgo(job.failed_at)}
                         </p>
                       </div>
                       <Button
@@ -698,7 +683,7 @@ export default function AdminConsolePage() {
                       )}
                     </div>
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                      {timeAgo(log.created_at, t)}
+                      {timeAgo(log.created_at)}
                     </span>
                   </div>
                 ))}
@@ -748,6 +733,7 @@ function HealthDot({ status }: { status: string }) {
     healthy: t("admin.status.healthy", "Healthy"),
     unhealthy: t("admin.status.unhealthy", "Unhealthy"),
     unknown: t("admin.status.unknown", "Unknown"),
+    disabled: t("admin.status.disabled", "Not in use"),
   };
   return (
     <div className="flex items-center gap-1.5">
@@ -756,7 +742,8 @@ function HealthDot({ status }: { status: string }) {
           "h-2 w-2 rounded-full",
           status === "healthy" && "bg-status-success",
           status === "unhealthy" && "bg-status-error",
-          status === "unknown" && "bg-muted-foreground/40",
+          (status === "unknown" || status === "disabled") &&
+            "bg-muted-foreground/40",
         )}
       />
       <span
@@ -764,7 +751,8 @@ function HealthDot({ status }: { status: string }) {
           "text-xs",
           status === "healthy" && "text-status-success",
           status === "unhealthy" && "text-status-error",
-          status === "unknown" && "text-muted-foreground",
+          (status === "unknown" || status === "disabled") &&
+            "text-muted-foreground",
         )}
       >
         {statusLabels[status] ?? status}
@@ -777,7 +765,7 @@ function ServiceIcon({ name }: { name: string }) {
   const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
     api: Server,
     database: Database,
-    redis: Gauge,
+    cache: Gauge,
     storage: HardDrive,
     reverb: Radio,
   };

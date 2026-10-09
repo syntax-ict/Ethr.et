@@ -79,7 +79,8 @@
         "api_access",
         "webhooks",
         "custom_reports",
-        "audit_log"
+        "audit_log",
+        "custom_domain"
       ],
       "marketing_features": [
         "Everything in Professional",

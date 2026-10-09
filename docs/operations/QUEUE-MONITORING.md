@@ -60,14 +60,27 @@ mechanism; §3 below already reaches that conclusion for a different reason.
    all. The heartbeat going stale is the only signal, which is exactly what §1 and §3 are
    for — but it makes them load-bearing rather than a backstop.
 
-### The "never run" message names something that does not exist there
+### The "never run" message named something that does not exist there — **fixed 2026-09-28**
 
 `QueueHealth::snapshot()` distinguishes never-beaten from stale, and the never-beaten
-message reads *"scheduler has never run — is the Plesk Scheduled Task created?"*. On this
-account **there is no Scheduled Task to create.** An operator following that message goes
-looking for a panel section that is not there. The distinction it draws is still the right
-one; only the remedy it names is wrong for this target. **Read it as: is the external caller
-configured, and is its token right?**
+message read *"scheduler has never run — is the Plesk Scheduled Task created?"*. On this
+account **there is no Scheduled Task to create**, so an operator following that message went
+looking for a panel section that is not there — on the one code path where nothing else is
+telling them anything. The distinction it draws was always the right one; only the remedy it
+named was wrong for this target.
+
+It now reads *"scheduler has never run — is the external cron caller configured (CRON_TOKEN
+and base URL)?"*, which is the remedy that exists. The stale mechanism claim was in five
+other places as well — `QueueHealth`'s own docblock, both scheduler comments in
+`routes/console.php`, `BackupCommand`, `QueueHealthTest`, and a `BACKUP-RESTORE.md` passage
+that additionally called G0-D `NOT VERIFIED` and the HTTP endpoints "not built" while the
+same file cited the controller by line. All reconciled in the same pass.
+
+**The lesson is the gap this section was sitting in.** This paragraph correctly identified
+the defect, gave the correct reading, and left the string in place for three days.
+Documenting a defect is not fixing it, and a note telling operators to mentally translate a
+runtime message is a workaround with no enforcement — the next operator reads the message,
+not this file.
 
 ### The thresholds are marginal against a five-minute caller, and that is a decision, not a bug
 
@@ -200,7 +213,12 @@ at 3am for a cron job, or — far more likely — learning to ignore the page.
 
 ## Fix `SystemHealthService` alongside this
 
-The admin health page is the first thing an operator opens after an alert, and it currently lies in two ways (`../audit/BASELINE.md` §9, §11):
+> **Both resolved — verified 2026-10-01 (audit D15).** `SystemHealthService` now probes
+> `Storage::disk(config('filesystems.default'))` (`app/Services/Admin/SystemHealthService.php:105`),
+> not a hardcoded `minio` disk, and reads its queue list from `QueueHealth::QUEUES` (audit B4)
+> instead of `default`/`high`/`low`. The two points below are kept as the record of what was wrong.
+
+The admin health page is the first thing an operator opens after an alert, and it lied in two ways (`../audit/BASELINE.md` §9, §11):
 
 - `SystemHealthService.php:66` hardcodes `Storage::disk('minio')`. Commit `80cac67` fixed four such sites and missed this one. It is inside `try/catch`, so on any non-MinIO deployment the page shows **storage permanently red** — which trains operators to ignore a red panel.
 - `queueStatus()` polls queues named `default`, `high` and `low`. Those are not the queue names this application uses. The panel reports on queues that do not exist and ignores the four that do.

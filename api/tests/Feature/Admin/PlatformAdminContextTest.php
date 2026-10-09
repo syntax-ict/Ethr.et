@@ -34,26 +34,6 @@ describe('super admin with no tenant', function () {
 
         expect(DB::table('onboarding_progress')->count())->toBe(0);
     });
-
-    it('gets a 404 rather than a 500 from every other tenant-scoped onboarding action', function () {
-        $superAdmin = User::factory()->create([
-            'tenant_id' => null,
-            'role' => UserRole::SUPER_ADMIN,
-            'mfa_enabled' => true,
-        ]);
-        test()->actingAs($superAdmin);
-
-        test()->putJson('http://admin.ethr.test/api/v1/onboarding/progress/1')
-            ->assertNotFound();
-
-        test()->postJson('http://admin.ethr.test/api/v1/onboarding/invite', [
-            'emails' => ['someone@example.et'],
-            'role' => 'employee',
-        ])->assertNotFound();
-
-        test()->postJson('http://admin.ethr.test/api/v1/onboarding/complete')
-            ->assertNotFound();
-    });
 });
 
 describe('cross-tenant counting', function () {

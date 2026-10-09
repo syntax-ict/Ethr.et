@@ -39,8 +39,8 @@ on:
         description: "Commit whose app/ changes to revert"
         required: true
       filter:
-        description: "Pest --filter"
-        default: "attendance"
+        description: "Pest --filter (the tests that should fail without the fix)"
+        required: true
 
 permissions:
   contents: read
@@ -53,17 +53,19 @@ jobs:
       FIX: ${{ inputs.fix_sha }}
       FILTER: ${{ inputs.filter }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.4"
+          # 8.2, like every other job: a revert-and-retest that runs on a newer
+          # PHP than CI can disagree with CI for reasons that are not the fix.
+          php-version: "8.2"
           extensions: gd, pdo, pdo_mysql, pdo_sqlite, mbstring, zip
           coverage: none
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/composer
           key: composer-${{ hashFiles('api/composer.lock') }}
@@ -89,7 +91,7 @@ jobs:
           } 2>&1 | tee verify.log
           { echo '```'; cat verify.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: verify-log
           path: api/verify.log

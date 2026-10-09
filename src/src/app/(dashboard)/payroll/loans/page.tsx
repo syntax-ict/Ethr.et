@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmployeeSelect } from "@/components/shared/employee-select";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -23,6 +24,7 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { useLoans, useCreateLoan, type Loan } from "@/features/payroll/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 export default function LoansPage() {
   const { t } = useT();
@@ -37,7 +39,7 @@ export default function LoansPage() {
   const { data, isLoading } = useLoans();
   const createLoan = useCreateLoan();
 
-  const loans: Loan[] = data?.data ?? [];
+  const loans: Loan[] = data ?? [];
 
   return (
     <RoleGate allowedRoles={["finance_admin", "tenant_admin", "super_admin"]}>
@@ -121,6 +123,7 @@ export default function LoansPage() {
                     amount_cents: parseInt(form.amount_cents) * 100,
                     monthly_deduction_cents:
                       parseInt(form.monthly_deduction_cents) * 100,
+                    reason: form.reason.trim() || null,
                   },
                   {
                     onSuccess: () => {
@@ -133,26 +136,29 @@ export default function LoansPage() {
                         reason: "",
                       });
                     },
-                    onError: () =>
-                      toast.error(t("payroll_page.loans_page.create_failed")),
+                    onError: (err) =>
+                      toast.error(
+                        apiErrorMessage(
+                          err,
+                          t("payroll_page.loans_page.create_failed"),
+                        ),
+                      ),
                   },
                 );
               }}
               className="space-y-4"
             >
               <div>
-                <Label>{t("payroll_page.loans_page.employee_public_id")}</Label>
-                <Input
+                <Label htmlFor="loan-employee">
+                  {t("common.employee", "Employee")}
+                </Label>
+                <EmployeeSelect
+                  id="loan-employee"
                   value={form.employee_public_id}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      employee_public_id: e.target.value,
-                    }))
+                  onChange={(v) =>
+                    setForm((p) => ({ ...p, employee_public_id: v }))
                   }
-                  required
-                  placeholder={t("payroll_page.loans_page.paste_public_id")}
-                  className="mt-1"
+                  enabled={dialogOpen}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -205,7 +211,10 @@ export default function LoansPage() {
                 >
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" disabled={createLoan.isPending}>
+                <Button
+                  type="submit"
+                  disabled={createLoan.isPending || !form.employee_public_id}
+                >
                   {createLoan.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}

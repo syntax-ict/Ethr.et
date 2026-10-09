@@ -28,31 +28,17 @@ COMMITTED="$WEB_DIR/src/api/generated.ts"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# The export runs wherever PHP actually is. On the documented Windows/Docker
-# Desktop setup there is no native `php` — it exists only in the api container —
-# and this gate hard-failed on `php: command not found` while printing the
-# "database is not reachable" advice below. That is the same misdiagnosis this
-# script's own header warns about, and it cost the contract real drift: the gate
-# was unrunnable, so 14 endpoint groups were added without regenerating.
+# The export runs on native PHP. A Docker-container fallback lived here until
+# 2026-09-30, when the Docker development stack was removed; CI and the
+# XAMPP-based local setup (scripts/local-production/) both have native php.
 #
-# Unlike pest and phpstan, this needs no off-mount copy. Scramble enumerates
-# routes through the router (routes/api.php, a single file), not by scanning a
-# directory, so it is untouched by the lossy bind mount — verified by exporting
-# on and off the mount and getting byte-identical specs.
-CONTAINER="${ETHR_API_CONTAINER:-et-api-1}"
-
-if command -v php >/dev/null 2>&1; then
-    RUN_EXPORT() { (cd "$API_DIR" && php -d memory_limit=512M artisan scramble:export --path="$1" 2>&1); }
-    COPY_SPEC() { :; }
-elif docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER"; then
-    echo "No native php; exporting inside $CONTAINER."
-    RUN_EXPORT() { docker exec "$CONTAINER" sh -c "cd /var/www/api && php -d memory_limit=512M artisan scramble:export --path=/tmp/api-types-check.json" 2>&1; }
-    COPY_SPEC() { docker cp "$CONTAINER:/tmp/api-types-check.json" "$1" >/dev/null; }
-else
-    echo "✗ no way to run the export: no native php, and container $CONTAINER is not running."
-    echo "  Start the stack with:  docker compose up -d"
+# Scramble enumerates routes through the router (routes/api.php, a single
+# file), not by scanning a directory, so no filesystem quirk affects it.
+if ! command -v php >/dev/null 2>&1; then
+    echo "✗ no php on PATH — install PHP 8.2+ natively (on Windows, XAMPP)."
     exit 1
 fi
+RUN_EXPORT() { (cd "$API_DIR" && php -d memory_limit=512M artisan scramble:export --path="$1" 2>&1); }
 
 # memory_limit: the export needs more than PHP's default 128M (256M is the floor).
 #
@@ -65,14 +51,13 @@ if ! RUN_EXPORT "$TMP/openapi.json"; then
     echo ""
     echo "✗ could not export the OpenAPI spec (scramble:export failed above)"
     echo "  If the error above is a QueryException, the database is not reachable:"
-    echo "    docker compose up -d mariadb"
+    echo "    start MariaDB (XAMPP), and check DB_* in api/.env"
     echo "  Confirm the schema is actually populated — an empty or partially"
     echo "  migrated database does NOT fail the export, it silently produces a"
-    echo "  degraded contract. See docs/ETHR_AUDIT_2026-08-14.md."
+    echo "  degraded contract."
     exit 1
 fi
 
-COPY_SPEC "$TMP/openapi.json"
 
 if ! (cd "$WEB_DIR" && node node_modules/openapi-typescript/bin/cli.js "$TMP/openapi.json" -o "$TMP/generated.ts" >/dev/null 2>&1); then
     echo "✗ could not generate TypeScript types from the spec"

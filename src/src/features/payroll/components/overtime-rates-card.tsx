@@ -19,15 +19,26 @@ import {
 
 type RateKey = keyof OvertimeRates;
 
-/** Statutory minimums — the API rejects anything below these. */
+/**
+ * Statutory minimums — Labour Proclamation 1156/2019 Art. 68(1). The API
+ * rejects anything below these. (This listed the repealed 377/2003 rates,
+ * 1.25 / 1.5 / 2 / 2.5 with no weekly rest day, until 2026-10-01.)
+ */
 const MINIMUMS: OvertimeRates = {
-  normal: 1.25,
-  night: 1.5,
-  holiday: 2,
+  normal: 1.5,
+  night: 1.75,
+  rest_day: 2,
+  holiday: 2.5,
   holiday_night: 2.5,
 };
 
-const ORDER: RateKey[] = ["normal", "night", "holiday", "holiday_night"];
+const ORDER: RateKey[] = [
+  "normal",
+  "night",
+  "rest_day",
+  "holiday",
+  "holiday_night",
+];
 
 function apiDetail(err: unknown): string | undefined {
   return (err as { response?: { data?: { detail?: string } } }).response?.data
@@ -54,6 +65,7 @@ export function OvertimeRatesCard() {
     setForm({
       normal: String(rates.normal),
       night: String(rates.night),
+      rest_day: String(rates.rest_day),
       holiday: String(rates.holiday),
       holiday_night: String(rates.holiday_night),
     });
@@ -62,6 +74,7 @@ export function OvertimeRatesCard() {
   const labels: Record<RateKey, string> = {
     normal: t("payroll_config.ot_normal", "Ordinary day"),
     night: t("payroll_config.ot_night", "Night (22:00–06:00)"),
+    rest_day: t("payroll_config.ot_rest_day", "Weekly rest day"),
     holiday: t("payroll_config.ot_holiday", "Public holiday"),
     holiday_night: t("payroll_config.ot_holiday_night", "Holiday night"),
   };
@@ -106,6 +119,7 @@ export function OvertimeRatesCard() {
       {
         normal: Number(form.normal),
         night: Number(form.night),
+        rest_day: Number(form.rest_day),
         holiday: Number(form.holiday),
         holiday_night: Number(form.holiday_night),
       },
@@ -128,6 +142,7 @@ export function OvertimeRatesCard() {
     setForm({
       normal: String(defaults.normal),
       night: String(defaults.night),
+      rest_day: String(defaults.rest_day),
       holiday: String(defaults.holiday),
       holiday_night: String(defaults.holiday_night),
     });

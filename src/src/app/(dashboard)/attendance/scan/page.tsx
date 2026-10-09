@@ -16,10 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
-import { apiClient } from "@/api/client";
+import { useScanQr } from "@/features/attendance/api";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 type Status =
   "idle" | "scanning" | "verifying" | "success" | "error" | "camera_denied";
@@ -35,6 +36,7 @@ export default function QrScanPage() {
   const readerRef = useRef<HTMLDivElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scannerRef = useRef<any>(null);
+  const scan = useScanQr();
 
   // Teardown reads the ref directly instead of calling the component-scoped
   // `stopScanner()` declared further down. That worked only through function
@@ -109,10 +111,10 @@ export default function QrScanPage() {
   async function verifyToken(qrToken: string) {
     setStatus("verifying");
     try {
-      const { data } = await apiClient.post("/attendance/qr", {
+      const data = await scan.mutateAsync({
         qr_token: qrToken,
         type,
-        idempotency_key: `qr-${Date.now()}-${Math.random()}`,
+        idempotency_key: crypto.randomUUID(),
       });
       const empName = data.employee?.name ?? t("attendance.employee");
       setStatus("success");
@@ -121,10 +123,8 @@ export default function QrScanPage() {
       );
       setTimeout(() => router.push("/attendance"), 3000);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
       setMessage(
-        axiosErr.response?.data?.detail ??
-          t("attendance.scan_page.invalid_or_expired"),
+        apiErrorDetail(err) ?? t("attendance.scan_page.invalid_or_expired"),
       );
       setStatus("error");
     }

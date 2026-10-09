@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Requests\Webhook;
 
 use App\Rules\ExternalUrl;
+use App\Support\WebhookEvents;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreWebhookRequest extends FormRequest
 {
@@ -19,7 +21,7 @@ class StoreWebhookRequest extends FormRequest
         return [
             'url' => ['required', 'url', 'max:500', new ExternalUrl],
             'events' => ['required', 'array', 'min:1'],
-            'events.*' => ['string'],
+            'events.*' => ['string', 'distinct', Rule::in(WebhookEvents::ALL)],
         ];
     }
 }

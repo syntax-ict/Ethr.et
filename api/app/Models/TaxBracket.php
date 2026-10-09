@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -29,7 +28,7 @@ use Illuminate\Support\Carbon;
  */
 class TaxBracket extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasPublicId;
+    use BelongsToTenant, HasPublicId;
 
     protected $fillable = [
         'public_id',

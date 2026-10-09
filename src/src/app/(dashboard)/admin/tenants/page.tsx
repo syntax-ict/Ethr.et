@@ -1,5 +1,6 @@
 "use client";
 
+import { tenantAddress } from "@/lib/tenant-address";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Building2, RefreshCw, Users } from "lucide-react";
@@ -20,7 +21,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useAdminTenants } from "@/features/admin/api";
+import { useAdminTenants, verifiedDomain } from "@/features/admin/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
@@ -197,7 +198,10 @@ export default function AdminTenantsPage() {
                           key="s"
                           className="font-mono text-muted-foreground"
                         >
-                          {tenant.subdomain}.ethr.et
+                          {tenantAddress(
+                            tenant.subdomain,
+                            verifiedDomain(tenant),
+                          )}
                         </span>,
                         <span
                           key="e"

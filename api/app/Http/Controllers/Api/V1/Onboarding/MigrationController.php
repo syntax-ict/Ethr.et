@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Onboarding;
 
+use App\Enums\OnboardingStep;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Migration\StageRowsRequest;
 use App\Http\Requests\Migration\UpdateStagingRowRequest;
@@ -12,6 +13,7 @@ use App\Models\Device;
 use App\Models\Employee;
 use App\Models\MigrationBatch;
 use App\Models\MigrationStagingRow;
+use App\Models\OnboardingProgress;
 use App\Services\CurrentTenant;
 use App\Services\Migration\WorkforceMigrationService;
 use Illuminate\Http\JsonResponse;
@@ -94,6 +96,13 @@ class MigrationController extends Controller
         $totals = $this->migration->commit($batch);
 
         AuditLog::record('migration.committed', $batch->refresh(), ['totals' => $totals]);
+
+        // The other guided steps record themselves; this one did not, so the
+        // sidebar's setup progress never counted a committed migration.
+        OnboardingProgress::firstOrCreate(
+            ['tenant_id' => $batch->tenant_id],
+            ['current_step' => 1, 'completed_steps' => [], 'step_data' => []]
+        )->markStepComplete(OnboardingStep::WORKFORCE_MIGRATION->value, ['totals' => $totals]);
 
         return response()->json([
             'message' => __('general.updated', ['resource' => 'Migration']),

@@ -1,7 +1,7 @@
 # Health Checking — Shared Hosting
 
 No uptime-monitoring infrastructure exists yet for this deployment (the VPS's
-Horizon dashboard is gone by design — see `docs/SHARED_HOSTING_AUDIT.md` §F). This is
+Horizon dashboard is gone by design — see `docs/archive/migration/SHARED_HOSTING_AUDIT.md` §F). This is
 what to actually watch instead, and why each one matters here specifically.
 
 ## The one built-in endpoint
@@ -55,8 +55,8 @@ So there are now **two** things to watch, and the second is not on this host:
 - **A fresh heartbeat does not mean the queue is draining.** The two endpoints are separate
   calls; drive and verify both. `cron.txt` makes the same point about the two cron lines.
 
-Full treatment, including the thresholds and why the "scheduler has never run" message names
-a panel section this account does not have:
+Full treatment, including the thresholds and the "scheduler has never run" message — which
+named a panel section this account does not have until it was corrected on 2026-09-28:
 [`../../operations/QUEUE-MONITORING.md`](../../operations/QUEUE-MONITORING.md).
 
 ## What changed from the VPS runbook's health story

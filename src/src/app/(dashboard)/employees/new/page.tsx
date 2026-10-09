@@ -1,6 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import {
+  branchesApi,
+  departmentsApi,
+  positionsApi,
+  teamsApi,
+  costCentersApi,
+} from "@/features/organization/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -8,6 +15,7 @@ import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/shared/currency-input";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import {
   Select,
@@ -16,41 +24,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCreateEmployee } from "@/features/employees/api";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import {
+  useCreateEmployee,
+  type CreateEmployeePayload,
+} from "@/features/employees/api";
 
 import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { FormField } from "@/components/patterns/FormField";
 import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
 import { toast } from "sonner";
+import { useEmployeeOptions } from "@/features/attendance/api";
+import { RelationPicker } from "@/features/employees/components/relation-picker";
 
 export default function NewEmployeePage() {
   const { t } = useT();
   const router = useRouter();
   const createEmployee = useCreateEmployee();
 
-  const { data: depts } = useQuery({
-    queryKey: ["org", "departments"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/organization/departments");
-      return data;
-    },
-  });
-  const { data: branches } = useQuery({
-    queryKey: ["org", "branches"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/organization/branches");
-      return data;
-    },
-  });
-  const { data: positions } = useQuery({
-    queryKey: ["org", "positions"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/organization/positions");
-      return data;
-    },
-  });
+  const { data: depts } = departmentsApi.useList();
+  const { data: branches } = branchesApi.useList();
+  const { data: positions } = positionsApi.useList();
+  const { data: teams } = teamsApi.useList();
+  const { data: costCenters } = costCentersApi.useList();
+  const { data: employeeOptions } = useEmployeeOptions();
 
   const [form, setForm] = useState({
     name: "",
@@ -64,9 +60,17 @@ export default function NewEmployeePage() {
     marital_status: "single",
     hire_date: "",
     salary_cents: "",
-    department_public_id: "",
-    branch_public_id: "",
-    position_public_id: "",
+    // The API's own field names, so a 422's `errors` keys land on these
+    // controls. They were `*_public_id`, which StoreEmployeeRequest does not
+    // read — the employee was created with no department, branch or position.
+    department_id: "",
+    branch_id: "",
+    position_id: "",
+    // No screen set these three, so the reporting chart was flat and teams
+    // and cost centres were never assigned (audit N73).
+    supervisor_id: "",
+    team_id: "",
+    cost_center_id: "",
   });
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -91,39 +95,57 @@ export default function NewEmployeePage() {
     e.preventDefault();
     setErrors({});
 
-    createEmployee.mutate(
-      {
-        ...form,
-        salary_cents: parseInt(form.salary_cents) * 100 || 0,
-      },
-      {
-        onSuccess: () => {
-          setHasUnsavedChanges(false);
-          toast.success(t("employee.created", "Employee created successfully"));
-          router.push("/employees");
-        },
-        onError: (err: unknown) => {
-          const fields = fieldErrors(err);
-          setErrors(fields);
+    const payload: CreateEmployeePayload = {
+      name: form.name,
+      email: form.email || null,
+      phone: form.phone || null,
+      employee_code: form.employee_code || null,
+      gender: (form.gender || null) as CreateEmployeePayload["gender"],
+      date_of_birth: form.date_of_birth || null,
+      nationality: form.nationality || null,
+      national_id: form.national_id || null,
+      marital_status: (form.marital_status ||
+        null) as CreateEmployeePayload["marital_status"],
+      hire_date: form.hire_date,
+      // Already integer cents — CurrencyInput does the ETB conversion, so
+      // this page no longer hand-rolls it (`parseInt` once turned 5000.50
+      // into 500000).
+      salary_cents: Number(form.salary_cents) || 0,
+      department_id: form.department_id || null,
+      branch_id: form.branch_id || null,
+      position_id: form.position_id || null,
+      supervisor_id: form.supervisor_id || null,
+      team_id: form.team_id || null,
+      cost_center_id: form.cost_center_id || null,
+    };
 
-          // A validation failure now renders under the offending inputs, so the
-          // toast would be redundant noise; anything else still needs one.
-          toastError(
-            err,
-            t("employee.create_failed", "Failed to create employee"),
-            { skipValidation: true },
-          );
-
-          // Move focus to the first invalid control so keyboard and screen
-          // reader users are not left at the submit button with the errors
-          // scrolled off above them (WCAG 3.3.1).
-          const firstField = Object.keys(fields)[0];
-          if (firstField) {
-            document.getElementById(firstField)?.focus();
-          }
-        },
+    createEmployee.mutate(payload, {
+      onSuccess: () => {
+        setHasUnsavedChanges(false);
+        toast.success(t("employee.created", "Employee created successfully"));
+        router.push("/employees");
       },
-    );
+      onError: (err: unknown) => {
+        const fields = fieldErrors(err);
+        setErrors(fields);
+
+        // A validation failure now renders under the offending inputs, so the
+        // toast would be redundant noise; anything else still needs one.
+        toastError(
+          err,
+          t("employee.create_failed", "Failed to create employee"),
+          { skipValidation: true },
+        );
+
+        // Move focus to the first invalid control so keyboard and screen
+        // reader users are not left at the submit button with the errors
+        // scrolled off above them (WCAG 3.3.1).
+        const firstField = Object.keys(fields)[0];
+        if (firstField) {
+          document.getElementById(firstField)?.focus();
+        }
+      },
+    });
   }
 
   return (
@@ -298,12 +320,13 @@ export default function NewEmployeePage() {
                 required
                 error={errors.salary_cents}
               >
-                <Input
-                  type="number"
-                  value={form.salary_cents}
-                  onChange={(e) => updateField("salary_cents", e.target.value)}
+                <CurrencyInput
+                  value={Number(form.salary_cents) || 0}
+                  onChange={(cents) =>
+                    updateField("salary_cents", cents ? String(cents) : "")
+                  }
                   required
-                  placeholder="5000"
+                  placeholder="5000.00"
                 />
               </FormField>
 
@@ -337,15 +360,15 @@ export default function NewEmployeePage() {
                   trigger with no `id`, so the selects had no accessible name at
                   all. FormField supplies both. */}
               <FormField
-                id="department_public_id"
+                id="department_id"
                 label={t("common.department", "Department")}
-                error={errors.department_public_id}
+                error={errors.department_id}
               >
                 <Select
-                  value={form.department_public_id}
-                  onValueChange={(v) => updateField("department_public_id", v)}
+                  value={form.department_id}
+                  onValueChange={(v) => updateField("department_id", v)}
                 >
-                  <SelectTrigger id="department_public_id">
+                  <SelectTrigger id="department_id">
                     <SelectValue
                       placeholder={t(
                         "employee.select_department",
@@ -366,15 +389,15 @@ export default function NewEmployeePage() {
               </FormField>
 
               <FormField
-                id="branch_public_id"
+                id="branch_id"
                 label={t("common.branch", "Branch")}
-                error={errors.branch_public_id}
+                error={errors.branch_id}
               >
                 <Select
-                  value={form.branch_public_id}
-                  onValueChange={(v) => updateField("branch_public_id", v)}
+                  value={form.branch_id}
+                  onValueChange={(v) => updateField("branch_id", v)}
                 >
-                  <SelectTrigger id="branch_public_id">
+                  <SelectTrigger id="branch_id">
                     <SelectValue
                       placeholder={t("employee.select_branch", "Select branch")}
                     />
@@ -392,15 +415,15 @@ export default function NewEmployeePage() {
               </FormField>
 
               <FormField
-                id="position_public_id"
+                id="position_id"
                 label={t("common.position", "Position")}
-                error={errors.position_public_id}
+                error={errors.position_id}
               >
                 <Select
-                  value={form.position_public_id}
-                  onValueChange={(v) => updateField("position_public_id", v)}
+                  value={form.position_id}
+                  onValueChange={(v) => updateField("position_id", v)}
                 >
-                  <SelectTrigger id="position_public_id">
+                  <SelectTrigger id="position_id">
                     <SelectValue
                       placeholder={t(
                         "employee.select_position",
@@ -418,6 +441,54 @@ export default function NewEmployeePage() {
                     )}
                   </SelectContent>
                 </Select>
+              </FormField>
+
+              <FormField
+                id="supervisor_id"
+                label={t("employee.supervisor", "Supervisor")}
+                error={errors.supervisor_id}
+              >
+                <RelationPicker
+                  id="supervisor_id"
+                  value={form.supervisor_id}
+                  options={(employeeOptions ?? []).map((e) => ({
+                    value: e.public_id,
+                    label: e.name,
+                  }))}
+                  onChange={(v) => updateField("supervisor_id", v)}
+                />
+              </FormField>
+
+              <FormField
+                id="team_id"
+                label={t("employee.team", "Team")}
+                error={errors.team_id}
+              >
+                <RelationPicker
+                  id="team_id"
+                  value={form.team_id}
+                  options={(teams?.data ?? []).map((x) => ({
+                    value: x.public_id,
+                    label: x.name,
+                  }))}
+                  onChange={(v) => updateField("team_id", v)}
+                />
+              </FormField>
+
+              <FormField
+                id="cost_center_id"
+                label={t("employee.cost_center", "Cost centre")}
+                error={errors.cost_center_id}
+              >
+                <RelationPicker
+                  id="cost_center_id"
+                  value={form.cost_center_id}
+                  options={(costCenters?.data ?? []).map((x) => ({
+                    value: x.public_id,
+                    label: x.name,
+                  }))}
+                  onChange={(v) => updateField("cost_center_id", v)}
+                />
               </FormField>
             </CardContent>
           </Card>

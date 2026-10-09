@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\EmployeeLoan;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin EmployeeLoan */
 class EmployeeLoanResource extends JsonResource
 {
     public function toArray(Request $request): array

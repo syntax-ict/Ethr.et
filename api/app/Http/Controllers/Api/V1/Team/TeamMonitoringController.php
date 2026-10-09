@@ -116,7 +116,7 @@ class TeamMonitoringController extends Controller
             $data[] = [
                 'date' => $day->format('Y-m-d'),
                 'present' => $dayRecords->count(),
-                'absent' => count($teamIds) - $dayRecords->count(),
+                'absent' => (int) (count($teamIds) - $dayRecords->count()),
                 'late' => $dayRecords->where('status', 'late')->count(),
                 'rate' => count($teamIds) > 0
                     ? round(($dayRecords->count() / count($teamIds)) * 100, 1)
@@ -125,7 +125,7 @@ class TeamMonitoringController extends Controller
         }
 
         return response()->json([
-            'period' => $period,
+            'period' => $period === 'monthly' ? 'monthly' : 'weekly',
             'from' => $from->format('Y-m-d'),
             'to' => $to->format('Y-m-d'),
             'team_size' => count($teamIds),

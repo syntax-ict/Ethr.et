@@ -129,27 +129,27 @@ test('pension calculates correctly for low salary', function () {
 
 // ── Overtime Calculator ──
 
-test('overtime normal rate 1.25x', function () {
+test('overtime normal rate 1.5x (Art. 68(1)(a))', function () {
     $calc = new OvertimeCalculator;
     // 5000 ETB basic, 22 working days, 8 hours/day
     // Hourly = 500000 / (22 * 8) = 2841 (approx)
     // 120 min = 2 hours overtime
-    // 2841 * 2 * 1.25 = 7102 (approx)
+    // 2841 * 2 * 1.5 = 8523 (approx)
     $amount = $calc->calculate(500000, 22, 8, 120, 'normal');
     expect($amount)->toBeGreaterThan(0);
-    expect($amount)->toBe((int) round(500000 / (22 * 8) * 2 * 1.25));
-});
-
-test('overtime night rate 1.5x', function () {
-    $calc = new OvertimeCalculator;
-    $amount = $calc->calculate(500000, 22, 8, 120, 'night');
     expect($amount)->toBe((int) round(500000 / (22 * 8) * 2 * 1.5));
 });
 
-test('overtime holiday rate 2.0x', function () {
+test('overtime night rate 1.75x (Art. 68(1)(b))', function () {
+    $calc = new OvertimeCalculator;
+    $amount = $calc->calculate(500000, 22, 8, 120, 'night');
+    expect($amount)->toBe((int) round(500000 / (22 * 8) * 2 * 1.75));
+});
+
+test('overtime public holiday rate 2.5x (Art. 68(1)(d))', function () {
     $calc = new OvertimeCalculator;
     $amount = $calc->calculate(500000, 22, 8, 120, 'holiday');
-    expect($amount)->toBe((int) round(500000 / (22 * 8) * 2 * 2.0));
+    expect($amount)->toBe((int) round(500000 / (22 * 8) * 2 * 2.5));
 });
 
 test('overtime holiday night rate 2.5x', function () {

@@ -27,10 +27,10 @@ Three principles guide every design decision:
 
 | Token | Light Mode | Dark Mode | Usage |
 |---|---|---|---|
-| Success | `#059669` | `#34D399` | Confirmed, approved, present |
-| Warning | `#D97706` | `#FBBF24` | Late, pending, expiring |
-| Error | `#DC2626` | `#F87171` | Rejected, absent, failed |
-| Info | `#0284C7` | `#38BDF8` | Informational, on leave |
+| Success | `#047857` | `#34D399` | Confirmed, approved, present |
+| Warning | `#92400E` | `#FBBF24` | Late, pending, expiring |
+| Error | `#B91C1C` | `#F87171` | Rejected, absent, failed |
+| Info | `#0369A1` | `#38BDF8` | Informational, on leave |
 
 ### Neutral Scale
 
@@ -96,7 +96,7 @@ inverts wrongly once the status colour lightens in dark mode.
 
 **Rule:** `text-blue-600` or `bg-slate-100` is banned in components. Use the semantic
 utilities above (or `text-[var(--color-interactive-primary)]`). Enforced by
-`src/test/semantic-color-tokens.test.ts`, which fails the suite if any raw Tailwind
+`src/src/test/semantic-color-tokens.test.ts`, which fails the suite if any raw Tailwind
 palette class reappears under `src/`.
 
 ---

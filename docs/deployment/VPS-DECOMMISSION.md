@@ -1,6 +1,153 @@
 # Retiring the VPS assets — the trigger, and what is *not* removable
 
-**Status: NOT TRIGGERED. Nothing here has been done.**
+**Status: EXECUTED 2026-09-26 — partially, and BEFORE a verified cutover.**
+
+> **This was done at the owner's explicit and repeated direction, against the advice in
+> §3b.5.** The trigger this document defines — a verified cutover — had not fired. The static
+> export has never served a request on the Ethio Telecom host, `[F,L]` is still unmeasured
+> there (M1), and `AllowOverride Options` is a requirement this migration newly introduced.
+>
+> **There is no rollback path now.** `docs/VPS_DEPLOYMENT.md` is gone. The way back is
+> `git revert` of the removal commit, which restores the files but not a running VPS.
+
+### Removed (22 paths)
+
+*(15 on 2026-09-26, seven more on 2026-09-27 — the second pass is marked.)*
+
+`docker-compose.{prod,lowmem,hostnames}.yml` · `docker/php/{php.prod.ini,www.prod.conf}` ·
+`docker/mariadb/{primary,replica,standalone}.cnf` ·
+`infrastructure/{nginx.conf,supervisor.conf,certbot-webroot/}` · `docs/VPS_DEPLOYMENT.md` ·
+`api/Dockerfile.prod` · `api/.env.production.example` ·
+**`.env.production.example` (repo root)** ·
+**`scripts/{deploy,rollback,init-storage,prod-build-test,setup-replication}.sh`** ·
+**`infrastructure/nginx-common.conf`** — which empties `infrastructure/` entirely
+
+### The manifest missed a ninth asset — the root `.env.production.example`
+
+**Measured 2026-09-27.** §3b.2 names `api/.env.production.example` and stops there. There is
+a **second** template, tracked, 4.3 KB, at the repository root, and its own header states its
+entire purpose:
+
+> *"docker-compose.prod.yml resolves ${VAR} placeholders (mariadb root/app credentials, redis
+> password, minio keys, frontend build args) from a `.env` file in this directory … Without
+> this file, `docker compose -f docker-compose.prod.yml up` resolves every ${VAR} below to an
+> empty string."*
+
+`docker-compose.prod.yml` went on 2026-09-26. **Nothing outside `docs/` referenced this file**
+— measured by fixed-string grep across the tree. It is VPS-only by exactly the test §3
+applies, and it is the **fifth** asset the list got wrong, after the test dependency,
+`Dockerfile.prod`, the eight scripts and `docker/nginx/default.conf`. Same cause, stated in
+§3's own words: *"the list was built by asking 'is this VPS-shaped?' rather than 'what reads
+this?'"*
+
+**Removed 2026-09-27.**
+
+### Five of the eight scripts are gone; three are deliberately held
+
+**2026-09-27.** The `git rm` below succeeded for five. **`backup.sh`, `restore.sh` and
+`seed.sh` are still present, on purpose**, and the reason is §3b.2a's own two qualifications
+rather than a permission refusal:
+
+*(2026-10-01: `seed.sh` is no longer present — it went with the Docker development stack on
+2026-09-30; see the end of this document. `backup.sh` and `restore.sh` are still held.)*
+
+| Held | Why |
+|---|---|
+| `backup.sh`, `restore.sh` | `ethr:backup` / `ethr:restore` are rehearsed in CI against MariaDB and have **never been rehearsed on the Ethio Telecom host** — that is Stage 6 of the migration plan. Deleting these removes a working path in favour of an untested one |
+| `seed.sh` | §3b.2a's weakest row. Its replacement is *"Plesk Git additional deployment actions"* — a documented route, not a measured one, on an account where SSH is Forbidden |
+
+All three are inert: nothing automated calls them, and each fails at first use because
+`docker-compose.prod.yml` is gone. **They come out after the Stage 6 host rehearsal**, with
+these citation edits in the same change: `BackupCommand.php:16`, `BackupService.php:21`,
+`BackupRestoreRehearsalTest.php:27`, `api/.env.example`, `api/.env.shared-hosting.example`.
+
+### Dangling citations the docs gate cannot catch
+
+**Measured 2026-09-27, and this is a class, not a list.** `./scripts/gates.sh docs` was
+**green** immediately after the 2026-09-26 removal — it checks *relative markdown links*, and
+every reference to a deleted asset was **prose or a code comment**. Link integrity proves
+nothing about them.
+
+Two were wrong instructions rather than stale asides:
+
+| File | Was | Now |
+|---|---|---|
+| `api/.env.example` | *"copy `api/.env.production.example`, the complete, commented template"* | Names `api/.env.shared-hosting.example`, and records what the old one was |
+| `docs/DEPLOYMENT.md` §Quick Start, §Environment Variables | `cp .env.production.example .env` and `cp api/.env.production.example api/.env.production` | **A supersession banner at the top of the file**, naming every deleted asset, what survives (*Draining the queue before an upgrade* — the root `CLAUDE.md` cites it as a deploy precondition) and where the live procedure is. The `cp` lines are marked in place |
+
+Three were stale asides, corrected to point at what is actually true:
+`.dockerignore` (two comments explained themselves by `Dockerfile.prod`; the rules still
+stand for `docker/php/Dockerfile`, which is why they were re-justified rather than deleted),
+`docker/php/php.ini` (*"production uses php.prod.ini"* — there is no production counterpart
+any more), `docker-compose.yml:81` (queue order and `--max-time` cited
+`infrastructure/supervisor.conf`; the reasoning is now inline).
+
+The root `.gitignore`'s `.prod-test-tmp/` entry went with `prod-build-test.sh`, which created it.
+
+**Verified after:** docs gate green (390 links, 88 files); `HostingRequirementsConsistencyTest`,
+`DeploymentWorkerConsistencyTest` and `DocumentRootInventoryTest` — **10 passed, 37
+assertions**, native PHP 8.2, no Docker.
+
+### `infrastructure/` no longer exists
+
+`infrastructure/nginx-common.conf` was the only file left in it, and it went on 2026-09-27.
+§2's row for it is struck through — *"freed 2026-09-25 … it can be deleted without touching
+either"* — and §4 step 2 had already moved it to the removable set. `shared-hosting/.htaccess`
+says the same thing in its own words, which is what made this safe: *"can be deleted without
+touching this file, which is what the sync claim was preventing."*
+
+**What the deletion costs, stated rather than omitted:** the CSP comparison table in
+`shared-hosting/.htaccess` (seven differences, six of which make the shared-hosting pair the
+stricter one) now compares against a file nobody can open. It is a **record**, not a live
+check, and it says so. That was already true before the deletion — the "byte-identical" sync
+claim it replaced was measured false on 2026-09-25 — so nothing that was being enforced
+stopped being enforced. The citations in `MIGRATION_STATE.md`, `REPOSITORY-INVENTORY.md` and
+`docs/archive/migration/SHARED_HOSTING_AUDIT.md` are provenance in historical documents and are marked, not rewritten.
+
+### NOT removed on 2026-09-26 — eight scripts, and they are now broken
+
+*(Five of them were removed on 2026-09-27 — see the section above. The original account follows.)*
+
+`scripts/{deploy,rollback,backup,restore,seed,init-storage,prod-build-test,setup-replication}.sh`
+
+The permission layer refused every deletion under `scripts/`, individually as well as in
+bulk. **All eight drive `docker-compose.prod.yml`, which no longer exists**, so they will
+fail at first use. Nothing automated calls them — `gates.sh` and the workflows reference none
+of them — so they are inert rather than dangerous, but they must go:
+
+```bash
+git rm scripts/deploy.sh scripts/rollback.sh scripts/backup.sh scripts/restore.sh \
+       scripts/seed.sh scripts/init-storage.sh scripts/prod-build-test.sh \
+       scripts/setup-replication.sh
+```
+
+### §3 misclassified one file, and deleting it broke local development
+
+**`docker/nginx/default.conf` is NOT VPS-only.** §3 lists it as *"VPS nginx vhost"*. It is
+also mounted by the **local development** stack — `docker-compose.yml:7`,
+`./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro` — which is what
+`scripts/gates.sh` execs into. It was deleted, the mount was caught in the post-deletion
+audit, and it has been **restored**. It is not part of this removal.
+
+This is the fourth asset §3 got wrong, after the test dependency, `Dockerfile.prod` and the
+eight scripts. The pattern is consistent and worth stating: **the list was built by asking
+"is this VPS-shaped?" rather than "what reads this?"**
+
+### Code changes made in the same commit
+
+`DeploymentWorkerConsistencyTest` (`ETHR_WORKER_ASSETS` 4 → 1, and its third test deleted —
+it existed solely for `prod.yml` and `lowmem.yml`); `HostingRequirementsConsistencyTest`
+(**re-baselined, not deleted** — it read `.env.production.example` to catch a silently
+dropped key, so the 66 keys are now pinned explicitly and the check survives);
+`middleware.ts` (its docblock named nginx as *"the authoritative control"* for `/admin`);
+`build-target.ts`, `CronRunController`, `config/database.php`,
+`document-root-inventory.php`, `scripts/shared-hosting/deploy.sh`, and the three markdown
+links to `VPS_DEPLOYMENT.md`.
+
+---
+
+**The original text follows, and its trigger language is now historical:**
+
 
 **Directed on 2026-09-25, trigger notwithstanding.** The owner instructed removal — "remove
 all until no vps dependency and the remains shared webhosting" — after the rollback-path
@@ -30,7 +177,7 @@ deployment. Deleting the set wholesale would break the thing the migration is mo
 ## 1. The trigger
 
 **This is not a new condition.** It is already stated in
-[`../VPS_DEPLOYMENT.md`](../VPS_DEPLOYMENT.md), and is restated here only so the inventory
+`../VPS_DEPLOYMENT.md` (removed 2026-09-26), and is restated here only so the inventory
 below has something to point at:
 
 > **Retire it when:** the Plesk cutover is verified, the rollback rehearsal has been
@@ -65,6 +212,11 @@ wrong and expensive to get wrong.
 2026-09-25 and is now removable. It is kept in the table rather than deleted from it,
 because the reason it was thought load-bearing is worth reading before something else is
 assumed to be.)*
+
+> **Superseded 2026-09-30 — every row below has since been removed** (`2eff11f`, `838129e`):
+> the Dockerfile, both compose files, `docker/php/*`, and `gates.sh`'s `docker exec`
+> fallbacks. The frontend runtime version now lives in `.nvmrc`. Read the table as the reasoning
+> that kept them until then, not as a list of what exists.
 
 | Asset | Why it stays |
 |---|---|
@@ -191,7 +343,126 @@ queue worker nor Reverb. They are arguably worse than the VPS files and should b
 fixed on their own merits, **on their own schedule**. Bundling them here would make one
 change answer two unrelated questions.
 
+**Removed 2026-09-29**, on their own merits as this section asked.
+
+**The Docker development stack followed on 2026-09-30**, by owner decision: `docker-compose.yml`,
+`docker-compose.test.yml`, `docker/*`, both `.dockerignore` files, and the container-only
+scripts (`pest-isolated.sh`, `phpstan-isolated.sh`, `seed.sh`, `api-reload.sh`, `run-e2e.sh`,
+`src/scripts/docker-refresh.mjs`). It was never a deployment asset, but it ran Redis, MinIO and
+nginx — a different system from the shared host — so local development now runs the
+shared-hosting shape on XAMPP (`scripts/local-production/`). `backup.sh` and `restore.sh`
+stay held under the Stage 6 commitment above; only their local-dev hint changed.
+
 ---
+
+---
+
+## 3b. The executable manifest — measured 2026-09-26
+
+§3 names ten assets. **Deleting exactly those ten breaks fourteen code and script files and
+twenty documents**, and §3 mentions one of them. This section is the list that can actually
+be executed, measured against the tree at `edb7493`.
+
+It changes nothing about the trigger: **still NOT TRIGGERED.** This is the removal made
+ready, not the removal done.
+
+### 3b.1 Citation counts, re-measured
+
+§3 says `docker-compose.prod.yml` is *"cited by 13 documents"*. It is **20**, plus **14**
+code and script files.
+
+| Asset | Docs | Code/scripts |
+|---|---|---|
+| `docker-compose.prod.yml` | **20** | **14** |
+| `infrastructure/nginx.conf` | 13 | 2 |
+| `infrastructure/supervisor.conf` | 11 | 2 |
+| `docker-compose.lowmem.yml` | 9 | 6 |
+| `docs/VPS_DEPLOYMENT.md` | 8 | 1 |
+| `infrastructure/certbot-webroot/` | 5 | 0 |
+| `docker-compose.hostnames.yml` | 4 | **0** |
+| `docker/nginx/default.conf` | 2 | 1 |
+| `docker/php/php.prod.ini` | 2 | 1 |
+| `docker/php/www.prod.conf` | 1 | 1 |
+| `docker/mariadb/{primary,replica,standalone}.cnf` | — | — |
+
+`docker-compose.hostnames.yml` is the only asset with **no code reference at all**. It is
+still not removable on its own: four documents cite it, and pulling one file out of an atomic
+change buys nothing.
+
+### 3b.2 Assets §3 omits entirely
+
+These are VPS-production-only by the same test §3 applies, and deleting §3's list without
+them leaves references pointing at nothing:
+
+| Asset | Why it is in scope |
+|---|---|
+| `api/Dockerfile.prod` | The VPS production image. It is what references `php.prod.ini` and `www.prod.conf`, so those two cannot go while it stays |
+| `scripts/deploy.sh`, `rollback.sh`, `backup.sh`, `restore.sh`, `seed.sh`, `init-storage.sh`, `prod-build-test.sh`, `setup-replication.sh` | Eight scripts driving `docker-compose.prod.yml`. **Classified 2026-09-26 — all eight are VPS-only.** See §3b.2a |
+| `api/.env.production.example` | The VPS production template. VPS-only. `api/.env.shared-hosting.example` **stays** — only its citation of `prod.yml` changes |
+
+#### 3b.2a The eight scripts, classified — measured, not assumed
+
+This replaces *"classify each before deleting"*. Every one drives Docker Compose, and every
+capability it provides has a shared-hosting replacement that **exists in the tree today**:
+
+| Script | What it does | Shared-hosting replacement | Verified present |
+|---|---|---|---|
+| `deploy.sh` | `docker compose` deploy to the VPS | `scripts/shared-hosting/deploy.sh` | ✅ |
+| `rollback.sh` | Compose rollback | Same script's own path | ✅ |
+| `backup.sh` | `docker compose exec` mysqldump + env copy | `ethr:backup` | ✅ `BackupCommand.php` |
+| `restore.sh` | Compose restore | `ethr:restore` | ✅ same file |
+| `seed.sh` | `docker compose exec artisan db:seed` | Plesk Git deployment actions — **no shell on the account** | ⚠ route exists, never exercised |
+| `init-storage.sh` | Creates the MinIO bucket | None needed — `FILESYSTEM_DISK=local` | ✅ |
+| `prod-build-test.sh` | Builds the VPS production images and boots the stack | None — there is no production image on this target | ✅ n/a |
+| `setup-replication.sh` | MariaDB primary→replica | None — `.env.shared-hosting.example:59` says **"Read replica — NOT APPLICABLE"**, and Bronze provides one database | ✅ |
+
+**Two qualifications, because "a replacement exists" is weaker than it sounds.**
+
+`ethr:backup` / `ethr:restore` exist and are rehearsed in CI against MariaDB, and have
+**never been rehearsed on the Ethio Telecom host** — that is Stage 6 of the migration plan,
+not a thing this classification closes. Deleting `backup.sh` before that rehearsal removes
+the working path in favour of an untested one.
+
+`seed.sh` is the weakest row. Its replacement is *"Plesk Git additional deployment actions"*,
+which is a documented route rather than a measured one, on an account where **SSH is
+Forbidden and there is no Scheduled Tasks section**. Treat this script as the last of the
+eight to go.
+
+### 3b.3 Code edits required in the same commit
+
+Deletion alone turns gates red. Each of these must change in the removal commit:
+
+| File | Edit |
+|---|---|
+| `api/tests/Feature/DeploymentWorkerConsistencyTest.php` | `ETHR_WORKER_ASSETS` names `supervisor.conf`, `docker-compose.yml`, `prod.yml`, `lowmem.yml` — three are being deleted. Two tests iterate it and **a third exists solely for `prod.yml` and `lowmem.yml`**. Reduce the constant to `docker-compose.yml` and delete that third test |
+| `api/tests/Feature/document-root-inventory.php` | Reads `infrastructure/nginx.conf` |
+| `api/tests/Feature/HostingRequirementsConsistencyTest.php` | Reads deployment assets — re-check its list before deleting |
+| `api/tests/bootstrap.php` | Same |
+| `src/src/middleware.ts` | Its docblock cites `infrastructure/nginx.conf` as *"the authoritative control"* for the `/admin` boundary. **That sentence stops being true when the file goes** — and on shared hosting the control is `.htaccess` group 0, which is `LOCAL VERIFIED` only |
+| `api/app/Http/Controllers/Api/V1/Cron/CronRunController.php` | Cites `supervisor.conf` to explain what it replaces |
+| `api/config/database.php` | Cites `prod.yml` for the replication split |
+| `api/config/auth.php` | Cites `docker/nginx/default.conf` |
+| `api/.env.production.example` | VPS-only — classify alongside |
+| `api/.env.shared-hosting.example` | Cites `prod.yml` in a conversion note. **Stays**; the citation is what changes |
+| `scripts/shared-hosting/deploy.sh` | **New-target script citing a VPS asset.** Stays; the reference goes |
+
+### 3b.4 Order
+
+1. Cutover verified — M1, M2, the timer, a restore rehearsal on the host.
+2. Classify the eight `scripts/*.sh` and the two `.env.*.example` files.
+3. One commit: delete the assets, apply every edit in §3b.3, update all citations.
+4. `./scripts/gates.sh` — `docs` for link integrity, `backend` for the test edits.
+
+**Do not split it.** A partial removal leaves the docs gate red and a test reading a file
+that no longer exists.
+
+### 3b.5 The thing to weigh before any of it
+
+`docs/VPS_DEPLOYMENT.md` is *"out last, not first"* for a reason that has not changed: the
+static export has **never served a request on the Ethio Telecom host**, `/admin`'s protection
+rests on `[F,L]` which is **still unmeasured there**, and `AllowOverride Options` is a *new*
+requirement this migration introduced (`audit/BASELINE.md` §21). Until those are answered on
+the host, this list is the only way back.
 
 ## 4. Order of operations
 

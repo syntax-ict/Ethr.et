@@ -61,6 +61,33 @@ test.describe('Admin console — platform host', () => {
     await expect(page).toHaveURL(/\/admin\/tenants/);
     await expect(page.locator('table, h1, h2').first()).toBeVisible({ timeout: 8000 });
   });
+
+  // The plan catalogue had no spec until 2026-10-09 (audit R11). The E2E super
+  // admin has no MFA, in CI and in the rehearsal alike, and the console refuses
+  // every write behind a password alone (RequirePlatformMfa) — so a create is
+  // driven to that refusal, and the screen must say why rather than a bare
+  // "Couldn't create the plan". Nothing is written, so nothing needs undoing.
+  test('plans page lists the catalogue, and a create without MFA says why it is refused', async ({ page }) => {
+    await page.goto('/admin/plans');
+
+    await expect(page).toHaveURL(/\/admin\/plans/);
+    await expect(page.getByRole('heading', { name: 'Plans' })).toBeVisible();
+    // Each plan is an editable card; its Name field holds the plan's name.
+    const names = page.getByLabel('Name', { exact: true });
+    await expect(names.first()).toBeVisible();
+    expect(await names.evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value))).toEqual(
+      expect.arrayContaining(['Starter', 'Professional', 'Enterprise']),
+    );
+
+    // The new-plan card opens above the catalogue, so its fields come first.
+    await page.getByRole('button', { name: 'New plan' }).click();
+    await page.getByLabel('Name', { exact: true }).first().fill(`E2E plan ${Date.now()}`);
+    await page.getByLabel('Slug', { exact: true }).first().fill(`e2e-${Date.now()}`);
+    await page.getByLabel(/Price per month/).first().fill('100');
+    await page.getByRole('button', { name: 'Create plan' }).click();
+
+    await expect(page.getByText(/Multi-factor authentication must be enabled/)).toBeVisible();
+  });
 });
 
 test.describe('Admin console — refused to a tenant admin', () => {
@@ -84,8 +111,12 @@ test.describe('Admin console — refused to a tenant admin', () => {
       'text=/unauthorized|forbidden|not allowed|access denied|don.t have permission|sign in|log in/i',
     );
     const bounced = page.locator('h1, h2').filter({ hasText: /dashboard/i });
+    // The sign-in form itself, whatever its language: on a separate platform
+    // host nothing sets this origin's locale, so the page is in Amharic and
+    // the English "sign in" above never matches.
+    const signIn = page.locator('input[type="password"]');
 
-    await expect(refused.or(bounced).first()).toBeVisible({ timeout: 8000 });
+    await expect(refused.or(bounced).or(signIn).first()).toBeVisible({ timeout: 8000 });
 
     if (PLATFORM_HOST_IS_SEPARATE) {
       // No tenant-admin session exists on this origin at all, so the console

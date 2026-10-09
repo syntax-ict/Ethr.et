@@ -44,6 +44,42 @@ test('hr admin can create a shift', function () {
         ->assertJsonMissingPath('id');
 });
 
+// working_days is ISO-8601: 1 = Monday … 7 = Sunday. The shifts page labels
+// day 0 as "" (DAY_LABELS[0]), and nothing on the server reads 0 as Sunday, so a
+// "0" was accepted and stored as a day that does not exist. The regex allowed
+// [0-7] on both create and update.
+test('shift working_days rejects day 0 on create and update', function (string $days) {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/shifts", [
+        'name' => 'Weekend Shift',
+        'start_time' => '08:30',
+        'end_time' => '17:30',
+        'working_days' => $days,
+    ])->assertStatus(422)->assertJsonValidationErrors('working_days');
+
+    $shift = Shift::factory()->create(['tenant_id' => $tenant->id]);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/shifts/{$shift->public_id}", [
+        'working_days' => $days,
+    ])->assertStatus(422)->assertJsonValidationErrors('working_days');
+
+    expect($shift->fresh()->working_days)->toBe('1,2,3,4,5');
+})->with(['0', '0,1,2,3,4', '1,2,3,4,0']);
+
+test('shift working_days accepts every ISO day 1 to 7', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/shifts", [
+        'name' => 'All Week',
+        'start_time' => '08:30',
+        'end_time' => '17:30',
+        'working_days' => '1,2,3,4,5,6,7',
+    ])->assertStatus(201)->assertJsonPath('working_days', '1,2,3,4,5,6,7');
+});
+
 test('employee cannot create a shift', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
@@ -228,7 +264,7 @@ test('shift matcher prioritizes employee over department over branch', function 
         'assignable_id' => $employee->id,
     ]);
 
-    $matcher = new ShiftMatcher;
+    $matcher = app(ShiftMatcher::class);
     $matched = $matcher->match($employee, Carbon::today());
 
     expect($matched?->name)->toBe('Employee Shift');
@@ -250,7 +286,7 @@ test('shift matcher falls back to department when no employee assignment', funct
         'assignable_id' => $dept->id,
     ]);
 
-    $matcher = new ShiftMatcher;
+    $matcher = app(ShiftMatcher::class);
     $matched = $matcher->match($employee, Carbon::today());
 
     expect($matched?->name)->toBe('Dept Shift');
@@ -265,7 +301,7 @@ test('shift matcher falls back to default shift', function () {
         'name' => 'Default Shift',
     ]);
 
-    $matcher = new ShiftMatcher;
+    $matcher = app(ShiftMatcher::class);
     $matched = $matcher->match($employee, Carbon::today());
 
     expect($matched->name)->toBe('Default Shift');
@@ -275,7 +311,7 @@ test('shift matcher returns null when no shift found', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
-    $matcher = new ShiftMatcher;
+    $matcher = app(ShiftMatcher::class);
     $matched = $matcher->match($employee, Carbon::today());
 
     expect($matched)->toBeNull();

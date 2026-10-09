@@ -11,6 +11,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\PlanLimitService;
 use App\Support\EthiopianPhone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -31,7 +32,14 @@ class ScimUserController extends Controller
         $query = User::where('tenant_id', $tenant->id)->with('employee');
 
         if ($filter) {
-            $query = $this->applyFilter($query, $filter);
+            $query = $this->applyFilter($query, (string) $filter);
+            if ($query === null) {
+                // An expression this endpoint cannot evaluate used to be ignored,
+                // returning every user — an IdP asking "does this person exist?"
+                // was told everyone matched, and typically linked to the first
+                // result. RFC 7644 §3.4.2.2: 400 invalidFilter.
+                return $this->scimError('Unsupported filter', 400, 'invalidFilter');
+            }
         }
 
         $total = $query->count();
@@ -56,13 +64,22 @@ class ScimUserController extends Controller
         return response()->json($this->toScimUser($user));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, PlanLimitService $planLimits): JsonResponse
     {
         $tenant = $this->currentTenant->get();
         $data = $request->all();
 
-        $email = $data['emails'][0]['value'] ?? ($data['userName'] ?? null);
-        if (! $email) {
+        // SCIM bodies arrive unvalidated; a wrongly typed userName or emails
+        // reached the query layer as a 500 or a junk row. RFC 7644: 400.
+        $userName = $data['userName'] ?? null;
+        $emails = $data['emails'] ?? null;
+        if (($userName !== null && ! is_string($userName))
+            || ($emails !== null && (! is_array($emails) || ! is_array($emails[0] ?? []) || ! is_string($emails[0]['value'] ?? '')))) {
+            return $this->scimError('userName must be a string and emails a list of {value}', 400);
+        }
+
+        $email = $emails[0]['value'] ?? $userName;
+        if (! is_string($email) || $email === '') {
             return $this->scimError('userName or emails[0].value is required', 400);
         }
 
@@ -70,6 +87,10 @@ class ScimUserController extends Controller
         if ($existing) {
             return $this->scimError('User already exists', 409, 'uniqueness');
         }
+
+        // The plan's seat cap applies however an employee arrives; the form and
+        // the import enforced it and SCIM did not.
+        $planLimits->assertCanAdd($tenant, 'employees');
 
         $ssoSettings = $tenant->ssoSetting;
         $defaultRole = UserRole::tryFrom($ssoSettings?->default_role ?? '') ?? UserRole::EMPLOYEE;
@@ -145,6 +166,9 @@ class ScimUserController extends Controller
             }
             if ($userUpdates) {
                 $user->update($userUpdates);
+                if ($userUpdates['status'] === 'inactive') {
+                    $user->tokens()->delete();
+                }
             }
 
             AuditLog::record('scim.user_updated', $user, [
@@ -166,6 +190,11 @@ class ScimUserController extends Controller
 
         DB::transaction(function () use ($user) {
             $user->update(['status' => 'inactive']);
+            // Deprovisioned means signed out everywhere, as
+            // UserController::destroy does. Leaving the tokens kept a removed
+            // employee's sessions alive (RejectInactiveUser now refuses them
+            // too; this ends them).
+            $user->tokens()->delete();
             if ($user->employee) {
                 $user->employee->update(['status' => EmployeeStatus::SUSPENDED]);
             }
@@ -215,7 +244,11 @@ class ScimUserController extends Controller
         ];
     }
 
-    private function applyFilter(Builder $query, string $filter): Builder
+    /**
+     * @param  Builder<User>  $query
+     * @return Builder<User>|null null when the expression is not one this endpoint supports
+     */
+    private function applyFilter(Builder $query, string $filter): ?Builder
     {
         if (preg_match('/userName\s+eq\s+"([^"]+)"/i', $filter, $m)) {
             return $query->where('email', $m[1]);
@@ -227,7 +260,7 @@ class ScimUserController extends Controller
             return $query->where('public_id', $m[1]);
         }
 
-        return $query;
+        return null;
     }
 
     private function scimError(string $detail, int $status, string $scimType = 'invalidValue'): JsonResponse

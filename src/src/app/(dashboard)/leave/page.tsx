@@ -42,7 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   useLeaveBalance,
   useMyLeaveRequests,
-  useLeaveTypes,
+  useRequestableLeaveTypes,
   useSubmitLeave,
   useTeamLeaveRequests,
   useApproveLeave,
@@ -55,6 +55,7 @@ import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 function leaveTypeName(
   lt: LeaveBalance["leave_type"],
@@ -68,7 +69,7 @@ export default function LeavePage() {
   const { t } = useT();
   const [dialogOpen, setDialogOpen] = useState(false);
   const { isSupervisor } = usePermissions();
-  const { data: leaveTypes } = useLeaveTypes();
+  const { data: leaveTypes } = useRequestableLeaveTypes();
 
   const [leaveForm, setLeaveForm] = useState({
     leave_type_public_id: "",
@@ -92,10 +93,7 @@ export default function LeavePage() {
         });
       },
       onError: (err: unknown) => {
-        const axiosError = err as { response?: { data?: { detail?: string } } };
-        toast.error(
-          axiosError.response?.data?.detail || t("leave_page.submit_failed"),
-        );
+        toast.error(apiErrorDetail(err) || t("leave_page.submit_failed"));
       },
     });
   }
@@ -151,7 +149,7 @@ export default function LeavePage() {
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {leaveTypes?.data?.map((lt) => (
+                  {leaveTypes?.map((lt) => (
                     <SelectItem key={lt.public_id} value={lt.public_id}>
                       {lt.name}
                     </SelectItem>
@@ -357,24 +355,26 @@ function TeamLeaveTab() {
             size="sm"
             className="h-7 px-2"
             onClick={() => setView("list")}
+            aria-label={t("leave_page.view_list", "List view")}
+            aria-pressed={view === "list"}
           >
-            <List className="h-3 w-3" />
+            <List className="h-3 w-3" aria-hidden="true" />
           </Button>
           <Button
             variant={view === "calendar" ? "secondary" : "ghost"}
             size="sm"
             className="h-7 px-2"
             onClick={() => setView("calendar")}
+            aria-label={t("leave_page.view_calendar", "Calendar view")}
+            aria-pressed={view === "calendar"}
           >
-            <LayoutGrid className="h-3 w-3" />
+            <LayoutGrid className="h-3 w-3" aria-hidden="true" />
           </Button>
         </div>
       </div>
 
       {view === "calendar" ? (
-        <TeamLeaveCalendar
-          requests={requests as (LeaveRequest & { employee_name?: string })[]}
-        />
+        <TeamLeaveCalendar requests={requests} />
       ) : (
         <Card>
           <CardHeader>
@@ -410,8 +410,7 @@ function TeamLeaveTab() {
                     key: req.public_id,
                     cells: [
                       <span key="e" className="font-medium">
-                        {(req as { employee_name?: string }).employee_name ??
-                          "—"}
+                        {req.employee?.name ?? "—"}
                       </span>,
                       <span key="ty" className="text-muted-foreground">
                         {leaveTypeName(req.leave_type, t("leave_page.unknown"))}
@@ -482,11 +481,7 @@ const STATUS_COLORS: Record<string, string> = {
   rejected: "bg-destructive-soft text-destructive-on-soft",
 };
 
-function TeamLeaveCalendar({
-  requests,
-}: {
-  requests: (LeaveRequest & { employee_name?: string })[];
-}) {
+function TeamLeaveCalendar({ requests }: { requests: LeaveRequest[] }) {
   const { t, locale } = useT();
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -506,11 +501,14 @@ function TeamLeaveCalendar({
 
   function leavesOnDay(day: number) {
     const d = dateStr(day);
-    return requests.filter((r) => {
-      const status = r.status;
-      if (status === "rejected") return false;
-      return r.start_date <= d && r.end_date >= d;
-    });
+    // Only leave that is happening or may happen: a cancelled request used
+    // to stay on the calendar, since the filter dropped `rejected` alone.
+    return requests.filter(
+      (r) =>
+        (r.status === "pending" || r.status === "approved") &&
+        r.start_date <= d &&
+        r.end_date >= d,
+    );
   }
 
   function prevMonth() {
@@ -615,7 +613,7 @@ function TeamLeaveCalendar({
                 </span>
                 <div className="mt-0.5 space-y-0.5">
                   {leaves.slice(0, 3).map((leave, j) => {
-                    const name = leave.employee_name ?? "?";
+                    const name = leave.employee?.name ?? "?";
                     const firstName = name.split(" ")[0];
                     return (
                       <Badge

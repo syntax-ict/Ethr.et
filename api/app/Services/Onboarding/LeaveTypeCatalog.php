@@ -166,10 +166,4 @@ final class LeaveTypeCatalog
             'sort_order' => 0,
         ], $base, array_diff_key($overrides, ['code' => null]));
     }
-
-    /** @return array<int, string> */
-    public function knownCodes(): array
-    {
-        return array_keys(self::DEFAULTS);
-    }
 }

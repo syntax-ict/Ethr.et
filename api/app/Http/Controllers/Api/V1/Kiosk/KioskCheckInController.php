@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Api\V1\Kiosk;
 use App\Enums\AttendanceSource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\KioskCheckInRequest;
-use App\Http\Resources\AttendanceRecordResource;
+use App\Http\Resources\AttendancePunchResource;
 use App\Models\AttendanceSetting;
 use App\Models\Employee;
 use App\Models\KioskSession;
@@ -35,9 +35,7 @@ class KioskCheckInController extends Controller
             ], 401)->header('Content-Type', 'application/problem+json');
         }
 
-        $session = KioskSession::where('token', $kioskToken)
-            ->where('status', 'active')
-            ->first();
+        $session = KioskSession::resolveActiveByToken((string) $kioskToken);
 
         if (! $session) {
             return response()->json([
@@ -48,10 +46,10 @@ class KioskCheckInController extends Controller
             ], 401)->header('Content-Type', 'application/problem+json');
         }
 
-        $employee = Employee::withoutGlobalScope('tenant')
-            ->where('tenant_id', $session->tenant_id)
-            ->where('employee_code', $request->validated('employee_code'))
-            ->first();
+        // Plain tenant-scoped queries from here on. These two lookups used to
+        // drop the scope and restate `tenant_id` from the session; the resolver
+        // has now made the session's tenant current, so the scope says it.
+        $employee = Employee::where('employee_code', $request->validated('employee_code'))->first();
 
         if (! $employee) {
             return response()->json([
@@ -62,9 +60,7 @@ class KioskCheckInController extends Controller
             ], 404)->header('Content-Type', 'application/problem+json');
         }
 
-        $settings = AttendanceSetting::withoutGlobalScope('tenant')
-            ->where('tenant_id', $session->tenant_id)
-            ->first();
+        $settings = AttendanceSetting::first();
 
         if ($settings?->kiosk_pin_required) {
             $pin = $request->validated('pin');
@@ -113,14 +109,12 @@ class KioskCheckInController extends Controller
 
         $result->record->load('employee', 'shift');
 
-        $resource = new AttendanceRecordResource($result->record);
-        $data = $resource->resolve();
-        $data['was_duplicate'] = $result->wasDuplicate;
-        $data['employee_name'] = $employee->name;
+        $punch = new AttendancePunchResource($result->record, $result->wasDuplicate, $employee->name);
 
-        $isCheckOut = $request->validated('type') === 'check_out';
-        $statusCode = $result->wasDuplicate || $isCheckOut ? 200 : 201;
+        if ($result->wasDuplicate || $request->validated('type') === 'check_out') {
+            return $punch->response()->setStatusCode(200);
+        }
 
-        return response()->json($data, $statusCode);
+        return $punch->response()->setStatusCode(201);
     }
 }

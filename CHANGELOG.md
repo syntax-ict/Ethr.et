@@ -5,7 +5,7 @@ versioning is not yet applied — ETHR has not had a production release.
 
 This file starts at the professionalization and Plesk-migration work of
 September 2026. Earlier history is in `git log` and in `docs/phases/`, which
-`README.md` marks as unmaintained. `docs/MIGRATION_CHANGELOG.md` covers the
+`README.md` marks as unmaintained. `docs/archive/migration/MIGRATION_CHANGELOG.md` covers the
 shared-hosting migration in more detail than belongs here.
 
 ## [Unreleased]

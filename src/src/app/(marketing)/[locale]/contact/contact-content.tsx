@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FormField } from "@/components/patterns/FormField";
-import { apiClient } from "@/api/client";
+import { sendContactMessage } from "@/features/marketing/api";
 import { fieldErrors, type FieldErrors } from "@/lib/errors";
 import { useT } from "@/lib/i18n/useT";
 import { pickLocalised, useSiteContent } from "@/features/marketing/api";
@@ -59,7 +59,7 @@ export function ContactContent() {
     };
 
     try {
-      await apiClient.post("/contact", data);
+      await sendContactMessage(data);
       setSuccess(true);
     } catch (err) {
       // The bare `catch {}` here discarded the response entirely, so a 422

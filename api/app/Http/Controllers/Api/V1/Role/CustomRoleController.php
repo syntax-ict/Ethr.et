@@ -126,13 +126,38 @@ class CustomRoleController extends Controller
     {
         Gate::authorize('settings.manage');
 
+        return response()->json($this->permissionsByModule());
+    }
+
+    /**
+     * Every permission, grouped by module. Built by hand rather than with
+     * `groupBy('module')`, and annotated for the API contract, which can type
+     * neither (it published `string[][]`).
+     *
+     * @return array<string, list<array{name: string, module: string, action: string, description: string}>>
+     *
+     * @scramble-return array<string, list<array{name: string, module: string, action: string, description: string}>>
+     */
+    private function permissionsByModule(): array
+    {
+        // Platform abilities are not a tenant's to grant (audit N86).
         $permissions = Permission::query()
+            ->whereNotIn('name', Permission::PLATFORM_ONLY)
             ->select('name', 'module', 'action', 'description')
             ->orderBy('module')
             ->orderBy('action')
-            ->get()
-            ->groupBy('module');
+            ->get();
 
-        return response()->json($permissions);
+        $byModule = [];
+        foreach ($permissions as $permission) {
+            $byModule[$permission->module][] = [
+                'name' => $permission->name,
+                'module' => $permission->module,
+                'action' => $permission->action,
+                'description' => $permission->description,
+            ];
+        }
+
+        return $byModule;
     }
 }

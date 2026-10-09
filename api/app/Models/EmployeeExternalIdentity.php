@@ -50,9 +50,4 @@ class EmployeeExternalIdentity extends Model
     {
         return $this->belongsTo(Employee::class);
     }
-
-    public function isVerified(): bool
-    {
-        return $this->verified_at !== null;
-    }
 }

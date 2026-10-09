@@ -13,10 +13,10 @@ use Illuminate\Validation\Rule;
 
 class StoreEmployeeRequest extends FormRequest
 {
-    // The seven relation `exists` rules below are unscoped, because Laravel's
-    // presence verifier ignores global scopes. The tenant check is a
-    // withValidator() hook so that rules() — and therefore the generated API
-    // contract — is untouched. See the trait.
+    // The seven relation `exists` rules (the trait's relationRules()) are
+    // unscoped, because Laravel's presence verifier ignores global scopes. The
+    // tenant check is a withValidator() hook so that rules() — and therefore
+    // the generated API contract — is untouched. See the trait.
     use ValidatesRelationTenancy;
 
     public function authorize(): bool
@@ -50,13 +50,7 @@ class StoreEmployeeRequest extends FormRequest
             'probation_end_date' => ['nullable', 'date', 'after_or_equal:hire_date'],
             'salary_cents' => ['nullable', 'integer', 'min:0'],
             'tin' => ['nullable', 'string', 'max:20'],
-            'department_id' => ['nullable', 'exists:departments,public_id'],
-            'branch_id' => ['nullable', 'exists:branches,public_id'],
-            'position_id' => ['nullable', 'exists:positions,public_id'],
-            'grade_id' => ['nullable', 'exists:grades,public_id'],
-            'team_id' => ['nullable', 'exists:teams,public_id'],
-            'cost_center_id' => ['nullable', 'exists:cost_centers,public_id'],
-            'supervisor_id' => ['nullable', 'exists:employees,public_id'],
+            ...$this->relationRules(),
 
             // Optionally provision a login account for this employee. Requires an
             // email; the person receives an activation link to set their password.

@@ -1,5 +1,6 @@
 "use client";
 
+import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,8 +19,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { apiClient } from "@/api/client";
+import {
+  checkSubdomain as fetchSubdomainAvailability,
+  prepareCsrfCookie,
+  registerTenant,
+} from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
+import { PasswordStrengthMeter } from "@/components/shared/password-strength";
 
 const orgTypeKeys = [
   "government",
@@ -59,42 +65,6 @@ const registerSchema = z
     path: ["password_confirmation"],
   });
 type RegisterForm = z.infer<typeof registerSchema>;
-
-function getPasswordStrength(
-  password: string,
-  t: (key: string, fallback?: string) => string,
-): { score: number; label: string; color: string } {
-  let score = 0;
-  if (password.length >= 8) score++;
-  if (password.length >= 12) score++;
-  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
-  if (/\d/.test(password)) score++;
-  if (/[^a-zA-Z0-9]/.test(password)) score++;
-
-  if (score <= 1)
-    return {
-      score,
-      label: t("auth.password_weak", "Weak"),
-      color: "bg-destructive",
-    };
-  if (score <= 2)
-    return {
-      score,
-      label: t("auth.password_fair", "Fair"),
-      color: "bg-status-warning",
-    };
-  if (score <= 3)
-    return {
-      score,
-      label: t("auth.password_good", "Good"),
-      color: "bg-brand-accent",
-    };
-  return {
-    score,
-    label: t("auth.password_strong", "Strong"),
-    color: "bg-status-success",
-  };
-}
 
 export function RegisterForm() {
   const router = useRouter();
@@ -165,8 +135,6 @@ export function RegisterForm() {
   const adminName = watch("admin_name");
   const adminEmail = watch("admin_email");
 
-  const passwordStrength = getPasswordStrength(password, t);
-
   const checkSubdomain = useCallback(async (value: string) => {
     if (value.length < 3) {
       setSubdomainAvailable(null);
@@ -174,10 +142,7 @@ export function RegisterForm() {
     }
     setCheckingSubdomain(true);
     try {
-      const response = await apiClient.get("/register/check-subdomain", {
-        params: { subdomain: value },
-      });
-      setSubdomainAvailable(response.data.available);
+      setSubdomainAvailable(await fetchSubdomainAvailability(value));
     } catch {
       setSubdomainAvailable(null);
     } finally {
@@ -255,7 +220,7 @@ export function RegisterForm() {
     setFieldErrors({});
 
     try {
-      await apiClient.get("/sanctum/csrf-cookie", { baseURL: "" });
+      await prepareCsrfCookie();
     } catch {
       setServerError(
         t(
@@ -267,7 +232,7 @@ export function RegisterForm() {
     }
 
     try {
-      await apiClient.post("/auth/register", {
+      await registerTenant({
         organization_name: data.organization_name,
         organization_type: data.organization_type,
         subdomain: data.subdomain,
@@ -449,6 +414,7 @@ export function RegisterForm() {
                 {t("auth.subdomain", "Subdomain")}
               </Label>
               <div className="flex items-center gap-2">
+                <TenantAddressAffix side="prefix" />
                 <div className="relative flex-1">
                   <Input
                     id="subdomain"
@@ -475,9 +441,7 @@ export function RegisterForm() {
                     )}
                   </div>
                 </div>
-                <span className="shrink-0 text-sm text-muted-foreground">
-                  .ethr.et
-                </span>
+                <TenantAddressAffix side="suffix" />
               </div>
               {subdomainAvailable === false && (
                 <p className="text-xs text-destructive">
@@ -618,25 +582,7 @@ export function RegisterForm() {
                   )}
                 </button>
               </div>
-              {password.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div
-                        key={i}
-                        className={`h-1 flex-1 rounded-full transition-colors ${
-                          i <= passwordStrength.score
-                            ? passwordStrength.color
-                            : "bg-muted"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {passwordStrength.label}
-                  </p>
-                </div>
-              )}
+              <PasswordStrengthMeter password={password} />
               {(errors.password || fieldErrors.password) && (
                 <p
                   id="password-error"

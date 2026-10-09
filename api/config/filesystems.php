@@ -60,16 +60,11 @@ return [
             'report' => false,
         ],
 
-        'minio' => [
-            'driver' => 's3',
-            'key' => env('MINIO_ACCESS_KEY'),
-            'secret' => env('MINIO_SECRET_KEY'),
-            'region' => env('MINIO_REGION', 'us-east-1'),
-            'bucket' => env('MINIO_BUCKET', 'ethr'),
-            'endpoint' => env('MINIO_ENDPOINT', 'http://127.0.0.1:9000'),
-            'use_path_style_endpoint' => env('MINIO_USE_PATH_STYLE', true),
-            'throw' => true,
-        ],
+        // A `minio` disk (s3 driver, MINIO_* credentials) stood here until
+        // 2026-09-30. Production is shared hosting with no object store and
+        // serves documents from `local` through signed temporaryUrl() routes,
+        // and nothing selected it but the test suite. `s3` above stays: it is the
+        // off-host copy target for `ethr:backup --off-host`.
 
     ],
 

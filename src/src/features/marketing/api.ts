@@ -1,5 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import type { components } from "@/api/generated";
+
+/*
+ * No static import of `@/api/client` in this module, on purpose. It is the
+ * only API code every public page loads, and importing the shared axios
+ * instance here put the HTTP client — 18 KB gzipped, plus the authenticated
+ * app's interceptors — on the landing page of a site whose visitors are not
+ * signed in (measured from the built `/en` page, 2026-10-03).
+ */
 
 /**
  * The facts the public site states about ETHR, owned by the platform admin.
@@ -76,9 +84,17 @@ export const EMPTY_SITE_CONTENT: SiteContent = {
 export function useSiteContent(): SiteContent {
   const { data } = useQuery<SiteContent>({
     queryKey: ["site-content"],
+    // A plain GET: public, unauthenticated, not CSRF-checked, and the same for
+    // every tenant and language (the payload carries both languages).
     queryFn: async () => {
-      const { data } = await apiClient.get("/site-content");
-      return data.data;
+      const response = await fetch("/api/v1/site-content", {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(`site-content answered ${response.status}`);
+      }
+      const body = (await response.json()) as { data: SiteContent };
+      return body.data;
     },
     // The backend caches for five minutes and invalidates on write, so a short
     // client stale time costs little and means an operator's correction reaches
@@ -105,4 +121,19 @@ export function pickLocalised(
   en: string | null,
 ): string | null {
   return locale === "am" && am ? am : en;
+}
+
+/**
+ * The public contact form. `website` is the honeypot: empty for a person,
+ * filled by a form-filler bot; the API answers 201 either way.
+ */
+export async function sendContactMessage(
+  payload: components["schemas"]["ContactRequest"] & { website?: string },
+): Promise<void> {
+  // The shared client, loaded when someone actually sends the form. Not a
+  // hand-rolled fetch: `statefulApi()` CSRF-checks this POST, and axios is what
+  // copies the XSRF-TOKEN cookie into the header. `lib/echo.ts` records what
+  // the fetch version of that cost — a 419 on every request, swallowed.
+  const { apiClient } = await import("@/api/client");
+  await apiClient.post("/contact", payload);
 }

@@ -22,7 +22,7 @@ describe('MFA setup', function () {
         actingAsUser([
             'role' => UserRole::TENANT_ADMIN,
             'mfa_enabled' => true,
-            'mfa_secret' => encrypt('JBSWY3DPEHPK3PXP'),
+            'mfa_secret' => 'JBSWY3DPEHPK3PXP',
         ]);
 
         $this->postJson('/api/v1/auth/mfa/setup')
@@ -66,7 +66,7 @@ describe('MFA setup', function () {
         $user = actingAsUser([
             'role' => UserRole::TENANT_ADMIN,
             'mfa_enabled' => true,
-            'mfa_secret' => encrypt($secret),
+            'mfa_secret' => $secret,
         ]);
 
         $google2fa = new Google2FA;
@@ -86,7 +86,7 @@ describe('MFA setup', function () {
         actingAsUser([
             'role' => UserRole::TENANT_ADMIN,
             'mfa_enabled' => true,
-            'mfa_secret' => encrypt('JBSWY3DPEHPK3PXP'),
+            'mfa_secret' => 'JBSWY3DPEHPK3PXP',
         ]);
 
         $this->postJson('/api/v1/auth/mfa/disable', [
@@ -95,12 +95,37 @@ describe('MFA setup', function () {
     });
 });
 
+describe('MFA round trip', function () {
+    // Every other test here seeds the secret directly. This one goes the way a
+    // user does — enable through the API, then verify — because seeding hid
+    // the defect: the factory and these tests wrote encrypt(...) through the
+    // `encrypted` cast, a double-encrypted value that matched the controller's
+    // extra decrypt(), while a secret enabled through the API is stored once
+    // and made that decrypt() throw.
+    it('verifies a code against a secret enabled through the API', function () {
+        $user = actingAsUser(['role' => UserRole::TENANT_ADMIN]);
+        $google2fa = new Google2FA;
+
+        $secret = $this->postJson('/api/v1/auth/mfa/setup')->assertOk()->json('secret');
+        $this->postJson('/api/v1/auth/mfa/enable', [
+            'secret' => $secret,
+            'code' => $google2fa->getCurrentOtp($secret),
+        ])->assertOk();
+
+        expect($user->fresh()->mfa_enabled)->toBeTrue();
+
+        $this->postJson('/api/v1/auth/mfa/verify', [
+            'code' => $google2fa->getCurrentOtp($secret),
+        ])->assertOk()->assertJsonStructure(['access_token']);
+    });
+});
+
 describe('MFA verify', function () {
     it('verifies MFA code and returns new token', function () {
         $secret = 'JBSWY3DPEHPK3PXP';
         actingAsUser([
             'mfa_enabled' => true,
-            'mfa_secret' => encrypt($secret),
+            'mfa_secret' => $secret,
         ]);
 
         $google2fa = new Google2FA;
@@ -117,7 +142,7 @@ describe('MFA verify', function () {
     it('rejects invalid MFA verification code', function () {
         actingAsUser([
             'mfa_enabled' => true,
-            'mfa_secret' => encrypt('JBSWY3DPEHPK3PXP'),
+            'mfa_secret' => 'JBSWY3DPEHPK3PXP',
         ]);
 
         $this->postJson('/api/v1/auth/mfa/verify', [

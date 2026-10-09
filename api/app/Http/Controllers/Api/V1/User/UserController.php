@@ -13,6 +13,7 @@ use App\Models\AuditLog;
 use App\Models\CustomRole;
 use App\Models\Employee;
 use App\Models\User;
+use App\Services\MfaService;
 use App\Services\UserProvisioningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -135,6 +136,34 @@ class UserController extends Controller
             'message' => __('user.invite_resent'),
             'sent' => $sent,
         ]);
+    }
+
+    /**
+     * Turn off two-factor authentication for someone who lost their
+     * authenticator. They sign in with their password and set it up again; a
+     * tenant that requires MFA sends them straight to enrolment. Their trusted
+     * browsers are forgotten, and they are emailed that it happened.
+     */
+    public function resetMfa(Request $request, User $user, MfaService $mfa): UserResource|JsonResponse
+    {
+        Gate::authorize('users.resetMfa');
+
+        if ($user->id === $request->user()->id) {
+            return $this->problem(422, __('user.errors.cannot_reset_own_mfa'));
+        }
+
+        $this->guardTargetLevel($request->user(), $user);
+
+        if (! $user->mfa_enabled) {
+            return $this->problem(409, __('user.errors.mfa_not_enabled'));
+        }
+
+        // Until 2026-10-09 there was no way back from a lost device: no
+        // recovery codes, and no one who could turn MFA off for another user.
+        // The sign-in screen pointed at a recovery page that did not exist.
+        $mfa->reset($user, by: 'tenant_admin');
+
+        return new UserResource($user->load('employee'));
     }
 
     public function destroy(Request $request, User $user): JsonResponse

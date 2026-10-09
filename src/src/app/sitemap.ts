@@ -30,6 +30,18 @@ import { PUBLIC_ROUTES, SITE_URL } from "@/lib/site-url";
  * `changeFrequency` is likewise absent: Google has said publicly it ignores it,
  * and a value here would be a guess dressed as a fact.
  */
+/**
+ * Required for `output: "export"` — see `app/robots.ts` and `app/manifest.ts`,
+ * which carry the same directive for the same reason.
+ *
+ * Safe here for the reason the docblock above already gives: there is no
+ * `lastModified`, so the output is a pure function of `PUBLIC_ROUTES`,
+ * `AVAILABLE_LOCALES` and `SITE_URL` — all build-time constants. A sitemap that
+ * *did* stamp `new Date()` would be wrong to force static, which is a second
+ * reason that omission was the right call.
+ */
+export const dynamic = "force-static";
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const absolute = (path: string) => `${SITE_URL}${path === "/" ? "" : path}`;
 

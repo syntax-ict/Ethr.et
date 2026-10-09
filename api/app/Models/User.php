@@ -6,7 +6,6 @@ namespace App\Models;
 
 use App\Enums\UserRole;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use App\Traits\ScopesEmployeeAccess;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -28,10 +27,11 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $email_verified_at
  * @property-read Employee|null $employee A user need not be an employee — `users.employee_id` is nullable.
  * @property-read string $name Display name, computed — see name().
+ * @property-read CustomRole|null $customRole
  */
 class User extends Authenticatable
 {
-    use BelongsToTenant, HasApiTokens, HasAuditLog, HasFactory, HasPublicId, Notifiable, ScopesEmployeeAccess, SoftDeletes;
+    use BelongsToTenant, HasApiTokens, HasFactory, HasPublicId, Notifiable, ScopesEmployeeAccess, SoftDeletes;
 
     protected $fillable = [
         'public_id',
@@ -124,21 +124,6 @@ class User extends Authenticatable
         return $this->belongsTo(self::class, 'invited_by');
     }
 
-    public function isInvited(): bool
-    {
-        return $this->status === 'invited';
-    }
-
-    public function hasRole(UserRole $role): bool
-    {
-        return $this->role === $role;
-    }
-
-    public function hasAnyRole(array $roles): bool
-    {
-        return in_array($this->role, $roles, true);
-    }
-
     public function isAtLeast(UserRole $role): bool
     {
         return $this->role->isAtLeast($role);
@@ -147,11 +132,6 @@ class User extends Authenticatable
     public function isSuperAdmin(): bool
     {
         return $this->role === UserRole::SUPER_ADMIN;
-    }
-
-    public function isTenantAdmin(): bool
-    {
-        return $this->role === UserRole::TENANT_ADMIN;
     }
 
     public function customRole(): BelongsTo

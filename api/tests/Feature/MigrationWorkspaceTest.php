@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\OnboardingStep;
 use App\Enums\UserRole;
 use App\Jobs\CleanupExpiredDataJob;
 use App\Models\Branch;
@@ -10,6 +11,7 @@ use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
 use App\Models\MigrationBatch;
 use App\Models\MigrationStagingRow;
+use App\Models\OnboardingProgress;
 use App\Services\Migration\WorkforceMigrationService;
 use Illuminate\Support\Facades\DB;
 
@@ -198,6 +200,11 @@ describe('migration endpoints', function () {
             ->assertJsonPath('status', 'committed');
 
         expect(Employee::where('tenant_id', $tenant->id)->where('employee_code', 'NH1')->exists())->toBeTrue();
+
+        // The guided setup's other steps recorded themselves; this one did
+        // not, so the sidebar never counted a committed migration (2026-10-09).
+        expect(OnboardingProgress::where('tenant_id', $tenant->id)->value('completed_steps'))
+            ->toContain(OnboardingStep::WORKFORCE_MIGRATION->value);
 
         // The row id remains addressable for review after commit.
         expect($rowId)->not->toBeNull();

@@ -5,9 +5,11 @@ declare(strict_types=1);
 use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
 use App\Models\Branch;
+use App\Models\CostCenter;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
+use App\Models\Team;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 
@@ -15,15 +17,22 @@ use App\Services\CurrentTenant;
 
 describe('employee CRUD', function () {
     it('lists employees for supervisor', function () {
+        // This used a supervisor login with no employee record and expected
+        // every employee in the tenant — which it got only because the org
+        // scope matched `supervisor_id IS NULL` for a null anchor. A
+        // supervisor lists their direct reports and themselves.
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
 
-        Employee::factory()->count(3)->create(['tenant_id' => $tenant->id]);
+        $reports = Employee::factory()->count(3)->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisor->id]);
+        Employee::factory()->create(['tenant_id' => $tenant->id]);
 
         $response = $this->getJson('/api/v1/employees');
 
         $response->assertOk();
-        expect($response->json('data'))->toHaveCount(3);
+        expect(collect($response->json('data'))->pluck('public_id')->sort()->values()->all())
+            ->toBe($reports->push($supervisor)->pluck('public_id')->sort()->values()->all());
     });
 
     it('creates an employee as hr_admin', function () {
@@ -97,6 +106,41 @@ describe('employee CRUD', function () {
         ]);
 
         $response->assertOk()->assertJsonPath('phone', '+251922334455');
+    });
+
+    it('sets supervisor, team and cost centre, and answers with all three', function () {
+        // The API accepted these and no screen set them, so the reporting
+        // chart was flat and teams and cost centres were never assigned
+        // (audit N73). The update response also left `supervisor` unloaded.
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $boss = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Boss Person']);
+        $team = Team::factory()->create(['tenant_id' => $tenant->id]);
+        $costCenter = CostCenter::factory()->create(['tenant_id' => $tenant->id]);
+
+        $this->putJson("/api/v1/employees/{$employee->public_id}", [
+            'supervisor_id' => $boss->public_id,
+            'team_id' => $team->public_id,
+            'cost_center_id' => $costCenter->public_id,
+        ])->assertOk()
+            ->assertJsonPath('supervisor.name', 'Boss Person')
+            ->assertJsonPath('team.public_id', $team->public_id)
+            ->assertJsonPath('cost_center.public_id', $costCenter->public_id);
+
+        expect($employee->fresh()->supervisor_id)->toBe($boss->id);
+    });
+
+    it('refuses to make an employee their own supervisor', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+        $this->putJson("/api/v1/employees/{$employee->public_id}", [
+            'supervisor_id' => $employee->public_id,
+        ])->assertUnprocessable()->assertJsonValidationErrors('supervisor_id');
+
+        expect($employee->fresh()->supervisor_id)->toBeNull();
     });
 
     it('shows a single employee with relationships', function () {
@@ -193,7 +237,7 @@ describe('employee CRUD', function () {
 describe('employee search and filter', function () {
     it('searches employees by name', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Abebe Kebede']);
         Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Tigist Hailu']);
@@ -219,7 +263,7 @@ describe('employee search and filter', function () {
         // SQLite always used LIKE. It is meaningful on MySQL, which is the point
         // of `phpunit.mysql.xml` — see CONTRIBUTING.md.
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-1234']);
         Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-5678']);
@@ -235,7 +279,7 @@ describe('employee search and filter', function () {
         // `name_am` is half the name search in a product whose first-class
         // languages are en and am, and nothing covered it on any driver.
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->create([
             'tenant_id' => $tenant->id,
@@ -257,7 +301,7 @@ describe('employee search and filter', function () {
 
     it('searches employees by employee code', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-1234']);
         Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-5678']);
@@ -270,7 +314,7 @@ describe('employee search and filter', function () {
 
     it('filters employees by status', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->count(2)->create(['tenant_id' => $tenant->id, 'status' => EmployeeStatus::CONFIRMED]);
         Employee::factory()->create(['tenant_id' => $tenant->id, 'status' => EmployeeStatus::PROBATION, 'probation_end_date' => now()->addMonths(3)]);
@@ -284,7 +328,7 @@ describe('employee search and filter', function () {
 
     it('filters employees by department', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         $deptA = Department::factory()->create(['tenant_id' => $tenant->id]);
         $deptB = Department::factory()->create(['tenant_id' => $tenant->id]);
@@ -300,7 +344,7 @@ describe('employee search and filter', function () {
 
     it('sorts employees by hire_date descending', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Old Hire', 'hire_date' => '2020-01-01']);
         Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'New Hire', 'hire_date' => '2024-06-01']);
@@ -688,7 +732,7 @@ describe('employee tenant isolation', function () {
         Employee::factory()->count(3)->create(['tenant_id' => $tenantB->id]);
         app(CurrentTenant::class)->set($tenantA);
 
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenantA);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenantA);
 
         $response = $this->getJson('/api/v1/employees');
 

@@ -152,6 +152,36 @@ test('employee can submit leave request', function () {
         ->assertJsonMissingPath('id');
 });
 
+test('a deactivated leave type cannot be requested', function () {
+    // The rule only checked that the type existed. An employee could request
+    // leave of a type HR had switched off, and LeaveBalanceService then
+    // granted that type's default_days to cover it.
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+
+    $retired = LeaveType::factory()->create([
+        'tenant_id' => $tenant->id,
+        'code' => 'retired_type',
+        'default_days' => 20,
+        'min_notice_days' => 0,
+        'is_active' => false,
+    ]);
+
+    $start = now()->addDays(1)->startOfDay();
+    while ($start->isWeekend()) {
+        $start->addDay();
+    }
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/request", [
+        'leave_type_public_id' => $retired->public_id,
+        'start_date' => $start->format('Y-m-d'),
+        'end_date' => $start->format('Y-m-d'),
+    ])->assertUnprocessable()->assertJsonValidationErrors('leave_type_public_id');
+
+    expect(LeaveBalance::query()->where('employee_id', $employee->id)->exists())->toBeFalse();
+});
+
 test('leave request checks insufficient balance', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
@@ -185,6 +215,47 @@ test('leave request checks insufficient balance', function () {
         'end_date' => $end->format('Y-m-d'),
     ])->assertStatus(422)
         ->assertJsonPath('title', 'Insufficient Leave Balance');
+});
+
+test('a balance of exactly one day, kept in tenths, still covers a one-day request', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    test()->actingAs($user);
+
+    $leaveType = LeaveType::factory()->create([
+        'tenant_id' => $tenant->id,
+        'code' => 'tenths',
+        'default_days' => 5,
+        'min_notice_days' => 0,
+    ]);
+
+    // 4.6 - 3.6 in floats is 0.99999999999999956, so the remaining balance
+    // read as just under one day: a one-day request was refused as
+    // "insufficient", and the dashboard printed the long decimal.
+    LeaveBalance::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'leave_type_id' => $leaveType->id,
+        'year' => now()->year,
+        'entitled_days' => 4.6,
+        'used_days' => 3.6,
+    ]);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/employee")
+        ->assertOk()
+        ->assertJsonPath('leave_balances.0.remaining', 1);
+
+    $day = now()->addDay()->startOfDay();
+    while ($day->isWeekend()) {
+        $day->addDay();
+    }
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/request", [
+        'leave_type_public_id' => $leaveType->public_id,
+        'start_date' => $day->format('Y-m-d'),
+        'end_date' => $day->format('Y-m-d'),
+    ])->assertStatus(201);
 });
 
 test('leave request detects overlap', function () {
@@ -617,12 +688,14 @@ test('hr admin can view employee balance', function () {
 
 // ── Balance Service ──
 
-test('balance service calculates remaining correctly', function () {
+// LeaveBalanceService::calculateBalance() had no caller (audit B2); the live
+// path is LeaveBalance::remainingDays(), read by LeaveRequestController.
+test('a leave balance\'s remaining days are entitled plus carried, less used and pending', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
     $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'code' => 'calc_test']);
 
-    LeaveBalance::factory()->create([
+    $balance = LeaveBalance::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
         'leave_type_id' => $leaveType->id,
@@ -633,10 +706,7 @@ test('balance service calculates remaining correctly', function () {
         'pending_days' => 2,
     ]);
 
-    $service = app(LeaveBalanceService::class);
-    $remaining = $service->calculateBalance($employee, $leaveType, now()->year);
-
-    expect($remaining)->toBe(16.0);
+    expect($balance->remainingDays())->toBe(16.0);
 });
 
 test('monthly accrual adds correct amount', function () {

@@ -140,18 +140,35 @@ export function formatTime(
  * the fallback past thirty days renders an actual date, and that one needs the
  * tenant zone like everything else.
  */
+/** A translator: the key, and the English to use when it has none. */
+type Translate = (key: string, fallback: string) => string;
+
+const untranslated: Translate = (_key, fallback) => fallback;
+
+/**
+ * "5m ago", "3h ago", "2w ago", then the date itself after 30 days.
+ *
+ * The one implementation: five screens kept their own copies, three of them
+ * translated and two English-only, while this one was English-only too
+ * (redundancy audit, 2026-10-09). `useDateFormatters().timeAgo` passes the
+ * app's translator, so every caller gets Amharic; called without one it
+ * returns English, unchanged.
+ */
 export function timeAgo(
   dateStr: string,
   timeZone: string = DEFAULT_TIMEZONE,
+  t: Translate = untranslated,
 ): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 1) return t("time.just_now", "just now");
+  const ago = t("time.ago", "ago");
+  if (diffMin < 60) return `${diffMin}${t("time.min_short", "m")} ${ago}`;
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
+  if (diffHr < 24) return `${diffHr}${t("time.hour_short", "h")} ${ago}`;
   const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 7) return `${diffDay}d ago`;
-  if (diffDay < 30) return `${Math.floor(diffDay / 7)}w ago`;
+  if (diffDay < 7) return `${diffDay}${t("time.day_short", "d")} ${ago}`;
+  if (diffDay < 30)
+    return `${Math.floor(diffDay / 7)}${t("time.week_short", "w")} ${ago}`;
   return formatDate(dateStr, timeZone);
 }

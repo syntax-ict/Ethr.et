@@ -10,7 +10,6 @@ use App\Enums\DisciplinaryCategory;
 use App\Enums\DisciplinaryDecision;
 use App\Enums\DisciplinarySanctionType;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,7 +21,9 @@ use Illuminate\Support\Carbon;
  * decision → sanction → optional appeal. `investigation_notes` is an
  * append-only timeline (`{note, by, by_name, at}` per entry) rather than a
  * second table, mirroring `PersonnelAction.changes` — notes are always read
- * alongside their case, never queried independently.
+ * alongside their case, never queried independently. `by` is the author's
+ * user `public_id`; notes written before 2026-10-07 hold the numeric id
+ * instead, which is why DisciplinaryCaseResource never emits `by` (N46).
  *
  * Larastan cannot introspect the JSON `investigation_notes` column, so
  * property types are declared here rather than inferred from the schema.
@@ -37,7 +38,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $incident_date
  * @property DisciplinaryCaseStatus $status
  * @property int|null $reported_by
- * @property array<int, array{note: string, by: int|null, by_name: string|null, at: string}> $investigation_notes
+ * @property array<int, array{note: string, by: string|int|null, by_name: string|null, at: string}> $investigation_notes
  * @property DisciplinaryDecision|null $decision
  * @property string|null $decision_notes
  * @property Carbon|null $decided_at
@@ -61,7 +62,7 @@ use Illuminate\Support\Carbon;
  */
 class DisciplinaryCase extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId;
+    use BelongsToTenant, HasFactory, HasPublicId;
 
     protected $fillable = [
         'public_id',

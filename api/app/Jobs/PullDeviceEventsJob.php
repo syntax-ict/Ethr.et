@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Contracts\DeviceAdapter;
 use App\Enums\AttendanceSource;
 use App\Events\DeviceOffline;
 use App\Events\DeviceSyncFailed;
 use App\Models\Device;
 use App\Models\DeviceSyncLog;
+use App\Models\Tenant;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
@@ -31,8 +34,8 @@ class PullDeviceEventsJob implements ShouldQueue
 
     public int $timeout = 120;
 
-    /** Safety ceiling on history-backfill pagination, so a misbehaving adapter can't loop forever. */
-    private const MAX_HISTORY_PAGES = 200;
+    /** Safety ceiling on pages per run, so a misbehaving adapter can't loop forever. */
+    private const MAX_PAGES_PER_RUN = 200;
 
     public function __construct(
         private readonly Device $device,
@@ -49,6 +52,16 @@ class PullDeviceEventsJob implements ShouldQueue
 
     public function handle(DeviceManager $manager, AttendanceEngine $engine, IdentityResolver $resolver): void
     {
+        // A worker resolves no tenant, and the attendance engine and shift
+        // matching run through the tenant scope: without this a pulled punch
+        // matched no employee or shift and recorded nothing (audit N21). The
+        // device is tenant-owned, so its tenant is the one these punches
+        // belong to. CurrentTenant is a scoped binding, flushed between jobs.
+        $tenant = Tenant::query()->find($this->device->tenant_id);
+        if ($tenant !== null) {
+            app(CurrentTenant::class)->set($tenant);
+        }
+
         $startedAt = now();
         $syncLog = DeviceSyncLog::create([
             'tenant_id' => $this->device->tenant_id,
@@ -84,54 +97,42 @@ class PullDeviceEventsJob implements ShouldQueue
                 $this->device->update(['status' => 'online']);
             }
 
-            $since = $this->sinceOverride ?? $this->device->last_sync_at?->format('Y-m-d\TH:i:sP');
+            // `full` is a history import with no start date, so whether this is
+            // a backfill cannot be read off `sinceOverride` alone. It used to be,
+            // which sent `full` down the incremental path: one page, then the
+            // cursor moved to now.
+            $backfill = $this->sinceOverride !== null || $this->triggeredBy === 'history_import';
+            $since = $backfill
+                ? $this->sinceOverride
+                : $this->device->last_sync_at?->format('Y-m-d\TH:i:sP');
 
-            $processed = 0;
-            $failed = 0;
-            $found = 0;
+            $run = $this->drain($adapter, $since, $startedAt, $engine, $resolver);
 
-            if ($this->sinceOverride !== null) {
-                // History backfill: drain the device across pages, advancing the
-                // cursor past the last event of each page. Device APIs cap a
-                // response (~100 events), so a single pull would silently
-                // truncate a long backfill.
-                $cursor = $since;
-
-                for ($page = 0; $page < self::MAX_HISTORY_PAGES; $page++) {
-                    $events = $adapter->pullEvents($this->device, $cursor);
-                    if ($events === []) {
-                        break;
-                    }
-
-                    $found += count($events);
-                    [$p, $f] = $this->processEvents($events, $engine, $resolver);
-                    $processed += $p;
-                    $failed += $f;
-
-                    $maxTimestamp = max(array_column($events, 'timestamp'));
-                    $next = Carbon::parse($maxTimestamp)->addSecond()->format('Y-m-d\TH:i:sP');
-                    if ($next === $cursor) {
-                        break; // no forward progress — stop rather than loop
-                    }
-                    $cursor = $next;
-                }
-            } else {
-                $events = $adapter->pullEvents($this->device, $since);
-                $found = count($events);
-                [$processed, $failed] = $this->processEvents($events, $engine, $resolver);
+            if ($run['outcome'] === 'budget') {
+                // The rest goes to a fresh job, which gets its own budget. It
+                // carries the cursor as `since`, so it is a backfill and leaves
+                // last_sync_at alone; an incremental sync moves it below.
+                self::dispatch($this->device, $this->triggeredBy, $run['cursor']);
             }
 
-            // A history backfill must not move the incremental cursor — otherwise
-            // the next scheduled sync would skip everything between the backfill
-            // window and now.
-            if ($this->sinceOverride === null) {
-                $this->device->update(['last_sync_at' => now()]);
+            // A history backfill must not move the incremental cursor, or the
+            // next scheduled sync would skip everything between the backfill
+            // window and now. An incremental sync moves it to when this run
+            // began, not to now: a punch recorded while the pages were being
+            // read is after the last page and belongs to the next sync. If this
+            // run handed work on, the continuation covers from its cursor.
+            if (! $backfill) {
+                $this->device->update(['last_sync_at' => $startedAt]);
             }
 
+            [$found, $processed, $failed] = [$run['found'], $run['processed'], $run['failed']];
             $logStatus = $failed > 0 && $processed > 0 ? 'partial' : ($failed > 0 ? 'failed' : 'success');
 
             $syncLog->update([
-                'status' => $logStatus,
+                'status' => $run['outcome'] === 'stalled' ? 'partial' : $logStatus,
+                'error_message' => $run['outcome'] === 'stalled'
+                    ? "Stopped at {$run['cursor']}: the device returned a full page inside one second, and its API offers no way past it by time."
+                    : null,
                 'events_found' => $found,
                 'events_processed' => $processed,
                 'events_failed' => $failed,
@@ -190,6 +191,107 @@ class PullDeviceEventsJob implements ShouldQueue
     public function failed(Throwable $e): void
     {
         DeviceSyncFailed::dispatch($this->device, $e->getMessage());
+    }
+
+    /**
+     * Page through the device from `$since` until it is empty, the time budget
+     * runs out, or the cursor cannot advance.
+     *
+     * The cursor moves to the latest timestamp on each page, not one second past
+     * it. Device APIs disagree on whether `since` is inclusive (Hikvision's
+     * `startTime` is), and stepping past the last event lost the punch one
+     * second later on a strictly-after API, or a second punch in the same second
+     * on an inclusive one. Staying on the last timestamp loses neither. An
+     * inclusive API then returns the boundary punches again; they are skipped
+     * here, and across runs by the engine's idempotency key.
+     *
+     * @return array{outcome: 'drained'|'budget'|'stalled', cursor: ?string, found: int, processed: int, failed: int}
+     */
+    private function drain(DeviceAdapter $adapter, ?string $since, Carbon $startedAt, AttendanceEngine $engine, IdentityResolver $resolver): array
+    {
+        $deadline = $startedAt->copy()->addSeconds((int) config('devices.pull_time_budget_seconds', 20));
+        $cursor = $since;
+        $seen = [];
+        $largestPage = 0;
+        [$found, $processed, $failed] = [0, 0, 0];
+        $outcome = 'drained';
+
+        for ($page = 0; ; $page++) {
+            if ($page >= self::MAX_PAGES_PER_RUN || now()->greaterThanOrEqualTo($deadline)) {
+                $outcome = 'budget';
+                break;
+            }
+
+            $events = $adapter->pullEvents($this->device, $cursor);
+            if ($events === []) {
+                break;
+            }
+            $largestPage = max($largestPage, count($events));
+
+            $fresh = [];
+            foreach ($events as $event) {
+                $key = $event['employee_badge'].'|'.$event['timestamp'];
+                if (! isset($seen[$key])) {
+                    $seen[$key] = true;
+                    $fresh[] = $event;
+                }
+            }
+
+            $found += count($fresh);
+            [$p, $f] = $this->processEvents($fresh, $engine, $resolver);
+            $processed += $p;
+            $failed += $f;
+
+            $next = $this->latestTimestamp($events);
+            if ($next === null || $next === $cursor) {
+                // Nothing on this page is later than the cursor. A short page is
+                // the end of the data. A full one, every punch in the same second,
+                // means more may be waiting that a time cursor cannot reach.
+                $outcome = count($events) >= $largestPage && $largestPage > 1 && $next !== null
+                    ? 'stalled'
+                    : 'drained';
+                break;
+            }
+            $cursor = $next;
+
+            // Nothing after the moment this run began is its business: the next
+            // incremental sync starts its cursor exactly there. Without this, an
+            // adapter that never runs dry (MockAdapter invents punches relative
+            // to `since`; a device clock running fast does the same) would page
+            // forward forever and hand the same endless work to continuations.
+            if (strtotime($next) >= $startedAt->getTimestamp()) {
+                break;
+            }
+        }
+
+        return [
+            'outcome' => $outcome,
+            'cursor' => $cursor,
+            'found' => $found,
+            'processed' => $processed,
+            'failed' => $failed,
+        ];
+    }
+
+    /**
+     * The page's latest timestamp, exactly as the device wrote it, so the
+     * device reads its own format back as the next `since`.
+     *
+     * @param  array<int, array{employee_badge: string, timestamp: string, type: string}>  $events
+     */
+    private function latestTimestamp(array $events): ?string
+    {
+        $latest = null;
+        $latestAt = null;
+
+        foreach ($events as $event) {
+            $at = strtotime($event['timestamp']);
+            if ($at !== false && ($latestAt === null || $at > $latestAt)) {
+                [$latest, $latestAt] = [$event['timestamp'], $at];
+            }
+        }
+
+        return $latest;
     }
 
     /**

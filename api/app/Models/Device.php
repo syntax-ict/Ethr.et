@@ -5,20 +5,22 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 /**
  * @property array<int, string>|null $webhook_ip_allowlist
+ * @property-read Branch|null $branch
+ * @property Carbon|null $last_sync_at
  */
 class Device extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, SoftDeletes;
+    use BelongsToTenant, HasFactory, HasPublicId, SoftDeletes;
 
     protected $fillable = [
         'public_id',

@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { UserPlus, Loader2, Pencil, Trash2, Send, AtSign } from "lucide-react";
+import {
+  UserPlus,
+  Loader2,
+  Pencil,
+  Trash2,
+  Send,
+  AtSign,
+  ShieldOff,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,9 +44,15 @@ import {
   useUpdateUser,
   useDeleteUser,
   useResendInvite,
+  useResetUserMfa,
   type TenantUser,
+  type UpdateUserPayload,
+  type UserRole,
   type UserStatus,
 } from "@/features/users/api";
+import { SearchInput } from "@/components/shared/search-input";
+import { PaginationControls } from "@/components/shared/pagination-controls";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const ROLES = [
   "tenant_admin",
@@ -49,16 +63,19 @@ const ROLES = [
   "employee",
 ] as const;
 
-const STATUSES: UserStatus[] = ["active", "inactive", "suspended"];
+// What an admin may set; `invited` is written only by an invitation.
+type EditableStatus = NonNullable<UpdateUserPayload["status"]>;
+
+const STATUSES: EditableStatus[] = ["active", "inactive", "suspended"];
 
 function statusTone(status: UserStatus | string): string {
   switch (status) {
     case "active":
-      return "var(--color-status-success, #059669)";
+      return "var(--color-status-success, #047857)";
     case "invited":
-      return "var(--color-status-info, #0284C7)";
+      return "var(--color-status-info, #0369A1)";
     case "suspended":
-      return "var(--color-status-error, #DC2626)";
+      return "var(--color-status-error, #B91C1C)";
     default:
       return "var(--color-text-secondary, #64748B)";
   }
@@ -66,32 +83,43 @@ function statusTone(status: UserStatus | string): string {
 
 export default function UsersSettingsPage() {
   const { t } = useT();
-  const usersQuery = useUsers();
+  // Every page, and the API's search: it pages at 25 ordered by email, and the
+  // screen read only the first page, so accounts past the 25th could not be
+  // edited, re-invited or removed (audit N68).
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const usersQuery = useUsers({ page, search: search || undefined });
   const invite = useInviteUser();
   const update = useUpdateUser();
   const remove = useDeleteUser();
   const resend = useResendInvite();
+  const resetMfa = useResetUserMfa();
+  const { can } = usePermissions();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState<TenantUser | null>(null);
   const [deleteUser, setDeleteUser] = useState<TenantUser | null>(null);
+  const [mfaUser, setMfaUser] = useState<TenantUser | null>(null);
 
   const [form, setForm] = useState({
     email: "",
     username: "",
-    role: "employee",
+    role: "employee" as UserRole,
   });
-  const [editForm, setEditForm] = useState({
-    username: "",
-    role: "employee",
-    status: "active" as UserStatus,
-  });
+  // `status` is null for an invitee until the admin picks one: the form used
+  // to open them as `active` and send it back, so any edit activated the
+  // account and took the Resend invite action with it.
+  const [editForm, setEditForm] = useState<{
+    username: string;
+    role: UserRole;
+    status: EditableStatus | null;
+  }>({ username: "", role: "employee", status: "active" });
 
   function openEdit(u: TenantUser) {
     setEditForm({
       username: u.username ?? "",
       role: u.role,
-      status: (u.status === "invited" ? "active" : u.status) as UserStatus,
+      status: u.status === "invited" ? null : u.status,
     });
     setEditUser(u);
   }
@@ -119,7 +147,9 @@ export default function UsersSettingsPage() {
         payload: {
           username: editForm.username || null,
           role: editForm.role,
-          status: editForm.status,
+          ...(editForm.status !== null && editForm.status !== editUser.status
+            ? { status: editForm.status }
+            : {}),
         },
       });
       toast.success(t("users_page.updated", "User updated"));
@@ -132,7 +162,7 @@ export default function UsersSettingsPage() {
   const users = usersQuery.data?.data ?? [];
 
   return (
-    <RoleGate minRole="tenant_admin">
+    <RoleGate anyPermission={["viewUsers"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("users_page.title", "Users & Access")}
@@ -147,6 +177,17 @@ export default function UsersSettingsPage() {
             </Button>
           }
         />
+
+        <div className="max-w-sm">
+          <SearchInput
+            value={search}
+            onChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            placeholder={t("users_page.search", "Search by name or email")}
+          />
+        </div>
 
         {usersQuery.isLoading ? (
           <div className="space-y-2">
@@ -187,6 +228,11 @@ export default function UsersSettingsPage() {
                       </span>
                       <span className="block text-xs text-muted-foreground">
                         {u.email}
+                        {u.mfa_enabled && (
+                          <Badge variant="outline" className="ml-2 text-[10px]">
+                            {t("users_page.mfa_on", "2FA")}
+                          </Badge>
+                        )}
                       </span>
                     </div>,
                     u.username ? (
@@ -234,6 +280,24 @@ export default function UsersSettingsPage() {
                           <Send className="h-4 w-4" />
                         </Button>
                       )}
+                      {u.mfa_enabled && can.resetUserMfa && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title={t(
+                            "users_page.reset_mfa",
+                            "Reset two-factor authentication",
+                          )}
+                          aria-label={t(
+                            "users_page.reset_mfa",
+                            "Reset two-factor authentication",
+                          )}
+                          onClick={() => setMfaUser(u)}
+                        >
+                          <ShieldOff className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -259,6 +323,12 @@ export default function UsersSettingsPage() {
             </CardContent>
           </Card>
         )}
+
+        <PaginationControls
+          meta={usersQuery.data?.meta}
+          onPageChange={setPage}
+          disabled={usersQuery.isFetching}
+        />
 
         {/* Invite */}
         <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
@@ -315,7 +385,9 @@ export default function UsersSettingsPage() {
                 <Label>{t("common.role", "Role")}</Label>
                 <Select
                   value={form.role}
-                  onValueChange={(v) => setForm({ ...form, role: v })}
+                  onValueChange={(v) =>
+                    setForm({ ...form, role: v as UserRole })
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
@@ -375,7 +447,9 @@ export default function UsersSettingsPage() {
                 <Label>{t("common.role", "Role")}</Label>
                 <Select
                   value={editForm.role}
-                  onValueChange={(v) => setEditForm({ ...editForm, role: v })}
+                  onValueChange={(v) =>
+                    setEditForm({ ...editForm, role: v as UserRole })
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
@@ -392,13 +466,13 @@ export default function UsersSettingsPage() {
               <div>
                 <Label>{t("common.status", "Status")}</Label>
                 <Select
-                  value={editForm.status}
+                  value={editForm.status ?? ""}
                   onValueChange={(v) =>
-                    setEditForm({ ...editForm, status: v as UserStatus })
+                    setEditForm({ ...editForm, status: v as EditableStatus })
                   }
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue />
+                    <SelectValue placeholder={t("status.invited", "Invited")} />
                   </SelectTrigger>
                   <SelectContent>
                     {STATUSES.map((s) => (
@@ -420,6 +494,53 @@ export default function UsersSettingsPage() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
                 {t("common.save", "Save")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset two-factor: the way back from a lost authenticator */}
+        <Dialog open={!!mfaUser} onOpenChange={(o) => !o && setMfaUser(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {t("users_page.reset_mfa", "Reset two-factor authentication")}
+              </DialogTitle>
+              <DialogDescription>
+                {t(
+                  "users_page.reset_mfa_desc",
+                  "Use this when someone has lost the phone with their authenticator app. They sign in with their password and set it up again, and they are emailed that it was reset.",
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <p className="text-sm text-foreground">{mfaUser?.email}</p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMfaUser(null)}>
+                {t("common.cancel", "Cancel")}
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={resetMfa.isPending}
+                onClick={async () => {
+                  if (!mfaUser) return;
+                  try {
+                    await resetMfa.mutateAsync(mfaUser.public_id);
+                    toast.success(
+                      t(
+                        "users_page.mfa_reset_done",
+                        "Two-factor authentication reset",
+                      ),
+                    );
+                    setMfaUser(null);
+                  } catch (e) {
+                    toastError(e, t("common.error", "Something went wrong"));
+                  }
+                }}
+              >
+                {resetMfa.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {t("users_page.reset_mfa_confirm", "Reset")}
               </Button>
             </DialogFooter>
           </DialogContent>

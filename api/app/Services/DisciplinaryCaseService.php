@@ -60,7 +60,7 @@ class DisciplinaryCaseService
             $notes = $case->investigation_notes ?? [];
             $notes[] = [
                 'note' => $note,
-                'by' => $author?->id,
+                'by' => $author?->public_id,
                 'by_name' => $author?->getAttribute('name'),
                 'at' => now()->toIso8601String(),
             ];
@@ -239,7 +239,7 @@ class DisciplinaryCaseService
         ]);
 
         $employee->status = $target;
-        $employee->termination_date = $effectiveDate;
+        $employee->termination_date = Carbon::parse($effectiveDate);
         $employee->save();
 
         AuditLog::record('employee.transitioned', $employee, [

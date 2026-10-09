@@ -1,0 +1,140 @@
+name: E2E (advisory)
+
+# The Playwright suite in src/e2e (13 specs) ran in no workflow and no gate until
+# 2026-09-30, so the only full-stack test of the frontend was never exercised.
+#
+# ADVISORY on purpose: this job is not a required check, and should not become
+# one until it has been green on several consecutive runs. A suite that has never
+# run in CI will surface environment problems before it surfaces regressions, and
+# a permanently red required check is one people learn to click past.
+#
+# What it drives is the development shape — `php artisan serve` plus `next dev`,
+# the same stack the specs were written against — not the static export. The
+# export has its own gate (`Static export (Bronze shared hosting)` in gates.yml).
+#
+# CI calls ./scripts/gates.sh e2e rather than restating the Playwright command,
+# for the same reason gates.yml does: the gate list lives in one place.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright (desktop Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: ethr_e2e
+          MARIADB_USER: ethr
+          MARIADB_PASSWORD: ethr
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+
+    env:
+      DB_CONNECTION: mariadb
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ethr_e2e
+      DB_USERNAME: ethr
+      DB_PASSWORD: ethr
+      # The specs address the tenant as demo.localhost; Chromium and curl both
+      # resolve *.localhost to loopback, so no hosts-file entry is needed.
+      BASE_URL: http://demo.localhost:3000
+      API_URL: http://demo.localhost:8000/api/v1
+      # A failed super-admin sign-in would otherwise SKIP the admin specs, and in
+      # CI a skip is a pass nobody reads. See e2e/global-setup.ts.
+      E2E_REQUIRE_SUPER_ADMIN: "1"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, session, simplexml, tokenizer
+          coverage: none
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Cache Composer packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Install frontend dependencies and Chromium
+        working-directory: src
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # Seeded with DatabaseSeeder, which creates the demo tenant and the
+      # admin / hr / employee / super-admin accounts the specs sign in as.
+      - name: Prepare the database
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan migrate --force
+          php artisan db:seed --force
+
+      - name: Start the API and the frontend
+        run: |
+          (cd api && nohup php artisan serve --host=127.0.0.1 --port=8000 > "$RUNNER_TEMP/api.log" 2>&1 &)
+          (cd src && nohup npm run dev > "$RUNNER_TEMP/web.log" 2>&1 &)
+
+      # Wait for the proxy to reach the API. The check hits /sanctum/csrf-cookie
+      # through Next rather than a bare "is the port open": a server that answers
+      # is not proof that it is THIS server behind the proxy.
+      - name: Wait for the stack, then warm the routes
+        run: |
+          for i in $(seq 1 90); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/sanctum/csrf-cookie" || true)
+            [ "$code" = "204" ] && break
+            sleep 5
+          done
+          [ "$code" = "204" ] || { echo "stack never came up (last: $code)"; tail -50 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/web.log"; exit 1; }
+          # next dev compiles each route on first request; global-setup's 30s
+          # page.goto timeout is shorter than a cold compile on a runner.
+          # /employees/warm compiles the [id] route; the id need not exist.
+          for path in /login /dashboard /employees /employees/warm /attendance /leave /payroll /devices /admin /settings /profile; do
+            curl -s -o /dev/null -m 240 -w "$path %{http_code} %{time_total}s\n" "$BASE_URL$path" || true
+          done
+
+      - name: Run the E2E gate
+        run: ./scripts/gates.sh e2e
+
+      - name: Upload the Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            src/playwright-report
+            src/test-results
+          retention-days: 7
+
+      - name: Server logs on failure
+        if: failure()
+        run: tail -100 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/web.log" || true

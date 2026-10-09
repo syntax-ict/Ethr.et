@@ -21,21 +21,24 @@
  *  4. PUBLIC KEY OUTSIDE THE SHIPPED SUBSET — a t() call on a public page whose
  *     key is not covered by PUBLIC_KEY_PREFIXES.
  *
- *     /am/* and /en/* are prerendered, and only `am.json` is loaded eagerly, so
- *     the layout hands the browser a ~6.7 KB projection of the locale's
+ *     /am/* and /en/* are prerendered and no dictionary is loaded eagerly on a
+ *     public page, so the layout hands the browser a projection of the locale's
  *     dictionary to register before the first client render (see
  *     lib/i18n/public-keys.ts). A key outside those prefixes is missing from
  *     that projection, so the server renders the real sentence and the browser's
- *     first render produces the raw key — React then discards the server's HTML
- *     and paints `marketing.faq_page.what_is_q` until the lazy chunk lands.
+ *     first render produces something else — React then discards the server's
+ *     HTML and paints it until the lazy chunk lands, if it ever does.
  *
- *     Only calls with **no** string fallback are checked. A t("x.y", "Text")
- *     outside the projection is safe: the browser's first render produces
- *     "Text", the server produced en.json's value, and check 5 keeps those
- *     equal. It is the seventeen template-literal keys on the public pages —
- *     t(`marketing.features.${key}`), which cannot carry an inline fallback —
- *     that have nothing to fall back to. They are checked by their static head,
- *     which is what the projection has to cover.
+ *     **Every** call is checked, fallback or not (since 2026-10-03). This rule
+ *     used to skip a t("x.y", "Text") with a string fallback, reasoning that the
+ *     browser's first render produces "Text", the server produced en.json's
+ *     value, and check 5 keeps those equal. That held only while `am.json` was
+ *     eager on every page. Once Amharic also arrives as a projection, the server
+ *     renders the Amharic sentence and the browser renders "Text": a mismatch a
+ *     reader sees as the page switching language under them. Five keys in
+ *     product-flow.tsx used that exemption; they moved under `marketing.`.
+ *     Template-literal keys — t(`marketing.features.${key}`) — are checked by
+ *     their static head, which is what the projection has to cover.
  *
  *  5. PUBLIC FALLBACK DRIFT — on a page reachable from the public site, a
  *     t("a.b", "Fallback") whose fallback differs from en.json's value.
@@ -175,27 +178,6 @@ const outsideSubset = [];
 // before the first interpolation for `a.b.${x}`.
 const KEY_HEAD_RE = /\bt\(\s*(["'`])([^"'`$]*)/g;
 
-/**
- * True when this t() call passes a plain string as its second argument.
- *
- * Scans from the key literal's closing delimiter rather than pattern-matching
- * the whole call, so it is not confused by an interpolated key.
- */
-function hasStringFallback(src, matchIndex, quote) {
-  const keyStart = src.indexOf(quote, matchIndex);
-  let i = keyStart + 1;
-  while (i < src.length) {
-    if (src[i] === "\\") {
-      i += 2;
-      continue;
-    }
-    if (src[i] === quote) break;
-    i += 1;
-  }
-  const after = src.slice(i + 1, i + 40);
-  return /^\s*,\s*["']/.test(after);
-}
-
 // t("a.b", "Fallback") — the fallback must be a plain string literal for this
 // to mean anything; template literals are rule 2's problem, not this one.
 const FALLBACK_RE =
@@ -230,7 +212,6 @@ for (const file of files) {
     const head = m[2];
     if (!head.includes(".")) continue; // not a translation key
     if (PUBLIC_PREFIXES.some((prefix) => head.startsWith(prefix))) continue;
-    if (hasStringFallback(src, m.index, m[1])) continue;
     const line = src.slice(0, m.index).split("\n").length;
     outsideSubset.push(`${rel}:${line}  ${head}`);
   }
@@ -271,7 +252,7 @@ if (outsideSubset.length)
   problems.push([
     `${outsideSubset.length} public-page key(s) outside PUBLIC_KEY_PREFIXES — ` +
       `they are not in the dictionary the layout ships, so the browser's first ` +
-      `render would show the raw key. Add the family to lib/i18n/public-keys.ts`,
+      `render would show the raw key or the English fallback. Add the family to lib/i18n/public-keys.ts`,
     outsideSubset,
   ]);
 if (fallbackDrift.length)

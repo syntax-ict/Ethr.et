@@ -17,11 +17,13 @@ use App\Http\Controllers\Api\V1\Attendance\AttendanceCorrectionController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceImportController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntelligenceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceSettingController;
+use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
 use App\Http\Controllers\Api\V1\Attendance\KioskAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\ManualAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\MobileAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\OfflineSyncController;
 use App\Http\Controllers\Api\V1\Attendance\QrAttendanceController;
+use App\Http\Controllers\Api\V1\Auth\FindOrganisationController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
 use App\Http\Controllers\Api\V1\Auth\MeController;
@@ -99,6 +101,7 @@ use App\Http\Controllers\Api\V1\Scim\ScimUserController;
 use App\Http\Controllers\Api\V1\Settings\AuditLogController;
 use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
+use App\Http\Controllers\Api\V1\Shift\ShiftAssignmentController;
 use App\Http\Controllers\Api\V1\Shift\ShiftController;
 use App\Http\Controllers\Api\V1\Shift\ShiftRotationController;
 use App\Http\Controllers\Api\V1\SiteContentController;
@@ -107,11 +110,15 @@ use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\User\UserController;
 use App\Http\Controllers\Api\V1\Webhook\WebhookController;
 use App\Http\Middleware\BlockImpersonatedActions;
+use App\Http\Middleware\EnforceApiKeyAbilities;
+use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Http\Middleware\EnsurePlatformContext;
 use App\Http\Middleware\EnsureUserBelongsToTenant;
+use App\Http\Middleware\RejectInactiveUser;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
 use App\Http\Middleware\RequirePlatformMfa;
 use App\Http\Middleware\RequiresPlanFeature;
+use App\Http\Middleware\RequireTenantMfaEnrolment;
 use App\Http\Middleware\ScimAuth;
 use App\Http\Middleware\VerifyCronToken;
 use Illuminate\Http\Request;
@@ -143,15 +150,15 @@ Route::prefix('cron')
     });
 
 // Public endpoints
-Route::get('/plans', [PlanController::class, 'index']);
+Route::get('/plans', [PlanController::class, 'index'])->middleware('throttle:public-catalogue');
 
 // Contact details, brand and published figures for the marketing site.
 // Unauthenticated and deliberately NOT behind EnsurePlatformContext, which
 // 404s whenever a tenant is resolved — the marketing pages are served from
 // tenant subdomains too. See SiteContentResource for what is published.
-Route::get('/site-content', [SiteContentController::class, 'index']);
-Route::get('/templates', [TemplateController::class, 'index']);
-Route::get('/templates/{slug}', [TemplateController::class, 'show']);
+Route::get('/site-content', [SiteContentController::class, 'index'])->middleware('throttle:public-catalogue');
+Route::get('/templates', [TemplateController::class, 'index'])->middleware('throttle:public-catalogue');
+Route::get('/templates/{slug}', [TemplateController::class, 'show'])->middleware('throttle:public-catalogue');
 Route::post('/contact', ContactController::class)->middleware('throttle:auth');
 
 // Public auth routes
@@ -165,6 +172,12 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
 
     Route::post('/password/forgot', [PasswordResetController::class, 'forgot']);
     Route::post('/password/reset', [PasswordResetController::class, 'reset']);
+
+    // "Find my organisation" on the apex login: emails an address the sign-in
+    // link of each organisation it belongs to, and answers every request with
+    // the same sentence. Limited like the password reset (this group, plus a
+    // per-address counter in the controller).
+    Route::post('/find-organisation', FindOrganisationController::class);
 
     // Tenant-host half of the impersonation handoff. Necessarily unauthenticated
     // — the caller has no session on this host yet, which is the entire reason
@@ -213,10 +226,11 @@ Route::prefix('devices/webhook')->middleware('throttle:api')->group(function () 
 Route::prefix('kiosk')->middleware('throttle:api')->group(function () {
     Route::post('/authenticate', [KioskSessionController::class, 'authenticate']);
     Route::post('/check-in', KioskCheckInController::class);
+    Route::post('/exit', [KioskSessionController::class, 'exitKiosk'])->middleware('throttle:kiosk-exit');
 });
 
 // Authenticated routes
-Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnverifiedMfaToken::class, BlockImpersonatedActions::class])->group(function () {
+Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdleTimeout::class, EnsureUserBelongsToTenant::class, RejectUnverifiedMfaToken::class, RequireTenantMfaEnrolment::class, BlockImpersonatedActions::class, EnforceApiKeyAbilities::class])->group(function () {
     // Broadcasting (Reverb) private-channel auth. Registered here — inside the
     // api/v1 group — so the httpOnly `access_token` cookie (path=/api) is sent and
     // AuthenticateFromCookie can resolve the user. The framework default lives at
@@ -235,6 +249,13 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
         Route::post('/mfa/disable', [MfaSetupController::class, 'disable']);
         Route::post('/mfa/verify', MfaVerifyController::class);
 
+        // Ending an impersonation. Here, not under /admin: the caller is the
+        // impersonated tenant admin on the tenant's own host, where
+        // EnsurePlatformContext 404s every /admin route (audit N19). Authorised
+        // by the impersonation ability on the presented token, checked in the
+        // controller; an ordinary session gets 403.
+        Route::post('/impersonation/exit', [AdminTenantController::class, 'exitImpersonation']);
+
         // Active session management
         Route::get('/sessions', [SessionController::class, 'index']);
         Route::post('/sessions/revoke-all', [SessionController::class, 'revokeAll']);
@@ -248,10 +269,6 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
     // Onboarding
     Route::prefix('onboarding')->group(function () {
         Route::get('/progress', [OnboardingController::class, 'getProgress']);
-        Route::put('/progress/{step}', [OnboardingController::class, 'updateStep']);
-        Route::post('/apply-template', [OnboardingController::class, 'applyTemplate']);
-        Route::post('/invite', [OnboardingController::class, 'inviteTeam']);
-        Route::post('/complete', [OnboardingController::class, 'complete']);
 
         // Smart configuration (OnboardingStep::SMART_CONFIGURATION)
         Route::get('/industries', [OnboardingConfigurationController::class, 'industries']);
@@ -280,6 +297,7 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
         Route::post('/', [UserController::class, 'store']);
         Route::patch('/{user}', [UserController::class, 'update']);
         Route::post('/{user}/resend-invite', [UserController::class, 'resendInvite']);
+        Route::post('/{user}/mfa/reset', [UserController::class, 'resetMfa']);
         Route::delete('/{user}', [UserController::class, 'destroy']);
     });
 
@@ -316,6 +334,7 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
         Route::prefix('corrections')->group(function () {
             Route::get('/', [AttendanceCorrectionController::class, 'index']);
             Route::get('/pending', [AttendanceCorrectionController::class, 'pending']);
+            Route::get('/my', [AttendanceCorrectionController::class, 'my']);
             Route::post('/', [AttendanceCorrectionController::class, 'store']);
             Route::get('/{correction}/payroll-impact', [AttendanceCorrectionController::class, 'payrollImpact']);
             Route::put('/{correction}/approve', [AttendanceCorrectionController::class, 'approve']);
@@ -335,6 +354,8 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
     Route::prefix('shifts')->group(function () {
         Route::post('/assign', [ShiftController::class, 'assign']);
         Route::get('/schedule', [ShiftController::class, 'schedule']);
+        Route::patch('/assignments/{assignment}', [ShiftAssignmentController::class, 'update']);
+        Route::delete('/assignments/{assignment}', [ShiftAssignmentController::class, 'destroy']);
     });
 
     // Shift rotations (multi-week / non-weekly repeating patterns).
@@ -397,6 +418,7 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
         Route::post('/contracts/{contract}/renew', [EmployeeContractController::class, 'renew']);
         Route::post('/contracts/{contract}/end', [EmployeeContractController::class, 'end']);
         Route::get('/attendance/timeline', EmployeeAttendanceTimelineController::class);
+        Route::put('/kiosk-pin', EmployeeKioskPinController::class);
 
         Route::get('/emergency-contacts', [EmergencyContactController::class, 'index']);
         Route::post('/emergency-contacts', [EmergencyContactController::class, 'store']);
@@ -667,10 +689,12 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
             Route::get('/tenants', [AdminTenantController::class, 'index']);
             Route::get('/tenants/{publicId}', [AdminTenantController::class, 'show']);
             Route::put('/tenants/{publicId}/status', [AdminTenantController::class, 'updateStatus']);
+            Route::put('/tenants/{publicId}/domain', [AdminTenantController::class, 'updateDomain']);
+            Route::post('/tenants/{publicId}/domain/verify', [AdminTenantController::class, 'verifyDomain']);
             Route::post('/tenants/{publicId}/extend-trial', [AdminTenantController::class, 'extendTrial']);
             Route::post('/tenants/{publicId}/impersonate', [AdminTenantController::class, 'impersonate']);
-            Route::post('/exit-impersonation', [AdminTenantController::class, 'exitImpersonation']);
             Route::post('/tenants/{publicId}/backup', [AdminTenantController::class, 'backup']);
+            Route::put('/tenants/{publicId}/invoices/{invoicePublicId}/mark-paid', [AdminTenantController::class, 'markInvoicePaid']);
             Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
             Route::get('/health', [AdminDashboardController::class, 'health']);
             Route::get('/audit', [AdminDashboardController::class, 'auditLog']);
@@ -707,7 +731,6 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
     Route::prefix('billing')->group(function () {
         Route::get('/dashboard', [BillingController::class, 'dashboard']);
         Route::post('/change-plan', [BillingController::class, 'changePlan']);
-        Route::put('/invoices/{invoice}/mark-paid', [BillingController::class, 'markPaid']);
         Route::get('/invoices/{invoice}/receipt', [BillingController::class, 'receipt']);
     });
 

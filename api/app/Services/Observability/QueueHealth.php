@@ -15,9 +15,17 @@ use Throwable;
  *
  * On shared hosting there is no Supervisor keeping a worker alive and no
  * Horizon dashboard showing its state. The whole asynchronous side of ETHR
- * arrives through one Plesk Scheduled Task running `schedule:run` every minute.
- * If that entry is disabled, mis-saved, or silently rate-limited, **jobs stop
- * and nothing says so** — the application keeps serving pages normally.
+ * arrives through an **external caller hitting `/api/v1/cron/{schedule,queue}`**
+ * on a timer — GitHub Actions, every five minutes (Q6, 2026-09-27). It does
+ * **not** arrive through a Plesk Scheduled Task: G0-D measured that section as
+ * absent on this subscription (owner-read 2026-09-18), which is why the caller
+ * is off-host at all.
+ *
+ * If that caller is disabled, unauthenticated, or silently rate-limited, **jobs
+ * stop and nothing says so** — the application keeps serving pages normally.
+ * And because the caller is off-host, its silence leaves no trace on this
+ * account: there is no cron entry to inspect. The heartbeat below is the only
+ * signal, which makes it load-bearing rather than a backstop.
  *
  * What stops: monthly invoicing (this is how the business bills), leave accrual
  * on the 1st, year-end carry-forward, payslip notifications, device sync,
@@ -94,9 +102,18 @@ class QueueHealth
 
         if ($last === null) {
             // Distinguished from "stale" deliberately: never-beaten usually means
-            // the cron entry was never created, which is a different fix from a
-            // cron that has stopped.
-            $problems[] = 'scheduler has never run — is the Plesk Scheduled Task created?';
+            // the caller was never wired up, which is a different fix from a
+            // caller that has stopped.
+            //
+            // The remedy this names must be one that EXISTS on the target. It read
+            // "is the Plesk Scheduled Task created?" until 2026-09-28, and G0-D
+            // measured that section as absent on this subscription — so the one
+            // operator following this message went looking for a panel section
+            // that is not there, on the one code path where nothing else is
+            // telling them anything. `docs/operations/QUEUE-MONITORING.md` had
+            // recorded the defect and the correct reading; recording it is not
+            // fixing it.
+            $problems[] = 'scheduler has never run — is the external cron caller configured (CRON_TOKEN and base URL)?';
         } elseif ($ageSeconds > $schedulerStaleSeconds) {
             $problems[] = sprintf('scheduler last ran %ds ago (threshold %ds)', $ageSeconds, $schedulerStaleSeconds);
         }

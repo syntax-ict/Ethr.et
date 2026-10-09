@@ -1,6 +1,20 @@
 # ETHR on Plesk shared hosting — the owner's guide
 
-**Target:** `ethr.et` · account `ethret` @ `lin6.ethiotelecom.et` · PHP 8.3.33 · Node 22.23.2
+> **To deploy, follow [`PLESK-GO-LIVE.md`](PLESK-GO-LIVE.md).** GitHub publishes a built
+> `production` branch, and Plesk Git deploys it. Since 2026-10-06 the install commands that
+> Part C below says have no route run from Plesk's **Laravel Toolkit**: the deployment
+> action's shell turned out to have no PHP. **That decision supersedes A4 below:** the
+> document root moves, on purpose, to exactly `ethr/api/public`
+> ([`OWNER-DECISION-LARAVEL-TOOLKIT.md`](../decisions/OWNER-DECISION-LARAVEL-TOOLKIT.md)).
+> This guide stays as the field-by-field reference for Part A.
+
+**Target:** `<APP_DOMAIN>` · account `<ACCOUNT_USER>` @ `<PANEL_HOST>` · PHP 8.3.33 · Node 22.23.2
+
+> **Placeholders — HARD RULE 2**, [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md).
+> *Converted 2026-09-25.* Fill `<APP_DOMAIN>`, `<ACCOUNT_USER>`, `<PANEL_HOST>` from the panel;
+> the real values are not recorded in this repository. **The two version numbers above are
+> measurements, not settings** — PHP 8.3.33 was read from a live response header and Node
+> 22.23.2 from the panel, so they stay literal and are there to be *checked*, not filled in.
 
 This is the single entry point for putting ETHR on the Ethio Telecom Plesk account. It is
 written for the person with the panel open. Everything it asks you to do is a panel action
@@ -11,7 +25,7 @@ It does not restate the detail. Each part links to the document that carries it.
 | If you want | Read |
 |---|---|
 | What you configure in Plesk, field by field | [`PLESK-SETUP.md`](PLESK-SETUP.md) |
-| The deploy procedure in full | [`shared-hosting/DEPLOYMENT.md`](shared-hosting/DEPLOYMENT.md) |
+| The deploy procedure in full | [`PLESK-GO-LIVE.md`](PLESK-GO-LIVE.md) — GitHub → Plesk Git → Laravel Toolkit. *(This row pointed at [`shared-hosting/DEPLOYMENT.md`](shared-hosting/DEPLOYMENT.md), an SSH/rsync runbook whose own banner says its steps cannot connect on this account; repointed 2026-10-09.)* |
 | Every `.env` value and why it differs from the VPS | [`shared-hosting/ENVIRONMENT.md`](shared-hosting/ENVIRONMENT.md) |
 | What is measured versus assumed | [`GATE-0-RESULT.md`](GATE-0-RESULT.md) |
 
@@ -145,6 +159,10 @@ repository pins two versions for two jobs:
 | Frontend application runtime | 22 | `docker/frontend/Dockerfile` | **satisfies exactly** |
 
 The host never runs the gates.
+
+> **2026-10-01:** `docker/frontend/Dockerfile` was removed with the Docker development stack on
+> 2026-09-30; `.nvmrc` (24) is now the only Node pin. Under the static-export decision (C-5,
+> 2026-09-27) the host runs no Node application, so the runtime row no longer applies.
 
 ### A4. Document root — **DO NOTHING. Do not change this field.**
 

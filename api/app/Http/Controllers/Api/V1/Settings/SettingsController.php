@@ -15,6 +15,9 @@ use App\Models\AuditLog;
 use App\Models\SsoSetting;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
+use App\Support\CalendarPreference;
+use App\Support\TenantSecurityPolicy;
+use App\Support\WorkingWeek;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -26,6 +29,12 @@ class SettingsController extends Controller
         Gate::authorize('settings.manage');
 
         $tenant = app(CurrentTenant::class)->get();
+
+        // The values as enforced, not as stored: a value saved before
+        // PUT /settings validated these is normalised the same way the
+        // enforcement reads it, so this screen cannot show one thing while the
+        // middleware does another.
+        $security = TenantSecurityPolicy::forTenant($tenant);
 
         return response()->json([
             'organization' => [
@@ -44,34 +53,49 @@ class SettingsController extends Controller
                 'locale' => $tenant->default_locale,
             ],
             'branding' => [
-                'logo_url' => $tenant->logo_path,
-                'theme' => $tenant->theme ?? [],
+                'logo_url' => $tenant->logo_path === null ? null : $tenant->logo_path,
+                'theme' => $this->brandTheme($tenant),
             ],
             // Attendance rules (grace period, OT cap, confidence threshold) live
             // on the AttendanceSetting model and are served by GET/PUT
             // /attendance/settings so all attendance configuration stays in one
             // place.
             'leave' => [
-                'working_days' => $tenant->settings['working_days'] ?? [1, 2, 3, 4, 5],
+                'working_days' => $this->workingDays($tenant),
             ],
             'payroll' => [
-                'pay_period' => $tenant->settings['pay_period'] ?? 'monthly',
-                'run_day' => $tenant->settings['run_day'] ?? 25,
-                'fiscal_year_start_month' => $tenant->settings['fiscal_year_start_month'] ?? 1,
-                'pagumen_proration_strategy' => $tenant->settings['pagumen_proration_strategy'] ?? 'full_month',
+                'pay_period' => (string) ($tenant->settings['pay_period'] ?? 'monthly'),
+                'run_day' => (int) ($tenant->settings['run_day'] ?? 25),
+                'fiscal_year_start_month' => (int) ($tenant->settings['fiscal_year_start_month'] ?? 1),
+                'pagumen_proration_strategy' => (string) ($tenant->settings['pagumen_proration_strategy'] ?? 'full_month'),
                 // Retirement-case eligibility dates are computed against this.
                 // No single figure is authoritative across every Ethiopian
                 // sector, so it defaults to 60 but stays tenant-overridable
                 // rather than hard-coded, the same treatment as the tax
                 // brackets and Pagumen strategy above.
-                'retirement_age' => $tenant->settings['retirement_age'] ?? 60,
+                'retirement_age' => (int) ($tenant->settings['retirement_age'] ?? 60),
             ],
             'security' => [
-                'mfa_policy' => $tenant->settings['mfa_policy'] ?? 'optional',
-                'session_timeout_minutes' => $tenant->settings['session_timeout_minutes'] ?? 480,
+                'mfa_policy' => $security->mfaPolicy(),
+                'session_timeout_minutes' => $security->idleTimeoutMinutes(),
+            ],
+            'display' => [
+                'calendar' => $this->organisationCalendar($tenant),
             ],
             'sso' => $this->ssoConfig($tenant),
         ]);
+    }
+
+    /**
+     * The calendar everyone in the organisation sees until they choose their
+     * own on Profile → Preferences (audit N33). Before, General Settings'
+     * "Calendar System" only flipped the admin's own browser.
+     *
+     * @return 'ethiopian'|'gregorian'
+     */
+    private function organisationCalendar(Tenant $tenant): string
+    {
+        return CalendarPreference::forTenant($tenant);
     }
 
     public function update(UpdateSettingsRequest $request): JsonResponse
@@ -80,7 +104,9 @@ class SettingsController extends Controller
 
         $tenant = app(CurrentTenant::class)->get();
         $currentSettings = $tenant->settings ?? [];
-        $newSettings = array_merge($currentSettings, $request->input('settings'));
+        // validated(), not input(): only keys UpdateSettingsRequest names reach
+        // the JSON (an unknown key is a 422 there).
+        $newSettings = array_merge($currentSettings, $request->validated('settings'));
         $tenant->update(['settings' => $newSettings]);
 
         AuditLog::record('settings.updated', $tenant);
@@ -204,6 +230,31 @@ class SettingsController extends Controller
             'expires_at' => $apiKey->fresh()->expires_at->toIso8601String(),
             'message' => 'Store this token securely — it will not be shown again.',
         ], 201);
+    }
+
+    /**
+     * ISO weekday numbers (1 = Monday) the tenant works, Monday to Friday
+     * unless it has said otherwise.
+     *
+     * @return list<int>
+     */
+    private function workingDays(Tenant $tenant): array
+    {
+        return WorkingWeek::of($tenant);
+    }
+
+    /**
+     * The colour map `updateBranding()` writes; a colour cleared there is null.
+     * Stated for the API contract, which types an `array`-cast column only as
+     * `unknown[]`.
+     *
+     * @return array<string, mixed>
+     *
+     * @scramble-return array{primary_color?: string|null, secondary_color?: string|null, accent_color?: string|null}
+     */
+    private function brandTheme(Tenant $tenant): array
+    {
+        return $tenant->theme ?? [];
     }
 
     private function ssoConfig(Tenant $tenant): array

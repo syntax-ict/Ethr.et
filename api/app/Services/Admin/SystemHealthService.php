@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Admin;
 
+use App\Services\Observability\QueueHealth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -18,7 +19,7 @@ final class SystemHealthService
             'services' => [
                 'api' => $this->apiStatus(),
                 'database' => $this->databaseStatus(),
-                'redis' => $this->redisStatus(),
+                'cache' => $this->cacheStatus(),
                 'storage' => $this->storageStatus(),
                 'reverb' => $this->broadcastStatus(),
             ],
@@ -46,7 +47,15 @@ final class SystemHealthService
         }
     }
 
-    private function redisStatus(): array
+    /**
+     * A round trip through the configured cache store.
+     *
+     * This row was labelled `redis` until 2026-09-30, but it never spoke to Redis:
+     * it goes through the Cache facade, which on the shared-hosting target is the
+     * `database` store. The panel therefore reported a "Redis" status on servers
+     * that have no Redis. The label now says what is measured.
+     */
+    private function cacheStatus(): array
     {
         try {
             $start = microtime(true);
@@ -69,7 +78,7 @@ final class SystemHealthService
      * ext-pcntl and ext-posix, which shared hosting does not provide).
      *
      * On the shared-hosting target Reverb is not deployed at all - no shared
-     * tier offers a WebSocket server - so BROADCAST_CONNECTION is `log` and
+     * tier offers a WebSocket server - so BROADCAST_CONNECTION is `null` and
      * "disabled" is the correct, healthy answer rather than a fault.
      */
     private function broadcastStatus(): array
@@ -89,12 +98,13 @@ final class SystemHealthService
         try {
             // Resolve from configuration, not a hardcoded name. This was the one
             // site 80cac67 missed when it fixed the other four, so on any
-            // non-MinIO deployment the admin health page showed storage
-            // permanently red - and a panel that is always red is a panel people
-            // stop reading, which is worse than no panel at all.
+            // deployment that did not use the VPS's MinIO disk the admin health
+            // page showed storage permanently red - and a panel that is always
+            // red is a panel people stop reading, which is worse than no panel
+            // at all.
             $disk = Storage::disk(config('filesystems.default'));
             $start = microtime(true);
-            // Lightweight check: list root (may throw if MinIO is down)
+            // Lightweight check: list root (throws if the disk is unreachable)
             $disk->directories('/');
             $ms = (int) ((microtime(true) - $start) * 1000);
 
@@ -112,7 +122,7 @@ final class SystemHealthService
         // ignoring the four that do. A bare `queue:work` reads only `default`
         // (DB_QUEUE), so a misconfigured worker starves the other three; this is
         // the panel that has to make that visible.
-        $queues = ['default', 'attendance', 'notifications', 'exports'];
+        $queues = QueueHealth::QUEUES;
         $depths = [];
 
         foreach ($queues as $queue) {

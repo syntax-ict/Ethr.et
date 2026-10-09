@@ -4,14 +4,22 @@ import { useState } from "react";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import {
   DEFAULT_TIMEZONE,
+  formatDateOnly,
   formatTime as sharedFormatTime,
+  formatWeekday,
 } from "@/lib/utils/date";
 import { AlertTriangle, GitMerge, Loader2, ShieldCheck } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { apiClient } from "@/api/client";
+import {
+  useAttendanceConflicts,
+  useResolveConflict,
+  type AttendanceConflict,
+  type AttendanceRecord,
+  type ConflictResolution,
+} from "@/features/attendance/api";
 import { useT } from "@/lib/i18n/useT";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useCurrentUser } from "@/features/auth/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +43,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
+import { PaginationControls } from "@/components/shared/pagination-controls";
 
 /**
  * Attendance conflict review.
@@ -49,76 +58,57 @@ import { PageHeader } from "@/components/shared/page-header";
  * project's optimistic-UI policy.
  */
 
-interface AttendanceRecord {
-  public_id: string;
-  date: string | null;
-  check_in: string | null;
-  check_out: string | null;
-  source_label?: string | null;
-  status_label?: string | null;
-  worked_minutes?: number | null;
-  confidence_score?: number | null;
-}
-
-interface Conflict {
-  public_id: string;
-  conflict_type: string;
-  resolution: string;
-  resolution_notes: string | null;
-  resolved_at: string | null;
-  created_at: string | null;
-  employee?: { name?: string; employee_code?: string } | null;
-  record_a?: AttendanceRecord | null;
-  record_b?: AttendanceRecord | null;
-}
-
-type ResolutionValue = "keep_a" | "keep_b" | "merged" | "dismissed";
+type Conflict = AttendanceConflict;
+type ResolutionValue = ConflictResolution;
 
 export default function AttendanceConflictsPage() {
   const { t } = useT();
   const { can } = usePermissions();
-  const queryClient = useQueryClient();
+  const { data: me } = useCurrentUser();
 
   const [status, setStatus] = useState<"pending" | "all">("pending");
+  // The endpoint pages by 25 and this page read only the first: the 26th
+  // conflict could not be reviewed until 25 others were resolved, and with
+  // "All conflicts" selected nothing older than the latest 25 was reachable.
+  const [page, setPage] = useState(1);
   const [resolving, setResolving] = useState<Conflict | null>(null);
   const [resolution, setResolution] = useState<ResolutionValue | "">("");
   const [notes, setNotes] = useState("");
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["attendance", "conflicts", status],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/attendance/conflicts", {
-        params:
-          status === "pending"
-            ? { "filter[resolution]": "pending" }
-            : undefined,
-      });
-      return data;
-    },
+  const { data, isLoading, isError, refetch } = useAttendanceConflicts({
+    pendingOnly: status === "pending",
+    page,
   });
 
-  const resolve = useMutation({
-    mutationFn: async () => {
-      if (!resolving || resolution === "") return null;
-      const { data } = await apiClient.put(
-        `/attendance/conflicts/${resolving.public_id}/resolve`,
-        {
+  const resolve = useResolveConflict();
+
+  function submitResolution() {
+    if (!resolving || resolution === "") return;
+    resolve.mutate(
+      {
+        publicId: resolving.public_id,
+        payload: {
           resolution,
           resolution_notes: notes.trim() === "" ? null : notes.trim(),
         },
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["attendance"] });
-      toast.success(t("attendance.conflicts.resolved", "Conflict resolved"));
-      closeDialog();
-    },
-    onError: () =>
-      toast.error(
-        t("attendance.conflicts.resolve_failed", "Failed to resolve conflict"),
-      ),
-  });
+      },
+      {
+        onSuccess: () => {
+          toast.success(
+            t("attendance.conflicts.resolved", "Conflict resolved"),
+          );
+          closeDialog();
+        },
+        onError: () =>
+          toast.error(
+            t(
+              "attendance.conflicts.resolve_failed",
+              "Failed to resolve conflict",
+            ),
+          ),
+      },
+    );
+  }
 
   function closeDialog() {
     setResolving(null);
@@ -139,7 +129,10 @@ export default function AttendanceConflictsPage() {
         actions={
           <Select
             value={status}
-            onValueChange={(v) => setStatus(v as "pending" | "all")}
+            onValueChange={(v) => {
+              setStatus(v as "pending" | "all");
+              setPage(1);
+            }}
           >
             <SelectTrigger className="w-44" aria-label={t("common.status")}>
               <SelectValue />
@@ -198,6 +191,13 @@ export default function AttendanceConflictsPage() {
               key={conflict.public_id}
               conflict={conflict}
               canResolve={can.resolveAttendanceConflicts}
+              // The API refuses a conflict on the caller's own attendance
+              // (AttendanceConflictPolicy::resolve), so the button only led
+              // to a 403 (audit N84).
+              isOwn={
+                !!me?.employee_public_id &&
+                conflict.employee_public_id === me.employee_public_id
+              }
               onResolve={() => {
                 setResolving(conflict);
                 setResolution("");
@@ -205,6 +205,7 @@ export default function AttendanceConflictsPage() {
               }}
             />
           ))}
+          <PaginationControls meta={data?.meta} onPageChange={setPage} />
         </div>
       )}
 
@@ -288,7 +289,7 @@ export default function AttendanceConflictsPage() {
               {t("common.cancel", "Cancel")}
             </Button>
             <Button
-              onClick={() => resolve.mutate()}
+              onClick={submitResolution}
               disabled={resolution === "" || resolve.isPending}
             >
               {resolve.isPending && (
@@ -306,14 +307,19 @@ export default function AttendanceConflictsPage() {
 function ConflictCard({
   conflict,
   canResolve,
+  isOwn,
   onResolve,
 }: {
   conflict: Conflict;
   canResolve: boolean;
+  isOwn: boolean;
   onResolve: () => void;
 }) {
   const { t } = useT();
   const isPending = conflict.resolution === "pending";
+  // Both records are on one working day; the card named the person and two
+  // times but never the day, so a reviewer could not tell which (2026-10-09).
+  const day = conflict.record_a?.date ?? conflict.record_b?.date ?? null;
 
   return (
     <Card>
@@ -324,6 +330,11 @@ function ConflictCard({
               <p className="font-semibold text-foreground">
                 {conflict.employee?.name ?? t("common.employee", "Employee")}
               </p>
+              {day && (
+                <span className="text-xs text-muted-foreground">
+                  {formatWeekday(day)} {formatDateOnly(day)}
+                </span>
+              )}
               {conflict.employee?.employee_code && (
                 <Badge variant="outline" className="font-mono text-[10px]">
                   {conflict.employee.employee_code}
@@ -358,7 +369,16 @@ function ConflictCard({
             )}
           </div>
 
-          {isPending && canResolve && (
+          {isPending && canResolve && isOwn && (
+            <p className="text-xs text-muted-foreground sm:max-w-40">
+              {t(
+                "attendance.conflicts.own_hint",
+                "Your own attendance — someone else reviews this.",
+              )}
+            </p>
+          )}
+
+          {isPending && canResolve && !isOwn && (
             <div className="flex gap-2 sm:flex-col">
               <Button size="sm" variant="outline" onClick={onResolve}>
                 <GitMerge className="mr-1 h-3 w-3" />

@@ -4,10 +4,15 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { server } from "./msw/server";
 import { DocumentsTab } from "@/features/employees/components/documents-tab";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { apiClient } from "@/api/client";
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
 
 const EMPLOYEE_ID = "01HZEMPLOYEE0000000000001";
 const DOCUMENTS_URL = `*/api/v1/employees/${EMPLOYEE_ID}/documents`;
@@ -31,9 +36,120 @@ function renderTab() {
   );
 }
 
-function emptyList() {
-  server.use(http.get(DOCUMENTS_URL, () => HttpResponse.json({ data: [] })));
+/** The shape `EmployeeDocumentResource` renders — nothing more. */
+function buildDocument(overrides: Record<string, unknown> = {}) {
+  return {
+    public_id: "01HZDOC0000000000000001",
+    type: "contract",
+    title: "Employment contract 2026",
+    file_path: "employees/01HZEMPLOYEE0000000000001/documents/contract.pdf",
+    file_size: 1024,
+    mime_type: "application/pdf",
+    expiry_date: null,
+    is_expired: false,
+    expires_soon: false,
+    days_until_expiry: null,
+    created_at: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
 }
+
+// A bare array, as the endpoint returns it: resources render unwrapped.
+function emptyList() {
+  server.use(http.get(DOCUMENTS_URL, () => HttpResponse.json([])));
+}
+
+describe("DocumentsTab list", () => {
+  it("lists the documents the endpoint returns as a bare array", async () => {
+    // Regression: the tab read `data.data` from an unwrapped collection, so a
+    // successful upload was followed by "No documents" every time.
+    server.use(
+      http.get(DOCUMENTS_URL, () => HttpResponse.json([buildDocument()])),
+    );
+    renderTab();
+
+    // The header's Upload button, plus the row's delete control.
+    await waitFor(() => expect(screen.getAllByRole("button")).toHaveLength(2));
+    expect(screen.queryByText("No documents")).not.toBeInTheDocument();
+  });
+
+  it("names each document by the title and type the resource returns", async () => {
+    // Regression: rows read `filename` and `document_type`.
+    // EmployeeDocumentResource returns neither — it returns `title` and
+    // `type` — so every row was a blank name over the word "document", and
+    // a contract could not be told from an ID copy without opening it.
+    server.use(
+      http.get(DOCUMENTS_URL, () =>
+        HttpResponse.json([
+          buildDocument(),
+          buildDocument({
+            public_id: "01HZDOC0000000000000002",
+            type: "id_copy",
+            title: "Kebele ID",
+          }),
+        ]),
+      ),
+    );
+    renderTab();
+
+    expect(
+      await screen.findByText("Employment contract 2026"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Contract")).toBeInTheDocument();
+    expect(screen.getByText("Kebele ID")).toBeInTheDocument();
+    expect(screen.getByText("ID copy")).toBeInTheDocument();
+  });
+
+  it("reports a failed load instead of claiming there are no documents", async () => {
+    // Regression: an error fell through to "No documents".
+    server.use(
+      http.get(DOCUMENTS_URL, () => new HttpResponse(null, { status: 500 })),
+    );
+    renderTab();
+
+    expect(await screen.findByText("Couldn't load this")).toBeInTheDocument();
+    expect(screen.queryByText("No documents")).not.toBeInTheDocument();
+  });
+
+  it("names the delete control after the document it removes", async () => {
+    // Regression: an icon-only button with no accessible name.
+    server.use(
+      http.get(DOCUMENTS_URL, () => HttpResponse.json([buildDocument()])),
+    );
+    renderTab();
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Delete Employment contract 2026",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("says so when a delete fails", async () => {
+    // Regression: no onError, so a failed delete changed nothing on screen
+    // and said nothing.
+    server.use(
+      http.get(DOCUMENTS_URL, () => HttpResponse.json([buildDocument()])),
+      http.delete(
+        `${DOCUMENTS_URL}/:id`,
+        () => new HttpResponse(null, { status: 500 }),
+      ),
+    );
+    vi.mocked(toast.error).mockClear();
+
+    const user = userEvent.setup();
+    renderTab();
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Delete Employment contract 2026",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Could not delete the document"),
+    );
+  });
+});
 
 describe("DocumentsTab upload", () => {
   it("posts the fields StoreDocumentRequest actually requires", async () => {

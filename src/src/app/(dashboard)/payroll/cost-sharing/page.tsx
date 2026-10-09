@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmployeeSelect } from "@/components/shared/employee-select";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -28,6 +29,7 @@ import {
 } from "@/features/payroll/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const EMPTY_FORM = {
   employee_public_id: "",
@@ -46,7 +48,7 @@ export default function CostSharingPage() {
   const createObligation = useCreateCostSharing();
   const updateObligation = useUpdateCostSharing();
 
-  const obligations: CostSharing[] = data?.data ?? [];
+  const obligations: CostSharing[] = data ?? [];
 
   const toggleSuspended = (obligation: CostSharing) => {
     const next = obligation.status === "active" ? "suspended" : "active";
@@ -61,11 +63,14 @@ export default function CostSharingPage() {
               "Status updated",
             ),
           ),
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            t(
-              "payroll_page.cost_sharing_page.status_update_failed",
-              "Could not update status",
+            apiErrorMessage(
+              err,
+              t(
+                "payroll_page.cost_sharing_page.status_update_failed",
+                "Could not update status",
+              ),
             ),
           ),
       },
@@ -218,9 +223,12 @@ export default function CostSharingPage() {
                       setDialogOpen(false);
                       setForm(EMPTY_FORM);
                     },
-                    onError: () =>
+                    onError: (err) =>
                       toast.error(
-                        t("payroll_page.cost_sharing_page.create_failed"),
+                        apiErrorMessage(
+                          err,
+                          t("payroll_page.cost_sharing_page.create_failed"),
+                        ),
                       ),
                   },
                 );
@@ -229,20 +237,15 @@ export default function CostSharingPage() {
             >
               <div>
                 <Label htmlFor="cs-employee">
-                  {t("payroll_page.loans_page.employee_public_id")}
+                  {t("common.employee", "Employee")}
                 </Label>
-                <Input
+                <EmployeeSelect
                   id="cs-employee"
                   value={form.employee_public_id}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      employee_public_id: e.target.value,
-                    }))
+                  onChange={(v) =>
+                    setForm((p) => ({ ...p, employee_public_id: v }))
                   }
-                  required
-                  placeholder={t("payroll_page.loans_page.paste_public_id")}
-                  className="mt-1"
+                  enabled={dialogOpen}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -330,7 +333,12 @@ export default function CostSharingPage() {
                 >
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" disabled={createObligation.isPending}>
+                <Button
+                  type="submit"
+                  disabled={
+                    createObligation.isPending || !form.employee_public_id
+                  }
+                >
                   {createObligation.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}

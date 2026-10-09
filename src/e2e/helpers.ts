@@ -1,4 +1,5 @@
 import { chromium, Page } from '@playwright/test';
+import crypto from 'crypto';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
@@ -23,7 +24,9 @@ export const API  = process.env.API_URL  ?? 'http://demo.localhost:8000/api/v1';
  * Defaults to BASE, which is correct for the single-host model (`BASE_URL` of
  * `demo.localhost:3000` with `NEXT_PUBLIC_ROOT_DOMAIN` unset): there the
  * middleware is inert and the console is served from the tenant origin.
- * `docker-compose.test.yml` sets `PLATFORM_BASE_URL` for the subdomain harness.
+ * Set `PLATFORM_BASE_URL` when the console has its own host — against the
+ * local shared-hosting server that is `http://admin.localhost:8081`
+ * (scripts/local-production/).
  */
 export const PLATFORM_BASE = process.env.PLATFORM_BASE_URL ?? BASE;
 
@@ -45,10 +48,10 @@ export const DEMO_TENANT = process.env.DEMO_TENANT ?? 'demo';
  * can sign in from any host — but only the platform host will then serve it a
  * console.
  *
- * The default password is the dev seed's (`DatabaseSeeder`). The Dockerised E2E
- * stack provisions this account with `ethr:create-admin`, whose `min:12` rule
- * the dev default does not satisfy, so `docker-compose.test.yml` overrides both
- * values and `scripts/run-e2e.sh` seeds the matching account.
+ * The default password is the dev seed's (`DatabaseSeeder`). An account made
+ * with `ethr:create-admin` instead must satisfy its `min:12` rule, which the dev
+ * default does not — set SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASS to match it. (The
+ * Dockerised E2E harness did exactly that until it was removed on 2026-09-30.)
  */
 export const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL ?? 'superadmin@ethr.et';
 export const SUPER_ADMIN_PASS  = process.env.SUPER_ADMIN_PASS  ?? 'password';
@@ -170,17 +173,88 @@ export async function login(page: Page, email: string, password: string) {
   });
 }
 
+/**
+ * Sign out through the app's own control. It is a menu item whose label is
+ * translated ("Log Out", or "ውጣ" in the default Amharic) inside the account
+ * menu, whose trigger shows the user's name — so it is found by its icon, not
+ * its words. The old helper searched for English "Logout", never found it,
+ * and fell back to clearing storage on `/`, whose locale redirect destroyed the
+ * page mid-script (failed on the production-shaped rehearsal, 2026-10-09).
+ */
 export async function logout(page: Page) {
-  await page.goto('/');
-  // Click logout via sidebar or header
-  const logoutBtn = page.locator('button:has-text("Logout"), a:has-text("Logout"), button:has-text("Sign out")');
-  if (await logoutBtn.isVisible()) {
-    await logoutBtn.click();
-  } else {
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
-    await page.goto('/login');
+  await page.goto('/dashboard');
+  await page.waitForLoadState('networkidle').catch(() => {});
+  const item = page.locator('[role="menuitem"]:has(svg.lucide-log-out)').first();
+  for (const trigger of await page.locator('header [aria-haspopup="menu"]').all()) {
+    await trigger.click();
+    if (await item.isVisible().catch(() => false)) {
+      await item.click();
+      await page.waitForURL(/\/login/, { timeout: 15000 });
+      return;
+    }
+    await page.keyboard.press('Escape');
   }
+  throw new Error('No header menu offers a Log Out item');
+}
+
+/**
+ * Call the API from inside the app page, as its own client does: same origin,
+ * the session cookie, the XSRF header Sanctum checks on a stateful request,
+ * and X-Tenant when the session names one. Specs use it to set up data the
+ * UI under test then acts on. Navigate to an app page first, so the cookies
+ * and localStorage it reads exist and the session has been refreshed.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- specs read whatever shape the endpoint returns
+export async function api<T = any>(
+  page: Page,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<{ status: number; data: T }> {
+  return page.evaluate(
+    async ({ method, path, body }) => {
+      const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      };
+      const xsrf = document.cookie
+        .split('; ')
+        .find((c) => c.startsWith('XSRF-TOKEN='))
+        ?.split('=')[1];
+      if (xsrf) headers['X-XSRF-TOKEN'] = decodeURIComponent(xsrf);
+      const tenant = localStorage.getItem('tenant');
+      if (tenant) headers['X-Tenant'] = tenant;
+
+      const res = await fetch(`/api/v1${path}`, {
+        method,
+        headers,
+        credentials: 'include',
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      const text = await res.text();
+      return { status: res.status, data: text ? JSON.parse(text) : null };
+    },
+    { method, path, body },
+  );
+}
+
+/**
+ * The current RFC 6238 code for a base32 secret — SHA-1, six digits, 30-second
+ * steps, which is what Google2FA issues. Lets a spec enrol and sign in with
+ * MFA for real instead of stopping at the code screen.
+ */
+export function totp(secretBase32: string, at = Date.now()): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const bits = secretBase32
+    .replace(/=+$/, '')
+    .toUpperCase()
+    .split('')
+    .map((ch) => alphabet.indexOf(ch).toString(2).padStart(5, '0'))
+    .join('');
+  const key = Buffer.from((bits.match(/.{8}/g) ?? []).map((b) => parseInt(b, 2)));
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(at / 1000 / 30)));
+  const hmac = crypto.createHmac('sha1', key).update(counter).digest();
+  const offset = hmac[hmac.length - 1] & 0xf;
+  return ((hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).toString().padStart(6, '0');
 }

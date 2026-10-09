@@ -44,6 +44,14 @@ class PlanFeatureService
      */
     public function allows(Tenant $tenant, PlanFeature $feature): bool
     {
+        // An add-on is granted, never already in use, so none of the fail-open
+        // safeguards below protect anything: only a plan that names it allows it.
+        if ($feature->isAddOn()) {
+            $features = $tenant->subscription?->plan?->features;
+
+            return is_array($features) && in_array($feature->value, $features, true);
+        }
+
         if ($tenant->status === TenantStatus::TRIAL) {
             return true;
         }
@@ -78,6 +86,32 @@ class PlanFeatureService
      * Aborts with 403 — rendered as RFC-7807 by the handler in
      * bootstrap/app.php — when the tenant's plan does not include `$feature`.
      */
+    /**
+     * Every feature the tenant's plan allows, for the frontend to gate on; or
+     * null when nothing is restricted (a trial, no plan, or no feature list).
+     *
+     * Derived from allows() feature by feature, so the screen and the
+     * RequiresPlanFeature middleware cannot disagree. Before this, the UI had
+     * no idea of the plan: a Starter tenant saw Payroll, Reports, Webhooks and
+     * the Audit Log and was refused with a 403 on every action (audit N66).
+     *
+     * Add-ons are left out: nothing a tenant does is gated on one, and counting
+     * them would turn every trial's `null` into a list.
+     *
+     * @return list<string>|null
+     */
+    public function enabledFor(Tenant $tenant): ?array
+    {
+        $enabled = array_values(array_filter(
+            PlanFeature::tenantFacing(),
+            fn (PlanFeature $feature): bool => $this->allows($tenant, $feature),
+        ));
+
+        return count($enabled) === count(PlanFeature::tenantFacing())
+            ? null
+            : array_map(fn (PlanFeature $feature): string => $feature->value, $enabled);
+    }
+
     public function assertAllows(Tenant $tenant, PlanFeature $feature): void
     {
         if ($this->allows($tenant, $feature)) {

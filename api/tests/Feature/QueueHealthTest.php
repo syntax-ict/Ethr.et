@@ -14,10 +14,13 @@ use Illuminate\Support\Facades\DB;
  * that a *quiet* queue is not mistaken for a *dead* one.
  *
  * Why it exists at all: on shared hosting there is no Supervisor and no
- * Horizon. Everything asynchronous arrives through one Plesk Scheduled Task
- * running `schedule:run`. If it stops, invoicing, leave accrual, payslip
- * notifications, device sync — and now payroll, since it moved off the request
- * thread — stop silently, while the application keeps serving pages normally.
+ * Horizon. Everything asynchronous arrives through an external caller POSTing to
+ * /api/v1/cron/{schedule,queue} on a timer — not a Plesk Scheduled Task, which
+ * G0-D measured as absent on this subscription. If that caller stops, invoicing,
+ * leave accrual, payslip notifications, device sync — and now payroll, since it
+ * moved off the request thread — stop silently, while the application keeps
+ * serving pages normally. Being off-host, it leaves no entry on the account to
+ * inspect, so the heartbeat these tests exercise is the only signal there is.
  *
  * See docs/operations/QUEUE-MONITORING.md.
  */
@@ -28,8 +31,28 @@ it('reports unhealthy before the scheduler has ever run', function () {
         ->and($snapshot['scheduler']['last_run_at'])->toBeNull();
 
     // "Never ran" is distinguished from "stopped" on purpose: the first usually
-    // means the Plesk task was never created, which is a different fix.
-    expect(implode(' ', $snapshot['problems']))->toContain('never run');
+    // means the caller was never wired up, which is a different fix.
+    $problems = implode(' ', $snapshot['problems']);
+
+    expect($problems)->toContain('never run');
+
+    // The remedy it names must exist on the target. This said "is the Plesk
+    // Scheduled Task created?" until 2026-09-28, and G0-D measured that section as
+    // absent on this subscription — so the message sent an operator to a panel
+    // section that is not there, on the one code path where nothing else is
+    // telling them anything. QUEUE-MONITORING.md had recorded the defect and the
+    // correct reading for three days; a note asking operators to mentally
+    // translate a runtime string is a workaround with no enforcement. This is the
+    // enforcement.
+    expect(str_contains($problems, 'Plesk'))->toBeFalse(
+        'The never-run message names Plesk, whose Scheduled Tasks section G0-D measured '.
+        'as absent on this account. Name a remedy that exists: the external cron caller.'
+    );
+
+    expect(str_contains($problems, 'cron caller'))->toBeTrue(
+        'The never-run message no longer names the external cron caller, which is the '.
+        'only thing that drives the scheduler on this target.'
+    );
 });
 
 it('reports healthy once the scheduler beats', function () {

@@ -7,6 +7,7 @@ namespace App\Services\Payroll;
 use App\Models\PayrollEntry;
 use App\Models\Tenant;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\File;
 
 final class PayslipPdfService
 {
@@ -19,10 +20,14 @@ final class PayslipPdfService
         $data = [
             'tenant_name' => $tenant?->name ?? 'ETHR',
             'period' => $entry->payrollRun->period_label,
-            'employee_name' => $entry->employee->full_name ?? '',
+            // `name`: employees have no `full_name` column or accessor, so this
+            // printed a blank name — the same defect BankExportService records.
+            'employee_name' => $entry->employee->name ?? '',
             'employee_code' => $entry->employee->employee_code ?? '',
             'department' => $entry->employee->department?->name ?? '',
-            'position' => $entry->employee->position?->name ?? '',
+            // `title`: positions have no `name` column, so `->name` printed a blank
+            // position on every payslip. Every other reader already uses `title`.
+            'position' => $entry->employee->position?->title ?? '',
             'basic_salary_cents' => $entry->basic_salary_cents,
             'allowances' => $entry->allowances ?? [],
             'gross_cents' => $entry->gross_cents,
@@ -36,8 +41,16 @@ final class PayslipPdfService
             'is_voided' => $entry->payrollRun->status === 'voided',
         ];
 
+        // Ethiopic glyphs come from the bundled Noto Sans Ethiopic: DejaVu has
+        // none, so every Amharic name printed as empty boxes (audit N79).
+        // dompdf caches font metrics here and does not create the directory.
+        File::ensureDirectoryExists(storage_path('fonts'));
+
         $pdf = Pdf::loadView('payslip', $data);
         $pdf->setPaper('a5', 'portrait');
+        // Embed only the glyphs used: whole DejaVu and Ethiopic faces made
+        // each payslip over a megabyte.
+        $pdf->setOption('isFontSubsettingEnabled', true);
 
         return $pdf->output();
     }

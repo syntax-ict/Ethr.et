@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\UserRole;
 use App\Models\Employee;
 use App\Models\EmployeeBankDetail;
 use App\Models\PayrollEntry;
@@ -92,23 +93,32 @@ describe('generateCsv', function () {
     });
 });
 
-describe('generateCbeFormat', function () {
-    it('pads the account number to 13 digits and includes the employee name', function () {
-        $entry = makeEntryWithBank(
-            ['name' => 'Tigist Alemu'],
-            ['bank_name' => 'CBE', 'account_number' => '12345', 'is_primary' => true],
-        );
+describe('the bank export the run page downloads', function () {
+    // GET /payroll/runs/{run}/export/bank built its rows with
+    // `bankDetails->first()`: no `is_primary`, no ordering. An employee with
+    // two accounts could be paid into the old one, in the file finance uploads.
+    it('pays into the account marked primary, not the first on record', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+        $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id]);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
-        $cbe = app(BankExportService::class)->generateCbeFormat($entry->payrollRun);
+        EmployeeBankDetail::create([
+            'tenant_id' => $tenant->id, 'employee_id' => $employee->id,
+            'bank_name' => 'Old Bank', 'account_number' => '000', 'is_primary' => false,
+        ]);
+        EmployeeBankDetail::create([
+            'tenant_id' => $tenant->id, 'employee_id' => $employee->id,
+            'bank_name' => 'Awash Bank', 'account_number' => '2000999', 'is_primary' => true,
+        ]);
+        PayrollEntry::factory()->create([
+            'tenant_id' => $tenant->id, 'payroll_run_id' => $run->id,
+            'employee_id' => $employee->id, 'net_cents' => 1_500_000,
+        ]);
 
-        expect($cbe)->toContain('0000000012345|15000.00|Tigist Alemu');
-    });
-
-    it('skips an employee with no bank account rather than emitting a malformed row', function () {
-        $entry = makeEntryWithBank(['name' => 'Unbanked Employee'], bankDetail: null);
-
-        $cbe = app(BankExportService::class)->generateCbeFormat($entry->payrollRun);
-
-        expect($cbe)->toBe('');
+        test()->getJson("/api/v1/payroll/runs/{$run->public_id}/export/bank")
+            ->assertOk()
+            ->assertJsonPath('rows.0.bank_name', 'Awash Bank')
+            ->assertJsonPath('rows.0.account_number', '2000999');
     });
 });

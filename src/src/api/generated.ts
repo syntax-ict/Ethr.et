@@ -130,6 +130,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kiosk/exit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Leave kiosk mode on the terminal. The admin PIN set when the kiosk was
+         *     registered must match; five attempts a minute per kiosk
+         */
+        post: operations["kioskSession.exitKiosk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/check-in": {
         parameters: {
             query?: never;
@@ -492,6 +512,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/corrections/my": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My corrections */
+        get: operations["attendanceCorrection.my"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/corrections/{correction}/payroll-impact": {
         parameters: {
             query?: never;
@@ -826,7 +863,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create ac */
+        /**
+         * The identity provider's form POST back after sign-in (SAML ACS)
+         * @description Every outcome is a 303 redirect to the app's `/login/sso` page with the
+         *     organisation (`org`) and either `next` (plus `mfa=1` while a second
+         *     factor is owed) or `error`: `failed`, `no_account`, `account_inactive`,
+         *     `tenant_inactive`, `not_configured` or `seat_limit`. On success the
+         *     session cookie is set on the redirect.
+         */
         post: operations["sso.callback"];
         delete?: never;
         options?: never;
@@ -1068,23 +1112,6 @@ export interface paths {
         put?: never;
         /** Change plan billing */
         post: operations["billing.changePlan"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/billing/invoices/{invoice}/mark-paid": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Mark paid invoices */
-        put: operations["billing.markPaid"];
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2176,6 +2203,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{employee}/kiosk-pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or remove the PIN an employee enters at a kiosk
+         * @description Needed whenever the organisation turns on "Require PIN" for kiosk
+         *     check-in. `null` removes it. The PIN is stored hashed and never
+         *     returned; the answer says only whether one is set.
+         */
+        put: operations["attendance.employeeKioskPin"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{employee}/emergency-contacts": {
         parameters: {
             query?: never;
@@ -2353,6 +2402,23 @@ export interface paths {
         get: operations["employee.reportingTree"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/find-organisation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Email the sign-in links of every organisation this address belongs to */
+        post: operations["auth.findOrganisation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2930,74 +2996,6 @@ export interface paths {
         get: operations["onboarding.getProgress"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/progress/{step}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update progress */
-        put: operations["onboarding.updateStep"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/apply-template": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Apply template onboarding */
-        post: operations["onboarding.applyTemplate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/invite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Invite onboarding */
-        post: operations["onboarding.inviteTeam"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Complete onboarding */
-        post: operations["onboarding.complete"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3974,6 +3972,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/impersonation/exit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End an impersonation session and send the super admin back to their own
+         * @description Routed at `POST /auth/impersonation/exit`, inside the ordinary
+         *     authenticated group and *outside* `/admin`: the caller is the impersonated
+         *     tenant admin on the tenant's own host, where `EnsurePlatformContext` 404s
+         *     every `/admin` route (audit N19). The authority is the impersonation
+         *     ability on the presented token — checked first, so an ordinary session
+         *     gets a 403 and nothing else happens.
+         *
+         *     Revoking the token is not enough on its own: the browser is holding that
+         *     token in its session cookie, so a bare revoke turns the next request into
+         *     a 401 that reads as a random logout. What replaces it depends on the mode:
+         *
+         *     - Hostname mode: this request is on {tenant}.ethr.et, and the operator's
+         *       own session lives on admin.ethr.et — impersonate() never touched it. A
+         *       super-admin session minted here would be a cookie for the wrong host,
+         *       refused by EnsureUserBelongsToTenant on its first use. So the tenant
+         *       host's cookie is cleared and the client is told where to go back to.
+         *     - Single host: the admin's original plaintext token is unrecoverable (it
+         *       was overwritten in the cookie and only its hash is stored), so restoring
+         *       them means minting a fresh session here.
+         */
+        post: operations["adminTenant.exitImpersonation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/tenants": {
         parameters: {
             query?: never;
@@ -4025,6 +4061,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/tenants/{publicId}/domain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Assign, change or clear the tenant's custom domain
+         * @description A new domain is stored **pending**, with a fresh verification token: it
+         *     resolves nothing and no link uses it until the Verify action finds the
+         *     DNS records `custom_domain_dns` lists. `null` clears it at once.
+         */
+        put: operations["adminTenant.updateDomain"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/domain/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check the tenant's pending custom domain and, if both DNS records are in
+         *     place, make it its address
+         * @description Looks up the TXT record carrying the verification token and the CNAME to
+         *     the platform target. Both must pass; a 422 names each that did not. A
+         *     domain already verified is returned as it is: a DNS hiccup at the moment
+         *     someone presses Verify must not take an organisation's address away.
+         *     Changing the domain is what starts verification over.
+         */
+        post: operations["adminTenant.verifyDomain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/tenants/{publicId}/extend-trial": {
         parameters: {
             query?: never;
@@ -4067,30 +4150,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/exit-impersonation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * End an impersonation session and put the super admin back in their own
-         * @description Revoking the token is not enough on its own: the browser is holding that
-         *     token in its session cookie, so a bare revoke turns the next request into
-         *     a 401 that reads as a random logout. The admin's original plaintext token
-         *     is unrecoverable (it was overwritten in the cookie and only its hash is
-         *     stored), so restoring them means minting a fresh session here.
-         */
-        post: operations["adminTenant.exitImpersonation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/admin/tenants/{publicId}/backup": {
         parameters: {
             query?: never;
@@ -4102,6 +4161,29 @@ export interface paths {
         put?: never;
         /** Backup tenants */
         post: operations["adminTenant.backup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/invoices/{invoicePublicId}/mark-paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Record that an organisation's invoice has been paid
+         * @description Payment is by bank transfer to the provider, so it is the provider who
+         *     knows it arrived. This was a tenant endpoint behind the tenant's own
+         *     `billing.manage`, which let an organisation mark its own invoices paid,
+         *     defeat overdue suspension and count as revenue (audit N94).
+         */
+        put: operations["adminTenant.markInvoicePaid"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4686,6 +4768,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/shifts/assignments/{assignment}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete assignment */
+        delete: operations["shiftAssignment.destroy"];
+        options?: never;
+        head?: never;
+        /** Update assignment */
+        patch: operations["shiftAssignment.update"];
+        trace?: never;
+    };
     "/shift-rotations/assign": {
         parameters: {
             query?: never;
@@ -4977,6 +5077,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{user}/mfa/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn off two-factor authentication for someone who lost their
+         *     authenticator. They sign in with their password and set it up again; a
+         *     tenant that requires MFA sends them straight to enrolment. Their trusted
+         *     browsers are forgotten, and they are emailed that it happened
+         */
+        post: operations["user.resetMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile": {
         parameters: {
             query?: never;
@@ -5198,11 +5320,16 @@ export interface components {
             public_id: string;
             name: string;
             subdomain: string;
-            type: string;
+            custom_domain: string | null;
+            /** @enum {string|null} */
+            custom_domain_status: "verified" | "pending" | null;
+            type: string | null;
             status: string;
-            employee_count: string;
-            trial_ends_at: string;
-            created_at: string;
+            employee_count: number;
+            /** Format: date-time */
+            trial_ends_at: string | null;
+            /** Format: date-time */
+            created_at: string | null;
         };
         /** AnnouncementResource */
         AnnouncementResource: {
@@ -5240,10 +5367,6 @@ export interface components {
             };
             save?: boolean;
         };
-        /** ApplyTemplateRequest */
-        ApplyTemplateRequest: {
-            template_slug: string;
-        };
         /** AssignShiftRequest */
         AssignShiftRequest: {
             shift_public_id: string;
@@ -5279,9 +5402,15 @@ export interface components {
             public_id: string;
             employee?: components["schemas"]["EmployeeResource"];
             employee_public_id: string;
-            record_a?: components["schemas"]["AttendanceRecordResource"] & Record<string, never>;
+            record_a?: components["schemas"]["AttendanceRecordResource"] & {
+                employee: components["schemas"]["EmployeeResource"];
+                shift: components["schemas"]["ShiftResource"] | null;
+            };
             record_a_public_id: string;
-            record_b?: components["schemas"]["AttendanceRecordResource"] & Record<string, never>;
+            record_b?: components["schemas"]["AttendanceRecordResource"] & {
+                employee: components["schemas"]["EmployeeResource"];
+                shift: components["schemas"]["ShiftResource"] | null;
+            };
             record_b_public_id: string;
             conflict_type: string;
             resolution: string;
@@ -5296,10 +5425,10 @@ export interface components {
         /** AttendanceCorrectionResource */
         AttendanceCorrectionResource: {
             public_id: string;
-            attendance_record?: components["schemas"]["AttendanceRecordResource"];
-            attendance_record_public_id: string;
-            employee?: components["schemas"]["EmployeeResource"];
-            employee_public_id: string;
+            attendance_record?: components["schemas"]["AttendanceRecordResource"] | null;
+            attendance_record_public_id: string | null;
+            employee?: components["schemas"]["EmployeeResource"] | null;
+            employee_public_id: string | null;
             reason: string;
             proposed_check_in: string | null;
             proposed_check_out: string | null;
@@ -5329,13 +5458,45 @@ export interface components {
              */
             file: string;
         };
+        /** AttendancePunchResource */
+        AttendancePunchResource: {
+            public_id: string;
+            employee?: components["schemas"]["EmployeeResource"];
+            employee_public_id: string;
+            shift?: components["schemas"]["ShiftResource"] | null;
+            date: string | null;
+            check_in: string | null;
+            check_out: string | null;
+            source: string;
+            /** @enum {string} */
+            source_label: "Biometric Device" | "Mobile App" | "Web Portal" | "Manual Entry" | "CSV Import" | "Kiosk" | "QR Code" | "Offline Mobile";
+            confidence_score: number;
+            latitude: string | null;
+            longitude: string | null;
+            geofence_verified: boolean | null;
+            status: string;
+            /** @enum {string} */
+            status_label: "Pending" | "Present" | "Late" | "Absent" | "Early Leave" | "On Leave" | "Holiday" | "Voided";
+            worked_minutes: number;
+            overtime_minutes: number;
+            conflict: {
+                action: string;
+                with_record_public_id: string | null;
+            } | null;
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
+            was_duplicate: boolean;
+            employee_name?: string;
+        };
         /** AttendanceRecordResource */
         AttendanceRecordResource: {
             public_id: string;
             employee?: components["schemas"]["EmployeeResource"];
             employee_public_id: string;
             shift?: components["schemas"]["ShiftResource"] | null;
-            date: string;
+            date: string | null;
             check_in: string | null;
             check_out: string | null;
             source: string;
@@ -5359,12 +5520,33 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** AttendanceSettingResource */
+        AttendanceSettingResource: {
+            public_id: string;
+            enabled_methods: unknown[];
+            geofence_required: boolean;
+            mobile_photo_required: boolean;
+            kiosk_pin_required: boolean;
+            qr_expiry_minutes: number;
+            qr_auto_refresh: boolean;
+            qr_single_use_limit: number;
+            mobile_accuracy_threshold_meters: number;
+            offline_sync_enabled: boolean;
+            kiosk_auto_reset_seconds: number;
+            grace_period_minutes: number;
+            ot_daily_cap_minutes: number;
+            confidence_threshold: number;
+            updated_at: string | null;
+        };
         /** AuditLogResource */
         AuditLogResource: {
             action: string;
             auditable_type: string | null;
-            auditable_id: number | null;
-            user_id: number | null;
+            auditable_public_id: string | null;
+            user: {
+                public_id: string;
+                name: string;
+            } | null;
             data: unknown[] | null;
             ip_address: string | null;
             user_agent: string | null;
@@ -5379,9 +5561,9 @@ export interface components {
         BankDetailResource: {
             public_id: string;
             bank_name: string;
-            branch_name: string;
+            branch_name: string | null;
             account_number_masked: string;
-            is_primary: string;
+            is_primary: boolean;
         };
         /** BatchApprovalRequest */
         BatchApprovalRequest: {
@@ -5467,6 +5649,11 @@ export interface components {
             message: string;
         };
         /**
+         * ContractStatus
+         * @enum {string}
+         */
+        ContractStatus: "active" | "renewed" | "expired" | "terminated_early";
+        /**
          * ContractType
          * @enum {string}
          */
@@ -5494,7 +5681,8 @@ export interface components {
             name: string;
             description: string;
             is_active: boolean;
-            permissions?: unknown[];
+            org_scope: string;
+            permissions?: string[];
             users_count?: number;
             /** Format: date-time */
             created_at: string | null;
@@ -5536,8 +5724,8 @@ export interface components {
             webhook_token?: string | null;
             webhook_url?: string | null;
             last_sync_at: string | null;
-            branch?: components["schemas"]["BranchResource"];
-            branch_public_id: string;
+            branch?: components["schemas"]["BranchResource"] | null;
+            branch_public_id: string | null;
             attendance_records_count?: number;
             sync_logs_count?: number;
             latest_sync_log?: components["schemas"]["DeviceSyncLogResource"];
@@ -5556,7 +5744,7 @@ export interface components {
             events_failed: number;
             error_message: string | null;
             duration_ms: number | null;
-            started_at: string;
+            started_at: string | null;
             completed_at: string | null;
             /** Format: date-time */
             created_at: string | null;
@@ -5565,9 +5753,8 @@ export interface components {
         DirectoryResource: {
             public_id: string;
             name: string;
-            phone: string;
-            email: string;
-            photo_path: string;
+            phone: string | null;
+            email: string | null;
             photo_url: string | null;
             photo_thumb_url: string | null;
             department?: string | null;
@@ -5589,7 +5776,6 @@ export interface components {
             reported_by?: unknown;
             investigation_notes: {
                 note: string;
-                by: number | null;
                 by_name: string | null;
                 at: string;
             }[];
@@ -5632,10 +5818,10 @@ export interface components {
             public_id: string;
             institution: string;
             degree: string;
-            field_of_study: string;
+            field_of_study: string | null;
             start_date: string | null;
             end_date: string | null;
-            grade: string;
+            grade: string | null;
         };
         /** EmergencyContactResource */
         EmergencyContactResource: {
@@ -5643,19 +5829,19 @@ export interface components {
             name: string;
             relationship: string;
             phone: string;
-            email: string;
-            priority: string;
+            email: string | null;
+            priority: number;
         };
         /** EmployeeContractResource */
         EmployeeContractResource: {
             public_id: string;
             reference_number: string | null;
-            contract_type: string;
+            contract_type: components["schemas"]["ContractType"];
             start_date: string;
             end_date: string | null;
             salary_cents: number | null;
             terms: string | null;
-            status: string;
+            status: components["schemas"]["ContractStatus"];
             renewed_from_id?: string | null;
             ended_at: string | null;
             end_notes: string | null;
@@ -5665,8 +5851,8 @@ export interface components {
              *     while the contract is still active; a renewed/ended one has
              *     already been superseded, not "expiring soon".
              */
-            is_expired: string;
-            expires_soon: string;
+            is_expired: boolean;
+            expires_soon: boolean;
             days_until_expiry: number | null;
             /**
              * @description Populated only on the tenant-wide expiring watchlist, where the
@@ -5684,13 +5870,9 @@ export interface components {
             employee_public_id: string;
             total_obligation_cents: number;
             outstanding_cents: number;
-            /**
-             * @description Derived rather than stored: a stored copy would drift the moment
-             *     an obligation is cancelled with a balance outstanding.
-             */
-            repaid_cents: string;
+            repaid_cents: number;
             deduction_rate_percent: number;
-            status: string;
+            status: components["schemas"]["CostSharingStatus"];
             started_on: string;
             /** Format: date-time */
             completed_at: string | null;
@@ -5709,12 +5891,12 @@ export interface components {
             file_size: number;
             mime_type: string | null;
             expiry_date: string | null;
-            is_expired: string;
+            is_expired: boolean;
             /**
              * @description Drives the S12 badge rule: amber within 30 days, red once expired.
              *     Mutually exclusive with is_expired so the UI never has to choose.
              */
-            expires_soon: string;
+            expires_soon: boolean;
             days_until_expiry: number | null;
             /**
              * @description Populated only on the tenant-wide expiring list, where the reader
@@ -5733,7 +5915,7 @@ export interface components {
             amount_cents: number;
             remaining_cents: number;
             monthly_deduction_cents: number;
-            start_date: string;
+            start_date: string | null;
             end_date: string | null;
             status: string;
             reason: string | null;
@@ -5760,6 +5942,7 @@ export interface components {
             email: string | null;
             phone: string | null;
             employee_code: string | null;
+            has_kiosk_pin: boolean;
             gender: string | null;
             date_of_birth: string | null;
             nationality: string | null;
@@ -5798,18 +5981,18 @@ export interface components {
         EmployeeSummaryResource: {
             public_id: string;
             name: string;
-            employee_code: string;
-            photo_path: string;
+            employee_code: string | null;
+            photo_path: string | null;
             photo_url: string | null;
             photo_thumb_url: string | null;
         };
         /** EmployeeTransitionResource */
         EmployeeTransitionResource: {
             public_id: string;
-            from_status: string;
-            to_status: string;
+            from_status: string | null;
+            to_status: string | null;
             reason: string | null;
-            effective_date: string;
+            effective_date: string | null;
             approved_by?: components["schemas"]["EmployeeSummaryResource"] | null;
             /** Format: date-time */
             created_at: string | null;
@@ -5832,6 +6015,16 @@ export interface components {
             ended_at?: string | null;
             end_notes?: string | null;
         };
+        /** EndShiftAssignmentRequest */
+        EndShiftAssignmentRequest: {
+            /** Format: date */
+            effective_to: string;
+        };
+        /** ExitKioskRequest */
+        ExitKioskRequest: {
+            token: string;
+            admin_pin: string;
+        };
         /** ExtendTrialRequest */
         ExtendTrialRequest: {
             days: number;
@@ -5853,6 +6046,11 @@ export interface components {
         FinalizeRetirementCaseRequest: {
             /** Format: date-time */
             effective_date: string;
+        };
+        /** FindOrganisationRequest */
+        FindOrganisationRequest: {
+            /** Format: email */
+            email: string;
         };
         /** ForgotPasswordRequest */
         ForgotPasswordRequest: {
@@ -5944,6 +6142,7 @@ export interface components {
                 email?: string | null;
                 phone?: string | null;
                 employee_code?: string | null;
+                national_id?: string | null;
                 /** @enum {string|null} */
                 gender?: "male" | "female" | null;
                 /** Format: date-time */
@@ -5973,12 +6172,6 @@ export interface components {
              * @description Maximum file size: 5120 kilobytes.
              */
             file: string;
-        };
-        /** InviteTeamRequest */
-        InviteTeamRequest: {
-            emails: string[];
-            /** @enum {string} */
-            role?: "employee" | "supervisor" | "dept_admin" | "finance_admin" | "hr_admin";
         };
         /** KioskAttendanceRequest */
         KioskAttendanceRequest: {
@@ -6013,8 +6206,8 @@ export interface components {
         };
         /** LeaveBalanceResource */
         LeaveBalanceResource: {
-            leave_type?: components["schemas"]["LeaveTypeResource"];
-            leave_type_public_id: string;
+            leave_type?: components["schemas"]["LeaveTypeResource"] | null;
+            leave_type_public_id: string | null;
             year: number;
             entitled_days: number;
             used_days: number;
@@ -6025,12 +6218,12 @@ export interface components {
         /** LeaveRequestResource */
         LeaveRequestResource: {
             public_id: string;
-            employee?: components["schemas"]["EmployeeResource"];
-            employee_public_id: string;
+            employee?: components["schemas"]["EmployeeResource"] | null;
+            employee_public_id: string | null;
             leave_type?: components["schemas"]["LeaveTypeResource"];
             leave_type_public_id: string;
-            start_date: string;
-            end_date: string;
+            start_date: string | null;
+            end_date: string | null;
             days: number;
             reason: string | null;
             attachment_path: string | null;
@@ -6140,9 +6333,11 @@ export interface components {
         NotificationResource: {
             id: string;
             type: string;
-            data: string;
-            read_at: string;
-            created_at: string;
+            data: unknown[];
+            /** Format: date-time */
+            read_at: string | null;
+            /** Format: date-time */
+            created_at: string | null;
         };
         /** OfflineSyncRequest */
         OfflineSyncRequest: {
@@ -6170,6 +6365,11 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /**
+         * OrgScope
+         * @enum {string}
+         */
+        OrgScope: "all" | "branch" | "department" | "team" | "direct_reports" | "self";
         /** OrganizationTemplate */
         OrganizationTemplate: {
             public_id: string;
@@ -6188,8 +6388,9 @@ export interface components {
         /** PayrollEntryResource */
         PayrollEntryResource: {
             public_id: string;
-            employee?: components["schemas"]["EmployeeResource"];
-            employee_public_id: string;
+            period_label?: string;
+            employee?: components["schemas"]["EmployeeResource"] | null;
+            employee_public_id: string | null;
             basic_salary_cents: number;
             allowances: unknown[] | null;
             deductions: unknown[] | null;
@@ -6222,8 +6423,8 @@ export interface components {
         PayrollRunResource: {
             public_id: string;
             period_label: string;
-            period_start: string;
-            period_end: string;
+            period_start: string | null;
+            period_end: string | null;
             status: string;
             employee_count: number;
             gross_total_cents: number;
@@ -6290,9 +6491,22 @@ export interface components {
         /**
          * PlanFeature
          * @description The feature keys stored in `Plan.features`. These strings already existed as free-form array entries in `PlanSeeder` and were read by nothing except the pricing page — so a Starter tenant could use payroll, webhooks and the audit log despite paying for none of them. Naming them here is what makes the gate checkable: a typo in a route middleware argument is now a fatal `ValueError` at boot rather than a silently permissive check.  The values are load-bearing and must match `PlanSeeder` exactly. They are also persisted in the `plans.features` JSON column of every existing deployment, so renaming one is a data migration, not a rename.
+         *     | |
+         *     |---|
+         *     | `attendance` <br/>  |
+         *     | `leave` <br/>  |
+         *     | `employee_management` <br/>  |
+         *     | `payroll` <br/>  |
+         *     | `reports` <br/>  |
+         *     | `notifications` <br/>  |
+         *     | `api_access` <br/>  |
+         *     | `webhooks` <br/>  |
+         *     | `custom_reports` <br/>  |
+         *     | `audit_log` <br/>  |
+         *     | `custom_domain` <br/> The organisation may be given its own domain (`hr.acme.com`), a paid add-on. It gates nothing a tenant does itself: it decides whether a platform admin may assign the domain. |
          * @enum {string}
          */
-        PlanFeature: "attendance" | "leave" | "employee_management" | "payroll" | "reports" | "notifications" | "api_access" | "webhooks" | "custom_reports" | "audit_log";
+        PlanFeature: "attendance" | "leave" | "employee_management" | "payroll" | "reports" | "notifications" | "api_access" | "webhooks" | "custom_reports" | "audit_log" | "custom_domain";
         /** PlanResource */
         PlanResource: {
             public_id: string;
@@ -6395,11 +6609,11 @@ export interface components {
              */
             old_value: string | null;
             new_value: string | null;
-            status: string;
-            employee_public_id: string;
-            employee_name: string;
-            requested_by_name: string;
-            reviewed_by_name: string;
+            status: components["schemas"]["ProfileUpdateStatus"];
+            employee_public_id: string | null;
+            employee_name: string | null;
+            requested_by_name: string | null;
+            reviewed_by_name: string | null;
             /** Format: date-time */
             reviewed_at: string | null;
             review_notes: string | null;
@@ -6408,6 +6622,17 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /**
+         * ProfileUpdateStatus
+         * @description | |
+         *     |---|
+         *     | `pending` <br/>  |
+         *     | `approved` <br/>  |
+         *     | `rejected` <br/>  |
+         *     | `withdrawn` <br/> Retracted by the employee before anyone reviewed it. Distinct from REJECTED so HR's queue metrics do not count an employee changing their mind as a decision a reviewer made. |
+         * @enum {string}
+         */
+        ProfileUpdateStatus: "pending" | "approved" | "rejected" | "withdrawn";
         /** QrAttendanceRequest */
         QrAttendanceRequest: {
             idempotency_key: string;
@@ -6604,12 +6829,18 @@ export interface components {
         };
         /** ShiftAssignmentResource */
         ShiftAssignmentResource: {
-            shift?: components["schemas"]["ShiftResource"] | null;
-            rotation?: components["schemas"]["ShiftRotationResource"] | null;
+            public_id: string;
+            shift: components["schemas"]["ShiftResource"] | null;
+            rotation: components["schemas"]["ShiftRotationResource"] | null;
             is_rotation: boolean;
             anchor_date: string | null;
             assignable_type: string;
-            effective_from: string;
+            assignee: {
+                type: string | null;
+                public_id: string | null;
+                name: string | null;
+            };
+            effective_from: string | null;
             effective_to: string | null;
             /** Format: date-time */
             created_at: string | null;
@@ -6712,7 +6943,7 @@ export interface components {
             /** @enum {string} */
             priority?: "low" | "normal" | "high" | "urgent";
             /** @enum {string} */
-            target_type?: "all" | "department" | "branch" | "role";
+            target_type?: "all" | "department" | "branch";
             target_id?: string | null;
             publish_now?: boolean;
             /** Format: date-time */
@@ -6780,6 +7011,7 @@ export interface components {
             name: string;
             description?: string | null;
             is_active?: boolean;
+            org_scope?: components["schemas"]["OrgScope"];
             permissions: string[];
         };
         /** StoreDepartmentRequest */
@@ -7119,7 +7351,7 @@ export interface components {
         StoreWebhookRequest: {
             /** Format: uri */
             url: string;
-            events: string[];
+            events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.reprocessed")[];
         };
         /** TaxBracketResource */
         TaxBracketResource: {
@@ -7188,7 +7420,7 @@ export interface components {
             /** @enum {string} */
             priority?: "low" | "normal" | "high" | "urgent";
             /** @enum {string} */
-            target_type?: "all" | "department" | "branch" | "role";
+            target_type?: "all" | "department" | "branch";
             target_id?: string | null;
             /** Format: date-time */
             expires_at?: string | null;
@@ -7232,7 +7464,8 @@ export interface components {
         /** UpdateChartOfAccountsRequest */
         UpdateChartOfAccountsRequest: {
             accounts: {
-                key: string;
+                /** @enum {string} */
+                key: "salary_expense" | "pension_expense" | "tax_payable" | "pension_payable_employee" | "pension_payable_employer" | "net_salary_payable";
                 account_code: string;
                 account_name: string;
             }[];
@@ -7254,6 +7487,7 @@ export interface components {
             name?: string;
             description?: string | null;
             is_active?: boolean;
+            org_scope?: components["schemas"]["OrgScope"];
             permissions?: string[];
         };
         /** UpdateDepartmentRequest */
@@ -7276,8 +7510,8 @@ export interface components {
             auto_sync?: boolean;
             sync_interval_minutes?: number;
             connection_config?: {
-                ip?: string;
-                port?: number;
+                ip?: string | null;
+                port?: number | null;
             };
         };
         /** UpdateEmployeeRequest */
@@ -7334,6 +7568,14 @@ export interface components {
             is_estimated?: boolean;
             is_active?: boolean;
         };
+        /**
+         * UpdateKioskPinRequest
+         * @description Four to six digits, or `null` to remove the employee's PIN. The field is
+         *     required, so an empty body cannot remove a PIN by accident.
+         */
+        UpdateKioskPinRequest: {
+            pin: string | null;
+        };
         /** UpdateLeaveTypeRequest */
         UpdateLeaveTypeRequest: {
             name?: string;
@@ -7380,12 +7622,15 @@ export interface components {
         };
         /**
          * UpdateOvertimeRatesRequest
-         * @description Tenant overtime multipliers. The lower bounds are the Ethiopian Labour
-         *     Proclamation minimums — a tenant may pay above them, never below.
+         * @description Tenant overtime multipliers. The lower bounds are Labour Proclamation
+         *     1156/2019 Art. 68(1) — a tenant may pay above them, never below.
+         *     (They were the repealed 377/2003 rates until 2026-10-01.) `rest_day` is
+         *     optional so a client that predates it keeps working; the default applies.
          */
         UpdateOvertimeRatesRequest: {
             normal: number;
             night: number;
+            rest_day?: number;
             holiday: number;
             holiday_night: number;
         };
@@ -7474,11 +7719,7 @@ export interface components {
              * @enum {string|null}
              */
             theme?: "light" | "dark" | "system" | "high-contrast" | null;
-            /**
-             * @description Dual shows Gregorian and Ethiopian side by side; the tenant-level
-             *     `ethiopian_calendar` flag decides whether the choice is offered at all.
-             * @enum {string|null}
-             */
+            /** @enum {string|null} */
             calendar?: "gregorian" | "ethiopian" | "dual" | null;
         };
         /** UpdateProfileRequest */
@@ -7520,6 +7761,13 @@ export interface components {
                 /** @enum {string} */
                 pagumen_proration_strategy?: "full_month" | "daily_rate";
                 retirement_age?: number;
+                run_day?: number;
+                working_days?: number[];
+                /** @enum {string} */
+                mfa_policy?: "disabled" | "optional" | "required";
+                session_timeout_minutes?: number;
+                /** @enum {string} */
+                calendar?: "ethiopian" | "gregorian";
             };
         };
         /** UpdateShiftRequest */
@@ -7569,6 +7817,22 @@ export interface components {
             department_public_id?: string | null;
             is_active?: boolean | null;
         };
+        /**
+         * UpdateTenantDomainRequest
+         * @description A bare hostname such as `hr.acme.com`, or `null` to clear it.
+         *
+         *     A scheme, port, path or trailing dot is stripped and the name lower-cased
+         *     before it is checked. The domain must not already belong to another
+         *     organisation, nor sit under the platform's own domain. The field is
+         *     required: send `null` explicitly to clear it.
+         *
+         *     Assigning a domain also needs the organisation's plan to include
+         *     `custom_domain`, and is refused with a 422 on this field otherwise. A new
+         *     domain is stored pending until the Verify action finds its DNS records.
+         */
+        UpdateTenantDomainRequest: {
+            custom_domain: string | null;
+        };
         /** UpdateTenantStatusRequest */
         UpdateTenantStatusRequest: {
             /** @enum {string} */
@@ -7589,7 +7853,7 @@ export interface components {
         UpdateWebhookRequest: {
             /** Format: uri */
             url?: string;
-            events?: string[];
+            events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.reprocessed")[];
             is_active?: boolean;
         };
         /**
@@ -7612,7 +7876,7 @@ export interface components {
             email: string;
             username: string | null;
             phone: string | null;
-            role: string;
+            role: components["schemas"]["UserRole"];
             status: string;
             locale: string;
             mfa_enabled: boolean;
@@ -7900,8 +8164,8 @@ export interface operations {
                             public_id: string;
                             metric: string;
                             operator: string;
-                            threshold_value: string;
-                            current_value: number | null;
+                            threshold_value: number;
+                            current_value: number;
                             severity: string;
                         }[];
                     };
@@ -7952,7 +8216,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        session: unknown[];
+                        session: components["schemas"]["KioskSessionResource"];
                         tenant: {
                             name: string;
                             subdomain: string;
@@ -7998,12 +8262,22 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["AttendancePunchResource"];
+                };
+            };
+            /** @description `AttendancePunchResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             401: {
@@ -8078,6 +8352,46 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "kioskSession.exitKiosk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExitKioskRequest"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/unauthorized";
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "attendance.checkIn": {
         parameters: {
             query?: never;
@@ -8091,12 +8405,22 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["AttendancePunchResource"];
+                };
+            };
+            /** @description `AttendancePunchResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8185,7 +8509,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["AttendanceRecordResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                            shift: components["schemas"]["ShiftResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -8237,7 +8564,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["AttendanceRecordResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                            shift: components["schemas"]["ShiftResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -8288,7 +8618,7 @@ export interface operations {
                         date: string;
                         total_employees: number;
                         present: number;
-                        absent: string;
+                        absent: number;
                         late: number;
                         early_leave: number;
                         on_leave: number;
@@ -8312,12 +8642,13 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown[];
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             /** @description `AttendanceRecordResource` */
@@ -8347,12 +8678,22 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["AttendancePunchResource"];
+                };
+            };
+            /** @description `AttendancePunchResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8426,24 +8767,18 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        rows: unknown[][];
+                        rows: {
+                            employee_code: string;
+                            date: string;
+                            check_in_time: string;
+                            check_out_time?: string;
+                            line: number;
+                            errors: string[];
+                            valid: boolean;
+                        }[];
                         valid: number;
                         invalid: number;
                         errors: string[];
-                    } | {
-                        rows: string[];
-                        valid: number;
-                        invalid: number;
-                        errors: [
-                            string
-                        ];
-                    } | {
-                        rows: string[];
-                        valid: number;
-                        invalid: number;
-                        errors: [
-                            "File must have a header row and at least one data row."
-                        ];
                     };
                 };
             };
@@ -8551,12 +8886,22 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["AttendancePunchResource"];
+                };
+            };
+            /** @description `AttendancePunchResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8708,12 +9053,22 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["AttendancePunchResource"];
+                };
+            };
+            /** @description `AttendancePunchResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8762,17 +9117,23 @@ export interface operations {
                             /** @constant */
                             status: "error";
                             /** @constant */
+                            detail: "You can only sync your own attendance.";
+                        } | {
+                            idempotency_key: string;
+                            /** @constant */
+                            status: "error";
+                            detail: string;
+                        } | {
+                            idempotency_key: string;
+                            /** @constant */
+                            status: "error";
+                            /** @constant */
                             detail: "Employee not found";
                         } | {
                             idempotency_key: string;
                             /** @enum {string} */
                             status: "duplicate" | "created";
                             public_id: string;
-                        } | {
-                            idempotency_key: string;
-                            /** @constant */
-                            status: "error";
-                            detail: string;
                         })[];
                         summary: {
                             created: number;
@@ -8805,7 +9166,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        date: unknown;
+                        date: string;
                         anomalies: {
                             count: number;
                             thresholds: {
@@ -8834,11 +9195,16 @@ export interface operations {
                         };
                         early_departures: {
                             count: number;
-                            records: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                            records: (components["schemas"]["AttendanceRecordResource"] & {
+                                employee: components["schemas"]["EmployeeResource"];
+                                shift: components["schemas"]["ShiftResource"] | null;
+                            })[];
                         };
                         missing_punches: {
                             count: number;
-                            records: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                            records: (components["schemas"]["AttendanceRecordResource"] & {
+                                employee: components["schemas"]["EmployeeResource"];
+                            })[];
                         };
                     };
                 };
@@ -8864,8 +9230,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        period: unknown;
-                        employees: unknown[];
+                        period: string;
+                        employees: {
+                            employee_public_id: string | null;
+                            employee_name: string | null;
+                            total_overtime_minutes: number;
+                            days_with_overtime: number;
+                        }[];
                     };
                 };
             };
@@ -8882,12 +9253,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description `AttendanceSettingResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown[];
+                    "application/json": components["schemas"]["AttendanceSettingResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8907,12 +9279,13 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendanceSettingResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown[];
+                    "application/json": components["schemas"]["AttendanceSettingResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8939,7 +9312,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>)[];
+                        data: components["schemas"]["AttendanceCorrectionResource"][];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -8991,7 +9364,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & {
+                        attendance_record: components["schemas"]["AttendanceRecordResource"] | null;
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9017,7 +9393,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>)[];
+                        data: components["schemas"]["AttendanceCorrectionResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceCorrection.my": {
+        parameters: {
+            query?: {
+                "filter[status]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AttendanceCorrectionResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AttendanceCorrectionResource"][];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -9070,9 +9498,9 @@ export interface operations {
                     "application/json": {
                         original_hours: number;
                         proposed_hours: number;
-                        difference_minutes: string;
-                        estimated_impact_cents: string;
-                        hourly_rate_cents: string;
+                        difference_minutes: number;
+                        estimated_impact_cents: number;
+                        hourly_rate_cents: number;
                         in_open_payroll_period: boolean;
                         /** @constant */
                         currency: "ETB";
@@ -9102,7 +9530,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & {
+                        attendance_record: components["schemas"]["AttendanceRecordResource"] | null;
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9149,7 +9580,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & {
+                        attendance_record: components["schemas"]["AttendanceRecordResource"] | null;
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9179,7 +9613,17 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["AttendanceConflictResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["AttendanceConflictResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                            record_a: components["schemas"]["AttendanceRecordResource"] & {
+                                employee: components["schemas"]["EmployeeResource"];
+                                shift: components["schemas"]["ShiftResource"] | null;
+                            };
+                            record_b: components["schemas"]["AttendanceRecordResource"] & {
+                                employee: components["schemas"]["EmployeeResource"];
+                                shift: components["schemas"]["ShiftResource"] | null;
+                            };
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -9234,7 +9678,17 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceConflictResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["AttendanceConflictResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                        record_a: components["schemas"]["AttendanceRecordResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                            shift: components["schemas"]["ShiftResource"] | null;
+                        };
+                        record_b: components["schemas"]["AttendanceRecordResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                            shift: components["schemas"]["ShiftResource"] | null;
+                        };
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9268,7 +9722,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["AttendanceRecordResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                            shift: components["schemas"]["ShiftResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -9319,7 +9776,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceRecordResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["AttendanceRecordResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                        shift: components["schemas"]["ShiftResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9392,7 +9852,9 @@ export interface operations {
     };
     "kioskSession.index": {
         parameters: {
-            query?: never;
+            query?: {
+                per_page?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -9431,7 +9893,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["KioskSessionResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["KioskSessionResource"] & {
+                        branch: {
+                            public_id: string;
+                            name: string;
+                        };
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9450,12 +9917,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description `KioskSessionResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown[];
+                    "application/json": components["schemas"]["KioskSessionResource"] & {
+                        branch: {
+                            public_id: string;
+                            name: string;
+                        };
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9649,6 +10122,24 @@ export interface operations {
                     };
                 };
             };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/canonical-address";
+                        /** @constant */
+                        title: "Sign In At Your Organisation's Address";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "Your organisation signs in at its own address. Taking you there.";
+                        canonical_url: string | null;
+                    };
+                };
+            };
             422: components["responses"]["ValidationException"];
         };
     };
@@ -9803,7 +10294,6 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": {
-                    /** @default /dashboard */
                     RelayState?: string;
                 };
             };
@@ -9814,83 +10304,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        access_token: string;
-                        /** @constant */
-                        token_type: "Bearer";
-                        expires_in: string;
-                        mfa_required: string;
-                        /**
-                         * @description Advisory, not a block: the token is still issued so the user can
-                         *     reach the change-password endpoint. Refusing to authenticate would
-                         *     lock them out of the only screen that can clear the condition.
-                         *     Always present, so clients can branch without probing for the key.
-                         */
-                        password_expired: boolean;
-                        mfa_token: string;
-                        mfa_token_expires_in: string;
-                        relay_state: unknown;
-                    };
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/sso-failed";
-                        /** @constant */
-                        title: "SSO Authentication Failed";
-                        /** @constant */
-                        status: 401;
-                        /** @constant */
-                        detail: "SSO authentication failed. Please try again or contact your administrator.";
-                    };
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/account-inactive";
-                        /** @constant */
-                        title: "Account Inactive";
-                        /** @constant */
-                        status: 403;
-                        /** @constant */
-                        detail: "Your account has been suspended.";
-                    } | {
-                        /** @constant */
-                        type: "https://ethr.et/errors/sso-no-account";
-                        /** @constant */
-                        title: "No Account Found";
-                        /** @constant */
-                        status: 403;
-                        /** @constant */
-                        detail: "No account found for this SSO identity. Contact your administrator.";
-                    };
-                };
-            };
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/sso-not-configured";
-                        /** @constant */
-                        title: "SSO Not Configured";
-                        /** @constant */
-                        status: 422;
-                        /** @constant */
-                        detail: "Single sign-on is not configured for this organization.";
-                    };
+                    "application/json": Record<string, never>;
                 };
             };
         };
@@ -9996,16 +10410,18 @@ export interface operations {
                             preferences: {
                                 locale: string;
                                 theme: string | "system";
-                                calendar: string | "gregorian";
+                                calendar: string;
                             };
                             /** Format: date-time */
                             last_login_at: string | null;
                             employee_code: string | null;
+                            employee_public_id: string | null;
                             photo_thumb_url: string | null;
                         };
                         permissions: {
                             [key: string]: unknown;
                         };
+                        plan_features: unknown[] | null;
                         tenant: components["schemas"]["TenantResource"] | null;
                     };
                 };
@@ -10062,6 +10478,23 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/mfa-disabled-by-policy";
+                        /** @constant */
+                        title: "MFA Not Offered";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "Your organization does not offer two-factor authentication.";
+                    };
+                };
+            };
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10106,6 +10539,23 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/mfa-disabled-by-policy";
+                        /** @constant */
+                        title: "MFA Not Offered";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "Your organization does not offer two-factor authentication.";
+                    };
+                };
+            };
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10319,7 +10769,7 @@ export interface operations {
                     "application/json": {
                         old_plan: string;
                         new_plan: string;
-                        proration_cents: string;
+                        proration_cents: number;
                         effective_immediately: boolean;
                     } | {
                         /** @constant */
@@ -10330,37 +10780,6 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
-        };
-    };
-    "billing.markPaid": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The invoice public id */
-                invoice: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        public_id: string;
-                        /** @constant */
-                        status: "paid";
-                        /** Format: date-time */
-                        paid_at: string | null;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "billing.receipt": {
@@ -10408,7 +10827,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["EmployeeCostSharingResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["EmployeeCostSharingResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -10460,7 +10881,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -10486,7 +10909,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -10516,7 +10941,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -10552,13 +10979,22 @@ export interface operations {
                             /** @constant */
                             status: "not_checked_in";
                         } | null;
-                        leave_balances: unknown[];
+                        leave_balances: {
+                            type: string | null;
+                            entitled: number;
+                            used: number;
+                            remaining: number;
+                        }[];
                         latest_payslip: {
                             period: string;
                             net_cents: number;
                             gross_cents: number;
                         } | null;
-                        upcoming_holidays: unknown[];
+                        upcoming_holidays: {
+                            name: string;
+                            name_am: string | null;
+                            date: string;
+                        }[];
                         pending_approvals: number;
                         tenant_summary: {
                             employee_count: number;
@@ -10593,7 +11029,7 @@ export interface operations {
                     "application/json": {
                         team_attendance: {
                             present: number;
-                            absent: string;
+                            absent: number;
                             late: number;
                         } | {
                             present: number;
@@ -10602,9 +11038,15 @@ export interface operations {
                         };
                         pending_approvals: {
                             leave: number;
+                            correction: number;
+                            profile_update: number;
                             total: number;
                         };
-                        team_on_leave: unknown[];
+                        team_on_leave: {
+                            employee_name: string | null;
+                            start_date: string;
+                            end_date: string;
+                        }[];
                         team_size: number;
                     };
                 };
@@ -10634,13 +11076,10 @@ export interface operations {
                             by_department: {
                                 department: string;
                                 department_public_id: string | null;
-                                count: string;
+                                count: number;
                             }[];
                         };
                         attendance_rate: {
-                            today: number;
-                            period: number;
-                        } | {
                             today: number;
                             period: number;
                         };
@@ -10660,8 +11099,8 @@ export interface operations {
                             hires: number;
                         }[];
                         leave_utilization: {
-                            entitled_days: string;
-                            used_days: string;
+                            entitled_days: number;
+                            used_days: number;
                             utilization_rate: number;
                         };
                     };
@@ -10685,10 +11124,23 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        daily_trend: unknown[];
-                        by_department: unknown[];
-                        by_source: unknown[];
-                        top_late: unknown[];
+                        daily_trend: {
+                            date: string;
+                            present: number;
+                        }[];
+                        by_department: {
+                            department: string;
+                            present: number;
+                        }[];
+                        by_source: {
+                            source: string;
+                            count: number;
+                        }[];
+                        top_late: {
+                            employee_name: string;
+                            employee_public_id: string;
+                            late_count: number;
+                        }[];
                     };
                 };
             };
@@ -10710,19 +11162,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        monthly_trend: unknown[];
-                        overtime_trend: unknown[];
-                        by_department: unknown[];
-                        by_cost_center: unknown[];
+                        monthly_trend: {
+                            period: string;
+                            gross_cents: number;
+                            net_cents: number;
+                            tax_cents: number;
+                        }[];
+                        overtime_trend: {
+                            period: string;
+                            overtime_cents: number;
+                            overtime_minutes: number;
+                        }[];
+                        by_department: {
+                            department: string;
+                            total_gross_cents: number;
+                            employee_count: number;
+                        }[];
+                        by_cost_center: {
+                            cost_center: string;
+                            total_gross_cents: number;
+                            employee_count: number;
+                        }[];
                         totals: {
                             total_gross_cents: number;
                             total_net_cents: number;
                             total_tax_cents: number;
-                            run_count: number;
-                        } | {
-                            total_gross_cents: string;
-                            total_net_cents: string;
-                            total_tax_cents: string;
                             run_count: number;
                         };
                     };
@@ -10750,9 +11214,19 @@ export interface operations {
                             month: string;
                             count: number;
                         }[];
-                        by_department: unknown[];
-                        by_gender: unknown[];
-                        by_tenure: unknown[];
+                        by_department: {
+                            department: string;
+                            department_public_id: string | null;
+                            count: number;
+                        }[];
+                        by_gender: {
+                            gender: string | null;
+                            count: number;
+                        }[];
+                        by_tenure: {
+                            bucket: string;
+                            count: number;
+                        }[];
                     };
                 };
             };
@@ -10837,7 +11311,10 @@ export interface operations {
                             }[];
                         };
                         payroll_gross: {
-                            history: unknown[];
+                            history: {
+                                month: string;
+                                value: number;
+                            }[];
                             projected: {
                                 label: string;
                                 /** @description Never project a negative headcount/currency value. */
@@ -10869,7 +11346,7 @@ export interface operations {
                             public_id: string;
                             branch_name: string | null;
                             frequency: string;
-                            recipients: unknown[];
+                            recipients: string[];
                             /** Format: date-time */
                             next_run_at: string | null;
                             /** Format: date-time */
@@ -10903,7 +11380,7 @@ export interface operations {
                         public_id: string;
                         branch_name: string | null;
                         frequency: string;
-                        recipients: unknown[];
+                        recipients: string[];
                         /** Format: date-time */
                         next_run_at: string | null;
                         /** Format: date-time */
@@ -10955,7 +11432,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        departments: unknown[];
+                        departments: {
+                            public_id: string;
+                            name: string;
+                            headcount: number;
+                            attendance_rate: number;
+                            avg_salary_cents: number;
+                        }[];
                     };
                 };
             };
@@ -10991,7 +11474,21 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
+            /** @description An error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example
+                         */
+                        message: string;
+                    };
+                };
+            };
             404: components["responses"]["ModelNotFoundException"];
         };
     };
@@ -11010,7 +11507,12 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        branches: unknown[];
+                        branches: {
+                            public_id: string;
+                            name: string;
+                            headcount: number;
+                            department_count: number;
+                        }[];
                     };
                 };
             };
@@ -11149,13 +11651,22 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        source: string | "employees";
+                        source: string;
                         total: number;
-                        data: unknown[];
+                        truncated: boolean;
+                        data: {
+                            [key: string]: unknown;
+                        }[];
                         summary: {
-                            grouped_by: string | null;
-                            groups: string;
-                            group_sums: string;
+                            grouped_by?: string;
+                            groups?: {
+                                [key: string]: number;
+                            };
+                            group_sums?: {
+                                [key: string]: {
+                                    [key: string]: number;
+                                };
+                            };
                         };
                     };
                 };
@@ -11299,7 +11810,7 @@ export interface operations {
                     "application/json": {
                         public_id: string;
                         frequency: string;
-                        recipients: unknown[];
+                        recipients: string[];
                         /** Format: date-time */
                         next_run_at: string | null;
                     };
@@ -11329,7 +11840,7 @@ export interface operations {
                             public_id: string;
                             report_name: string;
                             frequency: string;
-                            recipients: unknown[];
+                            recipients: string[];
                             /** Format: date-time */
                             next_run_at: string | null;
                             /** Format: date-time */
@@ -11497,10 +12008,10 @@ export interface operations {
                         events_today: number;
                         last_sync_at: string | null;
                         sync_stats_24h: {
-                            success: unknown;
-                            partial: unknown;
-                            failed: unknown;
-                            offline: unknown;
+                            success: number;
+                            partial: number;
+                            failed: number;
+                            offline: number;
                         };
                     };
                 };
@@ -11769,8 +12280,8 @@ export interface operations {
                             name: string | null;
                             card_number: string | null;
                             department: string | null;
-                            fingerprint_count: string | null;
-                            face_registered: string | null;
+                            fingerprint_count: number | null;
+                            face_registered: boolean | null;
                             match: {
                                 /** @enum {string} */
                                 outcome: "ambiguous" | "probable";
@@ -11844,7 +12355,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["DeviceResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["DeviceResource"] & {
+                            branch: components["schemas"]["BranchResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -11896,7 +12409,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DeviceResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DeviceResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -11922,7 +12437,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DeviceResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DeviceResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -11952,7 +12469,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DeviceResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DeviceResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12003,7 +12522,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["DisciplinaryCaseResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["DisciplinaryCaseResource"] & {
+                        reported_by: unknown;
+                        decided_by: unknown;
+                        appeal_decided_by: unknown;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12099,7 +12622,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & {
+                        reported_by: unknown;
+                        decided_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12165,7 +12691,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & {
+                        reported_by: unknown;
+                        decided_by: unknown;
+                        appeal_decided_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12198,7 +12728,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & {
+                        reported_by: unknown;
+                        decided_by: unknown;
+                        appeal_decided_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12222,10 +12756,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        total: string;
-                        by_status: string;
-                        by_department: string;
-                        by_branch: string;
+                        total: number;
+                        by_status: {
+                            [key: string]: number;
+                        };
+                        by_department: {
+                            [key: string]: number;
+                        };
+                        by_branch: {
+                            [key: string]: number;
+                        };
                     };
                 };
             };
@@ -12431,6 +12971,7 @@ export interface operations {
                             "email",
                             "phone",
                             "employee_code",
+                            "national_id",
                             "gender",
                             "hire_date",
                             "department_code",
@@ -12464,25 +13005,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        headers: unknown[];
-                        rows: string[];
-                        errors: string;
-                    } | {
-                        headers: unknown[];
-                        rows: string[];
-                        errors: [
-                            [
-                                string
-                            ]
-                        ];
-                    } | {
                         headers: string[];
-                        rows: string[];
-                        errors: [
-                            [
-                                "CSV file must have a header row and at least one data row."
-                            ]
-                        ];
+                        rows: {
+                            [key: string]: string | null;
+                        }[];
+                        errors: {
+                            [key: string]: string[];
+                        };
                     };
                 };
             };
@@ -12514,7 +13043,9 @@ export interface operations {
                         skipped: number;
                         matched: number;
                         users_created: number;
-                        errors: string;
+                        errors: {
+                            [key: string]: string[];
+                        };
                     };
                 };
             };
@@ -12547,7 +13078,11 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["EmployeeResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["EmployeeResource"] & {
+                            department: components["schemas"]["DepartmentResource"] | null;
+                            branch: components["schemas"]["BranchResource"] | null;
+                            position: components["schemas"]["PositionResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -12599,7 +13134,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                        position: components["schemas"]["PositionResource"] | null;
+                        grade: components["schemas"]["GradeResource"] | null;
+                        team: components["schemas"]["TeamResource"] | null;
+                        cost_center: components["schemas"]["CostCenterResource"] | null;
+                        supervisor: components["schemas"]["EmployeeSummaryResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12625,7 +13168,19 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                        position: components["schemas"]["PositionResource"] | null;
+                        grade: components["schemas"]["GradeResource"] | null;
+                        team: components["schemas"]["TeamResource"] | null;
+                        cost_center: components["schemas"]["CostCenterResource"] | null;
+                        supervisor: components["schemas"]["EmployeeSummaryResource"] | null;
+                        emergency_contacts: components["schemas"]["EmergencyContactResource"][];
+                        bank_details: components["schemas"]["BankDetailResource"][];
+                        education: components["schemas"]["EducationResource"][];
+                        transitions: components["schemas"]["EmployeeTransitionResource"][];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12655,7 +13210,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                        position: components["schemas"]["PositionResource"] | null;
+                        grade: components["schemas"]["GradeResource"] | null;
+                        team: components["schemas"]["TeamResource"] | null;
+                        cost_center: components["schemas"]["CostCenterResource"] | null;
+                        supervisor: components["schemas"]["EmployeeSummaryResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12706,7 +13269,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["EmployeeTransitionResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["EmployeeTransitionResource"] & {
+                        approved_by: components["schemas"]["EmployeeSummaryResource"] | null;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12763,7 +13328,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["EmployeeContractResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["EmployeeContractResource"] & {
+                        renewed_from_id: string | null;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12860,6 +13427,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmployeeContractResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendance.employeeKioskPin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateKioskPinRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        has_kiosk_pin: boolean;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -13398,11 +13998,58 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["EmployeeReportingNodeResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["EmployeeReportingNodeResource"] & {
+                        position: string | null;
+                        direct_reports: components["schemas"]["EmployeeReportingNodeResource"][];
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "auth.findOrganisation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindOrganisationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "If that address belongs to an organisation, we've emailed you its sign-in link.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/rate-limit";
+                        /** @constant */
+                        title: "Too Many Requests";
+                        /** @constant */
+                        status: 429;
+                        /** @constant */
+                        detail: "Too many requests for this address. Try again in a few minutes.";
+                    };
+                };
+            };
         };
     };
     "scimUser.index": {
@@ -13463,6 +14110,30 @@ export interface operations {
                                 location: string;
                             };
                         }[];
+                    };
+                };
+            };
+            /**
+             * @description An expression this endpoint cannot evaluate used to be ignored,
+             *     returning every user — an IdP asking "does this person exist?"
+             *     was told everyone matched, and typically linked to the first
+             *     result. RFC 7644 §3.4.2.2: 400 invalidFilter.
+             */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:api:messages:2.0:Error"
+                        ];
+                        /** @constant */
+                        detail: "Unsupported filter";
+                        /** @constant */
+                        scimType: "invalidFilter";
+                        /** @constant */
+                        status: 400;
                     };
                 };
             };
@@ -13530,6 +14201,16 @@ export interface operations {
                         ];
                         /** @constant */
                         detail: "userName or emails[0].value is required";
+                        /** @constant */
+                        scimType: "invalidValue";
+                        /** @constant */
+                        status: 400;
+                    } | {
+                        schemas: [
+                            "urn:ietf:params:scim:api:messages:2.0:Error"
+                        ];
+                        /** @constant */
+                        detail: "userName must be a string and emails a list of {value}";
                         /** @constant */
                         scimType: "invalidValue";
                         /** @constant */
@@ -13902,7 +14583,7 @@ export interface operations {
                             public_id: string;
                             name: string;
                             key_prefix: string;
-                            abilities: unknown[];
+                            abilities: string[];
                             /** Format: date-time */
                             last_used_at: string | null;
                             /** Format: date-time */
@@ -13940,7 +14621,7 @@ export interface operations {
                         public_id: string;
                         name: string;
                         key: string;
-                        abilities: unknown[];
+                        abilities: string[];
                         /** Format: date-time */
                         expires_at: string | null;
                         /** Format: date-time */
@@ -13995,7 +14676,7 @@ export interface operations {
                         webhooks: {
                             public_id: string;
                             url: string;
-                            events: unknown[];
+                            events: string[];
                             is_active: boolean;
                             failure_count: number;
                             /** Format: date-time */
@@ -14032,7 +14713,7 @@ export interface operations {
                         public_id: string;
                         url: string;
                         secret: string;
-                        events: unknown[];
+                        events: string[];
                         is_active: boolean;
                         /** Format: date-time */
                         created_at: string | null;
@@ -14068,7 +14749,7 @@ export interface operations {
                     "application/json": {
                         public_id: string;
                         url: string;
-                        events: unknown[];
+                        events: string[];
                         is_active: boolean;
                     };
                 };
@@ -14189,7 +14870,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14216,7 +14900,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["LeaveRequestResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["LeaveRequestResource"] & {
+                            employee: components["schemas"]["EmployeeResource"] | null;
+                            leave_type: components["schemas"]["LeaveTypeResource"];
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -14267,7 +14954,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["LeaveRequestResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["LeaveRequestResource"] & {
+                            employee: components["schemas"]["EmployeeResource"] | null;
+                            leave_type: components["schemas"]["LeaveTypeResource"];
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -14317,7 +15007,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["LeaveBalanceResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["LeaveBalanceResource"] & {
+                        leave_type: components["schemas"]["LeaveTypeResource"] | null;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14343,7 +15035,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["LeaveBalanceResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["LeaveBalanceResource"] & {
+                        leave_type: components["schemas"]["LeaveTypeResource"] | null;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14369,7 +15063,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14416,7 +15113,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14443,7 +15143,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14502,7 +15205,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14743,7 +15449,12 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        results: unknown[][];
+                        results: {
+                            public_id: string;
+                            /** @enum {string} */
+                            status: "approved" | "rejected" | "error";
+                            detail?: string;
+                        }[];
                     };
                 };
             };
@@ -15013,7 +15724,11 @@ export interface operations {
                             "email",
                             "sms"
                         ];
-                        preferences: string;
+                        preferences: {
+                            [key: string]: {
+                                [key: string]: boolean;
+                            };
+                        };
                         /**
                          * @description Which channels this deployment can actually deliver on. SMS depends
                          *     on a configured gateway; without one the client disables the toggle
@@ -15022,7 +15737,7 @@ export interface operations {
                         channel_availability: {
                             in_app: boolean;
                             email: boolean;
-                            sms: string;
+                            sms: boolean;
                         };
                     };
                 };
@@ -15066,7 +15781,11 @@ export interface operations {
                             "email",
                             "sms"
                         ];
-                        preferences: string;
+                        preferences: {
+                            [key: string]: {
+                                [key: string]: boolean;
+                            };
+                        };
                         /**
                          * @description Which channels this deployment can actually deliver on. SMS depends
                          *     on a configured gateway; without one the client disables the toggle
@@ -15075,7 +15794,7 @@ export interface operations {
                         channel_availability: {
                             in_app: boolean;
                             email: boolean;
-                            sms: string;
+                            sms: boolean;
                         };
                     };
                 };
@@ -15205,188 +15924,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OnboardingProgress"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/not-found";
-                        /** @constant */
-                        title: "Not Found";
-                        /** @constant */
-                        status: 404;
-                        detail: string;
-                    };
-                };
-            };
-        };
-    };
-    "onboarding.updateStep": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                step: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingProgress"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/not-found";
-                        /** @constant */
-                        title: "Not Found";
-                        /** @constant */
-                        status: 404;
-                        detail: string;
-                    };
-                };
-            };
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/validation";
-                        /** @constant */
-                        title: "Invalid Step";
-                        /** @constant */
-                        status: 422;
-                        detail: string;
-                    };
-                };
-            };
-        };
-    };
-    "onboarding.applyTemplate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ApplyTemplateRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        message: string;
-                        template: {
-                            public_id: string;
-                            name: string;
-                            slug: string;
-                        };
-                        provisioned: {
-                            resources: string[];
-                            total_created: number;
-                            warnings: string[];
-                        };
-                        data: unknown[];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "onboarding.inviteTeam": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InviteTeamRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        created: string[];
-                        skipped: string[];
-                        message: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/not-found";
-                        /** @constant */
-                        title: "Not Found";
-                        /** @constant */
-                        status: 404;
-                        detail: string;
-                    };
-                };
-            };
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "onboarding.complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        message: "Onboarding completed successfully.";
-                        /** @constant */
-                        redirect: "/dashboard";
-                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -15567,6 +16104,12 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        available: [
+                            "email",
+                            "phone",
+                            "employee_code",
+                            "username"
+                        ];
                         login_identifiers: [
                             "email"
                         ] | unknown[];
@@ -15916,14 +16459,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        period: string | unknown[] | null;
+                        /** @enum {string} */
+                        period: "monthly" | "weekly";
                         from: string;
                         to: string;
                         team_size: number;
                         data: {
                             date: string;
                             present: number;
-                            absent: string;
+                            absent: number;
                             late: number;
                             rate: number;
                         }[];
@@ -16022,7 +16566,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["DepartmentResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["DepartmentResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                        children_recursive: components["schemas"]["DepartmentResource"][];
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16213,7 +16760,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["DepartmentResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["DepartmentResource"] & {
+                            parent: components["schemas"]["DepartmentResource"] | null;
+                            branch: components["schemas"]["BranchResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -16265,7 +16815,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DepartmentResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DepartmentResource"] & {
+                        parent: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16291,7 +16844,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DepartmentResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DepartmentResource"] & {
+                        parent: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                        children: components["schemas"]["DepartmentResource"][];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16321,7 +16878,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DepartmentResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DepartmentResource"] & {
+                        parent: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16374,7 +16934,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["TeamResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["TeamResource"] & {
+                            department: components["schemas"]["DepartmentResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -16426,7 +16988,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["TeamResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16452,7 +17016,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["TeamResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16482,7 +17048,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["TeamResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -17309,7 +17877,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PayrollRunResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["PayrollRunResource"] & {
+                        entries: components["schemas"]["PayrollEntryResource"][];
+                        reprocessed_from_public_id: string | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -17441,9 +18012,9 @@ export interface operations {
                     "application/json": {
                         period: string;
                         total_entries: number;
-                        total_amount_cents: string;
+                        total_amount_cents: number;
                         rows: {
-                            employee_name: string;
+                            employee_name: string | null;
                             employee_code: string | null;
                             bank_name: string;
                             branch_name: string;
@@ -17502,7 +18073,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["PayrollEntryResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["PayrollEntryResource"] & {
+                            period_label: string;
+                            employee: components["schemas"]["EmployeeResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -17555,7 +18129,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["PayrollEntryResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["PayrollEntryResource"] & {
+                            period_label: string;
+                            employee: components["schemas"]["EmployeeResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -17634,7 +18211,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["EmployeeLoanResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["EmployeeLoanResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -17686,7 +18265,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeLoanResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeLoanResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -17712,7 +18293,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeLoanResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeLoanResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -17742,7 +18325,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeLoanResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeLoanResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -17773,7 +18358,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeLoanResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeLoanResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -17853,11 +18440,16 @@ export interface operations {
                 content: {
                     "application/json": {
                         rates: {
-                            [key: string]: number;
+                            normal: number;
+                            night: number;
+                            rest_day: number;
+                            holiday: number;
+                            holiday_night: number;
                         };
                         defaults: {
                             normal: number;
                             night: number;
+                            rest_day: number;
                             holiday: number;
                             holiday_night: number;
                         };
@@ -17889,11 +18481,16 @@ export interface operations {
                 content: {
                     "application/json": {
                         rates: {
-                            [key: string]: number;
+                            normal: number;
+                            night: number;
+                            rest_day: number;
+                            holiday: number;
+                            holiday_night: number;
                         };
                         defaults: {
                             normal: number;
                             night: number;
+                            rest_day: number;
                             holiday: number;
                             holiday_night: number;
                         };
@@ -18142,21 +18739,16 @@ export interface operations {
                 content: {
                     "application/json": {
                         period: string;
-                        date: string;
+                        date: string | null;
                         reference: string;
-                        entries: ({
-                            account_code: string;
-                            account_name: string;
-                            debit_cents: string;
-                            credit_cents: number;
-                        } | {
+                        entries: {
                             account_code: string;
                             account_name: string;
                             debit_cents: number;
-                            credit_cents: string;
-                        })[];
-                        total_debits_cents: string;
-                        total_credits_cents: string;
+                            credit_cents: number;
+                        }[];
+                        total_debits_cents: number;
+                        total_credits_cents: number;
                         is_balanced: boolean;
                     };
                 };
@@ -18210,7 +18802,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["PersonnelActionResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["PersonnelActionResource"] & {
+                        recorded_by: unknown;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -18240,13 +18834,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PersonnelActionResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["PersonnelActionResource"] & {
+                        recorded_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.exitImpersonation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Impersonation session ended.";
+                        session_restored: boolean;
+                        tenant: string | null;
+                        return_url: null;
+                    } | {
+                        /** @constant */
+                        message: "Impersonation session ended.";
+                        session_restored: boolean;
+                        tenant: null;
+                        return_url: null;
+                    } | {
+                        /** @constant */
+                        message: "Impersonation session ended.";
+                        session_restored: boolean;
+                        tenant: null;
+                        return_url: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-impersonating";
+                        /** @constant */
+                        title: "Not Impersonating";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "No active impersonation session.";
+                    };
+                };
+            };
         };
     };
     "adminTenant.index": {
@@ -18323,6 +18974,16 @@ export interface operations {
                         public_id: string;
                         name: string;
                         subdomain: string;
+                        custom_domain: string | null;
+                        /** @enum {string|null} */
+                        custom_domain_status: "verified" | "pending" | null;
+                        custom_domain_dns: {
+                            txt_name: string;
+                            txt_value: string;
+                            cname_name: string | null;
+                            cname_target: string | null;
+                        } | null;
+                        custom_domain_allowed: boolean;
                         type: string | null;
                         status: string;
                         /** Format: date-time */
@@ -18390,6 +19051,79 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.updateDomain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTenantDomainRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        custom_domain: string | null;
+                        /** @enum {string|null} */
+                        custom_domain_status: "verified" | "pending" | null;
+                        custom_domain_dns: {
+                            txt_name: string;
+                            txt_value: string;
+                            cname_name: string | null;
+                            cname_target: string | null;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.verifyDomain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        custom_domain: string | null;
+                        /** @enum {string|null} */
+                        custom_domain_status: "verified" | "pending" | null;
+                        custom_domain_dns: {
+                            txt_name: string;
+                            txt_value: string;
+                            cname_name: string | null;
+                            cname_target: string | null;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "adminTenant.extendTrial": {
@@ -18497,58 +19231,6 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "adminTenant.exitImpersonation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        message: "Impersonation session ended.";
-                        session_restored: boolean;
-                        /**
-                         * @description The subdomain the client should send as X-Tenant from here on.
-                         *     Server-authoritative, so exiting still works when the browser has
-                         *     lost whatever it stashed at the start of the session.
-                         */
-                        tenant: string | null;
-                    } | {
-                        /** @constant */
-                        message: "Impersonation session ended.";
-                        session_restored: boolean;
-                        tenant: null;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/not-impersonating";
-                        /** @constant */
-                        title: "Not Impersonating";
-                        /** @constant */
-                        status: 409;
-                        /** @constant */
-                        detail: "No active impersonation session.";
-                    };
-                };
-            };
-        };
-    };
     "adminTenant.backup": {
         parameters: {
             query?: never;
@@ -18569,6 +19251,35 @@ export interface operations {
                         /** @constant */
                         message: "Backup job queued. You will be notified when the export is ready.";
                         tenant_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenant.markInvoicePaid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+                invoicePublicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        status: string;
+                        /** Format: date-time */
+                        paid_at: string | null;
                     };
                 };
             };
@@ -18639,7 +19350,7 @@ export interface operations {
                                 status: "healthy";
                                 response_ms: number;
                             };
-                            redis: {
+                            cache: {
                                 /** @constant */
                                 status: "unhealthy";
                                 error: string;
@@ -19075,7 +19786,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["RetirementCaseResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["RetirementCaseResource"] & {
+                        initiated_by: unknown;
+                        decided_by: unknown;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -19171,7 +19885,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RetirementCaseResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["RetirementCaseResource"] & {
+                        initiated_by: unknown;
+                        decided_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -19204,7 +19921,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RetirementCaseResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["RetirementCaseResource"] & {
+                        initiated_by: unknown;
+                        decided_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -19237,7 +19957,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RetirementCaseResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["RetirementCaseResource"] & {
+                        initiated_by: unknown;
+                        decided_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -19419,8 +20142,12 @@ export interface operations {
                             locale: string;
                         };
                         branding: {
-                            logo_url: string;
-                            theme: string | string[];
+                            logo_url: string | null;
+                            theme: {
+                                primary_color?: string | null;
+                                secondary_color?: string | null;
+                                accent_color?: string | null;
+                            };
                         };
                         /**
                          * @description Attendance rules (grace period, OT cap, confidence threshold) live
@@ -19429,19 +20156,13 @@ export interface operations {
                          *     place.
                          */
                         leave: {
-                            working_days: string | [
-                                1,
-                                2,
-                                3,
-                                4,
-                                5
-                            ];
+                            working_days: number[];
                         };
                         payroll: {
-                            pay_period: string | "monthly";
-                            run_day: string | 25;
-                            fiscal_year_start_month: string | 1;
-                            pagumen_proration_strategy: string | "full_month";
+                            pay_period: string;
+                            run_day: number;
+                            fiscal_year_start_month: number;
+                            pagumen_proration_strategy: string;
                             /**
                              * @description Retirement-case eligibility dates are computed against this.
                              *     No single figure is authoritative across every Ethiopian
@@ -19449,11 +20170,15 @@ export interface operations {
                              *     rather than hard-coded, the same treatment as the tax
                              *     brackets and Pagumen strategy above.
                              */
-                            retirement_age: string | 60;
+                            retirement_age: number;
                         };
                         security: {
-                            mfa_policy: string | "optional";
-                            session_timeout_minutes: string | 480;
+                            mfa_policy: string;
+                            session_timeout_minutes: number;
+                        };
+                        display: {
+                            /** @enum {string} */
+                            calendar: "gregorian" | "ethiopian";
                         };
                         sso: {
                             is_enabled: boolean;
@@ -19811,7 +20536,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ShiftAssignmentResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["ShiftAssignmentResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -19824,6 +20549,7 @@ export interface operations {
             query?: {
                 "filter[date_from]"?: string;
                 "filter[date_to]"?: string;
+                "filter[assignable_type]"?: string;
                 per_page?: number;
             };
             header?: never;
@@ -19839,7 +20565,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["ShiftAssignmentResource"] & Record<string, never>)[];
+                        data: components["schemas"]["ShiftAssignmentResource"][];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -19872,6 +20598,78 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
+    "shiftAssignment.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The assignment public id */
+                assignment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/assignment-in-effect";
+                        /** @constant */
+                        title: "Assignment Already In Effect";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "This assignment has already taken effect, so it is part of the attendance history. End it instead: set its last day.";
+                    };
+                };
+            };
+        };
+    };
+    "shiftAssignment.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The assignment public id */
+                assignment: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndShiftAssignmentRequest"];
+            };
+        };
+        responses: {
+            /** @description `ShiftAssignmentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftAssignmentResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "shiftRotation.assign": {
         parameters: {
             query?: never;
@@ -19891,7 +20689,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ShiftAssignmentResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["ShiftAssignmentResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -19921,7 +20719,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        rotation: components["schemas"]["ShiftRotationResource"] & Record<string, never>;
+                        rotation: components["schemas"]["ShiftRotationResource"] & {
+                            steps: components["schemas"]["ShiftRotationStepResource"][];
+                        };
                         anchor_date: string;
                         days: {
                             date: string;
@@ -19958,7 +20758,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["ShiftRotationResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["ShiftRotationResource"] & {
+                            steps: components["schemas"]["ShiftRotationStepResource"][];
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -20010,7 +20812,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ShiftRotationResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["ShiftRotationResource"] & {
+                        steps: components["schemas"]["ShiftRotationStepResource"][];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20036,7 +20840,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ShiftRotationResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["ShiftRotationResource"] & {
+                        steps: components["schemas"]["ShiftRotationStepResource"][];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20066,7 +20872,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ShiftRotationResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["ShiftRotationResource"] & {
+                        steps: components["schemas"]["ShiftRotationStepResource"][];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20097,6 +20905,22 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/rotation-in-use";
+                        /** @constant */
+                        title: "Rotation In Use";
+                        /** @constant */
+                        status: 409;
+                        detail: string;
+                    };
+                };
+            };
         };
     };
     "shifts.index": {
@@ -20258,6 +21082,22 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/shift-in-use";
+                        /** @constant */
+                        title: "Shift In Use";
+                        /** @constant */
+                        status: 409;
+                        detail: string;
+                    };
+                };
+            };
         };
     };
     "holiday.autoDetect": {
@@ -20311,7 +21151,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["HolidayResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["HolidayResource"] & {
+                            branch: components["schemas"]["BranchResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -20363,7 +21205,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HolidayResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["HolidayResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20389,7 +21233,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HolidayResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["HolidayResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20419,7 +21265,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HolidayResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["HolidayResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20590,7 +21438,12 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["UserResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["UserResource"] & {
+                            employee: {
+                                public_id: string;
+                                name: string;
+                            } | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -20642,7 +21495,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["UserResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20713,7 +21571,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["UserResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20768,6 +21631,71 @@ export interface operations {
             };
         };
     };
+    "user.resetMfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The user public id */
+                user: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `UserResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/business-rule";
+                        /** @constant */
+                        title: "Request Rejected";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "This user does not have two-factor authentication turned on.";
+                    };
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/business-rule";
+                        /** @constant */
+                        title: "Request Rejected";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "Turn off your own two-factor authentication from your security settings.";
+                    };
+                };
+            };
+        };
+    };
     "profile.show": {
         parameters: {
             query?: never;
@@ -20797,7 +21725,7 @@ export interface operations {
                         preferences: {
                             locale: string;
                             theme: string | "system";
-                            calendar: string | "gregorian";
+                            calendar: string;
                         };
                         employee: {
                             public_id: string;
@@ -20839,7 +21767,7 @@ export interface operations {
                          *     returned here the edit form had nothing to prefill from — an employee
                          *     updating one emergency-contact field silently blanked the rest.
                          */
-                        emergency_contacts: unknown[];
+                        emergency_contacts: components["schemas"]["EmergencyContactResource"][];
                         bank_details: {
                             public_id: string;
                             bank_name: string;
@@ -20855,13 +21783,13 @@ export interface operations {
                          *     eager-loading them this 500s under `preventLazyLoading`, which is on
                          *     everywhere except production.
                          */
-                        pending_updates: unknown[];
+                        pending_updates: components["schemas"]["ProfileUpdateRequestResource"][];
                         /**
                          * @description Decided requests, so "HR rejected this and here is why" reaches the
                          *     employee on the page and not only in a notification they may have
                          *     dismissed. Capped — this is a recent-activity list, not an archive.
                          */
-                        recent_updates: unknown[];
+                        recent_updates: components["schemas"]["ProfileUpdateRequestResource"][];
                         /**
                          * @description Which side of the approval line each field falls on. Shipped rather
                          *     than hardcoded in the client so the two can never drift.
@@ -20872,7 +21800,7 @@ export interface operations {
                                 "marital_status",
                                 "nationality"
                             ];
-                            gated: unknown[];
+                            gated: string[];
                         };
                     };
                 };
@@ -20904,13 +21832,11 @@ export interface operations {
                         pending_approval: {
                             /** @constant */
                             status: "pending_approval";
-                            fields: {
-                                [key: string]: unknown;
-                            };
-                            requests: unknown[];
+                            fields: string[];
+                            requests: components["schemas"]["ProfileUpdateRequestResource"][];
                             /** @constant */
                             message: "Changes to sensitive fields require HR approval.";
-                        };
+                        } | null;
                         was_duplicate: boolean;
                     };
                 };
@@ -20940,7 +21866,7 @@ export interface operations {
                     "application/json": {
                         locale: string;
                         theme: string | "system";
-                        calendar: string | "gregorian";
+                        calendar: string;
                     };
                 };
             };
@@ -21325,7 +22251,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[][];
+                    "application/json": {
+                        [key: string]: {
+                            name: string;
+                            module: string;
+                            action: string;
+                            description: string;
+                        }[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -21352,7 +22285,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["CustomRoleResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["CustomRoleResource"] & {
+                            permissions: string[];
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -21404,7 +22339,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomRoleResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["CustomRoleResource"] & {
+                        permissions: string[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -21430,7 +22367,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomRoleResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["CustomRoleResource"] & {
+                        permissions: string[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -21460,7 +22399,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomRoleResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["CustomRoleResource"] & {
+                        permissions: string[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];

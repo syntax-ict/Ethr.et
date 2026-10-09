@@ -101,6 +101,19 @@ describe("<AttendanceConflictsPage>", () => {
     expect(screen.getByText("Mobile")).toBeInTheDocument();
   });
 
+  it("says which day the conflict is on", async () => {
+    // The card named the person and two times but never the day (2026-10-09).
+    server.use(
+      http.get("*/attendance/conflicts", () =>
+        HttpResponse.json({ data: [conflict] }),
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText("Thu 20 Aug 2026")).toBeInTheDocument();
+  });
+
   it("filters to pending conflicts by default", async () => {
     let requestUrl = "";
     server.use(
@@ -179,5 +192,66 @@ describe("<AttendanceConflictsPage>", () => {
     expect(
       screen.queryByRole("button", { name: /review/i }),
     ).not.toBeInTheDocument();
+  });
+
+  // The API refuses a conflict on the caller's own attendance; the button
+  // only led to a 403 (audit N84).
+  it("offers no review on the caller's own conflict, and says why", async () => {
+    server.use(
+      http.get("*/attendance/conflicts", () =>
+        HttpResponse.json({
+          data: [
+            { ...conflict, employee_public_id: "01HZEMPSELF0000000000001" },
+          ],
+        }),
+      ),
+      http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          user: {
+            public_id: "U1",
+            name: "Abebe Kebede",
+            role: "hr_admin",
+            employee_public_id: "01HZEMPSELF0000000000001",
+          },
+          tenant: { public_id: "T1", name: "Demo" },
+          permissions: [],
+        }),
+      ),
+    );
+
+    renderPage();
+
+    expect(
+      await screen.findByText(/someone else reviews this/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /review/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("reaches conflicts past the first page", async () => {
+    // The endpoint pages by 25 and the page rendered only the first, so the
+    // 26th pending conflict could not be reviewed at all.
+    const second = {
+      ...conflict,
+      public_id: "01HZCONFLICT00000000000002",
+      employee: { name: "Zewditu Haile", employee_code: "EMP-0099" },
+    };
+    server.use(
+      http.get("*/attendance/conflicts", ({ request }) => {
+        const p = Number(new URL(request.url).searchParams.get("page") ?? 1);
+        return HttpResponse.json({
+          data: [p === 2 ? second : conflict],
+          meta: { current_page: p, last_page: 2, per_page: 25, total: 26 },
+        });
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderPage();
+
+    expect(await screen.findByText("Abebe Kebede")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /next/i }));
+    expect(await screen.findByText("Zewditu Haile")).toBeInTheDocument();
   });
 });

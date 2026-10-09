@@ -27,14 +27,16 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
         <div className="relative flex flex-1 flex-col items-center justify-center overflow-y-auto p-12">
           <div className="max-w-md text-center">
             <Link href="/" className="inline-flex items-center gap-2.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
-                <span className="text-xl font-bold text-white">E</span>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-foreground/20 backdrop-blur-sm">
+                <span className="text-xl font-bold text-primary-foreground">
+                  E
+                </span>
               </div>
             </Link>
-            <h2 className="mt-8 text-3xl font-bold leading-tight text-white">
+            <h2 className="mt-8 text-3xl font-bold leading-tight text-primary-foreground">
               {t("auth.layout_title", "Ethiopian Workforce Operating System")}
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-white/75">
+            <p className="mt-4 text-base leading-relaxed text-primary-foreground/75">
               {t(
                 "auth.layout_subtitle",
                 "Manage employees, attendance, payroll, and leave — all in one platform built for Ethiopian organizations.",
@@ -47,10 +49,10 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
               {taglineKeys.map((key) => (
                 <div key={key} className="flex items-center gap-1.5">
                   <CheckCircle2
-                    className="h-3.5 w-3.5 shrink-0 text-white/50"
+                    className="h-3.5 w-3.5 shrink-0 text-primary-foreground/50"
                     aria-hidden="true"
                   />
-                  <span className="text-xs text-white/70">
+                  <span className="text-xs text-primary-foreground/70">
                     {t(`auth.${key}`)}
                   </span>
                 </div>

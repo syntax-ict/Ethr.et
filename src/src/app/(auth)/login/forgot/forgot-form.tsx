@@ -1,5 +1,6 @@
 "use client";
 
+import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, MailCheck, Loader2 } from "lucide-react";
@@ -12,6 +13,7 @@ import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
+import { prepareCsrfCookie } from "@/features/auth/sign-in";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
@@ -79,6 +81,12 @@ export function ForgotForm() {
     };
     if (!subdomainFromHost) headers["X-Tenant"] = effectiveTenant;
 
+    // Sanctum refuses a signed-out POST with no XSRF cookie (419). This page
+    // is often the first one a browser opens -- a link from an email, or a
+    // bookmark -- so nothing has fetched the cookie yet. Until 2026-10-09 it
+    // did not ask, and every reset and account activation opened from an
+    // email failed with "Reset failed." The login and SMS forms always did.
+    await prepareCsrfCookie();
     await axios.post(
       "/api/v1/auth/password/forgot",
       { email: data.email, tenant: effectiveTenant },
@@ -177,15 +185,14 @@ export function ForgotForm() {
           >
             {(control) => (
               <div className="flex items-center rounded-md border border-input focus-within:ring-2 focus-within:ring-ring">
+                <TenantAddressAffix side="prefix" bordered />
                 <Input
                   {...register("tenant")}
                   {...control}
                   placeholder="acme"
                   className="border-0 focus-visible:ring-0"
                 />
-                <span className="px-3 text-sm text-muted-foreground border-l">
-                  .ethr.et
-                </span>
+                <TenantAddressAffix side="suffix" bordered />
               </div>
             )}
           </FormField>

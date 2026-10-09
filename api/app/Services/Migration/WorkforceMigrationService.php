@@ -39,8 +39,12 @@ final class WorkforceMigrationService
      */
     public function stageFromDevice(Device $device, ?User $creator = null): MigrationBatch
     {
-        $batch = $this->createBatch($device->tenant_id, 'device', 'device:'.$device->id, $creator);
+        // Read the device before creating the batch. A read that fails throws
+        // DeviceRequestFailed, and a batch created first would be left behind
+        // empty — which is what a down device used to produce, as a batch
+        // indistinguishable from a device with nobody enrolled.
         $enrollments = $this->devices->adapter($device)->pullEnrollments($device);
+        $batch = $this->createBatch($device->tenant_id, 'device', 'device:'.$device->id, $creator);
 
         foreach ($enrollments as $enrollment) {
             $userId = $enrollment['device_user_id'];

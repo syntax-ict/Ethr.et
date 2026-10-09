@@ -217,6 +217,8 @@ The same reasoning defers renaming the three unrelated meanings of "migration" a
 
 **Reverse it if:** a link checker runs in CI (Phase 2/3). With prose references mechanically verifiable, the move becomes a safe, checkable change rather than a hopeful one. That is the right time to do it.
 
+**2026-10-01 — partly reversed.** The link checker has run in CI since 2026-09-16. Five superseded hosting-migration documents moved to `docs/archive/migration/` (audit D12); markdown links were fixed against the gate and backticked paths by a scripted sweep in the same change. Prose references are still not mechanically checked, so documents that code or scripts cite by path stayed where they are — `docs/archive/migration/README.md` lists them.
+
 ---
 
 ## D-003 — Documentation stopped claiming a CI that does not exist
@@ -283,6 +285,7 @@ Deleting it was the obvious move. Rejected: agent tooling looks for `AGENTS.md` 
 |---|---|
 | `audit_log` immutability enforced by database triggers, and the cost accepted | [`../AUDIT_LOG_INTEGRITY_DECISION.md`](../AUDIT_LOG_INTEGRITY_DECISION.md) |
 | Target Ethio Telecom shared hosting; Options A, C, D withdrawn ("NO VPS", 2026-08-29) | [`../MIGRATION_STATE.md`](../MIGRATION_STATE.md) decision table |
-| Redis, Horizon, Reverb and MinIO removed for the shared-hosting target | [`../SHARED_HOSTING_AUDIT.md`](../SHARED_HOSTING_AUDIT.md) §B |
+| Redis, Horizon, Reverb and MinIO removed for the shared-hosting target | [`../archive/migration/SHARED_HOSTING_AUDIT.md`](../archive/migration/SHARED_HOSTING_AUDIT.md) §B |
 | Git ban retired — Git *is* in use on this project | `0997faa`, and [`../CLAUDE.md`](../CLAUDE.md) |
-| Plan-tier gating enforces seat caps only; the `Plan.features` gate deferred | [`../ENTERPRISE_ROADMAP.md`](../ENTERPRISE_ROADMAP.md) row 2.2 |
+| Plan-tier gating: seat caps (`PlanLimitService`) and the `Plan.features` gate (`RequiresPlanFeature`, twelve routes), which was recorded here as deferred and was built later. The UI reads `plan_features` since 2026-10-07 (audit N66) | [`../ENTERPRISE_ROADMAP.md`](../ENTERPRISE_ROADMAP.md) row 2.2 |
+| Tenancy without wildcard subdomains: `ethr.et/{slug}`, custom domains, `X-Tenant` on the apex (owner, 2026-10-06) | [`OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md) |

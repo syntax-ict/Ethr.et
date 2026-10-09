@@ -62,6 +62,8 @@ describe("PayrollEntry calculation_log type", () => {
       public_id: "01HXYZ",
       employee_public_id: "01HABC",
       basic_salary_cents: 1000000,
+      allowances: null,
+      deductions: null,
       gross_cents: 1015000,
       income_tax_cents: 253750,
       employee_pension_cents: 70000,

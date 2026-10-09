@@ -6,8 +6,6 @@ namespace App\Services\Attendance;
 
 use App\Enums\AttendanceStatus;
 use App\Models\AttendanceRecord;
-use App\Models\Employee;
-use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 final class AttendanceIntelligence
@@ -21,63 +19,6 @@ final class AttendanceIntelligence
     public function __construct(
         private readonly ShiftMatcher $shiftMatcher,
     ) {}
-
-    public function detectLate(AttendanceRecord $record): bool
-    {
-        if (! $record->shift || ! $record->check_in) {
-            return false;
-        }
-
-        $shiftStart = $record->check_in->copy()->setTimeFromTimeString($record->shift->start_time);
-        $graceEnd = $shiftStart->copy()->addMinutes($record->shift->grace_minutes);
-
-        return $record->check_in->gt($graceEnd);
-    }
-
-    public function detectEarlyLeave(AttendanceRecord $record): bool
-    {
-        if (! $record->shift || ! $record->check_out) {
-            return false;
-        }
-
-        $shiftEnd = $record->check_out->copy()->setTimeFromTimeString($record->shift->end_time);
-
-        if ($record->shift->crosses_midnight && $shiftEnd->lte($record->check_in)) {
-            $shiftEnd->addDay();
-        }
-
-        $earlyThreshold = $shiftEnd->copy()->subMinutes($record->shift->early_departure_minutes);
-
-        return $record->check_out->lt($earlyThreshold);
-    }
-
-    public function calculateOvertime(AttendanceRecord $record): int
-    {
-        return $record->overtimeMinutes();
-    }
-
-    public function detectMissingPunch(Employee $employee, Carbon $date): ?string
-    {
-        $record = AttendanceRecord::query()
-            ->where('employee_id', $employee->id)
-            ->whereDate('date', $date->format('Y-m-d'))
-            ->latest('check_in')
-            ->first();
-
-        if (! $record) {
-            return null;
-        }
-
-        if ($record->check_in && ! $record->check_out) {
-            return 'missing_check_out';
-        }
-
-        if (! $record->check_in && $record->check_out) {
-            return 'missing_check_in';
-        }
-
-        return null;
-    }
 
     /**
      * The anomaly keys flagged for one record, in detection order.

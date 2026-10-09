@@ -1,0 +1,284 @@
+name: ETHR scheduler (external cron caller)
+
+# WHY THIS WORKFLOW EXISTS.
+#
+# G0-D is FAILED: the Ethio Telecom Bronze subscription exposes no Scheduled
+# Tasks / Task Scheduler / Cron Jobs section at all (owner-read 2026-09-18), and
+# SSH is Forbidden. So nothing *on the host* can start `schedule:run` or
+# `queue:work`, and without a runner the entire asynchronous half of ETHR is
+# inert — no payroll completion notices, no invoicing, no backups, no leave
+# accrual, no digests — while every HTTP request still returns 200. Silently.
+#
+# `CronRunController` (b61cb05, 2026-09-22) moved the recurring half behind two
+# authenticated HTTP endpoints so the timer can live anywhere. Choosing WHERE was
+# open question Q6.
+#
+# Q6 ANSWERED 2026-09-27 — owner decision: GitHub Actions scheduled workflows.
+# See docs/deployment/shared-hosting/cron-caller.md.
+#
+# WHAT THIS IS NOT. It is not a new cron architecture. It calls the two endpoints
+# that already exist, with the token mechanism that already exists, and adds
+# nothing to the application. If you are changing the cron design, change
+# CronRunController and cron-caller.md — not this file.
+
+on:
+  schedule:
+    # Every 5 minutes. That is GitHub's floor for `schedule`, not a preference:
+    # finer intervals are silently rounded up. Laravel's scheduler is idempotent
+    # about "was this due since last checked", so a coarse tick delays work
+    # rather than dropping it — but read the CADENCE note in cron-caller.md
+    # before assuming 5 minutes is good enough for a given job.
+    - cron: "*/5 * * * *"
+  # So an operator can prove the wiring works without waiting for a tick, and so
+  # a missed window can be driven manually.
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Which endpoint to call"
+        required: false
+        default: both
+        type: choice
+        options: [both, schedule, queue]
+
+# One run at a time. The application ALSO refuses overlap (a Cache::lock, 409),
+# so this is belt and braces — but without it a slow queue drain plus a 5-minute
+# tick produces a pile of runs that all 409, which is noise rather than signal.
+#
+# cancel-in-progress is FALSE, deliberately, and it is the opposite of the
+# setting on gates.yml. Cancelling a half-finished `queue:work` would kill the
+# HTTP request mid-drain; jobs already reserved would sit until `retry_after`
+# (1200s) reaped them. Queue a new run behind the old one instead.
+concurrency:
+  group: ethr-scheduler
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tick:
+    name: Drive schedule:run and queue:work
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Environment, not bare repository secrets, so the URL and token can differ
+    # per deployment and so GitHub records who approved access to them. Create it
+    # under Settings -> Environments; cron-caller.md lists the two values.
+    environment: production
+
+    steps:
+      - name: Call the ETHR cron endpoints
+        env:
+          # MAPPING — read this before renaming anything.
+          #
+          #   GitHub secret      ETHR_CRON_TOKEN
+          #   host .env          CRON_TOKEN          <- the application's name
+          #   request header     X-Cron-Token
+          #
+          # They must hold the SAME value. `CRON_TOKEN` is the established
+          # application name (config/cron.php, VerifyCronToken) and is not
+          # changed to suit this caller.
+          #
+          # `SCHEDULER_HTTP_TOKEN` is a DEAD name. It appeared in
+          # shared-hosting/ENVIRONMENT.md and DEPLOYMENT.md §6 as a placeholder
+          # for an endpoint that had not been built; the endpoint shipped on
+          # 2026-09-22 reading CRON_TOKEN, and nothing has ever read
+          # SCHEDULER_HTTP_TOKEN. Do not set it, and do not "restore" it — see
+          # that file's annotation.
+          ETHR_CRON_TOKEN: ${{ secrets.ETHR_CRON_TOKEN }}
+          # e.g. https://app.example.et — no trailing slash, no path.
+          # A secret rather than a variable because it identifies the account.
+          ETHR_CRON_BASE_URL: ${{ secrets.ETHR_CRON_BASE_URL }}
+          TASK: ${{ inputs.task || 'both' }}
+        run: |
+          set -euo pipefail
+
+          # NEVER `set -x` in this job. It would echo the curl invocation, and
+          # with it the token. The token is passed as a HEADER and never in the
+          # URL for the same reason: a query string reaches access logs, Referer
+          # headers and error pages. VerifyCronToken accepts `?token=` because
+          # Plesk's fetch-a-URL task cannot set headers — this caller can, so it
+          # does.
+
+          # THREE states, not two, and conflating the first two is a defect I shipped
+          # on 2026-09-27 and am fixing on 2026-09-28 before it can bite.
+          #
+          # The original guard exited 1 whenever either secret was missing. That is
+          # right for a deployment that is supposed to be live — but the moment this
+          # workflow reaches the DEFAULT BRANCH, the 5-minute schedule starts firing,
+          # and until the owner creates the secrets every single run fails. That is
+          # ~288 failed runs a day, each notifying the repository owner, before ETHR
+          # is even deployed.
+          #
+          # This repository already records where that ends: "a gate that is
+          # permanently red stops being read" (scripts/gates.sh, on why `security` is
+          # outside the sweep). A scheduler whose failures are ignored by the time it
+          # matters is worse than one that is honestly dormant.
+          #
+          #   neither secret set   -> NOT SET UP YET. Skip, exit 0, say so loudly.
+          #                           Unambiguous: nobody half-configures nothing.
+          #   exactly one set      -> MISCONFIGURED. Fail. This is the typo case — a
+          #                           renamed secret, a secret on the repo instead of
+          #                           the environment — and it must not skip, because
+          #                           skipping is how a broken scheduler looks healthy.
+          #   both set             -> run, with every check below applying in full.
+          #
+          # A manual `workflow_dispatch` NEVER skips: someone clicked Run and a silent
+          # no-op would be the wrong answer to that.
+          have_token=0; have_url=0
+          [ -n "${ETHR_CRON_TOKEN:-}" ] && have_token=1
+          [ -n "${ETHR_CRON_BASE_URL:-}" ] && have_url=1
+
+          if [ "$have_token" -eq 0 ] && [ "$have_url" -eq 0 ]; then
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              echo "::warning::ETHR scheduler is DORMANT — neither ETHR_CRON_TOKEN nor"\
+                   "ETHR_CRON_BASE_URL is set, so ETHR is not being driven. This is the"\
+                   "expected state before deployment. Nothing was called."
+              {
+                echo "### ETHR scheduler: DORMANT"
+                echo
+                echo "Neither secret is configured, so nothing was called. **This is not a"
+                echo "failure** — it is the expected state until ETHR is deployed."
+                echo
+                echo "To activate: add \`ETHR_CRON_TOKEN\` and \`ETHR_CRON_BASE_URL\` to the"
+                echo "\`production\` environment, then re-run this workflow manually."
+                echo
+                echo "Until a tick is observed, the asynchronous half of ETHR is inert —"
+                echo "see \`docs/deployment/CUTOVER-CHECKLIST.md\`, gate **Q6-x**."
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            echo "::error::Neither ETHR_CRON_TOKEN nor ETHR_CRON_BASE_URL is set, and this"\
+                 "was a manual run. Add both to the 'production' environment first."
+            exit 1
+          fi
+
+          if [ "$have_token" -eq 0 ] || [ "$have_url" -eq 0 ]; then
+            echo "::error::PARTIALLY CONFIGURED, which is worse than not configured."\
+                 "ETHR_CRON_TOKEN is $([ "$have_token" -eq 1 ] && echo set || echo MISSING) and"\
+                 "ETHR_CRON_BASE_URL is $([ "$have_url" -eq 1 ] && echo set || echo MISSING)."\
+                 "Check the names and that they are on the 'production' ENVIRONMENT, not the"\
+                 "repository. See docs/deployment/shared-hosting/cron-caller.md."
+            exit 1
+          fi
+
+          # A short token is refused by the application (404 + a log line), which
+          # would present here as an indistinguishable 404. Catch it locally so
+          # the error names the real cause.
+          if [ "${#ETHR_CRON_TOKEN}" -lt 32 ]; then
+            echo "::error::ETHR_CRON_TOKEN is ${#ETHR_CRON_TOKEN} characters; the application"\
+                 "requires at least 32 (config/cron.php min_token_length) and returns 404"\
+                 "below that. Regenerate: php -r \"echo bin2hex(random_bytes(32));\""
+            exit 1
+          fi
+
+          call() {
+            task="$1"
+            url="${ETHR_CRON_BASE_URL%/}/api/v1/cron/${task}"
+
+            # --max-time 90: the queue endpoint runs up to CRON_QUEUE_MAX_SECONDS
+            # (50s by default) server-side, plus connect and TLS. Generous enough
+            # not to sever a live drain, tight enough to fail inside the job's
+            # 10-minute budget.
+            #
+            # No --retry. A retry after a timeout cannot know whether the first
+            # request is still draining, and the application's lock would 409 the
+            # second one anyway. The next tick is the retry.
+            #
+            # -sS: quiet progress, keep errors. Body and status captured
+            # separately so the body can be inspected without parsing it out of
+            # a combined stream.
+            body_file="$(mktemp)"
+            code="$(curl -sS -o "$body_file" -w '%{http_code}' \
+                      --max-time 90 \
+                      --connect-timeout 15 \
+                      -X POST \
+                      -H "X-Cron-Token: ${ETHR_CRON_TOKEN}" \
+                      -H 'Accept: application/json' \
+                      "$url" || echo "000")"
+
+            body="$(cat "$body_file")"
+            rm -f "$body_file"
+
+            # The body is safe to print: CronRunController returns
+            # {task, status, duration_ms, exit_code, output} and never echoes the
+            # token. `output` is capped at 2000 chars by its own tail().
+            echo "--- ${task}: HTTP ${code}"
+            echo "$body"
+
+            case "$code" in
+              200)
+                # A 200 IS NOT SUCCESS ON ITS OWN. runExclusively() returns
+                # status "failed" with HTTP 200 when the artisan exit code is
+                # non-zero — so a workflow that checked only the HTTP code would
+                # report green while schedule:run was failing every five minutes.
+                # This is the single most important line in the file.
+                if printf '%s' "$body" | grep -q '"status":"failed"'; then
+                  echo "::error::${task} ran and FAILED (HTTP 200, status=failed)."\
+                       "The artisan exit code was non-zero; the 'output' field above is the tail"\
+                       "of its output. Check the application log on the host."
+                  return 1
+                fi
+                if ! printf '%s' "$body" | grep -q '"status":"ok"'; then
+                  echo "::error::${task} returned HTTP 200 with an unrecognised body."\
+                       "Expected status ok or failed. Treating as a failure rather than guessing."
+                  return 1
+                fi
+                echo "::notice::${task}: ok"
+                return 0
+                ;;
+              409)
+                # Expected and benign: the previous run still holds the
+                # Cache::lock. The application prevents the duplicate execution,
+                # which is exactly what it is for, so this is not an error.
+                echo "::notice::${task}: already running (409) — previous tick still draining."\
+                     "Not an error; the application's lock did its job."
+                return 0
+                ;;
+              404)
+                # Fail-closed by design, and deliberately indistinguishable
+                # between the three causes so the endpoint does not confirm
+                # itself to a prober.
+                echo "::error::${task} returned 404. The routes are registered only when"\
+                     "CRON_TOKEN is set and at least 32 characters, and the token must match."\
+                     "A wrong token, an unset token and a too-short token all return 404 —"\
+                     "read the application log on the host to tell them apart."
+                return 1
+                ;;
+              429)
+                echo "::error::${task} was rate limited (429). The 'cron' limiter is 10/min per"\
+                     "IP and counts rejected requests. Another caller is sharing this runner's"\
+                     "egress IP, or something is polling these endpoints."
+                return 1
+                ;;
+              000)
+                echo "::error::${task}: curl failed — no HTTP response (DNS, TLS, connect or the"\
+                     "90s timeout). The host may be down, or a drain may have exceeded the"\
+                     "window. Nothing was confirmed either way; the next tick will retry."
+                return 1
+                ;;
+              *)
+                echo "::error::${task} returned unexpected HTTP ${code}."
+                return 1
+                ;;
+            esac
+          }
+
+          # BOTH endpoints, and the order matters: schedule:run enqueues, then
+          # queue:work drains. Eleven of the fourteen entries in
+          # routes/console.php do nothing but insert rows into `jobs`, and all 16
+          # classes in app/Jobs are ShouldQueue — so a caller wired only to
+          # /cron/schedule fills the jobs table and drains nothing, while looking
+          # perfectly healthy.
+          rc=0
+          case "$TASK" in
+            both)     call schedule || rc=1; call queue || rc=1 ;;
+            schedule) call schedule || rc=1 ;;
+            queue)    call queue    || rc=1 ;;
+            *)        echo "::error::unknown task '$TASK'"; exit 1 ;;
+          esac
+
+          # Both are attempted even if the first fails: a broken scheduler must
+          # not stop the queue draining work that is already enqueued.
+          exit "$rc"

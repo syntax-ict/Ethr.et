@@ -55,7 +55,8 @@ export function PendingApprovalsPanel() {
       icon: CalendarDays,
       label: t("dashboard.leave_requests", "Leave Requests"),
       count: leaveCount,
-      href: "/approvals?type=leave",
+      // The approvals page has no type filter; `?type=leave` was ignored.
+      href: "/approvals",
       tone: "warning" as const,
     },
     {

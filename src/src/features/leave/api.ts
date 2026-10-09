@@ -1,14 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { fetchAllPages } from "@/api/fetch-all-pages";
+import type { components } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 
-export interface LeaveType {
-  public_id: string;
-  name: string;
-  code: string;
-  default_days: number;
-  is_active: boolean;
-}
+export type LeaveType = components["schemas"]["LeaveTypeResource"];
+export type AccrualType = components["schemas"]["AccrualType"];
+export type LeaveTypePayload = components["schemas"]["StoreLeaveTypeRequest"];
+export type LeaveTypeUpdate = components["schemas"]["UpdateLeaveTypeRequest"];
 
 export interface LeaveBalance {
   leave_type: { name: string; code: string; public_id: string } | string;
@@ -19,6 +18,13 @@ export interface LeaveBalance {
 
 export interface LeaveRequest {
   public_id: string;
+  /**
+   * Who asked. `/leave/team` loads it (LeaveRequestResource nests an
+   * EmployeeResource); `/leave/my` does not, since that list is the caller's
+   * own. The team list and calendar used to read an `employee_name` the API
+   * never sent, so every row said "—" and every calendar badge "?".
+   */
+  employee?: { public_id: string; name: string } | null;
   leave_type: { name: string; code: string; public_id: string } | string;
   start_date: string;
   end_date: string;
@@ -61,14 +67,61 @@ export function useTeamLeaveRequests(params?: { page?: number }) {
   });
 }
 
-export function useLeaveTypes() {
-  return useQuery<PaginatedResponse<LeaveType>>({
-    queryKey: ["leave-types"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/leave-types");
-      return data;
-    },
+/**
+ * The leave types an employee may request: active ones only, every page.
+ * The request form used `useLeaveTypes`, which read the first 25 types and
+ * included deactivated ones the API now refuses.
+ */
+export function useRequestableLeaveTypes() {
+  return useQuery<LeaveType[]>({
+    queryKey: ["leave-types", "requestable"],
+    queryFn: () =>
+      fetchAllPages<LeaveType>("/leave-types", { "filter[is_active]": 1 }),
     staleTime: 30 * 60 * 1000,
+  });
+}
+
+/** Every leave type, active or not, for the management page. */
+export function useAllLeaveTypes() {
+  return useQuery<LeaveType[]>({
+    queryKey: ["leave-types", "all"],
+    queryFn: () => fetchAllPages<LeaveType>("/leave-types"),
+  });
+}
+
+function useLeaveTypeMutation<TVars, TData>(
+  mutationFn: (vars: TVars) => Promise<TData>,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave-types"] });
+    },
+  });
+}
+
+export function useCreateLeaveType() {
+  return useLeaveTypeMutation(
+    async (payload: LeaveTypePayload): Promise<LeaveType> =>
+      (await apiClient.post("/leave-types", payload)).data,
+  );
+}
+
+export function useUpdateLeaveType() {
+  return useLeaveTypeMutation(
+    async (vars: {
+      publicId: string;
+      payload: LeaveTypeUpdate;
+    }): Promise<LeaveType> =>
+      (await apiClient.put(`/leave-types/${vars.publicId}`, vars.payload)).data,
+  );
+}
+
+export function useDeleteLeaveType() {
+  return useLeaveTypeMutation(async (publicId: string): Promise<void> => {
+    await apiClient.delete(`/leave-types/${publicId}`);
   });
 }
 
@@ -101,6 +154,8 @@ export function useApproveLeave() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave"] });
+      // The dashboard's Approvals badge counts pending requests.
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }
@@ -123,6 +178,7 @@ export function useRejectLeave() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }
@@ -138,17 +194,6 @@ export function useCancelLeave() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave"] });
     },
-  });
-}
-
-export function useLeaveRequest(publicId: string) {
-  return useQuery<LeaveRequest>({
-    queryKey: ["leave", "request", publicId],
-    queryFn: async () => {
-      const { data } = await apiClient.get(`/leave/${publicId}`);
-      return data;
-    },
-    enabled: !!publicId,
   });
 }
 

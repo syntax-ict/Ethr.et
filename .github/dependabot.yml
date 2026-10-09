@@ -44,8 +44,24 @@ updates:
         patterns: ["next", "@next/*", "eslint-config-next"]
       react:
         patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      # Vitest and its coverage plugin must be on the same version, majors
+      # included, so they get a group of their own ahead of dev-dependencies.
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
+      # Radix packages share internals (@radix-ui/primitive, react-primitive,
+      # popper, focus-scope, …). Bumped one at a time, each newer package
+      # nests its own copies beside the older shared ones: the 2.1.24
+      # dropdown-menu bump (#12) carried 23, so the public header would have
+      # shipped two copies of each. Together they deduplicate. 2026-10-04.
+      radix:
+        patterns: ["@radix-ui/*"]
+      # Minor and patch only. A major in this group once bundled five breaking
+      # upgrades with eleven safe ones, and one install conflict (TypeScript 7)
+      # turned every gate red without testing any of the others. Majors now
+      # arrive one PR each. Measured 2026-10-03; see the ignores below.
       dev-dependencies:
         dependency-type: development
+        update-types: [minor, patch]
     ignore:
       # src/package.json carries a hand-maintained `overrides` block for
       # postcss, sharp and nanoid with a documented rationale. Let Dependabot
@@ -53,6 +69,23 @@ updates:
       # fighting it every week.
       - dependency-name: postcss
         update-types: [version-update:semver-patch]
+      # Majors held on 2026-10-03, each for a measured reason. Lift one when
+      # its reason no longer holds.
+      #   typescript 7: openapi-typescript (generates src/src/api/generated.ts)
+      #                 peers typescript ^5.x, so `npm ci` fails to resolve.
+      #   eslint 10:    the eslint-plugin-react bundled by eslint-config-next
+      #                 calls context.getFilename(), which ESLint 10 removed.
+      #   msw 3:        84 of 151 test files fail; a migration, not a bump.
+      #   jsdom 30:     Vitest 5's URL.createObjectURL shim reads jsdom 29's
+      #                 Blob internals; three file-upload tests fail.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      - dependency-name: eslint
+        update-types: [version-update:semver-major]
+      - dependency-name: msw
+        update-types: [version-update:semver-major]
+      - dependency-name: jsdom
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /

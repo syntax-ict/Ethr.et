@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { branchesApi } from "@/features/organization/api";
 import Link from "next/link";
 import {
   Fingerprint,
@@ -49,58 +50,33 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
   DeviceEnrollmentsDialog,
   ImportHistoryDialog,
 } from "@/features/devices/components/device-workforce-dialogs";
-import { apiClient } from "@/api/client";
+import {
+  useCreateDevice,
+  useDeleteDevice,
+  useDevices,
+  usePullDeviceEvents,
+  useSyncAllDevices,
+  useTestDeviceConnection,
+  useUpdateDevice,
+  type Device,
+} from "@/features/devices/api";
+import {
+  buildDevicePayload,
+  EMPTY_DEVICE_FORM,
+  isIpAdapter,
+  type DeviceFormData,
+} from "@/features/devices/payload";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
-
-interface Device {
-  public_id: string;
-  name: string;
-  location_description: string | null;
-  serial_number: string | null;
-  adapter_type: string;
-  status: string;
-  auto_sync: boolean;
-  sync_interval_minutes: number;
-  last_sync_at: string | null;
-  branch?: { public_id: string; name: string } | null;
-  branch_public_id: string | null;
-  attendance_records_count?: number;
-  sync_logs_count?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-interface DeviceFormData {
-  name: string;
-  adapter_type: string;
-  serial_number: string;
-  branch_public_id: string;
-  ip: string;
-  port: string;
-  username: string;
-  password: string;
-  api_key: string;
-}
-
-const EMPTY_FORM: DeviceFormData = {
-  name: "",
-  adapter_type: "mock",
-  serial_number: "",
-  branch_public_id: "",
-  ip: "",
-  port: "80",
-  username: "",
-  password: "",
-  api_key: "",
-};
+import { apiErrorMessage } from "@/lib/api/error-message";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { cn } from "@/lib/utils";
 
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
@@ -109,138 +85,110 @@ const ADAPTER_LABELS: Record<string, string> = {
   mock: "Mock (Simulator)",
 };
 
-function buildPayload(form: DeviceFormData) {
-  const isMock = form.adapter_type === "mock";
-  return {
-    name: form.name,
-    adapter_type: form.adapter_type,
-    serial_number: form.serial_number || null,
-    branch_public_id: form.branch_public_id,
-    connection_config: {
-      ip: isMock ? "127.0.0.1" : form.ip,
-      port: isMock ? 0 : parseInt(form.port, 10) || 80,
-      username: form.username || null,
-      password: form.password || null,
-      api_key: form.api_key || null,
-    },
-  };
-}
-
 export default function DevicesPage() {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [editDevice, setEditDevice] = useState<Device | null>(null);
   const [deleteDevice, setDeleteDevice] = useState<Device | null>(null);
   const [discoverDevice, setDiscoverDevice] = useState<Device | null>(null);
   const [historyDevice, setHistoryDevice] = useState<Device | null>(null);
-  const [form, setForm] = useState<DeviceFormData>({ ...EMPTY_FORM });
+  const [form, setForm] = useState<DeviceFormData>({ ...EMPTY_DEVICE_FORM });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["devices", search, statusFilter],
-    queryFn: async () => {
-      const params: Record<string, string> = {};
-      if (search) params.search = search;
-      if (statusFilter !== "all") params["filter[status]"] = statusFilter;
-      const { data } = await apiClient.get("/devices", { params });
-      return data;
-    },
+  const { data, isLoading } = useDevices({
+    search: search || undefined,
+    status: statusFilter === "all" ? undefined : statusFilter,
   });
 
-  const { data: branches } = useQuery({
-    queryKey: ["org", "branches"],
-    queryFn: async () => (await apiClient.get("/organization/branches")).data,
-  });
+  const { data: branches } = branchesApi.useList();
 
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/devices", buildPayload(form));
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["devices"] });
-      toast.success(t("devices_page.registered"));
-      setCreateOpen(false);
-      setForm({ ...EMPTY_FORM });
-    },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { detail?: string } } })
-        ?.response?.data?.detail;
-      toast.error(msg || t("devices_page.add_failed"));
-    },
-  });
+  const createMutation = useCreateDevice();
+  const updateMutation = useUpdateDevice();
+  const deleteMutation = useDeleteDevice();
+  const pullMutation = usePullDeviceEvents();
+  const syncAllMutation = useSyncAllDevices();
+  const testMutation = useTestDeviceConnection();
 
-  const updateMutation = useMutation({
-    mutationFn: async () => {
-      if (!editDevice) return;
-      const { data } = await apiClient.put(
-        `/devices/${editDevice.public_id}`,
-        buildPayload(form),
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["devices"] });
-      toast.success(t("devices_page.updated"));
-      setEditDevice(null);
-    },
-    onError: () => toast.error(t("devices_page.update_failed")),
-  });
+  function submitCreate() {
+    createMutation.mutate(buildDevicePayload(form, "create"), {
+      onSuccess: () => {
+        toast.success(t("devices_page.registered"));
+        setCreateOpen(false);
+        setForm({ ...EMPTY_DEVICE_FORM });
+      },
+      onError: (err: unknown) => {
+        toast.error(apiErrorMessage(err, t("devices_page.add_failed")));
+      },
+    });
+  }
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiClient.delete(`/devices/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["devices"] });
-      toast.success(t("devices_page.deleted"));
-      setDeleteDevice(null);
-    },
-    onError: () => toast.error(t("devices_page.delete_failed")),
-  });
+  function submitUpdate() {
+    if (!editDevice) return;
+    updateMutation.mutate(
+      {
+        publicId: editDevice.public_id,
+        payload: buildDevicePayload(form, "edit"),
+      },
+      {
+        onSuccess: () => {
+          toast.success(t("devices_page.updated"));
+          setEditDevice(null);
+        },
+        onError: (err: unknown) =>
+          toast.error(apiErrorMessage(err, t("devices_page.update_failed"))),
+      },
+    );
+  }
 
-  const pullMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await apiClient.post(`/devices/${id}/pull`);
-      return data;
-    },
-    onSuccess: () => toast.success(t("devices_page.pull_initiated")),
-    onError: () => toast.error(t("devices_page.pull_failed")),
-  });
+  function confirmDelete(id: string) {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success(t("devices_page.deleted"));
+        setDeleteDevice(null);
+      },
+      onError: () => toast.error(t("devices_page.delete_failed")),
+    });
+  }
 
-  const syncAllMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/devices/sync-all");
-      return data;
-    },
-    onSuccess: (data) => {
-      const d = data as { dispatched?: number };
-      toast.success(
-        `${t("devices_page.sync_dispatched_prefix")} ${d.dispatched ?? 0} ${t("devices_page.device_s")}`,
-      );
-      queryClient.invalidateQueries({ queryKey: ["devices"] });
-    },
-    onError: () => toast.error(t("devices_page.bulk_sync_failed")),
-  });
+  function pull(id: string) {
+    pullMutation.mutate(id, {
+      onSuccess: () => toast.success(t("devices_page.pull_initiated")),
+      onError: () => toast.error(t("devices_page.pull_failed")),
+    });
+  }
 
-  const testMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await apiClient.get(`/devices/${id}/status`);
-      return data;
-    },
-    onSuccess: (data) => {
-      const status = (data as { status?: string })?.status;
-      if (status === "online") {
-        toast.success(t("devices_page.online_responding"));
-      } else {
-        toast.error(`${t("devices_page.device_is")} ${status}`);
-      }
-      queryClient.invalidateQueries({ queryKey: ["devices"] });
-    },
-    onError: () => toast.error(t("devices_page.test_failed")),
-  });
+  // The page is open to hr_admin, but the seeded HR role holds only
+  // device.viewAny and device.view; create, update (which also covers pull,
+  // sync all and history import) and delete are tenant-admin abilities. Every
+  // one of these buttons used to be shown and then refused with a 403 (N54).
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission("device.create");
+  const canUpdate = hasPermission("device.update");
+  const canDelete = hasPermission("device.delete");
+
+  function syncAll() {
+    syncAllMutation.mutate(undefined, {
+      onSuccess: (d) =>
+        toast.success(
+          `${t("devices_page.sync_dispatched_prefix")} ${d.dispatched} ${t("devices_page.device_s")}`,
+        ),
+      onError: () => toast.error(t("devices_page.bulk_sync_failed")),
+    });
+  }
+
+  function testConnection(id: string) {
+    testMutation.mutate(id, {
+      onSuccess: ({ status }) => {
+        if (status === "online") {
+          toast.success(t("devices_page.online_responding"));
+        } else {
+          toast.error(`${t("devices_page.device_is")} ${status}`);
+        }
+      },
+      onError: () => toast.error(t("devices_page.test_failed")),
+    });
+  }
 
   function openEdit(device: Device) {
     setForm({
@@ -248,8 +196,10 @@ export default function DevicesPage() {
       adapter_type: device.adapter_type,
       serial_number: device.serial_number ?? "",
       branch_public_id: device.branch_public_id ?? "",
+      // Blank, not "80": the stored port is not shown, and a pre-filled
+      // default would silently replace it whenever only the IP is changed.
       ip: "",
-      port: "80",
+      port: "",
       username: "",
       password: "",
       api_key: "",
@@ -262,7 +212,7 @@ export default function DevicesPage() {
   const isMockAdapter = form.adapter_type === "mock";
 
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["viewDevices"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("devices_page.title")}
@@ -275,27 +225,32 @@ export default function DevicesPage() {
                   {t("devices_page.health_dashboard")}
                 </Link>
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => syncAllMutation.mutate()}
-                disabled={syncAllMutation.isPending || devices.length === 0}
-              >
-                {syncAllMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                )}
-                {t("devices_page.sync_all")}
-              </Button>
-              <Button
-                onClick={() => {
-                  setForm({ ...EMPTY_FORM });
-                  setCreateOpen(true);
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" /> {t("devices_page.add_device")}
-              </Button>
+              {canUpdate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={syncAll}
+                  disabled={syncAllMutation.isPending || devices.length === 0}
+                >
+                  {syncAllMutation.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  {t("devices_page.sync_all")}
+                </Button>
+              )}
+              {canCreate && (
+                <Button
+                  onClick={() => {
+                    setForm({ ...EMPTY_DEVICE_FORM });
+                    setCreateOpen(true);
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />{" "}
+                  {t("devices_page.add_device")}
+                </Button>
+              )}
             </div>
           }
         />
@@ -342,14 +297,17 @@ export default function DevicesPage() {
             title={t("devices_page.no_devices")}
             description={t("devices_page.no_devices_desc")}
             action={
-              <Button
-                onClick={() => {
-                  setForm({ ...EMPTY_FORM });
-                  setCreateOpen(true);
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" /> {t("devices_page.add_device")}
-              </Button>
+              canCreate ? (
+                <Button
+                  onClick={() => {
+                    setForm({ ...EMPTY_DEVICE_FORM });
+                    setCreateOpen(true);
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />{" "}
+                  {t("devices_page.add_device")}
+                </Button>
+              ) : undefined
             }
           />
         ) : (
@@ -358,12 +316,14 @@ export default function DevicesPage() {
               <DeviceCard
                 key={d.public_id}
                 device={d}
-                onPull={() => pullMutation.mutate(d.public_id)}
-                onTest={() => testMutation.mutate(d.public_id)}
-                onEdit={() => openEdit(d)}
-                onDelete={() => setDeleteDevice(d)}
+                onPull={canUpdate ? () => pull(d.public_id) : undefined}
+                onTest={() => testConnection(d.public_id)}
+                onEdit={canUpdate ? () => openEdit(d) : undefined}
+                onDelete={canDelete ? () => setDeleteDevice(d) : undefined}
                 onDiscover={() => setDiscoverDevice(d)}
-                onImportHistory={() => setHistoryDevice(d)}
+                onImportHistory={
+                  canUpdate ? () => setHistoryDevice(d) : undefined
+                }
                 pulling={pullMutation.isPending}
                 testing={testMutation.isPending}
               />
@@ -380,9 +340,10 @@ export default function DevicesPage() {
           setForm={setForm}
           branches={branches?.data ?? []}
           isMock={isMockAdapter}
+          addressRequired
           onSubmit={(e) => {
             e.preventDefault();
-            createMutation.mutate();
+            submitCreate();
           }}
           isPending={createMutation.isPending}
           submitLabel={t("devices_page.register")}
@@ -399,9 +360,12 @@ export default function DevicesPage() {
           setForm={setForm}
           branches={branches?.data ?? []}
           isMock={isMockAdapter}
+          // A blank address on edit keeps the stored connection — unless the
+          // adapter changed, when the stored settings belong to another vendor.
+          addressRequired={editDevice?.adapter_type !== form.adapter_type}
           onSubmit={(e) => {
             e.preventDefault();
-            updateMutation.mutate();
+            submitUpdate();
           }}
           isPending={updateMutation.isPending}
           submitLabel={t("leave_types_page.save_changes")}
@@ -430,7 +394,7 @@ export default function DevicesPage() {
               <Button
                 variant="destructive"
                 onClick={() =>
-                  deleteDevice && deleteMutation.mutate(deleteDevice.public_id)
+                  deleteDevice && confirmDelete(deleteDevice.public_id)
                 }
                 disabled={deleteMutation.isPending}
               >
@@ -471,12 +435,13 @@ function DeviceCard({
   testing,
 }: {
   device: Device;
-  onPull: () => void;
+  /** Absent when the user may not do it: the item is then not offered. */
+  onPull?: () => void;
   onTest: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   onDiscover: () => void;
-  onImportHistory: () => void;
+  onImportHistory?: () => void;
   pulling: boolean;
   testing: boolean;
 }) {
@@ -542,31 +507,39 @@ function DeviceCard({
                   <Signal className="mr-2 h-4 w-4" />{" "}
                   {t("devices_page.test_connection")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onPull} disabled={pulling}>
-                  <RefreshCw className="mr-2 h-4 w-4" />{" "}
-                  {t("devices_page.pull_records")}
-                </DropdownMenuItem>
+                {onPull && (
+                  <DropdownMenuItem onClick={onPull} disabled={pulling}>
+                    <RefreshCw className="mr-2 h-4 w-4" />{" "}
+                    {t("devices_page.pull_records")}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={onDiscover}>
                   <Users className="mr-2 h-4 w-4" />{" "}
                   {t("devices_page.discover_users", "Discover enrolled users")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onImportHistory}>
-                  <History className="mr-2 h-4 w-4" />{" "}
-                  {t(
-                    "devices_page.import_history",
-                    "Import attendance history",
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onEdit}>
-                  <Pencil className="mr-2 h-4 w-4" /> {t("common.edit")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={onDelete}
-                  className="text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
-                </DropdownMenuItem>
+                {onImportHistory && (
+                  <DropdownMenuItem onClick={onImportHistory}>
+                    <History className="mr-2 h-4 w-4" />{" "}
+                    {t(
+                      "devices_page.import_history",
+                      "Import attendance history",
+                    )}
+                  </DropdownMenuItem>
+                )}
+                {(onEdit || onDelete) && <DropdownMenuSeparator />}
+                {onEdit && (
+                  <DropdownMenuItem onClick={onEdit}>
+                    <Pencil className="mr-2 h-4 w-4" /> {t("common.edit")}
+                  </DropdownMenuItem>
+                )}
+                {onDelete && (
+                  <DropdownMenuItem
+                    onClick={onDelete}
+                    className="text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -605,7 +578,12 @@ function DeviceCard({
           </p>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div
+          className={cn(
+            "mt-3 grid gap-2",
+            onPull ? "grid-cols-2" : "grid-cols-1",
+          )}
+        >
           <Button
             variant="outline"
             size="sm"
@@ -619,19 +597,21 @@ function DeviceCard({
             )}
             {t("devices_page.test")}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onPull}
-            disabled={pulling}
-          >
-            {pulling ? (
-              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-1 h-3 w-3" />
-            )}
-            {t("devices_page.pull")}
-          </Button>
+          {onPull && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPull}
+              disabled={pulling}
+            >
+              {pulling ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1 h-3 w-3" />
+              )}
+              {t("devices_page.pull")}
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -678,6 +658,7 @@ function DeviceFormDialog({
   setForm,
   branches,
   isMock,
+  addressRequired = false,
   onSubmit,
   isPending,
   submitLabel,
@@ -689,6 +670,7 @@ function DeviceFormDialog({
   setForm: React.Dispatch<React.SetStateAction<DeviceFormData>>;
   branches: { public_id: string; name: string }[];
   isMock: boolean;
+  addressRequired?: boolean;
   onSubmit: (e: React.FormEvent) => void;
   isPending: boolean;
   submitLabel: string;
@@ -758,11 +740,16 @@ function DeviceFormDialog({
             </div>
           )}
 
-          {!isMock && (
+          {isIpAdapter(form.adapter_type) && (
             <div className="space-y-4 rounded-lg border p-4">
               <p className="text-xs font-medium text-muted-foreground uppercase">
                 {t("devices_page.connection_settings")}
               </p>
+              {!addressRequired && (
+                <p className="text-sm text-muted-foreground">
+                  {t("devices_page.keep_connection_hint")}
+                </p>
+              )}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
                   <Label htmlFor="ip-address">
@@ -772,7 +759,7 @@ function DeviceFormDialog({
                     id="ip-address"
                     value={form.ip}
                     onChange={(e) => set("ip", e.target.value)}
-                    required
+                    required={addressRequired}
                     placeholder="192.168.1.100"
                     className="mt-1"
                   />
@@ -783,7 +770,7 @@ function DeviceFormDialog({
                     id="port"
                     value={form.port}
                     onChange={(e) => set("port", e.target.value)}
-                    required
+                    required={addressRequired || form.ip.trim() !== ""}
                     type="number"
                     min={1}
                     max={65535}

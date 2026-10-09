@@ -9,12 +9,14 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
 }));
 
-// The page is wrapped in <RoleGate minRole="hr_admin">; grant access directly.
+// The page is wrapped in <RoleGate anyPermission={["manageEmployees"]}>;
+// grant access directly.
 vi.mock("@/lib/hooks/usePermissions", () => ({
   usePermissions: () => ({
     isAtLeast: () => true,
     hasRole: () => true,
     role: "hr_admin",
+    can: { manageEmployees: true },
   }),
 }));
 
@@ -87,5 +89,123 @@ describe("Employee CSV import (S08)", () => {
     fireEvent.click(importBtn);
 
     expect(await screen.findByText("Import Complete")).toBeInTheDocument();
+  });
+
+  it("sends only the rows the preview passed, so one bad row cannot fail the batch", async () => {
+    // ImportCommitRequest validates every row it is sent (`rows.*.name`
+    // required, `rows.*.email` an email). Sending the flagged row too turned
+    // "rows with errors will be skipped" into a 422 for the whole file.
+    let committed: { import_key: string; rows: unknown[] } | undefined;
+    server.use(
+      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
+      http.post(COMMIT_URL, async ({ request }) => {
+        committed = (await request.json()) as typeof committed;
+        return HttpResponse.json(
+          { created: 1, skipped: 0, matched: 0, users_created: 0, errors: [] },
+          { status: 201 },
+        );
+      }),
+    );
+
+    const { container } = renderPage();
+    await screen.findByText("Upload CSV File");
+    uploadCsv(container);
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Import 1 valid row/i }),
+    );
+
+    expect(await screen.findByText("Import Complete")).toBeInTheDocument();
+    expect(committed?.rows).toEqual([PREVIEW.rows[0]]);
+  });
+
+  it("says why a file without its required columns cannot be imported", async () => {
+    server.use(
+      http.post(PREVIEW_URL, () =>
+        HttpResponse.json({
+          headers: ["email"],
+          rows: [],
+          errors: { 0: ["Missing required columns: name, hire_date"] },
+        }),
+      ),
+    );
+
+    const { container } = renderPage();
+    await screen.findByText("Upload CSV File");
+    uploadCsv(container);
+
+    expect(
+      await screen.findByText("Missing required columns: name, hire_date"),
+    ).toBeInTheDocument();
+    // It read "Import -1 valid rows", and was enabled.
+    expect(
+      screen.getByRole("button", { name: /Import 0 valid rows/i }),
+    ).toBeDisabled();
+  });
+
+  it("gives a second file its own import key", async () => {
+    // Rows without an employee_code are keyed by index under the import key,
+    // so reusing the key skipped the second file's rows as already imported.
+    const keys: string[] = [];
+    server.use(
+      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
+      http.post(COMMIT_URL, async ({ request }) => {
+        keys.push(
+          ((await request.json()) as { import_key: string }).import_key,
+        );
+        return HttpResponse.json(
+          { created: 1, skipped: 0, matched: 0, users_created: 0, errors: [] },
+          { status: 201 },
+        );
+      }),
+    );
+
+    const { container } = renderPage();
+    await screen.findByText("Upload CSV File");
+
+    uploadCsv(container);
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Import 1 valid row/i }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Import another file" }),
+    );
+
+    uploadCsv(container);
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Import 1 valid row/i }),
+    );
+    await screen.findByText("Import Complete");
+
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).not.toBe(keys[1]);
+  });
+
+  it("counts rows matched to an existing employee as not created", async () => {
+    server.use(
+      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
+      http.post(COMMIT_URL, () =>
+        HttpResponse.json(
+          { created: 0, skipped: 0, matched: 1, users_created: 0, errors: [] },
+          { status: 201 },
+        ),
+      ),
+    );
+
+    const { container } = renderPage();
+    await screen.findByText("Upload CSV File");
+    uploadCsv(container);
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Import 1 valid row/i }),
+    );
+
+    const skipped = (await screen.findByText("Skipped")).parentElement!;
+    expect(skipped).toHaveTextContent("1");
+  });
+
+  it("reaches the file picker from the keyboard", async () => {
+    renderPage();
+    expect(
+      await screen.findByRole("button", { name: "Browse files" }),
+    ).toBeInTheDocument();
   });
 });

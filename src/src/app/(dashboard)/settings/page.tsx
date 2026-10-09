@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
 import { useSearchParams } from "next/navigation";
 import {
   Save,
@@ -29,451 +30,549 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { OrganizationCard } from "@/features/settings/components/organization-card";
 import { BrandingCard } from "@/features/settings/components/branding-card";
 import {
-  useCalendar,
-  type CalendarSystem,
-} from "@/lib/calendar/calendar-context";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+  useSettings,
+  useUpdateSettings,
+  useUpdateSso,
+  type SettingsUpdate,
+  type SsoSettings,
+  type SsoUpdate,
+  type TenantSettings,
+} from "@/features/settings/api";
+import { type CalendarSystem } from "@/lib/calendar/calendar-context";
 import { toast } from "sonner";
 
 const VALID_TABS = ["general", "branding", "security", "sso"];
 
+type MfaPolicy = NonNullable<SettingsUpdate["mfa_policy"]>;
+
+/** The Security tab's fields, as edited (the timeout is the raw input text). */
+interface SecurityDraft {
+  mfa_policy?: MfaPolicy;
+  session_timeout_minutes?: string;
+}
+
 export default function SettingsPage() {
+  const settingsQuery = useSettings();
+
+  return (
+    <RoleGate anyPermission={["manageSettings"]}>
+      <QueryBoundary
+        query={settingsQuery}
+        loading={
+          <div className="space-y-6">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-10 w-80" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        }
+      >
+        {(data) => <SettingsTabs data={data} />}
+      </QueryBoundary>
+    </RoleGate>
+  );
+}
+
+function SettingsTabs({ data }: { data: TenantSettings }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
-  const { calendar, setCalendar } = useCalendar();
   const searchParams = useSearchParams();
   const defaultTab = useMemo(() => {
     const tab = searchParams.get("tab");
     return tab && VALID_TABS.includes(tab) ? tab : "general";
   }, [searchParams]);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["settings"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/settings");
-      return data;
-    },
-  });
+  const updateSettings = useUpdateSettings();
+  const updateSso = useUpdateSso();
 
-  const [dirty, setDirty] = useState<Record<string, unknown>>({});
+  const [dirty, setDirty] = useState<SecurityDraft>({});
+  // The API names the failing field ("settings.session_timeout_minutes"); a
+  // bare "Failed to save settings" toast left the user to guess which one.
+  const [securityErrors, setSecurityErrors] = useState<FieldErrors>({});
+  const [ssoDirty, setSsoDirty] = useState<SsoUpdate>({});
 
-  const updateSettings = useMutation({
-    mutationFn: async (settings: Record<string, unknown>) => {
-      const { data } = await apiClient.put("/settings", { settings });
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-      setDirty({});
-      toast.success(t("settings.saved", "Settings saved"));
-    },
-    onError: () =>
-      toast.error(t("settings.save_failed", "Failed to save settings")),
-  });
+  function saveSettings() {
+    const settings: SettingsUpdate = {};
+    if (dirty.mfa_policy !== undefined) settings.mfa_policy = dirty.mfa_policy;
+    // An emptied field used to be sent as `parseInt("")` — NaN, which JSON
+    // turns into null. A timeout that is not a positive whole number is not
+    // sent at all.
+    const timeout = Number(dirty.session_timeout_minutes);
+    if (Number.isInteger(timeout) && timeout > 0) {
+      settings.session_timeout_minutes = timeout;
+    }
 
-  const [ssoDirty, setSsoDirty] = useState<Record<string, unknown>>({});
+    setSecurityErrors({});
+    updateSettings.mutate(settings, {
+      onSuccess: () => {
+        setDirty({});
+        toast.success(t("settings.saved", "Settings saved"));
+      },
+      onError: (error) => {
+        setSecurityErrors(fieldErrors(error));
+        toastError(
+          error,
+          t("settings.save_failed", "Failed to save settings"),
+          { skipValidation: true },
+        );
+      },
+    });
+  }
 
-  const updateSso = useMutation({
-    mutationFn: async (ssoSettings: Record<string, unknown>) => {
-      const { data } = await apiClient.put("/settings/sso", ssoSettings);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-      setSsoDirty({});
-      toast.success(t("settings.sso_saved", "SSO settings saved"));
-    },
-    onError: () =>
-      toast.error(t("settings.sso_save_failed", "Failed to save SSO settings")),
-  });
+  /**
+   * The organisation's default calendar, saved as soon as it is chosen. This
+   * select used to call the browser-local `setCalendar()` and nothing else, so
+   * an "organisation" setting changed only the admin's own screen and
+   * `PUT /settings` did not even accept the key (N33). Everyone who has not
+   * chosen their own calendar picks it up from `/auth/me`.
+   */
+  function saveCalendar(calendar: CalendarSystem) {
+    updateSettings.mutate(
+      { calendar },
+      {
+        onSuccess: () => toast.success(t("settings.saved", "Settings saved")),
+        onError: (error) =>
+          toastError(
+            error,
+            t("settings.save_failed", "Failed to save settings"),
+          ),
+      },
+    );
+  }
 
-  function updateField(key: string, value: unknown) {
+  function saveSso() {
+    updateSso.mutate(ssoDirty, {
+      onSuccess: () => {
+        setSsoDirty({});
+        toast.success(t("settings.sso_saved", "SSO settings saved"));
+      },
+      onError: () =>
+        toast.error(
+          t("settings.sso_save_failed", "Failed to save SSO settings"),
+        ),
+    });
+  }
+
+  function updateField<K extends keyof SecurityDraft>(
+    key: K,
+    value: SecurityDraft[K],
+  ) {
     setDirty((p) => ({ ...p, [key]: value }));
   }
 
-  function updateSsoField(key: string, value: unknown) {
+  function updateSsoField<K extends keyof SsoUpdate>(
+    key: K,
+    value: SsoUpdate[K],
+  ) {
     setSsoDirty((p) => ({ ...p, [key]: value }));
   }
 
-  function getSsoValue(key: string, fallback: unknown = ""): unknown {
+  /**
+   * The edited value, else the saved one. `idp_certificate` is write-only —
+   * `GET /settings` never returns it — so it reads back empty until edited.
+   */
+  function getSsoValue<K extends keyof SsoUpdate>(key: K): SsoUpdate[K] {
     if (key in ssoDirty) return ssoDirty[key];
-    return data?.sso?.[key] ?? fallback;
+    return (data.sso as Partial<SsoSettings>)[
+      key as keyof SsoSettings
+    ] as SsoUpdate[K];
   }
 
   function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text);
-  }
-
-  function getValue(key: string, fallback: unknown = ""): string {
-    if (key in dirty) return String(dirty[key]);
-    const parts = key.split(".");
-    let val: unknown = data;
-    for (const p of parts) {
-      val = (val as Record<string, unknown>)?.[p];
-    }
-    return String(val ?? fallback);
-  }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-10 w-80" />
-        <Skeleton className="h-64 w-full" />
-      </div>
+    navigator.clipboard.writeText(text).then(
+      () => toast.success(t("common.copied")),
+      () => toast.error(t("common.action_failed")),
     );
+  }
+
+  /**
+   * The Security tab's current value. These live under `security` in
+   * `GET /settings`; the page read them from the top level, where they never
+   * are, so both fields always showed the defaults — and an admin who had
+   * required MFA saw "Optional".
+   */
+  function getSecurityValue(key: keyof SecurityDraft): string {
+    if (dirty[key] !== undefined) return dirty[key];
+    return String(data.security[key]);
   }
 
   const hasDirty = Object.keys(dirty).length > 0;
 
   return (
-    <RoleGate minRole="tenant_admin">
-      <div className="space-y-6">
-        <PageHeader
-          title={t("settings.title", "Settings")}
-          description={t("settings.description", "Configure your organization")}
-          actions={
-            hasDirty && (
-              <Button
-                onClick={() => updateSettings.mutate(dirty)}
-                disabled={updateSettings.isPending}
-              >
-                {updateSettings.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
+    <div className="space-y-6">
+      <PageHeader
+        title={t("settings.title", "Settings")}
+        description={t("settings.description", "Configure your organization")}
+        actions={
+          hasDirty && (
+            <Button onClick={saveSettings} disabled={updateSettings.isPending}>
+              {updateSettings.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {t("common.save", "Save Changes")}
+            </Button>
+          )
+        }
+      />
+
+      <Tabs defaultValue={defaultTab} className="w-full">
+        <TabsList className="flex w-full flex-wrap">
+          <TabsTrigger value="general">
+            {t("settings.tab_general", "General")}
+          </TabsTrigger>
+          <TabsTrigger value="branding">
+            {t("settings.tab_branding", "Branding")}
+          </TabsTrigger>
+          <TabsTrigger value="security">
+            {t("settings.tab_security", "Security")}
+          </TabsTrigger>
+          <TabsTrigger value="sso">{t("settings.tab_sso", "SSO")}</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="general" className="mt-6 space-y-6">
+          <OrganizationCard organization={data.organization} />
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">
+                  {t("settings.display", "Display")}
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="org-calendar">
+                  {t("settings.calendar_system", "Calendar System")}
+                </Label>
+                <Select
+                  value={data.display.calendar}
+                  onValueChange={(v) => saveCalendar(v as CalendarSystem)}
+                  disabled={updateSettings.isPending}
+                >
+                  <SelectTrigger id="org-calendar" className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ethiopian">
+                      {t(
+                        "settings.ethiopian_calendar",
+                        "Ethiopian Calendar (EC)",
+                      )}
+                    </SelectItem>
+                    <SelectItem value="gregorian">
+                      {t(
+                        "settings.gregorian_calendar",
+                        "Gregorian Calendar (GC)",
+                      )}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    "settings.calendar_help",
+                    "Controls date display across the application",
+                  )}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="branding" className="mt-6">
+          <BrandingCard
+            logoUrl={data.branding.logo_url}
+            theme={data.branding.theme}
+          />
+        </TabsContent>
+
+        <TabsContent value="security" className="mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">
+                  {t("settings.security_settings", "Security Settings")}
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="mfa-policy">
+                  {t("settings.mfa_policy", "MFA Policy")}
+                </Label>
+                <Select
+                  value={getSecurityValue("mfa_policy")}
+                  onValueChange={(v) =>
+                    updateField("mfa_policy", v as MfaPolicy)
+                  }
+                >
+                  <SelectTrigger id="mfa-policy" className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="disabled">
+                      {t("settings.mfa_disabled", "Disabled")}
+                    </SelectItem>
+                    <SelectItem value="optional">
+                      {t("settings.mfa_optional", "Optional")}
+                    </SelectItem>
+                    <SelectItem value="required">
+                      {t("settings.mfa_required", "Required")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    "settings.mfa_policy_help",
+                    "Required: everyone must set up two-factor authentication before using ETHR. Disabled: no new set-ups; existing ones are kept.",
+                  )}
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="session-timeout">
+                  {t("settings.session_timeout", "Session Timeout (minutes)")}
+                </Label>
+                <Input
+                  id="session-timeout"
+                  type="number"
+                  min={5}
+                  max={480}
+                  value={getSecurityValue("session_timeout_minutes")}
+                  onChange={(e) =>
+                    updateField("session_timeout_minutes", e.target.value)
+                  }
+                  aria-invalid={
+                    securityErrors["settings.session_timeout_minutes"]
+                      ? true
+                      : undefined
+                  }
+                  aria-describedby={
+                    securityErrors["settings.session_timeout_minutes"]
+                      ? "session-timeout-error"
+                      : undefined
+                  }
+                  className="mt-1"
+                />
+                {securityErrors["settings.session_timeout_minutes"] && (
+                  <p
+                    id="session-timeout-error"
+                    className="mt-1 text-xs text-destructive"
+                  >
+                    {securityErrors["settings.session_timeout_minutes"]}
+                  </p>
                 )}
-                {t("common.save", "Save Changes")}
-              </Button>
-            )
-          }
-        />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    "settings.session_timeout_help",
+                    "Sign people out after this many minutes without activity (5 to 480).",
+                  )}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <Tabs defaultValue={defaultTab} className="w-full">
-          <TabsList className="flex w-full flex-wrap">
-            <TabsTrigger value="general">
-              {t("settings.tab_general", "General")}
-            </TabsTrigger>
-            <TabsTrigger value="branding">
-              {t("settings.tab_branding", "Branding")}
-            </TabsTrigger>
-            <TabsTrigger value="security">
-              {t("settings.tab_security", "Security")}
-            </TabsTrigger>
-            <TabsTrigger value="sso">
-              {t("settings.tab_sso", "SSO")}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="general" className="mt-6 space-y-6">
-            <OrganizationCard organization={data?.organization} />
-
-            <Card>
-              <CardHeader>
+        <TabsContent value="sso" className="mt-6 space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                  <KeyRound className="h-4 w-4 text-muted-foreground" />
                   <CardTitle className="text-base">
-                    {t("settings.display", "Display")}
+                    {t("settings.sso_saml", "SAML Single Sign-On")}
                   </CardTitle>
                 </div>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <Label htmlFor="org-calendar">
-                    {t("settings.calendar_system", "Calendar System")}
+                <Badge
+                  variant={getSsoValue("is_enabled") ? "success" : "secondary"}
+                >
+                  {getSsoValue("is_enabled")
+                    ? t("settings.sso_enabled", "Enabled")
+                    : t("settings.sso_disabled", "Disabled")}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="sso-toggle">
+                    {t("settings.enable_sso", "Enable SSO")}
                   </Label>
-                  <Select
-                    value={calendar}
-                    onValueChange={(v) => setCalendar(v as CalendarSystem)}
-                  >
-                    <SelectTrigger id="org-calendar" className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ethiopian">
-                        {t(
-                          "settings.ethiopian_calendar",
-                          "Ethiopian Calendar (EC)",
-                        )}
-                      </SelectItem>
-                      <SelectItem value="gregorian">
-                        {t(
-                          "settings.gregorian_calendar",
-                          "Gregorian Calendar (GC)",
-                        )}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {t(
-                      "settings.calendar_help",
-                      "Controls date display across the application",
+                      "settings.enable_sso_help",
+                      "Allow users to sign in with your identity provider",
                     )}
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                <Switch
+                  id="sso-toggle"
+                  checked={!!getSsoValue("is_enabled")}
+                  onCheckedChange={(v) => updateSsoField("is_enabled", v)}
+                />
+              </div>
 
-          <TabsContent value="branding" className="mt-6">
-            <BrandingCard
-              logoUrl={data?.branding?.logo_url}
-              theme={data?.branding?.theme}
-            />
-          </TabsContent>
-
-          <TabsContent value="security" className="mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base">
-                    {t("settings.security_settings", "Security Settings")}
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label>{t("settings.mfa_policy", "MFA Policy")}</Label>
-                  <Select
-                    value={getValue("mfa_policy", "optional")}
-                    onValueChange={(v) => updateField("mfa_policy", v)}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="disabled">
-                        {t("settings.mfa_disabled", "Disabled")}
-                      </SelectItem>
-                      <SelectItem value="optional">
-                        {t("settings.mfa_optional", "Optional")}
-                      </SelectItem>
-                      <SelectItem value="required">
-                        {t("settings.mfa_required", "Required")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>
-                    {t("settings.session_timeout", "Session Timeout (minutes)")}
+                  <Label htmlFor="idp-entity-id">
+                    {t("settings.idp_entity_id", "IdP Entity ID")}
                   </Label>
                   <Input
-                    type="number"
-                    value={getValue("session_timeout_minutes", "480")}
+                    id="idp-entity-id"
+                    placeholder="https://idp.example.com/entity"
+                    value={getSsoValue("idp_entity_id") ?? ""}
                     onChange={(e) =>
-                      updateField(
-                        "session_timeout_minutes",
-                        parseInt(e.target.value),
-                      )
+                      updateSsoField("idp_entity_id", e.target.value)
                     }
                     className="mt-1"
                   />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                <div>
+                  <Label htmlFor="idp-sso-url">
+                    {t("settings.idp_sso_url", "IdP SSO URL")}
+                  </Label>
+                  <Input
+                    id="idp-sso-url"
+                    placeholder="https://idp.example.com/sso"
+                    value={getSsoValue("idp_sso_url") ?? ""}
+                    onChange={(e) =>
+                      updateSsoField("idp_sso_url", e.target.value)
+                    }
+                    className="mt-1"
+                  />
+                </div>
+              </div>
 
-          <TabsContent value="sso" className="mt-6 space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <KeyRound className="h-4 w-4 text-muted-foreground" />
-                    <CardTitle className="text-base">
-                      {t("settings.sso_saml", "SAML Single Sign-On")}
-                    </CardTitle>
-                  </div>
-                  <Badge
-                    variant={
-                      getSsoValue("is_enabled") ? "success" : "secondary"
+              <div>
+                <Label htmlFor="idp-certificate">
+                  {t("settings.idp_certificate", "IdP Certificate (PEM)")}
+                </Label>
+                <Textarea
+                  id="idp-certificate"
+                  placeholder={
+                    "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
+                  }
+                  value={getSsoValue("idp_certificate") ?? ""}
+                  onChange={(e) =>
+                    updateSsoField("idp_certificate", e.target.value)
+                  }
+                  className="mt-1 font-mono text-xs"
+                  rows={5}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    "settings.idp_certificate_help",
+                    "Paste the X.509 certificate from your identity provider. Stored encrypted.",
+                  )}
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="sso-default-role">
+                    {t(
+                      "settings.default_sso_role",
+                      "Default Role for SSO Users",
+                    )}
+                  </Label>
+                  <Select
+                    value={getSsoValue("default_role") ?? "employee"}
+                    onValueChange={(v) =>
+                      updateSsoField(
+                        "default_role",
+                        v as SsoUpdate["default_role"],
+                      )
                     }
                   >
-                    {getSsoValue("is_enabled")
-                      ? t("settings.sso_enabled", "Enabled")
-                      : t("settings.sso_disabled", "Disabled")}
-                  </Badge>
+                    <SelectTrigger id="sso-default-role" className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="employee">
+                        {t("roles.employee", "Employee")}
+                      </SelectItem>
+                      <SelectItem value="supervisor">
+                        {t("roles.supervisor", "Supervisor")}
+                      </SelectItem>
+                      <SelectItem value="dept_admin">
+                        {t("roles.dept_admin", "Department Admin")}
+                      </SelectItem>
+                      <SelectItem value="hr_admin">
+                        {t("roles.hr_admin", "HR Admin")}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="flex items-center justify-between rounded-lg border p-4 sm:mt-5">
                   <div className="space-y-0.5">
-                    <Label htmlFor="sso-toggle">
-                      {t("settings.enable_sso", "Enable SSO")}
+                    <Label htmlFor="auto-provision">
+                      {t("settings.auto_provision", "Auto-provision")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       {t(
-                        "settings.enable_sso_help",
-                        "Allow users to sign in with your identity provider",
+                        "settings.auto_provision_help",
+                        "Automatically create accounts on first SSO login",
                       )}
                     </p>
                   </div>
                   <Switch
-                    id="sso-toggle"
-                    checked={!!getSsoValue("is_enabled", false)}
-                    onCheckedChange={(v) => updateSsoField("is_enabled", v)}
+                    id="auto-provision"
+                    checked={!!getSsoValue("auto_provision")}
+                    onCheckedChange={(v) => updateSsoField("auto_provision", v)}
                   />
                 </div>
+              </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="idp-entity-id">
-                      {t("settings.idp_entity_id", "IdP Entity ID")}
-                    </Label>
-                    <Input
-                      id="idp-entity-id"
-                      placeholder="https://idp.example.com/entity"
-                      value={String(getSsoValue("idp_entity_id", ""))}
-                      onChange={(e) =>
-                        updateSsoField("idp_entity_id", e.target.value)
-                      }
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="idp-sso-url">
-                      {t("settings.idp_sso_url", "IdP SSO URL")}
-                    </Label>
-                    <Input
-                      id="idp-sso-url"
-                      placeholder="https://idp.example.com/sso"
-                      value={String(getSsoValue("idp_sso_url", ""))}
-                      onChange={(e) =>
-                        updateSsoField("idp_sso_url", e.target.value)
-                      }
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="idp-certificate">
-                    {t("settings.idp_certificate", "IdP Certificate (PEM)")}
+              {data.sso.metadata_url && (
+                <div className="rounded-lg border bg-muted/50 p-4">
+                  <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t("settings.sp_metadata_url", "SP Metadata URL")}
                   </Label>
-                  <Textarea
-                    id="idp-certificate"
-                    placeholder={
-                      "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
-                    }
-                    value={String(getSsoValue("idp_certificate", "") ?? "")}
-                    onChange={(e) =>
-                      updateSsoField("idp_certificate", e.target.value)
-                    }
-                    className="mt-1 font-mono text-xs"
-                    rows={5}
-                  />
+                  <div className="mt-1 flex items-center gap-2">
+                    <code className="flex-1 truncate rounded bg-background px-2 py-1 text-xs">
+                      {data.sso.metadata_url}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        copyToClipboard(data.sso.metadata_url ?? "")
+                      }
+                      aria-label={t("common.copy")}
+                    >
+                      <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Button>
+                  </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {t(
-                      "settings.idp_certificate_help",
-                      "Paste the X.509 certificate from your identity provider. Stored encrypted.",
+                      "settings.sp_metadata_help",
+                      "Provide this URL to your identity provider",
                     )}
                   </p>
                 </div>
+              )}
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <Label>
-                      {t(
-                        "settings.default_sso_role",
-                        "Default Role for SSO Users",
-                      )}
-                    </Label>
-                    <Select
-                      value={String(getSsoValue("default_role", "employee"))}
-                      onValueChange={(v) => updateSsoField("default_role", v)}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="employee">
-                          {t("roles.employee", "Employee")}
-                        </SelectItem>
-                        <SelectItem value="supervisor">
-                          {t("roles.supervisor", "Supervisor")}
-                        </SelectItem>
-                        <SelectItem value="dept_admin">
-                          {t("roles.dept_admin", "Department Admin")}
-                        </SelectItem>
-                        <SelectItem value="hr_admin">
-                          {t("roles.hr_admin", "HR Admin")}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border p-4 sm:mt-5">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="auto-provision">
-                        {t("settings.auto_provision", "Auto-provision")}
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        {t(
-                          "settings.auto_provision_help",
-                          "Automatically create accounts on first SSO login",
-                        )}
-                      </p>
-                    </div>
-                    <Switch
-                      id="auto-provision"
-                      checked={!!getSsoValue("auto_provision", false)}
-                      onCheckedChange={(v) =>
-                        updateSsoField("auto_provision", v)
-                      }
-                    />
-                  </div>
+              {Object.keys(ssoDirty).length > 0 && (
+                <div className="flex justify-end">
+                  <Button onClick={saveSso} disabled={updateSso.isPending}>
+                    {updateSso.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
+                    )}
+                    {t("settings.save_sso", "Save SSO Settings")}
+                  </Button>
                 </div>
-
-                {data?.sso?.metadata_url && (
-                  <div className="rounded-lg border bg-muted/50 p-4">
-                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {t("settings.sp_metadata_url", "SP Metadata URL")}
-                    </Label>
-                    <div className="mt-1 flex items-center gap-2">
-                      <code className="flex-1 truncate rounded bg-background px-2 py-1 text-xs">
-                        {data.sso.metadata_url}
-                      </code>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(data.sso.metadata_url)}
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {t(
-                        "settings.sp_metadata_help",
-                        "Provide this URL to your identity provider",
-                      )}
-                    </p>
-                  </div>
-                )}
-
-                {Object.keys(ssoDirty).length > 0 && (
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={() => updateSso.mutate(ssoDirty)}
-                      disabled={updateSso.isPending}
-                    >
-                      {updateSso.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Save className="mr-2 h-4 w-4" />
-                      )}
-                      {t("settings.save_sso", "Save SSO Settings")}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </RoleGate>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }

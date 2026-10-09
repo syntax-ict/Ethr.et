@@ -48,7 +48,7 @@ class UserFactory extends Factory
     {
         return $this->state([
             'mfa_enabled' => true,
-            'mfa_secret' => encrypt('JBSWY3DPEHPK3PXP'),
+            'mfa_secret' => 'JBSWY3DPEHPK3PXP',
         ]);
     }
 

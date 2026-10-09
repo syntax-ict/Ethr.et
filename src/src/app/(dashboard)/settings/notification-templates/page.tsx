@@ -19,219 +19,266 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
+import {
+  useNotificationTemplates,
+  useUpdateNotificationTemplate,
+  type NotificationTemplate,
+} from "@/features/settings/api";
 import { toast } from "sonner";
+import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
 import { useT } from "@/lib/i18n/useT";
 
-interface NotificationTemplate {
-  type: string;
-  subject_en: string;
-  subject_am: string;
-  body_en: string;
-  body_am: string;
-  is_customized: boolean;
-  variables: string[];
+type TemplateField = "subject_en" | "subject_am" | "body_en" | "body_am";
+
+/**
+ * Template type → label. Four reuse the notification-preference labels.
+ */
+function useTypeLabel() {
+  const { t } = useT();
+
+  return (type: NotificationTemplate["type"]): string => {
+    switch (type) {
+      case "leave_requested":
+        return t("notification_prefs_page.type_leave_requested");
+      case "leave_approved":
+        return t("notification_prefs_page.type_leave_approved");
+      case "leave_rejected":
+        return t("notification_prefs_page.type_leave_rejected");
+      case "payslip_available":
+        return t("notification_prefs_page.type_payslip_available");
+      case "missing_punch":
+        return t("settings.template_type_missing_punch", "Missing Punch");
+      case "trial_expiring":
+        return t("settings.template_type_trial_expiring", "Trial Expiring");
+      default:
+        return type;
+    }
+  };
 }
 
-const typeLabels: Record<string, string> = {
-  leave_requested: "Leave Requested",
-  leave_approved: "Leave Approved",
-  leave_rejected: "Leave Rejected",
-  payslip_available: "Payslip Available",
-  missing_punch: "Missing Punch",
-  trial_expiring: "Trial Expiring",
-};
+/** The variables a template may use, as the `{name}` an admin types. */
+function VariableList({ variables }: { variables: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {variables.map((v) => (
+        <Badge key={v} variant="secondary" className="font-mono text-[10px]">
+          {`{${v}}`}
+        </Badge>
+      ))}
+    </div>
+  );
+}
 
 export default function NotificationTemplatesPage() {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [editing, setEditing] = useState<NotificationTemplate | null>(null);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Record<TemplateField, string>>({
     subject_en: "",
     subject_am: "",
     body_en: "",
     body_am: "",
   });
+  const [errors, setErrors] = useState<FieldErrors>({});
 
-  const { data, isLoading } = useQuery<{ templates: NotificationTemplate[] }>({
-    queryKey: ["settings", "notification-templates"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/settings/notification-templates");
-      return data;
-    },
-  });
+  const templatesQuery = useNotificationTemplates();
+  const update = useUpdateNotificationTemplate();
+  const typeLabel = useTypeLabel();
 
-  const update = useMutation({
-    mutationFn: async ({
-      type,
-      payload,
-    }: {
-      type: string;
-      payload: typeof form;
-    }) => {
-      const { data } = await apiClient.put(
-        `/settings/notification-templates/${type}`,
-        payload,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["settings", "notification-templates"],
-      });
-      setEditing(null);
-      toast.success(t("settings.template_updated", "Template updated"));
-    },
-    onError: () =>
-      toast.error(
-        t("settings.template_update_failed", "Failed to update template"),
-      ),
-  });
-
-  function openEdit(t: NotificationTemplate) {
+  function openEdit(template: NotificationTemplate) {
     setForm({
-      subject_en: t.subject_en,
-      subject_am: t.subject_am,
-      body_en: t.body_en,
-      body_am: t.body_am,
+      subject_en: template.subject_en,
+      subject_am: template.subject_am,
+      body_en: template.body_en,
+      body_am: template.body_am,
     });
-    setEditing(t);
+    setErrors({});
+    setEditing(template);
+  }
+
+  function setField(field: TemplateField, value: string) {
+    setForm((p) => ({ ...p, [field]: value }));
   }
 
   function handleSave() {
     if (!editing) return;
-    update.mutate({ type: editing.type, payload: form });
+    update.mutate(
+      { type: editing.type, payload: form },
+      {
+        onSuccess: () => {
+          setEditing(null);
+          toast.success(t("settings.template_updated", "Template updated"));
+        },
+        onError: (err) => {
+          // An unknown {placeholder} comes back as a 422 on the field that
+          // carries it; show it there rather than in a toast that vanishes.
+          setErrors(fieldErrors(err));
+          toastError(
+            err,
+            t("settings.template_update_failed", "Failed to update template"),
+            { skipValidation: true },
+          );
+        },
+      },
+    );
+  }
+
+  /** Label, input and server error for one of the four fields. */
+  function field(name: TemplateField, label: string, multiline: boolean) {
+    const id = `template-${name.replace("_", "-")}`;
+    const error = errors[name];
+    const common = {
+      id,
+      value: form[name],
+      "aria-invalid": error ? true : undefined,
+      "aria-describedby": error ? `${id}-error` : undefined,
+    };
+
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={id}>{label}</Label>
+        {multiline ? (
+          <Textarea
+            {...common}
+            maxLength={2000}
+            rows={4}
+            onChange={(e) => setField(name, e.target.value)}
+          />
+        ) : (
+          <Input
+            {...common}
+            maxLength={200}
+            onChange={(e) => setField(name, e.target.value)}
+          />
+        )}
+        {error && (
+          <p id={`${id}-error`} className="text-xs text-destructive">
+            {error}
+          </p>
+        )}
+      </div>
+    );
   }
 
   return (
-    <RoleGate minRole="tenant_admin">
+    <RoleGate anyPermission={["manageSettings"]}>
       <div className="space-y-6">
         <PageHeader
-          title="Notification Templates"
-          description="Customize the content of notification emails sent to employees and managers"
+          title={t("nav.notification_templates")}
+          description={t(
+            "settings.templates_description",
+            "Customize the content of notification emails sent to employees and managers",
+          )}
         />
 
-        {isLoading ? (
-          <div className="space-y-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-24" />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {data?.templates.map((t) => (
-              <Card key={t.type}>
-                <CardContent className="flex items-start justify-between gap-4 p-5">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <p className="font-medium">
-                        {typeLabels[t.type] ?? t.type}
+        <QueryBoundary
+          query={templatesQuery}
+          loading={
+            <div className="space-y-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-24" />
+              ))}
+            </div>
+          }
+        >
+          {(templates) => (
+            <div className="space-y-3">
+              {templates.map((template) => (
+                <Card key={template.type}>
+                  <CardContent className="flex items-start justify-between gap-4 p-5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <p className="font-medium">
+                          {typeLabel(template.type)}
+                        </p>
+                        {template.is_customized && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] text-status-success"
+                          >
+                            <CheckCircle2 className="mr-1 h-3 w-3" />
+                            {t("settings.template_customized", "Customized")}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground truncate">
+                        {template.subject_en}
                       </p>
-                      {t.is_customized && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] text-status-success"
-                        >
-                          <CheckCircle2 className="mr-1 h-3 w-3" />
-                          Customized
-                        </Badge>
+                      {template.variables.length > 0 && (
+                        <div className="mt-2">
+                          <VariableList variables={template.variables} />
+                        </div>
                       )}
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground truncate">
-                      {t.subject_en}
-                    </p>
-                    {t.variables.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {t.variables.map((v) => (
-                          <Badge
-                            key={v}
-                            variant="secondary"
-                            className="font-mono text-[10px]"
-                          >
-                            {`{${v}}`}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEdit(t)}
-                  >
-                    <Edit2 className="mr-1 h-3 w-3" />
-                    Edit
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEdit(template)}
+                      // Six cards, one "Edit" each: the template's name tells
+                      // them apart, as the dialog title does.
+                      aria-label={`${t("common.edit")}: ${typeLabel(template.type)}`}
+                    >
+                      <Edit2 className="mr-1 h-3 w-3" aria-hidden="true" />
+                      {t("common.edit")}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </QueryBoundary>
 
         <Dialog open={!!editing} onOpenChange={() => setEditing(null)}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
-                Edit:{" "}
-                {editing ? (typeLabels[editing.type] ?? editing.type) : ""}
+                {t("common.edit")}: {editing ? typeLabel(editing.type) : ""}
               </DialogTitle>
               <DialogDescription>
-                Customize the notification content. Use variables like{" "}
-                {editing?.variables.map((v) => `{${v}}`).join(", ")} in the
-                body.
+                {t(
+                  "settings.template_variables_help",
+                  "Use these variables in the subject or the body. Each is replaced when the email is sent, as plain text.",
+                )}
               </DialogDescription>
             </DialogHeader>
 
+            {editing && <VariableList variables={editing.variables} />}
+
             <div className="space-y-4 py-2">
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Subject (English)</Label>
-                  <Input
-                    value={form.subject_en}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, subject_en: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Subject (Amharic)</Label>
-                  <Input
-                    value={form.subject_am}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, subject_am: e.target.value }))
-                    }
-                  />
-                </div>
+                {field(
+                  "subject_en",
+                  t("settings.template_subject_en", "Subject (English)"),
+                  false,
+                )}
+                {field(
+                  "subject_am",
+                  t("settings.template_subject_am", "Subject (Amharic)"),
+                  false,
+                )}
               </div>
-
-              <div className="space-y-2">
-                <Label>Body (English)</Label>
-                <Textarea
-                  rows={4}
-                  value={form.body_en}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, body_en: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Body (Amharic)</Label>
-                <Textarea
-                  rows={4}
-                  value={form.body_am}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, body_am: e.target.value }))
-                  }
-                />
-              </div>
+              {field(
+                "body_en",
+                t("settings.template_body_en", "Body (English)"),
+                true,
+              )}
+              {field(
+                "body_am",
+                t("settings.template_body_am", "Body (Amharic)"),
+                true,
+              )}
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "settings.template_empty_hint",
+                  "Leave a field empty to send the built-in text.",
+                )}
+              </p>
             </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditing(null)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleSave} disabled={update.isPending}>
                 {update.isPending ? (
@@ -239,7 +286,7 @@ export default function NotificationTemplatesPage() {
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
                 )}
-                Save Template
+                {t("common.save")}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { ArrowLeft, ShieldCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { OtpCodeInput } from "@/components/shared/otp-code-input";
-import { apiClient } from "@/api/client";
+import { verifyMfa } from "@/features/auth/sign-in";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
 
@@ -53,10 +52,7 @@ export function MfaForm() {
       // already decided it. The shared interceptor sends that header only where
       // the hostname is not authoritative — and adds Accept-Language, which the
       // hand-rolled headers dropped, so a rejected code came back in English.
-      await apiClient.post("/auth/mfa/verify", {
-        code,
-        trust_device: trustDevice,
-      });
+      await verifyMfa({ code, trust_device: trustDevice });
 
       sessionStorage.removeItem("mfa_pending");
       toast.success(t("auth.mfa_authenticated", "Authenticated"));
@@ -177,7 +173,7 @@ export function MfaForm() {
           )}
         </Button>
 
-        <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center text-xs">
           <button
             type="button"
             onClick={cancel}
@@ -186,9 +182,6 @@ export function MfaForm() {
             <ArrowLeft className="h-3 w-3" />{" "}
             {t("auth.back_to_sign_in", "Back to sign in")}
           </button>
-          <Link href="/login/recovery" className="text-primary hover:underline">
-            {t("auth.mfa_use_recovery", "Use a recovery code")}
-          </Link>
         </div>
       </form>
 
@@ -199,7 +192,7 @@ export function MfaForm() {
         </span>{" "}
         {t(
           "auth.mfa_lost_device_hint",
-          "Use one of the recovery codes you saved when you enabled MFA, or contact your tenant admin.",
+          "Ask your administrator to reset two-factor authentication for your account. You can then sign in with your password and set it up again.",
         )}
       </div>
     </div>

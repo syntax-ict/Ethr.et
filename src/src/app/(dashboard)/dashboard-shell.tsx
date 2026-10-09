@@ -13,6 +13,7 @@ import { TenantBrandingProvider } from "@/features/branding/TenantBrandingProvid
 import { ReverbProvider } from "@/components/providers/reverb-provider";
 import { ImpersonationBanner } from "@/components/shared/impersonation-banner";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
+import { CalendarPreferenceSync } from "@/components/shared/calendar-preference-sync";
 import { useCurrentUser } from "@/features/auth/api";
 import { useT } from "@/lib/i18n/useT";
 import { useDocumentTitle } from "@/lib/hooks/useDocumentTitle";
@@ -28,6 +29,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
   return (
     <CalendarProvider>
+      <CalendarPreferenceSync />
       <ReverbProvider userId={user?.public_id}>
         <AppLayoutProvider>
           <a

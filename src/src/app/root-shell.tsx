@@ -109,9 +109,21 @@ export function RootShell({
 }>) {
   const tree = <Providers>{children}</Providers>;
 
+  // The font variables go on <html>, not <body>. `--font-sans` is a theme
+  // variable declared on :root as `var(--font-inter), var(--font-noto-ethiopic),
+  // …`, and a custom property resolves its var() references where it is
+  // declared. With the variables on <body>, both were undefined at :root, the
+  // whole of `--font-sans` was invalid there, `.font-sans` fell back to
+  // inheritance, and every page rendered in Tailwind's preflight system stack:
+  // Inter was preloaded and never used, and the Ethiopic face was never
+  // requested (measured 2026-10-04 — every FontFace `unloaded`).
   return (
-    <html lang={lang} suppressHydrationWarning>
-      <body className={`${inter.variable} ${notoEthiopic.variable} font-sans`}>
+    <html
+      lang={lang}
+      className={`${inter.variable} ${notoEthiopic.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="font-sans">
         {routeLocale ? (
           <RouteLocaleProvider locale={routeLocale}>{tree}</RouteLocaleProvider>
         ) : (

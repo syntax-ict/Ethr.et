@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\LeaveRequest;
+use App\Notifications\Concerns\LeaveTemplateValues;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\NotificationTemplates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class LeaveApprovedNotification extends Notification
 {
-    use Queueable, RespectsNotificationPreferences;
+    use LeaveTemplateValues, Queueable, RespectsNotificationPreferences;
 
     public function __construct(
         private readonly LeaveRequest $leaveRequest,
@@ -46,9 +48,10 @@ class LeaveApprovedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
-            ->subject(__('notification.leave_approved_subject'))
-            ->line(__('notification.leave_approved_body'))
-            ->line($this->leaveRequest->leaveType?->name.': '.$this->leaveRequest->start_date->format('M d').' - '.$this->leaveRequest->end_date->format('M d'));
+        return NotificationTemplates::mail(
+            'leave_approved',
+            $this->leaveRequest->tenant_id,
+            $this->leaveTemplateValues($this->leaveRequest),
+        );
     }
 }

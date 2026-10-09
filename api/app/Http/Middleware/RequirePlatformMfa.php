@@ -37,29 +37,17 @@ class RequirePlatformMfa
     /** @var list<string> */
     private const READ_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
-    /**
-     * Ending an impersonation session is not an operator action.
-     *
-     * It sits under /admin only because that is where it was registered; the
-     * caller is the *impersonated* tenant user, who has no reason to hold
-     * platform MFA and frequently does not. Gating it here stranded them inside
-     * someone else's account with no way out — caught by ImpersonationTest,
-     * which is exactly what that suite is for. The endpoint is already
-     * restricted to callers holding an impersonation-ability token.
-     *
-     * @var list<string>
-     */
-    private const EXEMPT_PATHS = ['api/v1/admin/exit-impersonation'];
+    // Ending an impersonation used to be exempted here by path, because it was
+    // registered under /admin while its caller is the impersonated tenant user.
+    // It moved to `POST /auth/impersonation/exit` (audit N19) — under /admin it
+    // also sat behind EnsurePlatformContext, which 404s on the tenant host the
+    // impersonated session lives on — so the exemption has nothing left to cover.
 
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
 
         if ($user === null || $user->mfa_enabled) {
-            return $next($request);
-        }
-
-        if ($request->is(...self::EXEMPT_PATHS)) {
             return $next($request);
         }
 

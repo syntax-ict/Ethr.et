@@ -14,7 +14,7 @@ was available to this audit**, so nothing here was tested against a live environ
 
 Every row is classified as **VERIFIED**, **UNKNOWN** or **UNSUPPORTED**.
 **UNKNOWN is never treated as supported.** The Go/No-Go decision in
-`docs/SHARED_HOSTING_MIGRATION_PLAN.md` depends on resolving the UNKNOWN rows marked
+`docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` depends on resolving the UNKNOWN rows marked
 **BLOCKING**.
 
 Two of the sources returned `unable to verify the first certificate` when fetched
@@ -52,13 +52,13 @@ impossible to quote back at support or to match against a plan name in the panel
 > [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md)
 > rather than being answered from this table.
 >
-> **The subdomain column is also not a tenant ceiling** — see `TCO_COMPARISON.md`
+> **The subdomain column is also not a tenant ceiling** — see `archive/migration/TCO_COMPARISON.md`
 > Finding 2 and `deployment/GATE-0-RESULT.md` → G0-C. Whether a wildcard counts as one
 > against the quota is an **OPEN QUESTION**.
 >
 > **Naming collision, worth stating once.** *Gold* and *Platinum* here are **shared
 > hosting** plans. The **VPS Gold** and **VPS Platinum** named below and in
-> `TCO_COMPARISON.md` are a different product line — root servers, different prices. The
+> `archive/migration/TCO_COMPARISON.md` are a different product line — root servers, different prices. The
 > bare word "Gold" is ambiguous in this repository; always qualify it.
 
 Control panel: **Plesk** (not cPanel). Price band roughly **452–1,009 ETB**.
@@ -73,7 +73,7 @@ account rather than external S3, tier 3 or 4 is the realistic floor.
 
 ### VPS tiers (**PUBLISHED** — and note the name collision with shared *Gold*/*Platinum* above)
 
-**Prices below are PUBLISHED figures from a third-party directory dated 2020, not VERIFIED ones** — `TCO_COMPARISON.md` Finding 1 records that both Ethio Telecom web properties fail TLS verification when fetched, so no price here was read first-hand. VPS is the **Option A fallback**, not the production target.
+**Prices below are PUBLISHED figures from a third-party directory dated 2020, not VERIFIED ones** — `archive/migration/TCO_COMPARISON.md` Finding 1 records that both Ethio Telecom web properties fail TLS verification when fetched, so no price here was read first-hand. VPS is the **Option A fallback**, not the production target.
 
 | Plan | RAM | Storage | Bandwidth | Root | Price |
 | --- | --- | --- | --- | --- | --- |
@@ -132,7 +132,7 @@ CPU core counts are not published. Both include root access and are Linux.
 | **Long-running daemons** (`horizon`, `queue:work --daemon`, `schedule:work`, `reverb`) | **UNSUPPORTED** | Shared hosting kills background processes. Queue and schedule move to cron; Reverb cannot run at all. |
 | **WebSocket listener** | **UNSUPPORTED** | No inbound port for Reverb, and no process to hold it. Realtime must go external or degrade. |
 | **MinIO** | **UNSUPPORTED** | It is a server. Storage must be the local disk or an external S3-compatible service. |
-| **Custom nginx config** | **UNSUPPORTED** | `infrastructure/nginx.conf` cannot be used. Plesk exposes limited "Additional nginx directives" on some plans; assume not. |
+| **Custom nginx config** | **UNSUPPORTED** | `infrastructure/nginx.conf` (removed 2026-09-26) cannot be used. Plesk exposes limited "Additional nginx directives" on some plans; assume not. |
 | **Read replica** | **UNSUPPORTED** | Drop `DB_READ_HOST`. Optimisation only. |
 | **Root access** | **UNSUPPORTED** | Available on VPS tiers only. |
 

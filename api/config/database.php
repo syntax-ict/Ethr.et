@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Support\Str;
 use Pdo\Mysql;
 
 return [
@@ -140,73 +139,6 @@ return [
     'migrations' => [
         'table' => 'migrations',
         'update_date_on_publish' => true,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Redis Databases
-    |--------------------------------------------------------------------------
-    |
-    | Redis is an open source, fast, and advanced key-value store that also
-    | provides a richer body of commands than a typical key-value system
-    | such as Memcached. You may define your connection settings here.
-    |
-    */
-
-    'redis' => [
-
-        'client' => env('REDIS_CLIENT', 'phpredis'),
-
-        'options' => [
-            'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-database-'),
-            'persistent' => env('REDIS_PERSISTENT', false),
-        ],
-
-        'default' => [
-            'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
-            'username' => env('REDIS_USERNAME'),
-            'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT', '6379'),
-            'database' => env('REDIS_DB', '0'),
-            'max_retries' => env('REDIS_MAX_RETRIES', 3),
-            'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),
-            'backoff_base' => env('REDIS_BACKOFF_BASE', 100),
-            'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
-        ],
-
-        // Deliberately addressable as a SEPARATE server, not just a separate
-        // database number on the same one. `maxmemory-policy` is instance-wide
-        // and does not respect the db split, so one Redis serving both this
-        // connection and `default` can only ever have a policy that is wrong
-        // for one of them: `allkeys-lru` lets cache pressure evict queued
-        // payroll jobs (no TTL, so nothing protects them), while `noeviction`
-        // makes a full cache start failing writes. Production gives each its
-        // own container with its own policy — docker-compose.prod.yml,
-        // `redis-cache` and `redis-data`.
-        //
-        // Note what does NOT move with it: 'lock_connection' below stays on
-        // `default`, so Cache::lock() and every scheduled task's
-        // withoutOverlapping() mutex (routes/console.php) live on the
-        // non-evicting instance. An evicted lock is a double-run of
-        // accrue-leave-balances, not a cache miss.
-        //
-        // Falls back to REDIS_HOST when unset, so local/testing stay
-        // single-instance with no configuration at all.
-        'cache' => [
-            'url' => env('REDIS_URL'),
-            'host' => env('REDIS_CACHE_HOST', env('REDIS_HOST', '127.0.0.1')),
-            'username' => env('REDIS_USERNAME'),
-            'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_CACHE_PORT', env('REDIS_PORT', '6379')),
-            'database' => env('REDIS_CACHE_DB', '1'),
-            'max_retries' => env('REDIS_MAX_RETRIES', 3),
-            'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),
-            'backoff_base' => env('REDIS_BACKOFF_BASE', 100),
-            'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
-        ],
-
     ],
 
 ];

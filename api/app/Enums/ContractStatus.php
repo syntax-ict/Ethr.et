@@ -10,9 +10,4 @@ enum ContractStatus: string
     case RENEWED = 'renewed';
     case EXPIRED = 'expired';
     case TERMINATED_EARLY = 'terminated_early';
-
-    public function isTerminal(): bool
-    {
-        return $this !== self::ACTIVE;
-    }
 }

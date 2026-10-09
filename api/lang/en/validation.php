@@ -213,4 +213,13 @@ return [
     'base64_image_unsupported_type' => 'Only JPEG, PNG and WebP images are accepted.',
     'base64_image_too_large' => 'The image must not be larger than :max KB.',
 
+    // App\Http\Requests\Admin\UpdateTenantDomainRequest: a host ETHR already owns.
+    'custom_domain_reserved' => 'A custom domain must be the organisation\'s own domain, not one under :root.',
+    // UpdateTenantDomainRequest again: the plan gate.
+    'custom_domain_not_in_plan' => 'This organisation\'s plan does not include a custom domain.',
+    // AdminTenantController::verifyDomain: each DNS check that did not pass.
+    'custom_domain_txt_missing' => 'No TXT record :name with the value :value was found.',
+    'custom_domain_cname_missing' => ':domain is not a CNAME for :target.',
+    'custom_domain_none' => 'This organisation has no custom domain to verify.',
+
 ];

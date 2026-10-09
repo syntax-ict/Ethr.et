@@ -9,6 +9,7 @@ import {
   Send,
   Loader2,
   History,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,8 +29,18 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { WebhookDeliveriesDialog } from "@/features/webhooks/webhook-deliveries-dialog";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import {
+  WEBHOOK_EVENTS,
+  type WebhookEvent,
+  useCreateWebhook,
+  useDeleteWebhook,
+  useUpdateWebhook,
+  useTestWebhook,
+  useWebhooks,
+  type Webhook as WebhookEntry,
+} from "@/features/webhooks/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
@@ -37,48 +48,31 @@ import { rules, fieldMessage } from "@/lib/forms/rules";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
 import { z } from "zod";
-
-interface WebhookEntry {
-  public_id: string;
-  url: string;
-  events: string[];
-  is_active: boolean;
-  failure_count: number;
-  last_triggered_at: string | null;
-  created_at: string;
-}
-
-const ALL_EVENTS = [
-  "employee.created",
-  "employee.updated",
-  "employee.transitioned",
-  "attendance.recorded",
-  "attendance.corrected",
-  "leave.requested",
-  "leave.approved",
-  "leave.rejected",
-  "payroll.processed",
-  "payroll.approved",
-  "device.online",
-  "device.offline",
-];
+import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
+import { usePlanFeatures } from "@/features/auth/api";
+import { Switch } from "@/components/ui/switch";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const webhookSchema = z.object({
   url: rules.url(),
   // A webhook subscribed to nothing is silently inert: it is created, listed as
   // Active, and never fires. The server rejects an empty list; without this the
   // user only found out via a toast that named no field.
-  events: z.array(z.string()).min(1, "webhooks_page.events_required"),
+  events: z
+    .array(z.enum(WEBHOOK_EVENTS))
+    .min(1, "webhooks_page.events_required"),
 });
 type WebhookValues = z.infer<typeof webhookSchema>;
 
 export default function WebhooksPage() {
   const { t } = useT();
   const { formatDateTime } = useDateFormatters();
-  const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [newSecret, setNewSecret] = useState<string | null>(null);
   const [deliveriesFor, setDeliveriesFor] = useState<WebhookEntry | null>(null);
+  const [deleting, setDeleting] = useState<WebhookEntry | null>(null);
+  // The webhook being edited; null while the dialog creates one.
+  const [editing, setEditing] = useState<WebhookEntry | null>(null);
 
   const {
     register,
@@ -95,54 +89,85 @@ export default function WebhooksPage() {
 
   const selectedEvents = watch("events");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["webhooks"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/webhooks");
-      return data;
-    },
-  });
+  const webhooksQuery = useWebhooks();
+  const createWebhook = useCreateWebhook();
+  // Creating and editing webhooks needs the plan's `webhooks` feature (N66).
+  const hasWebhooks = usePlanFeatures().has("webhooks");
+  const deleteWebhook = useDeleteWebhook();
+  const updateWebhook = useUpdateWebhook();
+  const testWebhook = useTestWebhook();
 
-  // No `onError` toast: a failed create is now reported inside the dialog —
+  // No `onError` toast: `submit` reports a failed create inside the dialog —
   // inline on the offending field for a 422, in the summary otherwise. A toast
   // would duplicate it and then vanish, which is what previously left the user
   // with a dialog full of rejected input and no explanation.
-  const createWebhook = useMutation({
-    mutationFn: async (values: WebhookValues) => {
-      const { data } = await apiClient.post("/webhooks", values);
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["webhooks"] });
-      setNewSecret(data.secret);
-      setCreateOpen(false);
-      reset();
-      toast.success(t("webhooks_page.created"));
-    },
-  });
+  async function create(values: WebhookValues) {
+    if (editing) {
+      await updateWebhook.mutateAsync({
+        publicId: editing.public_id,
+        ...values,
+      });
+      closeDialog();
+      toast.success(t("webhooks_page.updated", "Webhook updated"));
+      return;
+    }
+    const created = await createWebhook.mutateAsync(values);
+    setNewSecret(created.secret);
+    closeDialog();
+    toast.success(t("webhooks_page.created"));
+  }
 
-  const deleteWebhook = useMutation({
-    mutationFn: async (id: string) => {
-      await apiClient.delete(`/webhooks/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["webhooks"] });
-      toast.success(t("webhooks_page.deleted"));
-    },
-  });
+  function openEdit(webhook: WebhookEntry) {
+    setEditing(webhook);
+    reset({ url: webhook.url, events: webhook.events as WebhookEvent[] });
+    setCreateOpen(true);
+  }
 
-  const testWebhook = useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await apiClient.post(`/webhooks/${id}/test`);
-      return data;
-    },
-    onSuccess: () => toast.success(t("webhooks_page.test_dispatched")),
-    onError: () => toast.error(t("webhooks_page.test_failed")),
-  });
+  function closeDialog() {
+    setCreateOpen(false);
+    setEditing(null);
+    reset({ url: "", events: [] });
+  }
 
-  const webhooks: WebhookEntry[] = data?.webhooks ?? [];
+  // Re-enabling is the recovery after a receiver's outage: the delivery job
+  // switches a webhook off after repeated failures (audit N71).
+  function setActive(webhook: WebhookEntry, isActive: boolean) {
+    updateWebhook.mutate(
+      { publicId: webhook.public_id, is_active: isActive },
+      {
+        onSuccess: () =>
+          toast.success(
+            isActive
+              ? t("webhooks_page.enabled", "Webhook enabled")
+              : t("webhooks_page.disabled", "Webhook disabled"),
+          ),
+        onError: (err) =>
+          toast.error(apiErrorMessage(err, t("common.action_failed"))),
+      },
+    );
+  }
 
-  function toggleEvent(event: string) {
+  // Deleting stops deliveries to the endpoint for good, so it is confirmed —
+  // it used to fire on one click of the row's icon, silently on failure.
+  function confirmDelete() {
+    if (!deleting) return;
+    deleteWebhook.mutate(deleting.public_id, {
+      onSuccess: () => {
+        toast.success(t("webhooks_page.deleted"));
+        setDeleting(null);
+      },
+      onError: () => toast.error(t("common.action_failed")),
+    });
+  }
+
+  function sendTest(publicId: string) {
+    testWebhook.mutate(publicId, {
+      onSuccess: () => toast.success(t("webhooks_page.test_dispatched")),
+      onError: () => toast.error(t("webhooks_page.test_failed")),
+    });
+  }
+
+  function toggleEvent(event: WebhookEvent) {
     const next = selectedEvents.includes(event)
       ? selectedEvents.filter((e) => e !== event)
       : [...selectedEvents, event];
@@ -152,24 +177,30 @@ export default function WebhooksPage() {
   }
 
   function copySecret() {
-    if (newSecret) {
-      navigator.clipboard.writeText(newSecret);
-      toast.success(t("webhooks_page.secret_copied"));
-    }
+    if (!newSecret) return;
+    navigator.clipboard.writeText(newSecret).then(
+      () => toast.success(t("webhooks_page.secret_copied")),
+      () => toast.error(t("common.action_failed")),
+    );
   }
 
   return (
-    <RoleGate minRole="tenant_admin">
+    <RoleGate anyPermission={["manageWebhooks"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("webhooks_page.title")}
           description={t("webhooks_page.description")}
           actions={
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> {t("webhooks_page.add_webhook")}
-            </Button>
+            hasWebhooks && (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />{" "}
+                {t("webhooks_page.add_webhook")}
+              </Button>
+            )
           }
         />
+
+        {!hasWebhooks && <PlanFeatureNotice />}
 
         {newSecret && (
           <Card className="border-2 border-status-warning/40 bg-status-warning/5">
@@ -181,8 +212,13 @@ export default function WebhooksPage() {
                 <code className="flex-1 rounded bg-background px-3 py-2 text-xs font-mono break-all">
                   {newSecret}
                 </code>
-                <Button size="sm" variant="outline" onClick={copySecret}>
-                  <Copy className="h-4 w-4" />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={copySecret}
+                  aria-label={t("common.copy")}
+                >
+                  <Copy className="h-4 w-4" aria-hidden="true" />
                 </Button>
                 <Button
                   size="sm"
@@ -196,108 +232,150 @@ export default function WebhooksPage() {
           </Card>
         )}
 
-        {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-24" />
-            ))}
-          </div>
-        ) : webhooks.length === 0 ? (
-          <EmptyState
-            icon={Webhook}
-            title={t("webhooks_page.no_webhooks")}
-            description={t("webhooks_page.no_webhooks_desc")}
-          />
-        ) : (
-          <div className="space-y-3">
-            {webhooks.map((w) => (
-              <Card key={w.public_id}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <code className="text-sm font-mono text-foreground truncate">
-                          {w.url}
-                        </code>
-                        <Badge
-                          variant="outline"
-                          className={
-                            w.is_active
-                              ? statusBadgeClass("active")
-                              : statusBadgeClass("offline")
-                          }
-                        >
-                          {w.is_active
-                            ? t("webhooks_page.active")
-                            : t("roles_page.inactive")}
-                        </Badge>
-                        {w.failure_count > 0 && (
+        <QueryBoundary
+          query={webhooksQuery}
+          loading={
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-24" />
+              ))}
+            </div>
+          }
+          empty={
+            <EmptyState
+              icon={Webhook}
+              title={t("webhooks_page.no_webhooks")}
+              description={t("webhooks_page.no_webhooks_desc")}
+            />
+          }
+        >
+          {(webhooks) => (
+            <div className="space-y-3">
+              {webhooks.map((w) => (
+                <Card key={w.public_id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <code className="text-sm font-mono text-foreground truncate">
+                            {w.url}
+                          </code>
                           <Badge
                             variant="outline"
-                            className={statusBadgeClass("error")}
+                            className={
+                              w.is_active
+                                ? statusBadgeClass("active")
+                                : statusBadgeClass("offline")
+                            }
                           >
-                            {w.failure_count} {t("webhooks_page.failures")}
+                            {w.is_active
+                              ? t("webhooks_page.active")
+                              : t("roles_page.inactive")}
                           </Badge>
+                          {w.failure_count > 0 && (
+                            <Badge
+                              variant="outline"
+                              className={statusBadgeClass("error")}
+                            >
+                              {w.failure_count} {t("webhooks_page.failures")}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {w.events.map((e) => (
+                            <Badge
+                              key={e}
+                              variant="outline"
+                              className="text-[10px]"
+                            >
+                              {e}
+                            </Badge>
+                          ))}
+                        </div>
+                        {w.last_triggered_at && (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {t("webhooks_page.last_triggered")}:{" "}
+                            {formatDateTime(w.last_triggered_at)}
+                          </p>
                         )}
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {w.events.map((e) => (
-                          <Badge
-                            key={e}
-                            variant="outline"
-                            className="text-[10px]"
-                          >
-                            {e}
-                          </Badge>
-                        ))}
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeliveriesFor(w)}
+                          title={t("webhooks_page.deliveries_title")}
+                        >
+                          <History className="h-4 w-4" />
+                          <span className="sr-only">
+                            {t("webhooks_page.deliveries_title")}
+                          </span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => sendTest(w.public_id)}
+                          disabled={testWebhook.isPending}
+                          title={t("webhooks_page.send_test")}
+                        >
+                          <Send className="h-4 w-4" />
+                          <span className="sr-only">
+                            {t("webhooks_page.send_test")}
+                          </span>
+                        </Button>
+                        {hasWebhooks && (
+                          <>
+                            <Switch
+                              checked={w.is_active}
+                              onCheckedChange={(on) => setActive(w, on)}
+                              disabled={updateWebhook.isPending}
+                              aria-label={t(
+                                "webhooks_page.active_toggle",
+                                "Deliver to this webhook",
+                              )}
+                              className="mt-1.5"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEdit(w)}
+                              title={t("common.edit", "Edit")}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">
+                                {t("common.edit", "Edit")}
+                              </span>
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleting(w)}
+                          title={t("common.delete")}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <span className="sr-only">{t("common.delete")}</span>
+                        </Button>
                       </div>
-                      {w.last_triggered_at && (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          {t("webhooks_page.last_triggered")}:{" "}
-                          {formatDateTime(w.last_triggered_at)}
-                        </p>
-                      )}
                     </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDeliveriesFor(w)}
-                        title={t("webhooks_page.deliveries_title")}
-                      >
-                        <History className="h-4 w-4" />
-                        <span className="sr-only">
-                          {t("webhooks_page.deliveries_title")}
-                        </span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => testWebhook.mutate(w.public_id)}
-                        disabled={testWebhook.isPending}
-                        title={t("webhooks_page.send_test")}
-                      >
-                        <Send className="h-4 w-4" />
-                        <span className="sr-only">
-                          {t("webhooks_page.send_test")}
-                        </span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteWebhook.mutate(w.public_id)}
-                        title={t("common.delete")}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                        <span className="sr-only">{t("common.delete")}</span>
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </QueryBoundary>
+
+        <ConfirmDialog
+          open={!!deleting}
+          onOpenChange={(open) => !open && setDeleting(null)}
+          title={`${t("common.delete")}: ${deleting?.url ?? ""}`}
+          description={t("devices_page.delete_confirm_suffix")}
+          confirmLabel={t("common.delete")}
+          variant="destructive"
+          loading={deleteWebhook.isPending}
+          onConfirm={confirmDelete}
+        />
 
         <WebhookDeliveriesDialog
           webhookId={deliveriesFor?.public_id ?? null}
@@ -306,16 +384,20 @@ export default function WebhooksPage() {
           onClose={() => setDeliveriesFor(null)}
         />
 
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <Dialog
+          open={createOpen}
+          onOpenChange={(open) => (open ? setCreateOpen(true) : closeDialog())}
+        >
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>{t("webhooks_page.create_webhook")}</DialogTitle>
+              <DialogTitle>
+                {editing
+                  ? t("webhooks_page.edit_webhook", "Edit webhook")
+                  : t("webhooks_page.create_webhook")}
+              </DialogTitle>
             </DialogHeader>
             <form
-              onSubmit={submit(
-                (values) => createWebhook.mutateAsync(values),
-                t("webhooks_page.create_failed"),
-              )}
+              onSubmit={submit(create, t("webhooks_page.create_failed"))}
               className="space-y-4"
               noValidate
             >
@@ -351,7 +433,7 @@ export default function WebhooksPage() {
                     aria-label={t("webhooks_page.events")}
                     className="mt-2 max-h-60 space-y-1 overflow-y-auto rounded-lg border p-2"
                   >
-                    {ALL_EVENTS.map((event) => (
+                    {WEBHOOK_EVENTS.map((event) => (
                       <label
                         key={event}
                         className="flex cursor-pointer items-center gap-2 rounded p-1 hover:bg-muted/50"
@@ -370,11 +452,7 @@ export default function WebhooksPage() {
               </FormField>
 
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setCreateOpen(false)}
-                >
+                <Button type="button" variant="outline" onClick={closeDialog}>
                   {t("common.cancel")}
                 </Button>
                 {/* No longer disabled on an empty event list: a button that is
@@ -384,7 +462,9 @@ export default function WebhooksPage() {
                   {isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  {t("api_keys_page.create")}
+                  {editing
+                    ? t("common.save", "Save")
+                    : t("api_keys_page.create")}
                 </Button>
               </DialogFooter>
             </form>

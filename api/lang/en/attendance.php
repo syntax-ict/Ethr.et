@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 return [
     'no_employee_linked' => 'No employee profile linked to your account.',
+    'employee_has_left' => 'This employee has left and cannot record attendance.',
+    'no_open_check_in' => 'There is no open check-in to close.',
     'employee_not_found' => 'Employee not found with the given code.',
     'qr_invalid_or_expired' => 'QR code is invalid or has expired.',
     'method_disabled' => 'This attendance method is not enabled for your organization.',
     'geofence_location_required' => 'GPS location is required when geofence enforcement is enabled.',
     'outside_geofence' => 'You are outside the allowed check-in area. Please move closer to your branch location.',
     'conflict_already_resolved' => 'This conflict has already been resolved.',
+    'offline_not_own' => 'You can only sync your own attendance.',
+    'offline_outside_window' => 'This punch was captured more than :days days ago, or in the future, so it cannot be synced. Ask HR to enter it.',
 ];

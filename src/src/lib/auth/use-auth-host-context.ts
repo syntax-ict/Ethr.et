@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { apiClient } from "@/api/client";
 import { hostContext, tenantFromHost, type HostContext } from "./host-context";
 import { useHost } from "./host-provider";
@@ -31,24 +32,54 @@ export function useAuthHostContext() {
   // heading and about whether the organisation field is shown — React
   // hydration error #418 on every tenant login page. See host-provider.tsx.
   const host = useHost();
-  const context: HostContext = hostContext(host, ROOT_DOMAIN);
-  const tenantSlug = tenantFromHost(host, ROOT_DOMAIN);
+  const classified: HostContext = hostContext(host, ROOT_DOMAIN);
+  const slugFromHost = tenantFromHost(host, ROOT_DOMAIN);
 
   const query = useQuery({
-    queryKey: ["auth", "tenant-context", tenantSlug],
+    queryKey: ["auth", "tenant-context", slugFromHost],
     queryFn: async () => {
       const { data } = await apiClient.get<TenantContextResponse>(
         "/auth/tenant-context",
       );
       return data.tenant;
     },
-    enabled: context === "tenant",
+    enabled: classified === "tenant",
     retry: false,
     staleTime: 5 * 60 * 1000,
   });
 
+  // A host this build cannot classify may still name an organisation to the
+  // server: a verified custom domain (`hr.acme.com`), or a subdomain when the
+  // build has no NEXT_PUBLIC_ROOT_DOMAIN, which is how production builds (M3).
+  // Ask, but WITHOUT X-Tenant, so only the host can answer: through apiClient
+  // the apex would name whatever organisation this browser last used and lock
+  // the field to it. On the apex the server answers null and nothing changes.
+  // Found in the 2026-10-08 QA pass: the Enterprise sign-in page did not name
+  // the organisation, and asked for it in a field, on that organisation's own
+  // domain (docs/audit/QA-CANONICAL-ADDRESS-2026-10-08.md, finding 2).
+  const hostQuery = useQuery({
+    queryKey: ["auth", "host-tenant", host],
+    queryFn: async () => {
+      const { data } = await axios.get<TenantContextResponse>(
+        "/api/v1/auth/tenant-context",
+        { withCredentials: true, headers: { Accept: "application/json" } },
+      );
+      return data.tenant;
+    },
+    enabled: classified === "unknown" && !!host,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const hostTenant = hostQuery.data ?? null;
+  const context: HostContext =
+    classified === "unknown" && hostTenant ? "tenant" : classified;
+  const tenantSlug = slugFromHost ?? hostTenant?.subdomain ?? null;
+
+  const resolved = query.data ?? hostTenant;
   const errorType = (
-    query.error as { response?: { data?: { type?: string } } } | undefined
+    (query.error ?? hostQuery.error) as
+      { response?: { data?: { type?: string } } } | undefined
   )?.response?.data?.type;
 
   let tenantLookupError: TenantLookupError = null;
@@ -63,9 +94,10 @@ export function useAuthHostContext() {
     context,
     /** The tenant slug from the hostname, or null off a tenant host. */
     tenantSlug,
-    tenantName: query.data?.name ?? null,
-    tenantLogoPath: query.data?.logo_path ?? null,
-    tenantContextLoading: context === "tenant" && query.isLoading,
+    tenantName: resolved?.name ?? null,
+    tenantLogoPath: resolved?.logo_path ?? null,
+    tenantContextLoading:
+      context === "tenant" && (query.isLoading || hostQuery.isLoading),
     tenantLookupError,
     /**
      * Manual organization-subdomain field stays only where the hostname

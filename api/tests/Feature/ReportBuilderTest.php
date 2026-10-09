@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Position;
 use App\Models\SavedReport;
+use App\Services\Report\ReportEngine;
 
 // ── Report Sources ──
 
@@ -138,6 +140,58 @@ test('report generation supports group by', function () {
     expect($response->json('summary.grouped_by'))->toBe('gender');
     expect($response->json('summary.groups.male'))->toBe(3);
     expect($response->json('summary.groups.female'))->toBe(2);
+});
+
+test('groups and sorts by a field that is not among the selected columns', function () {
+    // Rows were cut to the selected columns before sorting and grouping, so
+    // grouping by `gender` without selecting it gave one "Unknown" group, and
+    // sorting by it did nothing (audit N64).
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    Employee::factory()->count(3)->create(['tenant_id' => $tenant->id, 'gender' => 'male']);
+    Employee::factory()->count(2)->create(['tenant_id' => $tenant->id, 'gender' => 'female']);
+
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/reports/generate", [
+        'source' => 'employees',
+        'columns' => ['name'],
+        'group_by' => 'gender',
+    ])->assertOk();
+
+    // Same pairs in any order: group order follows row order, which the
+    // database does not promise.
+    expect($response->json('summary.groups'))->toEqual(['male' => 3, 'female' => 2])
+        ->and(array_keys($response->json('data.0')))->toBe(['name']);
+});
+
+test('an attendance report keeps the newest rows past the limit, and says it was cut', function () {
+    // It took the first 1,000 rows in no order, which was the oldest, and
+    // `total` gave no sign that anything was missing (audit N65).
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $start = Carbon\Carbon::parse('2023-01-01');
+    $rows = [];
+    for ($i = 0; $i <= ReportEngine::ROW_LIMIT; $i++) {
+        $rows[] = AttendanceRecord::factory()->make([
+            'tenant_id' => $tenant->id,
+            'employee_id' => $employee->id,
+            'date' => $start->copy()->addDays($i)->format('Y-m-d'),
+        ])->getAttributes();
+    }
+    foreach (array_chunk($rows, 200) as $chunk) {
+        AttendanceRecord::insert($chunk);
+    }
+
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/reports/generate", [
+        'source' => 'attendance',
+        'columns' => ['date'],
+    ])->assertOk();
+
+    $newest = $start->copy()->addDays(ReportEngine::ROW_LIMIT)->format('Y-m-d');
+    expect($response->json('truncated'))->toBeTrue()
+        ->and($response->json('total'))->toBe(ReportEngine::ROW_LIMIT)
+        ->and(collect($response->json('data'))->pluck('date'))->toContain($newest)
+        ->and(collect($response->json('data'))->pluck('date'))->not->toContain('2023-01-01');
 });
 
 test('grouping a payroll report sums cents columns per group, not just counts', function () {

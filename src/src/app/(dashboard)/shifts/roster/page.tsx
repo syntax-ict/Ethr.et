@@ -15,8 +15,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { useShiftSchedule, useShifts } from "@/features/shifts/api";
+import {
+  addDaysIso,
+  localIsoDate,
+  mondayOf,
+  toHHMM,
+} from "@/features/shifts/dates";
+import { buildRoster } from "@/features/shifts/roster";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -63,121 +69,43 @@ function daysInMonth(y: number, m: number): number {
   return new Date(y, m + 1, 0).getDate();
 }
 
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-interface ShiftAssignment {
-  shift?: {
-    name: string;
-    start_time: string;
-    end_time: string;
-    working_days: string;
-  } | null;
-  assignable_type: string;
-  effective_from: string;
-  effective_to: string | null;
-}
-
-interface Shift {
-  public_id: string;
-  name: string;
-  start_time: string;
-  end_time: string;
-  working_days: string;
-  is_active: boolean;
-  is_default: boolean;
-}
-
 export default function RosterPage() {
   const { t } = useT();
   const today = new Date();
+  const todayKey = localIsoDate(today);
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [view, setView] = useState<"month" | "week">("month");
 
-  // For week view: track which week's Monday
-  const [weekStart, setWeekStart] = useState(() => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - d.getDay() + 1); // Monday
-    return d;
-  });
+  // For week view: the Monday of the week being shown. Computed as
+  // `getDate() - getDay() + 1`, a Sunday (getDay() 0) jumped to the *next*
+  // Monday, so on Sundays "this week" showed the following one.
+  const [weekStart, setWeekStart] = useState(() => mondayOf(today));
 
   const monthFrom = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-  const monthTo = isoDate(new Date(year, month + 1, 0));
+  const monthTo = localIsoDate(new Date(year, month + 1, 0));
 
-  const weekFrom = isoDate(weekStart);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
-  const weekTo = isoDate(weekEnd);
+  const weekFrom = localIsoDate(weekStart);
+  const weekTo = addDaysIso(weekFrom, 6);
 
   const dateFrom = view === "month" ? monthFrom : weekFrom;
   const dateTo = view === "month" ? monthTo : weekTo;
 
-  const { data: scheduleData, isLoading: scheduleLoading } = useQuery({
-    queryKey: ["shifts", "schedule", dateFrom, dateTo],
-    queryFn: async () =>
-      (
-        await apiClient.get(
-          `/shifts/schedule?filter[date_from]=${dateFrom}&filter[date_to]=${dateTo}&per_page=200`,
-        )
-      ).data,
+  const { data: scheduleData, isLoading: scheduleLoading } = useShiftSchedule({
+    date_from: dateFrom,
+    date_to: dateTo,
   });
 
-  const { data: shiftsData } = useQuery({
-    queryKey: ["shifts"],
-    queryFn: async () => (await apiClient.get("/shifts?per_page=100")).data,
-  });
+  const { data: shiftsData } = useShifts();
 
-  const assignments: ShiftAssignment[] = useMemo(
-    () => scheduleData?.data ?? [],
-    [scheduleData],
-  );
-  const allShifts: Shift[] = shiftsData?.data ?? [];
+  const assignments = useMemo(() => scheduleData?.data ?? [], [scheduleData]);
+  const allShifts = shiftsData?.data ?? [];
   const defaultShift = allShifts.find((s) => s.is_default && s.is_active);
 
-  // Build a map: date string → array of assignment-applicable shifts
-  const dateShiftMap = useMemo(() => {
-    const map: Record<
-      string,
-      { name: string; start: string; end: string; type: string }[]
-    > = {};
-
-    assignments.forEach((a) => {
-      if (!a.shift) return;
-      const from = new Date(a.effective_from);
-      const to = a.effective_to
-        ? new Date(a.effective_to)
-        : new Date("2099-12-31");
-      const workingDays = a.shift.working_days?.split(",").map(Number) ?? [];
-
-      const cursor = new Date(from);
-      const rangeEnd = new Date(
-        Math.min(to.getTime(), new Date(dateTo).getTime()),
-      );
-      const rangeStart = new Date(
-        Math.max(from.getTime(), new Date(dateFrom).getTime()),
-      );
-      cursor.setTime(rangeStart.getTime());
-
-      while (cursor <= rangeEnd) {
-        const dow = cursor.getDay() === 0 ? 7 : cursor.getDay(); // Mon=1..Sun=7
-        if (workingDays.includes(dow)) {
-          const key = isoDate(cursor);
-          if (!map[key]) map[key] = [];
-          map[key].push({
-            name: a.shift.name,
-            start: a.shift.start_time,
-            end: a.shift.end_time,
-            type: a.assignable_type,
-          });
-        }
-        cursor.setDate(cursor.getDate() + 1);
-      }
-    });
-
-    return map;
-  }, [assignments, dateFrom, dateTo]);
+  const dateShiftMap = useMemo(
+    () => buildRoster(assignments, dateFrom, dateTo),
+    [assignments, dateFrom, dateTo],
+  );
 
   // ── Month view ──
   const monthDays = useMemo(() => {
@@ -225,10 +153,10 @@ export default function RosterPage() {
   }
 
   function DayCell({ date }: { date: Date }) {
-    const key = isoDate(date);
+    const key = localIsoDate(date);
     const shifts = dateShiftMap[key] ?? [];
-    const isToday = key === isoDate(today);
-    const isPast = date < today && !isToday;
+    const isToday = key === todayKey;
+    const isPast = key < todayKey;
 
     return (
       <div
@@ -335,9 +263,7 @@ export default function RosterPage() {
               onClick={() => {
                 setYear(today.getFullYear());
                 setMonth(today.getMonth());
-                const d = new Date(today);
-                d.setDate(d.getDate() - d.getDay() + 1);
-                setWeekStart(d);
+                setWeekStart(mondayOf(today));
               }}
             >
               {t("shift_roster_page.today")}
@@ -390,7 +316,7 @@ export default function RosterPage() {
                       useful thing in the chip — they stay at full opacity and
                       are set apart by weight instead. */}
                   <span className="font-normal tabular-nums">
-                    {s.start_time}–{s.end_time}
+                    {toHHMM(s.start_time)}–{toHHMM(s.end_time)}
                   </span>
                   {s.is_default && (
                     <Badge
@@ -434,9 +360,9 @@ export default function RosterPage() {
           // ── Week grid ──
           <div className="grid grid-cols-7 gap-3">
             {weekDays.map((date) => {
-              const key = isoDate(date);
+              const key = localIsoDate(date);
               const shifts = dateShiftMap[key] ?? [];
-              const isToday = key === isoDate(today);
+              const isToday = key === todayKey;
               return (
                 <Card key={key} className={cn(isToday && "border-primary")}>
                   <CardHeader className="p-3 pb-2">
@@ -477,7 +403,8 @@ export default function RosterPage() {
                       >
                         <p className="font-semibold">{defaultShift.name}</p>
                         <p className="opacity-80">
-                          {defaultShift.start_time}–{defaultShift.end_time}
+                          {toHHMM(defaultShift.start_time)}–
+                          {toHHMM(defaultShift.end_time)}
                         </p>
                         <p className="opacity-60">
                           {t("shift_roster_page.default_lc")}

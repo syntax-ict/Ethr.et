@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
+import { CalendarProvider } from "@/lib/calendar/calendar-context";
 
 import { OverviewTab } from "@/app/(dashboard)/analytics/overview-tab";
 import { AttendanceTab } from "@/app/(dashboard)/analytics/attendance-tab";
@@ -22,7 +23,11 @@ function renderWithClient(ui: React.ReactElement) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={qc}>
+      <CalendarProvider>{ui}</CalendarProvider>
+    </QueryClientProvider>,
+  );
 }
 
 const CASES = [

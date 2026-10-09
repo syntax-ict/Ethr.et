@@ -56,6 +56,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend URL
+    |--------------------------------------------------------------------------
+    |
+    | Where the browser app lives, for links in outbound mail (password reset,
+    | account activation). In production the static export is served by the same
+    | Apache vhost as the API, so it is the same origin as APP_URL. Only a local
+    | checkout runs the two apart (API :8000, Next dev server :3000), so that is
+    | the only place a localhost default is correct. Anywhere else an unset
+    | FRONTEND_URL must fall back to APP_URL, not to a host no user can reach.
+    |
+    | `?:` rather than env()'s default argument: a blank `FRONTEND_URL=` line
+    | makes env() return '' instead of the default, which would put links with
+    | no host in every reset email. Blank and absent must mean the same thing.
+    |
+    */
+
+    'frontend_url' => env('FRONTEND_URL') ?: (env('APP_ENV', 'production') === 'local'
+        ? 'http://localhost:3000'
+        : env('APP_URL', 'http://localhost')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Tenancy Root Domain
     |--------------------------------------------------------------------------
     |
@@ -83,6 +105,11 @@ return [
     |
     */
 
+    // Fixed, deliberately, and read from no env key: every timestamp is stored
+    // in UTC and a tenant's local day comes from its own timezone setting
+    // (EthiopianTimezoneTest pins this). The templates used to carry an
+    // APP_TIMEZONE that nothing read — a setting that looked changeable and
+    // was not. Removed 2026-10-01 (audit I4).
     'timezone' => 'UTC',
 
     /*

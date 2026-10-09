@@ -239,10 +239,21 @@ The rule: **nothing that can mis-bill a customer ships after the UI that trigger
 | ~~**5**~~ | ~~Wire the marketing pages to the data~~ — **done, §8**. Pricing, metrics and contact read the database; the invented testimonial is **deleted** (it was still rendering when §8 claimed otherwise — see the correction there) | 2–3 |
 | ~~**6**~~ | ~~Contact form actually captures leads~~ — **done** (`leads` table, queued notification, honeypot) | 1–2 |
 | ~~**7**~~ | ~~SEO: locale-prefixed `/am` and `/en` routes, robots, sitemap, OG image, JSON-LD, Ethiopic font~~ — **done, §9** | 3–4 |
-| 8 | **Performance only.** Accessibility is done (`aria-expanded`/`aria-controls` on the mobile menu, Phase 5) and so is reusing the shared language switcher. **Self-hosted analytics was dropped by owner decision, 2026-09-17** — see §10. What is left is the 427 KB | 3–4 |
+| 8 | **Performance only.** Accessibility is done (`aria-expanded`/`aria-controls` on the mobile menu, Phase 5) and so is reusing the shared language switcher. **Self-hosted analytics was dropped by owner decision, 2026-09-17** — see §10. What is left is the 427 KB. **2026-10-04: slice 2 done** — the whole `am.json` (56.6 KB gzipped) is off every public page, which now carries an Amharic projection as English already did (`audit/BASELINE.md` §18, *slice 2*). Slice 1 (axios) is its own PR. **Mobile baseline 2026-10-04** (§18): Performance 68–79 against > 80; with applied throttling LCP is ≈2.5 s on `/en` and the binding constraint is Total Blocking Time (0.8–2.3 s) — next slice was Amharic text layout — *profiling it found the design-system fonts had never applied anywhere (§18); fixed as a correctness change, performance neutral within noise*. **Phase 8 stopped here, 2026-10-04, by measurement:** public-page JS is 426 → 352 KB (−17%). What remains is the framework (React DOM + Next runtime 188 KB), Sentry (87 KB, a product decision, §18), `noModule` polyfills (free to current browsers) and ≈50 KB of small wins (lazy Radix menus, `sonner` mounted on pages that never toast). The landing page's own code is **6.2 KB**: a server-component rewrite of the public site would buy about that, which is not worth its risk. Reopen only with a reason the bytes above do not cover. *Sentry measured and set aside (§18): ≈410 ms of TBT in production, from its core error-monitoring init rather than tracing; cutting it changes what monitoring sees, which is a product decision* | 3–4 |
 | ~~**9**~~ | ~~Anonymous-visitor e2e, an Amharic render assertion, a Lighthouse gate scope~~ — **done, §11** | 1–2 |
 
 Phases 3 and 4 are independent of each other; both depend on 2.
+
+**Phase 8 progress (2026-10-03).** Re-measured and attributed chunk by chunk in
+`audit/BASELINE.md` §18. *Slice 1 done:* axios is off every public page
+(−18.7 KB on the landing page). *Slice 2 next:* the whole `am.json` — 56.6 KB
+gzipped — still ships to every public page, English included, because it is the
+one eager dictionary. The `[locale]` layout already sends English a 7.5 KB
+projection; extending that to Amharic has one trap to design around first: the
+i18n gate lets a public key outside the projection through when its inline
+English fallback equals `en.json`, which is sound for English and would be a
+hydration mismatch for Amharic. Sentry's 87 KB stays, for the reason in its
+docblock.
 
 **Remaining: Phase 8's performance work, and the B5 hosting answer.** Phase 0's Lighthouse measurement and the B5 hosting
 answer are still owner actions — a Plesk panel lookup cannot be done from here.

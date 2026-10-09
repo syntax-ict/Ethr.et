@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { baseMetadata, RootShell } from "../root-shell";
 import { DEFAULT_LOCALE } from "@/lib/i18n/translations";
+import { AmharicDictionary } from "@/lib/i18n/amharic-dictionary";
 
 export const metadata: Metadata = {
   ...baseMetadata,
@@ -18,7 +19,9 @@ export default function KioskLayout({
 }) {
   return (
     <RootShell lang={DEFAULT_LOCALE}>
-      <div className="min-h-screen bg-background">{children}</div>
+      <AmharicDictionary>
+        <div className="min-h-screen bg-background">{children}</div>
+      </AmharicDictionary>
     </RootShell>
   );
 }

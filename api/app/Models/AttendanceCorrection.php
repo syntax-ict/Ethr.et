@@ -6,16 +6,22 @@ namespace App\Models;
 
 use App\Enums\CorrectionStatus;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
-/** @property CorrectionStatus $status */
+/**
+ * @property CorrectionStatus $status
+ * @property-read AttendanceRecord|null $attendanceRecord
+ * @property-read Employee|null $employee
+ * @property Carbon|null $proposed_check_in
+ * @property Carbon|null $proposed_check_out
+ */
 class AttendanceCorrection extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId;
+    use BelongsToTenant, HasFactory, HasPublicId;
 
     protected $fillable = [
         'public_id',

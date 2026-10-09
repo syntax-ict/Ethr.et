@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
-import { usePlans, type Plan } from "@/features/billing/api";
+import { usePlans, type Plan } from "@/features/billing/plans";
 import {
   PLANS_SNAPSHOT,
   PLANS_SNAPSHOT_GENERATED_AT,

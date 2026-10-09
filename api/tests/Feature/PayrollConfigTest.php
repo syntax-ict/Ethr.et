@@ -386,9 +386,49 @@ test('overtime rates report the proclamation defaults until customized', functio
 
     test()->getJson(configUrl($tenant->subdomain, 'overtime-rates'))
         ->assertOk()
-        ->assertJsonPath('rates.normal', 1.25)
+        ->assertJsonPath('rates.normal', 1.5)
+        ->assertJsonPath('rates.night', 1.75)
+        ->assertJsonPath('rates.rest_day', 2)
+        ->assertJsonPath('rates.holiday', 2.5)
         ->assertJsonPath('rates.holiday_night', 2.5)
         ->assertJsonPath('is_customized', false);
+});
+
+test('a rate stored under the old 377/2003 floors is paid at the current minimum', function () {
+    // Tenants saved rates while the floor was 1.25; the database still holds
+    // them. Payroll must not pay below Art. 68(1) because of it.
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+    PayrollRule::create([
+        'tenant_id' => $tenant->id,
+        'name' => 'Overtime Rates',
+        'type' => 'rate',
+        'category' => 'overtime',
+        'formula' => ['normal' => 1.25, 'night' => 1.5, 'holiday' => 2.0, 'holiday_night' => 3.0],
+        'is_taxable' => true,
+        'is_active' => true,
+        'sort_order' => 0,
+    ]);
+
+    test()->getJson(configUrl($tenant->subdomain, 'overtime-rates'))
+        ->assertOk()
+        ->assertJsonPath('rates.normal', 1.5)
+        ->assertJsonPath('rates.night', 1.75)
+        ->assertJsonPath('rates.holiday', 2.5)
+        ->assertJsonPath('rates.holiday_night', 3);
+});
+
+test('a rate below the statutory minimum is refused', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->putJson(configUrl($tenant->subdomain, 'overtime-rates'), [
+        'normal' => 1.25,
+        'night' => 1.5,
+        'rest_day' => 1.9,
+        'holiday' => 2.0,
+        'holiday_night' => 2.5,
+    ])->assertStatus(422)->assertJsonValidationErrors(['normal', 'night', 'rest_day', 'holiday']);
 });
 
 test('updated overtime rates are applied by payroll', function () {
@@ -470,7 +510,7 @@ test('overtime rates are isolated between tenants', function () {
 
     test()->getJson(configUrl($other->subdomain, 'overtime-rates'))
         ->assertOk()
-        ->assertJsonPath('rates.normal', 1.25)
+        ->assertJsonPath('rates.normal', 1.5)
         ->assertJsonPath('is_customized', false);
 });
 

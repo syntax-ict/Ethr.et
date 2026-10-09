@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
+use App\Enums\PlanFeature;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ExtendTrialRequest;
 use App\Http\Requests\Admin\ImpersonateTenantRequest;
+use App\Http\Requests\Admin\UpdateTenantDomainRequest;
 use App\Http\Requests\Admin\UpdateTenantStatusRequest;
 use App\Http\Resources\AdminTenantResource;
 use App\Jobs\BackupTenantJob;
@@ -22,11 +24,14 @@ use App\Services\Auth\ImpersonationToken;
 use App\Services\Auth\SessionCookie;
 use App\Services\Auth\SessionHandoff;
 use App\Services\AuthService;
+use App\Services\CustomDomainVerifier;
 use App\Services\MfaService;
+use App\Services\PlanFeatureService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class AdminTenantController extends Controller
 {
@@ -69,7 +74,7 @@ class AdminTenantController extends Controller
         );
     }
 
-    public function show(string $publicId): JsonResponse
+    public function show(string $publicId, PlanFeatureService $plans): JsonResponse
     {
         Gate::authorize('admin.manage');
 
@@ -79,11 +84,8 @@ class AdminTenantController extends Controller
             ->withCount(['employees' => fn ($q) => $q->withoutGlobalScopes()])
             ->firstOrFail();
 
-        $subscription = Subscription::withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
-            ->with('plan')
-            ->latest()
-            ->first();
+        $subscription = $this->latestSubscription($tenant);
+        $tenant->setRelation('subscription', $subscription);
 
         $invoices = Invoice::withoutGlobalScopes()
             ->where('tenant_id', $tenant->id)
@@ -116,6 +118,10 @@ class AdminTenantController extends Controller
             'public_id' => $tenant->public_id,
             'name' => $tenant->name,
             'subdomain' => $tenant->subdomain,
+            'custom_domain' => $tenant->custom_domain,
+            'custom_domain_status' => $this->domainStatus($tenant),
+            'custom_domain_dns' => $this->domainDns($tenant),
+            'custom_domain_allowed' => $plans->allows($tenant, PlanFeature::CustomDomain),
             'type' => $tenant->type,
             'status' => $tenant->status->value,
             'trial_ends_at' => $tenant->trial_ends_at,
@@ -155,6 +161,173 @@ class AdminTenantController extends Controller
             'public_id' => $tenant->public_id,
             'status' => $tenant->status->value,
         ]);
+    }
+
+    /**
+     * Assign, change or clear the tenant's custom domain.
+     *
+     * A new domain is stored **pending**, with a fresh verification token: it
+     * resolves nothing and no link uses it until the Verify action finds the
+     * DNS records `custom_domain_dns` lists. `null` clears it at once.
+     */
+    public function updateDomain(UpdateTenantDomainRequest $request, string $publicId, PlanFeatureService $plans): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        // Tenant::query(), not withoutGlobalScopes(): Tenant carries no tenant
+        // scope, so there is nothing to bypass, and SoftDeletes keeps a deleted
+        // tenant from being handed a domain. Tenant's saved() hook forgets the
+        // resolver's cache for the old and the new domain, which is why the
+        // change applies at once rather than after the five-minute cache.
+        $tenant = Tenant::query()
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+
+        $newDomain = $request->input('custom_domain');
+        $tenant->setRelation('subscription', $this->latestSubscription($tenant));
+
+        // A custom domain is a paid add-on: assigning one needs a plan that
+        // names `custom_domain`. Clearing one never does.
+        if ($newDomain !== null && ! $plans->allows($tenant, PlanFeature::CustomDomain)) {
+            throw ValidationException::withMessages([
+                'custom_domain' => [__('validation.custom_domain_not_in_plan')],
+            ]);
+        }
+
+        $oldDomain = $tenant->custom_domain;
+        $tenant->update(['custom_domain' => $newDomain]);
+
+        AuditLog::record('admin.tenant.domain_changed', $tenant, [
+            'old_domain' => $oldDomain,
+            'new_domain' => $tenant->custom_domain,
+        ]);
+
+        return response()->json([
+            'public_id' => $tenant->public_id,
+            'custom_domain' => $tenant->custom_domain,
+            'custom_domain_status' => $this->domainStatus($tenant),
+            'custom_domain_dns' => $this->domainDns($tenant),
+        ]);
+    }
+
+    /**
+     * Check the tenant's pending custom domain and, if both DNS records are in
+     * place, make it its address.
+     *
+     * Looks up the TXT record carrying the verification token and the CNAME to
+     * the platform target. Both must pass; a 422 names each that did not. A
+     * domain already verified is returned as it is: a DNS hiccup at the moment
+     * someone presses Verify must not take an organisation's address away.
+     * Changing the domain is what starts verification over.
+     */
+    public function verifyDomain(string $publicId, CustomDomainVerifier $verifier): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::query()
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+
+        if ($tenant->custom_domain === null) {
+            throw ValidationException::withMessages([
+                'custom_domain' => [__('validation.custom_domain_none')],
+            ]);
+        }
+
+        if (! $tenant->hasVerifiedCustomDomain()) {
+            $errors = $this->failedDnsChecks($tenant, $verifier->check($tenant));
+            if ($errors !== []) {
+                throw ValidationException::withMessages($errors);
+            }
+
+            $tenant->forceFill(['custom_domain_verified_at' => now()])->save();
+            AuditLog::record('admin.tenant.domain_verified', $tenant, [
+                'domain' => $tenant->custom_domain,
+            ]);
+        }
+
+        return response()->json([
+            'public_id' => $tenant->public_id,
+            'custom_domain' => $tenant->custom_domain,
+            'custom_domain_status' => $this->domainStatus($tenant),
+            'custom_domain_dns' => $this->domainDns($tenant),
+        ]);
+    }
+
+    /**
+     * One message per DNS check that did not pass, keyed `txt` and `cname`.
+     *
+     * @param  array{txt: bool, cname: bool}  $checks
+     * @return array<string, list<string>>
+     */
+    private function failedDnsChecks(Tenant $tenant, array $checks): array
+    {
+        $dns = $this->domainDns($tenant);
+        $errors = [];
+
+        if (! $checks['txt'] && $dns !== null) {
+            $errors['txt'] = [__('validation.custom_domain_txt_missing', [
+                'name' => $dns['txt_name'],
+                'value' => $dns['txt_value'],
+            ])];
+        }
+
+        if (! $checks['cname']) {
+            $errors['cname'] = [__('validation.custom_domain_cname_missing', [
+                'domain' => (string) $tenant->custom_domain,
+                'target' => CustomDomainVerifier::target() ?? '-',
+            ])];
+        }
+
+        return $errors;
+    }
+
+    /**
+     * The tenant's current subscription, with its plan.
+     *
+     * Scope-free and stating `tenant_id` itself: the console resolves no
+     * tenant, so `$tenant->subscription` would answer null through
+     * BelongsToTenant's fail-closed scope, and PlanFeatureService would then
+     * read every plan as absent. One site for show() and updateDomain(), so
+     * the plan the console displays is the plan it enforces.
+     */
+    private function latestSubscription(Tenant $tenant): ?Subscription
+    {
+        return Subscription::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->with('plan')
+            ->latest()
+            ->first();
+    }
+
+    /** `null` with no domain, `pending` until Verify passes, then `verified`. */
+    private function domainStatus(Tenant $tenant): ?string
+    {
+        if ($tenant->custom_domain === null) {
+            return null;
+        }
+
+        return $tenant->hasVerifiedCustomDomain() ? 'verified' : 'pending';
+    }
+
+    /**
+     * The two DNS records the organisation publishes, or null with no domain.
+     *
+     * @return array{txt_name: string, txt_value: string, cname_name: string, cname_target: string|null}|null
+     */
+    private function domainDns(Tenant $tenant): ?array
+    {
+        $domain = $tenant->custom_domain;
+        if ($domain === null) {
+            return null;
+        }
+
+        return [
+            'txt_name' => CustomDomainVerifier::txtName($domain),
+            'txt_value' => CustomDomainVerifier::txtValue((string) $tenant->custom_domain_token),
+            'cname_name' => $domain,
+            'cname_target' => CustomDomainVerifier::target(),
+        ];
     }
 
     public function extendTrial(ExtendTrialRequest $request, string $publicId): JsonResponse
@@ -289,13 +462,27 @@ class AdminTenantController extends Controller
     }
 
     /**
-     * End an impersonation session and put the super admin back in their own.
+     * End an impersonation session and send the super admin back to their own.
+     *
+     * Routed at `POST /auth/impersonation/exit`, inside the ordinary
+     * authenticated group and *outside* `/admin`: the caller is the impersonated
+     * tenant admin on the tenant's own host, where `EnsurePlatformContext` 404s
+     * every `/admin` route (audit N19). The authority is the impersonation
+     * ability on the presented token — checked first, so an ordinary session
+     * gets a 403 and nothing else happens.
      *
      * Revoking the token is not enough on its own: the browser is holding that
      * token in its session cookie, so a bare revoke turns the next request into
-     * a 401 that reads as a random logout. The admin's original plaintext token
-     * is unrecoverable (it was overwritten in the cookie and only its hash is
-     * stored), so restoring them means minting a fresh session here.
+     * a 401 that reads as a random logout. What replaces it depends on the mode:
+     *
+     * - Hostname mode: this request is on {tenant}.ethr.et, and the operator's
+     *   own session lives on admin.ethr.et — impersonate() never touched it. A
+     *   super-admin session minted here would be a cookie for the wrong host,
+     *   refused by EnsureUserBelongsToTenant on its first use. So the tenant
+     *   host's cookie is cleared and the client is told where to go back to.
+     * - Single host: the admin's original plaintext token is unrecoverable (it
+     *   was overwritten in the cookie and only its hash is stored), so restoring
+     *   them means minting a fresh session here.
      */
     public function exitImpersonation(Request $request, SessionCookie $sessionCookie, AuthService $auth): JsonResponse
     {
@@ -304,24 +491,38 @@ class AdminTenantController extends Controller
 
         // Only an active impersonation session (token minted with the
         // 'impersonation' ability) may be ended here. No admin.manage gate:
-        // the caller is acting as the impersonated tenant admin, not a super admin.
+        // the caller is acting as the impersonated tenant admin, not a super
+        // admin. Read from the abilities list, never tokenCan(): an ordinary
+        // token holds '*', which tokenCan('impersonation') would match.
         if ($user === null || $token === null || ! in_array(ImpersonationToken::ABILITY, $token->abilities ?? [], true)) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/not-impersonating',
                 'title' => 'Not Impersonating',
-                'status' => 409,
+                'status' => 403,
                 'detail' => __('auth.not_impersonating'),
-            ], 409)->header('Content-Type', 'application/problem+json');
+            ], 403)->header('Content-Type', 'application/problem+json');
         }
+
+        $impersonator = $this->resolveImpersonator($token->name);
 
         AuditLog::record('admin.tenant.impersonation_ended', null, [
             'impersonated_user_id' => $user->id,
+            'host' => $request->getHost(),
         ]);
 
         // Revoke the impersonation token so it can no longer be used.
         $token->delete();
 
-        $impersonator = $this->resolveImpersonator($token->name);
+        if (SessionHandoff::required()) {
+            $sessionCookie->clear();
+
+            return response()->json([
+                'message' => __('auth.impersonation_ended'),
+                'session_restored' => false,
+                'tenant' => null,
+                'return_url' => $impersonator !== null ? SessionHandoff::platformConsoleUrl() : null,
+            ]);
+        }
 
         if ($impersonator === null) {
             $sessionCookie->clear();
@@ -330,18 +531,22 @@ class AdminTenantController extends Controller
                 'message' => __('auth.impersonation_ended'),
                 'session_restored' => false,
                 'tenant' => null,
+                'return_url' => null,
             ]);
         }
 
         $auth->issueSession($impersonator);
 
+        // The subdomain the client should send as X-Tenant from here on.
+        // Server-authoritative, so exiting still works when the browser has lost
+        // whatever it stashed at the start of the session.
+        $restoredTenant = Tenant::withoutGlobalScopes()->find($impersonator->tenant_id)?->subdomain;
+
         return response()->json([
             'message' => __('auth.impersonation_ended'),
             'session_restored' => true,
-            // The subdomain the client should send as X-Tenant from here on.
-            // Server-authoritative, so exiting still works when the browser has
-            // lost whatever it stashed at the start of the session.
-            'tenant' => Tenant::withoutGlobalScopes()->find($impersonator->tenant_id)?->subdomain,
+            'tenant' => $restoredTenant,
+            'return_url' => null,
         ]);
     }
 
@@ -372,6 +577,37 @@ class AdminTenantController extends Controller
         $impersonator = User::withoutGlobalScopes()->find($actorId);
 
         return $impersonator?->isSuperAdmin() ? $impersonator : null;
+    }
+
+    /**
+     * Record that an organisation's invoice has been paid.
+     *
+     * Payment is by bank transfer to the provider, so it is the provider who
+     * knows it arrived. This was a tenant endpoint behind the tenant's own
+     * `billing.manage`, which let an organisation mark its own invoices paid,
+     * defeat overdue suspension and count as revenue (audit N94).
+     */
+    public function markInvoicePaid(string $publicId, string $invoicePublicId): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::where('public_id', $publicId)->firstOrFail();
+
+        $invoice = Invoice::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->where('public_id', $invoicePublicId)
+            ->firstOrFail();
+
+        if ($invoice->status !== 'paid') {
+            $invoice->update(['status' => 'paid', 'paid_at' => now()]);
+            AuditLog::record('billing.invoice_paid', $invoice);
+        }
+
+        return response()->json([
+            'public_id' => $invoice->public_id,
+            'status' => $invoice->status,
+            'paid_at' => $invoice->paid_at,
+        ]);
     }
 
     public function backup(Request $request, string $publicId): JsonResponse

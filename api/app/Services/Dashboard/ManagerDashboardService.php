@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Dashboard;
 
+use App\Enums\AttendanceStatus;
 use App\Enums\LeaveStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use App\Services\Approval\DecidableApprovals;
 use Carbon\Carbon;
 
 final class ManagerDashboardService
@@ -20,7 +22,7 @@ final class ManagerDashboardService
 
         return [
             'team_attendance' => $this->teamAttendanceToday($teamIds),
-            'pending_approvals' => $this->pendingApprovalsCount($user, $teamIds),
+            'pending_approvals' => $this->pendingApprovalsCount($user),
             'team_on_leave' => $this->teamOnLeaveThisWeek($teamIds),
             'team_size' => count($teamIds),
         ];
@@ -50,30 +52,26 @@ final class ManagerDashboardService
             ->get();
 
         $present = $records->count();
-        $late = $records->where('status', 'late')->count();
+        $late = $records->where('status', AttendanceStatus::LATE)->count();
 
         return [
             'present' => $present,
-            'absent' => count($teamIds) - $present,
+            'absent' => (int) (count($teamIds) - $present),
             'late' => $late,
         ];
     }
 
-    private function pendingApprovalsCount(User $user, array $teamIds): array
+    /**
+     * Exactly what the approvals queue lists for this user (audit N63): the
+     * count was pending leave from direct reports only, so HR and branch- or
+     * department-scoped approvers saw "All caught up!" while the queue had
+     * items, and corrections and profile changes were never counted.
+     *
+     * @return array{leave: int, correction: int, profile_update: int, total: int}
+     */
+    private function pendingApprovalsCount(User $user): array
     {
-        $leaveCount = 0;
-        if (! empty($teamIds)) {
-            $employeeIds = $teamIds;
-            $leaveCount = LeaveRequest::query()
-                ->whereIn('employee_id', $employeeIds)
-                ->where('status', LeaveStatus::PENDING)
-                ->count();
-        }
-
-        return [
-            'leave' => $leaveCount,
-            'total' => $leaveCount,
-        ];
+        return app(DecidableApprovals::class)->counts($user);
     }
 
     private function teamOnLeaveThisWeek(array $teamIds): array
@@ -97,6 +95,6 @@ final class ManagerDashboardService
                 'start_date' => $lr->start_date->format('Y-m-d'),
                 'end_date' => $lr->end_date->format('Y-m-d'),
             ])
-            ->toArray();
+            ->all();
     }
 }

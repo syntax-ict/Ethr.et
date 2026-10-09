@@ -62,7 +62,7 @@ never booted (see "Queue and scheduler" below).
 + FILESYSTEM_DISK=local
 ```
 
-No application code needed any of these to change — see `docs/SHARED_HOSTING_AUDIT.md`
+No application code needed any of these to change — see `docs/archive/migration/SHARED_HOSTING_AUDIT.md`
 §D: zero `Redis::` calls anywhere in `app/`, the broadcast leg of every notification is
 already guarded on `config('broadcasting.default') === 'reverb'`, and
 `FileStorageService` (fixed in commit `80cac67`) resolves `filesystems.default` instead
@@ -90,11 +90,16 @@ already declares in `config/filesystems.php`) — no code change either way, `lo
 
 ```diff
 - DB_HOST=mariadb
-+ DB_HOST=localhost
++ DB_HOST=
 ```
 
-Verified: port 3306 on `213.55.96.154` is refused from the public internet — MySQL is
-local-only on this account, which settles this value rather than leaving it a guess.
+**Corrected 2026-10-09: the value is the host Plesk's *Databases* page shows, `<DB_HOST>`,
+not `localhost`.** This said `localhost`, reasoning that port 3306 on `213.55.96.154` is
+refused from the public internet, so MySQL must be local-only. The refusal was real; the
+conclusion was not. The database runs on a **separate server on the provider's internal
+network**, reachable from the web server and from nowhere else. A first `.env` written from
+this value failed with `Access denied for user '<DB_USER>'@'localhost'`, and the template is
+now empty with a comment that says where the value comes from.
 `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` come from Plesk's own database
 creation screen, not chosen by this deployment.
 
@@ -127,13 +132,35 @@ SENTRY_LARAVEL_DSN=
 NEXT_PUBLIC_SENTRY_DSN=
 SENTRY_AUTH_TOKEN=
 
-# B3 — cron. If the panel only offers URL-fetch tasks rather than command
-# execution, the scheduler/queue need an authenticated HTTP endpoint instead
-# of `schedule:run`/`queue:work` — NOT built speculatively (see
-# MIGRATION_STATE.md, "Deliberately not built"). This variable is the shared
-# secret that endpoint would require; leave unset until B3's answer is known.
-# SCHEDULER_HTTP_TOKEN=
+# SUPERSEDED 2026-09-27 — this variable does not exist and never did.
+#
+# It read: "B3 — cron. If the panel only offers URL-fetch tasks rather than
+# command execution, the scheduler/queue need an authenticated HTTP endpoint
+# instead of `schedule:run`/`queue:work` — NOT built speculatively. This
+# variable is the shared secret that endpoint would require; leave unset until
+# B3's answer is known."
+#
+# B3's answer came back FAIL (G0-D: no Scheduled Tasks section on this
+# subscription), the endpoint WAS built on 2026-09-22 (`b61cb05`), and the
+# variable it actually reads is CRON_TOKEN — see the block below and
+# `config/cron.php`. Nothing in the application has ever read
+# SCHEDULER_HTTP_TOKEN; setting it does nothing.
+#
+# Kept as a comment rather than deleted because `shared-hosting/DEPLOYMENT.md`
+# §6 cited this line by name for five days after the endpoint shipped, and that
+# citation is the reason the runbook told operators the cron fallback was
+# unbuilt. A reader who arrives here from an old link needs to land on the
+# correction, not on an absence.
+#
+# SCHEDULER_HTTP_TOKEN=          # DEAD — use CRON_TOKEN
 ```
+
+**The real variable is `CRON_TOKEN`**, minimum 32 characters, enforced at request
+time by `VerifyCronToken` (`config/cron.php:31`). Unset or too short, the cron
+routes return **404** rather than 401 — they are not registered as forbidden, they
+are not registered at all, so an unconfigured deployment does not advertise them.
+`api/.env.shared-hosting.example:256` ships it empty on purpose. See
+[`DEPLOYMENT.md`](DEPLOYMENT.md) §6 and [`cron-caller.md`](cron-caller.md).
 
 ## New — not present in the VPS template at all
 
@@ -145,8 +172,29 @@ SENTRY_AUTH_TOKEN=
 # this — noted here only so the reason isn't rediscovered from scratch later.
 ```
 
-(No new variables are actually needed — the layout decision is structural, not
-configured via `.env`.)
+The layout decision needs no variable: it is structural, not configured via `.env`.
+
+```
+TENANCY_SUBDOMAINS=false
+```
+
+**Added 2026-10-07.** It decides whether ETHR hands out `{tenant}.ethr.et` links. Keep
+it `false` until M3 passes, meaning a tenant subdomain actually answers with the
+application. Today every tenant host redirects to the Plesk login. While it is false,
+e-mailed links go to the organisation's custom domain, or else to `ethr.et/{slug}`.
+Resolution accepts a subdomain either way. See
+[`../../decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](../../decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md).
+
+```
+# TENANCY_CUSTOM_DOMAIN_TARGET=
+```
+
+**Added 2026-10-08, optional, and absent from the template on purpose.** It is the host an
+organisation's custom domain must be a CNAME for before the console's Verify passes. Unset,
+it is `APP_DOMAIN` itself, which is right on shared hosting: the domain is added to the same
+Plesk site, so `hr.acme.com CNAME ethr.et` is the record. Set it only if the platform
+publishes a dedicated target host. Verification also needs PHP's `dns_get_record()` to reach
+DNS from the host, which has not been measured on this account.
 
 ---
 
@@ -201,6 +249,10 @@ long-running process:
 > `routes/console.php`, which would make the "one line" claim true — is **not implemented
 > here**: it also fires on the VPS, where `infrastructure/supervisor.conf` now runs a
 > `queue:work` daemon, and choosing between one runner and two is the owner's call.
+> *(2026-10-01: there is no VPS and no `supervisor.conf` — both removed 2026-09-26/27. The
+> owner chose GitHub Actions on 2026-09-27: `.github/workflows/cron.yml` calls
+> `POST /api/v1/cron/queue` and `/cron/schedule` (`api/routes/api.php:135-144`); see
+> [`cron-caller.md`](cron-caller.md).)*
 > Recorded in `MIGRATION_STATE.md` → *NO DEPLOYMENT PATH HAS A WORKING QUEUE WORKER*.
 
 That file's 14 entries are otherwise unchanged from the VPS, because nothing about *what*

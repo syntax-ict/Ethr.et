@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Kiosk;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\AuthenticateKioskRequest;
+use App\Http\Requests\Kiosk\ExitKioskRequest;
 use App\Http\Requests\Kiosk\RegisterKioskRequest;
 use App\Http\Resources\KioskSessionResource;
 use App\Models\AuditLog;
@@ -13,18 +14,20 @@ use App\Models\Branch;
 use App\Models\KioskSession;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class KioskSessionController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         Gate::authorize('attendance.manage');
 
         $sessions = KioskSession::with('branch')
             ->orderByDesc('created_at')
-            ->paginate(25);
+            ->paginate($request->integer('per_page', 25));
 
         return KioskSessionResource::collection($sessions)->response();
     }
@@ -61,7 +64,7 @@ class KioskSessionController extends Controller
 
         $session = KioskSession::where('public_id', $publicId)->with('branch')->firstOrFail();
 
-        return response()->json((new KioskSessionResource($session))->resolve());
+        return (new KioskSessionResource($session))->response();
     }
 
     public function deactivate(string $publicId): JsonResponse
@@ -120,10 +123,7 @@ class KioskSessionController extends Controller
 
     public function authenticate(AuthenticateKioskRequest $request): JsonResponse
     {
-        $session = KioskSession::where('token', $request->input('token'))
-            ->where('status', 'active')
-            ->with('branch')
-            ->first();
+        $session = KioskSession::resolveActiveByToken((string) $request->input('token'));
 
         if (! $session) {
             return response()->json([
@@ -134,13 +134,17 @@ class KioskSessionController extends Controller
             ], 401)->header('Content-Type', 'application/problem+json');
         }
 
+        // Loaded after the resolver made the kiosk's tenant current: Branch is
+        // tenant-scoped, and an eager load in the lookup itself ran before any
+        // tenant was set.
+        $session->load('branch');
         $session->touchActivity();
 
         $tenant = $session->tenant;
         $settings = $tenant->attendanceSetting;
 
         return response()->json([
-            'session' => (new KioskSessionResource($session))->resolve(),
+            'session' => new KioskSessionResource($session),
             'tenant' => [
                 'name' => $tenant->name,
                 'subdomain' => $tenant->subdomain,
@@ -151,5 +155,36 @@ class KioskSessionController extends Controller
                 'auto_reset_seconds' => $settings?->kiosk_auto_reset_seconds ?? 4,
             ],
         ]);
+    }
+
+    /**
+     * Leave kiosk mode on the terminal. The admin PIN set when the kiosk was
+     * registered must match; five attempts a minute per kiosk.
+     */
+    public function exitKiosk(ExitKioskRequest $request): JsonResponse
+    {
+        $session = KioskSession::resolveActiveByToken((string) $request->validated('token'));
+
+        if (! $session) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/unauthorized',
+                'title' => 'Unauthorized',
+                'status' => 401,
+                'detail' => __('kiosk.invalid_token'),
+            ], 401)->header('Content-Type', 'application/problem+json');
+        }
+
+        // Until 2026-10-09 the lock screen accepted any four digits: the PIN
+        // was hashed and stored and never compared, so anyone at a shared
+        // terminal could take it out of service (redundancy audit R1).
+        if (! $session->verifyAdminPin((string) $request->validated('admin_pin'))) {
+            throw ValidationException::withMessages([
+                'admin_pin' => __('kiosk.invalid_admin_pin'),
+            ]);
+        }
+
+        AuditLog::record('kiosk.exited', $session);
+
+        return response()->json(null, 204);
     }
 }

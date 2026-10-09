@@ -9,6 +9,7 @@ use App\Enums\AttendanceStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\CheckInRequest;
 use App\Http\Requests\Attendance\CheckOutRequest;
+use App\Http\Resources\AttendancePunchResource;
 use App\Http\Resources\AttendanceRecordResource;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
@@ -54,11 +55,13 @@ class AttendanceController extends Controller
 
         $result->record->load('employee', 'shift');
 
-        $resource = new AttendanceRecordResource($result->record);
-        $data = $resource->resolve();
-        $data['was_duplicate'] = $result->wasDuplicate;
+        $punch = new AttendancePunchResource($result->record, $result->wasDuplicate);
 
-        return response()->json($data, $result->wasDuplicate ? 200 : 201);
+        if ($result->wasDuplicate) {
+            return $punch->response()->setStatusCode(200);
+        }
+
+        return $punch->response()->setStatusCode(201);
     }
 
     public function checkOut(CheckOutRequest $request): JsonResponse
@@ -218,7 +221,7 @@ class AttendanceController extends Controller
             'date' => $today,
             'total_employees' => $totalEmployees,
             'present' => $records->whereIn('status', [AttendanceStatus::PRESENT, AttendanceStatus::LATE, AttendanceStatus::EARLY_LEAVE])->count(),
-            'absent' => $totalEmployees - $records->whereNotNull('check_in')->unique('employee_id')->count(),
+            'absent' => (int) ($totalEmployees - $records->whereNotNull('check_in')->unique('employee_id')->count()),
             'late' => $records->where('status', AttendanceStatus::LATE)->count(),
             'early_leave' => $records->where('status', AttendanceStatus::EARLY_LEAVE)->count(),
             'on_leave' => $records->where('status', AttendanceStatus::ON_LEAVE)->count(),

@@ -18,56 +18,29 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import {
+  useDeviceDashboard,
+  useDevices,
+  type Device,
+} from "@/features/devices/api";
 import { useT } from "@/lib/i18n/useT";
-
-interface DashboardResponse {
-  total: number;
-  online: number;
-  offline: number;
-  error: number;
-  pending: number;
-  auto_sync_enabled: number;
-  events_today: number;
-  last_sync_at: string | null;
-  sync_stats_24h: {
-    success: number;
-    partial: number;
-    failed: number;
-    offline: number;
-  };
-}
-
-interface Device {
-  public_id: string;
-  name: string;
-  adapter_type: string;
-  serial_number: string | null;
-  status: string;
-  last_sync_at: string | null;
-  branch?: { name: string } | null;
-  attendance_records_count?: number;
-}
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 
 export default function DeviceDashboardPage() {
   const { t } = useT();
-  const { data: stats, isLoading: statsLoading } = useQuery<DashboardResponse>({
-    queryKey: ["devices", "dashboard"],
-    queryFn: async () => (await apiClient.get("/devices/dashboard")).data,
+  const { timeAgo } = useDateFormatters();
+  const { data: stats, isLoading: statsLoading } = useDeviceDashboard({
     refetchInterval: 30000,
   });
 
-  const { data: devices, isLoading: devicesLoading } = useQuery({
-    queryKey: ["devices"],
-    queryFn: async () => (await apiClient.get("/devices")).data,
+  const { data: devices, isLoading: devicesLoading } = useDevices(undefined, {
     refetchInterval: 30000,
   });
 
   const allDevices: Device[] = devices?.data ?? [];
 
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["viewDevices"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" asChild>
@@ -173,7 +146,7 @@ export default function DeviceDashboardPage() {
                 {stats.last_sync_at && (
                   <p className="mt-3 text-xs text-muted-foreground">
                     {t("devices_dashboard_page.last_sync_across")}:{" "}
-                    {timeAgo(stats.last_sync_at, t)}
+                    {timeAgo(stats.last_sync_at)}
                   </p>
                 )}
               </CardContent>
@@ -265,7 +238,7 @@ export default function DeviceDashboardPage() {
                       {d.last_sync_at ? (
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />{" "}
-                          {timeAgo(d.last_sync_at, t)}
+                          {timeAgo(d.last_sync_at)}
                         </span>
                       ) : (
                         t("devices_page.never")
@@ -356,17 +329,4 @@ function statusLabel(
     pending: t("devices_page.pending"),
   };
   return map[status] ?? status;
-}
-
-function timeAgo(
-  iso: string,
-  t: (key: string, fallback?: string) => string,
-): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diffMs / 60000);
-  if (m < 1) return t("devices_dashboard_page.just_now");
-  if (m < 60) return `${m}${t("devices_dashboard_page.m_ago")}`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}${t("devices_dashboard_page.h_ago")}`;
-  return `${Math.floor(h / 24)}${t("devices_dashboard_page.d_ago")}`;
 }

@@ -13,6 +13,7 @@ use App\Models\SavedReport;
 use App\Models\ScheduledReport;
 use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
+use App\Support\StringList;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -150,7 +151,7 @@ class ReportController extends Controller
         return response()->json([
             'public_id' => $scheduled->public_id,
             'frequency' => $scheduled->frequency,
-            'recipients' => $scheduled->recipients,
+            'recipients' => StringList::of($scheduled->recipients),
             'next_run_at' => $scheduled->next_run_at,
         ], 201);
     }
@@ -167,7 +168,7 @@ class ReportController extends Controller
                 'public_id' => $s->public_id,
                 'report_name' => $s->savedReport?->name,
                 'frequency' => $s->frequency,
-                'recipients' => $s->recipients,
+                'recipients' => StringList::of($s->recipients),
                 'next_run_at' => $s->next_run_at,
                 'last_run_at' => $s->last_run_at,
             ]);

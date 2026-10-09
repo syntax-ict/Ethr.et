@@ -43,106 +43,10 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Admin/AdminTenantController.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\AttendanceCorrection\:\:\$date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
-
-		-
-			message: '#^Cannot access property \$year on string\.$#'
-			identifier: property.nonObject
-			count: 2
-			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
-
-		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
-
-		-
-			message: '#^Method App\\Http\\Controllers\\Api\\V1\\Approval\\ApprovalController\:\:getTeamIds\(\) has parameter \$employee with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
-
-		-
-			message: '#^Method App\\Http\\Controllers\\Api\\V1\\Approval\\ApprovalController\:\:processCorrectionAction\(\) has parameter \$user with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
-
-		-
-			message: '#^Method App\\Http\\Controllers\\Api\\V1\\Approval\\ApprovalController\:\:processLeaveAction\(\) has parameter \$user with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
-
-		-
-			message: '#^Parameter \#1 \$array of function usort contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
-
-		-
-			message: '#^Parameter \#2 \$callback of function usort contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$check_in\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/V1/Attendance/AttendanceCorrectionController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$check_out\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/V1/Attendance/AttendanceCorrectionController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$salary_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/V1/Attendance/AttendanceCorrectionController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$supervisor\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/V1/Attendance/AttendanceCorrectionController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Api/V1/Attendance/AttendanceCorrectionController.php
-
-		-
-			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\UserRole\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 2
-			path: app/Http/Controllers/Api/V1/Attendance/AttendanceCorrectionController.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$qr_auto_refresh\.$#'
@@ -181,37 +85,7 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Auth/SsoController.php
 
 		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Http/Controllers/Api/V1/Device/DeviceController.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Pagination\\AbstractPaginator\<int,App\\Models\\AttendanceRecord\>\:\:through\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Http/Controllers/Api/V1/Device/DeviceController.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Pagination\\AbstractPaginator\<int,App\\Models\\AttendanceRecord\>\:\:through\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 1
-			path: app/Http/Controllers/Api/V1/Device/DeviceController.php
-
-		-
-			message: '#^Using nullsafe method call on non\-nullable type string\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Http/Controllers/Api/V1/Device/DeviceController.php
-
-		-
-			message: '#^Cannot access property \$value on string\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: app/Http/Controllers/Api/V1/Employee/EmployeeBulkController.php
-
-		-
-			message: '#^Using nullsafe property access on non\-nullable type string\. Use \-\> instead\.$#'
+			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\EmployeeStatus\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Controllers/Api/V1/Employee/EmployeeBulkController.php
@@ -233,24 +107,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Http/Controllers/Api/V1/Employee/EmployeeDocumentController.php
-
-		-
-			message: '#^Cannot access property \$value on string\.$#'
-			identifier: property.nonObject
-			count: 4
-			path: app/Http/Controllers/Api/V1/Employee/EmployeeTransitionController.php
-
-		-
-			message: '#^Cannot call method canTransitionTo\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Http/Controllers/Api/V1/Employee/EmployeeTransitionController.php
-
-		-
-			message: '#^Property App\\Models\\Employee\:\:\$status \(string\) does not accept App\\Enums\\EmployeeStatus\.$#'
-			identifier: assign.propertyType
-			count: 1
-			path: app/Http/Controllers/Api/V1/Employee/EmployeeTransitionController.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$attendanceSetting\.$#'
@@ -287,60 +143,6 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Controllers/Api/V1/Kiosk/KioskSessionController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Api/V1/Leave/LeaveRequestController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tenant_id\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Api/V1/Leave/LeaveRequestController.php
-
-		-
-			message: '#^Cannot access property \$year on string\.$#'
-			identifier: property.nonObject
-			count: 3
-			path: app/Http/Controllers/Api/V1/Leave/LeaveRequestController.php
-
-		-
-			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\UserRole\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Http/Controllers/Api/V1/Leave/LeaveRequestController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$bankDetails\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/V1/Payroll/PayrollController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$employee_code\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/V1/Payroll/PayrollController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/V1/Payroll/PayrollController.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\PayrollEntry\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Http/Controllers/Api/V1/Payroll/PayrollController.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\PayrollEntry\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 1
-			path: app/Http/Controllers/Api/V1/Payroll/PayrollController.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>account_number" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
@@ -385,26 +187,8 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Report/ReportController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/V1/Scim/ScimGroupController.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Employee\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Http/Controllers/Api/V1/Scim/ScimGroupController.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,App\\Models\\Employee\>\:\:filter\(\) expects \(callable\(App\\Models\\Employee, int\)\: bool\)\|null, Closure\(mixed\)\: \(Illuminate\\Database\\Eloquent\\Model\|null\) given\.$#'
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,App\\Models\\Employee\>\:\:filter\(\) expects \(callable\(App\\Models\\Employee, int\)\: bool\)\|null, Closure\(mixed\)\: \(App\\Models\\User\|null\) given\.$#'
 			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/Api/V1/Scim/ScimGroupController.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Employee\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
 			count: 1
 			path: app/Http/Controllers/Api/V1/Scim/ScimGroupController.php
 
@@ -415,26 +199,8 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Scim/ScimUserController.php
 
 		-
-			message: '#^Method App\\Http\\Controllers\\Api\\V1\\Scim\\ScimUserController\:\:applyFilter\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Http/Controllers/Api/V1/Scim/ScimUserController.php
-
-		-
-			message: '#^Method App\\Http\\Controllers\\Api\\V1\\Scim\\ScimUserController\:\:applyFilter\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Http/Controllers/Api/V1/Scim/ScimUserController.php
-
-		-
 			message: '#^Offset 0 on non\-empty\-list\<string\> on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Scim/ScimUserController.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array, Closure\(App\\Models\\User\)\: array given\.$#'
-			identifier: argument.type
 			count: 1
 			path: app/Http/Controllers/Api/V1/Scim/ScimUserController.php
 
@@ -449,54 +215,6 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Controllers/Api/V1/Scim/ScimUserController.php
-
-		-
-			message: '#^Offset ''body_am'' on array\{\} on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Offset ''body_en'' on array\{\} on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Offset ''notification…'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Offset ''subject_am'' on array\{\} on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Offset ''subject_en'' on array\{\} on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Offset 1 on array\{list\<string\>, list\<non\-empty\-string\>\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Offset string on array\{\} on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Variable \$custom in empty\(\) always exists and is always falsy\.$#'
-			identifier: empty.variable
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$auto_provision\.$#'
@@ -535,12 +253,6 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
 
 		-
-			message: '#^Offset ''mfa_policy'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
 			message: '#^Offset ''pagumen_proration…'' on string\|null on left side of \?\? does not exist\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
@@ -563,30 +275,6 @@ parameters:
 			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
-			message: '#^Offset ''session_timeout…'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
-			message: '#^Offset ''working_days'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
-			message: '#^Match expression does not handle remaining value\: mixed$#'
-			identifier: match.unhandled
-			count: 1
-			path: app/Http/Controllers/Api/V1/Shift/ShiftController.php
-
-		-
-			message: '#^Cannot call method isSameDay\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Http/Controllers/Api/V1/Team/TeamMonitoringController.php
 
 		-
 			message: '#^Comparison operation "\>" between int\<1, max\> and 0 is always true\.$#'
@@ -643,850 +331,40 @@ parameters:
 			path: app/Http/Middleware/RateLimitLoginAttempts.php
 
 		-
-			message: '#^Parameter \#1 \$tenant of method App\\Services\\CurrentTenant\:\:set\(\) expects App\\Models\\Tenant, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Middleware/ScimAuth.php
-
-		-
 			message: '#^Method App\\Http\\Middleware\\SecurityHeaders\:\:handle\(\) has no return type specified\.$#'
 			identifier: missingType.return
 			count: 1
 			path: app/Http/Middleware/SecurityHeaders.php
 
 		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AdminTenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$employees_count\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AdminTenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AdminTenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AdminTenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AdminTenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$subdomain\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AdminTenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$trial_ends_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AdminTenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$type\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AdminTenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AnnouncementResource\:\:\$body\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AnnouncementResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AnnouncementResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AnnouncementResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AnnouncementResource\:\:\$expires_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AnnouncementResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AnnouncementResource\:\:\$priority\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AnnouncementResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AnnouncementResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AnnouncementResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AnnouncementResource\:\:\$published_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AnnouncementResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AnnouncementResource\:\:\$target_type\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AnnouncementResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AnnouncementResource\:\:\$title\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AnnouncementResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceCorrectionResource\:\:\$approval_chain\.$#'
-			identifier: property.notFound
+			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\CorrectionStatus\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Resources/AttendanceCorrectionResource.php
 
 		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceCorrectionResource\:\:\$attendanceRecord\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceCorrectionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceCorrectionResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceCorrectionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceCorrectionResource\:\:\$employee\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceCorrectionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceCorrectionResource\:\:\$proposed_check_in\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceCorrectionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceCorrectionResource\:\:\$proposed_check_out\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceCorrectionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceCorrectionResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceCorrectionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceCorrectionResource\:\:\$reason\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceCorrectionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceCorrectionResource\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceCorrectionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceCorrectionResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceCorrectionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$check_in\.$#'
-			identifier: property.notFound
+			message: '#^Using nullsafe method call on non\-nullable type App\\Enums\\AttendanceSource\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Resources/AttendanceRecordResource.php
 
 		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$check_out\.$#'
-			identifier: property.notFound
+			message: '#^Using nullsafe method call on non\-nullable type App\\Enums\\AttendanceStatus\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Resources/AttendanceRecordResource.php
 
 		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$confidence_score\.$#'
-			identifier: property.notFound
+			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\AttendanceSource\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Resources/AttendanceRecordResource.php
 
 		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$created_at\.$#'
-			identifier: property.notFound
+			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\AttendanceStatus\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Resources/AttendanceRecordResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceRecordResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$employee\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceRecordResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$geofence_verified\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceRecordResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$latitude\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceRecordResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$longitude\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceRecordResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceRecordResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$source\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Resources/AttendanceRecordResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Resources/AttendanceRecordResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceRecordResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceRecordResource.php
-
-		-
-			message: '#^Call to an undefined method App\\Http\\Resources\\AttendanceRecordResource\:\:overtimeMinutes\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceRecordResource.php
-
-		-
-			message: '#^Call to an undefined method App\\Http\\Resources\\AttendanceRecordResource\:\:workedMinutes\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceRecordResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$confidence_threshold\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$enabled_methods\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$geofence_required\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$grace_period_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$kiosk_auto_reset_seconds\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$kiosk_pin_required\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$mobile_accuracy_threshold_meters\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$mobile_photo_required\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$offline_sync_enabled\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$ot_daily_cap_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$qr_auto_refresh\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$qr_expiry_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$qr_single_use_limit\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AttendanceSettingResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AttendanceSettingResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$action\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AuditLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$auditable_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AuditLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$auditable_type\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AuditLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AuditLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$ip_address\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AuditLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$payload\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AuditLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$user_agent\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AuditLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$user_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/AuditLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BankDetailResource\:\:\$account_number\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BankDetailResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BankDetailResource\:\:\$bank_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BankDetailResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BankDetailResource\:\:\$branch_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BankDetailResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BankDetailResource\:\:\$is_primary\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BankDetailResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BankDetailResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BankDetailResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$address\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$city\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$code\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$geofence_radius_meters\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$is_active\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$latitude\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$longitude\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$name_am\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$phone\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\BranchResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/BranchResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CostCenterResource\:\:\$code\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CostCenterResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CostCenterResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CostCenterResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CostCenterResource\:\:\$is_active\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CostCenterResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CostCenterResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CostCenterResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CostCenterResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CostCenterResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CostCenterResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CostCenterResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CustomRoleResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$description\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CustomRoleResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$is_active\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CustomRoleResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CustomRoleResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$permissions\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CustomRoleResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CustomRoleResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/CustomRoleResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DepartmentResource\:\:\$code\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DepartmentResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DepartmentResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DepartmentResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DepartmentResource\:\:\$is_active\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DepartmentResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DepartmentResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DepartmentResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DepartmentResource\:\:\$name_am\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DepartmentResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DepartmentResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DepartmentResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DepartmentResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DepartmentResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$adapter_type\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$auto_sync\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$branch\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$last_sync_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$location_description\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$serial_number\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$sync_interval_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceResource\:\:\$webhook_token\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Resources/DeviceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceSyncLogResource\:\:\$completed_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceSyncLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceSyncLogResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceSyncLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceSyncLogResource\:\:\$duration_ms\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceSyncLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceSyncLogResource\:\:\$error_message\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceSyncLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceSyncLogResource\:\:\$events_failed\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceSyncLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceSyncLogResource\:\:\$events_found\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceSyncLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceSyncLogResource\:\:\$events_processed\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceSyncLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceSyncLogResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceSyncLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceSyncLogResource\:\:\$started_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceSyncLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceSyncLogResource\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceSyncLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DeviceSyncLogResource\:\:\$triggered_by\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DeviceSyncLogResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DirectoryResource\:\:\$branch\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DirectoryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DirectoryResource\:\:\$department\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DirectoryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DirectoryResource\:\:\$email\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DirectoryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DirectoryResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DirectoryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DirectoryResource\:\:\$phone\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DirectoryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DirectoryResource\:\:\$photo_path\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DirectoryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DirectoryResource\:\:\$position\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DirectoryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\DirectoryResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/DirectoryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EducationResource\:\:\$degree\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EducationResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EducationResource\:\:\$end_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EducationResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EducationResource\:\:\$field_of_study\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EducationResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EducationResource\:\:\$grade\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EducationResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EducationResource\:\:\$institution\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EducationResource.php
 
 		-
 			message: '#^Access to an undefined property App\\Http\\Resources\\EducationResource\:\:\$public_id\.$#'
@@ -1495,280 +373,10 @@ parameters:
 			path: app/Http/Resources/EducationResource.php
 
 		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EducationResource\:\:\$start_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EducationResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmergencyContactResource\:\:\$email\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmergencyContactResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmergencyContactResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmergencyContactResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmergencyContactResource\:\:\$phone\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmergencyContactResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmergencyContactResource\:\:\$priority\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmergencyContactResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmergencyContactResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmergencyContactResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmergencyContactResource\:\:\$relationship\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmergencyContactResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeLoanResource\:\:\$amount_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeLoanResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeLoanResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeLoanResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeLoanResource\:\:\$employee\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeLoanResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeLoanResource\:\:\$end_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeLoanResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeLoanResource\:\:\$monthly_deduction_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeLoanResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeLoanResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeLoanResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeLoanResource\:\:\$reason\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeLoanResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeLoanResource\:\:\$remaining_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeLoanResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeLoanResource\:\:\$start_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeLoanResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeLoanResource\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeLoanResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeLoanResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeLoanResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$confirmation_date\.$#'
-			identifier: property.notFound
+			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\EmployeeStatus\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$date_of_birth\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$email\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$employee_code\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$gender\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$hire_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$marital_status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$name_am\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$nationality\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$phone\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$photo_path\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$probation_end_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$termination_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeSummaryResource\:\:\$employee_code\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeSummaryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeSummaryResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeSummaryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeSummaryResource\:\:\$photo_path\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeSummaryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeSummaryResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeSummaryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeTransitionResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeTransitionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeTransitionResource\:\:\$effective_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeTransitionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeTransitionResource\:\:\$from_status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeTransitionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeTransitionResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeTransitionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeTransitionResource\:\:\$reason\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeTransitionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\EmployeeTransitionResource\:\:\$to_status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/EmployeeTransitionResource.php
 
 		-
 			message: '#^Access to an undefined property App\\Http\\Resources\\FailedJobResource\:\:\$connection\.$#'
@@ -1807,874 +415,16 @@ parameters:
 			path: app/Http/Resources/FailedJobResource.php
 
 		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\GradeResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/GradeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\GradeResource\:\:\$max_salary_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/GradeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\GradeResource\:\:\$min_salary_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/GradeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\GradeResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/GradeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\GradeResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/GradeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\GradeResource\:\:\$sort_order\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/GradeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\GradeResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/GradeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\KioskSessionResource\:\:\$activated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/KioskSessionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\KioskSessionResource\:\:\$branch\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Resources/KioskSessionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\KioskSessionResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/KioskSessionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\KioskSessionResource\:\:\$deactivated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/KioskSessionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\KioskSessionResource\:\:\$device_identifier\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/KioskSessionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\KioskSessionResource\:\:\$last_activity_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/KioskSessionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\KioskSessionResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/KioskSessionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\KioskSessionResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/KioskSessionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\KioskSessionResource\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/KioskSessionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\KioskSessionResource\:\:\$token\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/KioskSessionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\KioskSessionResource\:\:\$wasRecentlyCreated\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/KioskSessionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveBalanceResource\:\:\$carried_days\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveBalanceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveBalanceResource\:\:\$entitled_days\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveBalanceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveBalanceResource\:\:\$leaveType\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveBalanceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveBalanceResource\:\:\$pending_days\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveBalanceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveBalanceResource\:\:\$used_days\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveBalanceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveBalanceResource\:\:\$year\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveBalanceResource.php
-
-		-
-			message: '#^Call to an undefined method App\\Http\\Resources\\LeaveBalanceResource\:\:remainingDays\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Http/Resources/LeaveBalanceResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$approved_by\.$#'
-			identifier: property.notFound
+			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\LeaveStatus\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Resources/LeaveRequestResource.php
 
 		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$attachment_path\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveRequestResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveRequestResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$days\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveRequestResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$employee\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveRequestResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$end_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveRequestResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$leaveType\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveRequestResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveRequestResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$reason\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveRequestResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$rejected_reason\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveRequestResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$start_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveRequestResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveRequestResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveRequestResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveRequestResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$accrual_type\.$#'
-			identifier: property.notFound
+			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\AccrualType\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$carry_forward\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$code\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$default_days\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$gender_restriction\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$is_active\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$is_paid\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$max_carry_days\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$max_consecutive\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$min_notice_days\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$name_am\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$requires_approval\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$requires_attachment\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$sort_order\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\LeaveTypeResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/LeaveTypeResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\NotificationResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/NotificationResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\NotificationResource\:\:\$data\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/NotificationResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\NotificationResource\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/NotificationResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\NotificationResource\:\:\$read_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/NotificationResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\NotificationResource\:\:\$type\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/NotificationResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$allowances\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollEntryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$basic_salary_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollEntryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$calculation_log\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollEntryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$deductions\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollEntryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$employee\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollEntryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$employee_pension_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollEntryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$employer_pension_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollEntryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$gross_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollEntryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$income_tax_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollEntryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$net_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollEntryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$other_deductions_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollEntryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollEntryResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$approved_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$employee_count\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$gross_total_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$net_total_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$period_end\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$period_label\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$period_start\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$processed_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$reprocessedFrom\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$tax_total_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$void_reason\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$voided_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PayrollRunResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PositionResource\:\:\$code\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PositionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PositionResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PositionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PositionResource\:\:\$description\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PositionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PositionResource\:\:\$is_active\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PositionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PositionResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PositionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PositionResource\:\:\$title\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PositionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PositionResource\:\:\$title_am\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PositionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\PositionResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/PositionResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftAssignmentResource\:\:\$assignable_type\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftAssignmentResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftAssignmentResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftAssignmentResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftAssignmentResource\:\:\$effective_from\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftAssignmentResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftAssignmentResource\:\:\$effective_to\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftAssignmentResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$break_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$crosses_midnight\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$early_departure_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$end_time\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$grace_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$is_active\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$is_default\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$name_am\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$start_time\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\ShiftResource\:\:\$working_days\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/ShiftResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TeamResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TeamResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TeamResource\:\:\$is_active\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TeamResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TeamResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TeamResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TeamResource\:\:\$name_am\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TeamResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TeamResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TeamResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TeamResource\:\:\$updated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TeamResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TenantResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TenantResource\:\:\$default_locale\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TenantResource\:\:\$ethiopian_calendar\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TenantResource\:\:\$logo_path\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TenantResource\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TenantResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TenantResource\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TenantResource\:\:\$subdomain\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TenantResource\:\:\$theme\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TenantResource\:\:\$timezone\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\TenantResource\:\:\$type\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/TenantResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$activated_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$customRole\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$email\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$employee\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$invited_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$last_login_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$locale\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$mfa_enabled\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$phone\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$role\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
-
-		-
-			message: '#^Access to an undefined property App\\Http\\Resources\\UserResource\:\:\$username\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Resources/UserResource.php
 
 		-
 			message: '#^Parameter \#1 \$tenant of method App\\Services\\Billing\\BillingService\:\:generateMonthlyInvoice\(\) expects App\\Models\\Tenant, Illuminate\\Database\\Eloquent\\Model given\.$#'
@@ -2689,26 +439,8 @@ parameters:
 			path: app/Jobs/HandleOverdueInvoicesJob.php
 
 		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Jobs/PullDeviceEventsJob.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:notify\(\)\.$#'
-			identifier: method.notFound
-			count: 2
-			path: app/Jobs/ScanMissingPunchesJob.php
-
-		-
 			message: '#^Class App\\Models\\AlertThreshold uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/AlertThreshold.php
-
-		-
-			message: '#^Method App\\Models\\AlertThreshold\:\:findByPublicId\(\) should return static\(App\\Models\\AlertThreshold\)\|null but returns App\\Models\\AlertThreshold\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/AlertThreshold.php
 
@@ -2721,12 +453,6 @@ parameters:
 		-
 			message: '#^Class App\\Models\\Announcement uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Announcement.php
-
-		-
-			message: '#^Method App\\Models\\Announcement\:\:findByPublicId\(\) should return static\(App\\Models\\Announcement\)\|null but returns App\\Models\\Announcement\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Announcement.php
 
@@ -2785,22 +511,10 @@ parameters:
 			path: app/Models/ApiKey.php
 
 		-
-			message: '#^Method App\\Models\\ApiKey\:\:findByPublicId\(\) should return static\(App\\Models\\ApiKey\)\|null but returns App\\Models\\ApiKey\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/ApiKey.php
-
-		-
 			message: '#^Method App\\Models\\ApiKey\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/ApiKey.php
-
-		-
-			message: '#^Method App\\Models\\AttendanceConflict\:\:findByPublicId\(\) should return static\(App\\Models\\AttendanceConflict\)\|null but returns App\\Models\\AttendanceConflict\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/AttendanceConflict.php
 
 		-
 			message: '#^Method App\\Models\\AttendanceConflict\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
@@ -2827,34 +541,10 @@ parameters:
 			path: app/Models/AttendanceCorrection.php
 
 		-
-			message: '#^Method App\\Models\\AttendanceCorrection\:\:findByPublicId\(\) should return static\(App\\Models\\AttendanceCorrection\)\|null but returns App\\Models\\AttendanceCorrection\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/AttendanceCorrection.php
-
-		-
 			message: '#^Method App\\Models\\AttendanceCorrection\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/AttendanceCorrection.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$break_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/AttendanceRecord.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$crosses_midnight\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/AttendanceRecord.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_time\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/AttendanceRecord.php
 
 		-
 			message: '#^Class App\\Models\\AttendanceRecord uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
@@ -2875,18 +565,6 @@ parameters:
 			path: app/Models/AttendanceRecord.php
 
 		-
-			message: '#^Method App\\Models\\AttendanceRecord\:\:findByPublicId\(\) should return static\(App\\Models\\AttendanceRecord\)\|null but returns App\\Models\\AttendanceRecord\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/AttendanceRecord.php
-
-		-
-			message: '#^Method App\\Models\\AttendanceRecord\:\:shift\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/AttendanceRecord.php
-
-		-
 			message: '#^Method App\\Models\\AttendanceRecord\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -2897,12 +575,6 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Models/AttendanceRecord.php
-
-		-
-			message: '#^Method App\\Models\\AttendanceSetting\:\:findByPublicId\(\) should return static\(App\\Models\\AttendanceSetting\)\|null but returns App\\Models\\AttendanceSetting\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/AttendanceSetting.php
 
 		-
 			message: '#^Method App\\Models\\AttendanceSetting\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
@@ -2959,12 +631,6 @@ parameters:
 			path: app/Models/Branch.php
 
 		-
-			message: '#^Method App\\Models\\Branch\:\:findByPublicId\(\) should return static\(App\\Models\\Branch\)\|null but returns App\\Models\\Branch\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Branch.php
-
-		-
 			message: '#^Method App\\Models\\Branch\:\:kioskSessions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -2995,22 +661,10 @@ parameters:
 			path: app/Models/CostCenter.php
 
 		-
-			message: '#^Method App\\Models\\CostCenter\:\:findByPublicId\(\) should return static\(App\\Models\\CostCenter\)\|null but returns App\\Models\\CostCenter\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/CostCenter.php
-
-		-
 			message: '#^Method App\\Models\\CostCenter\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/CostCenter.php
-
-		-
-			message: '#^Method App\\Models\\CustomRole\:\:findByPublicId\(\) should return static\(App\\Models\\CustomRole\)\|null but returns App\\Models\\CustomRole\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/CustomRole.php
 
 		-
 			message: '#^Method App\\Models\\CustomRole\:\:permissions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany does not specify its types\: TRelatedModel, TDeclaringModel, TPivotModel, TAccessor \(2\-4 required\)$#'
@@ -3033,12 +687,6 @@ parameters:
 		-
 			message: '#^Class App\\Models\\DashboardDigest uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/DashboardDigest.php
-
-		-
-			message: '#^Method App\\Models\\DashboardDigest\:\:findByPublicId\(\) should return static\(App\\Models\\DashboardDigest\)\|null but returns App\\Models\\DashboardDigest\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/DashboardDigest.php
 
@@ -3079,12 +727,6 @@ parameters:
 			path: app/Models/Department.php
 
 		-
-			message: '#^Method App\\Models\\Department\:\:findByPublicId\(\) should return static\(App\\Models\\Department\)\|null but returns App\\Models\\Department\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Department.php
-
-		-
 			message: '#^Method App\\Models\\Department\:\:parent\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -3109,12 +751,6 @@ parameters:
 			path: app/Models/Device.php
 
 		-
-			message: '#^Cannot call method addMinutes\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Models/Device.php
-
-		-
 			message: '#^Class App\\Models\\Device uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
@@ -3129,12 +765,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\Device\:\:branch\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Device.php
-
-		-
-			message: '#^Method App\\Models\\Device\:\:findByPublicId\(\) should return static\(App\\Models\\Device\)\|null but returns App\\Models\\Device\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Device.php
 
@@ -3159,12 +789,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\DeviceSyncLog\:\:device\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/DeviceSyncLog.php
-
-		-
-			message: '#^Method App\\Models\\DeviceSyncLog\:\:findByPublicId\(\) should return static\(App\\Models\\DeviceSyncLog\)\|null but returns App\\Models\\DeviceSyncLog\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/DeviceSyncLog.php
 
@@ -3201,12 +825,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\Employee\:\:education\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Employee.php
-
-		-
-			message: '#^Method App\\Models\\Employee\:\:findByPublicId\(\) should return static\(App\\Models\\Employee\)\|null but returns App\\Models\\Employee\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Employee.php
 
@@ -3253,12 +871,6 @@ parameters:
 			path: app/Models/EmployeeBankDetail.php
 
 		-
-			message: '#^Method App\\Models\\EmployeeBankDetail\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeBankDetail\)\|null but returns App\\Models\\EmployeeBankDetail\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/EmployeeBankDetail.php
-
-		-
 			message: '#^Method App\\Models\\EmployeeBankDetail\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -3267,12 +879,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\EmployeeDocument\:\:employee\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/EmployeeDocument.php
-
-		-
-			message: '#^Method App\\Models\\EmployeeDocument\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeDocument\)\|null but returns App\\Models\\EmployeeDocument\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/EmployeeDocument.php
 
@@ -3289,12 +895,6 @@ parameters:
 			path: app/Models/EmployeeEducation.php
 
 		-
-			message: '#^Method App\\Models\\EmployeeEducation\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeEducation\)\|null but returns App\\Models\\EmployeeEducation\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/EmployeeEducation.php
-
-		-
 			message: '#^Method App\\Models\\EmployeeEducation\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -3307,12 +907,6 @@ parameters:
 			path: app/Models/EmployeeEmergencyContact.php
 
 		-
-			message: '#^Method App\\Models\\EmployeeEmergencyContact\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeEmergencyContact\)\|null but returns App\\Models\\EmployeeEmergencyContact\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/EmployeeEmergencyContact.php
-
-		-
 			message: '#^Method App\\Models\\EmployeeEmergencyContact\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -3321,12 +915,6 @@ parameters:
 		-
 			message: '#^Class App\\Models\\EmployeeLoan uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/EmployeeLoan.php
-
-		-
-			message: '#^Method App\\Models\\EmployeeLoan\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeLoan\)\|null but returns App\\Models\\EmployeeLoan\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/EmployeeLoan.php
 
@@ -3345,12 +933,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\EmployeeTransition\:\:employee\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/EmployeeTransition.php
-
-		-
-			message: '#^Method App\\Models\\EmployeeTransition\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeTransition\)\|null but returns App\\Models\\EmployeeTransition\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/EmployeeTransition.php
 
@@ -3385,12 +967,6 @@ parameters:
 			path: app/Models/Grade.php
 
 		-
-			message: '#^Method App\\Models\\Grade\:\:findByPublicId\(\) should return static\(App\\Models\\Grade\)\|null but returns App\\Models\\Grade\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Grade.php
-
-		-
 			message: '#^Method App\\Models\\Grade\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -3409,12 +985,6 @@ parameters:
 			path: app/Models/Holiday.php
 
 		-
-			message: '#^Method App\\Models\\Holiday\:\:findByPublicId\(\) should return static\(App\\Models\\Holiday\)\|null but returns App\\Models\\Holiday\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Holiday.php
-
-		-
 			message: '#^Method App\\Models\\Holiday\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -3423,12 +993,6 @@ parameters:
 		-
 			message: '#^Class App\\Models\\Invoice uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Invoice.php
-
-		-
-			message: '#^Method App\\Models\\Invoice\:\:findByPublicId\(\) should return static\(App\\Models\\Invoice\)\|null but returns App\\Models\\Invoice\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Invoice.php
 
@@ -3457,22 +1021,10 @@ parameters:
 			path: app/Models/KioskSession.php
 
 		-
-			message: '#^Method App\\Models\\KioskSession\:\:findByPublicId\(\) should return static\(App\\Models\\KioskSession\)\|null but returns App\\Models\\KioskSession\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/KioskSession.php
-
-		-
 			message: '#^Method App\\Models\\KioskSession\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/KioskSession.php
-
-		-
-			message: '#^Method App\\Models\\Lead\:\:findByPublicId\(\) should return static\(App\\Models\\Lead\)\|null but returns App\\Models\\Lead\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Lead.php
 
 		-
 			message: '#^Class App\\Models\\LeaveBalance uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
@@ -3517,12 +1069,6 @@ parameters:
 			path: app/Models/LeaveRequest.php
 
 		-
-			message: '#^Method App\\Models\\LeaveRequest\:\:findByPublicId\(\) should return static\(App\\Models\\LeaveRequest\)\|null but returns App\\Models\\LeaveRequest\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/LeaveRequest.php
-
-		-
 			message: '#^Method App\\Models\\LeaveRequest\:\:rejectedByUser\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -3537,12 +1083,6 @@ parameters:
 		-
 			message: '#^Class App\\Models\\LeaveType uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/LeaveType.php
-
-		-
-			message: '#^Method App\\Models\\LeaveType\:\:findByPublicId\(\) should return static\(App\\Models\\LeaveType\)\|null but returns App\\Models\\LeaveType\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/LeaveType.php
 
@@ -3601,12 +1141,6 @@ parameters:
 			path: app/Models/OnboardingProgress.php
 
 		-
-			message: '#^Method App\\Models\\OrganizationTemplate\:\:findByPublicId\(\) should return static\(App\\Models\\OrganizationTemplate\)\|null but returns App\\Models\\OrganizationTemplate\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/OrganizationTemplate.php
-
-		-
 			message: '#^Class App\\Models\\PayrollEntry uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
@@ -3614,18 +1148,6 @@ parameters:
 
 		-
 			message: '#^Method App\\Models\\PayrollEntry\:\:employee\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/PayrollEntry.php
-
-		-
-			message: '#^Method App\\Models\\PayrollEntry\:\:findByPublicId\(\) should return static\(App\\Models\\PayrollEntry\)\|null but returns App\\Models\\PayrollEntry\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/PayrollEntry.php
-
-		-
-			message: '#^Method App\\Models\\PayrollEntry\:\:payrollRun\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/PayrollEntry.php
@@ -3651,12 +1173,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\PayrollRun\:\:entries\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/PayrollRun.php
-
-		-
-			message: '#^Method App\\Models\\PayrollRun\:\:findByPublicId\(\) should return static\(App\\Models\\PayrollRun\)\|null but returns App\\Models\\PayrollRun\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/PayrollRun.php
 
@@ -3691,12 +1207,6 @@ parameters:
 			path: app/Models/PayrollRun.php
 
 		-
-			message: '#^Method App\\Models\\Permission\:\:findByPublicId\(\) should return static\(App\\Models\\Permission\)\|null but returns App\\Models\\Permission\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Permission.php
-
-		-
 			message: '#^Method App\\Models\\PersonalAccessToken\:\:tokenable\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\MorphTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -3709,18 +1219,6 @@ parameters:
 			path: app/Models/Plan.php
 
 		-
-			message: '#^Method App\\Models\\Plan\:\:findByPublicId\(\) should return static\(App\\Models\\Plan\)\|null but returns App\\Models\\Plan\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Plan.php
-
-		-
-			message: '#^Method App\\Models\\PlatformSetting\:\:findByPublicId\(\) should return static\(App\\Models\\PlatformSetting\)\|null but returns App\\Models\\PlatformSetting\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/PlatformSetting.php
-
-		-
 			message: '#^Class App\\Models\\Position uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
@@ -3729,12 +1227,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\Position\:\:employees\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Position.php
-
-		-
-			message: '#^Method App\\Models\\Position\:\:findByPublicId\(\) should return static\(App\\Models\\Position\)\|null but returns App\\Models\\Position\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Position.php
 
@@ -3757,12 +1249,6 @@ parameters:
 			path: app/Models/SavedReport.php
 
 		-
-			message: '#^Method App\\Models\\SavedReport\:\:findByPublicId\(\) should return static\(App\\Models\\SavedReport\)\|null but returns App\\Models\\SavedReport\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/SavedReport.php
-
-		-
 			message: '#^Method App\\Models\\SavedReport\:\:schedules\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -3777,12 +1263,6 @@ parameters:
 		-
 			message: '#^Class App\\Models\\ScheduledReport uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/ScheduledReport.php
-
-		-
-			message: '#^Method App\\Models\\ScheduledReport\:\:findByPublicId\(\) should return static\(App\\Models\\ScheduledReport\)\|null but returns App\\Models\\ScheduledReport\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/ScheduledReport.php
 
@@ -3805,20 +1285,8 @@ parameters:
 			path: app/Models/Shift.php
 
 		-
-			message: '#^Method App\\Models\\Shift\:\:assignments\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/Shift.php
-
-		-
 			message: '#^Method App\\Models\\Shift\:\:attendanceRecords\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Shift.php
-
-		-
-			message: '#^Method App\\Models\\Shift\:\:findByPublicId\(\) should return static\(App\\Models\\Shift\)\|null but returns App\\Models\\Shift\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Shift.php
 
@@ -3853,12 +1321,6 @@ parameters:
 			path: app/Models/ShiftAssignment.php
 
 		-
-			message: '#^Method App\\Models\\SsoSetting\:\:findByPublicId\(\) should return static\(App\\Models\\SsoSetting\)\|null but returns App\\Models\\SsoSetting\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/SsoSetting.php
-
-		-
 			message: '#^Method App\\Models\\SsoSetting\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -3871,22 +1333,10 @@ parameters:
 			path: app/Models/Subscription.php
 
 		-
-			message: '#^Method App\\Models\\Subscription\:\:findByPublicId\(\) should return static\(App\\Models\\Subscription\)\|null but returns App\\Models\\Subscription\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Subscription.php
-
-		-
 			message: '#^Method App\\Models\\Subscription\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/Subscription.php
-
-		-
-			message: '#^Method App\\Models\\TaxBracket\:\:findByPublicId\(\) should return static\(App\\Models\\TaxBracket\)\|null but returns App\\Models\\TaxBracket\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/TaxBracket.php
 
 		-
 			message: '#^Method App\\Models\\TaxBracket\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
@@ -3909,12 +1359,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\Team\:\:employees\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Team.php
-
-		-
-			message: '#^Method App\\Models\\Team\:\:findByPublicId\(\) should return static\(App\\Models\\Team\)\|null but returns App\\Models\\Team\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Team.php
 
@@ -3985,12 +1429,6 @@ parameters:
 			path: app/Models/Tenant.php
 
 		-
-			message: '#^Method App\\Models\\Tenant\:\:findByPublicId\(\) should return static\(App\\Models\\Tenant\)\|null but returns App\\Models\\Tenant\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Tenant.php
-
-		-
 			message: '#^Method App\\Models\\Tenant\:\:grades\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -4051,12 +1489,6 @@ parameters:
 			path: app/Models/Tenant.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$org_scope\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/User.php
-
-		-
 			message: '#^Class App\\Models\\User uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
@@ -4065,12 +1497,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\User\:\:customRole\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/User.php
-
-		-
-			message: '#^Method App\\Models\\User\:\:findByPublicId\(\) should return static\(App\\Models\\User\)\|null but returns App\\Models\\User\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/User.php
 
@@ -4098,11 +1524,6 @@ parameters:
 			count: 1
 			path: app/Models/User.php
 
-		-
-			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\Employee\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Models/User.php
 
 		-
 			message: '#^Class App\\Models\\Webhook uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
@@ -4113,12 +1534,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\Webhook\:\:deliveries\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Webhook.php
-
-		-
-			message: '#^Method App\\Models\\Webhook\:\:findByPublicId\(\) should return static\(App\\Models\\Webhook\)\|null but returns App\\Models\\Webhook\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Webhook.php
 
@@ -4141,202 +1556,16 @@ parameters:
 			path: app/Models/WebhookDelivery.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/AttendanceCorrectionApprovedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/AttendanceCorrectionRequestedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/AttendanceCorrectionRequestedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Notifications/DeviceOfflineNotification.php
-
-		-
-			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Notifications/DeviceOfflineNotification.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
 			path: app/Notifications/DeviceOfflineNotification.php
 
 		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 4
-			path: app/Notifications/LeaveApprovedNotification.php
-
-		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: app/Notifications/LeaveRejectedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Notifications/LeaveRequestedNotification.php
-
-		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 4
-			path: app/Notifications/LeaveRequestedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$period_label\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Notifications/PayslipAvailableNotification.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>period_label" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Notifications/PayslipAvailableNotification.php
-
-		-
-			message: '#^Parameter \#1 \$employee of method App\\Models\\User\:\:canAccessEmployee\(\) expects App\\Models\\Employee, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 2
-			path: app/Policies/LeaveRequestPolicy.php
-
-		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Services/Accounting/AccountingExportService.php
-
-		-
-			message: '#^Using nullsafe method call on non\-nullable type string\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Services/Accounting/AccountingExportService.php
-
-		-
-			message: '#^Cannot access property \$value on string\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: app/Services/Analytics/DepartmentAnalyticsService.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Employee\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Services/Analytics/DepartmentAnalyticsService.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Employee\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 1
-			path: app/Services/Analytics/DepartmentAnalyticsService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\AttendanceRecord\:\:\$count\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\AttendanceRecord\:\:\$department\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\AttendanceRecord\:\:\$late_count\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\AttendanceRecord\:\:\$present\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Employee\:\:\$count\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\PayrollEntry\:\:\$cost_center\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\PayrollEntry\:\:\$department\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\PayrollEntry\:\:\$total_gross\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Instanceof between string and Carbon\\Carbon will always evaluate to false\.$#'
-			identifier: instanceof.alwaysFalse
-			count: 1
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\AttendanceRecord\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 4
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Employee\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 3
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\PayrollEntry\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 2
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\AttendanceRecord\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 4
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Employee\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 3
-			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\PayrollEntry\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 2
-			path: app/Services/Analytics/ExecutiveDashboardService.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>employee_count" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
@@ -4353,7 +1582,7 @@ parameters:
 		-
 			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
-			count: 2
+			count: 1
 			path: app/Services/Analytics/ExecutiveDashboardService.php
 
 		-
@@ -4367,48 +1596,6 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$early_departure_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Attendance/AttendanceEngine.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_time\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Attendance/AttendanceEngine.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$crosses_midnight\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Attendance/AttendanceIntelligence.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$early_departure_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Attendance/AttendanceIntelligence.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_time\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Attendance/AttendanceIntelligence.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$grace_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Attendance/AttendanceIntelligence.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$start_time\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Attendance/AttendanceIntelligence.php
 
 		-
 			message: '#^Method App\\Services\\Attendance\\AttendanceIntelligence\:\:getAnomalies\(\) should return Illuminate\\Support\\Collection\<int, array\{record\: App\\Models\\AttendanceRecord, types\: list\<string\>, worked_minutes\: int, overtime_minutes\: int\}\> but returns Illuminate\\Support\\Collection\<int, array\{record\: App\\Models\\AttendanceRecord, types\: non\-empty\-list\<string\>, worked_minutes\: int, overtime_minutes\: int\}\>\.$#'
@@ -4445,12 +1632,6 @@ parameters:
 			identifier: identical.alwaysFalse
 			count: 1
 			path: app/Services/Attendance/ConfidenceScorer.php
-
-		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Services/Attendance/ConflictResolver.php
 
 		-
 			message: '#^Method App\\Services\\Attendance\\ShiftMatcher\:\:match\(\) should return App\\Models\\Shift\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
@@ -4501,18 +1682,6 @@ parameters:
 			path: app/Services/Billing/BillingService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Dashboard/EmployeeDashboardService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$period_label\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Dashboard/EmployeeDashboardService.php
-
-		-
 			message: '#^Method App\\Services\\Dashboard\\EmployeeDashboardService\:\:latestPayslip\(\) has parameter \$employee with no type specified\.$#'
 			identifier: missingType.parameter
 			count: 1
@@ -4531,34 +1700,10 @@ parameters:
 			path: app/Services/Dashboard/EmployeeDashboardService.php
 
 		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\LeaveBalance\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Services/Dashboard/EmployeeDashboardService.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\LeaveBalance\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 1
-			path: app/Services/Dashboard/EmployeeDashboardService.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>tenant_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Services/Dashboard/EmployeeDashboardService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Dashboard/ManagerDashboardService.php
-
-		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: app/Services/Dashboard/ManagerDashboardService.php
 
 		-
 			message: '#^Method App\\Services\\Dashboard\\ManagerDashboardService\:\:getTeamEmployeeIds\(\) has parameter \$employee with no type specified\.$#'
@@ -4567,118 +1712,10 @@ parameters:
 			path: app/Services/Dashboard/ManagerDashboardService.php
 
 		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\LeaveRequest\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Services/Dashboard/ManagerDashboardService.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\LeaveRequest\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 1
-			path: app/Services/Dashboard/ManagerDashboardService.php
-
-		-
-			message: '#^Offset ''ip'' does not exist on string\.$#'
-			identifier: offsetAccess.notFound
-			count: 1
-			path: app/Services/Device/HikvisionAdapter.php
-
-		-
-			message: '#^Offset ''password'' on string on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Services/Device/HikvisionAdapter.php
-
-		-
-			message: '#^Offset ''port'' does not exist on string\.$#'
-			identifier: offsetAccess.notFound
-			count: 1
-			path: app/Services/Device/HikvisionAdapter.php
-
-		-
-			message: '#^Offset ''username'' on string on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Services/Device/HikvisionAdapter.php
-
-		-
-			message: '#^Offset ''api_key'' on string on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Services/Device/SupremaAdapter.php
-
-		-
 			message: '#^Offset ''device_id'' on string on left side of \?\? does not exist\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Services/Device/SupremaAdapter.php
-
-		-
-			message: '#^Offset ''ip'' does not exist on string\.$#'
-			identifier: offsetAccess.notFound
-			count: 1
-			path: app/Services/Device/SupremaAdapter.php
-
-		-
-			message: '#^Offset ''port'' on string on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Services/Device/SupremaAdapter.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between 443 and 443 will always evaluate to true\.$#'
-			identifier: identical.alwaysTrue
-			count: 1
-			path: app/Services/Device/SupremaAdapter.php
-
-		-
-			message: '#^Offset ''api_key'' does not exist on string\.$#'
-			identifier: offsetAccess.notFound
-			count: 1
-			path: app/Services/Device/ZktecoAdapter.php
-
-		-
-			message: '#^Offset ''api_key'' on string in empty\(\) does not exist\.$#'
-			identifier: empty.offset
-			count: 1
-			path: app/Services/Device/ZktecoAdapter.php
-
-		-
-			message: '#^Offset ''ip'' does not exist on string\.$#'
-			identifier: offsetAccess.notFound
-			count: 1
-			path: app/Services/Device/ZktecoAdapter.php
-
-		-
-			message: '#^Offset ''password'' on string on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Services/Device/ZktecoAdapter.php
-
-		-
-			message: '#^Offset ''port'' does not exist on string\.$#'
-			identifier: offsetAccess.notFound
-			count: 1
-			path: app/Services/Device/ZktecoAdapter.php
-
-		-
-			message: '#^Offset ''username'' does not exist on string\.$#'
-			identifier: offsetAccess.notFound
-			count: 1
-			path: app/Services/Device/ZktecoAdapter.php
-
-		-
-			message: '#^Offset ''username'' on string in empty\(\) does not exist\.$#'
-			identifier: empty.offset
-			count: 1
-			path: app/Services/Device/ZktecoAdapter.php
-
-		-
-			message: '#^Method App\\Services\\Holiday\\HolidayService\:\:getHolidays\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Services/Holiday/HolidayService.php
 
 		-
 			message: '#^Offset 0 on non\-empty\-list\<string\> on left side of \?\? always exists and is not nullable\.$#'
@@ -4693,21 +1730,15 @@ parameters:
 			path: app/Services/Import/AttendanceImportParser.php
 
 		-
-			message: '#^Call to an undefined method Illuminate\\Contracts\\Cache\\Store\:\:connection\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Services/LoginAttemptService.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$employee\.$#'
 			identifier: property.notFound
-			count: 2
+			count: 1
 			path: app/Services/Payroll/BankExportService.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$net_cents\.$#'
 			identifier: property.notFound
-			count: 2
+			count: 1
 			path: app/Services/Payroll/BankExportService.php
 
 		-
@@ -4741,50 +1772,20 @@ parameters:
 			path: app/Services/Payroll/PayrollEngine.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$period_label\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Payroll/PayslipPdfService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Payroll/PayslipPdfService.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
-			count: 3
+			count: 2
+			path: app/Services/Payroll/PayslipPdfService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>title" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
 			path: app/Services/Payroll/PayslipPdfService.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
-			count: 3
-			path: app/Services/Report/ReportEngine.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$period_label\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Report/ReportEngine.php
-
-		-
-			message: '#^Cannot access property \$value on string\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: app/Services/Report/ReportEngine.php
-
-		-
-			message: '#^Instanceof between string and Carbon\\Carbon will always evaluate to false\.$#'
-			identifier: instanceof.alwaysFalse
-			count: 1
-			path: app/Services/Report/ReportEngine.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Employee\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
 			count: 1
 			path: app/Services/Report/ReportEngine.php
 
@@ -4795,25 +1796,7 @@ parameters:
 			path: app/Services/Report/ReportEngine.php
 
 		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\PayrollEntry\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Services/Report/ReportEngine.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Employee\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 1
-			path: app/Services/Report/ReportEngine.php
-
-		-
 			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\LeaveBalance\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 1
-			path: app/Services/Report/ReportEngine.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\PayrollEntry\>\:\:map\(\) contains unresolvable type\.$#'
 			identifier: method.unresolvableReturnType
 			count: 1
 			path: app/Services/Report/ReportEngine.php
@@ -4835,12 +1818,6 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Services/Report/ReportEngine.php
-
-		-
-			message: '#^Call to an undefined method DOMNameSpaceNode\|DOMNode\:\:getAttribute\(\)\.$#'
-			identifier: method.notFound
-			count: 4
-			path: app/Services/Sso/SamlProvider.php
 
 		-
 			message: '#^Parameter \#2 \$haystack of function in_array expects array, string given\.$#'

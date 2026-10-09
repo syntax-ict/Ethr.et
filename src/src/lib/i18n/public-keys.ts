@@ -17,11 +17,15 @@
  * raw, **7.5 KB gzipped**, against 186 KB / 45 KB for the whole file — and it is
  * registered synchronously before anything renders.
  *
- * A key *with* a fallback is safe outside this list, and the gate allows it: the
- * browser's first render produces the fallback, the server produced `en.json`,
- * and a separate check holds those two equal. Widening the list to cover five
- * such strings in `product-flow.tsx` would have taken the payload from 7.5 KB to
- * 13.2 KB, which is the measurement that settled the rule.
+ * **Since 2026-10-03 this applies to Amharic too, and with no exception.** A key
+ * with an inline English fallback used to be allowed outside this list — safe
+ * while `am.json` was eager on every page, because the fallback only ever stood
+ * in for English. Now that Amharic also reaches the browser as this projection,
+ * such a key renders Amharic on the server and English in the browser's first
+ * render. The five strings in `product-flow.tsx` that used the exemption were
+ * re-keyed under `marketing.product_flow.*` (five strings, rather than widening
+ * this list to their whole families, which measured 7.5 → 13.2 KB), and the gate
+ * now refuses any public key outside these prefixes.
  *
  * `scripts/i18n-check.js` reads this list and fails when a public page uses a
  * key outside it, which is what stops the subset silently going stale. Adding a
@@ -36,6 +40,9 @@ export const PUBLIC_KEY_PREFIXES = [
   "error.",
   "not_found.",
   "nav.",
+  // lib/utils/date.ts's timeAgo, translated since 2026-10-09; that module is
+  // imported by public pages too.
+  "time.",
 ] as const;
 
 export function isPublicKey(key: string): boolean {

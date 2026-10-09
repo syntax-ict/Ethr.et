@@ -59,7 +59,6 @@ idempotent and never overwrites tenant edits.
 | method | path | purpose |
 |---|---|---|
 | GET | `/api/v1/templates` | the 8 base templates (public) |
-| POST | `/api/v1/onboarding/apply-template` | provision a base template |
 | GET | `/api/v1/onboarding/industries` | the 27-industry picker |
 | POST | `/api/v1/onboarding/configuration/preview` | scored plan (read-only) |
 | POST | `/api/v1/onboarding/configuration/apply` | provision an edited plan |

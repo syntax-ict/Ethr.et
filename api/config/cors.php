@@ -36,6 +36,7 @@ return [
         'X-XSRF-TOKEN',
         'X-CSRF-TOKEN',
         'X-ETHR-Signature',
+        'X-ETHR-Background',
     ],
 
     'exposed_headers' => [

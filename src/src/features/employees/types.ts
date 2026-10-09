@@ -11,6 +11,7 @@ export type Employee = Pick<
   | "email"
   | "phone"
   | "employee_code"
+  | "has_kiosk_pin"
   | "gender"
   | "status"
   | "photo_url"
@@ -20,24 +21,8 @@ export type Employee = Pick<
   | "department"
   | "branch"
   | "position"
+  | "team"
+  | "cost_center"
+  | "supervisor"
   | "created_at"
 >;
-
-export interface EmployeeFormData {
-  name: string;
-  name_am?: string;
-  email: string;
-  phone: string;
-  employee_code: string;
-  gender: string;
-  date_of_birth: string;
-  nationality: string;
-  /** Encrypted at rest; drives duplicate detection on import and device sync. */
-  national_id?: string;
-  marital_status: string;
-  hire_date: string;
-  salary_cents: number;
-  department_public_id?: string;
-  branch_public_id?: string;
-  position_public_id?: string;
-}

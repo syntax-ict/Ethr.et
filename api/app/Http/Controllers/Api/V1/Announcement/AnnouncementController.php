@@ -25,6 +25,7 @@ class AnnouncementController extends Controller
         $query = Announcement::query()
             ->published()
             ->notExpired()
+            ->visibleTo($request->user())
             ->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 WHEN 'low' THEN 4 END")
             ->orderByDesc('published_at');
 
@@ -45,6 +46,7 @@ class AnnouncementController extends Controller
         $visible = Announcement::query()
             ->published()
             ->notExpired()
+            ->visibleTo($request->user())
             ->whereKey($announcement->getKey())
             ->exists();
 
@@ -71,14 +73,15 @@ class AnnouncementController extends Controller
         $tenant = app(CurrentTenant::class)->get();
         $user = $request->user();
         $data = $request->validated();
+        $target = $request->resolvedTarget();
 
         $announcement = Announcement::create([
             'tenant_id' => $tenant->id,
             'title' => $data['title'],
             'body' => $data['body'],
             'priority' => $data['priority'] ?? 'normal',
-            'target_type' => $data['target_type'] ?? 'all',
-            'target_id' => $data['target_id'] ?? null,
+            'target_type' => $target['target_type'] ?? 'all',
+            'target_id' => $target['target_id'] ?? null,
             'published_by' => $user->id,
             'published_at' => ($data['publish_now'] ?? true) ? now() : null,
             'expires_at' => $data['expires_at'] ?? null,
@@ -99,7 +102,13 @@ class AnnouncementController extends Controller
     {
         Gate::authorize('announcement.manage');
 
-        $announcement->update($request->validated());
+        $data = $request->validated();
+        $target = $request->resolvedTarget();
+        if ($target !== null) {
+            $data = array_merge($data, $target);
+        }
+
+        $announcement->update($data);
 
         AuditLog::record('announcement.updated', $announcement);
 

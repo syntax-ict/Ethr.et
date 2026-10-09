@@ -64,14 +64,14 @@ const HEADER_LANGUAGES = supportedLocales.filter(
   (l) => l.status === "available",
 );
 
-import { getRouteMeta, routeI18nKey } from "@/lib/route-meta";
+import { getRouteMeta, routeI18nKey, routeI18nPath } from "@/lib/route-meta";
 
 function useCurrentPageLabel() {
   const pathname = usePathname();
   const { t } = useT();
   const meta = getRouteMeta(pathname);
   if (!meta) return t("common.page", "Page");
-  return t(routeI18nKey(pathname, "label"), meta.label);
+  return t(routeI18nKey(routeI18nPath(pathname, meta), "label"), meta.label);
 }
 
 export function AppHeader() {
@@ -79,9 +79,21 @@ export function AppHeader() {
   const { theme, setTheme } = useTheme();
   const { data: user } = useCurrentUser();
   const logout = useLogout();
-  const updateLocale = useUpdatePreferences();
+  const updatePreferences = useUpdatePreferences();
   const pageLabel = useCurrentPageLabel();
-  const { calendar, toggle: toggleCalendar } = useCalendar();
+  const { calendar, setCalendar } = useCalendar();
+
+  /**
+   * Applied at once, then stored on the user, as the language switcher does:
+   * the toggle used to write only this browser's `localStorage`, so the choice
+   * vanished on the next device and disagreed with the profile setting (N33).
+   * A failed save is not worth interrupting the switch the user just made.
+   */
+  function toggleCalendar() {
+    const next = calendar === "ethiopian" ? "gregorian" : "ethiopian";
+    setCalendar(next);
+    updatePreferences.mutate({ calendar: next });
+  }
   const paletteShortcut = useShortcutLabel("K");
 
   const { t, locale } = useT();
@@ -103,7 +115,9 @@ export function AppHeader() {
             <Menu className="h-5 w-5" />
             <span className="sr-only">{t("nav.open_menu", "Open menu")}</span>
           </Button>
-          <div className="flex items-center gap-2 lg:hidden">
+          {/* min-w-0 lets a long organisation name truncate instead of
+              wrapping over the logo and pushing the icons aside (N34). */}
+          <div className="flex min-w-0 items-center gap-2 lg:hidden">
             <TenantLogoBadge size="sm" />
           </div>
 
@@ -129,7 +143,7 @@ export function AppHeader() {
         </button>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5">
           {/* Mobile search trigger (the full search box is desktop-only) */}
           <Button
             variant="ghost"
@@ -214,7 +228,7 @@ export function AppHeader() {
                     // new device and reaches the payslips, emails and SMS the
                     // server renders. A failure here is not worth interrupting
                     // the switch the user just made.
-                    updateLocale.mutate({ locale: lang.code });
+                    updatePreferences.mutate({ locale: lang.code });
                   }}
                 >
                   <span>{lang.nativeName}</span>

@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Users, Wallet } from "lucide-react";
 import {
@@ -14,17 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
-
-interface DepartmentDetail {
-  public_id: string;
-  name: string;
-  headcount: number;
-  avg_salary_cents: number;
-  gender_breakdown: Record<string, number>;
-  employees: Array<{ public_id: string; name: string; status: string }>;
-}
+import { useDepartmentDetail } from "../executive-api";
 
 /**
  * The real interactive drill-down: click a department bar on any chart above
@@ -34,22 +24,31 @@ interface DepartmentDetail {
  */
 export function DepartmentDrillDownDialog({
   departmentPublicId,
+  branchPublicId,
   onOpenChange,
 }: {
   departmentPublicId: string | null;
+  /** The dashboard's branch filter, so the roster matches the charts. */
+  branchPublicId?: string;
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useT();
-  const query = useQuery<DepartmentDetail>({
-    queryKey: ["analytics", "departments", departmentPublicId],
-    enabled: departmentPublicId !== null,
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/analytics/departments/${departmentPublicId}`,
-      );
-      return data;
-    },
-  });
+  const query = useDepartmentDetail(departmentPublicId, branchPublicId);
+
+  /**
+   * The keys are stored values: `male`, `female` (StoreEmployeeRequest allows
+   * no others) or `""`, which is how `groupBy('gender')` files employees
+   * whose gender was never recorded. That one used to render as a badge
+   * reading ": 3", and the other two in English under every locale.
+   */
+  function genderLabel(gender: string): string {
+    if (gender === "male") return t("common.male", "Male");
+    if (gender === "female") return t("common.female", "Female");
+    if (gender === "") {
+      return t("executive_dashboard.gender_unrecorded", "Not recorded");
+    }
+    return gender;
+  }
 
   return (
     <Dialog open={departmentPublicId !== null} onOpenChange={onOpenChange}>
@@ -101,8 +100,8 @@ export function DepartmentDrillDownDialog({
               {Object.keys(data.gender_breakdown).length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {Object.entries(data.gender_breakdown).map(([g, n]) => (
-                    <Badge key={g} variant="outline" className="capitalize">
-                      {g}: {n}
+                    <Badge key={g} variant="outline">
+                      {genderLabel(g)}: {n}
                     </Badge>
                   ))}
                 </div>

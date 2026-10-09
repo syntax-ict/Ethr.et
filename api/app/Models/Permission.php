@@ -27,6 +27,14 @@ class Permission extends Model
     ];
 
     /**
+     * Abilities that belong to the platform, never to a tenant: held by the
+     * super admin alone and never delegable through a role. `admin.manage` is
+     * in the catalogue so `Gate::before` resolves it, which also made it
+     * grantable through a custom role (audit N86).
+     */
+    public const PLATFORM_ONLY = ['admin.manage'];
+
+    /**
      * Every ability defined in the catalogue.
      *
      * @return list<string>
@@ -49,6 +57,7 @@ class Permission extends Model
             return DB::table('role_permissions')
                 ->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
                 ->where('role_permissions.role', $role)
+                ->whereNotIn('permissions.name', self::PLATFORM_ONLY)
                 ->pluck('permissions.name')
                 ->all();
         });
@@ -60,6 +69,10 @@ class Permission extends Model
             return DB::table('custom_role_permissions')
                 ->join('permissions', 'permissions.id', '=', 'custom_role_permissions.permission_id')
                 ->where('custom_role_permissions.custom_role_id', $customRoleId)
+                // Whatever a row says, a role never carries a platform
+                // ability: only a super admin holds one, through allNames()
+                // (audit N86).
+                ->whereNotIn('permissions.name', self::PLATFORM_ONLY)
                 ->pluck('permissions.name')
                 ->all();
         });

@@ -36,32 +36,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import {
+  useCreateShift,
+  useDeleteShift,
+  useShifts,
+  useUpdateShift,
+  type Shift,
+} from "@/features/shifts/api";
+import { parseWorkingDays, toHHMM } from "@/features/shifts/dates";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SettingRow } from "@/components/patterns/SettingRow";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 
 const DAY_LABELS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_WORKING_DAYS = "1,2,3,4,5";
-
-interface Shift {
-  public_id: string;
-  name: string;
-  name_am: string | null;
-  start_time: string;
-  end_time: string;
-  crosses_midnight: boolean;
-  grace_minutes: number;
-  early_departure_minutes: number;
-  break_minutes: number;
-  working_days: string;
-  is_default: boolean;
-  is_active: boolean;
-  assignments_count?: number;
-}
 
 interface ShiftForm {
   name: string;
@@ -109,59 +101,78 @@ function workedHours(
 
 export default function ShiftsPage() {
   const { t } = useT();
-  const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
+  // Deleting is `shift.delete`, a tenant-admin grant; this page admits HR
+  // admins, who hold create/update but not delete. The item was offered to
+  // them anyway and answered with a 403.
+  const canDelete = hasPermission("shift.delete");
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<Shift | null>(null);
   const [form, setForm] = useState<ShiftForm>(EMPTY_FORM);
   const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["shifts"],
-    queryFn: async () => (await apiClient.get("/shifts?per_page=100")).data,
-  });
+  const { data, isLoading } = useShifts();
+  const createShift = useCreateShift();
+  const updateShift = useUpdateShift();
+  const deleteShift = useDeleteShift();
+  const saving = createShift.isPending || updateShift.isPending;
 
-  const shifts: Shift[] = data?.data ?? [];
+  const shifts = data?.data ?? [];
   const filtered = search
     ? shifts.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
     : shifts;
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ["shifts"] });
+  function onSaveError(err: unknown) {
+    toast.error(apiErrorMessage(err, t("shifts_page.save_failed")));
+  }
 
-  const save = useMutation({
-    mutationFn: async (payload: ShiftForm) => {
-      const body = {
-        ...payload,
-        grace_minutes: Number(payload.grace_minutes),
-        break_minutes: Number(payload.break_minutes),
-        early_departure_minutes: Number(payload.early_departure_minutes),
-      };
-      if (editing) {
-        return (await apiClient.put(`/shifts/${editing.public_id}`, body)).data;
-      }
-      return (await apiClient.post("/shifts", body)).data;
-    },
-    onSuccess: () => {
-      invalidate();
-      setShowDialog(false);
-      toast.success(
-        editing ? t("shifts_page.updated") : t("shifts_settings_page.created"),
+  function save() {
+    const body = {
+      ...form,
+      name_am: form.name_am || null,
+      grace_minutes: Number(form.grace_minutes),
+      break_minutes: Number(form.break_minutes),
+      early_departure_minutes: Number(form.early_departure_minutes),
+    };
+
+    if (editing) {
+      updateShift.mutate(
+        { publicId: editing.public_id, payload: body },
+        {
+          onSuccess: () => {
+            setShowDialog(false);
+            toast.success(t("shifts_page.updated"));
+          },
+          onError: onSaveError,
+        },
       );
-    },
-    onError: (err: unknown) => {
-      const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(e.response?.data?.detail ?? t("shifts_page.save_failed"));
-    },
-  });
+      return;
+    }
 
-  const destroy = useMutation({
-    mutationFn: async (id: string) => apiClient.delete(`/shifts/${id}`),
-    onSuccess: () => {
-      invalidate();
-      toast.success(t("shifts_settings_page.deleted"));
-    },
-    onError: () => toast.error(t("shifts_page.delete_in_use")),
-  });
+    createShift.mutate(body, {
+      onSuccess: () => {
+        setShowDialog(false);
+        toast.success(t("shifts_settings_page.created"));
+      },
+      onError: onSaveError,
+    });
+  }
+
+  function remove(shift: Shift) {
+    if (!confirm(t("shifts_settings_page.delete_confirm"))) return;
+
+    deleteShift.mutate(shift.public_id, {
+      onSuccess: () => toast.success(t("shifts_settings_page.deleted")),
+      // The API's own sentence, whatever the reason: 403 for permission, or
+      // 409 while the shift has a current or upcoming assignment or is a
+      // rotation step — its `detail` says which, and how many.
+      onError: (err: unknown) => {
+        toast.error(
+          apiErrorDetail(err) ?? t("shifts_settings_page.delete_failed"),
+        );
+      },
+    });
+  }
 
   function openCreate() {
     setEditing(null);
@@ -174,8 +185,10 @@ export default function ShiftsPage() {
     setForm({
       name: s.name,
       name_am: s.name_am ?? "",
-      start_time: s.start_time,
-      end_time: s.end_time,
+      // The API returns `HH:MM:SS` from MariaDB but accepts only `HH:MM`, so
+      // echoing the value back unchanged made every edit a 422.
+      start_time: toHHMM(s.start_time),
+      end_time: toHHMM(s.end_time),
       crosses_midnight: s.crosses_midnight,
       grace_minutes: s.grace_minutes,
       break_minutes: s.break_minutes,
@@ -188,18 +201,14 @@ export default function ShiftsPage() {
   }
 
   function toggleDay(day: number) {
-    const days = form.working_days
-      ? form.working_days.split(",").map(Number)
-      : [];
+    const days = parseWorkingDays(form.working_days);
     const next = days.includes(day)
       ? days.filter((d) => d !== day)
       : [...days, day].sort();
     setForm((f) => ({ ...f, working_days: next.join(",") }));
   }
 
-  const activeDays = form.working_days
-    ? form.working_days.split(",").map(Number)
-    : [];
+  const activeDays = parseWorkingDays(form.working_days);
 
   return (
     <RoleGate minRole="hr_admin">
@@ -295,9 +304,9 @@ export default function ShiftsPage() {
                         )}
                       </div>
                       <p className="mt-1 text-2xl font-mono font-bold tabular-nums text-primary">
-                        {shift.start_time}{" "}
+                        {toHHMM(shift.start_time)}{" "}
                         <span className="text-muted-foreground text-lg">→</span>{" "}
-                        {shift.end_time}
+                        {toHHMM(shift.end_time)}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {workedHours(
@@ -336,14 +345,18 @@ export default function ShiftsPage() {
                             {t("shifts_settings_page.assign")}
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => destroy.mutate(shift.public_id)}
-                        >
-                          <Trash2 className="mr-2 h-3.5 w-3.5" />{" "}
-                          {t("common.delete")}
-                        </DropdownMenuItem>
+                        {canDelete && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => remove(shift)}
+                            >
+                              <Trash2 className="mr-2 h-3.5 w-3.5" />{" "}
+                              {t("common.delete")}
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -351,10 +364,9 @@ export default function ShiftsPage() {
                   {/* Working days pills */}
                   <div className="mt-3 flex gap-1 flex-wrap">
                     {[1, 2, 3, 4, 5, 6, 7].map((d) => {
-                      const active = shift.working_days
-                        .split(",")
-                        .map(Number)
-                        .includes(d);
+                      const active = parseWorkingDays(
+                        shift.working_days,
+                      ).includes(d);
                       return (
                         <span
                           key={d}
@@ -413,7 +425,10 @@ export default function ShiftsPage() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, name: e.target.value }))
                     }
-                    placeholder="Morning Shift"
+                    placeholder={t(
+                      "shifts_page.name_english_placeholder",
+                      "Morning Shift",
+                    )}
                     className="mt-1"
                   />
                 </div>
@@ -611,17 +626,12 @@ export default function ShiftsPage() {
                 {t("common.cancel")}
               </Button>
               <Button
-                onClick={() => save.mutate(form)}
+                onClick={save}
                 disabled={
-                  !form.name ||
-                  !form.start_time ||
-                  !form.end_time ||
-                  save.isPending
+                  !form.name || !form.start_time || !form.end_time || saving
                 }
               >
-                {save.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editing
                   ? t("leave_types_page.save_changes")
                   : t("shifts_page.create_shift")}

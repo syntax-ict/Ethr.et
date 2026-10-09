@@ -123,10 +123,6 @@ export function daysInEthiopianMonth(year: number, month: number): number {
   return 0;
 }
 
-export function ethiopianMonthStart(ethYear: number, ethMonth: number): Date {
-  return toGregorian(ethYear, ethMonth, 1);
-}
-
 export function nextEthiopianMonth(
   year: number,
   month: number,
@@ -141,6 +137,15 @@ export function prevEthiopianMonth(
 ): { year: number; month: number } {
   if (month > 1) return { year, month: month - 1 };
   return { year: year - 1, month: 13 };
+}
+
+/** The name of Ethiopian month 1-13 (Meskerem … Pagume). */
+export function ethiopianMonthName(
+  month: number,
+  locale: string = "en",
+): string {
+  const months = locale === "am" ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
+  return months[month - 1] ?? `Month ${month}`;
 }
 
 export function formatEthiopian(
