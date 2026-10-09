@@ -50,7 +50,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SettingRow } from "@/components/patterns/SettingRow";
-import { apiErrorMessage } from "@/lib/api/error-message";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 
 const DAY_LABELS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_WORKING_DAYS = "1,2,3,4,5";
@@ -167,9 +167,8 @@ export default function ShiftsPage() {
       // 409 while the shift has a current or upcoming assignment or is a
       // rotation step — its `detail` says which, and how many.
       onError: (err: unknown) => {
-        const e = err as { response?: { data?: { detail?: string } } };
         toast.error(
-          e.response?.data?.detail ?? t("shifts_settings_page.delete_failed"),
+          apiErrorDetail(err) ?? t("shifts_settings_page.delete_failed"),
         );
       },
     });

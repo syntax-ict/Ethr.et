@@ -27,6 +27,7 @@ import { useOfflineSync } from "@/lib/hooks/useOfflineSync";
 import { enqueueOfflineRecord } from "@/lib/offline-queue";
 import { useCurrentUser } from "@/features/auth/api";
 import { useT } from "@/lib/i18n/useT";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -170,12 +171,8 @@ export default function MobileCheckInPage() {
           setTimeout(() => router.push("/attendance"), 3000);
         },
         onError: (err: unknown) => {
-          const axiosErr = err as {
-            response?: { data?: { detail?: string } };
-          };
           setMessage(
-            axiosErr.response?.data?.detail ??
-              t("attendance.mobile_page.submit_failed"),
+            apiErrorDetail(err) ?? t("attendance.mobile_page.submit_failed"),
           );
           setStatus("error");
         },

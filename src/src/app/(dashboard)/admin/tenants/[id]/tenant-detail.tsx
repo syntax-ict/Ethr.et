@@ -54,7 +54,7 @@ import { formatDateOnly } from "@/lib/utils/date";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
-import { apiErrorMessage } from "@/lib/api/error-message";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
 
 /**
@@ -251,11 +251,8 @@ function TenantDetail({ id }: { id: string }) {
         // host's handoff page in production, straight to the dashboard on a
         // single host — so anything set here would never paint.
         onError: (err: unknown) => {
-          const axiosErr = err as {
-            response?: { data?: { detail?: string } };
-          };
           toast.error(
-            axiosErr.response?.data?.detail ||
+            apiErrorDetail(err) ||
               t("admin_tenant_detail_page.impersonation_failed"),
           );
         },

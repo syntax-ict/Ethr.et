@@ -47,6 +47,7 @@ import {
 import { formatETB } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 export default function BillingPage() {
   const { t } = useT();
@@ -412,11 +413,8 @@ function PlanChangeDialog({
           );
         },
         onError: (err: unknown) => {
-          const axiosErr = err as {
-            response?: { data?: { detail?: string } };
-          };
           toast.error(
-            axiosErr.response?.data?.detail ||
+            apiErrorDetail(err) ||
               t("billing.change_failed", "Failed to change plan"),
           );
         },

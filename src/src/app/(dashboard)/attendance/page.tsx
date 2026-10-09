@@ -61,6 +61,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { toast } from "sonner";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 export default function AttendancePage() {
   const { formatTime } = useDateFormatters();
@@ -574,11 +575,8 @@ function ManualEntryDialog({
           });
         },
         onError: (err: unknown) => {
-          const axiosErr = err as {
-            response?: { data?: { detail?: string } };
-          };
           toast.error(
-            axiosErr.response?.data?.detail ??
+            apiErrorDetail(err) ??
               t("attendance.manual_failed", "Manual entry failed"),
           );
         },

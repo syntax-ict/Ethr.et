@@ -11,6 +11,17 @@
  * reason.
  */
 export function apiErrorMessage(err: unknown, fallback: string): string {
+  return apiErrorDetail(err) || fallback;
+}
+
+/**
+ * The server's own reason, as `apiErrorMessage` picks it, or `undefined` when
+ * it gave none — for a caller that chooses its own fallback. Seventeen screens
+ * read `response.data.detail` by hand instead, so a 422 showed the generic
+ * "The given data was invalid." where this shows the field's reason
+ * (redundancy audit, 2026-10-09).
+ */
+export function apiErrorDetail(err: unknown): string | undefined {
   const data = (
     err as {
       response?: {
@@ -21,5 +32,5 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
 
   const fieldError = Object.values(data?.errors ?? {})[0]?.[0];
 
-  return fieldError || data?.detail || fallback;
+  return fieldError || data?.detail || undefined;
 }

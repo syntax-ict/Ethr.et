@@ -20,6 +20,7 @@ import { DEFAULT_TIMEZONE } from "@/lib/utils/date";
 import { authenticateKiosk, kioskPunch } from "@/features/kiosk/api";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 type Screen = "setup" | "kiosk" | "lock";
 type CheckMode = "idle" | "checking" | "success" | "error";
@@ -177,10 +178,7 @@ export default function KioskPage() {
         ),
       );
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
-      setMessage(
-        axiosErr.response?.data?.detail ?? t("kiosk_page.check_failed"),
-      );
+      setMessage(apiErrorDetail(err) ?? t("kiosk_page.check_failed"));
       setMode("error");
     }
   }, [code, config, pin, showPin, type, t]);

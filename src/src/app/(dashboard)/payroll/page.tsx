@@ -26,6 +26,7 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
 import { usePlanFeatures } from "@/features/auth/api";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 export default function PayrollPage() {
   const { t } = useT();
@@ -58,11 +59,8 @@ export default function PayrollPage() {
           setPeriodEnd("");
         },
         onError: (err: unknown) => {
-          const axiosError = err as {
-            response?: { data?: { detail?: string } };
-          };
           toast.error(
-            axiosError.response?.data?.detail ||
+            apiErrorDetail(err) ||
               t("payroll.process_failed", "Failed to process payroll"),
           );
         },
