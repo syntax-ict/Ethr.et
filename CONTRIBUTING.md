@@ -306,6 +306,11 @@ pushes each release commit straight to it. Those commits are always fast-forward
 workflow nothing. It still stops anyone from rewriting the deployment history Plesk
 Git pulls from.
 
+Ruleset `release-tags` (id 24802340, applied 2026-10-09, active) covers `refs/tags/v*` and blocks
+**updating and deleting** a tag. Creating one is allowed, because `release.yml`
+creates one per release. Once a tag has named a deployment, it always names the same
+commit.
+
 #### Verifying it — and the flag that will lie to you
 
 **Read the effective rules first.** `GET /repos/{owner}/{repo}/rules/branches/{branch}`
@@ -513,19 +518,36 @@ commits contain build output that does not belong in the source. A
 
 **The release flow, end to end:**
 
-1. Branch from `main` with a short-lived, prefixed name: `feat/`, `fix/`, `chore/`,
-   `docs/`, `test/`. Dependabot creates its own `dependabot/…` branches.
-2. Open a pull request into `main`. The nine required checks must pass.
-3. Merge it. The repository squash-merges, so a PR becomes one `… (#NNN)` commit,
+There are three places, and a change moves through them in one direction:
+
+| Place | What happens there |
+|---|---|
+| **Local** (one checkout of this repository) | Development, `./scripts/gates.sh`, migrations and seeders against your own MariaDB, and the **local production rehearsal** (`scripts/local-production/up.sh` → `http://localhost:8081`). The rehearsal builds and deploys the same release artifact CI does |
+| **GitHub** (`syntax-ict/Ethr.et`) | Review on `main`, then the built `production` branch, with one tag per release |
+| **Production** (Plesk) | Plesk Git **pulls** `production`. Artisan runs from the Laravel Toolkit or the maintenance endpoint, then the live site is verified |
+
+1. **Local.** Branch from `main` with a short-lived, prefixed name: `feat/`, `fix/`,
+   `chore/`, `docs/`, `test/`. Dependabot creates its own `dependabot/…` branches.
+   Run `./scripts/gates.sh quick` (the pre-push hook does). For anything that
+   touches deployment, migrations or seeders, also run
+   `scripts/local-production/up.sh` and `verify.sh`, which build the real release
+   and serve it through Apache.
+2. **Pull request into `main`.** The nine required checks must pass.
+3. **Merge.** The repository squash-merges, so a PR becomes one `… (#NNN)` commit,
    and the head branch is deleted automatically (*Settings → General*, on since
    2026-10-09).
-4. **Quality gates** runs on the push to `main`. Only if it passes does
-   **Plesk release** build the tree, rehearse two deploys of it, and push
-   `release: <first 12 of the main sha>` to `production`. This step is automatic,
-   but it is not a deployment.
-5. **Going live is manual:** press **Deploy** in Plesk Git, then do the release
-   steps in [`docs/deployment/PLESK-GO-LIVE.md`](docs/deployment/PLESK-GO-LIVE.md).
-   Nothing reaches the host until someone does that.
+4. **Publish (automatic).** **Quality gates** runs on the push to `main`. Only if it
+   passes does **Plesk release** do three things. It builds the tree, which carries
+   `api/public/release.json` naming its source commit. It rehearses two deploys of
+   it. Then it pushes `release: <first 12 of the main sha>` to `production` and tags
+   that commit **`vYYYY.MM.DD.N`**, the Nth release that UTC day. Tags are annotated
+   and protected by the `release-tags` ruleset: they cannot be moved or deleted. This
+   step is not a deployment.
+5. **Pull (manual).** Press **Deploy** in Plesk Git, then do the release steps in
+   [`docs/deployment/PLESK-GO-LIVE.md`](docs/deployment/PLESK-GO-LIVE.md). Nothing
+   reaches the host until someone does that.
+6. **Verify.** `scripts/release-status.sh https://<APP_DOMAIN>` should end with
+   *"Local, GitHub, production and the live site are in step."*
 
 **Hotfixes use the same flow,** because there is nowhere else for a fix to live.
 Open a `fix/` PR into `main`. Once it merges, step 4 publishes it, then press
@@ -533,19 +555,27 @@ Deploy. Never commit to `production` by hand: the next release is built from
 `main` and would silently drop the change. To roll back, open a revert PR on
 `main`. It goes through the same gates and comes out as a new release.
 
-**Is everything in sync?**
+**Is everything in sync?** One read-only command answers it for all four places:
 
 ```bash
-git fetch origin --prune
-git rev-list --left-right --count main...origin/main     # 0 0 → local main matches GitHub
-git log -1 --format=%s origin/production                 # release: <sha>
-git rev-parse --short=12 origin/main                     # … should be that <sha>
+scripts/release-status.sh                                 # local, main, production
+scripts/release-status.sh https://<APP_DOMAIN>            # ...and the live site
+ETHR_BASE_URL=http://localhost:8081 scripts/release-status.sh   # ...and the local rehearsal
 ```
 
-If `production` names an older sha, **Plesk release** has not finished, or it did
-not publish, for example because Quality gates failed. Read the Actions tab before
-assuming either. Even when the sha matches, that says what is *published*, not what
-is *deployed*. Only the commit Plesk Git shows as deployed answers that.
+Each `!` line names the next action:
+- local `main` behind: `git pull --ff-only`;
+- `production` built from an older `main`: the gates or the release are still
+  running, or one failed, so read the Actions tab before assuming which;
+- the live site running an older release: press Deploy.
+
+It exits 0 when everything agrees and 1 when something is pending.
+
+The live answer comes from `/release.json`, which every release carries from
+2026-10-09 on. A site deployed before then reports nothing, and the script says
+*unknown* rather than guessing. *Published* (the `production` branch) and *deployed*
+(what `release.json` on the live site says) are different questions, and only the
+second one tells you what users are running.
 
 **Cleaning up a local branch after its PR merges:** `git fetch --prune` drops the
 remote-tracking ref, and `git branch -vv` marks the local branch `[gone]`. Squash
