@@ -34,9 +34,9 @@ import {
 
 function outcomeTone(outcome: MatchOutcome): string {
   return {
-    matched: "var(--color-status-success, #059669)",
-    probable: "var(--color-status-warning, #D97706)",
-    ambiguous: "var(--color-status-error, #DC2626)",
+    matched: "var(--color-status-success, #047857)",
+    probable: "var(--color-status-warning, #92400E)",
+    ambiguous: "var(--color-status-error, #B91C1C)",
     new: "var(--color-text-secondary, #64748B)",
   }[outcome];
 }

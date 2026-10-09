@@ -27,10 +27,10 @@ Three principles guide every design decision:
 
 | Token | Light Mode | Dark Mode | Usage |
 |---|---|---|---|
-| Success | `#059669` | `#34D399` | Confirmed, approved, present |
-| Warning | `#D97706` | `#FBBF24` | Late, pending, expiring |
-| Error | `#DC2626` | `#F87171` | Rejected, absent, failed |
-| Info | `#0284C7` | `#38BDF8` | Informational, on leave |
+| Success | `#047857` | `#34D399` | Confirmed, approved, present |
+| Warning | `#92400E` | `#FBBF24` | Late, pending, expiring |
+| Error | `#B91C1C` | `#F87171` | Rejected, absent, failed |
+| Info | `#0369A1` | `#38BDF8` | Informational, on leave |
 
 ### Neutral Scale
 

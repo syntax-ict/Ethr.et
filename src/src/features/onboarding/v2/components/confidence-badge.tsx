@@ -16,14 +16,14 @@ const SOURCE_LABEL: Record<ConfigurationSource, [string, string]> = {
 function toneFor(confidence: number): { color: string; bg: string } {
   if (confidence >= 0.85) {
     return {
-      color: "var(--color-status-success, #059669)",
-      bg: "color-mix(in srgb, var(--color-status-success, #059669) 12%, transparent)",
+      color: "var(--color-status-success, #047857)",
+      bg: "color-mix(in srgb, var(--color-status-success, #047857) 12%, transparent)",
     };
   }
   if (confidence >= 0.6) {
     return {
-      color: "var(--color-status-warning, #D97706)",
-      bg: "color-mix(in srgb, var(--color-status-warning, #D97706) 14%, transparent)",
+      color: "var(--color-status-warning, #92400E)",
+      bg: "color-mix(in srgb, var(--color-status-warning, #92400E) 14%, transparent)",
     };
   }
   return {

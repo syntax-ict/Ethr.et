@@ -71,11 +71,11 @@ const STATUSES: EditableStatus[] = ["active", "inactive", "suspended"];
 function statusTone(status: UserStatus | string): string {
   switch (status) {
     case "active":
-      return "var(--color-status-success, #059669)";
+      return "var(--color-status-success, #047857)";
     case "invited":
-      return "var(--color-status-info, #0284C7)";
+      return "var(--color-status-info, #0369A1)";
     case "suspended":
-      return "var(--color-status-error, #DC2626)";
+      return "var(--color-status-error, #B91C1C)";
     default:
       return "var(--color-text-secondary, #64748B)";
   }

@@ -279,9 +279,9 @@ Primary:          #0F4C75   Deep Teal Blue — authority, trust
 Primary Light:    #3282B8   Interactive blue — buttons, links
 Primary Dark:     #0A2E4A   Sidebar, headers
 Accent:           #E8A838   Ethiopian Gold — highlights, badges
-Success:          #059669   Green
-Warning:          #D97706   Amber
-Destructive:      #DC2626   Red
+Success:          #047857   Green
+Warning:          #92400E   Amber
+Destructive:      #B91C1C   Red
 Neutral 50:       #F8FAFC   Page background
 Neutral 100:      #F1F5F9   Card background
 Neutral 200:      #E2E8F0   Borders
@@ -338,10 +338,10 @@ Ethiopian geometric textile motif (tilf/tibeb pattern) as a subtle decorative bo
   --color-interactive-hover: #3282B8;
   --color-interactive-focus: #0F4C75;
   --color-accent: #E8A838;
-  --color-status-success: #059669;
-  --color-status-warning: #D97706;
-  --color-status-error: #DC2626;
-  --color-status-info: #0284C7;
+  --color-status-success: #047857;
+  --color-status-warning: #92400E;
+  --color-status-error: #B91C1C;
+  --color-status-info: #0369A1;
 }
 
 [data-theme="dark"] {

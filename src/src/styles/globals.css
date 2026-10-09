@@ -196,12 +196,17 @@
      axe suite never caught because `color-contrast` was disabled. These are the
      700-level shades of the same hues: they clear 4.5:1 as text on both white
      and --surface-secondary, and *raise* contrast for white-on-fill too, so
-     every existing usage improves in both directions. Error was already
-     compliant at 4.83:1 and is unchanged. */
-  --status-success: #047857; /* 5.48:1 on white (was #059669, 3.77:1) */
-  --status-warning: #b45309; /* 5.02:1 on white (was #d97706, 3.19:1) */
-  --status-error: #dc2626; /* 4.83:1 on white */
-  --status-info: #0369a1; /* 5.93:1 on white (was #0284c7, 4.10:1) */
+     every existing usage improves in both directions.
+
+     They are also text on their own 10% tint: every status badge is
+     `bg-status-{tone}/10 text-status-{tone}`. Error (#dc2626, 4.13:1 there) and warning
+     (#b45309, 4.39:1) failed that, which the UX audit caught on the platform
+     audit log (2026-10-09). Both moved one shade darker in the same hue.
+     Measured as text on white / on the 10% tint: */
+  --status-success: #047857; /* 5.48 / 4.78 (was #059669, 3.77 on white) */
+  --status-warning: #92400e; /* 7.09 / 6.08 (was #b45309, 4.39 on tint) */
+  --status-error: #b91c1c; /* 6.47 / 5.45 (was #dc2626, 4.13 on tint) */
+  --status-info: #0369a1; /* 5.93 / 5.13 (was #0284c7, 4.10 on white) */
 
   /* shadcn/ui bridge — derived from tokens above */
   --background: var(--surface-primary);
@@ -605,8 +610,8 @@
        the one context where a low-contrast ink colour is unrecoverable. */
     --interactive-primary: #0f4c75;
     --status-success: #047857;
-    --status-warning: #b45309;
-    --status-error: #dc2626;
+    --status-warning: #92400e;
+    --status-error: #b91c1c;
     --status-info: #0369a1;
 
     --background: #ffffff;
@@ -618,7 +623,7 @@
     --muted: #f8fafc;
     --muted-foreground: #64748b;
     --border: #e2e8f0;
-    --destructive: #dc2626;
+    --destructive: #b91c1c;
 
     /* Soft status containers must fall back to the light tints too, otherwise a
        payslip printed from dark mode lays dark ink over the whole container. */
