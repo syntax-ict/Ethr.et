@@ -134,7 +134,7 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    ```bash
    read -rs TOKEN   # paste MAINTENANCE_TOKEN, then Enter
    for task in key migrate seed; do
-     curl -sS -X POST "https://<HOST>/api/v1/maintenance/$task" \
+     curl -sS -X POST "https://<HOST>/api/v1/maintenance/$task" --data '' \
        -H "X-Maintenance-Token: $TOKEN" -H "Accept: application/json"; echo
    done
    ```
@@ -142,6 +142,14 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    Each answer is JSON with `"status": "ok"` and the command's output. Stop at the first
    that is not `ok` and read its `output`. Then `create-admin` (with a JSON body and
    `-H "Content-Type: application/json"`) and `optimize` the same way.
+
+   **Keep `--data ''`.** The host's web firewall refuses a `POST` that has no
+   `Content-Length` with its own static 403 page (`Server: nginx`, an HTML body), and the
+   application never sees it. Measured 2026-10-09: no body gives 403 from the server;
+   `--data ''` gives the application's JSON answer. A burst of those 403s then got the
+   caller's address banned from ports 80 and 443 for about ten minutes, while the panel on
+   8443 still answered. So an HTML 403 here means *the request never arrived*, not *wrong
+   token*: a wrong or missing token is a JSON 404.
 
 4. **Empty `MAINTENANCE_TOKEN` in `.env` and save.** The routes answer 404 again at once,
    cached configuration or not: with a cached config the token is read from the file on

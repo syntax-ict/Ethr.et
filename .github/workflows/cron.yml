@@ -189,11 +189,19 @@ jobs:
             # -sS: quiet progress, keep errors. Body and status captured
             # separately so the body can be inspected without parsing it out of
             # a combined stream.
+            #
+            # --data '': the request MUST carry a Content-Length. The production
+            # host's web firewall answers a POST without one with its own static
+            # 403 page, before the application sees it (measured 2026-10-09:
+            # no body -> 403 from the server; `--data ''` -> the application's
+            # own answer). Repeated 403s then got the caller's address banned
+            # from ports 80/443 for several minutes.
             body_file="$(mktemp)"
             code="$(curl -sS -o "$body_file" -w '%{http_code}' \
                       --max-time 90 \
                       --connect-timeout 15 \
                       -X POST \
+                      --data '' \
                       -H "X-Cron-Token: ${ETHR_CRON_TOKEN}" \
                       -H 'Accept: application/json' \
                       "$url" || echo "000")"
