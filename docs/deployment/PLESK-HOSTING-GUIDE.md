@@ -25,7 +25,7 @@ It does not restate the detail. Each part links to the document that carries it.
 | If you want | Read |
 |---|---|
 | What you configure in Plesk, field by field | [`PLESK-SETUP.md`](PLESK-SETUP.md) |
-| The deploy procedure in full | [`shared-hosting/DEPLOYMENT.md`](shared-hosting/DEPLOYMENT.md) |
+| The deploy procedure in full | [`PLESK-GO-LIVE.md`](PLESK-GO-LIVE.md) — GitHub → Plesk Git → Laravel Toolkit. *(This row pointed at [`shared-hosting/DEPLOYMENT.md`](shared-hosting/DEPLOYMENT.md), an SSH/rsync runbook whose own banner says its steps cannot connect on this account; repointed 2026-10-09.)* |
 | Every `.env` value and why it differs from the VPS | [`shared-hosting/ENVIRONMENT.md`](shared-hosting/ENVIRONMENT.md) |
 | What is measured versus assumed | [`GATE-0-RESULT.md`](GATE-0-RESULT.md) |
 
