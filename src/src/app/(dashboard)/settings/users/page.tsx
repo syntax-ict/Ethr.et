@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { UserPlus, Loader2, Pencil, Trash2, Send, AtSign } from "lucide-react";
+import {
+  UserPlus,
+  Loader2,
+  Pencil,
+  Trash2,
+  Send,
+  AtSign,
+  ShieldOff,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,6 +44,7 @@ import {
   useUpdateUser,
   useDeleteUser,
   useResendInvite,
+  useResetUserMfa,
   type TenantUser,
   type UpdateUserPayload,
   type UserRole,
@@ -43,6 +52,7 @@ import {
 } from "@/features/users/api";
 import { SearchInput } from "@/components/shared/search-input";
 import { PaginationControls } from "@/components/shared/pagination-controls";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const ROLES = [
   "tenant_admin",
@@ -83,10 +93,13 @@ export default function UsersSettingsPage() {
   const update = useUpdateUser();
   const remove = useDeleteUser();
   const resend = useResendInvite();
+  const resetMfa = useResetUserMfa();
+  const { can } = usePermissions();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState<TenantUser | null>(null);
   const [deleteUser, setDeleteUser] = useState<TenantUser | null>(null);
+  const [mfaUser, setMfaUser] = useState<TenantUser | null>(null);
 
   const [form, setForm] = useState({
     email: "",
@@ -215,6 +228,11 @@ export default function UsersSettingsPage() {
                       </span>
                       <span className="block text-xs text-muted-foreground">
                         {u.email}
+                        {u.mfa_enabled && (
+                          <Badge variant="outline" className="ml-2 text-[10px]">
+                            {t("users_page.mfa_on", "2FA")}
+                          </Badge>
+                        )}
                       </span>
                     </div>,
                     u.username ? (
@@ -260,6 +278,24 @@ export default function UsersSettingsPage() {
                           }}
                         >
                           <Send className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {u.mfa_enabled && can.resetUserMfa && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title={t(
+                            "users_page.reset_mfa",
+                            "Reset two-factor authentication",
+                          )}
+                          aria-label={t(
+                            "users_page.reset_mfa",
+                            "Reset two-factor authentication",
+                          )}
+                          onClick={() => setMfaUser(u)}
+                        >
+                          <ShieldOff className="h-4 w-4" />
                         </Button>
                       )}
                       <Button
@@ -458,6 +494,53 @@ export default function UsersSettingsPage() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
                 {t("common.save", "Save")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset two-factor: the way back from a lost authenticator */}
+        <Dialog open={!!mfaUser} onOpenChange={(o) => !o && setMfaUser(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {t("users_page.reset_mfa", "Reset two-factor authentication")}
+              </DialogTitle>
+              <DialogDescription>
+                {t(
+                  "users_page.reset_mfa_desc",
+                  "Use this when someone has lost the phone with their authenticator app. They sign in with their password and set it up again, and they are emailed that it was reset.",
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <p className="text-sm text-foreground">{mfaUser?.email}</p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMfaUser(null)}>
+                {t("common.cancel", "Cancel")}
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={resetMfa.isPending}
+                onClick={async () => {
+                  if (!mfaUser) return;
+                  try {
+                    await resetMfa.mutateAsync(mfaUser.public_id);
+                    toast.success(
+                      t(
+                        "users_page.mfa_reset_done",
+                        "Two-factor authentication reset",
+                      ),
+                    );
+                    setMfaUser(null);
+                  } catch (e) {
+                    toastError(e, t("common.error", "Something went wrong"));
+                  }
+                }}
+              >
+                {resetMfa.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {t("users_page.reset_mfa_confirm", "Reset")}
               </Button>
             </DialogFooter>
           </DialogContent>

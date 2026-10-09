@@ -44,6 +44,7 @@ const CAN_ABILITIES = {
   viewExecutiveDashboard: "dashboard.executive",
   manageSettings: "settings.manage",
   viewUsers: "users.viewAny",
+  resetUserMfa: "users.resetMfa",
   manageApiKeys: "apikey.manage",
   manageWebhooks: "webhook.manage",
   viewAdminConsole: "admin.manage",

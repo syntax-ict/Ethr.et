@@ -173,6 +173,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'users.invite', 'module' => 'users', 'action' => 'invite', 'description' => 'Invite and provision login accounts'],
             ['name' => 'users.update', 'module' => 'users', 'action' => 'update', 'description' => 'Update user roles, status and access'],
             ['name' => 'users.delete', 'module' => 'users', 'action' => 'delete', 'description' => 'Deactivate login accounts'],
+            ['name' => 'users.resetMfa', 'module' => 'users', 'action' => 'resetMfa', 'description' => 'Reset two-factor authentication for someone who lost their device'],
 
             // Announcement
             ['name' => 'announcement.manage', 'module' => 'announcement', 'action' => 'manage', 'description' => 'Manage announcements'],
@@ -303,6 +304,10 @@ class PermissionSeeder extends Seeder
             'employee.delete',
             // Deactivating a login is a sensitive, tenant-admin-level action.
             'users.delete',
+            // So is turning off someone else's second factor: it is the way back
+            // for a person who lost their phone, and the way around MFA for anyone
+            // who holds it.
+            'users.resetMfa',
             'apikey.manage',
             'webhook.manage',
             'billing.manage',

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\AuditLog;
+use App\Models\TrustedDevice;
 use App\Models\User;
+use App\Notifications\MfaResetNotification;
 use PragmaRX\Google2FA\Google2FA;
 
 class MfaService
@@ -67,5 +69,25 @@ class MfaService
         AuditLog::record('user.mfa_disabled', $user);
 
         return true;
+    }
+
+    /**
+     * Turn MFA off for someone who lost their authenticator, without a code:
+     * the way back that did not exist until 2026-10-09. Their trusted browsers
+     * are forgotten too, and they are emailed, because whoever can do this can
+     * also use it to get around MFA. `$by` names who did it in the audit row.
+     */
+    public function reset(User $user, string $by): void
+    {
+        $user->update([
+            'mfa_enabled' => false,
+            'mfa_secret' => null,
+        ]);
+
+        TrustedDevice::where('user_id', $user->id)->delete();
+
+        AuditLog::record('user.mfa_reset', $user, ['by' => $by]);
+
+        $user->notify(new MfaResetNotification);
     }
 }

@@ -99,6 +99,11 @@ declare(strict_types=1);
  */
 return [
     'Console/Commands/CreateAdminCommand.php' => 2,
+    // ResetMfaCommand (2026-10-09): turns MFA off for an account no one in the
+    // app can reset. Platform accounts have no tenant, so the scope cannot see
+    // them; the query states `tenant_id` itself — the --tenant organisation's,
+    // or NULL (platform accounts only) when none is named.
+    'Console/Commands/ResetMfaCommand.php' => 1,
     'Console/Commands/SyncDevicesCommand.php' => 1,
     'Http/Controllers/Api/V1/Admin/AdminDashboardController.php' => 3,
     // Platform-admin plan catalog. Both sites count subscriptions on one plan,

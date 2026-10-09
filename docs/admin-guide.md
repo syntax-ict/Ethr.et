@@ -235,7 +235,7 @@ The **Settings** item in the sidebar is shown to holders of `settings.manage` (T
 | Leave Types | Leave types, and the organization's working week |
 | Holidays | Public holidays, including auto-detection |
 | Payroll Rules | Payroll schedule, fiscal year, Pagume pay, retirement age, allowances, tax brackets, overtime rates (Tenant Admin) |
-| Users & Access | Login accounts and their roles |
+| Users & Access | Login accounts and their roles. A tenant admin can **reset two-factor authentication** for someone who lost their authenticator (the shield icon on a user with **2FA**). That person signs in with their password and sets it up again, is emailed that it happened, and their trusted browsers are forgotten. It cannot be used on your own account or on a higher role. For a platform super admin, or an organisation's only tenant admin, run `ethr:reset-mfa <email>` (add `--tenant=<slug>` for a tenant's user) from the Laravel Toolkit's Artisan tab |
 | Roles & Permissions | Custom roles (Tenant Admin) |
 | API Keys, Webhooks, Accounting, Notification Templates, SCIM Provisioning | Integrations |
 | Audit Log | View all actions (Tenant Admin) |

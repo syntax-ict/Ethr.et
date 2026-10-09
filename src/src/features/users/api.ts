@@ -88,6 +88,20 @@ export function useDeleteUser() {
   });
 }
 
+/**
+ * Turns two-factor authentication off for someone who lost their
+ * authenticator (tenant admin, `users.resetMfa`). They sign in with their
+ * password and set it up again; the server emails them that it happened.
+ */
+export function useResetUserMfa() {
+  const qc = useQueryClient();
+  return useMutation<TenantUser, unknown, string>({
+    mutationFn: async (publicId) =>
+      (await apiClient.post(`/users/${publicId}/mfa/reset`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
 type ResendInviteResult =
   operations["user.resendInvite"]["responses"][200]["content"]["application/json"];
 
