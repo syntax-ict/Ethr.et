@@ -414,6 +414,13 @@ for (const phase of phases) {
               // loop. An aborted API call is that cancellation, not a failure.
               if (isCancellation && req.url().includes("/api/v1/")) return;
 
+              // A production build (not `next dev`) also probes each linked
+              // page with a HEAD before fetching its payload, and cancels the
+              // probe when the page changes. The app sends no HEAD of its own,
+              // so a cancelled one is always that probe: 187 of this spec's
+              // failures on the production-shaped rehearsal (2026-10-09).
+              if (isCancellation && req.method() === "HEAD") return;
+
               consoleErrors.push(
                 `REQUEST FAILED — ${req.url()} (${errorText})`,
               );
