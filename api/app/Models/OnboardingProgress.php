@@ -6,12 +6,11 @@ namespace App\Models;
 
 use App\Enums\OnboardingStep;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use Illuminate\Database\Eloquent\Model;
 
 class OnboardingProgress extends Model
 {
-    use BelongsToTenant, HasAuditLog;
+    use BelongsToTenant;
 
     protected $table = 'onboarding_progress';
 

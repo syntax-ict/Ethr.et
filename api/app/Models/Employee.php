@@ -6,7 +6,6 @@ namespace App\Models;
 
 use App\Enums\EmployeeStatus;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,7 +38,7 @@ use Illuminate\Support\Carbon;
  */
 class Employee extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, SoftDeletes;
+    use BelongsToTenant, HasFactory, HasPublicId, SoftDeletes;
 
     protected $fillable = [
         'public_id',

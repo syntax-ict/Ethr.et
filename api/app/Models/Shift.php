@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Shift extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, SoftDeletes;
+    use BelongsToTenant, HasFactory, HasPublicId, SoftDeletes;
 
     protected $fillable = [
         'public_id',

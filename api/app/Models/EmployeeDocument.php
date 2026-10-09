@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EmployeeDocument extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasPublicId, SoftDeletes;
+    use BelongsToTenant, HasPublicId, SoftDeletes;
 
     protected $fillable = [
         'public_id',

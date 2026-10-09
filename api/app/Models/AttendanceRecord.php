@@ -7,7 +7,6 @@ namespace App\Models;
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use App\Traits\NeverDelete;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,7 +25,7 @@ use Illuminate\Support\Carbon;
  */
 class AttendanceRecord extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, NeverDelete;
+    use BelongsToTenant, HasFactory, HasPublicId, NeverDelete;
 
     protected $fillable = [
         'public_id',
