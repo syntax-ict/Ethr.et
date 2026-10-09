@@ -1662,6 +1662,7 @@
   "kiosk_page.employee_code": "የሰራተኛ መለያ ኮድ",
   "kiosk_page.employee_pin": "የሰራተኛ ፒን",
   "kiosk_page.exit": "ውጣ",
+  "kiosk_page.exit_failed": "ፒኑን ማረጋገጥ አልተቻለም። እባክዎ እንደገና ይሞክሩ።",
   "kiosk_page.exit_kiosk": "ከኪዮስክ ውጣ",
   "kiosk_page.footer": "የሰራተኛ ኮድዎን ያስገቡ · የኪዮስክ ሁነታ",
   "kiosk_page.footer_with_pin": "የሰራተኛ ኮድዎን እና ፒንዎን ያስገቡ · የኪዮስክ ሁነታ",

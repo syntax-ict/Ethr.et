@@ -1662,6 +1662,7 @@
   "kiosk_page.employee_code": "Employee Code",
   "kiosk_page.employee_pin": "Employee PIN",
   "kiosk_page.exit": "Exit",
+  "kiosk_page.exit_failed": "Could not check the PIN. Please try again.",
   "kiosk_page.exit_kiosk": "Exit Kiosk",
   "kiosk_page.footer": "Type your employee code · Kiosk mode",
   "kiosk_page.footer_with_pin": "Type your employee code and PIN · Kiosk mode",

@@ -17,10 +17,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DEFAULT_TIMEZONE } from "@/lib/utils/date";
-import { authenticateKiosk, kioskPunch } from "@/features/kiosk/api";
+import {
+  authenticateKiosk,
+  kioskPunch,
+  verifyKioskExit,
+} from "@/features/kiosk/api";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
-import { apiErrorDetail } from "@/lib/api/error-message";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 
 type Screen = "setup" | "kiosk" | "lock";
 type CheckMode = "idle" | "checking" | "success" | "error";
@@ -62,6 +66,7 @@ export default function KioskPage() {
   // Lock screen
   const [adminPin, setAdminPin] = useState("");
   const [lockError, setLockError] = useState("");
+  const [lockLoading, setLockLoading] = useState(false);
 
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -193,6 +198,31 @@ export default function KioskPage() {
     setLockError("");
   }
 
+  // The server compares the PIN set when the kiosk was registered. Until
+  // 2026-10-09 this screen accepted any four digits (redundancy audit R1).
+  async function confirmExit() {
+    if (!config) return;
+    setLockLoading(true);
+    setLockError("");
+    try {
+      await verifyKioskExit(config.token, adminPin);
+      exitKiosk();
+    } catch (err: unknown) {
+      // A 401 means the kiosk was deactivated or its token regenerated. It
+      // can no longer record anyone, so there is nothing left to protect.
+      if (
+        (err as { response?: { status?: number } })?.response?.status === 401
+      ) {
+        exitKiosk();
+        return;
+      }
+      setAdminPin("");
+      setLockError(apiErrorMessage(err, t("kiosk_page.exit_failed")));
+    } finally {
+      setLockLoading(false);
+    }
+  }
+
   function exitKiosk() {
     localStorage.removeItem("kiosk_token");
     setConfig(null);
@@ -288,9 +318,10 @@ export default function KioskPage() {
               </Button>
               <Button
                 variant="destructive"
+                disabled={lockLoading}
                 onClick={() => {
                   if (adminPin.length >= 4) {
-                    exitKiosk();
+                    void confirmExit();
                   } else {
                     setLockError(
                       t("kiosk_page.pin_too_short", undefined, { min: 4 }),
@@ -299,6 +330,9 @@ export default function KioskPage() {
                 }}
                 className="flex-1"
               >
+                {lockLoading && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 {t("kiosk_page.exit_kiosk")}
               </Button>
             </div>

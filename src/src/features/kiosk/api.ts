@@ -25,6 +25,22 @@ export async function authenticateKiosk(
   ).data;
 }
 
+/**
+ * Leave kiosk mode, if `adminPin` is the PIN the kiosk was registered with.
+ * Resolves on 204. A wrong PIN rejects with a 422 naming `admin_pin`; a token
+ * that was deactivated or regenerated rejects with a 401.
+ */
+export async function verifyKioskExit(
+  token: string,
+  adminPin: string,
+): Promise<void> {
+  await apiClient.post(
+    "/kiosk/exit",
+    { token, admin_pin: adminPin },
+    { skipAuthRefresh: true },
+  );
+}
+
 /** The punched record, whether it was a replay, and whose punch it was. */
 export type KioskPunchResult = components["schemas"]["AttendancePunchResource"];
 
