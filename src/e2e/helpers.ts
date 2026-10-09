@@ -172,17 +172,26 @@ export async function login(page: Page, email: string, password: string) {
   });
 }
 
+/**
+ * Sign out through the app's own control. It is a menu item whose label is
+ * translated ("Log Out", or "ውጣ" in the default Amharic) inside the account
+ * menu, whose trigger shows the user's name — so it is found by its icon, not
+ * its words. The old helper searched for English "Logout", never found it,
+ * and fell back to clearing storage on `/`, whose locale redirect destroyed the
+ * page mid-script (failed on the production-shaped rehearsal, 2026-10-09).
+ */
 export async function logout(page: Page) {
-  await page.goto('/');
-  // Click logout via sidebar or header
-  const logoutBtn = page.locator('button:has-text("Logout"), a:has-text("Logout"), button:has-text("Sign out")');
-  if (await logoutBtn.isVisible()) {
-    await logoutBtn.click();
-  } else {
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
-    await page.goto('/login');
+  await page.goto('/dashboard');
+  await page.waitForLoadState('networkidle').catch(() => {});
+  const item = page.locator('[role="menuitem"]:has(svg.lucide-log-out)').first();
+  for (const trigger of await page.locator('header [aria-haspopup="menu"]').all()) {
+    await trigger.click();
+    if (await item.isVisible().catch(() => false)) {
+      await item.click();
+      await page.waitForURL(/\/login/, { timeout: 15000 });
+      return;
+    }
+    await page.keyboard.press('Escape');
   }
+  throw new Error('No header menu offers a Log Out item');
 }

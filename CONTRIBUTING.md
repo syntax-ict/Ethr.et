@@ -23,7 +23,7 @@ no Docker (the Docker stack was removed on 2026-09-30). The full procedure is in
 
 ```bash
 scripts/local-production/up.sh        # the Bronze deployment on :8081
-scripts/local-production/verify.sh    # must end "36 passed, 0 failed"
+scripts/local-production/verify.sh    # must end "0 failed" (50 checks on 2026-10-09)
 ```
 
 For hot reload, run `php artisan serve` in `api/` and `npm run dev` in `src/`.

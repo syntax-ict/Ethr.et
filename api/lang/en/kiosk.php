@@ -7,4 +7,5 @@ return [
     'invalid_token' => 'Invalid or inactive kiosk session.',
     'pin_required' => 'Employee PIN is required for kiosk check-in.',
     'invalid_pin' => 'Invalid employee PIN.',
+    'invalid_admin_pin' => 'Incorrect admin PIN.',
 ];

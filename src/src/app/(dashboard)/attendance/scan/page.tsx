@@ -20,6 +20,7 @@ import { useScanQr } from "@/features/attendance/api";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 type Status =
   "idle" | "scanning" | "verifying" | "success" | "error" | "camera_denied";
@@ -122,10 +123,8 @@ export default function QrScanPage() {
       );
       setTimeout(() => router.push("/attendance"), 3000);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
       setMessage(
-        axiosErr.response?.data?.detail ??
-          t("attendance.scan_page.invalid_or_expired"),
+        apiErrorDetail(err) ?? t("attendance.scan_page.invalid_or_expired"),
       );
       setStatus("error");
     }

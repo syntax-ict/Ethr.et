@@ -1,6 +1,6 @@
 # Running ETHR locally in its production shape
 
-**Three commands. Runs clean — 36/36 checks, zero errors in the Apache or Laravel logs.**
+**Three commands. Runs clean — every `verify.sh` check passing (50 on 2026-10-09), zero errors in the Apache or Laravel logs.**
 
 ```bash
 scripts/local-production/up.sh          # build, assemble, migrate, start

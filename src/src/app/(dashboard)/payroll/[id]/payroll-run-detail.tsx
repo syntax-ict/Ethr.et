@@ -56,6 +56,7 @@ import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { usePlanFeatures } from "@/features/auth/api";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const { t } = useT();
@@ -86,9 +87,8 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
     approvePayroll.mutate(id, {
       onSuccess: () => toast.success(t("payroll_detail_page.approved_success")),
       onError: (err: unknown) => {
-        const e = err as { response?: { data?: { detail?: string } } };
         toast.error(
-          e.response?.data?.detail || t("payroll_detail_page.approve_failed"),
+          apiErrorDetail(err) || t("payroll_detail_page.approve_failed"),
         );
       },
     });
@@ -105,9 +105,8 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
           setVoidReason("");
         },
         onError: (err: unknown) => {
-          const e = err as { response?: { data?: { detail?: string } } };
           toast.error(
-            e.response?.data?.detail || t("payroll_detail_page.void_failed"),
+            apiErrorDetail(err) || t("payroll_detail_page.void_failed"),
           );
         },
       },
@@ -121,10 +120,8 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         onSuccess: () =>
           toast.success(t("payroll_detail_page.reprocessed_success")),
         onError: (err: unknown) => {
-          const e = err as { response?: { data?: { detail?: string } } };
           toast.error(
-            e.response?.data?.detail ||
-              t("payroll_detail_page.reprocess_failed"),
+            apiErrorDetail(err) || t("payroll_detail_page.reprocess_failed"),
           );
         },
       },

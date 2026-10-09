@@ -7,8 +7,6 @@ type SummaryContract = Extract<
   { team_size: number }
 >;
 
-export type TeamAttendanceDay = SummaryContract["data"][number];
-
 /**
  * A caller with no team gets `{ data: [] }` and nothing else; the contract
  * types that literal empty array as `string[]`, so this branch is stated here.

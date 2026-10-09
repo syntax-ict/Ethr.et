@@ -6,7 +6,6 @@ namespace App\Models;
 
 use App\Enums\CostSharingStatus;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Database\Factories\EmployeeCostSharingFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,7 +38,7 @@ use Illuminate\Support\Carbon;
 class EmployeeCostSharing extends Model
 {
     /** @use HasFactory<EmployeeCostSharingFactory> */
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId;
+    use BelongsToTenant, HasFactory, HasPublicId;
 
     /**
      * Laravel would pluralise this to `employee_cost_sharings`. "Cost sharing"

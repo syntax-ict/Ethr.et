@@ -34,6 +34,7 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 export default function QrGeneratorPage() {
   const { t } = useT();
@@ -90,12 +91,8 @@ export default function QrGeneratorPage() {
           toast.success(t("attendance.qr_page.generated"));
         },
         onError: (err: unknown) => {
-          const axiosErr = err as {
-            response?: { data?: { detail?: string } };
-          };
           toast.error(
-            axiosErr.response?.data?.detail ??
-              t("attendance.qr_page.generate_failed"),
+            apiErrorDetail(err) ?? t("attendance.qr_page.generate_failed"),
           );
         },
       },

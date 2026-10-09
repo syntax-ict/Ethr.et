@@ -28,9 +28,4 @@ enum AttendanceStatus: string
             self::VOIDED => 'Voided',
         };
     }
-
-    public function isWorked(): bool
-    {
-        return in_array($this, [self::PRESENT, self::LATE, self::EARLY_LEAVE]);
-    }
 }

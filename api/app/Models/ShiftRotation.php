@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Database\Factories\ShiftRotationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ShiftRotation extends Model
 {
     /** @use HasFactory<ShiftRotationFactory> */
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, SoftDeletes;
+    use BelongsToTenant, HasFactory, HasPublicId, SoftDeletes;
 
     protected $fillable = [
         'public_id',

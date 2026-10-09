@@ -6,7 +6,6 @@ namespace App\Models;
 
 use App\Enums\UserRole;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use App\Traits\ScopesEmployeeAccess;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -32,7 +31,7 @@ use Laravel\Sanctum\HasApiTokens;
  */
 class User extends Authenticatable
 {
-    use BelongsToTenant, HasApiTokens, HasAuditLog, HasFactory, HasPublicId, Notifiable, ScopesEmployeeAccess, SoftDeletes;
+    use BelongsToTenant, HasApiTokens, HasFactory, HasPublicId, Notifiable, ScopesEmployeeAccess, SoftDeletes;
 
     protected $fillable = [
         'public_id',
@@ -123,11 +122,6 @@ class User extends Authenticatable
     public function invitedBy(): BelongsTo
     {
         return $this->belongsTo(self::class, 'invited_by');
-    }
-
-    public function isInvited(): bool
-    {
-        return $this->status === 'invited';
     }
 
     public function isAtLeast(UserRole $role): bool

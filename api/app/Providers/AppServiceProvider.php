@@ -193,6 +193,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(300)->by($request->user()?->id ?: $request->ip());
         });
 
+        // A kiosk's admin PIN is four to eight digits, guessed at a shared
+        // terminal that holds the token. Five tries a minute per kiosk puts
+        // every four-digit PIN more than a day away; each exit is audited.
+        RateLimiter::for('kiosk-exit', function (Request $request) {
+            return Limit::perMinute(5)->by('kiosk-exit:'.hash('sha256', (string) $request->input('token')));
+        });
+
         // Unauthenticated, cheap, and cached — but unauthenticated, so bounded
         // per IP rather than left to the global guest budget alone.
         RateLimiter::for('public-catalogue', function (Request $request) {

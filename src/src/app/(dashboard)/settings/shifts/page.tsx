@@ -55,6 +55,7 @@ import { todayIso, toHHMM } from "@/features/shifts/dates";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 function assignableTypeLabel(
   type: string,
@@ -173,9 +174,8 @@ export default function ShiftsPage() {
     deleteShift.mutate(publicId, {
       onSuccess: () => toast.success(t("shifts_settings_page.deleted")),
       onError: (err: unknown) => {
-        const e = err as { response?: { data?: { detail?: string } } };
         toast.error(
-          e.response?.data?.detail || t("shifts_settings_page.delete_failed"),
+          apiErrorDetail(err) || t("shifts_settings_page.delete_failed"),
         );
       },
     });

@@ -93,7 +93,7 @@ const SYNC_STATUS_ICON: Record<string, React.ReactNode> = {
 export function DeviceDetail({ routeId }: { routeId: string }) {
   const { t } = useT();
   // Punch times render in the tenant's timezone, not the browser's — §12g.
-  const { formatTime } = useDateFormatters();
+  const { formatTime, timeAgo } = useDateFormatters();
   const id = useRouteId(routeId) ?? "";
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -313,7 +313,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
             label={t("devices_dashboard_page.last_sync")}
             value={
               device.last_sync_at
-                ? timeAgo(device.last_sync_at, t)
+                ? timeAgo(device.last_sync_at)
                 : t("devices_page.never")
             }
           />
@@ -491,7 +491,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                             key="ts"
                             className="text-xs text-muted-foreground"
                           >
-                            {log.started_at ? timeAgo(log.started_at, t) : "—"}
+                            {log.started_at ? timeAgo(log.started_at) : "—"}
                           </span>,
                         ],
                       }))}
@@ -881,17 +881,4 @@ function syncStatusLabel(
     running: t("device_detail_page.sync_running"),
   };
   return map[status] ?? status;
-}
-
-function timeAgo(
-  iso: string,
-  t: (key: string, fallback?: string) => string,
-): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diffMs / 60000);
-  if (m < 1) return t("devices_dashboard_page.just_now");
-  if (m < 60) return `${m}${t("devices_dashboard_page.m_ago")}`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}${t("devices_dashboard_page.h_ago")}`;
-  return `${Math.floor(h / 24)}${t("devices_dashboard_page.d_ago")}`;
 }

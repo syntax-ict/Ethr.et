@@ -287,3 +287,22 @@ describe("calendar dates, which have no time of day to convert", () => {
     expect(formatWeekday("2026-10-01T00:00:00.000000Z")).toBe("Thu");
   });
 });
+
+// The one timeAgo, translated: five screens kept their own copies, two of them
+// English-only, and this helper was English-only too (redundancy audit,
+// 2026-10-09).
+describe("timeAgo with a translator", () => {
+  it("builds every unit from the translator's words", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-16T12:05:00.000Z"));
+    const am: Record<string, string> = {
+      "time.just_now": "አሁን",
+      "time.ago": "በፊት",
+      "time.min_short": "ደ",
+    };
+    const t = (key: string, fallback: string) => am[key] ?? fallback;
+
+    expect(timeAgo("2026-09-16T12:05:00.000Z", "UTC", t)).toBe("አሁን");
+    expect(timeAgo("2026-09-16T12:00:00.000Z", "UTC", t)).toBe("5ደ በፊት");
+  });
+});

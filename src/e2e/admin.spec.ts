@@ -84,8 +84,12 @@ test.describe('Admin console — refused to a tenant admin', () => {
       'text=/unauthorized|forbidden|not allowed|access denied|don.t have permission|sign in|log in/i',
     );
     const bounced = page.locator('h1, h2').filter({ hasText: /dashboard/i });
+    // The sign-in form itself, whatever its language: on a separate platform
+    // host nothing sets this origin's locale, so the page is in Amharic and
+    // the English "sign in" above never matches.
+    const signIn = page.locator('input[type="password"]');
 
-    await expect(refused.or(bounced).first()).toBeVisible({ timeout: 8000 });
+    await expect(refused.or(bounced).or(signIn).first()).toBeVisible({ timeout: 8000 });
 
     if (PLATFORM_HOST_IS_SEPARATE) {
       // No tenant-admin session exists on this origin at all, so the console

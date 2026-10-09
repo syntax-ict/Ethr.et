@@ -55,6 +55,7 @@ import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 function leaveTypeName(
   lt: LeaveBalance["leave_type"],
@@ -92,10 +93,7 @@ export default function LeavePage() {
         });
       },
       onError: (err: unknown) => {
-        const axiosError = err as { response?: { data?: { detail?: string } } };
-        toast.error(
-          axiosError.response?.data?.detail || t("leave_page.submit_failed"),
-        );
+        toast.error(apiErrorDetail(err) || t("leave_page.submit_failed"));
       },
     });
   }

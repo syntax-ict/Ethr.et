@@ -29,6 +29,8 @@ import {
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { saveCsv } from "@/lib/utils/csv-export";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 type Step = "upload" | "preview" | "importing" | "done";
 
@@ -79,9 +81,8 @@ export default function AttendanceImportPage() {
         setImportKey(crypto.randomUUID());
         setStep("preview");
       } catch (err: unknown) {
-        const e = err as { response?: { data?: { detail?: string } } };
         toast.error(
-          e.response?.data?.detail ?? t("attendance.import_page.parse_failed"),
+          apiErrorDetail(err) ?? t("attendance.import_page.parse_failed"),
         );
       } finally {
         setUploading(false);
@@ -105,15 +106,8 @@ export default function AttendanceImportPage() {
 
   function downloadTemplate() {
     template.mutate(undefined, {
-      onSuccess: (data) => {
-        const blob = new Blob([data.template], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "attendance_import_template.csv";
-        a.click();
-        URL.revokeObjectURL(url);
-      },
+      onSuccess: (data) =>
+        saveCsv("attendance_import_template.csv", data.template),
       onError: () =>
         toast.error(t("attendance.import_page.template_download_failed")),
     });
@@ -149,10 +143,8 @@ export default function AttendanceImportPage() {
           );
         },
         onError: (err: unknown) => {
-          const e = err as { response?: { data?: { detail?: string } } };
           toast.error(
-            e.response?.data?.detail ??
-              t("attendance.import_page.import_failed"),
+            apiErrorDetail(err) ?? t("attendance.import_page.import_failed"),
           );
           setStep("preview");
         },

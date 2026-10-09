@@ -130,6 +130,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kiosk/exit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Leave kiosk mode on the terminal. The admin PIN set when the kiosk was
+         *     registered must match; five attempts a minute per kiosk
+         */
+        post: operations["kioskSession.exitKiosk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/check-in": {
         parameters: {
             query?: never;
@@ -6050,6 +6070,11 @@ export interface components {
             /** Format: date */
             effective_to: string;
         };
+        /** ExitKioskRequest */
+        ExitKioskRequest: {
+            token: string;
+            admin_pin: string;
+        };
         /** ExtendTrialRequest */
         ExtendTrialRequest: {
             days: number;
@@ -8377,6 +8402,46 @@ export interface operations {
                         status: 404;
                         /** @constant */
                         detail: "Employee not found with the given code.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "kioskSession.exitKiosk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExitKioskRequest"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/unauthorized";
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
                     };
                 };
             };

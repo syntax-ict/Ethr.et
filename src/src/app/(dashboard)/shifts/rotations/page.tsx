@@ -47,7 +47,7 @@ import {
   type ShiftRotation,
   type ShiftRotationStepInput,
 } from "@/features/shifts/rotations";
-import { apiErrorMessage } from "@/lib/api/error-message";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 
 /** Sentinel for the rest-day option: Radix Select cannot hold an empty value. */
 const REST = "__rest__";
@@ -177,9 +177,8 @@ export default function ShiftRotationsPage() {
       // A 409 means the rotation still has a current or upcoming assignment;
       // the API's `detail` says how many, which the generic line cannot.
       onError: (err: unknown) => {
-        const e = err as { response?: { data?: { detail?: string } } };
         toast.error(
-          e.response?.data?.detail ??
+          apiErrorDetail(err) ??
             t("rotations_page.delete_failed", "Could not delete rotation"),
         );
       },

@@ -6,7 +6,6 @@ namespace App\Models;
 
 use App\Services\CurrentTenant;
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,7 +22,7 @@ use Illuminate\Support\Carbon;
  */
 class ShiftAssignment extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId;
+    use BelongsToTenant, HasFactory, HasPublicId;
 
     protected $fillable = [
         'tenant_id',
