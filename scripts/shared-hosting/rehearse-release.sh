@@ -80,6 +80,14 @@ done
 case "$PING" in *'"status":"ok"'*) ;; *) cat "$WORK/server.log" >&2; fail "api/public/index.php did not answer /api/v1/ping: ${PING:-no response}" ;; esac
 pass "the document root (api/public/index.php) boots the app: /api/v1/ping ok"
 
+# 2b — the deployed document root says which release it is. On the host, Apache
+# serves this file directly. PHP's built-in server routes everything through
+# index.php, so the check here reads the deployed file instead of requesting it.
+REL_COMMIT="$(sed -n 's/^commit=//p' "$REL/RELEASE")"
+grep -qF "\"commit\":\"$REL_COMMIT\"" "$API/public/release.json" 2>/dev/null \
+  || fail "api/public/release.json is missing after deploy, or does not name ${REL_COMMIT:0:12}"
+pass "api/public/release.json names the release (${REL_COMMIT:0:12})"
+
 # 3 — the next release written over this one, as Plesk Git does.
 cp -R "$REL/." "$APP/"
 [ -f "$ENV" ] || fail "a redeploy removed api/.env"

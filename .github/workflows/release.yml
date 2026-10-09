@@ -20,7 +20,9 @@ name: Plesk release (production branch)
 #
 # The branch only ever moves forward: each release is a new commit whose parent
 # is the previous release, never a force-push, so a Plesk pull is always a
-# fast-forward and `production`'s history is the deployment history.
+# fast-forward and `production`'s history is the deployment history. Each one
+# is also tagged vYYYY.MM.DD.N, and the tree carries api/public/release.json, so
+# scripts/release-status.sh can say which tag the live site is running.
 
 on:
   workflow_run:
@@ -118,3 +120,19 @@ jobs:
             -m "Built from ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${SOURCE_SHA} by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}.")"
           git push origin "$COMMIT:refs/heads/production"
           echo "production -> $COMMIT (source ${SOURCE_SHA})" >> "$GITHUB_STEP_SUMMARY"
+
+          # Name the release. CalVer, vYYYY.MM.DD.N with N counting that UTC day's
+          # releases, so a tag says when it was cut and sorts in order. The tag
+          # goes on the release commit, the thing Plesk deploys, and its message
+          # carries the source commit on main. The concurrency group above runs
+          # one release at a time, so two runs cannot both pick N. Tags are
+          # protected by the `release-tags` ruleset: they cannot move or be deleted.
+          DAY="$(date -u +%Y.%m.%d)"
+          N=$(( $(git ls-remote --tags origin "refs/tags/v${DAY}.*" | grep -vc '\^{}' || true) + 1 ))
+          TAG="v${DAY}.${N}"
+          git tag -a "$TAG" "$COMMIT" \
+            -m "Release $TAG" \
+            -m "Source: main@${SOURCE_SHA}" \
+            -m "Built by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          git push origin "refs/tags/$TAG"
+          echo "tagged $TAG" >> "$GITHUB_STEP_SUMMARY"
