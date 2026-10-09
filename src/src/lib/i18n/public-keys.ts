@@ -40,6 +40,9 @@ export const PUBLIC_KEY_PREFIXES = [
   "error.",
   "not_found.",
   "nav.",
+  // lib/utils/date.ts's timeAgo, translated since 2026-10-09; that module is
+  // imported by public pages too.
+  "time.",
 ] as const;
 
 export function isPublicKey(key: string): boolean {
