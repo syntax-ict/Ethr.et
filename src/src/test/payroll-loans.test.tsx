@@ -36,6 +36,34 @@ const CREATED_LOAN = {
   updated_at: "2026-10-02T06:00:00Z",
 };
 
+/**
+ * The form picks the employee by name; it used to ask finance to paste the
+ * public_id, which no screen shows (2026-10-09).
+ */
+const EMPLOYEES = http.get("*/api/v1/employees", () =>
+  HttpResponse.json({
+    data: [
+      {
+        public_id: CREATED_LOAN.employee_public_id,
+        name: "Almaz Bekele",
+        employee_code: "E-014",
+      },
+    ],
+    meta: { current_page: 1, last_page: 1, per_page: 100, total: 1 },
+    links: { first: null, last: null, prev: null, next: null },
+  }),
+);
+
+async function pickEmployee(user: ReturnType<typeof userEvent.setup>) {
+  const picker = await screen.findByRole("combobox", { name: "Employee" });
+  await waitFor(async () => {
+    await user.click(picker);
+    await user.click(
+      await screen.findByRole("option", { name: /Almaz Bekele/ }),
+    );
+  });
+}
+
 const EMPTY_PAGE = {
   data: [],
   meta: { current_page: 1, last_page: 1, per_page: 25, total: 0 },
@@ -63,6 +91,7 @@ describe("Loans page — new loan", () => {
     let body: Record<string, unknown> | null = null;
     server.use(
       http.get("*/api/v1/payroll/loans", () => HttpResponse.json(EMPTY_PAGE)),
+      EMPLOYEES,
       http.post("*/api/v1/payroll/loans", async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(CREATED_LOAN, { status: 201 });
@@ -73,10 +102,7 @@ describe("Loans page — new loan", () => {
     renderPage();
 
     await user.click(await screen.findByRole("button", { name: /new loan/i }));
-    await user.type(
-      await screen.findByPlaceholderText("Paste employee public_id"),
-      CREATED_LOAN.employee_public_id,
-    );
+    await pickEmployee(user);
     const [amount, monthly] = screen.getAllByRole("spinbutton");
     await user.type(amount, "5000");
     await user.type(monthly, "500");
@@ -99,6 +125,7 @@ describe("Loans page — new loan", () => {
     let body: Record<string, unknown> | null = null;
     server.use(
       http.get("*/api/v1/payroll/loans", () => HttpResponse.json(EMPTY_PAGE)),
+      EMPLOYEES,
       http.post("*/api/v1/payroll/loans", async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(
@@ -112,10 +139,7 @@ describe("Loans page — new loan", () => {
     renderPage();
 
     await user.click(await screen.findByRole("button", { name: /new loan/i }));
-    await user.type(
-      await screen.findByPlaceholderText("Paste employee public_id"),
-      CREATED_LOAN.employee_public_id,
-    );
+    await pickEmployee(user);
     const [amount, monthly] = screen.getAllByRole("spinbutton");
     await user.type(amount, "5000");
     await user.type(monthly, "500");
