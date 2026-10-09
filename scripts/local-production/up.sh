@@ -332,12 +332,15 @@ Listen $PORT
 ServerName localhost:$PORT
 PidFile "$W_APACHE_DIR/httpd.pid"
 ErrorLog "$W_APACHE_DIR/logs/error.log"
-CustomLog "$W_APACHE_DIR/logs/access.log" common
 LogLevel warn
 
 LoadModule authz_core_module modules/mod_authz_core.so
 LoadModule mime_module modules/mod_mime.so
 LoadModule log_config_module modules/mod_log_config.so
+# Defined here, after the module: CustomLog named "common" without defining it,
+# so every access-log line was the literal word "common" (found 2026-10-09).
+LogFormat "%h %t \"%r\" %>s %b %Dus" common
+CustomLog "$W_APACHE_DIR/logs/access.log" common
 LoadModule dir_module modules/mod_dir.so
 LoadModule rewrite_module modules/mod_rewrite.so
 LoadModule headers_module modules/mod_headers.so
