@@ -20,7 +20,7 @@ Requirements: **XAMPP** (Apache 2.4, PHP 8.2+, MariaDB — installed at `C:\xamp
 
 ```bash
 scripts/local-production/up.sh           # build, assemble, migrate, start on :8081
-scripts/local-production/verify.sh       # 36 checks; must end "36 passed, 0 failed"
+scripts/local-production/verify.sh       # must end "0 failed" (50 checks on 2026-10-09)
 scripts/local-production/down.sh         # stop it
 ```
 
