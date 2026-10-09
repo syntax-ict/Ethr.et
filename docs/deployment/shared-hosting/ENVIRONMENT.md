@@ -90,11 +90,16 @@ already declares in `config/filesystems.php`) — no code change either way, `lo
 
 ```diff
 - DB_HOST=mariadb
-+ DB_HOST=localhost
++ DB_HOST=
 ```
 
-Verified: port 3306 on `213.55.96.154` is refused from the public internet — MySQL is
-local-only on this account, which settles this value rather than leaving it a guess.
+**Corrected 2026-10-09: the value is the host Plesk's *Databases* page shows, `<DB_HOST>`,
+not `localhost`.** This said `localhost`, reasoning that port 3306 on `213.55.96.154` is
+refused from the public internet, so MySQL must be local-only. The refusal was real; the
+conclusion was not. The database runs on a **separate server on the provider's internal
+network**, reachable from the web server and from nowhere else. A first `.env` written from
+this value failed with `Access denied for user '<DB_USER>'@'localhost'`, and the template is
+now empty with a comment that says where the value comes from.
 `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` come from Plesk's own database
 creation screen, not chosen by this deployment.
 
