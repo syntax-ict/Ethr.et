@@ -166,6 +166,7 @@ it('keeps the shared-hosting env template from dropping a key', function () {
         'MAIL_PASSWORD',
         'MAIL_PORT',
         'MAIL_USERNAME',
+        'MAINTENANCE_TOKEN',
         'QUEUE_CONNECTION',
         'REVERB_APP_ID',
         'REVERB_APP_KEY',
