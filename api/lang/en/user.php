@@ -13,7 +13,6 @@ return [
     ],
     'invited' => ':count user(s) invited.',
     'invite_resent' => 'Activation link resent.',
-    'created' => 'User account created.',
     'updated' => 'User updated.',
     'deactivated' => 'User deactivated.',
     'errors' => [

@@ -13,7 +13,6 @@ return [
     ],
     'invited' => ':count ተጠቃሚ(ዎች) ተጋብዘዋል።',
     'invite_resent' => 'የማንቂያ አገናኝ እንደገና ተልኳል።',
-    'created' => 'የተጠቃሚ መለያ ተፈጥሯል።',
     'updated' => 'ተጠቃሚ ተዘምኗል።',
     'deactivated' => 'ተጠቃሚ ተሰናክሏል።',
     'errors' => [
