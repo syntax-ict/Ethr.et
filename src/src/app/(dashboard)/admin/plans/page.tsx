@@ -245,8 +245,13 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
       },
       {
         onSuccess: () => toast.success(t("admin_plans.saved", "Plan updated")),
-        onError: () =>
-          toast.error(t("admin_plans.save_failed", "Could not save the plan")),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("admin_plans.save_failed", "Could not save the plan"),
+            ),
+          ),
       },
     );
   };
@@ -422,6 +427,17 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
                       t(
                         "admin_plans.retired_toast",
                         "Plan withdrawn from sale",
+                      ),
+                    ),
+                  // A refusal said nothing at all: no handler, no toast.
+                  onError: (err) =>
+                    toast.error(
+                      apiErrorMessage(
+                        err,
+                        t(
+                          "admin_plans.retire_failed",
+                          "Could not withdraw the plan",
+                        ),
                       ),
                     ),
                 });

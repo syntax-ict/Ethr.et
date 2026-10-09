@@ -114,6 +114,7 @@
   "admin_plans.price_invalid": "ዋጋውን እንደ ቁጥር ያስገቡ፣ ለምሳሌ 999.00",
   "admin_plans.pricing_note": "ዋጋ መቀየር ለአዲስ ደንበኞች የሚቀርበውን ዋጋ ይወስናል። አስቀድመው የተመዘገቡ ድርጅቶች በተመዘገቡበት ዋጋ ይቀጥላሉ፤ ደረሰኞቻቸውም አይቀየሩም።",
   "admin_plans.retire": "ከሽያጭ አውጣ",
+  "admin_plans.retire_failed": "ዕቅዱን ከሽያጭ ማውጣት አልተቻለም",
   "admin_plans.retired": "ከሽያጭ ወጥቷል",
   "admin_plans.retired_toast": "ዕቅዱ ከሽያጭ ወጥቷል",
   "admin_plans.save_failed": "ዕቅዱን ማስቀመጥ አልተቻለም",

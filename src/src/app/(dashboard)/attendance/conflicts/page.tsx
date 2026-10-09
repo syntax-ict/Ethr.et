@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import {
   DEFAULT_TIMEZONE,
+  formatDateOnly,
   formatTime as sharedFormatTime,
+  formatWeekday,
 } from "@/lib/utils/date";
 import { AlertTriangle, GitMerge, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -315,6 +317,9 @@ function ConflictCard({
 }) {
   const { t } = useT();
   const isPending = conflict.resolution === "pending";
+  // Both records are on one working day; the card named the person and two
+  // times but never the day, so a reviewer could not tell which (2026-10-09).
+  const day = conflict.record_a?.date ?? conflict.record_b?.date ?? null;
 
   return (
     <Card>
@@ -325,6 +330,11 @@ function ConflictCard({
               <p className="font-semibold text-foreground">
                 {conflict.employee?.name ?? t("common.employee", "Employee")}
               </p>
+              {day && (
+                <span className="text-xs text-muted-foreground">
+                  {formatWeekday(day)} {formatDateOnly(day)}
+                </span>
+              )}
               {conflict.employee?.employee_code && (
                 <Badge variant="outline" className="font-mono text-[10px]">
                   {conflict.employee.employee_code}

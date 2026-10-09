@@ -114,6 +114,7 @@
   "admin_plans.price_invalid": "Enter a price as a number, like 999.00",
   "admin_plans.pricing_note": "Changing a price sets what new customers are quoted. Organisations already subscribed keep the price they signed up at, and their invoices do not change.",
   "admin_plans.retire": "Withdraw from sale",
+  "admin_plans.retire_failed": "Could not withdraw the plan",
   "admin_plans.retired": "Withdrawn from sale",
   "admin_plans.retired_toast": "Plan withdrawn from sale",
   "admin_plans.save_failed": "Could not save the plan",
