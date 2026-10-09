@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmployeeSelect } from "@/components/shared/employee-select";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
@@ -50,7 +51,6 @@ import {
   useAttendanceList,
   useCheckIn,
   useCheckOut,
-  useEmployeeOptions,
   useManualAttendance,
   useMyAttendance,
   type AttendanceFilters,
@@ -550,7 +550,6 @@ function ManualEntryDialog({
     reason: "",
   });
 
-  const { data: employees } = useEmployeeOptions({ enabled: open });
   const submit = useManualAttendance();
 
   function handleSubmit() {
@@ -603,33 +602,14 @@ function ManualEntryDialog({
             <Label htmlFor="employee-required">
               {t("attendance.employee_required", "Employee *")}
             </Label>
-            <Select
+            <EmployeeSelect
+              id="employee-required"
               value={form.employee_public_id}
-              onValueChange={(v) =>
+              onChange={(v) =>
                 setForm((p) => ({ ...p, employee_public_id: v }))
               }
-            >
-              <SelectTrigger id="employee-required" className="mt-1">
-                <SelectValue
-                  placeholder={t(
-                    "attendance.select_employee",
-                    "Select employee",
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {employees?.map((e) => (
-                  <SelectItem key={e.public_id} value={e.public_id}>
-                    {e.name}{" "}
-                    {e.employee_code && (
-                      <span className="text-muted-foreground">
-                        ({e.employee_code})
-                      </span>
-                    )}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              enabled={open}
+            />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>

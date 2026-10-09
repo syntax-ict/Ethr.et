@@ -101,6 +101,19 @@ describe("<AttendanceConflictsPage>", () => {
     expect(screen.getByText("Mobile")).toBeInTheDocument();
   });
 
+  it("says which day the conflict is on", async () => {
+    // The card named the person and two times but never the day (2026-10-09).
+    server.use(
+      http.get("*/attendance/conflicts", () =>
+        HttpResponse.json({ data: [conflict] }),
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText("Thu 20 Aug 2026")).toBeInTheDocument();
+  });
+
   it("filters to pending conflicts by default", async () => {
     let requestUrl = "";
     server.use(

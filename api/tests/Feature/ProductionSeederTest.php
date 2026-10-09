@@ -12,7 +12,7 @@ test('production seeder populates the system catalog without demo data or a defa
     $this->seed(ProductionSeeder::class);
 
     // System catalog is present.
-    expect(Permission::count())->toBe(79);
+    expect(Permission::count())->toBe(80);
     expect(Plan::count())->toBeGreaterThan(0);
 
     // No demo tenant and no known-credential super admin were created — those
@@ -26,5 +26,5 @@ test('production seeder is idempotent', function () {
     $this->seed(ProductionSeeder::class);
     $this->seed(ProductionSeeder::class);
 
-    expect(Permission::count())->toBe(79);
+    expect(Permission::count())->toBe(80);
 });

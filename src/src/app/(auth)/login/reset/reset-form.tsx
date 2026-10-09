@@ -14,6 +14,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { PasswordStrengthMeter } from "@/components/shared/password-strength";
+import { prepareCsrfCookie } from "@/features/auth/sign-in";
 
 const resetSchema = z
   .object({
@@ -76,6 +77,12 @@ function ResetForm() {
   }
 
   async function onSubmit(data: ResetValues) {
+    // Sanctum refuses a signed-out POST with no XSRF cookie (419). This page
+    // is often the first one a browser opens -- a link from an email, or a
+    // bookmark -- so nothing has fetched the cookie yet. Until 2026-10-09 it
+    // did not ask, and every reset and account activation opened from an
+    // email failed with "Reset failed." The login and SMS forms always did.
+    await prepareCsrfCookie();
     await axios.post(
       "/api/v1/auth/password/reset",
       {

@@ -269,10 +269,6 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Onboarding
     Route::prefix('onboarding')->group(function () {
         Route::get('/progress', [OnboardingController::class, 'getProgress']);
-        Route::put('/progress/{step}', [OnboardingController::class, 'updateStep']);
-        Route::post('/apply-template', [OnboardingController::class, 'applyTemplate']);
-        Route::post('/invite', [OnboardingController::class, 'inviteTeam']);
-        Route::post('/complete', [OnboardingController::class, 'complete']);
 
         // Smart configuration (OnboardingStep::SMART_CONFIGURATION)
         Route::get('/industries', [OnboardingConfigurationController::class, 'industries']);
@@ -301,6 +297,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/', [UserController::class, 'store']);
         Route::patch('/{user}', [UserController::class, 'update']);
         Route::post('/{user}/resend-invite', [UserController::class, 'resendInvite']);
+        Route::post('/{user}/mfa/reset', [UserController::class, 'resetMfa']);
         Route::delete('/{user}', [UserController::class, 'destroy']);
     });
 

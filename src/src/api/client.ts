@@ -53,6 +53,33 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+const SAFE_METHODS = ["get", "head", "options"];
+
+/**
+ * Sanctum refuses a state-changing request with no XSRF cookie (419), and a
+ * browser has none until something fetches /sanctum/csrf-cookie. Screens got
+ * it as a side effect of an earlier request, or not at all: the reset page,
+ * where account activation also lands, posted first and failed for every user
+ * who opened it from an email (2026-10-09). So the client no longer relies on
+ * the side effect. It fetches the cookie before a write when the cookie is
+ * missing, which is once per browser. Axios reads the cookie into
+ * X-XSRF-TOKEN after this runs.
+ */
+export function hasXsrfCookie(): boolean {
+  return document.cookie.split("; ").some((c) => c.startsWith("XSRF-TOKEN="));
+}
+
+apiClient.interceptors.request.use(async (config) => {
+  if (typeof window === "undefined") return config;
+
+  const method = (config.method ?? "get").toLowerCase();
+  if (!SAFE_METHODS.includes(method) && !hasXsrfCookie()) {
+    await axios.get("/sanctum/csrf-cookie", { withCredentials: true });
+  }
+
+  return config;
+});
+
 /**
  * The `type` the API answers with when the tenant requires two-factor
  * authentication and this user has not set it up

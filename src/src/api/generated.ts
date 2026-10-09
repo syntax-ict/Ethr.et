@@ -3002,74 +3002,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/onboarding/progress/{step}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update progress */
-        put: operations["onboarding.updateStep"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/apply-template": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Apply template onboarding */
-        post: operations["onboarding.applyTemplate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/invite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Invite onboarding */
-        post: operations["onboarding.inviteTeam"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Complete onboarding */
-        post: operations["onboarding.complete"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/onboarding/industries": {
         parameters: {
             query?: never;
@@ -5145,6 +5077,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{user}/mfa/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn off two-factor authentication for someone who lost their
+         *     authenticator. They sign in with their password and set it up again; a
+         *     tenant that requires MFA sends them straight to enrolment. Their trusted
+         *     browsers are forgotten, and they are emailed that it happened
+         */
+        post: operations["user.resetMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile": {
         parameters: {
             query?: never;
@@ -5412,10 +5366,6 @@ export interface components {
                 settings?: string[];
             };
             save?: boolean;
-        };
-        /** ApplyTemplateRequest */
-        ApplyTemplateRequest: {
-            template_slug: string;
         };
         /** AssignShiftRequest */
         AssignShiftRequest: {
@@ -6222,12 +6172,6 @@ export interface components {
              * @description Maximum file size: 5120 kilobytes.
              */
             file: string;
-        };
-        /** InviteTeamRequest */
-        InviteTeamRequest: {
-            emails: string[];
-            /** @enum {string} */
-            role?: "employee" | "supervisor" | "dept_admin" | "finance_admin" | "hr_admin";
         };
         /** KioskAttendanceRequest */
         KioskAttendanceRequest: {
@@ -16002,188 +15946,6 @@ export interface operations {
             };
         };
     };
-    "onboarding.updateStep": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                step: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingProgress"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/not-found";
-                        /** @constant */
-                        title: "Not Found";
-                        /** @constant */
-                        status: 404;
-                        detail: string;
-                    };
-                };
-            };
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/validation";
-                        /** @constant */
-                        title: "Invalid Step";
-                        /** @constant */
-                        status: 422;
-                        detail: string;
-                    };
-                };
-            };
-        };
-    };
-    "onboarding.applyTemplate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ApplyTemplateRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        message: string;
-                        template: {
-                            public_id: string;
-                            name: string;
-                            slug: string;
-                        };
-                        provisioned: {
-                            resources: string[];
-                            total_created: number;
-                            warnings: string[];
-                        };
-                        data: unknown[];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "onboarding.inviteTeam": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InviteTeamRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        created: string[];
-                        skipped: string[];
-                        message: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/not-found";
-                        /** @constant */
-                        title: "Not Found";
-                        /** @constant */
-                        status: 404;
-                        detail: string;
-                    };
-                };
-            };
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "onboarding.complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        message: "Onboarding completed successfully.";
-                        /** @constant */
-                        redirect: "/dashboard";
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/not-found";
-                        /** @constant */
-                        title: "Not Found";
-                        /** @constant */
-                        status: 404;
-                        detail: string;
-                    };
-                };
-            };
-        };
-    };
     "configuration.industries": {
         parameters: {
             query?: never;
@@ -21864,6 +21626,71 @@ export interface operations {
                         status: 422;
                         /** @constant */
                         detail: "This user is not pending activation.";
+                    };
+                };
+            };
+        };
+    };
+    "user.resetMfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The user public id */
+                user: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `UserResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/business-rule";
+                        /** @constant */
+                        title: "Request Rejected";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "This user does not have two-factor authentication turned on.";
+                    };
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/business-rule";
+                        /** @constant */
+                        title: "Request Rejected";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "Turn off your own two-factor authentication from your security settings.";
                     };
                 };
             };

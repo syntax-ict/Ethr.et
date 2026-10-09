@@ -38,6 +38,12 @@ export function buildEmployee(
 // Wildcard-origin patterns so the same handlers match regardless of the
 // jsdom test origin axios resolves the relative apiClient baseURL against.
 export const handlers = [
+  // Every signed-out form fetches Sanctum's CSRF cookie before it posts.
+  // Sets the cookie as Sanctum does, so the client does not ask again.
+  http.get("*/sanctum/csrf-cookie", () => {
+    document.cookie = "XSRF-TOKEN=test; path=/";
+    return new HttpResponse(null, { status: 204 });
+  }),
   http.get("*/api/v1/employees", () => {
     const employees = [buildEmployee()];
     return HttpResponse.json({

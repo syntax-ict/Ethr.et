@@ -11,6 +11,8 @@
 3. If required by your organization, enter the **6-digit code** from your authenticator app
 
 > **Forgot password?** Click "Forgot password" on the login screen and check your email.
+>
+> **Lost the phone with your authenticator app?** Ask your administrator to reset two-factor authentication for your account. You then sign in with your password alone and set it up again under Profile → Security. You get an email when it is reset.
 
 ---
 

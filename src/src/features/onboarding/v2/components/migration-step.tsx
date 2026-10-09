@@ -44,11 +44,11 @@ function reasonLabel(
 function outcomeTone(outcome: MatchOutcome | null): string {
   switch (outcome) {
     case "matched":
-      return "var(--color-status-success, #059669)";
+      return "var(--color-status-success, #047857)";
     case "probable":
-      return "var(--color-status-warning, #D97706)";
+      return "var(--color-status-warning, #92400E)";
     case "ambiguous":
-      return "var(--color-status-error, #DC2626)";
+      return "var(--color-status-error, #B91C1C)";
     default:
       return "var(--color-text-secondary, #64748B)";
   }
