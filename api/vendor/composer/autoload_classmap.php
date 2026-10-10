@@ -669,6 +669,7 @@ return array(
     'App\\Support\\EthiopianPhone' => $baseDir . '/app/Support/EthiopianPhone.php',
     'App\\Support\\ExecutiveBranchScope' => $baseDir . '/app/Support/ExecutiveBranchScope.php',
     'App\\Support\\FrontendUrl' => $baseDir . '/app/Support/FrontendUrl.php',
+    'App\\Support\\Mail\\SmtpTransportWithCaFile' => $baseDir . '/app/Support/Mail/SmtpTransportWithCaFile.php',
     'App\\Support\\NotificationTemplates' => $baseDir . '/app/Support/NotificationTemplates.php',
     'App\\Support\\OutboundHost' => $baseDir . '/app/Support/OutboundHost.php',
     'App\\Support\\PasswordTokens' => $baseDir . '/app/Support/PasswordTokens.php',

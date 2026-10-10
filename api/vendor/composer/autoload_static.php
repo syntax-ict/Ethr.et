@@ -1352,6 +1352,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Support\\EthiopianPhone' => __DIR__ . '/../..' . '/app/Support/EthiopianPhone.php',
         'App\\Support\\ExecutiveBranchScope' => __DIR__ . '/../..' . '/app/Support/ExecutiveBranchScope.php',
         'App\\Support\\FrontendUrl' => __DIR__ . '/../..' . '/app/Support/FrontendUrl.php',
+        'App\\Support\\Mail\\SmtpTransportWithCaFile' => __DIR__ . '/../..' . '/app/Support/Mail/SmtpTransportWithCaFile.php',
         'App\\Support\\NotificationTemplates' => __DIR__ . '/../..' . '/app/Support/NotificationTemplates.php',
         'App\\Support\\OutboundHost' => __DIR__ . '/../..' . '/app/Support/OutboundHost.php',
         'App\\Support\\PasswordTokens' => __DIR__ . '/../..' . '/app/Support/PasswordTokens.php',
