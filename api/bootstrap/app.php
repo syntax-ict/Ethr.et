@@ -52,7 +52,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     Route::post('/key', [MaintenanceController::class, 'key']);
                     Route::post('/create-admin', [MaintenanceController::class, 'createAdmin']);
                     Route::post('/{task}', [MaintenanceController::class, 'run'])
-                        ->where('task', 'migrate|seed|optimize|clear');
+                        ->where('task', 'migrate|seed|optimize|clear|mail-probe');
                 });
         },
     )

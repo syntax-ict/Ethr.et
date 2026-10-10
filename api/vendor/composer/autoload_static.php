@@ -716,6 +716,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Console\\Commands\\BackupRehearsalCommand' => __DIR__ . '/../..' . '/app/Console/Commands/BackupRehearsalCommand.php',
         'App\\Console\\Commands\\CreateAdminCommand' => __DIR__ . '/../..' . '/app/Console/Commands/CreateAdminCommand.php',
         'App\\Console\\Commands\\HealthCheckCommand' => __DIR__ . '/../..' . '/app/Console/Commands/HealthCheckCommand.php',
+        'App\\Console\\Commands\\MailProbeCommand' => __DIR__ . '/../..' . '/app/Console/Commands/MailProbeCommand.php',
         'App\\Console\\Commands\\QueueCheckCommand' => __DIR__ . '/../..' . '/app/Console/Commands/QueueCheckCommand.php',
         'App\\Console\\Commands\\RecheckCustomDomainsCommand' => __DIR__ . '/../..' . '/app/Console/Commands/RecheckCustomDomainsCommand.php',
         'App\\Console\\Commands\\ResetMfaCommand' => __DIR__ . '/../..' . '/app/Console/Commands/ResetMfaCommand.php',

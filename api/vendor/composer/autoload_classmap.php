@@ -33,6 +33,7 @@ return array(
     'App\\Console\\Commands\\BackupRehearsalCommand' => $baseDir . '/app/Console/Commands/BackupRehearsalCommand.php',
     'App\\Console\\Commands\\CreateAdminCommand' => $baseDir . '/app/Console/Commands/CreateAdminCommand.php',
     'App\\Console\\Commands\\HealthCheckCommand' => $baseDir . '/app/Console/Commands/HealthCheckCommand.php',
+    'App\\Console\\Commands\\MailProbeCommand' => $baseDir . '/app/Console/Commands/MailProbeCommand.php',
     'App\\Console\\Commands\\QueueCheckCommand' => $baseDir . '/app/Console/Commands/QueueCheckCommand.php',
     'App\\Console\\Commands\\RecheckCustomDomainsCommand' => $baseDir . '/app/Console/Commands/RecheckCustomDomainsCommand.php',
     'App\\Console\\Commands\\ResetMfaCommand' => $baseDir . '/app/Console/Commands/ResetMfaCommand.php',
