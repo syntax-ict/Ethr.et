@@ -77,6 +77,14 @@ mandatory gate below reads `PASS`.**
 >
 > PR #133 still merges only once M1 *and* M2 are answered (decided 2026-09-28); M1 is.
 
+> ### 2026-10-10, later — the provider's SMTP certificate is expired
+>
+> With the CA bundle deployed, sends still failed. `mail-probe`, run on the host, showed that
+> the SMTP port presents a certificate that **expired 2026-02-11**, issued by GlobalSign EV CA
+> SHA256 G3. The webmail port has the renewed one. Stopgap in the repository:
+> `MAIL_PEER_FINGERPRINT` pins that exact certificate. The expiry has been reported to the
+> provider. **No gate status moved.**
+>
 > ### 2026-10-10 — live; mail blocked by the provider's certificate chain
 >
 > Release `v2026.10.10.1` is migrated and seeded. The super admin exists, the caches are

@@ -6,6 +6,7 @@ namespace App\Support\Mail;
 
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Mail\MailManager;
+use InvalidArgumentException;
 use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 use Symfony\Component\Mailer\Transport\Smtp\Stream\SocketStream;
 
@@ -40,16 +41,70 @@ final class SmtpTransportWithCaFile
             }
         })->smtp($config);
 
-        $path = self::caFilePath($config['ca_file'] ?? null);
+        $ssl = self::sslOptions($config);
         $stream = $transport->getStream();
 
-        if ($path !== null && $stream instanceof SocketStream) {
-            $stream->setStreamOptions(array_replace_recursive($stream->getStreamOptions(), [
-                'ssl' => ['cafile' => $path],
-            ]));
+        if ($ssl !== [] && $stream instanceof SocketStream) {
+            $stream->setStreamOptions(array_replace_recursive($stream->getStreamOptions(), ['ssl' => $ssl]));
         }
 
         return $transport;
+    }
+
+    /**
+     * The TLS options this class adds, shared with `ethr:mail-probe` so the
+     * probe verifies exactly as the mailer does.
+     *
+     * MAIL_PEER_FINGERPRINT (`peer_sha256`) pins the server's certificate by
+     * its SHA-256. Measured 2026-10-10: the production provider's SMTP port
+     * serves a certificate that EXPIRED on 2026-02-11, which no CA file can
+     * make verify. A pin still refuses any other certificate (PHP compares the
+     * fingerprint even with chain verification off, checked against the live
+     * server), so mail goes only to that server, encrypted. It is a stopgap:
+     * when the provider installs its renewed certificate the pin stops
+     * matching, every send fails at `error` level, and the pin comes out.
+     *
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>
+     */
+    public static function sslOptions(array $config): array
+    {
+        $pin = self::pinnedFingerprint($config['peer_sha256'] ?? null);
+
+        if ($pin !== null) {
+            return [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'peer_fingerprint' => ['sha256' => $pin],
+            ];
+        }
+
+        $path = self::caFilePath($config['ca_file'] ?? null);
+
+        return $path === null ? [] : ['cafile' => $path];
+    }
+
+    /**
+     * A SHA-256 fingerprint in any common spelling (colons, spaces, case),
+     * normalised to 64 lowercase hex characters. Null when unset; anything
+     * else that is set is refused rather than quietly ignored, because an
+     * ignored pin would fall back to a check that cannot pass.
+     */
+    public static function pinnedFingerprint(mixed $value): ?string
+    {
+        $raw = (string) ($value ?? '');
+
+        if (trim($raw) === '') {
+            return null;
+        }
+
+        $hex = strtolower((string) preg_replace('/[\s:]/', '', $raw));
+
+        if (preg_match('/^[0-9a-f]{64}$/', $hex) !== 1) {
+            throw new InvalidArgumentException('MAIL_PEER_FINGERPRINT must be a SHA-256 fingerprint: 64 hex characters.');
+        }
+
+        return $hex;
     }
 
     /**
