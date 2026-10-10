@@ -77,6 +77,18 @@ mandatory gate below reads `PASS`.**
 >
 > PR #133 still merges only once M1 *and* M2 are answered (decided 2026-09-28); M1 is.
 
+> ### 2026-10-10 — the first `migrate` failed on MySQL's timestamp defaults
+>
+> `key` succeeded. `migrate` failed with `1067 Invalid default value for 'expires_at'`
+> (`trusted_devices`), inside `0001_01_01_000000_create_users_table`. That left nine empty
+> tables, which must be dropped before the next run. The host runs
+> `explicit_defaults_for_timestamp` OFF and the `mysql` connection is strict. Local runs and
+> CI use the non-strict `mariadb` connection, so they never saw it. Six `NOT NULL`
+> timestamps now state `useCurrent()`, which also stops MySQL adding a silent
+> `ON UPDATE CURRENT_TIMESTAMP` to the first one in each table. All 71 migrations, then
+> `ProductionSeeder` and `ethr:create-admin`, were re-run locally through the strict `mysql`
+> connection with that setting OFF. **No gate status moved.**
+>
 > ### 2026-10-09 — the Toolkit attached nothing; the release steps run over HTTP
 >
 > The Laravel Toolkit's Scan answered *"Attached 0 application(s)"* with the document root

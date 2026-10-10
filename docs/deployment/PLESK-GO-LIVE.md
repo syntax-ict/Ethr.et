@@ -153,6 +153,17 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    8443 still answered. So an HTML 403 here means *the request never arrived*, not *wrong
    token*: a wrong or missing token is a JSON 404.
 
+   **If `migrate` fails on a first install, empty the database before running it again.**
+   MySQL cannot roll back `CREATE TABLE`, so the tables a failed migration made before its
+   error stay behind, unrecorded, and the next run stops on *"table already exists"*. On a
+   first install nothing is in them: drop every table in *Databases → phpMyAdmin* (select
+   all, **Drop**), then run `migrate` again. *(Measured 2026-10-10: the first `migrate`
+   failed with `1067 Invalid default value for 'expires_at'` inside the very first
+   migration and left nine empty tables. The cause: this server runs
+   `explicit_defaults_for_timestamp` OFF and the `mysql` connection is strict, so a
+   `NOT NULL` timestamp needs a stated default. `MigrationTimestampDefaultsTest` now
+   requires one. A failing step now reports the exception in its JSON `output`.)*
+
 4. **Empty `MAINTENANCE_TOKEN` in `.env` and save.** The routes answer 404 again at once,
    cached configuration or not: with a cached config the token is read from the file on
    each request. A token left set is a standing credential that can migrate the database
