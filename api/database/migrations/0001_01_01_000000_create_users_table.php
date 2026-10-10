@@ -123,7 +123,7 @@ return new class extends Migration
             $table->text('user_agent')->nullable();
             $table->string('status', 20);
             $table->string('failure_reason')->nullable();
-            $table->timestamp('created_at');
+            $table->timestamp('created_at')->useCurrent();
 
             $table->index(['tenant_id', 'user_id']);
         });
@@ -133,8 +133,8 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('device_hash');
             $table->string('device_name')->nullable();
-            $table->timestamp('last_used_at');
-            $table->timestamp('expires_at');
+            $table->timestamp('last_used_at')->useCurrent();
+            $table->timestamp('expires_at')->useCurrent();
             $table->timestamps();
 
             $table->unique(['user_id', 'device_hash']);
@@ -145,7 +145,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('code');
             $table->string('purpose', 20);
-            $table->timestamp('expires_at');
+            $table->timestamp('expires_at')->useCurrent();
             $table->timestamp('used_at')->nullable();
             $table->timestamps();
 
@@ -162,7 +162,7 @@ return new class extends Migration
             $table->json('payload')->nullable();
             $table->string('ip_address', 45)->nullable();
             $table->string('user_agent')->nullable();
-            $table->timestamp('created_at');
+            $table->timestamp('created_at')->useCurrent();
 
             $table->index(['tenant_id', 'created_at']);
             $table->index(['auditable_type', 'auditable_id']);
