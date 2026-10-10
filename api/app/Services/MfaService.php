@@ -99,7 +99,7 @@ class MfaService
 
             return true;
         } catch (\Throwable $e) {
-            Log::warning('MFA reset email failed', [
+            Log::error('MFA reset email failed', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);

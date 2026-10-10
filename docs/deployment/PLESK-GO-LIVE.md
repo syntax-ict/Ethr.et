@@ -102,7 +102,7 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    | `DB_CONNECTION` | `mysql` (the panel reports MySQL 8.0.32) |
    | `DB_HOST` | `<DB_HOST>` from *Databases* — **not** `localhost`; the database is on its own server |
    | `DB_DATABASE` / `DB_USERNAME` / `DB_PASSWORD` | `<DB_NAME>` / `<DB_USER>` / the user's password, **in double quotes** — in `.env` a `#` starts a comment and a space ends the value |
-   | `MAIL_*` | the mailbox ETHR sends from |
+   | `MAIL_*` | the mailbox ETHR sends from. `MAIL_HOST` must be a name **on the SMTP server's certificate**, not merely one that resolves to it; and if the provider omits its intermediate certificate, set `MAIL_CA_FILE` (below) |
    | `CRON_TOKEN` | 32+ random characters |
    | `MAINTENANCE_TOKEN` | 32+ random characters — **only while running step 3**, see below |
 
@@ -152,6 +152,16 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    caller's address banned from ports 80 and 443 for about ten minutes, while the panel on
    8443 still answered. So an HTML 403 here means *the request never arrived*, not *wrong
    token*: a wrong or missing token is a JSON 404.
+
+   **If the site says a reset email was sent but none arrives, the send failed.** Password
+   reset, MFA reset and account activation catch a mail failure, still answer success, and log
+   it at `error` level: look in `storage/logs` for *"… email failed"*. Measured 2026-10-10:
+   `certificate verify failed` on port 465. The provider's certificate did not list the
+   `smtp.` host name that resolved to it, and the server did not send its intermediate
+   certificate. The fix that keeps the server verified is to set `MAIL_HOST` to a name the
+   certificate lists, and `MAIL_CA_FILE=resources/certs/globalsign-gcc-r3-ev-tls-ca-2025.pem`.
+   Then run `clear` and `optimize`. Do not set `verify_peer=0` in `MAIL_URL`: mail would still
+   be encrypted, but to a server nobody checked, with the mailbox password in it.
 
    **If `migrate` fails on a first install, empty the database before running it again.**
    MySQL cannot roll back `CREATE TABLE`, so the tables a failed migration made before its

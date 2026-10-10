@@ -73,7 +73,7 @@ class PasswordResetController extends Controller
                 $user->notify(new PasswordResetLinkNotification($token, $tenant->get()->subdomain));
                 AuditLog::record('user.password_reset_requested', $user);
             } catch (\Throwable $e) {
-                Log::warning('Password reset email failed', [
+                Log::error('Password reset email failed', [
                     'user_id' => $user->id,
                     'error' => $e->getMessage(),
                 ]);
