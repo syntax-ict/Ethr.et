@@ -28,7 +28,7 @@ return new class extends Migration
             $table->unsignedInteger('events_processed')->default(0);
             $table->unsignedInteger('events_failed')->default(0);
             $table->text('error_message')->nullable();
-            $table->timestamp('started_at');
+            $table->timestamp('started_at')->useCurrent();
             $table->timestamp('completed_at')->nullable();
             $table->unsignedInteger('duration_ms')->nullable();
             $table->timestamps();

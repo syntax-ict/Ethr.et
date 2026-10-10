@@ -10,6 +10,7 @@ use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Throwable;
 
 /**
  * Runs the install and release steps over HTTP, because nothing on the
@@ -44,8 +45,20 @@ class MaintenanceController
             $steps = [];
 
             foreach (self::TASKS[$task] as [$command, $arguments]) {
-                $exit = Artisan::call($command, $arguments);
-                $steps[] = ['command' => $command, 'exit_code' => $exit, 'output' => $this->tail(Artisan::output())];
+                // A migration that fails throws rather than returning an exit
+                // code. Uncaught, that was a bare "Server Error" whose cause
+                // was only in the host's log (2026-10-10). The message goes to
+                // the token holder; report() still logs the full trace.
+                try {
+                    $exit = Artisan::call($command, $arguments);
+                    $output = Artisan::output();
+                } catch (Throwable $e) {
+                    report($e);
+                    $exit = 1;
+                    $output = $e::class.': '.$e->getMessage();
+                }
+
+                $steps[] = ['command' => $command, 'exit_code' => $exit, 'output' => $this->tail($output)];
 
                 if ($exit !== 0) {
                     break;

@@ -103,6 +103,19 @@ it('caches config, routes and views in order, and stops at the first failure', f
         ->assertJsonCount(2, 'steps');
 });
 
+it('reports a migration that throws, instead of a bare server error', function () {
+    // 2026-10-10: the host's first migrate threw a QueryException (1067) and
+    // the response said only "Server Error"; the cause was in the log alone.
+    Artisan::shouldReceive('call')->once()->with('migrate', ['--force' => true])
+        ->andThrow(new RuntimeException("SQLSTATE[42000]: 1067 Invalid default value for 'expires_at'"));
+
+    maintenancePost('migrate')
+        ->assertStatus(500)
+        ->assertJsonPath('status', 'failed')
+        ->assertJsonPath('steps.0.exit_code', 1)
+        ->assertJsonPath('steps.0.output', "RuntimeException: SQLSTATE[42000]: 1067 Invalid default value for 'expires_at'");
+});
+
 it('works before the first migration, when the database cache has no table', function () {
     // The api group's throttle would need this table; these routes must not.
     config()->set('cache.default', 'database');
