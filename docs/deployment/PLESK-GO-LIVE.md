@@ -163,6 +163,16 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    Then run `clear` and `optimize`. Do not set `verify_peer=0` in `MAIL_URL`: mail would still
    be encrypted, but to a server nobody checked, with the mailbox password in it.
 
+   **To see what the SMTP port actually presents, run the `mail-probe` task.** It connects as
+   the mailer does, sends nothing, and prints the chain and whether it verifies. The port may
+   answer only inside the provider's network, so nothing outside can see it. Measured
+   2026-10-10: the SMTP port served a certificate that **expired on 2026-02-11**, from an older
+   intermediate than the renewed one on the webmail port. No CA file can make an expired
+   certificate verify. The stopgap is `MAIL_PEER_FINGERPRINT=<the SHA-256 the probe prints>`,
+   which accepts that one certificate and refuses every other. Report the expiry to the
+   provider. When they renew, sends fail at `error` level: run `mail-probe` again, and remove
+   the pin.
+
    **If `migrate` fails on a first install, empty the database before running it again.**
    MySQL cannot roll back `CREATE TABLE`, so the tables a failed migration made before its
    error stay behind, unrecorded, and the next run stops on *"table already exists"*. On a

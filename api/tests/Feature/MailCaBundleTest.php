@@ -56,6 +56,28 @@ it('takes an absolute CA file path as given', function () {
     expect(smtpStreamOptions()['ssl']['cafile'])->toBe($absolute);
 });
 
+it('pins the server certificate by SHA-256 when MAIL_PEER_FINGERPRINT is set, in any common spelling', function () {
+    // The production SMTP port serves a certificate that expired 2026-02-11;
+    // a pin is the stopgap that still refuses every other certificate.
+    $hex = '8b0d83cdb32aa71996fdb7a6f9a97a5288f6a77ac7d072fd59c57ce4b0510388';
+    config()->set('mail.mailers.smtp.peer_sha256', strtoupper(implode(':', str_split($hex, 2))));
+    config()->set('mail.mailers.smtp.ca_file', MAIL_CA_BUNDLE);
+
+    $ssl = smtpStreamOptions()['ssl'];
+
+    expect($ssl['peer_fingerprint'])->toBe(['sha256' => $hex])
+        ->and($ssl['verify_peer'])->toBeFalse()
+        ->and($ssl['verify_peer_name'])->toBeFalse()
+        // The pin replaces chain verification; it does not combine with it.
+        ->and($ssl)->not->toHaveKey('cafile');
+});
+
+it('refuses a malformed fingerprint rather than ignoring it', function () {
+    config()->set('mail.mailers.smtp.peer_sha256', 'not-a-fingerprint');
+
+    expect(fn () => smtpStreamOptions())->toThrow(InvalidArgumentException::class, 'MAIL_PEER_FINGERPRINT');
+});
+
 it('ships the GlobalSign intermediate and its root, neither within 30 days of expiry', function () {
     $pem = (string) file_get_contents(base_path(MAIL_CA_BUNDLE));
     preg_match_all('/-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----/s', $pem, $blocks);
