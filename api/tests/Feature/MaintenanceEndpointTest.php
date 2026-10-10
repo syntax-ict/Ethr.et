@@ -116,6 +116,26 @@ it('reports a migration that throws, instead of a bare server error', function (
         ->assertJsonPath('steps.0.output', "RuntimeException: SQLSTATE[42000]: 1067 Invalid default value for 'expires_at'");
 });
 
+it('probes the mail server read-only, through the same token and lock', function () {
+    Artisan::shouldReceive('call')->once()->with('ethr:mail-probe', [])->andReturn(1);
+    Artisan::shouldReceive('output')->andReturn('Verification: FAILED - certificate verify failed');
+
+    maintenancePost('mail-probe')
+        ->assertStatus(500)
+        ->assertJsonPath('task', 'mail-probe')
+        ->assertJsonPath('steps.0.output', 'Verification: FAILED - certificate verify failed');
+});
+
+it('reports an unreachable mail server instead of hanging or throwing', function () {
+    config()->set('mail.mailers.smtp.host', '127.0.0.1');
+    config()->set('mail.mailers.smtp.port', 1);
+    config()->set('mail.mailers.smtp.scheme', 'smtps');
+
+    test()->artisan('ethr:mail-probe', ['--timeout' => 3])
+        ->expectsOutputToContain('Could not complete a TLS connection')
+        ->assertExitCode(1);
+});
+
 it('works before the first migration, when the database cache has no table', function () {
     // The api group's throttle would need this table; these routes must not.
     config()->set('cache.default', 'database');

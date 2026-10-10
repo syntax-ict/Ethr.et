@@ -40,19 +40,33 @@ final class SmtpTransportWithCaFile
             }
         })->smtp($config);
 
-        $caFile = (string) ($config['ca_file'] ?? '');
+        $path = self::caFilePath($config['ca_file'] ?? null);
         $stream = $transport->getStream();
 
-        if ($caFile !== '' && $stream instanceof SocketStream) {
-            $path = str_starts_with($caFile, '/') || preg_match('/^[A-Za-z]:[\\\\\/]/', $caFile) === 1
-                ? $caFile
-                : base_path($caFile);
-
+        if ($path !== null && $stream instanceof SocketStream) {
             $stream->setStreamOptions(array_replace_recursive($stream->getStreamOptions(), [
                 'ssl' => ['cafile' => $path],
             ]));
         }
 
         return $transport;
+    }
+
+    /**
+     * MAIL_CA_FILE as a path: absolute as given, otherwise relative to api/.
+     * Null when unset. Shared with `ethr:mail-probe`, so the probe checks the
+     * file the mailer actually uses.
+     */
+    public static function caFilePath(mixed $caFile): ?string
+    {
+        $caFile = (string) ($caFile ?? '');
+
+        if ($caFile === '') {
+            return null;
+        }
+
+        return str_starts_with($caFile, '/') || preg_match('/^[A-Za-z]:[\\\\\/]/', $caFile) === 1
+            ? $caFile
+            : base_path($caFile);
     }
 }

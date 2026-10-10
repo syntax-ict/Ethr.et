@@ -31,10 +31,12 @@ class MaintenanceController
         'optimize' => [['config:cache', []], ['route:cache', []], ['view:cache', []]],
         // After an edit to .env: a cached config ignores the file until cleared.
         'clear' => [['optimize:clear', []]],
+        // Read-only: the SMTP server's certificate chain and whether it verifies.
+        'mail-probe' => [['ethr:mail-probe', []]],
     ];
 
     /**
-     * One of the fixed tasks: `migrate`, `seed`, `optimize` or `clear`.
+     * One of the fixed tasks: `migrate`, `seed`, `optimize`, `clear` or the read-only `mail-probe`.
      */
     #[ExcludeRouteFromDocs]
     public function run(string $task): JsonResponse
