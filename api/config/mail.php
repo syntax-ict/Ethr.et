@@ -51,6 +51,10 @@ return [
             // or absolute. For a provider that omits its intermediate
             // certificate; see App\Support\Mail\SmtpTransportWithCaFile.
             'ca_file' => env('MAIL_CA_FILE'),
+            // Pins the SMTP server's certificate by SHA-256 instead of verifying
+            // its chain - for a provider serving an expired certificate. A
+            // stopgap; see App\Support\Mail\SmtpTransportWithCaFile.
+            'peer_sha256' => env('MAIL_PEER_FINGERPRINT'),
         ],
 
         'ses' => [

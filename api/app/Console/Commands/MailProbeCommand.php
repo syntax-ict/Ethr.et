@@ -35,6 +35,7 @@ class MailProbeCommand extends Command
 
         $this->line(sprintf('Server: %s:%d (%s)', $host, $port, $implicitTls ? 'implicit TLS' : 'STARTTLS'));
         $this->line('CA file: '.($caFile === null ? '(none: system trust store)' : $caFile.(is_readable($caFile) ? '' : '  [NOT READABLE]')));
+        $this->line('Pinned SHA-256: '.(SmtpTransportWithCaFile::pinnedFingerprint($config['peer_sha256'] ?? null) ?? '(none)'));
 
         // 1. Unverified, to see what the server presents.
         [$stream, $error] = $this->connect($host, $port, $implicitTls, $timeout, [
@@ -66,22 +67,21 @@ class MailProbeCommand extends Command
             ));
         }
 
-        // 2. Verified, exactly as the mailer will.
-        $verified = ['verify_peer' => true, 'verify_peer_name' => true, 'peer_name' => $host];
-        if ($caFile !== null) {
-            $verified['cafile'] = $caFile;
-        }
+        // 2. Verified, exactly as the mailer will: the same options it adds.
+        $added = SmtpTransportWithCaFile::sslOptions($config);
+        $pinned = isset($added['peer_fingerprint']);
+        $verified = $added + ['verify_peer' => true, 'verify_peer_name' => true, 'peer_name' => $host];
 
         [$stream, $error] = $this->connect($host, $port, $implicitTls, $timeout, $verified);
 
         if ($stream === null) {
-            $this->error('Verification: FAILED - '.$error);
+            $this->error('Verification: FAILED - '.$error.($pinned ? ' (pinned certificate did not match)' : ''));
 
             return self::FAILURE;
         }
 
         fclose($stream);
-        $this->info('Verification: OK');
+        $this->info($pinned ? 'Verification: OK (pinned certificate matched)' : 'Verification: OK');
 
         return self::SUCCESS;
     }
