@@ -47,6 +47,10 @@ return [
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+            // A CA bundle to verify the SMTP server against, relative to api/
+            // or absolute. For a provider that omits its intermediate
+            // certificate; see App\Support\Mail\SmtpTransportWithCaFile.
+            'ca_file' => env('MAIL_CA_FILE'),
         ],
 
         'ses' => [

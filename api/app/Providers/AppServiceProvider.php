@@ -53,6 +53,7 @@ use App\Services\Sms\EthioTelecomSmsSender;
 use App\Services\Sms\LogSmsSender;
 use App\Services\Sso\SamlProvider;
 use App\Services\Sso\SsoProviderInterface;
+use App\Support\Mail\SmtpTransportWithCaFile;
 use App\Support\Scramble\DescribeApiDocument;
 use App\Support\Scramble\GroupOperationsByDomain;
 use App\Support\Scramble\TypeLoadedRelationOverlays;
@@ -66,6 +67,7 @@ use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
@@ -285,6 +287,10 @@ class AppServiceProvider extends ServiceProvider
         // via() the same way they declare mail; the channel itself decides whether
         // the configured driver can actually deliver.
         Notification::extend('sms', fn ($app) => new SmsChannel($app->make(SmsSender::class)));
+
+        // The framework SMTP transport, plus MAIL_CA_FILE: the production mail
+        // provider omits its intermediate certificate (see the class).
+        Mail::extend('smtp', fn (array $config) => SmtpTransportWithCaFile::create($this->app, $config));
 
         Gate::policy(Employee::class, EmployeePolicy::class);
         Gate::policy(AttendanceRecord::class, AttendanceRecordPolicy::class);

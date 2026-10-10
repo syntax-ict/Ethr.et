@@ -111,7 +111,7 @@ class UserProvisioningService
 
             return true;
         } catch (\Throwable $e) {
-            Log::warning('Account activation email failed', [
+            Log::error('Account activation email failed', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);

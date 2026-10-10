@@ -146,5 +146,5 @@ it('still resets when the email cannot be sent, and says so in the log', functio
         ->assertJsonPath('mfa_enabled', false);
 
     expect($target->refresh()->mfa_enabled)->toBeFalse();
-    Log::shouldHaveReceived('warning')->withArgs(fn ($message) => $message === 'MFA reset email failed')->once();
+    Log::shouldHaveReceived('error')->withArgs(fn ($message) => $message === 'MFA reset email failed')->once();
 });

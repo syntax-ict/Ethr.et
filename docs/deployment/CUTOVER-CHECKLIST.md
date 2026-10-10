@@ -77,6 +77,17 @@ mandatory gate below reads `PASS`.**
 >
 > PR #133 still merges only once M1 *and* M2 are answered (decided 2026-09-28); M1 is.
 
+> ### 2026-10-10 — live; mail blocked by the provider's certificate chain
+>
+> Release `v2026.10.10.1` is migrated and seeded. The super admin exists, the caches are
+> built, and the GitHub scheduler runs `schedule` and `queue` (both ok). Password-reset mail
+> did not arrive. The send failed with `certificate verify failed`: the SMTP provider's
+> certificate names neither the `smtp.` alias in use, nor did the server send its
+> intermediate certificate. The failure was logged only at `warning`, below the production
+> `LOG_LEVEL=error`, so it was invisible until the level was lowered. Fixed in the repository:
+> `MAIL_CA_FILE` with a verified GlobalSign chain, and the three swallowed-mail failures now
+> log at `error`. **No gate status moved.**
+>
 > ### 2026-10-10 — the first `migrate` failed on MySQL's timestamp defaults
 >
 > `key` succeeded. `migrate` failed with `1067 Invalid default value for 'expires_at'`
