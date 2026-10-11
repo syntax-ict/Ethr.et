@@ -36,6 +36,22 @@ export function ClaimSession() {
       window.location.hash.replace(/^#/, ""),
     ).get("nonce");
 
+    // On the shared host (an organisation reached as ethr.et/{slug}) the
+    // hostname names no tenant: the API reads X-Tenant from this key, and the
+    // claim request itself needs it, so it is set before anything is sent.
+    // The hand-off URL names the organisation; on its own host there is no
+    // `org` and the hostname decides.
+    const org = new URLSearchParams(window.location.search).get("org");
+    if (org) {
+      try {
+        localStorage.setItem("tenant", org);
+      } catch {
+        // Storage refused: the claim below then runs as whichever
+        // organisation this browser last used, and fails closed with a
+        // tenant mismatch rather than signing in somewhere else.
+      }
+    }
+
     const claim = nonce
       ? (() => {
           // Drop the nonce from the address bar before doing anything else, so

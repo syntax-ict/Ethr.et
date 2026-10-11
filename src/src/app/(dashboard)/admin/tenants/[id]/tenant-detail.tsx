@@ -33,11 +33,20 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DnsRecord } from "@/components/shared/dns-record";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { RoleGate } from "@/components/shared/role-gate";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
+  useUpdateTenantAddressMode,
   useAdminTenant,
   useUpdateTenantStatus,
   useExtendTrial,
@@ -95,6 +104,7 @@ function TenantDetail({ id }: { id: string }) {
   const backup = useTenantBackup();
   const updateDomain = useUpdateTenantDomain();
   const verifyDomain = useVerifyTenantDomain();
+  const updateAddressMode = useUpdateTenantAddressMode();
 
   // Clock pinned at mount so the render stays pure (see trialDaysLeft below).
   const [mountedAt] = useState(() => Date.now());
@@ -512,6 +522,70 @@ function TenantDetail({ id }: { id: string }) {
             <Row
               label={t("admin_tenants_page.subdomain")}
               value={tenantAddress(tenant.subdomain)}
+            />
+            <Row
+              label={t("admin_tenant_detail_page.address_mode")}
+              value={
+                <span className="inline-flex flex-col items-end gap-1">
+                  <Select
+                    value={tenant.address_mode}
+                    onValueChange={(mode) =>
+                      updateAddressMode.mutate(
+                        {
+                          publicId: tenant.public_id,
+                          mode: mode as "path" | "subdomain" | "custom_domain",
+                        },
+                        {
+                          onSuccess: () =>
+                            toast.success(
+                              t("admin_tenant_detail_page.address_mode_saved"),
+                            ),
+                          onError: (err: unknown) =>
+                            toast.error(
+                              apiErrorDetail(err) ||
+                                t(
+                                  "admin_tenant_detail_page.address_mode_failed",
+                                ),
+                            ),
+                        },
+                      )
+                    }
+                    disabled={updateAddressMode.isPending}
+                  >
+                    <SelectTrigger
+                      className="h-8 w-44"
+                      aria-label={t("admin_tenant_detail_page.address_mode")}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="path">
+                        {t("settings.address_mode_path")}
+                      </SelectItem>
+                      <SelectItem value="subdomain">
+                        {t("settings.address_mode_subdomain")}
+                      </SelectItem>
+                      <SelectItem value="custom_domain">
+                        {t("settings.address_mode_custom")}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {tenant.address_mode !== tenant.address_mode_effective && (
+                    <span className="text-xs text-muted-foreground">
+                      {t(
+                        "admin_tenant_detail_page.address_mode_in_use",
+                        "In use: :mode",
+                        { mode: tenant.address_mode_effective },
+                      )}
+                    </span>
+                  )}
+                  {tenant.canonical_url && (
+                    <code className="font-mono text-xs">
+                      {tenant.canonical_url}
+                    </code>
+                  )}
+                </span>
+              }
             />
             <Row
               label={t("admin_tenant_detail_page.custom_domain")}
@@ -1074,32 +1148,6 @@ function StatCard({
 }
 
 /** One DNS record to publish, laid out so each part can be copied whole. */
-function DnsRecord({
-  type,
-  name,
-  value,
-  nameLabel,
-  valueLabel,
-}: {
-  type: string;
-  name: string;
-  value: string;
-  nameLabel: string;
-  valueLabel: string;
-}) {
-  return (
-    <div className="rounded-md border p-3">
-      <dt className="text-xs font-semibold text-foreground">{type}</dt>
-      <dd className="mt-2 grid gap-1 text-xs sm:grid-cols-[6rem_1fr]">
-        <span className="text-muted-foreground">{nameLabel}</span>
-        <code className="break-all font-mono">{name}</code>
-        <span className="text-muted-foreground">{valueLabel}</span>
-        <code className="break-all font-mono">{value}</code>
-      </dd>
-    </div>
-  );
-}
-
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">

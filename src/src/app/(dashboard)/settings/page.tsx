@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
+import { AddressCard } from "@/features/settings/components/address-card";
 import { OrganizationCard } from "@/features/settings/components/organization-card";
 import { BrandingCard } from "@/features/settings/components/branding-card";
 import {
@@ -235,6 +236,8 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
 
         <TabsContent value="general" className="mt-6 space-y-6">
           <OrganizationCard organization={data.organization} />
+
+          <AddressCard address={data.address} />
 
           <Card>
             <CardHeader>

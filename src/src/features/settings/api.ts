@@ -148,3 +148,38 @@ export function useGenerateScimToken() {
     gcTime: 0,
   });
 }
+
+// ── Address: how the organisation is reached ─────────────────────────────────
+
+export type TenantAddress = TenantSettings["address"];
+export type AddressUpdate = components["schemas"]["UpdateAddressRequest"];
+export type AddressResult =
+  operations["settings.updateAddress"]["responses"][200]["content"]["application/json"];
+
+/**
+ * Choose `path`, `subdomain` or `custom_domain`, optionally assigning or
+ * clearing (`null`) the domain in the same save. The server normalises the
+ * domain and owns every rule; a 422 on `custom_domain` is shown under the
+ * field.
+ */
+export function useUpdateAddress() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: AddressUpdate) =>
+      (await apiClient.put<AddressResult>("/settings/address", payload)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.all }),
+  });
+}
+
+/**
+ * Checks the pending domain's TXT token and CNAME. A 422 carries one message
+ * per record that was not found, under `errors.txt` and `errors.cname`.
+ */
+export function useVerifyAddress() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      (await apiClient.post<AddressResult>("/settings/address/verify")).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.all }),
+  });
+}

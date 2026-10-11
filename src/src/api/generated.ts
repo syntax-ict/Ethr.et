@@ -4108,6 +4108,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/tenants/{publicId}/address-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set which address the organisation is reached at, on its behalf. The
+         *     organisation can do the same from its own settings; this is for support.
+         *     A mode the deployment cannot honour yet is kept and reported as such in
+         *     `address_mode_effective`, so the choice survives the host work
+         */
+        put: operations["adminTenant.updateAddressMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/tenants/{publicId}/extend-trial": {
         parameters: {
             query?: never;
@@ -4626,6 +4648,51 @@ export interface paths {
         /** Organization settings */
         put: operations["settings.updateOrganization"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Choose how the organisation is reached: `path` (ethr.et/{slug}),
+         *     `subdomain` ({slug}.ethr.et) or `custom_domain` (its own, verified)
+         * @description The domain may be assigned or cleared in the same save. A choice the
+         *     deployment cannot honour yet is kept and reported in `effective_mode`,
+         *     so links keep working at the fallback address and switch on their own
+         *     once the host serves subdomains or the domain verifies.
+         */
+        put: operations["settings.updateAddress"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/address/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check the pending custom domain's DNS records and, if both are in
+         *     place, make it the organisation's address. A 422 names each record not
+         *     found, under `txt` and `cname`
+         */
+        post: operations["settings.verifyAddress"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6503,7 +6570,7 @@ export interface components {
          *     | `webhooks` <br/>  |
          *     | `custom_reports` <br/>  |
          *     | `audit_log` <br/>  |
-         *     | `custom_domain` <br/> The organisation may be given its own domain (`hr.acme.com`), a paid add-on. It gates nothing a tenant does itself: it decides whether a platform admin may assign the domain. |
+         *     | `custom_domain` <br/> The organisation may be given its own domain (`hr.acme.com`), a paid add-on. It decides whether a domain may be assigned at all, from the platform console or, since 2026-10-11, by the organisation itself (PUT /settings/address); nothing else a tenant does is gated by it. |
          * @enum {string}
          */
         PlanFeature: "attendance" | "leave" | "employee_management" | "payroll" | "reports" | "notifications" | "api_access" | "webhooks" | "custom_reports" | "audit_log" | "custom_domain";
@@ -7377,6 +7444,17 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /**
+         * TenantAddressMode
+         * @description How an organisation is reached: the address ETHR puts in every link it hands out, and the one sign-in is handed off to. Until 2026-10-11 this was not a choice. FrontendUrl picked a tier for every organisation at once: a verified custom domain, else the subdomain when the deployment served subdomains, else the path. Now each organisation picks, and the deployment decides only what it CAN serve (`tenancy.subdomains`).
+         *     | |
+         *     |---|
+         *     | `path` <br/> `ethr.et/{slug}`: the shared host, named in X-Tenant after sign-in. |
+         *     | `subdomain` <br/> `{slug}.ethr.et`: needs the host to serve wildcard subdomains (M3). |
+         *     | `custom_domain` <br/> `hr.acme.com`: the organisation's own domain, once verified (Enterprise add-on). |
+         * @enum {string}
+         */
+        TenantAddressMode: "path" | "subdomain" | "custom_domain";
         /** TenantResource */
         TenantResource: {
             public_id: string;
@@ -7412,6 +7490,24 @@ export interface components {
              *     as configuration; it does not restrict what the resolver accepts.
              */
             role_defaults?: ("email" | "phone" | "employee_code" | "username")[];
+        };
+        /**
+         * UpdateAddressRequest
+         * @description The organisation's choice of address: `path`, `subdomain` or
+         *     `custom_domain`, and, with the last, the domain itself.
+         *
+         *     `custom_domain` is optional: left out, the domain already assigned stays as
+         *     it is. Sent, it is normalised as Tenant stores it (scheme, port, path and
+         *     trailing dot stripped, lower-cased), must not belong to another
+         *     organisation nor sit under the platform's own domain, and `null` clears it.
+         *     Assigning one also needs the plan to include the add-on, refused with a 422
+         *     on this field otherwise. A new domain is stored pending until Verify finds
+         *     its DNS records; choosing `custom_domain` before then is kept, and links
+         *     keep using the fallback address until it verifies.
+         */
+        UpdateAddressRequest: {
+            mode: components["schemas"]["TenantAddressMode"];
+            custom_domain?: string | null;
         };
         /** UpdateAnnouncementRequest */
         UpdateAnnouncementRequest: {
@@ -7816,6 +7912,15 @@ export interface components {
             name_am?: string | null;
             department_public_id?: string | null;
             is_active?: boolean | null;
+        };
+        /**
+         * UpdateTenantAddressModeRequest
+         * @description The platform console setting an organisation's address mode on its behalf:
+         *     `path`, `subdomain` or `custom_domain`. The domain itself is assigned
+         *     through the separate domain endpoint, as before.
+         */
+        UpdateTenantAddressModeRequest: {
+            mode: components["schemas"]["TenantAddressMode"];
         };
         /**
          * UpdateTenantDomainRequest
@@ -18984,6 +19089,9 @@ export interface operations {
                             cname_target: string | null;
                         } | null;
                         custom_domain_allowed: boolean;
+                        address_mode: string;
+                        address_mode_effective: string;
+                        canonical_url: string | null;
                         type: string | null;
                         status: string;
                         /** Format: date-time */
@@ -19124,6 +19232,39 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenant.updateAddressMode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTenantAddressModeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        address_mode: string;
+                        address_mode_effective: string;
+                        canonical_url: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "adminTenant.extendTrial": {
@@ -20141,6 +20282,25 @@ export interface operations {
                             timezone: string;
                             locale: string;
                         };
+                        address: {
+                            mode: string;
+                            effective_mode: string;
+                            canonical_url: string | null;
+                            entry_url: string;
+                            subdomain: string;
+                            subdomain_url: string | null;
+                            subdomains_served: boolean;
+                            custom_domain: string | null;
+                            /** @enum {string|null} */
+                            custom_domain_status: "verified" | "pending" | null;
+                            custom_domain_allowed: boolean;
+                            custom_domain_dns: {
+                                txt_name: string;
+                                txt_value: string;
+                                cname_name: string | null;
+                                cname_target: string | null;
+                            } | null;
+                        };
                         branding: {
                             logo_url: string | null;
                             theme: {
@@ -20263,6 +20423,94 @@ export interface operations {
                             type: string;
                             timezone: string;
                             locale: string;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.updateAddress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAddressRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        address: {
+                            mode: string;
+                            effective_mode: string;
+                            canonical_url: string | null;
+                            entry_url: string;
+                            subdomain: string;
+                            subdomain_url: string | null;
+                            subdomains_served: boolean;
+                            custom_domain: string | null;
+                            /** @enum {string|null} */
+                            custom_domain_status: "verified" | "pending" | null;
+                            custom_domain_allowed: boolean;
+                            custom_domain_dns: {
+                                txt_name: string;
+                                txt_value: string;
+                                cname_name: string | null;
+                                cname_target: string | null;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.verifyAddress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        address: {
+                            mode: string;
+                            effective_mode: string;
+                            canonical_url: string | null;
+                            entry_url: string;
+                            subdomain: string;
+                            subdomain_url: string | null;
+                            subdomains_served: boolean;
+                            custom_domain: string | null;
+                            /** @enum {string|null} */
+                            custom_domain_status: "verified" | "pending" | null;
+                            custom_domain_allowed: boolean;
+                            custom_domain_dns: {
+                                txt_name: string;
+                                txt_value: string;
+                                cname_name: string | null;
+                                cname_target: string | null;
+                            } | null;
                         };
                     };
                 };
