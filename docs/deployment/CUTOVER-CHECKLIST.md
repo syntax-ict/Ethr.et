@@ -77,6 +77,17 @@ mandatory gate below reads `PASS`.**
 >
 > PR #133 still merges only once M1 *and* M2 are answered (decided 2026-09-28); M1 is.
 
+> ### 2026-10-11, later — the host serves subdomains and the console host; subdomains switched on
+>
+> Plesk work done with the owner approving each save: `admin.ethr.et` → `ethr/api/public`
+> (the platform console answers there); wildcard `*.ethr.et` created with the same root; the
+> main domain's Let's Encrypt certificate reissued with the wildcard (Plesk DNS is
+> authoritative); the wildcard site assigned that certificate. Measured: `{slug}.ethr.et`
+> presents `CN=ethr.et` with `*.ethr.et` and resolves the organisation by hostname. Then
+> `NEXT_PUBLIC_ROOT_DOMAIN=ethr.et` in the frontend build and `TENANCY_SUBDOMAINS=true` on the
+> host, together. **M3 is no longer the blocker it was.** Custom domains still need a Plesk
+> alias and certificate per organisation. **No gate status moved** (the register is the owner's).
+>
 > ### 2026-10-11 — each organisation chooses its address; the host still serves one
 >
 > Code first, host second (owner instruction). An organisation now chooses `path`
