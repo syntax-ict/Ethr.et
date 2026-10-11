@@ -1,6 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
-import { hostnameIsAuthoritative } from "@/lib/auth/tenant-host";
+import { hostContext } from "@/lib/auth/host-context";
 
 export interface ApiError {
   type: string;
@@ -38,12 +38,19 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md). A custom domain or subdomain
   // the request arrived on still wins over a header naming someone else.
   //
-  // Where a root domain is configured, the hostname is the selector and this
-  // header is not sent: the apex routes to `{tenant}.{root}` instead. That
-  // condition is exactly "the hostname is not authoritative": the second guard
-  // this used to carry counted labels without knowing the root domain, and
-  // could only ever disagree with the first one wrongly.
-  if (!hostnameIsAuthoritative()) {
+  // Sent wherever the hostname names no organisation: the apex and its `www`
+  // alias ("public"), and any host with no root domain configured ("unknown").
+  // Until 2026-10-11 a configured root domain switched the header off
+  // entirely, on the assumption that every organisation then lived on its
+  // subdomain. Each organisation now chooses, and one that chose the shared
+  // address signs in on the apex — where nothing but this header names it.
+  // On a tenant host or the platform host the server ignores or refuses it,
+  // so it is simply not sent there.
+  const context = hostContext(
+    window.location.host,
+    process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null,
+  );
+  if (context === "public" || context === "unknown") {
     const tenant = localStorage.getItem("tenant");
     if (tenant && config.headers) {
       config.headers["X-Tenant"] = tenant;
