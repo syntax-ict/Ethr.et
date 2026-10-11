@@ -218,16 +218,30 @@ to the same **`ethr/api/public`**, and serve the `*.<APP_DOMAIN>` certificate on
 then, tenant hosts land on the Plesk login. The apex (`/login`, *Find your organisation*)
 works without it.
 
-*(Measured 2026-10-11: DNS already resolves `*.<APP_DOMAIN>` to the host, and
-`admin.<APP_DOMAIN>` exists in Plesk with its own valid certificate but serves Plesk's default
-page. So the work left is the two document roots and the wildcard certificate.)*
+**Done 2026-10-11, in this order, each measured:** `admin.<APP_DOMAIN>`'s document root set to
+`ethr/api/public` (it then answered the console: `/` → 302 `/admin/`, `/release.json` 200, and
+`www.<APP_DOMAIN>/admin` still 403). Then *Add Subdomain* with the name `*` and the same
+document root. Plesk's certificate tool refuses to run on the wildcard site itself ("Domain
+\*.ethr.et is a wildcard. SslIt extension is not available."); the route is the **main domain's**
+certificate page → *Reissue Certificate* → *Install a free basic certificate provided by Let's
+Encrypt* → tick *Secure the wildcard domain* (validated through Plesk's own DNS, which is
+authoritative for the zone). Then the wildcard site's Hosting Settings → *Certificate* → *Lets
+Encrypt <APP_DOMAIN> (\*.<APP_DOMAIN>)*. The web server picked it up about a minute after the save:
+`{slug}.<APP_DOMAIN>` then presented `CN=<APP_DOMAIN>` with `*.<APP_DOMAIN>` in its names and
+served the release, and `/api/v1/auth/tenant-context` resolved each organisation from the
+hostname (an unknown slug: *Tenant Not Found*).
 
 **Then, and only then, turn subdomains on in both places at once:** `TENANCY_SUBDOMAINS=true`
 in `.env` (then `clear` and `optimize`), and `NEXT_PUBLIC_ROOT_DOMAIN=<APP_DOMAIN>` in the
-frontend build (`src/.env.production`, so a release). Since 2026-10-11 the flag says only what
-the host serves: each organisation chooses its own address in **Settings → Address** — the
-shared `ethr.et/{slug}`, its subdomain, or its own verified domain — and a chosen subdomain
-takes effect on its own once the flag is true. Nothing per organisation needs touching.
+frontend build (`src/.env.production`, so a release). The flag says only what the host serves:
+each organisation chooses its own address in **Settings → Address** — the shared
+`ethr.et/{slug}`, its subdomain, or its own verified domain — and a chosen subdomain takes
+effect on its own once the flag is true. Nothing per organisation needs touching. *(Both
+switched on 2026-10-11, the frontend first as a release, then the host's `.env`. One thing the
+frontend had to learn first: with a root domain set it used to send every apex sign-in to
+`{slug}.<APP_DOMAIN>` and stop sending `X-Tenant` on the apex, which would have signed an
+organisation on the shared address into empty pages; it now leaves the hand-off to the
+server's 409 and sends the header wherever the hostname names no organisation.)*
 
 ## Every release after this
 

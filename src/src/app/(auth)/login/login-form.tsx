@@ -21,7 +21,6 @@ import { Label } from "@/components/ui/label";
 import { initiateSso, login, prepareCsrfCookie } from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
-import { tenantHostUrl } from "@/lib/auth/tenant-host";
 import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
 
@@ -99,18 +98,12 @@ export function LoginForm() {
     const effectiveTenant =
       subdomainFromHost ?? (data.tenant ?? "").trim().toLowerCase();
 
-    // Where the hostname is authoritative, credentials must be entered on the
-    // host that will hold the session. The session cookie is host-only (that is
-    // what keeps one tenant's cookie away from another's host), so signing in
-    // here on the apex and then redirecting would arrive with no session at
-    // all. Route to the tenant's own login page instead — nothing sensitive
-    // crosses the boundary, only the organisation slug the user just typed.
-    const target = tenantHostUrl(effectiveTenant, "/login");
-    if (target) {
-      localStorage.setItem("tenant", effectiveTenant);
-      window.location.assign(target);
-      return;
-    }
+    // Where the organisation lives is the server's call, not this form's.
+    // Until 2026-10-11 a configured root domain made this form send every
+    // apex sign-in to `{slug}.ethr.et` before asking; but an organisation may
+    // have chosen the shared address, and only the server knows. It answers
+    // 409 `canonical-address` (handled below) when the sign-in belongs on
+    // another host, before it looks at the password.
 
     try {
       await prepareCsrfCookie();

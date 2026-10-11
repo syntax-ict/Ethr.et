@@ -4,7 +4,7 @@ import { SITE_URL } from "@/lib/site-url";
  * The address a person types to reach an organisation, as the UI should print it.
  *
  * Two shapes, chosen by the same switch the rest of the frontend uses
- * (`NEXT_PUBLIC_ROOT_DOMAIN`, see `lib/auth/tenant-host.ts`):
+ * (`NEXT_PUBLIC_ROOT_DOMAIN`, see `lib/auth/host-context.ts`):
  *
  *   root domain set    → subdomain mode:   `acme.ethr.et`
  *   root domain unset  → single-host mode: `ethr.et/acme`
