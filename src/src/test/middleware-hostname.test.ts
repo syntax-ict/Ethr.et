@@ -65,6 +65,21 @@ describe("hostname middleware", () => {
     expect(new URL(response.headers.get("location")!).pathname).toBe("/admin");
   });
 
+  it("serves account security on the platform host, but not the rest of /profile", () => {
+    // The console's MFA banner links to /profile/security. Redirecting it to
+    // /admin left the platform admin unable to enrol at all.
+    for (const path of ["/profile/security", "/profile/security/"]) {
+      expect(
+        middleware(requestFor("admin.localhost:3000", path)).headers.get(
+          "location",
+        ),
+      ).toBeNull();
+    }
+
+    const profile = middleware(requestFor("admin.localhost:3000", "/profile"));
+    expect(new URL(profile.headers.get("location")!).pathname).toBe("/admin");
+  });
+
   it("leaves the login page alone on every host", () => {
     // The platform host serves /login itself — that is where a super admin
     // signs in. Redirecting it would be a loop.
