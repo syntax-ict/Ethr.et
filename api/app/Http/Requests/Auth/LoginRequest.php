@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Auth;
 
 use App\Enums\UserRole;
+use App\Http\Middleware\ResolveTenant;
 use App\Models\LoginHistory;
 use App\Models\User;
 use App\Services\Auth\AuthIdentifierResolver;
@@ -79,6 +80,17 @@ class LoginRequest extends FormRequest
             RateLimiter::clear($this->throttleKey());
 
             return;
+        }
+
+        // On the platform host only a super admin can sign in, so a miss above
+        // is simply wrong credentials. Asking for an organisation there sends
+        // the operator looking for a field the console does not have.
+        if ($this->attributes->get(ResolveTenant::PLATFORM_HOST) === true) {
+            RateLimiter::hit($this->throttleKey(), 300);
+
+            throw ValidationException::withMessages([
+                $this->errorField() => [__('auth.failed')],
+            ]);
         }
 
         $currentTenant = app(CurrentTenant::class);
