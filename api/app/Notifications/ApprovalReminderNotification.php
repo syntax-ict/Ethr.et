@@ -44,6 +44,6 @@ class ApprovalReminderNotification extends Notification
             ->subject(__('notification.approval_reminder_subject'))
             ->line("You have {$this->pendingCount} pending approval(s) that require your attention.")
             ->line("The oldest request has been waiting for {$this->oldestHours} hours.")
-            ->action('Review Approvals', FrontendUrl::to('/approvals'));
+            ->action('Review Approvals', FrontendUrl::forNotifiable($notifiable, '/approvals'));
     }
 }

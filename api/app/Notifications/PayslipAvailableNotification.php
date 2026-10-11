@@ -51,6 +51,6 @@ class PayslipAvailableNotification extends Notification
             'period' => $this->entry->payrollRun?->period_label,
             // Convention 3's display format, `X,XXX.XX ETB`.
             'net_amount' => number_format(((int) $this->entry->net_cents) / 100, 2).' ETB',
-        ])->action(__('notification.view_payslip'), FrontendUrl::to('/payroll/payslips'));
+        ])->action(__('notification.view_payslip'), FrontendUrl::forNotifiable($notifiable, '/payroll/payslips'));
     }
 }

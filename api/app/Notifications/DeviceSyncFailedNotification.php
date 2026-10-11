@@ -85,6 +85,6 @@ class DeviceSyncFailedNotification extends Notification
                 'name' => $this->device->name,
                 'reason' => $this->reason,
             ]))
-            ->action(__('notification.device_action'), FrontendUrl::to('/devices'));
+            ->action(__('notification.device_action'), FrontendUrl::forNotifiable($notifiable, '/devices'));
     }
 }

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Settings;
 
+use App\Enums\TenantAddressMode;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\GenerateScimTokenRequest;
+use App\Http\Requests\Settings\UpdateAddressRequest;
 use App\Http\Requests\Settings\UpdateBrandingRequest;
 use App\Http\Requests\Settings\UpdateOrganizationRequest;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
@@ -15,6 +17,7 @@ use App\Models\AuditLog;
 use App\Models\SsoSetting;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
+use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
 use App\Support\TenantSecurityPolicy;
 use App\Support\WorkingWeek;
@@ -24,7 +27,7 @@ use Illuminate\Support\Str;
 
 class SettingsController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(TenantAddressService $addresses): JsonResponse
     {
         Gate::authorize('settings.manage');
 
@@ -52,6 +55,7 @@ class SettingsController extends Controller
                 'timezone' => $tenant->timezone,
                 'locale' => $tenant->default_locale,
             ],
+            'address' => $addresses->describe($tenant),
             'branding' => [
                 'logo_url' => $tenant->logo_path === null ? null : $tenant->logo_path,
                 'theme' => $this->brandTheme($tenant),
@@ -282,5 +286,49 @@ class SettingsController extends Controller
             'auto_provision' => $sso->auto_provision,
             'metadata_url' => config('app.url').'/api/v1/sso/saml/'.$tenant->subdomain.'/metadata',
         ];
+    }
+
+    /**
+     * Choose how the organisation is reached: `path` (ethr.et/{slug}),
+     * `subdomain` ({slug}.ethr.et) or `custom_domain` (its own, verified).
+     *
+     * The domain may be assigned or cleared in the same save. A choice the
+     * deployment cannot honour yet is kept and reported in `effective_mode`,
+     * so links keep working at the fallback address and switch on their own
+     * once the host serves subdomains or the domain verifies.
+     */
+    public function updateAddress(UpdateAddressRequest $request, TenantAddressService $addresses): JsonResponse
+    {
+        Gate::authorize('settings.manage');
+
+        $tenant = app(CurrentTenant::class)->get();
+
+        if ($request->has('custom_domain')) {
+            $addresses->assignDomain($tenant, $request->input('custom_domain'), 'settings.domain_changed');
+        }
+
+        $addresses->changeMode($tenant, $request->enum('mode', TenantAddressMode::class) ?? TenantAddressMode::PATH, 'settings.address_updated');
+
+        return response()->json([
+            'address' => $addresses->describe($tenant->refresh()),
+        ]);
+    }
+
+    /**
+     * Check the pending custom domain's DNS records and, if both are in
+     * place, make it the organisation's address. A 422 names each record not
+     * found, under `txt` and `cname`.
+     */
+    public function verifyAddress(TenantAddressService $addresses): JsonResponse
+    {
+        Gate::authorize('settings.manage');
+
+        $tenant = app(CurrentTenant::class)->get();
+
+        $addresses->verifyDomain($tenant, 'settings.domain_verified');
+
+        return response()->json([
+            'address' => $addresses->describe($tenant->refresh()),
+        ]);
     }
 }

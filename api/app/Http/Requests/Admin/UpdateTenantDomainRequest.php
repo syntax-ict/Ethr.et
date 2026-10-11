@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\RejectsPlatformHosts;
 use App\Models\Tenant;
-use App\Support\TenancyDomain;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Validator;
 
 /**
  * A bare hostname such as `hr.acme.com`, or `null` to clear it.
@@ -23,6 +22,8 @@ use Illuminate\Validation\Validator;
  */
 class UpdateTenantDomainRequest extends FormRequest
 {
+    use RejectsPlatformHosts;
+
     public function authorize(): bool
     {
         return true;
@@ -48,34 +49,12 @@ class UpdateTenantDomainRequest extends FormRequest
                 'nullable',
                 'string',
                 'max:253',
-                'regex:/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$/',
+                'regex:'.Tenant::CUSTOM_DOMAIN_REGEX,
                 'unique:tenants,custom_domain,'.$this->route('publicId').',public_id',
             ],
         ];
     }
 
-    /**
-     * A host this deployment already owns can never be a custom domain.
-     *
-     * ResolveTenant consults custom domains only for hosts outside APP_DOMAIN,
-     * so `ethr.et`, `admin.ethr.et` or `habru.ethr.et` assigned here would
-     * never resolve, while FrontendUrl would still put it in every link the
-     * tenant is sent. A hook rather than a rule, so `rules()` and the API
-     * contract Scramble derives from it stay plain.
-     */
-    public function withValidator(Validator $validator): void
-    {
-        $validator->after(function (Validator $validator): void {
-            $root = TenancyDomain::root();
-            $domain = $this->input('custom_domain');
-
-            if ($root === null || ! is_string($domain) || $validator->errors()->has('custom_domain')) {
-                return;
-            }
-
-            if ($domain === $root || str_ends_with($domain, '.'.$root)) {
-                $validator->errors()->add('custom_domain', __('validation.custom_domain_reserved', ['root' => $root]));
-            }
-        });
-    }
+    // The platform-host refusal is RejectsPlatformHosts, shared with the
+    // organisation's own UpdateAddressRequest.
 }
