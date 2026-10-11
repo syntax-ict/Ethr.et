@@ -46,6 +46,6 @@ class DeviceOfflineNotification extends Notification
         return (new MailMessage)
             ->subject(__('notification.device_offline_subject'))
             ->line("Biometric device \"{$this->device->name}\" at {$location} has gone offline.")
-            ->action('View Device Status', FrontendUrl::to('/devices'));
+            ->action('View Device Status', FrontendUrl::forNotifiable($notifiable, '/devices'));
     }
 }

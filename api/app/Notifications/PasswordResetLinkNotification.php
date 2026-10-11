@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -25,9 +26,15 @@ class PasswordResetLinkNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $email = $notifiable->email ?? '';
-        $frontendUrl = rtrim((string) config('app.frontend_url'), '/');
 
-        $resetUrl = "{$frontendUrl}/login/reset?token={$this->token}&email=".urlencode($email)."&tenant={$this->tenantSubdomain}";
+        // At the organisation's own address, like the activation mail: the
+        // reset form signs the person in where it runs, and that should be
+        // where every other link points. `tenant=` stays because the form
+        // requires it on the shared host.
+        $resetUrl = FrontendUrl::forTenant(
+            $this->tenantSubdomain,
+            "/login/reset?token={$this->token}&email=".urlencode($email)."&tenant={$this->tenantSubdomain}",
+        );
 
         return (new MailMessage)
             ->subject(__('Reset your ETHR password'))

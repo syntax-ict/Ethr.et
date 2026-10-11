@@ -29,6 +29,12 @@ beforeEach(function () {
     config([
         'app.domain' => 'ethr.test',
         'app.url' => 'http://ethr.test',
+        // Hostname mode: the deployment serves {tenant}.ethr.test, so the
+        // hand-off lands there, at the frontend's scheme and port like every
+        // other link. The shared-host hand-off (an organisation reached as
+        // ethr.et/{slug}) is TenantAddressModeTest's.
+        'app.frontend_url' => 'http://ethr.test',
+        'tenancy.subdomains' => true,
         // Queued cookies are only attached for requests Sanctum considers
         // stateful, which it decides by Origin — production lists the tenant
         // hosts the same way (SANCTUM_STATEFUL_DOMAINS=ethr.et,*.ethr.et).

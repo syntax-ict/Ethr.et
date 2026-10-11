@@ -42,6 +42,6 @@ class TrialExpiringNotification extends Notification
         return NotificationTemplates::mail('trial_expiring', is_int($tenantId) || is_string($tenantId) ? $tenantId : null, [
             'days_remaining' => $this->daysRemaining,
             'trial_ends_at' => $this->trialEndsAt,
-        ])->action('Upgrade Plan', FrontendUrl::to('/billing'));
+        ])->action('Upgrade Plan', FrontendUrl::forNotifiable($notifiable, '/billing'));
     }
 }

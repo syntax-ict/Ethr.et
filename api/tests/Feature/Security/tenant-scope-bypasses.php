@@ -11,6 +11,13 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-11: **163 across 61 files**. `Services/TenantAddressService` is the one
+ * implementation behind the platform console's domain endpoints and the
+ * organisation's own `PUT /settings/address`. Its single bypass loads a
+ * tenant's latest subscription for the plan gate, stating `tenant_id` from
+ * the tenant in hand on the same chain — the console asks about tenants
+ * other than the current one, which is why the scope cannot answer.)
+ *
  * (2026-10-07: **158 across 58 files**. The kiosk token lookup moved into
  * `KioskSession::resolveActiveByToken()` (audit N47): pre-authentication, the
  * token is the credential and names its own tenant, and it then makes that
@@ -188,6 +195,7 @@ return [
     'Services/Payroll/PayrollEngine.php' => 4,
     'Services/Payroll/TaxCalculator.php' => 1,
     'Services/Report/ReportEngine.php' => 4,
+    'Services/TenantAddressService.php' => 1,
     'Services/UserProvisioningService.php' => 1,
     'Services/Webhook/WebhookDispatcher.php' => 1,
     'Support/AuditSubjects.php' => 3,

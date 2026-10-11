@@ -218,6 +218,17 @@ to the same **`ethr/api/public`**, and serve the `*.<APP_DOMAIN>` certificate on
 then, tenant hosts land on the Plesk login. The apex (`/login`, *Find your organisation*)
 works without it.
 
+*(Measured 2026-10-11: DNS already resolves `*.<APP_DOMAIN>` to the host, and
+`admin.<APP_DOMAIN>` exists in Plesk with its own valid certificate but serves Plesk's default
+page. So the work left is the two document roots and the wildcard certificate.)*
+
+**Then, and only then, turn subdomains on in both places at once:** `TENANCY_SUBDOMAINS=true`
+in `.env` (then `clear` and `optimize`), and `NEXT_PUBLIC_ROOT_DOMAIN=<APP_DOMAIN>` in the
+frontend build (`src/.env.production`, so a release). Since 2026-10-11 the flag says only what
+the host serves: each organisation chooses its own address in **Settings → Address** — the
+shared `ethr.et/{slug}`, its subdomain, or its own verified domain — and a chosen subdomain
+takes effect on its own once the flag is true. Nothing per organisation needs touching.
+
 ## Every release after this
 
 1. Merge to `main`, and wait for **Plesk release** to go green.

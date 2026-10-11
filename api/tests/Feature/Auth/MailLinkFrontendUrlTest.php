@@ -117,7 +117,8 @@ it('links every notification to a page the frontend actually has', function () {
     $paths = [];
 
     foreach (File::allFiles(app_path('Notifications')) as $file) {
-        preg_match_all("/FrontendUrl::to\\('([^']+)'\\)/", $file->getContents(), $m);
+        // Both spellings: the shared host, and the recipient's organisation.
+        preg_match_all("/FrontendUrl::(?:to\\(|forNotifiable\\(\\\$notifiable, )'([^']+)'\\)/", $file->getContents(), $m);
 
         foreach ($m[1] as $path) {
             $paths[] = $path;

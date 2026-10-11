@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Auth;
 
+use App\Enums\TenantAddressMode;
 use App\Models\Tenant;
+use App\Support\FrontendUrl;
 use App\Support\TenancyDomain;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -102,15 +104,27 @@ class SessionHandoff
         return TenancyDomain::isHostnameAuthoritative();
     }
 
-    public static function urlFor(string $tenantSubdomain, string $nonce): string
+    /**
+     * The claim page at the organisation's own address (Tenant::addressMode):
+     * its custom domain, its subdomain, or the shared host. Until 2026-10-11
+     * this always built the subdomain, which on a host that serves none (M3)
+     * sent every impersonation to a page that did not answer.
+     */
+    public static function urlFor(Tenant $tenant, string $nonce): string
     {
-        $domain = TenancyDomain::root();
-        $scheme = self::scheme();
+        $url = FrontendUrl::at($tenant, 'impersonate/claim');
+
+        // On the shared host the hostname names no organisation, so the claim
+        // page is told which one to name in X-Tenant. The slug is not a
+        // secret: it is the organisation's entry URL.
+        if ($tenant->effectiveAddressMode() === TenantAddressMode::PATH) {
+            $url .= '?org='.rawurlencode($tenant->subdomain);
+        }
 
         // The nonce rides in the fragment. A query parameter would put a bearer
         // credential into nginx access logs and any Referer sent onward — the
         // same reason credentials never appear in this application's URLs.
-        return "{$scheme}://{$tenantSubdomain}.{$domain}/impersonate/claim#nonce={$nonce}";
+        return "{$url}#nonce={$nonce}";
     }
 
     /**

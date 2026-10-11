@@ -207,7 +207,7 @@ it('sends an organisation entry URL to Laravel, and nothing a page or asset owns
     $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
 
     $pattern = '[a-z0-9][a-z0-9-]{0,62}';
-    $entryRule = 'RewriteRule ^('.$pattern.')/?$ index.php [L]';
+    $entryRule = 'RewriteRule ^('.$pattern.')/?$ index.php [L,NC]';
 
     // Without it ethr.et/{slug} never reached OrganisationEntryController:
     // ErrorDocument answered first, so every organisation's entry URL, and
@@ -234,8 +234,12 @@ it('sends an organisation entry URL to Laravel, and nothing a page or asset owns
     // The pattern is the route's own constraint, so Apache never hands Laravel
     // a path its route refuses, nor refuses one the route would answer. It has
     // no dot, so no asset, exported .html or index.php itself can match.
+    // Both sides accept either case — the rule with [NC], the route with an
+    // inline (?i) — and the controller lower-cases, so ethr.et/Habru is habru
+    // rather than an Apache 404 (2026-10-11).
     $routes = (string) file_get_contents(base_path('routes/web.php'));
-    expect($routes)->toContain("->where('slug', '{$pattern}')");
+    expect($routes)->toContain("->where('slug', '(?i){$pattern}')");
+    expect($entryRule)->toEndWith('[L,NC]');
     expect($pattern)->not->toContain('.');
 });
 

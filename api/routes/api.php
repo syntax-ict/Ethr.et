@@ -691,6 +691,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::put('/tenants/{publicId}/status', [AdminTenantController::class, 'updateStatus']);
             Route::put('/tenants/{publicId}/domain', [AdminTenantController::class, 'updateDomain']);
             Route::post('/tenants/{publicId}/domain/verify', [AdminTenantController::class, 'verifyDomain']);
+            Route::put('/tenants/{publicId}/address-mode', [AdminTenantController::class, 'updateAddressMode']);
             Route::post('/tenants/{publicId}/extend-trial', [AdminTenantController::class, 'extendTrial']);
             Route::post('/tenants/{publicId}/impersonate', [AdminTenantController::class, 'impersonate']);
             Route::post('/tenants/{publicId}/backup', [AdminTenantController::class, 'backup']);
@@ -738,6 +739,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::get('/settings', [SettingsController::class, 'index']);
     Route::put('/settings', [SettingsController::class, 'update']);
     Route::put('/settings/organization', [SettingsController::class, 'updateOrganization']);
+    Route::put('/settings/address', [SettingsController::class, 'updateAddress']);
+    Route::post('/settings/address/verify', [SettingsController::class, 'verifyAddress']);
     Route::put('/settings/branding', [SettingsController::class, 'updateBranding']);
     Route::put('/settings/sso', [SettingsController::class, 'updateSso']);
     Route::post('/settings/scim-token', [SettingsController::class, 'generateScimToken']);

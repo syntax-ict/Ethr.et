@@ -58,6 +58,12 @@ export function verifiedDomain(
 export interface AdminTenantDetail extends Omit<AdminTenant, "employee_count"> {
   /** The two records the organisation publishes; null with no domain. */
   custom_domain_dns: UpdateTenantDomainResult["custom_domain_dns"];
+  /** The address the organisation chose: `path`, `subdomain` or `custom_domain`. */
+  address_mode: string;
+  /** The address links use right now, which differs while the choice cannot be honoured yet. */
+  address_mode_effective: string;
+  /** The origin links point at; null on the shared host. */
+  canonical_url: string | null;
   /** Whether the plan includes the `custom_domain` add-on. */
   custom_domain_allowed: boolean;
   updated_at: string;
@@ -666,5 +672,28 @@ export function useRetireAdminPlan() {
       return data.data as AdminPlan;
     },
     onSuccess: () => invalidatePlanCaches(qc),
+  });
+}
+
+export type UpdateTenantAddressModeResult =
+  operations["adminTenant.updateAddressMode"]["responses"][200]["content"]["application/json"];
+
+/** Sets the organisation's address mode on its behalf: `path`, `subdomain` or `custom_domain`. */
+export function useUpdateTenantAddressMode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      mode,
+    }: {
+      publicId: string;
+    } & components["schemas"]["UpdateTenantAddressModeRequest"]) => {
+      const { data } = await apiClient.put<UpdateTenantAddressModeResult>(
+        `/admin/tenants/${publicId}/address-mode`,
+        { mode },
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "tenants"] }),
   });
 }

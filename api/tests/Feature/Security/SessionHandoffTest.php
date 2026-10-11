@@ -125,7 +125,13 @@ it('gives the same answer for every failure, so nonces cannot be probed', functi
 });
 
 it('puts the nonce in the URL fragment, never the query string', function () {
-    $url = SessionHandoff::urlFor('habru', 'abc123');
+    // The organisation's own host, as every link: the frontend's scheme and
+    // port, where the deployment serves subdomains (TenantAddressModeTest has
+    // the shared-host form, which carries the slug in the query — never the nonce).
+    config(['app.frontend_url' => 'http://ethr.et', 'tenancy.subdomains' => true]);
+    $tenant = Tenant::factory()->create(['subdomain' => 'habru']);
+
+    $url = SessionHandoff::urlFor($tenant, 'abc123');
 
     // A query parameter would land in nginx access logs and any Referer sent
     // onward — the same reason no credential appears in this app's URLs.

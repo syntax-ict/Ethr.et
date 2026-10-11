@@ -77,6 +77,19 @@ mandatory gate below reads `PASS`.**
 >
 > PR #133 still merges only once M1 *and* M2 are answered (decided 2026-09-28); M1 is.
 
+> ### 2026-10-11 — each organisation chooses its address; the host still serves one
+>
+> Code first, host second (owner instruction). An organisation now chooses `path`
+> (`ethr.et/{slug}`), `subdomain` or `custom_domain` from its own Settings, assigns and
+> verifies its own domain there (Enterprise add-on), and every link ETHR sends — reset,
+> activation, notifications, impersonation — follows the choice. A choice the host cannot
+> honour yet falls back to the path and switches on its own once it can. Measured the same
+> day: DNS already resolves `*.ethr.et`, but Plesk serves no subdomain site (any
+> `{slug}.ethr.et` shows the panel's own certificate and login), and `admin.ethr.et` exists
+> with a valid certificate but serves Plesk's default page. Those two are the remaining
+> host work for the subdomain and custom-domain tiers; `TENANCY_SUBDOMAINS` stays `false`
+> until then. **No gate status moved.**
+>
 > ### 2026-10-10, later — the provider's SMTP certificate is expired
 >
 > With the CA bundle deployed, sends still failed. `mail-probe`, run on the host, showed that
