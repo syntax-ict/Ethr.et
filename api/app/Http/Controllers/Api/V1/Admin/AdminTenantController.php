@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Enums\PlanFeature;
+use App\Enums\TenantAddressMode;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ExtendTrialRequest;
 use App\Http\Requests\Admin\ImpersonateTenantRequest;
+use App\Http\Requests\Admin\UpdateTenantAddressModeRequest;
 use App\Http\Requests\Admin\UpdateTenantDomainRequest;
 use App\Http\Requests\Admin\UpdateTenantStatusRequest;
 use App\Http\Resources\AdminTenantResource;
@@ -27,6 +29,8 @@ use App\Services\AuthService;
 use App\Services\CustomDomainVerifier;
 use App\Services\MfaService;
 use App\Services\PlanFeatureService;
+use App\Services\TenantAddressService;
+use App\Support\FrontendUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -122,6 +126,9 @@ class AdminTenantController extends Controller
             'custom_domain_status' => $this->domainStatus($tenant),
             'custom_domain_dns' => $this->domainDns($tenant),
             'custom_domain_allowed' => $plans->allows($tenant, PlanFeature::CustomDomain),
+            'address_mode' => $tenant->addressMode()->value,
+            'address_mode_effective' => $tenant->effectiveAddressMode()->value,
+            'canonical_url' => FrontendUrl::canonicalOrigin($tenant),
             'type' => $tenant->type,
             'status' => $tenant->status->value,
             'trial_ends_at' => $tenant->trial_ends_at,
@@ -443,7 +450,7 @@ class AdminTenantController extends Controller
                 'expires_at' => $expiresAt,
                 // The nonce travels in the fragment of this URL, so it is never
                 // sent to a server in a query string or written to a log.
-                'handoff_url' => SessionHandoff::urlFor($tenant->subdomain, $nonce),
+                'handoff_url' => SessionHandoff::urlFor($tenant, $nonce),
             ]);
         }
 
@@ -627,6 +634,30 @@ class AdminTenantController extends Controller
         return response()->json([
             'message' => 'Backup job queued. You will be notified when the export is ready.',
             'tenant_id' => $tenant->public_id,
+        ]);
+    }
+
+    /**
+     * Set which address the organisation is reached at, on its behalf. The
+     * organisation can do the same from its own settings; this is for support.
+     * A mode the deployment cannot honour yet is kept and reported as such in
+     * `address_mode_effective`, so the choice survives the host work.
+     */
+    public function updateAddressMode(UpdateTenantAddressModeRequest $request, string $publicId, TenantAddressService $addresses): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::query()
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+
+        $addresses->changeMode($tenant, $request->enum('mode', TenantAddressMode::class) ?? TenantAddressMode::PATH, 'admin.tenant.address_mode_changed');
+
+        return response()->json([
+            'public_id' => $tenant->public_id,
+            'address_mode' => $tenant->addressMode()->value,
+            'address_mode_effective' => $tenant->effectiveAddressMode()->value,
+            'canonical_url' => FrontendUrl::canonicalOrigin($tenant),
         ]);
     }
 }

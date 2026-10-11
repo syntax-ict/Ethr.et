@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\TenantAddressMode;
 use App\Enums\TenantStatus;
+use App\Support\TenancyDomain;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -21,6 +23,7 @@ use Illuminate\Support\Facades\Cache;
  * @property string|null $custom_domain
  * @property string|null $custom_domain_token
  * @property Carbon|null $custom_domain_verified_at
+ * @property TenantAddressMode|null $address_mode
  */
 class Tenant extends Model
 {
@@ -82,6 +85,7 @@ class Tenant extends Model
         'name',
         'subdomain',
         'custom_domain',
+        'address_mode',
         'type',
         'status',
         'logo_path',
@@ -107,7 +111,67 @@ class Tenant extends Model
             'ethiopian_calendar' => 'boolean',
             'trial_ends_at' => 'datetime',
             'custom_domain_verified_at' => 'datetime',
+            'address_mode' => TenantAddressMode::class,
         ];
+    }
+
+    /**
+     * A bare hostname: labels of letters, digits and hyphens, a dotted path of
+     * them, and a top-level label that starts with a letter. One pattern for
+     * every request that accepts a custom domain, so the console and the
+     * organisation's own settings cannot disagree about what a domain is.
+     */
+    public const CUSTOM_DOMAIN_REGEX = '/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$/';
+
+    /**
+     * The address the organisation chose, or, while it has not chosen, the
+     * one FrontendUrl always gave it: a verified custom domain, else the
+     * subdomain where this deployment serves them, else the path.
+     */
+    public function addressMode(): TenantAddressMode
+    {
+        if ($this->address_mode instanceof TenantAddressMode) {
+            return $this->address_mode;
+        }
+
+        if ($this->hasVerifiedCustomDomain()) {
+            return TenantAddressMode::CUSTOM_DOMAIN;
+        }
+
+        return self::subdomainsServed() ? TenantAddressMode::SUBDOMAIN : TenantAddressMode::PATH;
+    }
+
+    /**
+     * The address links can actually use right now. A chosen custom domain
+     * counts only once verified; a chosen subdomain only where the deployment
+     * serves them. Anything else falls back the way an unchosen organisation
+     * would: a link must never point at a host that does not answer.
+     */
+    public function effectiveAddressMode(): TenantAddressMode
+    {
+        $chosen = $this->addressMode();
+
+        if ($chosen === TenantAddressMode::CUSTOM_DOMAIN && $this->hasVerifiedCustomDomain()) {
+            return TenantAddressMode::CUSTOM_DOMAIN;
+        }
+
+        if ($chosen === TenantAddressMode::SUBDOMAIN && self::subdomainsServed()) {
+            return TenantAddressMode::SUBDOMAIN;
+        }
+
+        if ($chosen === TenantAddressMode::PATH) {
+            return TenantAddressMode::PATH;
+        }
+
+        // The choice cannot be honoured yet (a pending domain, a subdomain on
+        // a host that has none): the deployment's own default instead.
+        return self::subdomainsServed() ? TenantAddressMode::SUBDOMAIN : TenantAddressMode::PATH;
+    }
+
+    /** Whether this deployment serves `{slug}.{root}` at all (TENANCY_SUBDOMAINS, after M3). */
+    public static function subdomainsServed(): bool
+    {
+        return TenancyDomain::root() !== null && (bool) config('tenancy.subdomains');
     }
 
     public function users(): HasMany

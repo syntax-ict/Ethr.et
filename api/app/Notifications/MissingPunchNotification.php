@@ -61,6 +61,6 @@ class MissingPunchNotification extends Notification
             'employee_name' => $this->employee->name,
             'date' => $this->date,
             'punch_type' => $label,
-        ])->action('View Attendance', FrontendUrl::to('/attendance'));
+        ])->action('View Attendance', FrontendUrl::forNotifiable($notifiable, '/attendance'));
     }
 }

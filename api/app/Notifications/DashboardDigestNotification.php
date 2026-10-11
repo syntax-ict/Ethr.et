@@ -110,7 +110,7 @@ class DashboardDigestNotification extends Notification
 
         return $message->action(
             __('dashboard.digest_view_dashboard'),
-            FrontendUrl::to('/analytics'),
+            FrontendUrl::forNotifiable($notifiable, '/analytics'),
         );
     }
 }

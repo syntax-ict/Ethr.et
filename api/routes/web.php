@@ -19,6 +19,9 @@ if (class_exists(Scramble::class)) {
 // only paths with no file behind them here, which includes every scanner probe
 // for /wp-admin and the like — so it runs without the web group: no session
 // row written per request, no cookie, nothing the redirect needs.
+// Either case ((?i); the controller lower-cases), so ethr.et/Habru reaches
+// habru instead of a 404. .htaccess group 2b matches [NC] to agree, and
+// SharedHostingHtaccessTest pins the pattern itself to the rule's.
 Route::get('/{slug}', OrganisationEntryController::class)
-    ->where('slug', '[a-z0-9][a-z0-9-]{0,62}')
+    ->where('slug', '(?i)[a-z0-9][a-z0-9-]{0,62}')
     ->withoutMiddleware('web');

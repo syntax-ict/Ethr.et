@@ -326,3 +326,26 @@ it('keeps the support request agreeing with itself about how many asks it makes'
         .'match the document. It said "three" for a day after the fourth was added.'
     );
 });
+
+it('turns subdomains on in the API and the frontend build together, never one without the other', function () {
+    // Two switches, two files, one meaning. TENANCY_SUBDOMAINS makes the API
+    // build subdomain links and hand sign-in off to them; NEXT_PUBLIC_ROOT_DOMAIN
+    // makes the frontend route to {slug}.{root} and stop sending X-Tenant on the
+    // apex. With the frontend's on and the API's off, an organisation reached
+    // as ethr.et/{slug} signs in on the apex and then sees empty pages: nothing
+    // names its tenant. With the API's on and the frontend's off, every mail
+    // link points at a host the frontend was not built for.
+    $api = file_get_contents(base_path('.env.shared-hosting.example')) ?: '';
+    $frontend = file_get_contents(ethrRepoPath('src/.env.production')) ?: '';
+
+    preg_match('/^TENANCY_SUBDOMAINS=(\w*)/m', $api, $apiMatch);
+    preg_match('/^NEXT_PUBLIC_ROOT_DOMAIN=(\S*)/m', $frontend, $frontendMatch);
+
+    $apiOn = ($apiMatch[1] ?? '') === 'true';
+    $frontendOn = ($frontendMatch[1] ?? '') !== '';
+
+    expect($apiOn)->toBe($frontendOn,
+        'api/.env.shared-hosting.example TENANCY_SUBDOMAINS and src/.env.production '
+        .'NEXT_PUBLIC_ROOT_DOMAIN disagree. Turn subdomains on in both, after the host serves '
+        .'*.<domain> (M3), or in neither.');
+});

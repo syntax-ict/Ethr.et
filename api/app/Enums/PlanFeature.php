@@ -33,8 +33,9 @@ enum PlanFeature: string
 
     /**
      * The organisation may be given its own domain (`hr.acme.com`), a paid
-     * add-on. It gates nothing a tenant does itself: it decides whether a
-     * platform admin may assign the domain.
+     * add-on. It decides whether a domain may be assigned at all, from the
+     * platform console or, since 2026-10-11, by the organisation itself
+     * (PUT /settings/address); nothing else a tenant does is gated by it.
      */
     case CustomDomain = 'custom_domain';
 

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Enums\TenantAddressMode;
 use App\Models\Tenant;
+use App\Models\User;
 
 /**
  * Frontend URLs ETHR hands out: in mail, in redirects, in anything a person clicks.
@@ -18,39 +20,35 @@ final class FrontendUrl
 
     /**
      * The one address an organisation lives at, as an origin with no path, or
-     * null when it has none of its own and lives on the shared host.
+     * null when it lives on the shared host.
      *
-     * Three tiers, in order (owner decision 2026-10-08):
+     * Decided by the organisation's own choice (Tenant::effectiveAddressMode,
+     * owner decision 2026-10-11), which falls back the way the old fixed
+     * tiering did when the choice cannot be honoured yet:
      *
-     *   1. Enterprise: its custom domain, once VERIFIED (https://hr.acme.com).
-     *      A pending domain is not an address: it may not point here yet, and
-     *      nothing proves the organisation holds it.
-     *   2. Standard: its subdomain, when this deployment serves them
-     *      (TENANCY_SUBDOMAINS=true), at the frontend's scheme and port.
-     *   3. Fallback: null. The organisation is reached on the shared host, where
-     *      `ethr.et/{slug}` leads to `/login?org={slug}`.
+     *   - custom domain: https://hr.acme.com, once VERIFIED. A pending domain
+     *     is not an address: it may not point here yet, and nothing proves the
+     *     organisation holds it.
+     *   - subdomain: https://acme.ethr.et, where this deployment serves them
+     *     (TENANCY_SUBDOMAINS=true), at the frontend's scheme and port.
+     *   - path: null. The organisation is reached on the shared host, where
+     *     `ethr.et/{slug}` leads to `/login?org={slug}`.
      */
     public static function canonicalOrigin(Tenant $tenant): ?string
     {
-        // Both tiers take the scheme and port from the frontend URL, which is
-        // https in production and whatever the rehearsal serves locally. A
-        // custom domain hard-coded to https pointed every redirect at a port
-        // the local-production rehearsal does not listen on, which made the
-        // Enterprise tier the one that could not be exercised before go-live.
+        // Both hosted tiers take the scheme and port from the frontend URL,
+        // which is https in production and whatever the rehearsal serves
+        // locally. A custom domain hard-coded to https pointed every redirect
+        // at a port the local-production rehearsal does not listen on.
         $frontend = parse_url((string) config('app.frontend_url'));
         $scheme = $frontend['scheme'] ?? 'https';
         $port = isset($frontend['port']) ? ':'.$frontend['port'] : '';
 
-        if ($tenant->hasVerifiedCustomDomain()) {
-            return "{$scheme}://{$tenant->custom_domain}{$port}";
-        }
-
-        $root = TenancyDomain::root();
-        if ($root !== null && config('tenancy.subdomains')) {
-            return "{$scheme}://{$tenant->subdomain}.{$root}{$port}";
-        }
-
-        return null;
+        return match ($tenant->effectiveAddressMode()) {
+            TenantAddressMode::CUSTOM_DOMAIN => "{$scheme}://{$tenant->custom_domain}{$port}",
+            TenantAddressMode::SUBDOMAIN => "{$scheme}://{$tenant->subdomain}.".TenancyDomain::root().$port,
+            TenantAddressMode::PATH => null,
+        };
     }
 
     /**
@@ -71,16 +69,48 @@ final class FrontendUrl
         // served, as it always did; it simply has no custom domain.
         $tenant = Tenant::query()->where('subdomain', $subdomain)->first()
             ?? new Tenant(['subdomain' => $subdomain]);
-        $origin = self::canonicalOrigin($tenant);
+
+        return self::at($tenant, $path);
+    }
+
+    /**
+     * `forTenant` for a tenant already in hand, with no lookup. Null stands
+     * for "no organisation" (a platform account): the shared host as given.
+     */
+    public static function at(?Tenant $tenant, string $path): string
+    {
+        $origin = $tenant === null ? null : self::canonicalOrigin($tenant);
 
         if ($origin !== null) {
             return $origin.'/'.ltrim($path, '/');
         }
 
-        if (trim($path, '/') === 'login') {
-            return self::to($subdomain);
+        if ($tenant !== null && trim($path, '/') === 'login') {
+            return self::to($tenant->subdomain);
         }
 
         return self::to($path);
+    }
+
+    /**
+     * A link in a notification, at the recipient's organisation. Notifications
+     * are sent to users and, for platform accounts, to users with no tenant;
+     * anything else (an anonymous route) gets the shared host.
+     */
+    public static function forNotifiable(object $notifiable, string $path): string
+    {
+        if (! $notifiable instanceof User) {
+            return self::to($path);
+        }
+
+        // Not `$notifiable->tenant`: a notification is built off a queue
+        // worker from a user loaded without relations, and the lazy load would
+        // be a violation this application logs. Tenant carries no tenant
+        // scope, so a lookup by its own key bypasses nothing.
+        $tenant = $notifiable->relationLoaded('tenant')
+            ? $notifiable->getRelation('tenant')
+            : Tenant::query()->find($notifiable->tenant_id);
+
+        return self::at($tenant instanceof Tenant ? $tenant : null, $path);
     }
 }
