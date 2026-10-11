@@ -18,7 +18,7 @@ Several documents in this tree describe things that are not true of the code. Th
 | [`deployment/CUTOVER-CHECKLIST.md`](deployment/CUTOVER-CHECKLIST.md) | **Can ETHR go live? The single register that decides.** `CUTOVER READY = NO` as of 2026-09-27. Five explicit states per gate, and it states in terms that a green CI run moves none of them. |
 | [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | Every hosting capability, graded panel-read vs probe-measured. **No longer all `NOT VERIFIED`** — see the row below. **Read the *Gate status reconciliation* section at the end for current status**; the tables above it are dated and were deliberately left unmodified. |
 | [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md) | **Phase 1, 2026-09-25 — the first evidence taken against the real host.** Five capabilities moved to `VERIFIED`; eight discrepancies against existing documents recorded without rewriting them. |
-| [`audit/QA-CONSOLE-PRODUCTION-2026-10-11.md`](audit/QA-CONSOLE-PRODUCTION-2026-10-11.md) | **Live read-only QA of the platform console on production**, release `v2026.10.11.3`. 17 findings (four S2), what passed, and what could not be covered. |
+| [`audit/QA-CONSOLE-PRODUCTION-2026-10-11.md`](audit/QA-CONSOLE-PRODUCTION-2026-10-11.md) | **Live read-only QA of the platform console on production**, release `v2026.10.11.3`. 18 findings (five S2), what passed, and what could not be covered. |
 
 Three standing caveats:
 

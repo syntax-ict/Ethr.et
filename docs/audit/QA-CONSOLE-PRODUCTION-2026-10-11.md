@@ -35,6 +35,7 @@ behaviour an operator can live with · **S4** polish, wording, hardening.
 | F15 | S4 | Response headers: duplicate HSTS, version disclosure, `'unsafe-inline'` scripts |
 | F16 | S4 | Invoices card is hidden when an organisation has none; invoice rendering untested |
 | F17 | S4 | `HEAD /admin/audit` answered 503 once in the browser; not reproducible |
+| F18 | S2 | **Enable now** on the MFA banner cannot work: the console host redirects `/profile/security` to `/admin/` — fixed in PR #191 |
 
 ## Findings
 
@@ -231,6 +232,31 @@ Mark paid (F4) could not be exercised.
 While the audit page loaded, the browser logged `HEAD https://admin.ethr.et/admin/audit`
 → 503. The service worker ignores non-GET requests (`sw.js:46`), and `curl -I` on
 the same URL answers 200 three times out of three. Recorded in case it recurs.
+
+### F18 · S2 · The console's MFA link is redirected away
+
+*Found after the first pass, when the owner reported that **Enable now** "won't show
+any message".*
+
+**Steps.** On `admin.ethr.et`, click **Enable now** on the "Two-factor
+authentication required" banner (it links to `/profile/security`).
+
+**Expected.** The account-security page, with the two-factor setup.
+
+**Actual.** The browser lands back on `/admin/`. `curl` shows
+`admin.ethr.et/profile/security/` → **302 → `/admin/`**, while
+`www.ethr.et/profile/security/` → 200. The console-host rule in `.htaccess`
+redirects every path outside `/admin` except `login|logout|_next|…`, and
+`middleware.ts` listed `/profile` as a tenant route. Changing the password from
+the console fails the same way.
+
+**Impact.** The platform admin cannot enrol in MFA from the console — which is
+why F1 exists. Workaround until deployed: sign in at `www.ethr.et` and enrol at
+`/profile/security` there; it is the same account.
+
+**Fix.** PR #191 excludes `/profile/security` (and only that) on the console host
+in both places, pinned by `SharedHostingHtaccessTest` and
+`middleware-hostname.test.ts`.
 
 ## Passed
 
