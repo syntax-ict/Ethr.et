@@ -353,3 +353,66 @@ Each new case below was run against the code before this change, and **failed th
   the card listed the TXT record with the live token. The CNAME target read "—", because the
   dev install sets no `APP_DOMAIN`, where custom domains never resolve anyway. Verify reached
   the endpoint and, for a dev super admin without MFA, showed the server's 403 reason.
+
+## Amendment 2026-10-11: each organisation chooses its address
+
+### The instruction, as given
+
+> The system should have an option: subdomain `habru.ethr.et`, the organisation's own domain
+> for those that already have one, and `ethr.et/habru` for those that don't want a domain.
+> Make sure the frontend and backend implement it before the Plesk setup.
+
+### What changed
+
+The three tiers existed, but as one fixed order for every organisation at once, decided by a
+verified domain and the global `TENANCY_SUBDOMAINS` flag. Now each organisation chooses:
+
+- `tenants.address_mode` (`App\Enums\TenantAddressMode`: `path`, `subdomain`,
+  `custom_domain`; NULL = not chosen, which gets the old fixed order, so migrating changes no
+  link). `Tenant::addressMode()` is the choice; `Tenant::effectiveAddressMode()` is what links
+  can use right now: a custom domain only once verified, a subdomain only where the host
+  serves them (`Tenant::subdomainsServed()`), else the path. **A link never points at a host
+  that does not answer**, and a choice the host cannot honour yet is kept, so it takes effect
+  on its own after M3 or verification.
+- `FrontendUrl::canonicalOrigin()` reads the effective mode. `FrontendUrl::at(Tenant, path)`
+  and `forNotifiable()` join `forTenant()`, and every link now follows the choice: the
+  password reset mail (it used the raw frontend URL), the eight notification deep links
+  (they used `FrontendUrl::to()`), and the impersonation hand-off (`SessionHandoff::urlFor`
+  always built the subdomain; on the shared host it now carries `?org={slug}` so the claim
+  page can name the organisation in `X-Tenant` before it claims). SSO's return still lands
+  on the shared host, where its session cookie is set; on a hosted tier the person then works
+  there with `X-Tenant`, which the apex honours.
+- The organisation does it itself: `PUT /settings/address` (`mode`, and optionally
+  `custom_domain`, `null` to clear) and `POST /settings/address/verify`, behind
+  `settings.manage`, with the same plan gate, normalisation, uniqueness and platform-host
+  refusal as the console — one `TenantAddressService` behind both doors, and
+  `RejectsPlatformHosts` shared by both requests. `GET /settings` returns an `address` block
+  with the mode, the effective mode, the canonical URL, what the host serves and what the plan
+  allows. The console keeps its endpoints, shows the mode, and can set it
+  (`PUT /admin/tenants/{id}/address-mode`).
+- `TENANCY_SUBDOMAINS` therefore means only "this host serves `{slug}.{root}`". It and the
+  frontend's `NEXT_PUBLIC_ROOT_DOMAIN` must change together, pinned by
+  `HostingRequirementsConsistencyTest` across the two env templates.
+- The entry URL accepts either case (`(?i)` on the route, `[NC]` on the `.htaccess` rule).
+
+### What it costs
+
+- **One more thing an organisation can set wrong.** Choosing the subdomain before M3, or the
+  custom domain before verifying, changes nothing visible: the card says which address is in
+  use meanwhile, and the server reports `effective_mode`. The choice is never silently
+  dropped, by design.
+- **The host work is unchanged, and still undone** (Part 7 of PLESK-GO-LIVE): the wildcard
+  site and certificate, and the admin host's document root. Measured 2026-10-11: DNS resolves
+  `*.ethr.et`; Plesk serves nothing on it; `admin.ethr.et` serves Plesk's default page.
+- **Custom domains still need per-organisation host work** (a Plesk alias and a certificate),
+  as the 2026-10-08 amendment recorded. Verification proves DNS, not that the host answers.
+
+### Verified
+
+- `TenantAddressModeTest` (default order, the choice over what is held, both fallbacks and
+  their switch-over, reset and notification links, the three hand-off URLs, the entry URL in
+  either case) and `TenantAddressSettingsTest` (the settings block, each mode, the plan gate,
+  the platform-host and uniqueness refusals, clearing, verify with named failures, the
+  authorisation boundary, and the console route on and off the platform host).
+- The frontend: `settings-address-card.test.tsx` drives the card against the API contract,
+  and `settings-page.test.tsx` renders it in place.
