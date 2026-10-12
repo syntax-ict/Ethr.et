@@ -53,7 +53,7 @@ it('404s on a missing, wrong, or empty token', function () {
 });
 
 it('accepts the token in the header', function () {
-    Artisan::shouldReceive('call')->once()->with('schedule:run')->andReturn(0);
+    Artisan::shouldReceive('call')->once()->with('ethr:schedule-run')->andReturn(0);
     Artisan::shouldReceive('output')->andReturn('done');
 
     $this->withHeader('X-Cron-Token', CRON_TOKEN)
@@ -67,7 +67,7 @@ it('accepts the token in the query string, because a URL-fetch task sets no head
     // This is the whole reason the query string is supported: Plesk's
     // "Fetch a URL" task type cannot send a header. Dropping this would mean
     // dropping the one caller the feature exists for.
-    Artisan::shouldReceive('call')->once()->with('schedule:run')->andReturn(0);
+    Artisan::shouldReceive('call')->once()->with('ethr:schedule-run')->andReturn(0);
     Artisan::shouldReceive('output')->andReturn('done');
 
     $this->postJson('/api/v1/cron/schedule?token='.CRON_TOKEN)
