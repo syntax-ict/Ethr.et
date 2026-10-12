@@ -106,7 +106,7 @@ class UserProvisioningService
         }
 
         try {
-            $token = PasswordTokens::broker()->createToken($user);
+            $token = PasswordTokens::activationBroker()->createToken($user);
             $user->notify(new AccountActivationNotification($token, $tenant->subdomain, $tenant->name));
 
             return true;

@@ -61,4 +61,14 @@ return [
         'mail_action' => 'Sign in',
         'mail_ignore' => 'If you did not ask for this, you can ignore this email; nothing has changed.',
     ],
+
+    // Sent when an organisation registers (production QA 2026-10-11, P7)
+    'registered' => [
+        'mail_subject' => ':org is ready on ETHR',
+        'mail_greeting' => 'Welcome to ETHR',
+        'mail_intro' => 'An ETHR organisation, :org, was created with this email address as its administrator.',
+        'mail_address' => 'Your organisation signs in at :url — bookmark it.',
+        'mail_action' => 'Sign in to :org',
+        'mail_not_you' => 'If you did not create this organisation, tell us at :contact and we will remove it.',
+    ],
 ];
