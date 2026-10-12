@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Events\PayrollRunFailed;
 use App\Jobs\ProcessPayrollJob;
 use App\Listeners\NotifyPayrollRunFailed;
+use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
@@ -273,4 +274,28 @@ describe('a failed run reaches the people who can act on it', function () {
         );
         expect($live->refresh()->status)->toBe('failed');
     });
+});
+
+it('records who started the run, before the job has computed anything', function () {
+    // Production QA 2026-10-11, P14: starting a run left no audit entry; only
+    // the job's `payroll.processed` did, and the job has no request user.
+    Queue::fake();
+
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'salary_cents' => 500000]);
+
+    $url = "http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process";
+    test()->postJson($url, payrollPayload('audited-1'))->assertStatus(202);
+
+    $row = AuditLog::where('action', 'payroll.requested')->sole();
+    expect($row->user_id)->toBe($user->id);
+    expect($row->payload)->toMatchArray([
+        'period_start' => '2026-06-01',
+        'period_end' => '2026-06-30',
+    ]);
+
+    // A replay of the same request is not a second start.
+    test()->postJson($url, payrollPayload('audited-1'))->assertOk();
+    expect(AuditLog::where('action', 'payroll.requested')->count())->toBe(1);
 });

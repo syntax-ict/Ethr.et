@@ -72,6 +72,15 @@ class PayrollController extends Controller
             // has been computed. Firing them here would have told every
             // subscriber payroll was done before a single entry existed.
             ProcessPayrollJob::dispatch($run->id, $run->tenant_id);
+
+            // Who started the run. `payroll.processed`, written by the job,
+            // announces completion and has no request user to name; without
+            // this the audit log could not say who ran payroll (production QA
+            // 2026-10-11, P14).
+            AuditLog::record('payroll.requested', $run, [
+                'period_start' => $run->period_start?->toDateString(),
+                'period_end' => $run->period_end?->toDateString(),
+            ]);
         }
 
         // Re-read: under QUEUE_CONNECTION=sync the job has already run to
