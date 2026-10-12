@@ -24,25 +24,25 @@ behaviour an operator can live with · **S4** polish, wording, hardening.
 | F2 | S2 | `GET /api/v1/admin/health` answers **500** on every call; the System Health card never loads — **fixed in PR #200, deployed `v2026.10.12.3`** |
 | F3 | S2 | The service worker stores **admin API responses in Cache Storage** (23 found) and nothing clears them on logout — **fixed in PR #200, deployed `v2026.10.12.3`** |
 | F4 | S2 | **Mark paid** on an invoice acts on a single click, with no confirmation — **fixed in PR #200, deployed `v2026.10.12.3`** |
-| F5 | S3 | The **address-mode select** changes an organisation's canonical address the moment an option is picked |
-| F6 | S3 | **Backup Data** queues a backup on a single click |
-| F7 | S3 | Every action button stays enabled while the account lacks MFA, though the server refuses them all |
-| F8 | S3 | The audit **action filter sends one request per keystroke** |
-| F9 | S3 | The System Health title shows a **green dot** while the card shows "Couldn't load system health" |
-| F10 | S3 | **Platform settings are all empty**, including the bank details organisations pay into |
-| F11 | S4 | Session lifetime for the console is 8 hours |
-| F12 | S4 | Calendar: Ethiopian calendar active, console tables show Gregorian dates, the audit filter asks for Ethiopian ones |
-| F13 | S4 | 42 console strings in `am.json` are still English |
-| F14 | S4 | Wording and labels (eight small items) |
-| F15 | S4 | Response headers: duplicate HSTS, version disclosure, `'unsafe-inline'` scripts |
-| F16 | S4 | Invoices card is hidden when an organisation has none; invoice rendering untested |
-| F17 | S4 | `HEAD /admin/audit` answered 503 once in the browser; not reproducible |
+| F5 | S3 | The **address-mode select** changes an organisation's canonical address the moment an option is picked — **fixed in the console follow-up PR (`fix/console-qa-followups`)** |
+| F6 | S3 | **Backup Data** queues a backup on a single click — **fixed in the console follow-up PR (`fix/console-qa-followups`)** |
+| F7 | S3 | Every action button stays enabled while the account lacks MFA, though the server refuses them all — **fixed in the console follow-up PR (`fix/console-qa-followups`)** |
+| F8 | S3 | The audit **action filter sends one request per keystroke** — **fixed in the console follow-up PR (`fix/console-qa-followups`)** |
+| F9 | S3 | The System Health title shows a **green dot** while the card shows "Couldn't load system health" — **fixed in the console follow-up PR (`fix/console-qa-followups`)** |
+| F10 | S3 | **Platform settings are all empty**, including the bank details organisations pay into — **owner task**, not code |
+| F11 | S4 | Session lifetime for the console is 8 hours — **owner decision**, not changed |
+| F12 | S4 | Calendar: Ethiopian calendar active, console tables show Gregorian dates, the audit filter asks for Ethiopian ones — **not changed**: no screen in the app formats dates by the calendar preference, only date inputs follow it; an app-wide decision |
+| F13 | S4 | 42 console strings in `am.json` are still English — **fixed in the console follow-up PR (`fix/console-qa-followups`)** |
+| F14 | S4 | Wording and labels (eight small items) — **fixed in the console follow-up PR**; items 1–3 were one defect: route titles missed every trailing-slash path, app-wide |
+| F15 | S4 | Response headers: duplicate HSTS, version disclosure, `'unsafe-inline'` scripts — **PHP's `X-Powered-By` stripped in the follow-up PR**; the duplicate HSTS and `PleskLin` come from Plesk's own settings |
+| F16 | S4 | Invoices card is hidden when an organisation has none; invoice rendering untested — **fixed in the console follow-up PR (`fix/console-qa-followups`)** |
+| F17 | S4 | `HEAD /admin/audit` answered 503 once in the browser; not reproducible — not reproduced; no action |
 | F18 | S2 | **Enable now** on the MFA banner cannot work: the console host redirects `/profile/security` to `/admin/` — **fixed in PR #191, deployed `v2026.10.12.2`** |
-| F19 | S3 | **Extend Trial** moves `trial_ends_at` but not the subscription's `current_period_end`; the console then shows two different end dates |
-| F20 | S4 | An organisation on the **shared address** shows no address in the console (`canonical_url` is null by design; the entry URL is not shown instead) |
-| F21 | S4 | `admin.tenant.backup_triggered` stores `triggered_by` as the **numeric user id** (Convention #4) |
-| F22 | S4 | On the console host, the Profile tabs other than Security lead back to `/admin/` |
-| F23 | S2 | The scheduler asks GitHub for a run every 5 minutes and gets **4–6 a day**: queued work waits hours |
+| F19 | S3 | **Extend Trial** moves `trial_ends_at` but not the subscription's `current_period_end`; the console then shows two different end dates — **fixed in the console follow-up PR (`fix/console-qa-followups`)** |
+| F20 | S4 | An organisation on the **shared address** shows no address in the console (`canonical_url` is null by design; the entry URL is not shown instead) — **fixed in the console follow-up PR (`fix/console-qa-followups`)** |
+| F21 | S4 | `admin.tenant.backup_triggered` stores `triggered_by` as the **numeric user id** (Convention #4) — **fixed in the console follow-up PR (`fix/console-qa-followups`)** |
+| F22 | S4 | On the console host, the Profile tabs other than Security lead back to `/admin/` — **fixed in the console follow-up PR (`fix/console-qa-followups`)** |
+| F23 | S2 | The scheduler asks GitHub for a run every 5 minutes and gets **4–6 a day**: queued work waits hours — **catch-up scheduler in PR #204**; second caller is an owner setup step |
 
 ## Findings
 

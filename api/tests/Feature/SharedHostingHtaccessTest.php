@@ -330,6 +330,9 @@ it('sends the full security header set, with the CSP that lets the export hydrat
 
     expect($csp)->not->toBeNull();
 
+    // PHP's version banner is stripped (console QA F15).
+    expect($directives)->toContain('Header always unset X-Powered-By');
+
     // 'unsafe-inline' is load-bearing and measured: the export emits three
     // un-nonced inline scripts (~13 KB), and script-src 'self' alone gave 3 CSP
     // violations per page, React error #412 and nothing hydrating while the HTML
