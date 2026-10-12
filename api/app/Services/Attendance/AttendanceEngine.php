@@ -36,6 +36,19 @@ final class AttendanceEngine
                 ->where('idempotency_key', $input->idempotencyKey)
                 ->first();
 
+            // A check-out's key is kept on the record it closed (see
+            // processCheckOut), so a phone retrying after a dropped response
+            // gets that record back. Before, the replay looked for an open
+            // check-in, found none, and showed the person an error for a
+            // punch that had succeeded (attendance QA A6).
+            if ($existing === null && $input->type === 'check_out') {
+                $existing = AttendanceRecord::query()
+                    ->where('tenant_id', $input->tenantId)
+                    ->where('employee_id', $input->employeeId)
+                    ->where('metadata->checkout_idempotency_key', $input->idempotencyKey)
+                    ->first();
+            }
+
             if ($existing) {
                 return new AttendanceResult($existing, wasDuplicate: true);
             }
@@ -154,9 +167,10 @@ final class AttendanceEngine
             ]),
         ]);
 
-        if ($input->source->value === 'manual') {
-            AuditLog::record('attendance.manual_entry', $record);
-        }
+        // A manual entry is audited once, by ManualAttendanceController, after
+        // it has written the entered times and with who entered it and why.
+        // The engine wrote a second, bare row as well: on production five
+        // entries left ten (attendance QA A9).
 
         $resolution = $this->conflictResolver->resolve($record);
         $record = $resolution->record;
@@ -211,36 +225,85 @@ final class AttendanceEngine
 
         // The record's `photo_path` belongs to the check-in selfie; a check-out
         // selfie is kept alongside it so neither punch loses its evidence.
-        if ($input->photoPath !== null) {
-            $updates['metadata'] = array_merge($record->metadata ?? [], [
-                'checkout_photo_path' => $input->photoPath,
-            ]);
+        // The check-out's own idempotency key is kept beside it too: the
+        // record's `idempotency_key` column is the check-in's (see record()).
+        $metadata = array_filter([
+            'checkout_photo_path' => $input->photoPath,
+            'checkout_idempotency_key' => $input->idempotencyKey,
+        ], fn ($value) => $value !== null);
+
+        if ($metadata !== []) {
+            $updates['metadata'] = array_merge($record->metadata ?? [], $metadata);
         }
 
         $record->update($updates);
 
-        if ($record->shift && $record->status === AttendanceStatus::PRESENT) {
-            // The shift's end on the day the record began, in the tenant's
-            // zone (see processCheckIn).
-            $shiftEnd = $record->check_in->copy()->setTimezone($zone)
-                ->setTimeFromTimeString($record->shift->end_time);
-
-            // A shift that crosses midnight ends the day after it starts:
-            // leaving at 23:30 was compared with this morning's 06:00 and so
-            // never counted as early.
-            if ($record->shift->crosses_midnight && $shiftEnd->lte($record->check_in)) {
-                $shiftEnd->addDay();
-            }
-
-            $earlyThreshold = $shiftEnd->copy()->subMinutes($record->shift->early_departure_minutes);
-
-            if ($now->lt($earlyThreshold)) {
-                $record->update(['status' => AttendanceStatus::EARLY_LEAVE]);
-            }
+        if ($record->shift && $record->status === AttendanceStatus::PRESENT && $this->leftEarly($record, $zone)) {
+            $record->update(['status' => AttendanceStatus::EARLY_LEAVE]);
         }
 
         AttendanceRecorded::dispatch($record);
 
         return new AttendanceResult($record);
+    }
+
+    /**
+     * Re-derive the status of a record whose punches were changed after the
+     * fact — an approved correction, a manual entry's typed times — by the
+     * same rules a live punch is rated with.
+     *
+     * Only the three statuses the punches decide are touched. Voided, on-leave,
+     * holiday and absent are decisions about the day, not readings of a clock,
+     * and a record with no shift has nothing to be rated against.
+     *
+     * Before 2026-10-12 nothing did this: a correction that moved a record to
+     * a full shift on time left it `early_leave` (attendance QA A5).
+     */
+    public function reclassify(AttendanceRecord $record): void
+    {
+        $rated = [AttendanceStatus::PRESENT, AttendanceStatus::LATE, AttendanceStatus::EARLY_LEAVE];
+
+        if (! $record->shift || ! $record->check_in || ! in_array($record->status, $rated, true)) {
+            return;
+        }
+
+        $zone = TenantTime::zone(Tenant::query()->find($record->tenant_id));
+
+        $status = AttendanceStatus::from($this->shiftMatcher->calculateStatus(
+            $record->check_in->copy()->setTimezone($zone),
+            $record->shift,
+        ));
+
+        // As at a live check-out, a late arrival stays late however the day
+        // ended: early departure is read only for someone who arrived on time.
+        if ($status === AttendanceStatus::PRESENT && $this->leftEarly($record, $zone)) {
+            $status = AttendanceStatus::EARLY_LEAVE;
+        }
+
+        if ($status !== $record->status) {
+            $record->update(['status' => $status]);
+        }
+    }
+
+    /** Whether the record's check-out came before its shift's early-departure threshold. */
+    private function leftEarly(AttendanceRecord $record, string $zone): bool
+    {
+        if (! $record->shift || ! $record->check_in || ! $record->check_out) {
+            return false;
+        }
+
+        // The shift's end on the day the record began, in the tenant's zone
+        // (see processCheckIn).
+        $shiftEnd = $record->check_in->copy()->setTimezone($zone)
+            ->setTimeFromTimeString($record->shift->end_time);
+
+        // A shift that crosses midnight ends the day after it starts: leaving
+        // at 23:30 was compared with this morning's 06:00 and so never counted
+        // as early.
+        if ($record->shift->crosses_midnight && $shiftEnd->lte($record->check_in)) {
+            $shiftEnd->addDay();
+        }
+
+        return $record->check_out->lt($shiftEnd->subMinutes($record->shift->early_departure_minutes));
     }
 }
