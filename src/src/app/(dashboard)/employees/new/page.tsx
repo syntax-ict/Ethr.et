@@ -15,6 +15,8 @@ import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/shared/currency-input";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import {
@@ -73,6 +75,13 @@ export default function NewEmployeePage() {
     cost_center_id: "",
   });
 
+  // Whether the person gets an ETHR login with this record. The API always
+  // supported it (`create_login`) and no screen sent it, so in a new
+  // organisation no employee could sign in — nobody could request leave or see
+  // a payslip (production QA 2026-10-11, P15). Off by default: on would email
+  // every person entered, which an admin keying in records may not intend.
+  const [sendLogin, setSendLogin] = useState(false);
+
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   useUnsavedChangesWarning(hasUnsavedChanges);
 
@@ -117,12 +126,22 @@ export default function NewEmployeePage() {
       supervisor_id: form.supervisor_id || null,
       team_id: form.team_id || null,
       cost_center_id: form.cost_center_id || null,
+      ...(sendLogin && form.email
+        ? { create_login: true, user_role: "employee" as const }
+        : {}),
     };
 
     createEmployee.mutate(payload, {
-      onSuccess: () => {
+      onSuccess: (created: { meta?: { login_invited?: boolean } }) => {
         setHasUnsavedChanges(false);
-        toast.success(t("employee.created", "Employee created successfully"));
+        toast.success(
+          created?.meta?.login_invited
+            ? t(
+                "employee.created_and_invited",
+                "Employee created, and a login invitation was sent",
+              )
+            : t("employee.created", "Employee created successfully"),
+        );
         router.push("/employees");
       },
       onError: (err: unknown) => {
@@ -492,6 +511,29 @@ export default function NewEmployeePage() {
               </FormField>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="mt-6 flex items-start gap-3 rounded-md border border-border-default p-4">
+          <Checkbox
+            id="send_login"
+            checked={sendLogin}
+            onCheckedChange={(v) => setSendLogin(v === true)}
+            disabled={!form.email}
+          />
+          <div className="space-y-1">
+            <Label htmlFor="send_login" className="text-sm font-medium">
+              {t(
+                "employee.send_login",
+                "Send a login invitation to this email",
+              )}
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "employee.send_login_hint",
+                "They set a password from the email and can then request leave, see payslips and check in.",
+              )}
+            </p>
+          </div>
         </div>
 
         <div className="mt-6 flex justify-end gap-3">

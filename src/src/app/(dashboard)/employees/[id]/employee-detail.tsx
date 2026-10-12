@@ -38,6 +38,7 @@ import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { KioskPinCard } from "@/features/employees/components/kiosk-pin-card";
+import { InviteToEthrButton } from "@/features/employees/components/invite-to-ethr-button";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useEmployeeOptions } from "@/features/attendance/api";
 import { costCentersApi, teamsApi } from "@/features/organization/api";
@@ -146,6 +147,12 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={employee.status} />
+          {!editing && (
+            <InviteToEthrButton
+              employeeId={employee.public_id}
+              email={employee.email}
+            />
+          )}
           {!editing && (
             <Button variant="outline" size="sm" onClick={startEdit}>
               <Pencil className="mr-2 h-3 w-3" />
