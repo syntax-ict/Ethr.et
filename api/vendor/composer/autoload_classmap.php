@@ -538,6 +538,7 @@ return array(
     'App\\Notifications\\MfaResetNotification' => $baseDir . '/app/Notifications/MfaResetNotification.php',
     'App\\Notifications\\MissingPunchNotification' => $baseDir . '/app/Notifications/MissingPunchNotification.php',
     'App\\Notifications\\NewLeadNotification' => $baseDir . '/app/Notifications/NewLeadNotification.php',
+    'App\\Notifications\\OrganisationRegisteredNotification' => $baseDir . '/app/Notifications/OrganisationRegisteredNotification.php',
     'App\\Notifications\\OrganisationSignInLinksNotification' => $baseDir . '/app/Notifications/OrganisationSignInLinksNotification.php',
     'App\\Notifications\\PasswordResetLinkNotification' => $baseDir . '/app/Notifications/PasswordResetLinkNotification.php',
     'App\\Notifications\\PayrollProcessedNotification' => $baseDir . '/app/Notifications/PayrollProcessedNotification.php',

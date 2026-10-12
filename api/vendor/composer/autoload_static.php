@@ -1221,6 +1221,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Notifications\\MfaResetNotification' => __DIR__ . '/../..' . '/app/Notifications/MfaResetNotification.php',
         'App\\Notifications\\MissingPunchNotification' => __DIR__ . '/../..' . '/app/Notifications/MissingPunchNotification.php',
         'App\\Notifications\\NewLeadNotification' => __DIR__ . '/../..' . '/app/Notifications/NewLeadNotification.php',
+        'App\\Notifications\\OrganisationRegisteredNotification' => __DIR__ . '/../..' . '/app/Notifications/OrganisationRegisteredNotification.php',
         'App\\Notifications\\OrganisationSignInLinksNotification' => __DIR__ . '/../..' . '/app/Notifications/OrganisationSignInLinksNotification.php',
         'App\\Notifications\\PasswordResetLinkNotification' => __DIR__ . '/../..' . '/app/Notifications/PasswordResetLinkNotification.php',
         'App\\Notifications\\PayrollProcessedNotification' => __DIR__ . '/../..' . '/app/Notifications/PayrollProcessedNotification.php',

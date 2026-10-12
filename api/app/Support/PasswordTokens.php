@@ -48,9 +48,15 @@ use RuntimeException;
  */
 final class PasswordTokens
 {
-    public static function broker(): PasswordBroker
+    /** Invitation links: 72 hours, their own table (`passwords.activations`). */
+    public static function activationBroker(): PasswordBroker
     {
-        $broker = Password::broker();
+        return self::broker('activations');
+    }
+
+    public static function broker(?string $name = null): PasswordBroker
+    {
+        $broker = Password::broker($name);
 
         if (! $broker instanceof PasswordBroker) {
             throw new RuntimeException(sprintf(
