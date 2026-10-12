@@ -21,7 +21,7 @@ import { WidgetError } from "./widget-error";
 
 export function TeamOverview() {
   const { t } = useT();
-  const { isSupervisor } = usePermissions();
+  const { isSupervisor, can } = usePermissions();
   const { data, isLoading, isError, refetch } =
     useManagerDashboard(isSupervisor);
 
@@ -40,7 +40,7 @@ export function TeamOverview() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-6 w-40" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
           ))}
@@ -57,6 +57,10 @@ export function TeamOverview() {
   // screen, pushing the work queue below the fold. One line says the same thing
   // and points at the org-wide view, which is what they actually wanted.
   if (data.team_size === 0) {
+    // Someone who sees the whole organisation already has its attendance in
+    // "Organisation today" directly above; "no direct reports" adds nothing.
+    if (can.viewExecutiveDashboard) return null;
+
     return (
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
@@ -83,11 +87,11 @@ export function TeamOverview() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h2
           id="today-heading"
-          className="text-sm font-semibold tracking-tight text-foreground"
+          className="text-base font-semibold tracking-tight text-foreground"
         >
           {t("dashboard.today", "Today")}
           <span className="ml-2 font-normal text-muted-foreground">
@@ -102,7 +106,7 @@ export function TeamOverview() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Present carries team size as its subtitle rather than spending a
             whole tile on it: a headcount is only meaningful here as the
             denominator of "how many turned up". */}

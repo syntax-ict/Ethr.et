@@ -1,5 +1,6 @@
 "use client";
 
+import { StatCard, type StatTone } from "@/components/dashboard/stat-card";
 import { useState } from "react";
 import { TrendingUp, Clock, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -187,15 +188,18 @@ export default function OvertimePage() {
   );
 }
 
-const colorClass: Record<string, string> = {
-  info: "bg-info-soft text-info-on-soft",
-  brand: "bg-brand-soft text-brand-on-soft",
-  danger: "bg-destructive-soft text-destructive-on-soft",
-  success: "bg-success-soft text-success-on-soft",
+/** The local colour names, as `StatCard` tones. */
+const TONE: Record<string, StatTone> = {
+  info: "info",
+  success: "success",
+  warning: "warning",
+  neutral: "neutral",
+  danger: "error",
+  brand: "brand",
 };
 
 function Kpi({
-  icon: Icon,
+  icon,
   title,
   value,
   sub,
@@ -208,19 +212,12 @@ function Kpi({
   color: string;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-5">
-        <div
-          className={`flex h-11 w-11 items-center justify-center rounded-xl ${colorClass[color]}`}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
-          <p className="text-xs text-muted-foreground">{sub}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <StatCard
+      icon={icon}
+      tone={TONE[color] ?? "primary"}
+      label={title}
+      value={value}
+      hint={sub}
+    />
   );
 }

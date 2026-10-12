@@ -102,6 +102,30 @@ test('hr admin can view intelligence dashboard', function () {
         ]);
 });
 
+// Found 2026-10-12 while redesigning the dashboards: with anyone still checked
+// in (no check-out yet), the screen answered 500. The missing-punch list does
+// not load shifts, and the record's overtime calculation asked for the shift
+// before noticing there was no check-out to measure from.
+test('intelligence dashboard loads while someone is still checked in', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $shift = Shift::factory()->create(['tenant_id' => $tenant->id]);
+
+    foreach (Employee::factory()->count(2)->create(['tenant_id' => $tenant->id]) as $employee) {
+        AttendanceRecord::factory()->checkInOnly()->create([
+            'tenant_id' => $tenant->id,
+            'employee_id' => $employee->id,
+            'shift_id' => $shift->id,
+            'date' => '2026-10-12',
+            'check_in' => '2026-10-12 05:20:00',
+        ]);
+    }
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/intelligence?date=2026-10-12")
+        ->assertOk()
+        ->assertJsonPath('missing_punches.count', 2);
+});
+
 test('employee cannot view intelligence dashboard', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);

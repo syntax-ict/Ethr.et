@@ -9,8 +9,8 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -18,12 +18,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import {
-  CHART_COLORS,
-  ChartCard,
-  KpiBox,
-  KpiBoxCurrency,
-  Metric,
-} from "./chart-helpers";
+  axisProps,
+  gridProps,
+  lineTooltipProps,
+  seriesColor,
+  tooltipProps,
+} from "@/components/dashboard/chart-theme";
+import { ChartCard, KpiBox, KpiBoxCurrency, Metric } from "./chart-helpers";
 import { useExecutiveOverview } from "@/features/dashboard/executive-api";
 import { ComplianceCard } from "@/features/dashboard/components/compliance-card";
 import { DepartmentDrillDownDialog } from "@/features/dashboard/components/department-drilldown-dialog";
@@ -43,7 +44,7 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
     >
       {(data) => (
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <KpiBox
               icon={Users}
               title={t("analytics_page.headcount")}
@@ -91,17 +92,16 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
                       publicId: d.department_public_id,
                     }))}
                   >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      className="opacity-30"
-                    />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                    <Tooltip />
+                    <CartesianGrid {...gridProps} />
+                    <XAxis dataKey="name" {...axisProps} interval={0} />
+                    <YAxis {...axisProps} allowDecimals={false} width={36} />
+                    <Tooltip {...tooltipProps} />
                     <Bar
                       dataKey="value"
-                      fill={CHART_COLORS[0]}
+                      name={t("analytics_page.headcount")}
+                      fill={seriesColor(0)}
                       radius={[6, 6, 0, 0]}
+                      maxBarSize={48}
                       cursor="pointer"
                       onClick={(bar: {
                         payload?: { publicId?: string | null };
@@ -118,28 +118,52 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
             {data.workforce_growth && (
               <ChartCard title={t("analytics_page.hires_over_time")}>
                 <ResponsiveContainer width="100%" height={260}>
-                  <LineChart data={data.workforce_growth}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      className="opacity-30"
-                    />
+                  <AreaChart
+                    data={data.workforce_growth}
+                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id="analytics-hires"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor={seriesColor(1)}
+                          stopOpacity={0.28}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor={seriesColor(1)}
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid {...gridProps} />
                     <XAxis
                       dataKey="month"
+                      {...axisProps}
                       tickFormatter={(value) => monthKeyLabel(value, locale)}
-                      tick={{ fontSize: 11 }}
                     />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <YAxis {...axisProps} allowDecimals={false} width={36} />
                     <Tooltip
+                      {...lineTooltipProps}
                       labelFormatter={(label) => monthKeyLabel(label, locale)}
                     />
-                    <Line
+                    <Area
                       type="monotone"
                       dataKey="hires"
-                      stroke={CHART_COLORS[1]}
+                      name={t("analytics_page.hires", "Hires")}
+                      stroke={seriesColor(1)}
                       strokeWidth={2}
-                      dot={{ r: 4 }}
+                      fill="url(#analytics-hires)"
+                      dot={{ r: 3, strokeWidth: 0, fill: seriesColor(1) }}
+                      activeDot={{ r: 5, strokeWidth: 0 }}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </ChartCard>
             )}
@@ -147,7 +171,7 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
 
           {data.leave_utilization && (
             <ChartCard title={t("analytics_page.leave_utilization")}>
-              <div className="flex items-center justify-around py-6">
+              <div className="flex items-center justify-around divide-x divide-border py-4">
                 <Metric
                   label={t("analytics_page.entitled_days")}
                   value={data.leave_utilization.entitled_days}
@@ -183,12 +207,15 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
 function OverviewSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-28" />
+          <Skeleton key={i} className="h-32 rounded-xl" />
         ))}
       </div>
-      <Skeleton className="h-80 w-full" />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Skeleton className="h-80 rounded-xl" />
+        <Skeleton className="h-80 rounded-xl" />
+      </div>
     </div>
   );
 }
