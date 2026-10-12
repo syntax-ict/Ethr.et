@@ -8,5 +8,5 @@ Disallow: /register
 Disallow: /forgot-password
 Disallow: /reset-password
 
-Host: https://ethr.et
-Sitemap: https://ethr.et/sitemap.xml
+Host: https://www.ethr.et
+Sitemap: https://www.ethr.et/sitemap.xml
