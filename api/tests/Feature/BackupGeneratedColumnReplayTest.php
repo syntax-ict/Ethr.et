@@ -75,9 +75,20 @@ it('records what this engine does with an INSERT naming a generated column', fun
         return;
     }
 
-    // MariaDB, on the connection this repository actually uses. `strict` is
-    // false there — see config/database.php — and the statement is accepted
-    // with the supplied value discarded and the column recomputed.
+    // On a strict connection — `mysql`, which production uses and which the
+    // MySQL gate now runs (production QA 2026-10-11, P4) — the server refuses
+    // the statement outright. That is why the dumper must never write one.
+    $connection = DB::connection()->getName();
+    if ((bool) config("database.connections.{$connection}.strict")) {
+        expect($error)->toContain('generated column');
+
+        return;
+    }
+
+    // MariaDB on the non-strict `mariadb` connection (`'strict' => false` in
+    // config/database.php, which local `.env` templates select): the
+    // statement is accepted with the supplied value discarded and the column
+    // recomputed.
     expect($error)->toBeNull(
         'MariaDB rejected an INSERT naming a generated column on the default connection. '
         ."That contradicts the rehearsal job's green run on main at 8b11904, which seeded three "
