@@ -175,7 +175,7 @@ export function AppSidebar() {
             <button
               type="button"
               aria-label={t("nav.workspace_menu", "Workspace menu")}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-sidebar-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-sidebar-accent/30"
+              className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-sidebar-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-sidebar-accent"
             >
               <TenantLogoBadge showName={false} />
               <div className="min-w-0 flex-1 text-left">
@@ -183,7 +183,7 @@ export function AppSidebar() {
                   {tenantName}
                 </p>
                 {roleName && (
-                  <p className="truncate text-[11px] capitalize text-sidebar-foreground/70">
+                  <p className="truncate text-xs capitalize text-sidebar-foreground/70">
                     {roleName}
                   </p>
                 )}
@@ -246,11 +246,11 @@ export function AppSidebar() {
               // event also depended on the listener living on `document` and
               // on `metaKey` specifically.
               onClick={openCommandPalette}
-              className="flex w-full items-center gap-2 rounded-lg border border-sidebar-border/50 px-3 py-2 text-xs text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/30 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-9 w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/40 px-3 text-xs text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Command className="h-3.5 w-3.5" aria-hidden="true" />
               <span>{t("sidebar.command_palette", "Command Palette")}</span>
-              <kbd className="ml-auto rounded border border-sidebar-border/50 px-1.5 py-0.5 font-mono text-[10px] leading-none">
+              <kbd className="ml-auto rounded border border-sidebar-border bg-sidebar px-1.5 py-0.5 font-mono text-[10px] leading-none text-sidebar-foreground/70">
                 {paletteShortcut}
               </kbd>
             </button>
@@ -265,8 +265,8 @@ export function AppSidebar() {
                 : t("sidebar.collapse", "Collapse sidebar")
             }
             className={cn(
-              "flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              collapsed ? "mt-0 w-10 justify-center" : "mt-1.5 w-full",
+              "flex h-9 items-center gap-2 rounded-md px-3 text-xs font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              collapsed ? "mt-0 w-10 justify-center px-0" : "mt-1 w-full",
             )}
           >
             {collapsed ? (
@@ -277,7 +277,7 @@ export function AppSidebar() {
                 <span className="flex-1 text-left">
                   {t("sidebar.collapse", "Collapse")}
                 </span>
-                <kbd className="rounded border border-sidebar-border/50 px-1 text-[10px] leading-none">
+                <kbd className="rounded border border-sidebar-border bg-sidebar px-1.5 py-0.5 font-mono text-[10px] leading-none text-sidebar-foreground/70">
                   {collapseShortcut}
                 </kbd>
               </>
