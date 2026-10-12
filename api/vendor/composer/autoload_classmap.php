@@ -38,6 +38,7 @@ return array(
     'App\\Console\\Commands\\RecheckCustomDomainsCommand' => $baseDir . '/app/Console/Commands/RecheckCustomDomainsCommand.php',
     'App\\Console\\Commands\\ResetMfaCommand' => $baseDir . '/app/Console/Commands/ResetMfaCommand.php',
     'App\\Console\\Commands\\RestoreCommand' => $baseDir . '/app/Console/Commands/RestoreCommand.php',
+    'App\\Console\\Commands\\ScheduleCatchUpCommand' => $baseDir . '/app/Console/Commands/ScheduleCatchUpCommand.php',
     'App\\Console\\Commands\\SyncDevicesCommand' => $baseDir . '/app/Console/Commands/SyncDevicesCommand.php',
     'App\\Contracts\\DeviceAdapter' => $baseDir . '/app/Contracts/DeviceAdapter.php',
     'App\\Contracts\\DnsResolver' => $baseDir . '/app/Contracts/DnsResolver.php',

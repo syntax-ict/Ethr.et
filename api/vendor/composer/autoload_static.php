@@ -721,6 +721,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Console\\Commands\\RecheckCustomDomainsCommand' => __DIR__ . '/../..' . '/app/Console/Commands/RecheckCustomDomainsCommand.php',
         'App\\Console\\Commands\\ResetMfaCommand' => __DIR__ . '/../..' . '/app/Console/Commands/ResetMfaCommand.php',
         'App\\Console\\Commands\\RestoreCommand' => __DIR__ . '/../..' . '/app/Console/Commands/RestoreCommand.php',
+        'App\\Console\\Commands\\ScheduleCatchUpCommand' => __DIR__ . '/../..' . '/app/Console/Commands/ScheduleCatchUpCommand.php',
         'App\\Console\\Commands\\SyncDevicesCommand' => __DIR__ . '/../..' . '/app/Console/Commands/SyncDevicesCommand.php',
         'App\\Contracts\\DeviceAdapter' => __DIR__ . '/../..' . '/app/Contracts/DeviceAdapter.php',
         'App\\Contracts\\DnsResolver' => __DIR__ . '/../..' . '/app/Contracts/DnsResolver.php',
