@@ -10,6 +10,7 @@ use App\Enums\UserRole;
 use App\Events\TenantCreated;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
 use App\Models\AuditLog;
+use App\Models\PersonalAccessToken;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Tenant;
@@ -247,16 +248,43 @@ class AuthService
         return $token->plainTextToken;
     }
 
-    public function logout(User $user): void
+    /**
+     * Sign the caller out completely — the same three steps
+     * EnforceSessionIdleTimeout::expire() takes.
+     *
+     * A browser is authenticated twice over: LoginRequest calls Auth::login(),
+     * so the session holds the user, and the token cookie carries a bearer
+     * token. Sanctum consults the session first, so on a browser's logout
+     * `currentAccessToken()` is a TransientToken and deleting it deletes
+     * nothing. Revoking only that left the session signed in and the cookie's
+     * token valid until it expired (production QA 2026-10-11, P16).
+     */
+    public function logout(User $user, Request $request): void
     {
-        $token = $user->currentAccessToken();
+        AuditLog::record('user.logout', $user);
 
-        if ($token && method_exists($token, 'delete')) {
-            $token->delete();
+        $current = $user->currentAccessToken();
+        if ($current && method_exists($current, 'delete')) {
+            $current->delete();
+        }
+
+        // AuthenticateFromCookie has already promoted the cookie to the
+        // Authorization header; read either, in case it has not. Only this
+        // user's own token is revoked.
+        $plain = $request->bearerToken() ?? $request->cookie(SessionCookie::NAME);
+        if (is_string($plain) && $plain !== '') {
+            $token = PersonalAccessToken::findToken($plain);
+            if ($token !== null && $token->tokenable_type === $user->getMorphClass() && (int) $token->tokenable_id === (int) $user->getKey()) {
+                $token->delete();
+            }
+        }
+
+        if ($request->hasSession()) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
         }
 
         $this->sessionCookie->clear();
-
-        AuditLog::record('user.logout', $user);
     }
 }
