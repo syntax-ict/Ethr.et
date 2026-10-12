@@ -199,7 +199,10 @@ test('replaying the same idempotency key does not double-process payroll', funct
 
     expect(PayrollRun::where('tenant_id', $tenant->id)->count())->toBe(1);
     expect(PayrollEntry::where('tenant_id', $tenant->id)->count())->toBe(1);
-    $this->assertDatabaseCount('audit_log', 1);
+    // One start and one completion; the replay adds neither.
+    $this->assertDatabaseCount('audit_log', 2);
+    $this->assertDatabaseHas('audit_log', ['action' => 'payroll.requested']);
+    $this->assertDatabaseHas('audit_log', ['action' => 'payroll.processed']);
 });
 
 test('different idempotency keys allow separate payroll runs for the same period', function () {
