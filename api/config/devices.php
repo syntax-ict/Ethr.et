@@ -31,7 +31,7 @@ return [
     | takes many calls.
     |
     | Production has no worker process: the cron caller runs `queue:work` for at
-    | most `cron.queue_max_seconds` (50) inside an HTTP request, under stock PHP
+    | most `cron.queue_max_seconds` (25) inside an HTTP request, under stock PHP
     | time limits. A job that pages until the device is empty would be killed
     | part-way on a large import. Keep this well under both.
     |

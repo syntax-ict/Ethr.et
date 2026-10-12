@@ -49,11 +49,20 @@ class ResolveTenant
     // Reserved names live on the Tenant model so resolution, availability
     // checks and registration cannot drift apart — see Tenant::RESERVED_SUBDOMAINS.
 
+    /**
+     * Request attribute set on the platform host, so code downstream can tell
+     * "no tenant because this is the console" from "no tenant given" without
+     * re-deriving the hostname rules.
+     */
+    public const PLATFORM_HOST = 'ethr.platform_host';
+
     public function __construct(private readonly CurrentTenant $currentTenant) {}
 
     public function handle(Request $request, Closure $next): Response
     {
         if ($this->isPlatformHost($request)) {
+            $request->attributes->set(self::PLATFORM_HOST, true);
+
             return $next($request);
         }
 

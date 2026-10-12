@@ -187,6 +187,23 @@ it('keeps the /admin host boundary ahead of every catch-all', function () {
     expect($directives)->not->toContain('__ADMIN_HOST__');
 });
 
+it('lets the console host serve account security, and only that much of /profile', function () {
+    $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
+
+    // The console's MFA banner links to /profile/security. Without this exclusion
+    // the redirect to /admin/ swallowed it and the platform admin could not enrol
+    // (production, 2026-10-11). Narrow on purpose: the rest of /profile is a
+    // tenant page and still goes to the console.
+    $exclusions = array_values(array_filter(
+        $directives,
+        fn (string $line) => str_starts_with($line, 'RewriteCond %{REQUEST_URI} !^/(login|logout'),
+    ));
+
+    expect($exclusions)->toHaveCount(1);
+    expect($exclusions[0])->toContain('|profile/security|');
+    expect($exclusions[0])->not->toMatch('/\|profile(\||\))/');
+});
+
 it('serves an unknown URL as a real 404 rather than a rewritten 200', function () {
     $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
 
@@ -312,6 +329,9 @@ it('sends the full security header set, with the CSP that lets the export hydrat
     }
 
     expect($csp)->not->toBeNull();
+
+    // PHP's version banner is stripped (console QA F15).
+    expect($directives)->toContain('Header always unset X-Powered-By');
 
     // 'unsafe-inline' is load-bearing and measured: the export emits three
     // un-nonced inline scripts (~13 KB), and script-src 'self' alone gave 3 CSP

@@ -1,6 +1,6 @@
 "use client";
 
-import { tenantAddress } from "@/lib/tenant-address";
+import { SITE_URL } from "@/lib/site-url";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -54,9 +54,11 @@ import {
   useImpersonateTenant,
   useUpdateTenantDomain,
   useVerifyTenantDomain,
-  verifiedDomain,
   useTenantBackup,
+  verifiedDomain,
+  type AdminTenant,
 } from "@/features/admin/api";
+import { useCurrentUser } from "@/features/auth/api";
 import { formatETB } from "@/lib/utils/currency";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { formatDateOnly } from "@/lib/utils/date";
@@ -65,6 +67,51 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
+
+/** The shared host an organisation on the shared address is reached through. */
+const SHARED_HOST = new URL(SITE_URL).host;
+const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null;
+
+/**
+ * Where an organisation is reached, as it would be printed: its canonical
+ * origin without the scheme, or — on the shared address, which has no origin of
+ * its own — the entry URL `ethr.et/{slug}` (console QA F20: the console showed
+ * nothing there).
+ */
+function addressFor(
+  tenant: Pick<
+    AdminTenant,
+    "subdomain" | "custom_domain" | "custom_domain_status"
+  > & { canonical_url?: string | null },
+): string {
+  if (tenant.canonical_url) {
+    return tenant.canonical_url.replace(/^https?:\/\//, "");
+  }
+
+  return verifiedDomain(tenant) ?? `${SHARED_HOST}/${tenant.subdomain}`;
+}
+
+/** The address a mode would give this organisation, for the confirm dialog. */
+function addressForMode(
+  mode: string,
+  tenant: { subdomain: string; custom_domain: string | null },
+): string {
+  if (mode === "path") return `${SHARED_HOST}/${tenant.subdomain}`;
+  if (mode === "subdomain" && ROOT_DOMAIN) {
+    return `${tenant.subdomain}.${ROOT_DOMAIN}`;
+  }
+  if (mode === "custom_domain" && tenant.custom_domain) {
+    return tenant.custom_domain;
+  }
+  return mode;
+}
+
+/** `general` → `General`: a stored enum value, shown as a word. */
+function humanize(value: string | null | undefined): string {
+  if (!value) return "—";
+  const words = value.replace(/_/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 /**
  * The gate is the outer component so it also covers the loading, error and
@@ -120,6 +167,78 @@ function TenantDetail({ id }: { id: string }) {
   const [pendingStatus, setPendingStatus] = useState<
     "active" | "suspended" | "cancelled" | null
   >(null);
+  // An address change moves every sign-in link and email the organisation
+  // gets, and a backup is a full copy of its data: both used to act on one
+  // click (console QA F5, F6).
+  const [pendingMode, setPendingMode] = useState<string | null>(null);
+  const [backupOpen, setBackupOpen] = useState(false);
+  // Every console write is refused by the server until the platform account
+  // has MFA (RequirePlatformMfa); offering them anyway only produced errors
+  // (console QA F7). Unknown while loading counts as allowed, so the page does
+  // not flash disabled.
+  const { data: me } = useCurrentUser();
+  const writesBlocked = me?.mfa_enabled === false;
+  // Confirming a payment activates the subscription and books revenue, so it
+  // asks first, naming the invoice and the amount (console QA F4: one click
+  // used to do it).
+  const [pendingInvoice, setPendingInvoice] = useState<{
+    publicId: string;
+    totalCents: number;
+  } | null>(null);
+
+  function confirmMarkPaid() {
+    if (pendingInvoice === null) return;
+    markInvoicePaid.mutate(pendingInvoice.publicId, {
+      onSuccess: () =>
+        toast.success(
+          t(
+            "admin_tenant_detail_page.invoice_marked_paid",
+            "Invoice marked paid",
+          ),
+        ),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t(
+              "admin_tenant_detail_page.mark_paid_failed",
+              "Couldn't mark the invoice paid",
+            ),
+          ),
+        ),
+      onSettled: () => setPendingInvoice(null),
+    });
+  }
+
+  function confirmModeChange() {
+    if (!tenant || pendingMode === null) return;
+    updateAddressMode.mutate(
+      {
+        publicId: tenant.public_id,
+        mode: pendingMode as "path" | "subdomain" | "custom_domain",
+      },
+      {
+        onSuccess: () =>
+          toast.success(t("admin_tenant_detail_page.address_mode_saved")),
+        onError: (err: unknown) =>
+          toast.error(
+            apiErrorDetail(err) ||
+              t("admin_tenant_detail_page.address_mode_failed"),
+          ),
+        onSettled: () => setPendingMode(null),
+      },
+    );
+  }
+
+  function confirmBackup() {
+    if (!tenant) return;
+    backup.mutate(tenant.public_id, {
+      onSuccess: () =>
+        toast.success(t("admin_tenant_detail_page.backup_queued")),
+      onError: () => toast.error(t("admin_tenant_detail_page.backup_failed")),
+      onSettled: () => setBackupOpen(false),
+    });
+  }
 
   // Cancelling a tenant is irreversible from this screen (the page says so
   // itself), and suspension cuts off everyone at that organization — so these
@@ -345,7 +464,7 @@ function TenantDetail({ id }: { id: string }) {
               {tenant.name}
             </h1>
             <p className="mt-0.5 font-mono text-sm text-muted-foreground">
-              {tenantAddress(tenant.subdomain, verifiedDomain(tenant))}
+              {addressFor(tenant)}
             </p>
           </div>
           <StatusBadge status={tenant.status} />
@@ -398,7 +517,11 @@ function TenantDetail({ id }: { id: string }) {
           <StatCard
             icon={Building2}
             label={t("admin_tenant_detail_page.type")}
-            value={tenant.type ?? t("admin_tenant_detail_page.unspecified")}
+            value={
+              tenant.type
+                ? humanize(tenant.type)
+                : t("admin_tenant_detail_page.unspecified")
+            }
           />
         </div>
 
@@ -410,13 +533,30 @@ function TenantDetail({ id }: { id: string }) {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {writesBlocked && (
+              <div className="mb-4 flex items-start gap-2 rounded-lg border border-status-warning/30 bg-status-warning/5 p-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
+                <p className="text-sm text-foreground">
+                  {t(
+                    "admin_tenant_detail_page.actions_need_mfa",
+                    "These actions need two-factor authentication on your account.",
+                  )}{" "}
+                  <Link
+                    href="/profile/security"
+                    className="font-medium underline underline-offset-2"
+                  >
+                    {t("admin_console_page.enable_mfa", "Enable now")}
+                  </Link>
+                </p>
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {/* Status actions */}
               {!isActive && !isCancelled && (
                 <Button
                   variant="outline"
                   onClick={() => setPendingStatus("active")}
-                  disabled={updateStatus.isPending}
+                  disabled={writesBlocked || updateStatus.isPending}
                 >
                   <Play className="mr-2 h-4 w-4 text-status-success" />{" "}
                   {t("admin_tenant_detail_page.activate")}
@@ -426,7 +566,7 @@ function TenantDetail({ id }: { id: string }) {
                 <Button
                   variant="outline"
                   onClick={() => setPendingStatus("suspended")}
-                  disabled={updateStatus.isPending}
+                  disabled={writesBlocked || updateStatus.isPending}
                 >
                   <Pause className="mr-2 h-4 w-4 text-status-warning" />{" "}
                   {t("admin_tenant_detail_page.suspend")}
@@ -436,19 +576,27 @@ function TenantDetail({ id }: { id: string }) {
                 <Button
                   variant="outline"
                   onClick={() => setPendingStatus("cancelled")}
-                  disabled={updateStatus.isPending}
+                  disabled={writesBlocked || updateStatus.isPending}
                 >
                   <XCircle className="mr-2 h-4 w-4 text-destructive" />{" "}
                   {t("admin_tenant_detail_page.cancel")}
                 </Button>
               )}
 
-              <Button variant="outline" onClick={() => setExtendOpen(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setExtendOpen(true)}
+                disabled={writesBlocked}
+              >
                 <CalendarPlus className="mr-2 h-4 w-4 text-status-info" />{" "}
                 {t("admin_tenant_detail_page.extend_trial")}
               </Button>
 
-              <Button variant="outline" onClick={openDomainDialog}>
+              <Button
+                variant="outline"
+                onClick={openDomainDialog}
+                disabled={writesBlocked}
+              >
                 <Globe className="mr-2 h-4 w-4 text-status-info" />{" "}
                 {t("admin_tenant_detail_page.custom_domain")}
               </Button>
@@ -456,7 +604,7 @@ function TenantDetail({ id }: { id: string }) {
               <Button
                 variant="outline"
                 onClick={() => setMfaDialogOpen(true)}
-                disabled={impersonate.isPending}
+                disabled={writesBlocked || impersonate.isPending}
               >
                 {impersonate.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -468,17 +616,8 @@ function TenantDetail({ id }: { id: string }) {
 
               <Button
                 variant="outline"
-                onClick={() =>
-                  backup.mutate(tenant.public_id, {
-                    onSuccess: () =>
-                      toast.success(
-                        t("admin_tenant_detail_page.backup_queued"),
-                      ),
-                    onError: () =>
-                      toast.error(t("admin_tenant_detail_page.backup_failed")),
-                  })
-                }
-                disabled={backup.isPending}
+                onClick={() => setBackupOpen(true)}
+                disabled={writesBlocked || backup.isPending}
               >
                 {backup.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -521,7 +660,9 @@ function TenantDetail({ id }: { id: string }) {
             <Row label={t("common.name")} value={tenant.name} />
             <Row
               label={t("admin_tenants_page.subdomain")}
-              value={tenantAddress(tenant.subdomain)}
+              value={
+                <code className="font-mono text-xs">{tenant.subdomain}</code>
+              }
             />
             <Row
               label={t("admin_tenant_detail_page.address_mode")}
@@ -529,28 +670,10 @@ function TenantDetail({ id }: { id: string }) {
                 <span className="inline-flex flex-col items-end gap-1">
                   <Select
                     value={tenant.address_mode}
-                    onValueChange={(mode) =>
-                      updateAddressMode.mutate(
-                        {
-                          publicId: tenant.public_id,
-                          mode: mode as "path" | "subdomain" | "custom_domain",
-                        },
-                        {
-                          onSuccess: () =>
-                            toast.success(
-                              t("admin_tenant_detail_page.address_mode_saved"),
-                            ),
-                          onError: (err: unknown) =>
-                            toast.error(
-                              apiErrorDetail(err) ||
-                                t(
-                                  "admin_tenant_detail_page.address_mode_failed",
-                                ),
-                            ),
-                        },
-                      )
-                    }
-                    disabled={updateAddressMode.isPending}
+                    onValueChange={(mode) => {
+                      if (mode !== tenant.address_mode) setPendingMode(mode);
+                    }}
+                    disabled={writesBlocked || updateAddressMode.isPending}
                   >
                     <SelectTrigger
                       className="h-8 w-44"
@@ -579,11 +702,9 @@ function TenantDetail({ id }: { id: string }) {
                       )}
                     </span>
                   )}
-                  {tenant.canonical_url && (
-                    <code className="font-mono text-xs">
-                      {tenant.canonical_url}
-                    </code>
-                  )}
+                  <code className="font-mono text-xs">
+                    {addressFor(tenant)}
+                  </code>
                 </span>
               }
             />
@@ -612,7 +733,7 @@ function TenantDetail({ id }: { id: string }) {
             />
             <Row
               label={t("admin_tenant_detail_page.type")}
-              value={tenant.type ?? "—"}
+              value={humanize(tenant.type)}
             />
             <Row
               label={t("common.status")}
@@ -739,7 +860,13 @@ function TenantDetail({ id }: { id: string }) {
                   />
                   <Row
                     label={t("common.status")}
-                    value={tenant.subscription.status ?? "—"}
+                    value={
+                      tenant.subscription.status ? (
+                        <StatusBadge status={tenant.subscription.status} />
+                      ) : (
+                        "—"
+                      )
+                    }
                   />
                   <Row
                     label={t("admin_tenant_detail_page.renews")}
@@ -755,15 +882,26 @@ function TenantDetail({ id }: { id: string }) {
           </div>
         )}
 
-        {/* Invoice history */}
-        {tenant.invoices && tenant.invoices.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Receipt className="h-4 w-4" />{" "}
-                {t("admin_tenant_detail_page.invoices")}
-              </CardTitle>
-            </CardHeader>
+        {/* Invoice history. Always shown: hiding the card when there were no
+            invoices left "none yet" and "not loaded" looking the same
+            (console QA F16). */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Receipt className="h-4 w-4" />{" "}
+              {t("admin_tenant_detail_page.invoices")}
+            </CardTitle>
+          </CardHeader>
+          {!tenant.invoices || tenant.invoices.length === 0 ? (
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {t(
+                  "admin_tenant_detail_page.invoices_none",
+                  "No invoices yet.",
+                )}
+              </p>
+            </CardContent>
+          ) : (
             <CardContent className="p-0">
               <SimpleTable
                 caption={t("admin_tenant_detail_page.invoices")}
@@ -818,24 +956,9 @@ function TenantDetail({ id }: { id: string }) {
                           "Mark paid",
                         )} ${inv.public_id.slice(-8)}`}
                         onClick={() =>
-                          markInvoicePaid.mutate(inv.public_id, {
-                            onSuccess: () =>
-                              toast.success(
-                                t(
-                                  "admin_tenant_detail_page.invoice_marked_paid",
-                                  "Invoice marked paid",
-                                ),
-                              ),
-                            onError: (err) =>
-                              toast.error(
-                                apiErrorMessage(
-                                  err,
-                                  t(
-                                    "admin_tenant_detail_page.mark_paid_failed",
-                                    "Couldn't mark the invoice paid",
-                                  ),
-                                ),
-                              ),
+                          setPendingInvoice({
+                            publicId: inv.public_id,
+                            totalCents: inv.total_cents,
                           })
                         }
                       >
@@ -846,8 +969,8 @@ function TenantDetail({ id }: { id: string }) {
                 }))}
               />
             </CardContent>
-          </Card>
-        )}
+          )}
+        </Card>
 
         {/* Recent audit log */}
         {tenant.audit_log && tenant.audit_log.length > 0 && (
@@ -880,6 +1003,33 @@ function TenantDetail({ id }: { id: string }) {
           </Card>
         )}
 
+        {/* Payment confirmation */}
+        <ConfirmDialog
+          open={pendingInvoice !== null}
+          onOpenChange={(open) => {
+            if (!open && !markInvoicePaid.isPending) setPendingInvoice(null);
+          }}
+          title={t(
+            "admin_tenant_detail_page.confirm_mark_paid_title",
+            "Confirm payment received",
+          )}
+          description={t(
+            "admin_tenant_detail_page.confirm_mark_paid",
+            "Mark invoice :invoice for :amount as paid? This activates the subscription and records the payment as revenue.",
+            {
+              invoice: pendingInvoice?.publicId.slice(-8) ?? "",
+              amount: formatETB(pendingInvoice?.totalCents ?? 0),
+            },
+          )}
+          confirmLabel={t(
+            "admin_tenant_detail_page.confirm_mark_paid_button",
+            "Mark :amount paid",
+            { amount: formatETB(pendingInvoice?.totalCents ?? 0) },
+          )}
+          loading={markInvoicePaid.isPending}
+          onConfirm={confirmMarkPaid}
+        />
+
         {/* Status change confirmation */}
         <ConfirmDialog
           open={pendingStatus !== null}
@@ -898,15 +1048,70 @@ function TenantDetail({ id }: { id: string }) {
                     "admin_tenant_detail_page.confirm_suspend",
                     "Suspending immediately blocks everyone at this organization from signing in.",
                   )
-                : t(
-                    "admin_tenant_detail_page.confirm_activate",
-                    "This restores full access for everyone at this organization.",
-                  )
+                : tenant.status === "trial"
+                  ? t(
+                      "admin_tenant_detail_page.confirm_activate_trial",
+                      "This ends the trial now and makes the organisation an active customer.",
+                    )
+                  : t(
+                      "admin_tenant_detail_page.confirm_activate",
+                      "This restores full access for everyone at this organization.",
+                    )
           }
           confirmLabel={`${statusActionLabel(pendingStatus)} ${tenant.name}`}
+          // "Cancel" beside "Cancel QA Audit" read as two ways to cancel the
+          // organisation (console QA F14).
+          cancelLabel={t("admin_tenant_detail_page.keep_as_is", "Keep as is")}
           variant={pendingStatus === "active" ? "default" : "destructive"}
           loading={updateStatus.isPending}
           onConfirm={confirmStatusChange}
+        />
+
+        {/* Address mode confirmation */}
+        <ConfirmDialog
+          open={pendingMode !== null}
+          onOpenChange={(open) => {
+            if (!open && !updateAddressMode.isPending) setPendingMode(null);
+          }}
+          title={t(
+            "admin_tenant_detail_page.confirm_address_title",
+            "Change this organisation's address?",
+          )}
+          description={t(
+            "admin_tenant_detail_page.confirm_address",
+            ":name will be reached at :new instead of :old. Sign-in links and emails will use the new address.",
+            {
+              name: tenant.name,
+              old: addressFor(tenant),
+              new: addressForMode(pendingMode ?? "", tenant),
+            },
+          )}
+          confirmLabel={t(
+            "admin_tenant_detail_page.confirm_address_button",
+            "Change address",
+          )}
+          loading={updateAddressMode.isPending}
+          onConfirm={confirmModeChange}
+        />
+
+        {/* Backup confirmation */}
+        <ConfirmDialog
+          open={backupOpen}
+          onOpenChange={(open) => {
+            if (!open && !backup.isPending) setBackupOpen(false);
+          }}
+          title={t(
+            "admin_tenant_detail_page.confirm_backup_title",
+            "Back up this organisation?",
+          )}
+          description={t(
+            "admin_tenant_detail_page.confirm_backup",
+            "A full copy of :name's data is queued and made on the next scheduler run.",
+            { name: tenant.name },
+          )}
+          confirmLabel={t("admin_tenant_detail_page.backup_data")}
+          loading={backup.isPending}
+          onConfirm={confirmBackup}
         />
 
         {/* Extend Trial dialog */}
@@ -988,6 +1193,7 @@ function TenantDetail({ id }: { id: string }) {
                 </Label>
                 <Input
                   id="custom-domain"
+                  disabled={!tenant.custom_domain_allowed}
                   value={domainInput}
                   onChange={(e) => {
                     setDomainInput(e.target.value);
@@ -1138,9 +1344,7 @@ function StatCard({
         </div>
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="truncate font-semibold capitalize text-foreground">
-            {value}
-          </p>
+          <p className="truncate font-semibold text-foreground">{value}</p>
         </div>
       </CardContent>
     </Card>

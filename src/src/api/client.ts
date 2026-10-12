@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
+import { clearApiCache } from "@/lib/api-cache";
 import { hostContext } from "@/lib/auth/host-context";
 
 export interface ApiError {
@@ -153,6 +154,7 @@ apiClient.interceptors.response.use(
 
         return apiClient(originalRequest);
       } catch {
+        await clearApiCache();
         window.location.href = "/login";
       }
     }

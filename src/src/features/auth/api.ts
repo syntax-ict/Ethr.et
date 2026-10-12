@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 import type { User } from "@/api/types";
+import { clearApiCache } from "@/lib/api-cache";
 
 interface MeResponse {
   user: User;
@@ -171,8 +172,9 @@ export function useLogout() {
     // `onError`. The person clicked Log Out and was left on a populated
     // dashboard believing they had. For an offline-first product that is not an
     // edge case.
-    onSettled: () => {
+    onSettled: async () => {
       queryClient.clear();
+      await clearApiCache();
       window.location.href = "/login";
     },
   });

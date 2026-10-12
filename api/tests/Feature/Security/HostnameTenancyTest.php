@@ -372,9 +372,34 @@ it('refuses a tenant selector in the login body on the platform host', function 
         'email' => 'staff@habru.test',
         'password' => 'Str0ng-Passw0rd!',
         'tenant' => 'habru',
-    ])->assertStatus(422);
+    ])->assertStatus(422)->assertJsonMissingPath('errors.tenant');
 
     expect(app(CurrentTenant::class)->resolved())->toBeFalse();
+});
+
+it('answers a wrong super admin password on the platform host as wrong credentials', function () {
+    config(['app.domain' => 'ethr.et']);
+    User::factory()->create([
+        'tenant_id' => null,
+        'role' => UserRole::SUPER_ADMIN,
+        'password' => 'Str0ng-Passw0rd!',
+    ])->update(['email' => 'platform@ethr.et']);
+
+    // Production, 2026-10-11: a mistyped password on admin.ethr.et answered
+    // "Organization is required. Provide your subdomain." — a field the console
+    // does not show, for a mistake that had nothing to do with organisations.
+    test()->postJson('http://admin.ethr.et/api/v1/auth/login', [
+        'email' => 'platform@ethr.et',
+        'password' => 'not-the-password',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('errors.email.0', __('auth.failed'))
+        ->assertJsonMissingPath('errors.tenant');
+
+    test()->postJson('http://admin.ethr.et/api/v1/auth/login', [
+        'email' => 'platform@ethr.et',
+        'password' => 'Str0ng-Passw0rd!',
+    ])->assertOk();
 });
 
 it('still lets the apex accept a tenant selector, which the mobile client needs', function () {

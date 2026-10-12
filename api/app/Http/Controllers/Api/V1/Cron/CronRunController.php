@@ -45,7 +45,7 @@ class CronRunController
     public function schedule(): JsonResponse
     {
         return $this->runExclusively('schedule', function (): array {
-            $exit = Artisan::call('schedule:run');
+            $exit = Artisan::call('ethr:schedule-run');
 
             return ['exit_code' => $exit, 'output' => $this->tail(Artisan::output())];
         });
@@ -88,6 +88,10 @@ class CronRunController
      */
     private function runExclusively(string $task, callable $work): JsonResponse
     {
+        // A caller that gives up (a URL-fetch service's request timeout) must
+        // not abort a queue drain or a scheduled task part-way.
+        ignore_user_abort(true);
+
         $lock = Cache::lock("cron:{$task}", (int) config('cron.lock_seconds', 110));
 
         if (! $lock->get()) {
