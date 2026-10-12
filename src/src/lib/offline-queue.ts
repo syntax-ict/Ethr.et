@@ -13,6 +13,13 @@ export interface OfflineAttendanceRecord {
   captured_at: string;
   synced: 0 | 1;
   sync_error?: string | null;
+  /**
+   * The X-Tenant header to send with it, when the host does not name the
+   * organisation. The service worker reads it (see public/sw.js).
+   */
+  tenant?: string | null;
+  /** The interface language, for the service worker's "sent" notification. */
+  locale?: string | null;
 }
 
 function openDB(): Promise<IDBDatabase> {

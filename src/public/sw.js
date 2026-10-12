@@ -96,10 +96,153 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncAttendance() {
-  // Broadcast to all clients — the useOfflineSync hook in the app
-  // will handle the actual API calls, keeping auth tokens in the client
+  // With ETHR open, the page sends the queue (useOfflineSync): one sender,
+  // and it shows the result.
   const clients = await self.clients.matchAll({ type: 'window' });
-  clients.forEach(client => client.postMessage({ type: 'SYNC_ATTENDANCE' }));
+  if (clients.length > 0) {
+    clients.forEach(client => client.postMessage({ type: 'SYNC_ATTENDANCE' }));
+    return;
+  }
+
+  // With ETHR closed, the worker sends it itself. Until 2026-10-12 it only
+  // messaged open windows, so a punch queued offline waited until the app
+  // was next opened, however long the connection had been back.
+  await flushQueue();
+}
+
+// ── Offline punch queue, read directly (mirrors src/src/lib/offline-queue.ts) ─
+const QUEUE_DB = 'ethr-offline';
+const QUEUE_STORE = 'attendance_queue';
+
+function openQueue() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(QUEUE_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(QUEUE_STORE)) {
+        const store = db.createObjectStore(QUEUE_STORE, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('synced', 'synced', { unique: false });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function pendingPunches(db) {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(QUEUE_STORE, 'readonly').objectStore(QUEUE_STORE).index('synced').getAll(0);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function updatePunch(db, id, changes) {
+  return new Promise((resolve, reject) => {
+    const store = db.transaction(QUEUE_STORE, 'readwrite').objectStore(QUEUE_STORE);
+    const get = store.get(id);
+    get.onsuccess = () => {
+      if (!get.result) return resolve();
+      const put = store.put({ ...get.result, ...changes });
+      put.onsuccess = () => resolve();
+      put.onerror = () => reject(put.error);
+    };
+    get.onerror = () => reject(get.error);
+  });
+}
+
+async function xsrfToken() {
+  // Sanctum's CSRF check needs the XSRF-TOKEN cookie echoed in a header; a
+  // worker has no document.cookie, only the Cookie Store API (Chromium, which
+  // is also the only engine with Background Sync).
+  if (!self.cookieStore) return null;
+  try {
+    const cookie = await self.cookieStore.get('XSRF-TOKEN');
+    return cookie ? decodeURIComponent(cookie.value) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function flushQueue() {
+  const db = await openQueue();
+  const pending = await pendingPunches(db);
+  if (pending.length === 0) return;
+
+  const token = await xsrfToken();
+  if (!token) return; // the app sends them when next opened
+
+  // One request per tenant header, as the app would have sent each.
+  const groups = new Map();
+  for (const r of pending) {
+    const key = r.tenant || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  }
+
+  for (const [tenant, records] of groups) {
+    const headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-XSRF-TOKEN': token,
+    };
+    if (tenant) headers['X-Tenant'] = tenant;
+
+    const response = await fetch('/api/v1/attendance/sync', {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+      body: JSON.stringify({
+        records: records.map((r) => ({
+          employee_public_id: r.employee_public_id,
+          type: r.type,
+          timestamp: r.captured_at,
+          idempotency_key: r.idempotency_key,
+          offline_token: r.offline_token,
+          latitude: r.latitude,
+          longitude: r.longitude,
+        })),
+      }),
+    });
+
+    // Signed out, expired token, server down: leave the queue for the app.
+    // Throwing tells the browser to retry this sync later.
+    if (!response.ok) {
+      if (response.status >= 500) throw new Error('sync failed: ' + response.status);
+      return;
+    }
+
+    const data = await response.json();
+    for (const result of data.results || []) {
+      const record = records.find((r) => r.idempotency_key === result.idempotency_key);
+      if (!record || !record.id) continue;
+      if (result.status === 'created' || result.status === 'duplicate') {
+        await updatePunch(db, record.id, { synced: 1, sync_error: null });
+      } else {
+        await updatePunch(db, record.id, { sync_error: result.detail || 'Sync failed' });
+      }
+    }
+  }
+
+  // Only with permission already given: showNotification rejects without it,
+  // and a rejection here would make the browser retry a sync that worked.
+  if (self.Notification && self.Notification.permission === 'granted') {
+    const amharic = pending.some((r) => r.locale === 'am');
+    try {
+      await self.registration.showNotification('ETHR', {
+        body: amharic
+          ? 'ከመስመር ውጭ የተመዘገበው ክትትልዎ ተልኳል።'
+          : 'Your offline attendance was sent.',
+        tag: 'ethr-offline-sync',
+        icon: '/app-icons/icon-192.png',
+        badge: '/app-icons/badge-72.png',
+        data: { url: '/attendance' },
+      });
+    } catch (e) {
+      // A notification is a courtesy; the punches are already sent.
+    }
+  }
 }
 
 // ── Push Notifications ────────────────────────────────────────────────────────

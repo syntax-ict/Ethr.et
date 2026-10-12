@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet } from "@/components/ui/sheet";
+import { InstallAppMenuItem } from "@/components/shared/install-app";
 import { SidebarNav } from "./sidebar-nav";
 import { useAppLayout } from "./layout-context";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
@@ -336,6 +337,7 @@ export function AppHeader() {
                   {t("nav.notification_prefs", "Notification Preferences")}
                 </Link>
               </DropdownMenuItem>
+              <InstallAppMenuItem />
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer gap-2 text-destructive focus:text-destructive"

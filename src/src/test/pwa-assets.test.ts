@@ -128,4 +128,40 @@ describe("PWA assets", () => {
     // disagreement is invisible until someone installs the app.
     expect(manifest.theme_color?.toUpperCase()).toBe("#0F4C75");
   });
+
+  it("declares maskable icons on their own, as full-bleed images", () => {
+    // The 192/384/512 icons were declared "maskable any". Those files have
+    // transparent rounded corners, so Android's mask showed white corners
+    // around the launcher icon; combined purposes are discouraged for that
+    // reason. Maskable icons are separate files, brand colour edge to edge.
+    const manifest = JSON.parse(
+      readFileSync(join(PUBLIC_DIR, "manifest.json"), "utf8"),
+    ) as { icons: { src: string; purpose?: string }[] };
+
+    for (const icon of manifest.icons) {
+      expect(
+        (icon.purpose ?? "any").split(/\s+/),
+        `${icon.src} mixes purposes`,
+      ).toHaveLength(1);
+    }
+
+    const maskable = manifest.icons.filter((i) => i.purpose === "maskable");
+    expect(maskable.map((i) => i.src)).toEqual([
+      "/app-icons/maskable-192.png",
+      "/app-icons/maskable-512.png",
+    ]);
+  });
+
+  it("keeps the app's identity stable across releases", () => {
+    // Browsers key an installed app on `id`, falling back to start_url. The
+    // start_url gained a query string; without an explicit id every phone
+    // would see a different app and offer to install it again.
+    const manifest = JSON.parse(
+      readFileSync(join(PUBLIC_DIR, "manifest.json"), "utf8"),
+    ) as { id?: string; start_url: string; scope?: string };
+
+    expect(manifest.id).toBe("/dashboard");
+    expect(manifest.scope).toBe("/");
+    expect(manifest.start_url.startsWith("/dashboard")).toBe(true);
+  });
 });

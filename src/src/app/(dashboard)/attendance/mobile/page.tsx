@@ -25,6 +25,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useOfflineSync } from "@/lib/hooks/useOfflineSync";
 import { enqueueOfflineRecord } from "@/lib/offline-queue";
+import { requestAttendanceSync } from "@/lib/hooks/useServiceWorker";
+import { tenantHeaderValue } from "@/api/client";
 import { useCurrentUser } from "@/features/auth/api";
 import { useT } from "@/lib/i18n/useT";
 import { apiErrorDetail } from "@/lib/api/error-message";
@@ -32,7 +34,7 @@ import { apiErrorDetail } from "@/lib/api/error-message";
 type Status = "idle" | "submitting" | "success" | "error";
 
 export default function MobileCheckInPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { isOnline, pendingCount, syncing, syncNow } = useOfflineSync();
@@ -137,7 +139,12 @@ export default function MobileCheckInPage() {
           latitude: coords.lat,
           longitude: coords.lng,
           captured_at: new Date().toISOString(),
+          tenant: tenantHeaderValue(),
+          locale,
         });
+        // Let the browser send it when the connection returns, even if ETHR
+        // is closed by then (where Background Sync is supported).
+        void requestAttendanceSync();
         setMessage(
           `${type === "check_in" ? t("common.check_in") : t("common.check_out")} ${t("attendance.mobile_page.saved_offline")}`,
         );

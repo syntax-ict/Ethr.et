@@ -53,7 +53,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
               >
                 <PageActionsSlotProvider>
                   <PageTitleBar />
-                  <div className="p-4 pb-20 md:p-6 lg:pb-6">
+                  <div className="p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-6">
                     <ErrorBoundary>{children}</ErrorBoundary>
                   </div>
                 </PageActionsSlotProvider>
