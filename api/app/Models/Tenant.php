@@ -90,6 +90,7 @@ class Tenant extends Model
         'status',
         'logo_path',
         'theme',
+        'landing',
         'default_locale',
         'timezone',
         'ethiopian_calendar',
@@ -107,6 +108,7 @@ class Tenant extends Model
         return [
             'status' => TenantStatus::class,
             'theme' => 'array',
+            'landing' => 'array',
             'settings' => 'array',
             'ethiopian_calendar' => 'boolean',
             'trial_ends_at' => 'datetime',

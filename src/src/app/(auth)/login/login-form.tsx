@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { initiateSso, login, prepareCsrfCookie } from "@/features/auth/sign-in";
+import { InstallAppBanner } from "@/components/shared/install-app";
 import { useT } from "@/lib/i18n/useT";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
@@ -78,6 +79,7 @@ export function LoginForm() {
     tenantLookupError,
     tenantFieldVisible,
     tenantBrand,
+    tenantSignIn,
     onLanding,
   } = useAuthHostContext();
   const [showPassword, setShowPassword] = useState(false);
@@ -314,6 +316,16 @@ export function LoginForm() {
           "Enter your credentials to access your account",
         );
 
+  // An organisation's page offers only the ways in it actually has: SSO once
+  // it is configured, text-message codes once a gateway exists. Elsewhere the
+  // organisation is not known yet, so both stay on offer.
+  const offerSso =
+    hostAppContext === "tenant" && tenantSignIn ? tenantSignIn.sso : true;
+  const offerOtp =
+    hostAppContext === "tenant" && tenantSignIn ? tenantSignIn.otp : true;
+  // Not on an organisation's own address: the people there are its
+  // employees, and a trial would start a new organisation.
+  const offerTrial = hostAppContext !== "tenant";
   return (
     <div className="w-full max-w-sm mx-auto">
       <div className="mb-8">
@@ -492,60 +504,71 @@ export function LoginForm() {
           )}
         </Button>
 
-        {hostAppContext !== "platform" && (
-          <>
-            <div className="relative flex items-center py-1">
-              <div className="flex-1 border-t border-border" />
-              <span className="px-3 text-xs text-muted-foreground">
-                {t("auth.or", "or")}
-              </span>
-              <div className="flex-1 border-t border-border" />
-            </div>
+        {hostAppContext !== "platform" &&
+          (offerSso || offerOtp || offerTrial) && (
+            <>
+              <div className="relative flex items-center py-1">
+                <div className="flex-1 border-t border-border" />
+                <span className="px-3 text-xs text-muted-foreground">
+                  {t("auth.or", "or")}
+                </span>
+                <div className="flex-1 border-t border-border" />
+              </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 w-full"
-              onClick={handleSsoLogin}
-              disabled={ssoLoading}
-            >
-              {ssoLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <KeyRound className="mr-2 h-4 w-4" />
-              )}
-              {t("auth.sign_in_sso", "Sign in with SSO")}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 w-full"
-              asChild
-            >
-              <Link prefetch={false} href="/login/otp">
-                <MessageSquareText className="mr-2 h-4 w-4" />
-                {t("auth.sign_in_otp", "Sign in with a text message code")}
-              </Link>
-            </Button>
-
-            {/* Not on an organisation's own address: the people there are
-                its employees, and a trial would start a new organisation. */}
-            {hostAppContext !== "tenant" && (
-              <p className="text-center text-sm text-muted-foreground">
-                {t("auth.no_account", "Don't have an account?")}{" "}
-                <Link
-                  prefetch={false}
-                  href="/register"
-                  className="font-medium text-primary hover:underline"
+              {offerSso && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 w-full"
+                  onClick={handleSsoLogin}
+                  disabled={ssoLoading}
                 >
-                  {t("auth.start_trial", "Start free trial")}
-                </Link>
-              </p>
-            )}
-          </>
-        )}
+                  {ssoLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="mr-2 h-4 w-4" />
+                  )}
+                  {t("auth.sign_in_sso", "Sign in with SSO")}
+                </Button>
+              )}
+
+              {offerOtp && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 w-full"
+                  asChild
+                >
+                  <Link prefetch={false} href="/login/otp">
+                    <MessageSquareText className="mr-2 h-4 w-4" />
+                    {t("auth.sign_in_otp", "Sign in with a text message code")}
+                  </Link>
+                </Button>
+              )}
+
+              {offerTrial && (
+                <p className="text-center text-sm text-muted-foreground">
+                  {t("auth.no_account", "Don't have an account?")}{" "}
+                  <Link
+                    prefetch={false}
+                    href="/register"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {t("auth.start_trial", "Start free trial")}
+                  </Link>
+                </p>
+              )}
+            </>
+          )}
       </form>
+
+      {/* Most people arrive here from a poster or a link on their phone;
+          the installed app opens straight to check-in next time. */}
+      {onLanding && (
+        <div className="mt-6">
+          <InstallAppBanner />
+        </div>
+      )}
     </div>
   );
 }

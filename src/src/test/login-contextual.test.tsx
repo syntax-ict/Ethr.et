@@ -47,6 +47,9 @@ const base: HostCtx = {
   tenantName: null,
   tenantLogoPath: null,
   tenantBrand: null,
+  tenantLanding: null,
+  tenantSignIn: null,
+  tenantDefaultLocale: null,
   onLanding: false,
   tenantContextLoading: false,
   tenantLookupError: null,
@@ -194,6 +197,45 @@ describe("login page — hostname context", () => {
     );
     expect(
       screen.queryByRole("link", { name: /start free trial/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  // An organisation's page offers only the ways in it actually has.
+  it("organisation page: hides SSO and text-message codes it does not offer", () => {
+    hostContextValue.mockReturnValue({
+      ...base,
+      context: "tenant",
+      tenantSlug: "acme",
+      tenantName: "Acme",
+      tenantFieldVisible: false,
+      tenantSignIn: { sso: false, otp: true },
+    });
+
+    renderLogin();
+
+    expect(
+      screen.queryByRole("button", { name: /sign in with sso/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /text message code/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("organisation page with neither: no divider, password only", () => {
+    hostContextValue.mockReturnValue({
+      ...base,
+      context: "tenant",
+      tenantSlug: "acme",
+      tenantName: "Acme",
+      tenantFieldVisible: false,
+      tenantSignIn: { sso: false, otp: false },
+    });
+
+    renderLogin();
+
+    expect(screen.queryByText(/^or$/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /text message code/i }),
     ).not.toBeInTheDocument();
   });
 });
