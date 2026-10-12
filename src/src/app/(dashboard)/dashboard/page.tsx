@@ -147,6 +147,7 @@ function SelfServiceKpis() {
       <KpiCard
         icon={Clock}
         tone="info"
+        href="/attendance/mobile"
         title={t("dashboard.attendance", "Attendance")}
         value={
           attendance?.status === "checked_in"

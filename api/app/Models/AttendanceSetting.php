@@ -29,6 +29,11 @@ class AttendanceSetting extends Model
         'grace_period_minutes',
         'ot_daily_cap_minutes',
         'confidence_threshold',
+        'reminders_enabled',
+        'reminder_lead_minutes',
+        'auto_checkout_enabled',
+        'auto_checkout_after_minutes',
+        'geofence_auto_checkin_enabled',
     ];
 
     protected function casts(): array
@@ -47,6 +52,11 @@ class AttendanceSetting extends Model
             'grace_period_minutes' => 'integer',
             'ot_daily_cap_minutes' => 'integer',
             'confidence_threshold' => 'integer',
+            'reminders_enabled' => 'boolean',
+            'reminder_lead_minutes' => 'integer',
+            'auto_checkout_enabled' => 'boolean',
+            'auto_checkout_after_minutes' => 'integer',
+            'geofence_auto_checkin_enabled' => 'boolean',
         ];
     }
 
@@ -66,6 +76,11 @@ class AttendanceSetting extends Model
             'grace_period_minutes' => 15,
             'ot_daily_cap_minutes' => 120,
             'confidence_threshold' => 70,
+            'reminders_enabled' => true,
+            'reminder_lead_minutes' => 10,
+            'auto_checkout_enabled' => false,
+            'auto_checkout_after_minutes' => 120,
+            'geofence_auto_checkin_enabled' => false,
         ];
     }
 

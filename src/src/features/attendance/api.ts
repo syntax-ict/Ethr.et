@@ -74,6 +74,10 @@ export type ImportPreview =
 /** A punch endpoint's record, plus whether the request was a replay. */
 export type PunchResult = components["schemas"]["AttendancePunchResource"];
 
+/** `GET /attendance/my-shift`: today's shift, status, rules and assistant switches. */
+export type MyShift =
+  operations["attendance.myShift"]["responses"][200]["content"]["application/json"];
+
 export interface AttendanceFilters {
   page?: number;
   per_page?: number;
@@ -108,6 +112,7 @@ const keys = {
   conflicts: ["attendance", "conflicts"] as const,
   kiosks: ["attendance", "kiosks"] as const,
   settings: ["attendance", "settings"] as const,
+  myShift: ["attendance", "my-shift"] as const,
 };
 
 function useAttendanceMutation<TVars, TData>(
@@ -206,6 +211,8 @@ export function useMobilePunch() {
       latitude: number;
       longitude: number;
       photo?: string;
+      /** Made by the assistant on arrival, not by a tap (check-in only). */
+      auto?: boolean;
     }): Promise<PunchResult> => {
       const { type, ...payload } = vars;
       const path =
@@ -530,4 +537,22 @@ export function useUpdateAttendanceSettings() {
       (await apiClient.put("/attendance/settings", payload)).data,
     [keys.settings],
   );
+}
+
+/**
+ * The signed-in employee's shift today and whether they are in. Read by the
+ * punch screen and by the reminder scheduler; refreshed when the app comes
+ * back to the foreground, since a phone may have been in a pocket for hours.
+ * Disabled for an account with no employee record (it answers 404).
+ */
+export function useMyShift(enabled = true) {
+  return useQuery<MyShift>({
+    queryKey: keys.myShift,
+    queryFn: async () => (await apiClient.get("/attendance/my-shift")).data,
+    enabled,
+    staleTime: 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
 }

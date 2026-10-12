@@ -16,6 +16,7 @@ import { ImpersonationBanner } from "@/components/shared/impersonation-banner";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { CalendarPreferenceSync } from "@/components/shared/calendar-preference-sync";
 import { useCurrentUser } from "@/features/auth/api";
+import { PunchReminders } from "@/features/attendance/components/punch-reminders";
 import { useT } from "@/lib/i18n/useT";
 import { useDocumentTitle } from "@/lib/hooks/useDocumentTitle";
 
@@ -40,6 +41,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             {t("a11y.skip_to_content", "Skip to main content")}
           </a>
           <CommandPalette />
+          <PunchReminders />
           <ImpersonationBanner />
           <OfflineBanner />
           <div className="flex h-screen overflow-hidden bg-background">
