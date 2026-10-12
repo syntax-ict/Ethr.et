@@ -29,9 +29,11 @@ const PUBLIC_DIR = join(__dirname, "..", "..", "public");
 function iconReferencesIn(relativePath: string): string[] {
   const source = readFileSync(join(PUBLIC_DIR, relativePath), "utf8");
 
-  // Matches "/icons/badge-72.png" in JSON values and in JS string literals alike.
+  // Matches "/app-icons/badge-72.png" in JSON values and in JS string literals
+  // alike — and the old "/icons/…" too, so a reference that drifts back there is
+  // swept up and reported by the test below rather than skipped.
   const matches = source.matchAll(
-    /\/icons\/[A-Za-z0-9._-]+\.(?:png|svg|ico|webp)/g,
+    /\/(?:app-)?icons\/[A-Za-z0-9._-]+\.(?:png|svg|ico|webp)/g,
   );
 
   return [...new Set([...matches].map((m) => m[0]))];
@@ -59,6 +61,22 @@ describe("PWA assets", () => {
       ).toEqual([]);
     },
   );
+
+  it("serves nothing under /icons/, which the host's Apache keeps for itself", () => {
+    // Production QA 2026-10-11, P10: every /icons/* request answered 404 in
+    // production although the files were deployed. The host's stock
+    // `Alias /icons/ …` (Apache's autoindex icon set) takes the path before the
+    // document root does — /icons/blank.gif answered 200 image/gif. A server
+    // alias cannot be changed from a shared-hosting subscription, so the app's
+    // icons live at /app-icons/ and nothing may point back.
+    expect(existsSync(join(PUBLIC_DIR, "icons"))).toBe(false);
+    for (const file of ["manifest.json", "sw.js"]) {
+      expect(
+        iconReferencesIn(file).filter((ref) => ref.startsWith("/icons/")),
+        `${file} references the shadowed /icons/ path`,
+      ).toEqual([]);
+    }
+  });
 
   it("ships a monochrome badge, which cannot be the colour app icon", () => {
     const manifest = JSON.parse(
