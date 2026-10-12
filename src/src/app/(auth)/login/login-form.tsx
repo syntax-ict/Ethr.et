@@ -27,6 +27,7 @@ import { initiateSso, login, prepareCsrfCookie } from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
+import { OrgMark } from "@/components/shared/org-mark";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
 
 const loginSchema = z.object({
@@ -76,6 +77,8 @@ export function LoginForm() {
     tenantContextLoading,
     tenantLookupError,
     tenantFieldVisible,
+    tenantBrand,
+    onLanding,
   } = useAuthHostContext();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
@@ -314,9 +317,20 @@ export function LoginForm() {
   return (
     <div className="w-full max-w-sm mx-auto">
       <div className="mb-8">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary shadow-sm">
-          <span className="text-base font-bold text-primary-foreground">E</span>
-        </div>
+        {hostAppContext === "tenant" ? (
+          <OrgMark
+            name={tenantName}
+            logoUrl={tenantBrand?.logo_url}
+            className="h-11 w-11"
+            initialClassName="text-base"
+          />
+        ) : (
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary shadow-sm">
+            <span className="text-base font-bold text-primary-foreground">
+              E
+            </span>
+          </div>
+        )}
         <h1 className="mt-6 text-2xl font-bold tracking-tight text-foreground">
           {heading}
         </h1>
@@ -341,6 +355,15 @@ export function LoginForm() {
             name={tenantName}
             slug={subdomainFromHost}
             loading={tenantContextLoading}
+            logoUrl={tenantBrand?.logo_url}
+            // On the landing the organisation is in the path, not the host;
+            // and someone who followed the wrong link can still choose.
+            address={
+              onLanding
+                ? `${window.location.host}/${subdomainFromHost}`
+                : undefined
+            }
+            changeHref={onLanding ? "/login" : undefined}
           />
         )}
 
@@ -506,16 +529,20 @@ export function LoginForm() {
               </Link>
             </Button>
 
-            <p className="text-center text-sm text-muted-foreground">
-              {t("auth.no_account", "Don't have an account?")}{" "}
-              <Link
-                prefetch={false}
-                href="/register"
-                className="font-medium text-primary hover:underline"
-              >
-                {t("auth.start_trial", "Start free trial")}
-              </Link>
-            </p>
+            {/* Not on an organisation's own address: the people there are
+                its employees, and a trial would start a new organisation. */}
+            {hostAppContext !== "tenant" && (
+              <p className="text-center text-sm text-muted-foreground">
+                {t("auth.no_account", "Don't have an account?")}{" "}
+                <Link
+                  prefetch={false}
+                  href="/register"
+                  className="font-medium text-primary hover:underline"
+                >
+                  {t("auth.start_trial", "Start free trial")}
+                </Link>
+              </p>
+            )}
           </>
         )}
       </form>

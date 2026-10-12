@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LoginForm } from "@/app/(auth)/login/login-form";
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/login",
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
