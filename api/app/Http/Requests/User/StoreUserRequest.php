@@ -6,6 +6,7 @@ namespace App\Http\Requests\User;
 
 use App\Enums\UserRole;
 use App\Http\Requests\User\Concerns\ValidatesCustomRoleAssignment;
+use App\Models\Employee;
 use App\Services\CurrentTenant;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -48,6 +49,17 @@ class StoreUserRequest extends FormRequest
     {
         $validator->after(function (Validator $v): void {
             $this->validateCustomRoleAssignment($v);
+
+            // `employee_id`'s `exists` rule is unscoped: another tenant's
+            // employee passed it, and the controller's scoped lookup then
+            // silently linked nobody (production QA 2026-10-11, P14). Same
+            // generic message as a nonexistent id, so it confirms nothing.
+            $employeeId = $this->input('employee_id');
+            if (is_string($employeeId) && $employeeId !== ''
+                && ! $v->errors()->has('employee_id')
+                && ! Employee::where('public_id', $employeeId)->exists()) {
+                $v->errors()->add('employee_id', __('validation.exists', ['attribute' => 'employee id']));
+            }
 
             $role = UserRole::tryFrom((string) $this->input('role'));
             $actor = $this->user();

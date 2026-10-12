@@ -115,6 +115,17 @@ return [
             'expire' => 60,
             'throttle' => 60,
         ],
+
+        // Invitation (set-your-password) links. An invitee often opens the
+        // email the next day, and 60 minutes — the reset lifetime — expired
+        // them first (production QA 2026-10-11, P11). A separate table keeps
+        // a reset token from living 72 hours.
+        'activations' => [
+            'provider' => 'users',
+            'table' => 'account_activation_tokens',
+            'expire' => 72 * 60,
+            'throttle' => 60,
+        ],
     ],
 
     /*
