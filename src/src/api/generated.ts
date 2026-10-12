@@ -4733,6 +4733,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/landing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * PUT /settings/landing - the organisation's sign-in page (ethr.et/{slug}):
+         *     headline, welcome message, help contacts and panel background
+         */
+        put: operations["settings.updateLanding"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/settings/sso": {
         parameters: {
             query?: never;
@@ -7700,6 +7720,22 @@ export interface components {
          */
         UpdateKioskPinRequest: {
             pin: string | null;
+        };
+        /**
+         * UpdateLandingRequest
+         * @description The organisation's sign-in page: its own words, help contacts and panel
+         *     background. Everything here is shown publicly, before sign-in.
+         */
+        UpdateLandingRequest: {
+            headline?: string | null;
+            message?: string | null;
+            /** Format: email */
+            support_email?: string | null;
+            support_phone?: string | null;
+            /** @enum {string} */
+            background: "brand" | "gradient" | "image";
+            /** Format: uri */
+            background_image_url?: string | null;
         };
         /** UpdateLeaveTypeRequest */
         UpdateLeaveTypeRequest: {
@@ -20431,6 +20467,15 @@ export interface operations {
                                 accent_color?: string | null;
                             };
                         };
+                        landing: {
+                            headline: string | null;
+                            message: string | null;
+                            support_email: string | null;
+                            support_phone: string | null;
+                            /** @description An image background with no usable image is the brand colour. */
+                            background: string;
+                            background_image_url: string | null;
+                        };
                         /**
                          * @description Attendance rules (grace period, OT cap, confidence threshold) live
                          *     on the AttendanceSetting model and are served by GET/PUT
@@ -20665,6 +20710,40 @@ export interface operations {
                         message: "Branding updated";
                         logo_url: string;
                         theme: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.updateLanding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateLandingRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        headline: string | null;
+                        message: string | null;
+                        support_email: string | null;
+                        support_phone: string | null;
+                        /** @description An image background with no usable image is the brand colour. */
+                        background: string;
+                        background_image_url: string | null;
                     };
                 };
             };
@@ -21713,8 +21792,23 @@ export interface operations {
                             brand: {
                                 logo_url: string | null;
                                 primary_color: string | null;
+                                secondary_color: string | null;
                                 accent_color: string | null;
                             };
+                            landing: {
+                                headline: string | null;
+                                message: string | null;
+                                support_email: string | null;
+                                support_phone: string | null;
+                                /** @description An image background with no usable image is the brand colour. */
+                                background: string;
+                                background_image_url: string | null;
+                            };
+                            sign_in: {
+                                sso: boolean;
+                                otp: boolean;
+                            };
+                            default_locale: string;
                         } | null;
                     };
                 };

@@ -15,7 +15,24 @@ export interface TenantBrand {
   /** An https logo URL, or null for the organisation's initial. */
   logo_url: string | null;
   primary_color: string | null;
+  secondary_color?: string | null;
   accent_color: string | null;
+}
+
+/** The organisation's own words and look on its sign-in page. */
+export interface TenantLanding {
+  headline: string | null;
+  message: string | null;
+  support_email: string | null;
+  support_phone: string | null;
+  background: "brand" | "gradient" | "image";
+  background_image_url: string | null;
+}
+
+/** Which ways in the organisation offers besides a password. */
+export interface TenantSignIn {
+  sso: boolean;
+  otp: boolean;
 }
 
 interface TenantContextResponse {
@@ -24,6 +41,9 @@ interface TenantContextResponse {
     subdomain: string;
     logo_path: string | null;
     brand?: TenantBrand;
+    landing?: TenantLanding;
+    sign_in?: TenantSignIn;
+    default_locale?: string;
   } | null;
 }
 
@@ -153,6 +173,11 @@ export function useAuthHostContext() {
     tenantLogoPath: resolved?.logo_path ?? null,
     /** The organisation's logo and colours, when it names itself to this page. */
     tenantBrand: resolved?.brand ?? null,
+    /** Its headline, message, help contacts and background, if it set any. */
+    tenantLanding: resolved?.landing ?? null,
+    /** SSO and text-message sign-in, where the organisation offers them. */
+    tenantSignIn: resolved?.sign_in ?? null,
+    tenantDefaultLocale: resolved?.default_locale ?? null,
     /** On an organisation's own landing address, `ethr.et/{slug}`. */
     onLanding,
     tenantContextLoading:

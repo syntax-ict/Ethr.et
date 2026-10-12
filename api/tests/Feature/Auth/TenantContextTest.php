@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Tenant;
+use App\Services\Auth\OtpService;
 
 /**
  * GET /auth/tenant-context is the pre-auth endpoint the login page reads to
@@ -32,8 +33,24 @@ it('returns the host-resolved tenant display info', function () {
                 'brand' => [
                     'logo_url' => null,
                     'primary_color' => null,
+                    'secondary_color' => null,
                     'accent_color' => null,
                 ],
+                // Its own words on the page, none set: ETHR's defaults.
+                'landing' => [
+                    'headline' => null,
+                    'message' => null,
+                    'support_email' => null,
+                    'support_phone' => null,
+                    'background' => 'brand',
+                    'background_image_url' => null,
+                ],
+                // Which ways in to offer: SSO only once configured.
+                'sign_in' => [
+                    'sso' => false,
+                    'otp' => app(OtpService::class)->isAvailable(),
+                ],
+                'default_locale' => 'en',
             ],
         ]);
 });

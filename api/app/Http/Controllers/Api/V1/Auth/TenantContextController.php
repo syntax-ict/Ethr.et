@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\SsoSetting;
+use App\Services\Auth\OtpService;
 use App\Services\CurrentTenant;
+use App\Support\TenantLanding;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -21,7 +24,7 @@ use Illuminate\Http\JsonResponse;
  */
 class TenantContextController extends Controller
 {
-    public function __invoke(CurrentTenant $currentTenant): JsonResponse
+    public function __invoke(CurrentTenant $currentTenant, OtpService $otp): JsonResponse
     {
         $tenant = $currentTenant->get();
         // Read raw: the column is cast to an array, but a row written before
@@ -37,8 +40,15 @@ class TenantContextController extends Controller
                 'brand' => [
                     'logo_url' => self::httpsUrl($tenant->logo_path),
                     'primary_color' => self::hexColour($theme['primary_color'] ?? null),
+                    'secondary_color' => self::hexColour($theme['secondary_color'] ?? null),
                     'accent_color' => self::hexColour($theme['accent_color'] ?? null),
                 ],
+                'landing' => TenantLanding::present($tenant),
+                'sign_in' => [
+                    'sso' => SsoSetting::query()->where('is_enabled', true)->exists(),
+                    'otp' => $otp->isAvailable(),
+                ],
+                'default_locale' => $tenant->default_locale,
             ] : null,
         ]);
     }
@@ -57,8 +67,6 @@ class TenantContextController extends Controller
     /** A logo drawn on a public page: an https URL only. */
     private static function httpsUrl(mixed $value): ?string
     {
-        return is_string($value) && str_starts_with($value, 'https://') && filter_var($value, FILTER_VALIDATE_URL) !== false
-            ? $value
-            : null;
+        return TenantLanding::httpsUrl($value);
     }
 }
