@@ -50,6 +50,7 @@ const organisation: HostCtx = {
   tenantSignIn: { sso: false, otp: false },
   tenantDefaultLocale: "en",
   onLanding: true,
+  tenantRequest: null,
   tenantContextLoading: false,
   tenantLookupError: null,
   tenantFieldVisible: false,

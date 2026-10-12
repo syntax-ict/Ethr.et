@@ -20,7 +20,14 @@ final class TenantLanding
     public const BACKGROUNDS = ['brand', 'gradient', 'image'];
 
     /**
-     * @return array{headline: string|null, message: string|null, support_email: string|null, support_phone: string|null, background: string, background_image_url: string|null}
+     * What the page lists beside the sign-in form, and whether each is on by
+     * default. News and vacancies are on: each item still has to be marked
+     * for the public by whoever wrote it. Holidays are off until chosen.
+     */
+    public const SECTIONS = ['announcements' => true, 'vacancies' => true, 'holidays' => false];
+
+    /**
+     * @return array{headline: string|null, message: string|null, support_email: string|null, support_phone: string|null, background: string, background_image_url: string|null, sections: array{announcements: bool, vacancies: bool, holidays: bool}}
      */
     public static function present(Tenant $tenant): array
     {
@@ -46,6 +53,21 @@ final class TenantLanding
             // An image background with no usable image is the brand colour.
             'background' => $background === 'image' && $image === null ? 'brand' : $background,
             'background_image_url' => $image,
+            'sections' => self::sections($landing['sections'] ?? null),
+        ];
+    }
+
+    /**
+     * @return array{announcements: bool, vacancies: bool, holidays: bool}
+     */
+    public static function sections(mixed $stored): array
+    {
+        $stored = is_array($stored) ? $stored : [];
+
+        return [
+            'announcements' => is_bool($stored['announcements'] ?? null) ? $stored['announcements'] : self::SECTIONS['announcements'],
+            'vacancies' => is_bool($stored['vacancies'] ?? null) ? $stored['vacancies'] : self::SECTIONS['vacancies'],
+            'holidays' => is_bool($stored['holidays'] ?? null) ? $stored['holidays'] : self::SECTIONS['holidays'],
         ];
     }
 

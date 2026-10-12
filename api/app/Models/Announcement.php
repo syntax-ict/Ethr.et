@@ -25,6 +25,7 @@ class Announcement extends Model
         'published_by',
         'published_at',
         'expires_at',
+        'show_on_landing',
     ];
 
     protected function casts(): array
@@ -33,6 +34,7 @@ class Announcement extends Model
             'published_at' => 'datetime',
             'expires_at' => 'datetime',
             'target_id' => 'integer',
+            'show_on_landing' => 'boolean',
         ];
     }
 

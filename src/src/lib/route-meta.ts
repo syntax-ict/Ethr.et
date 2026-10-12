@@ -68,6 +68,11 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Announcements",
     description: "Company-wide announcements and notices",
   },
+  "/vacancies": {
+    section: "My Work",
+    label: "Vacancies",
+    description: "Open positions in the organisation",
+  },
 
   // ── People ───────────────────────────────────────────────────────
   "/employees": {

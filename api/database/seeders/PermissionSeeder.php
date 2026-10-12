@@ -177,6 +177,7 @@ class PermissionSeeder extends Seeder
 
             // Announcement
             ['name' => 'announcement.manage', 'module' => 'announcement', 'action' => 'manage', 'description' => 'Manage announcements'],
+            ['name' => 'vacancy.manage', 'module' => 'vacancy', 'action' => 'manage', 'description' => 'Post, edit and close vacancies'],
 
             // Dashboard
             ['name' => 'dashboard.executive', 'module' => 'dashboard', 'action' => 'executive', 'description' => 'View executive dashboard (any branch)'],
@@ -272,6 +273,7 @@ class PermissionSeeder extends Seeder
             'disciplinary_case.manage',
             'retirement_case.manage',
             'announcement.manage',
+            'vacancy.manage',
             // Inviting/activating people is part of HR onboarding.
             'users.viewAny', 'users.invite', 'users.update',
         ];
