@@ -124,6 +124,16 @@ else
 fi
 rm -f "$got"
 
+# With a trailing slash too: a bookmark or pasted link (attendance QA A8).
+got="$(mktemp)"
+curl -s --max-time 15 -o "$got" "$BASE/devices/01HQZX3NDJKMNP4RSTVWXY5Z6A/" || true
+if cmp -s "$got" "$DOCROOT_DIR/devices/__id__.html"; then
+    printf '  \033[32mok\033[0m    %-52s byte-identical to __id__.html\n' "/devices/<ULID>/"; pass=$((pass+1))
+else
+    printf '  \033[31mFAIL\033[0m  %-52s not the sentinel shell\n' "/devices/<ULID>/"; fail=$((fail+1))
+fi
+rm -f "$got"
+
 printf '\n\033[1m4 · Laravel through .htaccess — no proxy directive\033[0m\n'
 check "/api/v1/health"                        "200|503"     "$BASE/api/v1/health"
 contains "/api/v1/health is JSON from PHP"    "status"      "$BASE/api/v1/health"

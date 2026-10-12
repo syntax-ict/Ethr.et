@@ -219,7 +219,7 @@ describe("Shifts page", () => {
     expect(
       await screen.findByText(
         (_, el) =>
-          el?.tagName === "P" && el.textContent?.trim() === "08:30 → 17:30",
+          el?.tagName === "P" && el.textContent?.trim() === "08:30–17:30",
       ),
     ).toBeInTheDocument();
   });

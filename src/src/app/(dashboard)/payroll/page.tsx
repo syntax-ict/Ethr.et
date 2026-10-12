@@ -2,8 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Wallet, Plus, Loader2, FileText, HandCoins } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Wallet,
+  Plus,
+  Loader2,
+  FileText,
+  HandCoins,
+  ChevronRight,
+  AlertTriangle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
@@ -34,7 +41,7 @@ export default function PayrollPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [periodStart, setPeriodStart] = useState("");
   const [periodEnd, setPeriodEnd] = useState("");
-  const { data, isLoading } = usePayrollRuns({ page });
+  const { data, isLoading, isError, refetch } = usePayrollRuns({ page });
   const { can } = usePermissions();
   // Running payroll needs the plan's `payroll` feature; the button was shown
   // on every plan and the run refused with a 403 (audit N66).
@@ -106,11 +113,37 @@ export default function PayrollPage() {
         </div>
 
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full" />
+              <div
+                key={i}
+                className="flex items-center gap-4 border-b border-border px-5 py-4 last:border-0"
+              >
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-56" />
+                </div>
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-28" />
+              </div>
             ))}
           </div>
+        ) : isError ? (
+          // There was no error state: a failed request rendered the empty
+          // state, "No payroll runs", to a company that has run payroll.
+          <EmptyState
+            icon={AlertTriangle}
+            title={t("common.load_failed", "Couldn't load this")}
+            description={t(
+              "common.load_failed_hint",
+              "The data may be out of date. Try again.",
+            )}
+            action={
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                {t("common.try_again", "Try again")}
+              </Button>
+            }
+          />
         ) : !data?.data?.length ? (
           <EmptyState
             icon={Wallet}
@@ -122,54 +155,69 @@ export default function PayrollPage() {
           />
         ) : (
           <>
-            <div className="grid gap-4">
-              {data.data.map((run) => (
-                <Card
-                  key={run.public_id}
-                  className="border-border/60 transition-shadow hover:shadow-sm"
-                >
-                  <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-semibold text-foreground">
-                          {run.period_label}
-                        </h3>
-                        <StatusBadge status={run.status} />
-                      </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {run.employee_count}{" "}
-                        {t("common.employees", "employees")} &middot;{" "}
-                        {run.period_start} to {run.period_end}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">
-                          {t("payroll.gross", "Gross")}
+            {/* One list, one row per run, the whole row a link: a card per
+                run with an outline "View All" button (for one run) made
+                three runs look like three unrelated panels, and the amounts
+                did not line up from row to row. */}
+            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+              <div className="hidden items-center gap-6 border-b border-border bg-muted/40 px-5 py-2.5 text-xs font-medium text-muted-foreground sm:flex">
+                <span className="flex-1">{t("payroll.period", "Period")}</span>
+                <span className="w-36 text-right">
+                  {t("payroll.gross", "Gross")}
+                </span>
+                <span className="w-36 text-right">
+                  {t("payroll.net", "Net")}
+                </span>
+                <span className="w-4" aria-hidden="true" />
+              </div>
+              <ul className="divide-y divide-border">
+                {data.data.map((run) => (
+                  <li key={run.public_id}>
+                    <Link
+                      href={`/payroll/${run.public_id}`}
+                      className="group flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-6"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <span className="font-semibold text-foreground">
+                            {run.period_label}
+                          </span>
+                          <StatusBadge status={run.status} />
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {run.employee_count}{" "}
+                          {t("common.employees", "employees")} &middot;{" "}
+                          {run.period_start} – {run.period_end}
                         </p>
-                        <CurrencyDisplay
-                          cents={run.gross_total_cents}
-                          className="text-sm font-medium"
-                        />
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">
-                          {t("payroll.net", "Net")}
-                        </p>
-                        <CurrencyDisplay
-                          cents={run.net_total_cents}
-                          className="text-sm font-semibold text-foreground"
-                        />
+                      <div className="flex gap-6 sm:contents">
+                        <div className="sm:w-36 sm:text-right">
+                          <p className="text-xs text-muted-foreground sm:hidden">
+                            {t("payroll.gross", "Gross")}
+                          </p>
+                          <CurrencyDisplay
+                            cents={run.gross_total_cents}
+                            className="text-sm tabular-nums text-muted-foreground"
+                          />
+                        </div>
+                        <div className="sm:w-36 sm:text-right">
+                          <p className="text-xs text-muted-foreground sm:hidden">
+                            {t("payroll.net", "Net")}
+                          </p>
+                          <CurrencyDisplay
+                            cents={run.net_total_cents}
+                            className="text-sm font-semibold tabular-nums text-foreground"
+                          />
+                        </div>
                       </div>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/payroll/${run.public_id}`}>
-                          {t("common.view_all", "View")}
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      <ChevronRight
+                        className="hidden h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block"
+                        aria-hidden="true"
+                      />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             {data.meta && data.meta.last_page > 1 && (

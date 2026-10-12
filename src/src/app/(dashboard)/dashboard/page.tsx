@@ -22,6 +22,9 @@ const InteractiveCharts = dynamic(
   },
 );
 import { useEmployeeDashboard } from "@/features/dashboard/api";
+import { useCurrentUser } from "@/features/auth/api";
+import { DashboardSection } from "@/components/dashboard";
+import { InstallAppBanner } from "@/components/shared/install-app";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
@@ -37,6 +40,8 @@ import {
   CalendarWidget,
   TeamOverview,
   LeaveOverview,
+  OrganisationSnapshot,
+  LinkEmployeeCallout,
 } from "@/features/dashboard/components";
 
 /**
@@ -44,9 +49,12 @@ import {
  *
  *   1. Header — who/where/when, plus the primary actions.
  *   2. Setup banner — only while onboarding is incomplete.
- *   3. "Today" — the supervisor's operational state (present/absent/on leave).
- *   4. "My Day" — the individual's own state, shown to every role.
- *   5. Work queue, then trends, then reference material.
+ *   3. "Organisation today" — headcount, attendance, approvals and payroll,
+ *      for those who can see the whole organisation.
+ *   4. "Today" — the supervisor's operational state (present/absent/on leave).
+ *   5. "My Day" — the individual's own state, shown to every role; an account
+ *      with no employee record is told why it has none instead.
+ *   6. Work queue, then trends, then reference material.
  *
  * The governing rule is decisions-before-trends: what needs a response today
  * outranks a chart of the last five days. Previously the analytics card was
@@ -54,16 +62,25 @@ import {
  * absent and three approvals are waiting" sat below a week-over-week graph.
  */
 export default function DashboardPage() {
-  const { isSupervisor } = usePermissions();
+  const { isSupervisor, can } = usePermissions();
   const { t } = useT();
+  const { data: user } = useCurrentUser();
+
+  // Only an explicit null means "no employee record": while /auth/me loads,
+  // or from an older payload without the field, the tiles show as before.
+  const hasNoEmployee = user?.employee_public_id === null;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="mx-auto max-w-7xl space-y-8">
       <div className="animate-fade-in-up">
         <WelcomeSection />
       </div>
 
+      <InstallAppBanner />
+
       <SetupProgress />
+
+      {can.viewExecutiveDashboard && <OrganisationSnapshot />}
 
       {/* Section headings turn what was a run of seven undifferentiated tiles
           into two labelled groups of four. Chunking gives the eye an entry
@@ -71,22 +88,22 @@ export default function DashboardPage() {
           ends and the next begins. */}
       {isSupervisor && <TeamOverview />}
 
-      <section aria-labelledby="my-day-heading" className="space-y-3">
-        <h2
-          id="my-day-heading"
-          className="text-sm font-semibold tracking-tight text-foreground"
-        >
-          {t("dashboard.my_day", "My Day")}
-        </h2>
-        <SelfServiceKpis />
-      </section>
+      <DashboardSection
+        id="my-day-heading"
+        title={t("dashboard.my_day", "My Day")}
+      >
+        {hasNoEmployee ? <LinkEmployeeCallout /> : <SelfServiceKpis />}
+      </DashboardSection>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      {/* Three columns from xl: with the sidebar open at 1024px the side
+          column was ~170px wide, and "Leave Balances" pushed its own
+          "View all" off the page. */}
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="min-w-0 space-y-6 xl:col-span-2">
           <PendingApprovalsPanel />
           <InteractiveCharts />
         </div>
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <LeaveOverview />
           <CalendarWidget />
           <AnnouncementsWidget />
@@ -107,7 +124,7 @@ function SelfServiceKpis() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-28 rounded-xl" />
         ))}
@@ -126,10 +143,11 @@ function SelfServiceKpis() {
   const holidays = data?.upcoming_holidays ?? [];
 
   return (
-    <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="stagger-children grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <KpiCard
         icon={Clock}
         tone="info"
+        href="/attendance/mobile"
         title={t("dashboard.attendance", "Attendance")}
         value={
           attendance?.status === "checked_in"

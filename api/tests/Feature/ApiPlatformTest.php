@@ -34,6 +34,28 @@ test('tenant admin can create api key', function () {
     expect($response->json('key'))->toStartWith('ethr_');
 });
 
+test('an api key stores the whole prefix it is shown by', function () {
+    // Production QA 2026-10-11, P3: `key_prefix` was VARCHAR(8) and the
+    // controller writes 12 characters. Strict MySQL refused the insert (500);
+    // a non-strict connection truncated it silently. SQLite ignores the
+    // length, so this case bites on the MySQL gate.
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $key = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/api-keys", [
+        'name' => 'Prefix Key',
+        'abilities' => ['read'],
+    ])->assertStatus(201)->json('key');
+
+    $stored = ApiKey::where('name', 'Prefix Key')->value('key_prefix');
+
+    expect($stored)->toBe(substr($key, 0, 12));
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/api-keys")
+        ->assertOk()
+        ->assertJsonFragment(['key_prefix' => substr($key, 0, 12)]);
+});
+
 test('tenant admin can list api keys', function () {
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);

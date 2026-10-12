@@ -52,7 +52,7 @@ export default function DirectoryPage() {
       <QueryBoundary
         query={query}
         loading={
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-32" />
             ))}
@@ -72,12 +72,12 @@ export default function DirectoryPage() {
         }
       >
         {() => (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {entries.map((e) => {
               return (
                 <Card
                   key={e.public_id}
-                  className="hover:shadow-md transition-shadow"
+                  className="shadow-xs transition-shadow hover:shadow-md"
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
@@ -89,7 +89,7 @@ export default function DirectoryPage() {
                         fallbackClassName="text-sm font-medium"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-foreground">
+                        <p className="truncate text-sm font-semibold text-foreground">
                           {e.name}
                         </p>
                         <p className="text-xs text-muted-foreground">
@@ -104,17 +104,28 @@ export default function DirectoryPage() {
                           {e.email && (
                             <a
                               href={`mailto:${e.email}`}
-                              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                              title={e.email}
+                              className="flex min-w-0 items-center gap-1.5 text-xs text-primary hover:underline"
                             >
-                              <Mail className="h-3 w-3" /> {e.email}
+                              <Mail
+                                className="h-3 w-3 shrink-0"
+                                aria-hidden="true"
+                              />
+                              {/* Truncated: long addresses ran past the card
+                                  edge into the next one. */}
+                              <span className="truncate">{e.email}</span>
                             </a>
                           )}
                           {e.phone && (
                             <a
                               href={`tel:${e.phone}`}
-                              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                              className="flex min-w-0 items-center gap-1.5 text-xs text-primary hover:underline"
                             >
-                              <Phone className="h-3 w-3" /> {e.phone}
+                              <Phone
+                                className="h-3 w-3 shrink-0"
+                                aria-hidden="true"
+                              />
+                              <span className="truncate">{e.phone}</span>
                             </a>
                           )}
                         </div>

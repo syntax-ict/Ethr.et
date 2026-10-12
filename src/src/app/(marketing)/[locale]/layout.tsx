@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { MarketingHeader } from "@/components/layouts/marketing-header";
 import { MarketingFooter } from "@/components/layouts/marketing-footer";
 import { AVAILABLE_LOCALES } from "@/lib/i18n/config";
@@ -7,7 +7,7 @@ import {
   publicDictionary,
   serverTranslate,
 } from "@/lib/i18n/public-dictionary";
-import { baseMetadata, RootShell } from "../../root-shell";
+import { baseMetadata, RootShell, baseViewport } from "../../root-shell";
 
 /**
  * One build per available locale — `/am/*` and `/en/*` — and nothing else.
@@ -32,6 +32,8 @@ export function generateStaticParams() {
  * all.
  */
 export const dynamicParams = false;
+
+export const viewport: Viewport = baseViewport;
 
 export async function generateMetadata({
   params,

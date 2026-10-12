@@ -108,6 +108,7 @@ export function BrandingCard({ logoUrl, theme }: BrandingCardProps) {
               id="branding-logo"
               type="url"
               inputMode="url"
+              pattern="https://.*"
               placeholder="https://cdn.example.et/logo.png"
               value={logo}
               onChange={(e) => {
@@ -119,7 +120,7 @@ export function BrandingCard({ logoUrl, theme }: BrandingCardProps) {
             <p className="mt-1 text-xs text-muted-foreground">
               {t(
                 "settings.logo_url_help",
-                "Publicly reachable image URL. Shown in the sidebar, header, and kiosk screen. Leave empty to use the organization initial.",
+                "An https image link. Shown on your sign-in page, the sidebar, header and kiosk screen. Leave empty to use the organization initial.",
               )}
             </p>
           </div>

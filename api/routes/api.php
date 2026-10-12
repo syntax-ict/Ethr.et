@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
 use App\Http\Controllers\Api\V1\Attendance\KioskAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\ManualAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\MobileAttendanceController;
+use App\Http\Controllers\Api\V1\Attendance\MyShiftController;
 use App\Http\Controllers\Api\V1\Attendance\OfflineSyncController;
 use App\Http\Controllers\Api\V1\Attendance\QrAttendanceController;
 use App\Http\Controllers\Api\V1\Auth\FindOrganisationController;
@@ -306,6 +307,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/check-in', [AttendanceController::class, 'checkIn']);
         Route::post('/check-out', [AttendanceController::class, 'checkOut']);
         Route::get('/my', [AttendanceController::class, 'my']);
+        Route::get('/my-shift', MyShiftController::class);
         Route::get('/team', [AttendanceController::class, 'team']);
         Route::get('/today', [AttendanceController::class, 'today']);
 
@@ -742,6 +744,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::put('/settings/address', [SettingsController::class, 'updateAddress']);
     Route::post('/settings/address/verify', [SettingsController::class, 'verifyAddress']);
     Route::put('/settings/branding', [SettingsController::class, 'updateBranding']);
+    Route::put('/settings/landing', [SettingsController::class, 'updateLanding']);
     Route::put('/settings/sso', [SettingsController::class, 'updateSso']);
     Route::post('/settings/scim-token', [SettingsController::class, 'generateScimToken']);
     Route::get('/settings/notification-templates', [NotificationTemplateController::class, 'index']);

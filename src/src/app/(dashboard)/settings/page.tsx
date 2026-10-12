@@ -34,6 +34,7 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { AddressCard } from "@/features/settings/components/address-card";
 import { OrganizationCard } from "@/features/settings/components/organization-card";
 import { BrandingCard } from "@/features/settings/components/branding-card";
+import { LandingCard } from "@/features/settings/components/landing-card";
 import {
   useSettings,
   useUpdateSettings,
@@ -288,10 +289,19 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
         </TabsContent>
 
         <TabsContent value="branding" className="mt-6">
-          <BrandingCard
-            logoUrl={data.branding.logo_url}
-            theme={data.branding.theme}
-          />
+          <div className="space-y-6">
+            <BrandingCard
+              logoUrl={data.branding.logo_url}
+              theme={data.branding.theme}
+            />
+            <LandingCard
+              landing={data.landing}
+              address={data.address}
+              organisationName={data.organization.name}
+              logoUrl={data.branding.logo_url}
+              secondaryColor={data.branding.theme.secondary_color}
+            />
+          </div>
         </TabsContent>
 
         <TabsContent value="security" className="mt-6">

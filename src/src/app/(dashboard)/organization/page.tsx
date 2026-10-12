@@ -75,7 +75,7 @@ export default function OrganizationPage() {
         />
 
         <Tabs defaultValue="structure">
-          <TabsList className="flex flex-wrap h-auto">
+          <TabsList variant="underline">
             <TabsTrigger value="structure">
               <Network className="mr-1.5 h-3.5 w-3.5" />{" "}
               {t("org.tab.structure", "Structure")}

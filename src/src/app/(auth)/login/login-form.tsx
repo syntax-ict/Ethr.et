@@ -14,14 +14,21 @@ import {
   KeyRound,
   MessageSquareText,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  canonicalHandoffUrl,
+  takeCanonicalHandoff,
+} from "@/lib/auth/canonical-handoff";
+import { setLocale } from "@/lib/i18n/translations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { initiateSso, login, prepareCsrfCookie } from "@/features/auth/sign-in";
+import { InstallAppBanner } from "@/components/shared/install-app";
 import { useT } from "@/lib/i18n/useT";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
+import { OrgMark } from "@/components/shared/org-mark";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
 
 const loginSchema = z.object({
@@ -63,7 +70,7 @@ function organisationFromEntryUrl(): string | null {
 export function LoginForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { t } = useT();
+  const { t, locale } = useT();
   const {
     context: hostAppContext,
     tenantSlug: subdomainFromHost,
@@ -71,14 +78,20 @@ export function LoginForm() {
     tenantContextLoading,
     tenantLookupError,
     tenantFieldVisible,
+    tenantBrand,
+    tenantSignIn,
+    onLanding,
   } = useAuthHostContext();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
   const [ssoLoading, setSsoLoading] = useState(false);
+  const [arrivedByHandoff, setArrivedByHandoff] = useState(false);
 
   const {
     register,
     handleSubmit,
+    setValue,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -91,6 +104,22 @@ export function LoginForm() {
       password: "",
     },
   });
+
+  // Arriving from the apex hand-off (production QA 2026-10-11, P6): keep the
+  // language and email the person was using, and say why they are here.
+  useEffect(() => {
+    const handoff = takeCanonicalHandoff();
+    if (!handoff) return;
+
+    if (handoff.lang) setLocale(handoff.lang);
+    if (handoff.email) setValue("email", handoff.email);
+    // Read once from the address bar — an external system — and the URL is
+    // cleared as it is read, so this cannot be derived during render: a
+    // second render would find nothing. The documented exception to the rule.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setArrivedByHandoff(true);
+    setFocus(handoff.email ? "password" : "email");
+  }, [setValue, setFocus]);
 
   async function onSubmit(data: LoginForm) {
     setServerError("");
@@ -171,7 +200,9 @@ export function LoginForm() {
           ? axiosError.response.data?.canonical_url
           : null;
       if (canonicalUrl && /^https?:\/\//i.test(canonicalUrl)) {
-        window.location.assign(canonicalUrl);
+        window.location.assign(
+          canonicalHandoffUrl(canonicalUrl, data.email, locale),
+        );
         return;
       }
 
@@ -285,17 +316,50 @@ export function LoginForm() {
           "Enter your credentials to access your account",
         );
 
+  // An organisation's page offers only the ways in it actually has: SSO once
+  // it is configured, text-message codes once a gateway exists. Elsewhere the
+  // organisation is not known yet, so both stay on offer.
+  const offerSso =
+    hostAppContext === "tenant" && tenantSignIn ? tenantSignIn.sso : true;
+  const offerOtp =
+    hostAppContext === "tenant" && tenantSignIn ? tenantSignIn.otp : true;
+  // Not on an organisation's own address: the people there are its
+  // employees, and a trial would start a new organisation.
+  const offerTrial = hostAppContext !== "tenant";
   return (
     <div className="w-full max-w-sm mx-auto">
       <div className="mb-8">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary shadow-sm">
-          <span className="text-base font-bold text-primary-foreground">E</span>
-        </div>
+        {hostAppContext === "tenant" ? (
+          <OrgMark
+            name={tenantName}
+            logoUrl={tenantBrand?.logo_url}
+            className="h-11 w-11"
+            initialClassName="text-base"
+          />
+        ) : (
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary shadow-sm">
+            <span className="text-base font-bold text-primary-foreground">
+              E
+            </span>
+          </div>
+        )}
         <h1 className="mt-6 text-2xl font-bold tracking-tight text-foreground">
           {heading}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
       </div>
+
+      {arrivedByHandoff && (
+        <div role="status" className="mb-5 rounded-lg bg-primary/10 p-3">
+          <p className="text-sm text-foreground">
+            {t(
+              "auth.canonical_handoff",
+              ":name signs in at this address. Enter your password again to continue.",
+              { name: tenantName ?? subdomainFromHost ?? "ETHR" },
+            )}
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {hostAppContext === "tenant" && subdomainFromHost && (
@@ -303,6 +367,15 @@ export function LoginForm() {
             name={tenantName}
             slug={subdomainFromHost}
             loading={tenantContextLoading}
+            logoUrl={tenantBrand?.logo_url}
+            // On the landing the organisation is in the path, not the host;
+            // and someone who followed the wrong link can still choose.
+            address={
+              onLanding
+                ? `${window.location.host}/${subdomainFromHost}`
+                : undefined
+            }
+            changeHref={onLanding ? "/login" : undefined}
           />
         )}
 
@@ -336,6 +409,7 @@ export function LoginForm() {
                 "Don't know your subdomain? Check the invitation email or ask your administrator.",
               )}{" "}
               <Link
+                prefetch={false}
                 href="/login/find"
                 className="font-medium text-primary underline-offset-4 hover:underline"
               >
@@ -363,12 +437,19 @@ export function LoginForm() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="password">{t("auth.password", "Password")}</Label>
-            <Link
-              href="/login/forgot"
-              className="text-xs font-medium text-primary hover:underline"
-            >
-              {t("auth.forgot_password", "Forgot password?")}
-            </Link>
+            {/* Password reset is per organisation; a platform super admin has
+                none, so the link could only fail there (production QA
+                2026-10-11, P14). Recovery is the maintenance create-admin
+                step. */}
+            {hostAppContext !== "platform" && (
+              <Link
+                prefetch={false}
+                href="/login/forgot"
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                {t("auth.forgot_password", "Forgot password?")}
+              </Link>
+            )}
           </div>
           <div className="relative">
             <Input
@@ -423,55 +504,71 @@ export function LoginForm() {
           )}
         </Button>
 
-        {hostAppContext !== "platform" && (
-          <>
-            <div className="relative flex items-center py-1">
-              <div className="flex-1 border-t border-border" />
-              <span className="px-3 text-xs text-muted-foreground">
-                {t("auth.or", "or")}
-              </span>
-              <div className="flex-1 border-t border-border" />
-            </div>
+        {hostAppContext !== "platform" &&
+          (offerSso || offerOtp || offerTrial) && (
+            <>
+              <div className="relative flex items-center py-1">
+                <div className="flex-1 border-t border-border" />
+                <span className="px-3 text-xs text-muted-foreground">
+                  {t("auth.or", "or")}
+                </span>
+                <div className="flex-1 border-t border-border" />
+              </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 w-full"
-              onClick={handleSsoLogin}
-              disabled={ssoLoading}
-            >
-              {ssoLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <KeyRound className="mr-2 h-4 w-4" />
+              {offerSso && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 w-full"
+                  onClick={handleSsoLogin}
+                  disabled={ssoLoading}
+                >
+                  {ssoLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="mr-2 h-4 w-4" />
+                  )}
+                  {t("auth.sign_in_sso", "Sign in with SSO")}
+                </Button>
               )}
-              {t("auth.sign_in_sso", "Sign in with SSO")}
-            </Button>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 w-full"
-              asChild
-            >
-              <Link href="/login/otp">
-                <MessageSquareText className="mr-2 h-4 w-4" />
-                {t("auth.sign_in_otp", "Sign in with a text message code")}
-              </Link>
-            </Button>
+              {offerOtp && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 w-full"
+                  asChild
+                >
+                  <Link prefetch={false} href="/login/otp">
+                    <MessageSquareText className="mr-2 h-4 w-4" />
+                    {t("auth.sign_in_otp", "Sign in with a text message code")}
+                  </Link>
+                </Button>
+              )}
 
-            <p className="text-center text-sm text-muted-foreground">
-              {t("auth.no_account", "Don't have an account?")}{" "}
-              <Link
-                href="/register"
-                className="font-medium text-primary hover:underline"
-              >
-                {t("auth.start_trial", "Start free trial")}
-              </Link>
-            </p>
-          </>
-        )}
+              {offerTrial && (
+                <p className="text-center text-sm text-muted-foreground">
+                  {t("auth.no_account", "Don't have an account?")}{" "}
+                  <Link
+                    prefetch={false}
+                    href="/register"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {t("auth.start_trial", "Start free trial")}
+                  </Link>
+                </p>
+              )}
+            </>
+          )}
       </form>
+
+      {/* Most people arrive here from a poster or a link on their phone;
+          the installed app opens straight to check-in next time. */}
+      {onLanding && (
+        <div className="mt-6">
+          <InstallAppBanner />
+        </div>
+      )}
     </div>
   );
 }

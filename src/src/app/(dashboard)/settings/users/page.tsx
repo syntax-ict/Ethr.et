@@ -124,6 +124,14 @@ export default function UsersSettingsPage() {
     setEditUser(u);
   }
 
+  // Each invitation starts blank. The form was cleared only after a successful
+  // send, so a cancelled one reopened with the old address in it, and typing
+  // appended to it (production QA 2026-10-11, P14).
+  function openInvite() {
+    setForm({ email: "", username: "", role: "employee" });
+    setInviteOpen(true);
+  }
+
   async function submitInvite() {
     try {
       await invite.mutateAsync({
@@ -171,7 +179,7 @@ export default function UsersSettingsPage() {
             "Invite people, set their role, and choose the handle they log in with.",
           )}
           actions={
-            <Button onClick={() => setInviteOpen(true)}>
+            <Button onClick={openInvite}>
               <UserPlus className="mr-2 h-4 w-4" />
               {t("users_page.invite", "Invite user")}
             </Button>
@@ -263,6 +271,7 @@ export default function UsersSettingsPage() {
                           size="icon"
                           className="h-8 w-8"
                           title={t("users_page.resend", "Resend invite")}
+                          aria-label={t("users_page.resend", "Resend invite")}
                           onClick={async () => {
                             try {
                               await resend.mutateAsync(u.public_id);
@@ -303,6 +312,7 @@ export default function UsersSettingsPage() {
                         size="icon"
                         className="h-8 w-8"
                         title={t("common.edit", "Edit")}
+                        aria-label={t("common.edit", "Edit")}
                         onClick={() => openEdit(u)}
                       >
                         <Pencil className="h-4 w-4" />
@@ -312,6 +322,7 @@ export default function UsersSettingsPage() {
                         size="icon"
                         className="h-8 w-8 text-destructive"
                         title={t("common.delete", "Delete")}
+                        aria-label={t("common.delete", "Delete")}
                         onClick={() => setDeleteUser(u)}
                       >
                         <Trash2 className="h-4 w-4" />

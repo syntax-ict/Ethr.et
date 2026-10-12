@@ -62,4 +62,15 @@ return [
         'mail_action' => 'Sign in',
         'mail_ignore' => 'If you did not ask for this, you can ignore this email; nothing has changed.',
     ],
+
+    // Sent when an organisation registers (production QA 2026-10-11, P7).
+    // Awaiting the native-speaker review, like the block above.
+    'registered' => [
+        'mail_subject' => ':org በETHR ላይ ዝግጁ ነው',
+        'mail_greeting' => 'ወደ ETHR እንኳን በደህና መጡ',
+        'mail_intro' => 'የETHR ድርጅት :org በዚህ ኢሜይል አድራሻ አስተዳዳሪነት ተፈጥሯል።',
+        'mail_address' => 'ድርጅትዎ የሚገባው በ :url ነው — ያስቀምጡት።',
+        'mail_action' => 'ወደ :org ይግቡ',
+        'mail_not_you' => 'ይህን ድርጅት እርስዎ ካልፈጠሩት፣ በ :contact ያሳውቁን፤ እናስወግደዋለን።',
+    ],
 ];

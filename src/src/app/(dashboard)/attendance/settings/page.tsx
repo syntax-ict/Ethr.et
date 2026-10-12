@@ -454,6 +454,127 @@ export default function AttendanceSettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Punch assistant */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {t("attendance.settings_page.assistant", "Punch assistant")}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "attendance.settings_page.assistant_desc",
+                    "Help employees punch on time. Reminders only notify; the other two write attendance, so they are off until you turn them on.",
+                  )}
+                </p>
+              </CardHeader>
+              <CardContent className="grid gap-6 md:grid-cols-3">
+                <div className="space-y-3">
+                  <SettingRow
+                    id="assistant-reminders"
+                    title={t(
+                      "attendance.settings_page.reminders",
+                      "Shift reminders",
+                    )}
+                    description={t(
+                      "attendance.settings_page.reminders_desc",
+                      "On employees' phones: before the shift, when the grace period ends without a check-in, and at the shift's end. Each employee can turn them off.",
+                    )}
+                  >
+                    <Switch
+                      checked={form.reminders_enabled}
+                      onCheckedChange={(v) => setField("reminders_enabled", v)}
+                    />
+                  </SettingRow>
+                  <div>
+                    <Label htmlFor="reminder-lead" className="text-sm">
+                      {t(
+                        "attendance.settings_page.reminder_lead",
+                        "Minutes before the shift",
+                      )}
+                    </Label>
+                    <Input
+                      id="reminder-lead"
+                      type="number"
+                      value={form.reminder_lead_minutes}
+                      onChange={(e) =>
+                        setField(
+                          "reminder_lead_minutes",
+                          parseInt(e.target.value) || 0,
+                        )
+                      }
+                      min={0}
+                      max={120}
+                      disabled={!form.reminders_enabled}
+                      className="mt-1 w-32"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <SettingRow
+                    id="assistant-auto-checkout"
+                    title={t(
+                      "attendance.settings_page.auto_checkout",
+                      "Auto check-out",
+                    )}
+                    description={t(
+                      "attendance.settings_page.auto_checkout_desc",
+                      "Closes a check-in left open, at the shift's scheduled end, flagged for review. The employee is told and can file a correction.",
+                    )}
+                  >
+                    <Switch
+                      checked={form.auto_checkout_enabled}
+                      onCheckedChange={(v) =>
+                        setField("auto_checkout_enabled", v)
+                      }
+                    />
+                  </SettingRow>
+                  <div>
+                    <Label htmlFor="auto-checkout-after" className="text-sm">
+                      {t(
+                        "attendance.settings_page.auto_checkout_after",
+                        "Wait after the shift ends (minutes)",
+                      )}
+                    </Label>
+                    <Input
+                      id="auto-checkout-after"
+                      type="number"
+                      value={form.auto_checkout_after_minutes}
+                      onChange={(e) =>
+                        setField(
+                          "auto_checkout_after_minutes",
+                          parseInt(e.target.value) || 120,
+                        )
+                      }
+                      min={15}
+                      max={720}
+                      disabled={!form.auto_checkout_enabled}
+                      className="mt-1 w-32"
+                    />
+                  </div>
+                </div>
+
+                <SettingRow
+                  id="assistant-auto-checkin"
+                  title={t(
+                    "attendance.settings_page.auto_checkin",
+                    "Automatic check-in on arrival",
+                  )}
+                  description={t(
+                    "attendance.settings_page.auto_checkin_desc",
+                    "Employees who opt in are checked in when they open ETHR inside their branch area, up to an hour before the shift. Needs branch coordinates; never used while a selfie is required.",
+                  )}
+                >
+                  <Switch
+                    checked={form.geofence_auto_checkin_enabled}
+                    onCheckedChange={(v) =>
+                      setField("geofence_auto_checkin_enabled", v)
+                    }
+                  />
+                </SettingRow>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
