@@ -140,7 +140,12 @@ class AttendanceRecord extends Model
 
     public function overtimeWindow(): ?array
     {
-        if (! $this->shift || ! $this->check_in || ! $this->check_out) {
+        // The punches first: an open record has no overtime, and asking for
+        // its shift first loaded one per row. The intelligence screen lists
+        // open records (missing punches) without the shift, so with any open
+        // check-in it answered 500 under strict loading and ran a query per
+        // row in production.
+        if (! $this->check_in || ! $this->check_out || ! $this->shift) {
             return null;
         }
 

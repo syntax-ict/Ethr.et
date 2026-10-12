@@ -19,3 +19,5 @@ export { AnnouncementsWidget } from "./announcements-widget";
 export { CalendarWidget } from "./calendar-widget";
 export { TeamOverview } from "./team-overview";
 export { LeaveOverview } from "./leave-overview";
+export { OrganisationSnapshot } from "./organisation-snapshot";
+export { LinkEmployeeCallout } from "./link-employee-callout";

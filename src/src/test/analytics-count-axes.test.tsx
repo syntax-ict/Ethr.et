@@ -27,11 +27,13 @@ vi.mock("recharts", () => {
   return {
     ResponsiveContainer: Pass,
     LineChart: Pass,
+    AreaChart: Pass,
     BarChart: Pass,
     PieChart: Pass,
     Pie: Pass,
     Cell: Nothing,
     Line: Nothing,
+    Area: Nothing,
     Bar: Nothing,
     XAxis: Nothing,
     CartesianGrid: Nothing,
