@@ -213,7 +213,12 @@
     #@ RewriteCond %{HTTP_HOST} ^__ADMIN_HOST__$ [NC]
     #@ RewriteCond %{REQUEST_FILENAME} !-f
     #@ RewriteCond %{REQUEST_URI} !^/admin
-    #@ RewriteCond %{REQUEST_URI} !^/(login|logout|_next|favicon\.ico|sw\.js|manifest)
+    #
+    # profile/security is excluded with the rest: password and two-factor
+    # enrolment belong to every account, and the console's "Enable now" links
+    # there. Bounced to /admin, the platform admin could not turn MFA on at all
+    # (production, 2026-10-11). The rest of /profile stays redirected.
+    #@ RewriteCond %{REQUEST_URI} !^/(login|logout|profile/security|_next|favicon\.ico|sw\.js|manifest)
     #@ RewriteRule ^ /admin/ [L,R=302]
     #
     #@ RewriteCond %{HTTP_HOST} !^__ADMIN_HOST__$ [NC]
