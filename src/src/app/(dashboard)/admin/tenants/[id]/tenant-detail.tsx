@@ -490,7 +490,7 @@ function TenantDetail({ id }: { id: string }) {
         )}
 
         {/* Quick stats */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             icon={Users}
             label={t("payroll_detail_page.employees")}
@@ -544,7 +544,7 @@ function TenantDetail({ id }: { id: string }) {
                 </p>
               </div>
             )}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {/* Status actions */}
               {!isActive && !isCancelled && (
                 <Button
