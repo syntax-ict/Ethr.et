@@ -7,6 +7,7 @@ import { LoginForm } from "@/app/(auth)/login/login-form";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/login",
   useRouter: () => ({ push, replace: vi.fn(), back: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));

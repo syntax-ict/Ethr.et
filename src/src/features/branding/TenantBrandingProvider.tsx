@@ -56,6 +56,26 @@ export function brandProperties(theme: {
   return out;
 }
 
+/**
+ * Applies an organisation's colours to the document and returns the undo.
+ * For pages drawn before sign-in (the shared landing at ethr.et/{slug}),
+ * which have no `/auth/me` to read the theme from.
+ */
+export function applyBrandToDocument(theme: {
+  primary_color?: string | null;
+  accent_color?: string | null;
+}): () => void {
+  if (typeof document === "undefined") return () => {};
+  const root = document.documentElement;
+  const applied = Object.entries(brandProperties(theme));
+  for (const [property, value] of applied) {
+    root.style.setProperty(property, value);
+  }
+  return () => {
+    for (const [property] of applied) root.style.removeProperty(property);
+  };
+}
+
 export function TenantBrandingProvider({
   children,
 }: {

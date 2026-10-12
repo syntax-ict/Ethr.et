@@ -46,6 +46,8 @@ const base: HostCtx = {
   tenantSlug: null,
   tenantName: null,
   tenantLogoPath: null,
+  tenantBrand: null,
+  onLanding: false,
   tenantContextLoading: false,
   tenantLookupError: null,
   tenantFieldVisible: true,
@@ -160,5 +162,38 @@ describe("login page — hostname context", () => {
     expect(
       screen.getByLabelText(/organization subdomain/i),
     ).toBeInTheDocument();
+  });
+
+  // The shared landing, ethr.et/{slug}: the organisation is in the path.
+  it("organisation landing: names it, offers a way out, and no trial", () => {
+    hostContextValue.mockReturnValue({
+      ...base,
+      context: "tenant",
+      tenantSlug: "acme",
+      tenantName: "Acme Manufacturing",
+      tenantFieldVisible: false,
+      onLanding: true,
+      tenantBrand: {
+        logo_url: null,
+        primary_color: "#0f766e",
+        accent_color: null,
+      },
+    });
+
+    renderLogin();
+
+    expect(
+      screen.getByRole("heading", { name: /sign in to acme manufacturing/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/organization subdomain/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /not yours/i })).toHaveAttribute(
+      "href",
+      "/login",
+    );
+    expect(
+      screen.queryByRole("link", { name: /start free trial/i }),
+    ).not.toBeInTheDocument();
   });
 });

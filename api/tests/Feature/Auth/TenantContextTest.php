@@ -26,6 +26,14 @@ it('returns the host-resolved tenant display info', function () {
                 'name' => 'Acme Corporation',
                 'subdomain' => 'acme',
                 'logo_path' => 'tenants/acme/logo.png',
+                // The shared landing's branding (2026-10-13). A logo that is
+                // not an https URL is not handed to the public page, and an
+                // organisation with no colours set has none.
+                'brand' => [
+                    'logo_url' => null,
+                    'primary_color' => null,
+                    'accent_color' => null,
+                ],
             ],
         ]);
 });

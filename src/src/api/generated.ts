@@ -7580,6 +7580,7 @@ export interface components {
         };
         /** UpdateBrandingRequest */
         UpdateBrandingRequest: {
+            /** Format: uri */
             logo_url?: string | null;
             primary_color?: string | null;
             secondary_color?: string | null;
@@ -21709,6 +21710,11 @@ export interface operations {
                             name: string;
                             subdomain: string;
                             logo_path: string | null;
+                            brand: {
+                                logo_url: string | null;
+                                primary_color: string | null;
+                                accent_color: string | null;
+                            };
                         } | null;
                     };
                 };

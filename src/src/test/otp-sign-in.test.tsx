@@ -33,6 +33,7 @@ function renderOtpPage() {
  */
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/login",
   useRouter: () => ({ push, back: vi.fn(), replace: vi.fn() }),
 }));
 

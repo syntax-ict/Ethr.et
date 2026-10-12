@@ -24,13 +24,41 @@ class TenantContextController extends Controller
     public function __invoke(CurrentTenant $currentTenant): JsonResponse
     {
         $tenant = $currentTenant->get();
+        // Read raw: the column is cast to an array, but a row written before
+        // the cast holds whatever was stored.
+        $stored = $tenant?->getAttribute('theme');
+        $theme = is_array($stored) ? $stored : [];
 
         return response()->json([
             'tenant' => $tenant ? [
                 'name' => $tenant->name,
                 'subdomain' => $tenant->subdomain,
                 'logo_path' => $tenant->logo_path,
+                'brand' => [
+                    'logo_url' => self::httpsUrl($tenant->logo_path),
+                    'primary_color' => self::hexColour($theme['primary_color'] ?? null),
+                    'accent_color' => self::hexColour($theme['accent_color'] ?? null),
+                ],
             ] : null,
         ]);
+    }
+
+    /**
+     * The sign-in page is drawn in the organisation's colours before anyone
+     * signs in (the shared landing at ethr.et/{slug}), so the colours are
+     * public here as the name and logo already were. Only well-formed values
+     * leave: anything else falls back to ETHR's own.
+     */
+    private static function hexColour(mixed $value): ?string
+    {
+        return is_string($value) && preg_match('/^#[0-9a-fA-F]{6}$/', $value) === 1 ? $value : null;
+    }
+
+    /** A logo drawn on a public page: an https URL only. */
+    private static function httpsUrl(mixed $value): ?string
+    {
+        return is_string($value) && str_starts_with($value, 'https://') && filter_var($value, FILTER_VALIDATE_URL) !== false
+            ? $value
+            : null;
     }
 }
