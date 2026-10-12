@@ -62,6 +62,63 @@ test('duplicate check-in returns existing record with was_duplicate', function (
         ->assertJsonPath('public_id', $response1->json('public_id'));
 });
 
+// Production, 2026-10-12 (attendance QA A6): the check-in replay answered 200,
+// the check-out replay 422 "There is no open check-in to close" — a phone
+// retrying after a dropped response showed an error for a punch that had
+// succeeded.
+test('a replayed check-out returns the record it closed', function () {
+    Carbon::setTestNow('2026-10-12 10:00:00');
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+    $base = "http://{$tenant->subdomain}.ethr.test/api/v1/attendance";
+
+    $publicId = test()->postJson("{$base}/check-in", ['idempotency_key' => 'replay-in'])
+        ->assertStatus(201)->json('public_id');
+
+    Carbon::setTestNow('2026-10-12 14:00:00');
+    $first = test()->postJson("{$base}/check-out", ['idempotency_key' => 'replay-out'])->assertOk();
+
+    Carbon::setTestNow('2026-10-12 14:01:00');
+    $replay = test()->postJson("{$base}/check-out", ['idempotency_key' => 'replay-out'])->assertOk();
+
+    expect($replay->json('public_id'))->toBe($publicId)
+        ->and($replay->json('check_out'))->toBe($first->json('check_out'));
+
+    // A new key is a new check-out, and there is nothing left open for it.
+    test()->postJson("{$base}/check-out", ['idempotency_key' => 'another-out'])->assertStatus(422);
+
+    Carbon::setTestNow();
+});
+
+test('a check-out key does not answer for another employee', function () {
+    $tenant = createTenant();
+    [$a, $b] = Employee::factory()->count(2)->create(['tenant_id' => $tenant->id]);
+
+    foreach ([$a, $b] as $employee) {
+        AttendanceRecord::factory()->checkInOnly()->create([
+            'tenant_id' => $tenant->id,
+            'employee_id' => $employee->id,
+            'date' => now()->format('Y-m-d'),
+            'check_in' => now()->subHours(4),
+        ]);
+    }
+
+    $checkOut = fn (Employee $employee) => app(AttendanceEngine::class)->record(new AttendanceInput(
+        employeeId: $employee->id,
+        tenantId: $tenant->id,
+        source: AttendanceSource::WEB,
+        type: 'check_out',
+        idempotencyKey: 'shared-out',
+    ));
+
+    expect($checkOut($a)->wasDuplicate)->toBeFalse();
+
+    $forB = $checkOut($b);
+    expect($forB->wasDuplicate)->toBeFalse()
+        ->and($forB->record->employee_id)->toBe($b->id);
+});
+
 test('employee can check out after checking in', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
@@ -474,12 +531,14 @@ test('attendance requires authentication', function () {
 
 // ── Audit Logging ──
 
-test('manual attendance entry is audit logged', function () {
+test('the engine leaves the manual-entry audit row to the controller', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
-    $engine = app(AttendanceEngine::class);
-    $result = $engine->record(new AttendanceInput(
+    // ManualAttendanceController writes the one row, with who entered it and
+    // why; the engine's own bare row doubled every entry (attendance QA A9).
+    // The controller's row is pinned in AttendanceSourcesTest.
+    app(AttendanceEngine::class)->record(new AttendanceInput(
         employeeId: $employee->id,
         tenantId: $tenant->id,
         source: AttendanceSource::MANUAL,
@@ -487,11 +546,7 @@ test('manual attendance entry is audit logged', function () {
         idempotencyKey: 'manual-audit-001',
     ));
 
-    $this->assertDatabaseHas('audit_log', [
-        'action' => 'attendance.manual_entry',
-        'auditable_type' => AttendanceRecord::class,
-        'auditable_id' => $result->record->id,
-    ]);
+    $this->assertDatabaseMissing('audit_log', ['action' => 'attendance.manual_entry']);
 });
 
 // ── Never Expose Numeric ID ──

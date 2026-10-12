@@ -24,6 +24,8 @@ export interface DeviceFormData {
   username: string;
   password: string;
   api_key: string;
+  /** Whether the scheduler pulls this device every few minutes. */
+  auto_sync: boolean;
 }
 
 /**
@@ -44,6 +46,7 @@ export const EMPTY_DEVICE_FORM: DeviceFormData = {
   username: "",
   password: "",
   api_key: "",
+  auto_sync: true,
 };
 
 /** Adapters addressed as `http://{ip}:{port}` — the only ones this form can configure. */
@@ -71,6 +74,10 @@ export function buildDevicePayload(
     adapter_type: form.adapter_type as StoreDeviceRequest["adapter_type"],
     serial_number: form.serial_number || null,
     branch_public_id: form.branch_public_id,
+    // Sent on both paths: the Register form had no switch, so every device
+    // took the server's default and was pulled every five minutes whether or
+    // not anyone wanted it (attendance QA A11).
+    auto_sync: form.auto_sync,
   };
 
   if (form.adapter_type === "mock") {

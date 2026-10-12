@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AttendanceStatus;
 use App\Enums\CorrectionStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceCorrection;
@@ -9,6 +10,7 @@ use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Holiday;
+use App\Models\Shift;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Attendance\AttendanceIntelligence;
@@ -719,3 +721,73 @@ test('approving a correction keeps the original punches, through a second correc
     expect($audit->payload['before']['check_in'])->toBe(Carbon::today()->setTime(8, 15)->toIso8601String())
         ->and($audit->payload['after']['check_in'])->toBe(Carbon::today()->setTime(8, 30)->toIso8601String());
 });
+
+// Production, 2026-10-12 (attendance QA A5): a correction moved a record to a
+// full shift on time and it stayed `early_leave`. The status was read from the
+// punches the correction replaced. QA Audit's shift: 17:10–23:30 Addis.
+function intelligenceCorrectionAddisRecord(Tenant $tenant, Employee $employee, array $attributes): AttendanceRecord
+{
+    $shift = Shift::factory()->create([
+        'tenant_id' => $tenant->id,
+        'start_time' => '17:10',
+        'end_time' => '23:30',
+        'crosses_midnight' => false,
+        'grace_minutes' => 10,
+        'early_departure_minutes' => 15,
+    ]);
+
+    return AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'shift_id' => $shift->id,
+        'date' => '2026-10-12',
+        ...$attributes,
+    ]);
+}
+
+test('approving a correction re-rates the record by the corrected punches', function (array $record, array $proposed, AttendanceStatus $expected) {
+    $tenant = createTenant();
+    [, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
+    $record = intelligenceCorrectionAddisRecord($tenant, $employee, $record);
+
+    $correction = AttendanceCorrection::factory()->create([
+        'tenant_id' => $tenant->id,
+        'attendance_record_id' => $record->id,
+        'employee_id' => $employee->id,
+        'status' => CorrectionStatus::PENDING,
+        ...$proposed,
+    ]);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$correction->public_id}/approve")
+        ->assertOk();
+
+    expect($record->refresh()->status)->toBe($expected);
+
+    $audit = AuditLog::query()->withoutGlobalScopes()->where('action', 'correction.approved')->first();
+    expect($audit->payload['after']['status'])->toBe($expected->value);
+})->with([
+    // 17:12–22:00 Addis, corrected to leave at 23:30: a full shift.
+    'early leave, corrected to the shift end' => [
+        ['check_in' => '2026-10-12 14:12:00', 'check_out' => '2026-10-12 19:00:00', 'status' => AttendanceStatus::EARLY_LEAVE],
+        ['proposed_check_in' => null, 'proposed_check_out' => '2026-10-12 20:30:00'],
+        AttendanceStatus::PRESENT,
+    ],
+    // Arrived 18:10 Addis, corrected to 17:12: on time.
+    'late, corrected to an on-time arrival' => [
+        ['check_in' => '2026-10-12 15:10:00', 'check_out' => '2026-10-12 20:30:00', 'status' => AttendanceStatus::LATE],
+        ['proposed_check_in' => '2026-10-12 14:12:00', 'proposed_check_out' => null],
+        AttendanceStatus::PRESENT,
+    ],
+    // On time, corrected to leave at 21:00 Addis: early.
+    'present, corrected to an early departure' => [
+        ['check_in' => '2026-10-12 14:12:00', 'check_out' => '2026-10-12 20:30:00', 'status' => AttendanceStatus::PRESENT],
+        ['proposed_check_in' => null, 'proposed_check_out' => '2026-10-12 18:00:00'],
+        AttendanceStatus::EARLY_LEAVE,
+    ],
+    // A voided record is a decision about the day, not a reading of the clock.
+    'voided stays voided' => [
+        ['check_in' => '2026-10-12 15:10:00', 'check_out' => '2026-10-12 19:00:00', 'status' => AttendanceStatus::VOIDED],
+        ['proposed_check_in' => '2026-10-12 14:12:00', 'proposed_check_out' => null],
+        AttendanceStatus::VOIDED,
+    ],
+]);

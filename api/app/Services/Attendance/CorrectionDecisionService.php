@@ -23,6 +23,8 @@ class CorrectionDecisionService
 {
     use SendsNotifications;
 
+    public function __construct(private readonly AttendanceEngine $engine) {}
+
     /**
      * The state checks that follow authorisation, or null when the decision may go ahead.
      *
@@ -107,6 +109,7 @@ class CorrectionDecisionService
             $before = [
                 'check_in' => $record->check_in?->toIso8601String(),
                 'check_out' => $record->check_out?->toIso8601String(),
+                'status' => $record->status->value,
             ];
             $metadata = $record->metadata ?? [];
             $updateData = ['metadata' => array_merge($metadata, [
@@ -124,6 +127,11 @@ class CorrectionDecisionService
             }
 
             $record->update($updateData);
+
+            // The status was read from the punches being replaced. A
+            // correction that moved a record to a full shift on time left it
+            // `early_leave` on production (attendance QA A5).
+            $this->engine->reclassify($record);
         }
 
         AuditLog::record('correction.approved', $correction, [
@@ -132,6 +140,7 @@ class CorrectionDecisionService
             'after' => $record === null ? null : [
                 'check_in' => $record->check_in?->toIso8601String(),
                 'check_out' => $record->check_out?->toIso8601String(),
+                'status' => $record->status->value,
             ],
         ]);
 

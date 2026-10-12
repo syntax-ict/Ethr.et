@@ -88,6 +88,10 @@ class ManualAttendanceController extends Controller
             ]);
         }
 
+        // The engine rated the check-in; a typed check-out is rated here, by
+        // the same rule a live one is (attendance QA A5).
+        $this->engine->reclassify($result->record);
+
         AuditLog::record('attendance.manual_entry', $result->record, [
             'employee_public_id' => $employee->public_id,
             'reason' => $request->validated('reason'),
