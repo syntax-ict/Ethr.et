@@ -21,9 +21,9 @@ behaviour an operator can live with · **S4** polish, wording, hardening.
 | # | Sev | Finding |
 |---|---|---|
 | F1 | S2 | The platform super admin has **no second factor**: the server reports `mfa_enabled: false` and no `auth.mfa_enabled` audit row exists — **resolved 2026-10-12** (enrolled after F18's fix) |
-| F2 | S2 | `GET /api/v1/admin/health` answers **500** on every call; the System Health card never loads — fix in PR #200 |
-| F3 | S2 | The service worker stores **admin API responses in Cache Storage** (23 found) and nothing clears them on logout — fix in PR #200 |
-| F4 | S2 | **Mark paid** on an invoice acts on a single click, with no confirmation — fix in PR #200 |
+| F2 | S2 | `GET /api/v1/admin/health` answers **500** on every call; the System Health card never loads — **fixed in PR #200, deployed `v2026.10.12.3`** |
+| F3 | S2 | The service worker stores **admin API responses in Cache Storage** (23 found) and nothing clears them on logout — **fixed in PR #200, deployed `v2026.10.12.3`** |
+| F4 | S2 | **Mark paid** on an invoice acts on a single click, with no confirmation — **fixed in PR #200, deployed `v2026.10.12.3`** |
 | F5 | S3 | The **address-mode select** changes an organisation's canonical address the moment an option is picked |
 | F6 | S3 | **Backup Data** queues a backup on a single click |
 | F7 | S3 | Every action button stays enabled while the account lacks MFA, though the server refuses them all |
@@ -326,6 +326,18 @@ tick — but "minutes" in any user-facing promise is not true on this host.
 reliable clock hitting the same two token-guarded endpoints — a free external cron
 service, or a Plesk scheduled task if the account ever gains one (G0-D). Until
 then, say "within a few hours" wherever the product implies sooner.
+
+## Verified after deployment (2026-10-12, `v2026.10.12.3`)
+
+- **F2:** `GET /api/v1/admin/health` → **200**; api, database, cache and storage
+  healthy, reverb disabled, `disk_free_gb` reported. The System Health card renders.
+- **F3:** the live `sw.js` is `ethr-v2` with `NEVER_CACHED_API`; on the owner's
+  browser the v1 caches are gone and `ethr-v2-api` holds **0** admin or auth
+  responses.
+- **F4:** shipped; not exercised live, as no organisation has an invoice.
+- **F23, observed again:** the health card's `default` queue depth was **1** —
+  QA Audit's backup, still waiting for a scheduler run four hours after it was
+  queued.
 
 ## Write tests on QA Audit (2026-10-12)
 
