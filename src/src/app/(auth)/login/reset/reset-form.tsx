@@ -68,7 +68,7 @@ function ResetForm() {
           )}
         </p>
         <Button asChild className="mt-6 w-full">
-          <Link href="/login/forgot">
+          <Link prefetch={false} href="/login/forgot">
             {t("auth.reset_request_new_link", "Request new link")}
           </Link>
         </Button>
@@ -207,6 +207,7 @@ function ResetForm() {
         </Button>
 
         <Link
+          prefetch={false}
           href="/login"
           className="block text-center text-sm text-muted-foreground hover:text-foreground"
         >

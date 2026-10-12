@@ -54,25 +54,25 @@ function nightShiftPunch(object $tenant, string $type, string $key): TestRespons
 test('a night-shift worker can check out the next morning', function () {
     [$tenant, $employee] = nightShiftEmployee();
 
-    Carbon::setTestNow(Carbon::parse('2026-10-05 21:58'));
+    Carbon::setTestNow(Carbon::parse('2026-10-05 21:58', 'Africa/Addis_Ababa')->utc());
     nightShiftPunch($tenant, 'check-in', 'night-in-1')->assertSuccessful();
 
-    Carbon::setTestNow(Carbon::parse('2026-10-06 06:05'));
+    Carbon::setTestNow(Carbon::parse('2026-10-06 06:05', 'Africa/Addis_Ababa')->utc());
     nightShiftPunch($tenant, 'check-out', 'night-out-1')->assertSuccessful();
 
     $record = AttendanceRecord::where('employee_id', $employee->id)->sole();
     expect($record->date->format('Y-m-d'))->toBe('2026-10-05')
-        ->and($record->check_out?->format('Y-m-d H:i'))->toBe('2026-10-06 06:05')
+        ->and($record->check_out?->copy()->setTimezone('Africa/Addis_Ababa')->format('Y-m-d H:i'))->toBe('2026-10-06 06:05')
         ->and($record->status)->not->toBe(AttendanceStatus::EARLY_LEAVE);
 });
 
 test('leaving a night shift before midnight is early leave', function () {
     [$tenant, $employee] = nightShiftEmployee();
 
-    Carbon::setTestNow(Carbon::parse('2026-10-05 21:58'));
+    Carbon::setTestNow(Carbon::parse('2026-10-05 21:58', 'Africa/Addis_Ababa')->utc());
     nightShiftPunch($tenant, 'check-in', 'night-in-2')->assertSuccessful();
 
-    Carbon::setTestNow(Carbon::parse('2026-10-05 23:30'));
+    Carbon::setTestNow(Carbon::parse('2026-10-05 23:30', 'Africa/Addis_Ababa')->utc());
     nightShiftPunch($tenant, 'check-out', 'night-out-2')->assertSuccessful();
 
     expect(AttendanceRecord::where('employee_id', $employee->id)->sole()->status)
@@ -84,11 +84,11 @@ test('a day-shift check-out still only closes today\'s record', function () {
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
     test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
 
-    Carbon::setTestNow(Carbon::parse('2026-10-05 08:30'));
+    Carbon::setTestNow(Carbon::parse('2026-10-05 08:30', 'Africa/Addis_Ababa')->utc());
     nightShiftPunch($tenant, 'check-in', 'day-in')->assertSuccessful();
 
     // No shift crosses midnight for this employee, so a check-out the next
     // day must not close yesterday's forgotten record.
-    Carbon::setTestNow(Carbon::parse('2026-10-06 17:30'));
+    Carbon::setTestNow(Carbon::parse('2026-10-06 17:30', 'Africa/Addis_Ababa')->utc());
     nightShiftPunch($tenant, 'check-out', 'day-out')->assertStatus(422);
 });

@@ -26,7 +26,11 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
 
         <div className="relative flex flex-1 flex-col items-center justify-center overflow-y-auto p-12">
           <div className="max-w-md text-center">
-            <Link href="/" className="inline-flex items-center gap-2.5">
+            <Link
+              prefetch={false}
+              href="/"
+              className="inline-flex items-center gap-2.5"
+            >
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-foreground/20 backdrop-blur-sm">
                 <span className="text-xl font-bold text-primary-foreground">
                   E

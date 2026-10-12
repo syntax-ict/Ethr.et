@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\AttendanceSource;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
@@ -70,6 +71,17 @@ class AttendanceSetting extends Model
 
     public function isMethodEnabled(string $method): bool
     {
+        // A punch a phone captured offline is a mobile punch that arrived late,
+        // not a method an organisation picks: it is allowed when mobile is and
+        // offline sync is switched on. It used to be looked up in
+        // `enabled_methods`, where it never is — the defaults omit it and the
+        // settings request refuses it — so every offline punch was rejected at
+        // sync, `offline_sync_enabled: true` or not (attendance QA A2).
+        if ($method === AttendanceSource::OFFLINE_MOBILE->value) {
+            return $this->offline_sync_enabled
+                && $this->isMethodEnabled(AttendanceSource::MOBILE->value);
+        }
+
         return in_array($method, $this->enabled_methods ?? [], true);
     }
 }

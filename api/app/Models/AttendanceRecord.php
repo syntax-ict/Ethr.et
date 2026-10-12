@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
+use App\Support\TenantTime;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use App\Traits\NeverDelete;
@@ -132,7 +133,9 @@ class AttendanceRecord extends Model
             return null;
         }
 
-        return [$this->check_in->copy(), $this->check_out->copy()];
+        $zone = $this->tenantZone();
+
+        return [$this->check_in->copy()->setTimezone($zone), $this->check_out->copy()->setTimezone($zone)];
     }
 
     public function overtimeWindow(): ?array
@@ -141,16 +144,43 @@ class AttendanceRecord extends Model
             return null;
         }
 
-        $shiftEnd = $this->check_in->copy()->setTimeFromTimeString($this->shift->end_time);
+        // Shift times are wall-clock times in the tenant's zone. On the UTC
+        // clock a 23:30 Addis shift end was 02:30 the next morning, so
+        // overtime almost never started; and payroll splits the window into
+        // day and night hours by its clock, so the window is returned in the
+        // tenant's zone too (attendance QA A1).
+        $zone = $this->tenantZone();
+        $checkIn = $this->check_in->copy()->setTimezone($zone);
+        $shiftEnd = $checkIn->copy()->setTimeFromTimeString($this->shift->end_time);
 
-        if ($this->shift->crosses_midnight && $shiftEnd->lte($this->check_in)) {
+        if ($this->shift->crosses_midnight && $shiftEnd->lte($checkIn)) {
             $shiftEnd->addDay();
         }
 
         if ($this->check_out->gt($shiftEnd)) {
-            return [$shiftEnd, $this->check_out];
+            return [$shiftEnd, $this->check_out->copy()->setTimezone($zone)];
         }
 
         return null;
+    }
+
+    /** @var array<int, string> tenant id => zone, for the life of the request */
+    private static array $zones = [];
+
+    /**
+     * The owning tenant's zone. Cached per tenant: payroll asks every record
+     * of a period, and the tenant is the same for all of them.
+     */
+    private function tenantZone(): string
+    {
+        // Read raw: the property is typed as an int, but a record built in
+        // memory (the classifier's unit tests) has no tenant at all.
+        $tenantId = $this->getAttribute('tenant_id');
+
+        if (! is_int($tenantId)) {
+            return TenantTime::DEFAULT_ZONE;
+        }
+
+        return self::$zones[$tenantId] ??= TenantTime::zone(Tenant::query()->find($tenantId));
     }
 }

@@ -14,7 +14,12 @@ import {
   KeyRound,
   MessageSquareText,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  canonicalHandoffUrl,
+  takeCanonicalHandoff,
+} from "@/lib/auth/canonical-handoff";
+import { setLocale } from "@/lib/i18n/translations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,7 +68,7 @@ function organisationFromEntryUrl(): string | null {
 export function LoginForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { t } = useT();
+  const { t, locale } = useT();
   const {
     context: hostAppContext,
     tenantSlug: subdomainFromHost,
@@ -75,10 +80,13 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
   const [ssoLoading, setSsoLoading] = useState(false);
+  const [arrivedByHandoff, setArrivedByHandoff] = useState(false);
 
   const {
     register,
     handleSubmit,
+    setValue,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -91,6 +99,22 @@ export function LoginForm() {
       password: "",
     },
   });
+
+  // Arriving from the apex hand-off (production QA 2026-10-11, P6): keep the
+  // language and email the person was using, and say why they are here.
+  useEffect(() => {
+    const handoff = takeCanonicalHandoff();
+    if (!handoff) return;
+
+    if (handoff.lang) setLocale(handoff.lang);
+    if (handoff.email) setValue("email", handoff.email);
+    // Read once from the address bar — an external system — and the URL is
+    // cleared as it is read, so this cannot be derived during render: a
+    // second render would find nothing. The documented exception to the rule.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setArrivedByHandoff(true);
+    setFocus(handoff.email ? "password" : "email");
+  }, [setValue, setFocus]);
 
   async function onSubmit(data: LoginForm) {
     setServerError("");
@@ -171,7 +195,9 @@ export function LoginForm() {
           ? axiosError.response.data?.canonical_url
           : null;
       if (canonicalUrl && /^https?:\/\//i.test(canonicalUrl)) {
-        window.location.assign(canonicalUrl);
+        window.location.assign(
+          canonicalHandoffUrl(canonicalUrl, data.email, locale),
+        );
         return;
       }
 
@@ -297,6 +323,18 @@ export function LoginForm() {
         <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
       </div>
 
+      {arrivedByHandoff && (
+        <div role="status" className="mb-5 rounded-lg bg-primary/10 p-3">
+          <p className="text-sm text-foreground">
+            {t(
+              "auth.canonical_handoff",
+              ":name signs in at this address. Enter your password again to continue.",
+              { name: tenantName ?? subdomainFromHost ?? "ETHR" },
+            )}
+          </p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {hostAppContext === "tenant" && subdomainFromHost && (
           <TenantHostIndicator
@@ -336,6 +374,7 @@ export function LoginForm() {
                 "Don't know your subdomain? Check the invitation email or ask your administrator.",
               )}{" "}
               <Link
+                prefetch={false}
                 href="/login/find"
                 className="font-medium text-primary underline-offset-4 hover:underline"
               >
@@ -363,12 +402,19 @@ export function LoginForm() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="password">{t("auth.password", "Password")}</Label>
-            <Link
-              href="/login/forgot"
-              className="text-xs font-medium text-primary hover:underline"
-            >
-              {t("auth.forgot_password", "Forgot password?")}
-            </Link>
+            {/* Password reset is per organisation; a platform super admin has
+                none, so the link could only fail there (production QA
+                2026-10-11, P14). Recovery is the maintenance create-admin
+                step. */}
+            {hostAppContext !== "platform" && (
+              <Link
+                prefetch={false}
+                href="/login/forgot"
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                {t("auth.forgot_password", "Forgot password?")}
+              </Link>
+            )}
           </div>
           <div className="relative">
             <Input
@@ -454,7 +500,7 @@ export function LoginForm() {
               className="h-11 w-full"
               asChild
             >
-              <Link href="/login/otp">
+              <Link prefetch={false} href="/login/otp">
                 <MessageSquareText className="mr-2 h-4 w-4" />
                 {t("auth.sign_in_otp", "Sign in with a text message code")}
               </Link>
@@ -463,6 +509,7 @@ export function LoginForm() {
             <p className="text-center text-sm text-muted-foreground">
               {t("auth.no_account", "Don't have an account?")}{" "}
               <Link
+                prefetch={false}
                 href="/register"
                 className="font-medium text-primary hover:underline"
               >

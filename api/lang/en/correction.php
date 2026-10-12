@@ -8,4 +8,5 @@ return [
     'approved' => 'Attendance correction approved.',
     'rejected' => 'Attendance correction rejected.',
     'cannot_approve_own' => 'You cannot approve a correction to your own attendance.',
+    'cannot_approve_filed' => 'You filed this correction, so someone else must approve it.',
 ];

@@ -24,6 +24,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -69,6 +70,7 @@ import {
   buildDevicePayload,
   EMPTY_DEVICE_FORM,
   isIpAdapter,
+  SIMULATOR_IN_FORM,
   type DeviceFormData,
 } from "@/features/devices/payload";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -203,6 +205,7 @@ export default function DevicesPage() {
       username: "",
       password: "",
       api_key: "",
+      auto_sync: device.auto_sync,
     });
     setEditDevice(device);
   }
@@ -676,8 +679,10 @@ function DeviceFormDialog({
   submitLabel: string;
 }) {
   const { t } = useT();
-  const set = (key: keyof DeviceFormData, value: string) =>
-    setForm((p) => ({ ...p, [key]: value }));
+  const set = (
+    key: Exclude<keyof DeviceFormData, "auto_sync">,
+    value: string,
+  ) => setForm((p) => ({ ...p, [key]: value }));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -714,9 +719,11 @@ function DeviceFormDialog({
                   <SelectItem value="hikvision">Hikvision</SelectItem>
                   <SelectItem value="zkteco">ZKTeco</SelectItem>
                   <SelectItem value="suprema">Suprema</SelectItem>
-                  <SelectItem value="mock">
-                    {t("devices_page.mock_simulator")}
-                  </SelectItem>
+                  {SIMULATOR_IN_FORM && (
+                    <SelectItem value="mock">
+                      {t("devices_page.mock_simulator")}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -732,6 +739,22 @@ function DeviceFormDialog({
                 className="mt-1"
               />
             </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <p className="text-sm font-medium">
+                {t("device_detail_page.auto_sync")}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t("device_detail_page.auto_sync_hint")}
+              </p>
+            </div>
+            <Switch
+              aria-label={t("device_detail_page.auto_sync")}
+              checked={form.auto_sync}
+              onCheckedChange={(v) => setForm((p) => ({ ...p, auto_sync: v }))}
+            />
           </div>
 
           {isMock && (

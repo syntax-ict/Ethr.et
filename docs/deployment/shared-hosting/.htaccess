@@ -298,7 +298,12 @@
     #
     #@ RewriteCond %{REQUEST_FILENAME} !-f
     #@ RewriteCond %{DOCUMENT_ROOT}/$1/$2.html !-f
-    #@ RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)$ /$1/__id__.html [L]
+    #@ RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)/?$ /$1/__id__.html [L]
+    #
+    # The optional trailing slash was added 2026-10-12. Without it
+    # /devices/<id>/ — a bookmark, a pasted link — matched nothing and
+    # answered 404 while /devices/<id> worked (attendance QA A8).
+    # useRouteId strips the slash when it reads the id back.
     #
     # THE SECOND CONDITION WAS ADDED 2026-09-27 AND WITHOUT IT SIX ROUTES WERE
     # DEAD. This rule used to guard on `!-f` alone. For /employees/new,
