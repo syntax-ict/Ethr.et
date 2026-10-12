@@ -57,7 +57,7 @@ export interface DataTableMeta {
 /** Extra per-column config read via column.columnDef.meta */
 export interface DataTableColumnMeta {
   /** Hide this column below the given breakpoint (progressive disclosure on narrow screens) */
-  hideBelow?: "sm" | "md" | "lg";
+  hideBelow?: "sm" | "md" | "lg" | "xl";
   /** Keep this column visible while the table scrolls horizontally */
   pinned?: "left" | "right";
   className?: string;
@@ -101,6 +101,11 @@ interface DataTableProps<TData> {
   onPageChange?: (page: number) => void;
   /** Rendered in the toolbar row, alongside Export CSV / Columns */
   toolbarExtra?: ReactNode;
+  /**
+   * The left of the toolbar row: a search box, a count. Shown in the empty
+   * state too, so a search that matches nothing can still be changed.
+   */
+  toolbarStart?: ReactNode;
   selectable?: boolean;
   onSelectionChange?: (selectedIds: string[]) => void;
   /** Rendered above the table when at least one row is selected */
@@ -129,9 +134,20 @@ function columnMeta(def: { meta?: unknown }): DataTableColumnMeta {
   return (def.meta as DataTableColumnMeta | undefined) ?? {};
 }
 
-function hideBelowClass(hideBelow?: "sm" | "md" | "lg"): string | undefined {
-  if (!hideBelow) return undefined;
-  return `hidden ${hideBelow}:table-cell`;
+// Literal class names: Tailwind only generates classes it can find in the
+// source, so a template like `${bp}:table-cell` worked only while some other
+// file happened to spell each one out.
+const HIDE_BELOW = {
+  sm: "hidden sm:table-cell",
+  md: "hidden md:table-cell",
+  lg: "hidden lg:table-cell",
+  xl: "hidden xl:table-cell",
+} as const;
+
+function hideBelowClass(
+  hideBelow?: keyof typeof HIDE_BELOW,
+): string | undefined {
+  return hideBelow ? HIDE_BELOW[hideBelow] : undefined;
 }
 
 function pinnedClass(pinned?: "left" | "right"): string | undefined {
@@ -159,6 +175,7 @@ export function DataTable<TData>({
   onColumnVisibilityChange,
   onPageChange,
   toolbarExtra,
+  toolbarStart,
   selectable = false,
   onSelectionChange,
   bulkActions,
@@ -320,21 +337,32 @@ export function DataTable<TData>({
   }
 
   if (!isLoading && data.length === 0) {
+    const empty = emptyState ?? (
+      <EmptyState
+        icon={Inbox}
+        title={t("common.no_results", "No results found")}
+      />
+    );
+
+    if (!toolbarStart) return empty;
+
     return (
-      emptyState ?? (
-        <EmptyState
-          icon={Inbox}
-          title={t("common.no_results", "No results found")}
-        />
-      )
+      <div className={cn("space-y-3", className)}>
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          {toolbarStart}
+        </div>
+        {empty}
+      </div>
     );
   }
 
   return (
     <div className={cn("space-y-3", className)}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex-1">
-          {selectable && selectedIds.length > 0 && bulkActions?.(selectedIds)}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+          {selectable && selectedIds.length > 0
+            ? bulkActions?.(selectedIds)
+            : toolbarStart}
         </div>
         {toolbarExtra}
         {getExportRow && (
@@ -370,7 +398,7 @@ export function DataTable<TData>({
         </DropdownMenu>
       </div>
 
-      <div className="rounded-xl border border-border/60 overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-muted/40">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -391,7 +419,7 @@ export function DataTable<TData>({
                       {header.isPlaceholder ? null : canSort ? (
                         <button
                           type="button"
-                          className="flex items-center gap-1 hover:text-foreground"
+                          className="-mx-1 flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           onClick={() => toggleSort(header.column.id)}
                         >
                           {flexRender(
