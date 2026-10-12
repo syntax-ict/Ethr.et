@@ -52,19 +52,32 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // address signs in on the apex — where nothing but this header names it.
   // On a tenant host or the platform host the server ignores or refuses it,
   // so it is simply not sent there.
-  const context = hostContext(
-    window.location.host,
-    process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null,
-  );
-  if (context === "public" || context === "unknown") {
-    const tenant = localStorage.getItem("tenant");
-    if (tenant && config.headers) {
-      config.headers["X-Tenant"] = tenant;
-    }
+  const tenant = tenantHeaderValue();
+  if (tenant && config.headers) {
+    config.headers["X-Tenant"] = tenant;
   }
 
   return config;
 });
+
+/**
+ * The `X-Tenant` value this page sends, or null where the hostname names the
+ * organisation itself. Exported so a punch queued offline can carry it: the
+ * service worker sends the queue with no page, and so no localStorage.
+ */
+export function tenantHeaderValue(): string | null {
+  if (typeof window === "undefined") return null;
+  const context = hostContext(
+    window.location.host,
+    process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null,
+  );
+  if (context !== "public" && context !== "unknown") return null;
+  try {
+    return localStorage.getItem("tenant");
+  } catch {
+    return null;
+  }
+}
 
 const SAFE_METHODS = ["get", "head", "options"];
 

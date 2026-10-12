@@ -24,6 +24,7 @@ const InteractiveCharts = dynamic(
 import { useEmployeeDashboard } from "@/features/dashboard/api";
 import { useCurrentUser } from "@/features/auth/api";
 import { DashboardSection } from "@/components/dashboard";
+import { InstallAppBanner } from "@/components/shared/install-app";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
@@ -74,6 +75,8 @@ export default function DashboardPage() {
       <div className="animate-fade-in-up">
         <WelcomeSection />
       </div>
+
+      <InstallAppBanner />
 
       <SetupProgress />
 

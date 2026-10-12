@@ -57,3 +57,33 @@ export function useServiceWorker() {
       navigator.serviceWorker.removeEventListener("message", onMessage);
   }, []);
 }
+
+/**
+ * Asks the browser to wake the service worker when connectivity returns, so
+ * punches queued offline are sent even if ETHR is not open then. The worker
+ * listened for `sync-attendance` but nothing ever registered it, so a queued
+ * punch waited until the app was next opened. Where Background Sync is not
+ * supported (Safari, Firefox) the app's own reconnect listener still sends
+ * the queue the next time it is open.
+ */
+export async function requestAttendanceSync(): Promise<boolean> {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+    return false;
+  }
+  try {
+    // getRegistration(), not `ready`: `ready` never settles when no worker
+    // is registered (development, a blocked registration).
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) return false;
+    const sync = (
+      registration as ServiceWorkerRegistration & {
+        sync?: { register: (tag: string) => Promise<void> };
+      }
+    ).sync;
+    if (!sync) return false;
+    await sync.register("sync-attendance");
+    return true;
+  } catch {
+    return false;
+  }
+}
