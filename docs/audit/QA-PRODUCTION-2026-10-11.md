@@ -13,25 +13,58 @@ main flow or a security property for some · **S3** a defect with a workaround �
 
 ## Summary
 
-| # | Sev | Finding | Status |
+| # | Sev | Finding | Status (2026-10-12) |
 |---|---|---|---|
-| P16 | **S1** | **Log out does not sign a tenant user out** — after logout `/auth/me` and the data APIs still answer 200 (reproduced twice) | Open |
-| P1 | **S1** | The scheduler runs 4–5 times a day, not every 5 minutes; fixed-time tasks — including the nightly **backup** — essentially never run | Open — owner decision |
-| P2 | **S1** | A newly registered admin is signed out ~15 minutes after registering, mid-setup | Open |
-| P15 | S2 | No UI path gives an employee a login linked to their record — nobody can request leave, see payslips or check in as themselves | Open |
-| P17 | S2 | The console's System Health panel is empty: `GET /admin/health` answers 500, and not as RFC-7807 | Open |
-| P3 | S2 | `POST /api/v1/api-keys` answers **500** in production — no API key can be created | Open |
-| P4 | S2 | CI's "MySQL" gate runs a non-strict `mariadb` connection; production runs strict `mysql` (MySQL 8.0) — P3's class of defect cannot be caught | Open |
-| P5 | S2 | The Ethiopian-calendar year box cannot be typed into: "2" becomes 1902, the next digit blanks the date | Open |
-| P6 | S2 | The apex sign-in hand-off lands on a blank, unexplained sign-in form in another language | Open |
-| P7 | S2 | Self-registration never verifies the admin's email (phase docs claim it does) | Open — owner decision |
-| P8 | S2 | An English visitor's "Start Free Trial" opens an Amharic sign-up form | Open |
-| P9 | S3 | API error messages are English while the UI is Amharic (client and UI disagree on the default locale) | Open |
-| P10 | S3 | Every `/icons/*` file 404s — the host's Apache `Alias /icons/` shadows the app's directory | Open |
-| P11 | S3 | Invitation (activation) links expire after 60 minutes | Open — owner decision |
-| P12 | S3 | Next.js prefetch `HEAD` requests are answered 503 by the host | Open — needs host log |
-| P13 | S3 | The apex 301s to `www`, while canonical, `robots.txt` `Host` and the sitemap name the apex | Open — owner decision |
-| P14 | S4 | Smaller items (listed under P14) | Open |
+| P16 | **S1** | **Log out does not sign a tenant user out** — after logout `/auth/me` and the data APIs still answer 200 (reproduced twice) | **Fixed** — #201 |
+| P1 | **S1** | The scheduler runs 4–5 times a day, not every 5 minutes; fixed-time tasks — including the nightly **backup** — essentially never run | **Code fixed** — #204 (catch-up scheduling). **Owner action:** the second caller (below) |
+| P2 | **S1** | A newly registered admin is signed out ~15 minutes after registering, mid-setup | **Fixed** — #207 |
+| P15 | S2 | No UI path gives an employee a login linked to their record — nobody can request leave, see payslips or check in as themselves | **Fixed** — #210 |
+| P17 | S2 | The console's System Health panel is empty: `GET /admin/health` answers 500, and not as RFC-7807 | **Fixed** — #200 |
+| P3 | S2 | `POST /api/v1/api-keys` answers **500** in production — no API key can be created | **Fixed** — #202 (needs `migrate`) |
+| P4 | S2 | CI's "MySQL" gate runs a non-strict `mariadb` connection; production runs strict `mysql` (MySQL 8.0) — P3's class of defect cannot be caught | **Fixed** — #209 (full suite on strict: no further defect) |
+| P5 | S2 | The Ethiopian-calendar year box cannot be typed into: "2" becomes 1902, the next digit blanks the date | **Fixed** — #203 |
+| P6 | S2 | The apex sign-in hand-off lands on a blank, unexplained sign-in form in another language | **Fixed** — #208 |
+| P7 | S2 | Self-registration never verifies the admin's email (phase docs claim it does) | **Decided and fixed** — #207: registration email to the address; no sign-in gating; phase doc corrected |
+| P8 | S2 | An English visitor's "Start Free Trial" opens an Amharic sign-up form | **Fixed** — #208 |
+| P9 | S3 | API error messages are English while the UI is Amharic (client and UI disagree on the default locale) | **Fixed** — #208 |
+| P10 | S3 | Every `/icons/*` file 404s — the host's Apache `Alias /icons/` shadows the app's directory | **Fixed** — #211 (`/app-icons/`) |
+| P11 | S3 | Invitation (activation) links expire after 60 minutes | **Decided and fixed** — #207: 72 h, own token table (needs `migrate`) |
+| P12 | S3 | Next.js prefetch `HEAD` requests are answered 503 by the host | **Fixed** — #208 (no prefetch on auth pages) |
+| P13 | S3 | The apex 301s to `www`, while canonical, `robots.txt` `Host` and the sitemap name the apex | **Decided and fixed** — #211: canonical follows the host (`www`) |
+| P14 | S4 | Smaller items (listed under P14) | Fixed except as noted under *Decisions* — #207, #208 |
+
+### Decisions taken under the owner's delegation (2026-10-12)
+
+- **P7:** a registration email tells the address its organisation exists and where it signs
+  in; sign-in is **not** gated on a verified address, which would block every trial on mail
+  delivery that this host's SMTP has already failed once.
+- **P11:** invitations last 72 hours in their own table; password resets keep 60 minutes.
+- **P13:** canonical URLs follow the host's `www` preference rather than asking for a
+  Plesk change, per `SHARED-HOSTING-CONTRACT.md`.
+- **P15:** "Send a login invitation" on Add Employee is **off** by default, so entering
+  records never emails people unasked.
+- **Not changed, with reason:**
+  - Unknown subdomains still serve the marketing site. Their canonical tag points at the
+    real origin, and redirecting would need a tenant lookup that, if it failed, would bounce
+    a real organisation's host.
+  - `/am/privacy` and `/am/terms` keep English text under a translation notice and the
+    "pending legal review" banner. Legal text needs a qualified translator, not a model.
+  - Session `last_used_at` is not written for browser sessions, which authenticate by
+    session, not token; the UI says *Active now* for the current one instead of adding a
+    query to every request.
+  - The QA Audit trial's later end date was a console *Extend Trial*. Registration always
+    grants six months, so there is no defect.
+- **Corrected in this report:** the users-table icon buttons did have accessible names
+  (`title`); explicit `aria-label`s were added anyway. The password-reset rows' "—" is the
+  actor column, correct for an unauthenticated reset.
+
+### Owner action — the second scheduler caller (P1)
+
+`cron-caller.md` → *A second caller* (#204): two jobs on a free URL-fetch cron service,
+every 5 minutes, `POST` to `/api/v1/cron/schedule` and `/api/v1/cron/queue` with the
+`X-Cron-Token` header and a `{}` body (never empty). It needs an account and the cron token,
+so only the owner can set it up. Until then, catch-up scheduling makes every GitHub tick run
+whatever fell due since the last one — late, but no longer lost.
 
 ## Findings
 
