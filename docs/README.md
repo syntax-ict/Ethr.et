@@ -19,6 +19,7 @@ Several documents in this tree describe things that are not true of the code. Th
 | [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | Every hosting capability, graded panel-read vs probe-measured. **No longer all `NOT VERIFIED`** — see the row below. **Read the *Gate status reconciliation* section at the end for current status**; the tables above it are dated and were deliberately left unmodified. |
 | [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md) | **Phase 1, 2026-09-25 — the first evidence taken against the real host.** Five capabilities moved to `VERIFIED`; eight discrepancies against existing documents recorded without rewriting them. |
 | [`audit/QA-CONSOLE-PRODUCTION-2026-10-11.md`](audit/QA-CONSOLE-PRODUCTION-2026-10-11.md) | **Live QA of the platform console on production**, release `v2026.10.11.3`. 23 findings (six S2), plus write tests on QA Audit, what passed, and what could not be covered. |
+| [`audit/QA-ATTENDANCE-PRODUCTION-2026-10-12.md`](audit/QA-ATTENDANCE-PRODUCTION-2026-10-12.md) | **Live QA of the attendance engine and Devices on production** (QA Audit org). 11 findings — S1: lateness/early-leave classified on UTC, not Addis time; S2: offline sync rejects every record, mock simulator in production, self-approved corrections. |
 
 Three standing caveats:
 
