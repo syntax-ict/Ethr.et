@@ -81,6 +81,27 @@ describe("login page — hostname context", () => {
     expect(
       screen.queryByRole("link", { name: /start free trial/i }),
     ).not.toBeInTheDocument();
+    // Password reset is per organisation; a super admin has none, so the
+    // link could only fail here (production QA 2026-10-11, P14).
+    expect(
+      screen.queryByRole("link", { name: /forgot password/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("tenant host still offers a password reset", () => {
+    hostContextValue.mockReturnValue({
+      ...base,
+      context: "tenant",
+      tenantSlug: "acme",
+      tenantName: "Acme",
+      tenantFieldVisible: false,
+    });
+
+    renderLogin();
+
+    expect(
+      screen.getByRole("link", { name: /forgot password/i }),
+    ).toBeInTheDocument();
   });
 
   it("tenant host: names the org in the heading and shows a read-only indicator, not an editable field", () => {
