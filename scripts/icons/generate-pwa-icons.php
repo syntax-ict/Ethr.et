@@ -52,7 +52,7 @@ declare(strict_types=1);
  * writing, so a gate can assert the assets still match their source.
  * Exit codes: 0 written/matches, 1 --check mismatch, 2 bad input.
  */
-const ICON_DIR = __DIR__.'/../../src/public/icons';
+const ICON_DIR = __DIR__.'/../../src/public/app-icons';
 const SOURCE = ICON_DIR.'/icon-512.png';
 
 /** ETHR Primary — docs/CLAUDE.md design system, and manifest.theme_color. */
