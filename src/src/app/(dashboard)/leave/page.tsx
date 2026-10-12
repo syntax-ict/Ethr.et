@@ -52,6 +52,7 @@ import {
   type LeaveRequest,
 } from "@/features/leave/api";
 import { cn } from "@/lib/utils";
+import { StatCard } from "@/components/dashboard/stat-card";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -223,27 +224,51 @@ function MyLeaveTab() {
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {balancesLoading
-          ? Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-24" />
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <StatCard key={i} label="" value="" loading />
             ))
           : balances && Array.isArray(balances)
-            ? balances.map((b, i) => (
-                <Card key={i}>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">
-                      {leaveTypeName(b.leave_type, t("leave_page.unknown"))}
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-foreground">
-                      {b.remaining_days}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {b.used_days} {t("leave_page.used_of")} {b.entitled_days}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))
+            ? balances.map((b, i) => {
+                const used =
+                  b.entitled_days > 0
+                    ? Math.min(100, (b.used_days / b.entitled_days) * 100)
+                    : 0;
+                return (
+                  <StatCard
+                    key={i}
+                    icon={CalendarDays}
+                    tone="success"
+                    label={leaveTypeName(b.leave_type, t("leave_page.unknown"))}
+                    value={
+                      <span>
+                        {b.remaining_days}
+                        <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                          {t("common.days", "days")}
+                        </span>
+                      </span>
+                    }
+                    hint={
+                      <span className="block space-y-1.5">
+                        <span className="block">
+                          {b.used_days} {t("leave_page.used_of")}{" "}
+                          {b.entitled_days}
+                        </span>
+                        <span
+                          className="block h-1.5 overflow-hidden rounded-full bg-muted"
+                          aria-hidden="true"
+                        >
+                          <span
+                            className="block h-full rounded-full bg-status-success"
+                            style={{ width: `${used}%` }}
+                          />
+                        </span>
+                      </span>
+                    }
+                  />
+                );
+              })
             : null}
       </div>
 

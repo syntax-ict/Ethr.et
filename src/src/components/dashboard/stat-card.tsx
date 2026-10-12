@@ -139,7 +139,7 @@ export function StatCard({
       {(delta || hint) && (
         <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           {delta && <DeltaBadge {...delta} />}
-          {hint && <span className="min-w-0 truncate">{hint}</span>}
+          {hint && <span className="min-w-0 flex-1 truncate">{hint}</span>}
         </div>
       )}
     </>

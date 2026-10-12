@@ -290,7 +290,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
         </div>
 
         {/* Info Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <InfoCard
             icon={Activity}
             label={t("device_detail_page.total_records")}
