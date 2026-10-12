@@ -6,12 +6,14 @@ use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
+use App\Models\AttendanceSetting;
 use App\Models\Branch;
 use App\Models\Employee;
 use App\Services\Attendance\ConflictResolver;
 use App\Services\Attendance\QrCodeService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 
 // ── Mobile Check-in ──
 
@@ -644,4 +646,60 @@ test('offline sync requires authentication', function () {
 
     test()->postJson('http://authtest.ethr.test/api/v1/attendance/sync', [])
         ->assertUnauthorized();
+});
+
+// ── Offline sync once the organisation has attendance settings ──
+//
+// Production, 2026-10-12 (attendance QA A2): with a settings row — created the
+// first time anyone opens the settings page — every synced record came back
+// "This attendance method is not enabled", offline_sync_enabled: true or not.
+// The tests above passed only because their tenants have no settings row.
+
+function syncOneOfflinePunch($tenant, Employee $employee): TestResponse
+{
+    return test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/sync", [
+        'records' => [[
+            'idempotency_key' => 'offline-settings-'.uniqid(),
+            'employee_public_id' => $employee->public_id,
+            'type' => 'check_in',
+            'timestamp' => now()->subMinutes(10)->toIso8601String(),
+            'offline_token' => hash('sha256', uniqid()),
+        ]],
+    ]);
+}
+
+test('offline sync is accepted under the default attendance settings', function () {
+    $tenant = createTenant();
+    AttendanceSetting::create(['tenant_id' => $tenant->id, ...AttendanceSetting::defaults()]);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+
+    syncOneOfflinePunch($tenant, $employee)
+        ->assertOk()
+        ->assertJsonPath('summary.created', 1)
+        ->assertJsonPath('summary.error', 0);
+});
+
+test('offline sync is refused when the organisation switches it off', function () {
+    $tenant = createTenant();
+    AttendanceSetting::create(['tenant_id' => $tenant->id, ...AttendanceSetting::defaults(), 'offline_sync_enabled' => false]);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+
+    syncOneOfflinePunch($tenant, $employee)
+        ->assertOk()
+        ->assertJsonPath('summary.created', 0)
+        ->assertJsonPath('summary.error', 1);
+});
+
+test('offline sync is refused when mobile punching is disabled', function () {
+    $tenant = createTenant();
+    AttendanceSetting::create(['tenant_id' => $tenant->id, ...AttendanceSetting::defaults(), 'enabled_methods' => ['web', 'manual']]);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+
+    syncOneOfflinePunch($tenant, $employee)
+        ->assertOk()
+        ->assertJsonPath('summary.created', 0)
+        ->assertJsonPath('summary.error', 1);
 });

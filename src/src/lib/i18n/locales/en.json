@@ -1192,7 +1192,7 @@
   "devices_page.mock_simulator": "Mock (Simulator)",
   "devices_page.never": "Never",
   "devices_page.no_devices": "No devices registered",
-  "devices_page.no_devices_desc": "Add a biometric device or a mock simulator to start syncing attendance",
+  "devices_page.no_devices_desc": "Add a biometric device to start syncing attendance",
   "devices_page.offline": "Offline",
   "devices_page.online": "Online",
   "devices_page.online_responding": "Device is online and responding",

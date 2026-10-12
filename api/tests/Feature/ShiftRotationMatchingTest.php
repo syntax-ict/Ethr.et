@@ -180,8 +180,8 @@ function rotationPayrollEntry(Tenant $tenant, int $userId, string $date, string 
         'employee_id' => $employee->id,
         'shift_id' => app(ShiftMatcher::class)->match($employee, Carbon::parse("{$date} {$in}"))?->id,
         'date' => $date,
-        'check_in' => Carbon::parse("{$date} {$in}"),
-        'check_out' => Carbon::parse("{$date} {$out}"),
+        'check_in' => Carbon::parse("{$date} {$in}", 'Africa/Addis_Ababa')->utc(),
+        'check_out' => Carbon::parse("{$date} {$out}", 'Africa/Addis_Ababa')->utc(),
     ]);
 
     Queue::fake();
@@ -245,8 +245,8 @@ test('the queued job pays a fixed shift\'s rest day too', function () {
         'employee_id' => $employee->id,
         'shift_id' => $shift->id,
         'date' => '2026-06-13',
-        'check_in' => Carbon::parse('2026-06-13 09:00'),
-        'check_out' => Carbon::parse('2026-06-13 13:00'),
+        'check_in' => Carbon::parse('2026-06-13 09:00', 'Africa/Addis_Ababa')->utc(),
+        'check_out' => Carbon::parse('2026-06-13 13:00', 'Africa/Addis_Ababa')->utc(),
     ]);
 
     Queue::fake();

@@ -1192,7 +1192,7 @@
   "devices_page.mock_simulator": "ማስመሰያ (ሲሙሌተር)",
   "devices_page.never": "በፍጹም",
   "devices_page.no_devices": "ምንም መሳሪያዎች አልተመዘገቡም",
-  "devices_page.no_devices_desc": "ቅጥር ማመሳሰል ለመጀመር ባዮሜትሪክ መሳሪያ ወይም ማስመሰያ ይጨምሩ",
+  "devices_page.no_devices_desc": "ቅጥር ማመሳሰል ለመጀመር ባዮሜትሪክ መሳሪያ ይጨምሩ",
   "devices_page.offline": "መስመር ውጭ",
   "devices_page.online": "መስመር ላይ",
   "devices_page.online_responding": "መሳሪያው መስመር ላይ ነው እና ምላሽ እየሰጠ ነው",

@@ -30,8 +30,8 @@ function runOvertimePayroll(int $tenantId, int $userId, string $checkOut, bool $
         'employee_id' => $employee->id,
         'shift_id' => $shift->id,
         'date' => '2026-06-15',
-        'check_in' => Carbon::parse('2026-06-15 08:30'),
-        'check_out' => Carbon::parse($checkOut),
+        'check_in' => Carbon::parse('2026-06-15 08:30', 'Africa/Addis_Ababa')->utc(),
+        'check_out' => Carbon::parse($checkOut, 'Africa/Addis_Ababa')->utc(),
     ]);
 
     if ($holiday) {
@@ -134,8 +134,8 @@ function runDayPayroll(int $tenantId, int $userId, string $date, string $in, str
         'employee_id' => $employee->id,
         'shift_id' => $shiftId,
         'date' => $date,
-        'check_in' => Carbon::parse("{$date} {$in}"),
-        'check_out' => Carbon::parse("{$date} {$out}"),
+        'check_in' => Carbon::parse("{$date} {$in}", 'Africa/Addis_Ababa')->utc(),
+        'check_out' => Carbon::parse("{$date} {$out}", 'Africa/Addis_Ababa')->utc(),
     ]);
 
     $run = app(PayrollEngine::class)->process(

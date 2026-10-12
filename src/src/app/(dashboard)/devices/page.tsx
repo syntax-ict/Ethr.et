@@ -69,6 +69,7 @@ import {
   buildDevicePayload,
   EMPTY_DEVICE_FORM,
   isIpAdapter,
+  SIMULATOR_IN_FORM,
   type DeviceFormData,
 } from "@/features/devices/payload";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -714,9 +715,11 @@ function DeviceFormDialog({
                   <SelectItem value="hikvision">Hikvision</SelectItem>
                   <SelectItem value="zkteco">ZKTeco</SelectItem>
                   <SelectItem value="suprema">Suprema</SelectItem>
-                  <SelectItem value="mock">
-                    {t("devices_page.mock_simulator")}
-                  </SelectItem>
+                  {SIMULATOR_IN_FORM && (
+                    <SelectItem value="mock">
+                      {t("devices_page.mock_simulator")}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>

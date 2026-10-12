@@ -181,7 +181,11 @@ test('attendance status is present when within grace period', function () {
     $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
     test()->actingAs($user);
 
-    Carbon::setTestNow(Carbon::today()->setTime(8, 40));
+    // 08:40 in the tenant's zone (Africa/Addis_Ababa). This read
+    // Carbon::today()->setTime(8, 40) — 08:40 UTC, 11:40 in Addis — and
+    // passed only while the engine compared shift times on the UTC clock
+    // (attendance QA A1).
+    Carbon::setTestNow(Carbon::today('Africa/Addis_Ababa')->setTime(8, 40)->utc());
 
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/check-in", [
         'idempotency_key' => 'grace-test-001',
@@ -256,8 +260,10 @@ test('overtime minutes calculated for work beyond shift end', function () {
         'tenant_id' => $tenant->id,
         'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
         'shift_id' => $shift->id,
-        'check_in' => Carbon::today()->setTime(8, 30),
-        'check_out' => Carbon::today()->setTime(19, 30),
+        // Addis wall-clock times, as a person keeps them; the shift's 17:30
+        // end is one too (attendance QA A1).
+        'check_in' => Carbon::today('Africa/Addis_Ababa')->setTime(8, 30)->utc(),
+        'check_out' => Carbon::today('Africa/Addis_Ababa')->setTime(19, 30)->utc(),
     ]);
 
     expect($record->overtimeMinutes())->toBe(120);
