@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Enums\PlanFeature;
+use App\Enums\SubscriptionStatus;
 use App\Enums\TenantAddressMode;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
@@ -348,6 +349,19 @@ class AdminTenantController extends Controller
         $newEnd = ($tenant->trial_ends_at ?? now())->addDays($request->integer('days'));
         $tenant->update(['trial_ends_at' => $newEnd]);
 
+        // A trialing subscription's period is the trial: registration sets both
+        // to the same date (AuthService). Moving only the tenant left the console
+        // showing two end dates and billing's days-remaining on the old one
+        // (console QA F19). Saving a loaded model applies no global scope, so
+        // this adds no tenant-scope bypass.
+        // The raw attribute, as BillingService reads it: Larastan types
+        // `status` as string while the cast makes it an enum.
+        $subscription = $this->latestSubscription($tenant);
+        if ($subscription !== null
+            && ($subscription->getAttributes()['status'] ?? null) === SubscriptionStatus::TRIAL->value) {
+            $subscription->update(['current_period_end' => $newEnd]);
+        }
+
         AuditLog::record('admin.tenant.trial_extended', $tenant, [
             'days' => $request->integer('days'),
             'new_end' => $newEnd->toDateString(),
@@ -625,8 +639,10 @@ class AdminTenantController extends Controller
             ->where('public_id', $publicId)
             ->firstOrFail();
 
+        // public_id, not id: GET /admin/audit returns this payload, and a numeric
+        // primary key never leaves the API (Convention #4; console QA F21).
         AuditLog::record('admin.tenant.backup_triggered', $tenant, [
-            'triggered_by' => $request->user()->id,
+            'triggered_by' => $request->user()->public_id,
         ]);
 
         BackupTenantJob::dispatch($tenant->id, $request->user()->id);

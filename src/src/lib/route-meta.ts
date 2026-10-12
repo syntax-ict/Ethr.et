@@ -398,7 +398,27 @@ function isOpaqueId(segment: string): boolean {
   );
 }
 
+/**
+ * The metadata for a path, with or without a trailing slash.
+ *
+ * The production build is a static export served by Apache, where a page is a
+ * directory: loaded directly, `/admin/audit` arrives as `/admin/audit/`. The
+ * exact-match lookup missed every such path and fell back to the parent, so in
+ * production the audit page was titled "Audit" and Tenants, Plans and Audit all
+ * carried the console's generic description (console QA F14). The normalised
+ * path also becomes `i18nPath`, so translated titles resolve the same way.
+ */
 export function getRouteMeta(pathname: string): RouteMeta | null {
+  const path =
+    pathname.length > 1 ? pathname.replace(/\/+$/, "") || "/" : pathname;
+  const meta = lookupRouteMeta(path);
+
+  if (meta === null || path === pathname) return meta;
+
+  return { ...meta, i18nPath: meta.i18nPath ?? path };
+}
+
+function lookupRouteMeta(pathname: string): RouteMeta | null {
   if (ROUTE_META[pathname]) return ROUTE_META[pathname];
 
   const segments = pathname.split("/").filter(Boolean);

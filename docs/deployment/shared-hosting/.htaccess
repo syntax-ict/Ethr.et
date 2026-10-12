@@ -462,6 +462,12 @@
     Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=(self)"
+    # PHP announced its exact version on every API response (console QA F15,
+    # 2026-10-12). Both tables: PHP-FPM's header can arrive in either. The
+    # "X-Powered-By: PleskLin" that remains is added by Plesk's nginx in front,
+    # outside anything this file can reach.
+    Header always unset X-Powered-By
+    Header unset X-Powered-By
 
     # img-src widened for tenant branding logos (PUT /settings/branding
     # stores a URL, rendered straight into <img src> across the sidebar,
