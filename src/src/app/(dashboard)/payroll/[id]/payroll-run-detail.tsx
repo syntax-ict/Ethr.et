@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useEntityTitle } from "@/components/layouts/page-actions-slot";
 import {
-  ArrowLeft,
   Download,
   CheckCircle,
   Loader2,
@@ -12,6 +12,9 @@ import {
   BookOpen,
   Ban,
   RotateCcw,
+  Wallet,
+  Banknote,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +38,8 @@ import {
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
+import { StatCard, type StatTone } from "@/components/dashboard/stat-card";
+import { formatETBCompact } from "@/lib/utils/currency";
 import { SimpleTable } from "@/components/shared/simple-table";
 import {
   bankTransferCsv,
@@ -62,6 +67,9 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const { t } = useT();
   const id = useRouteId(routeId) ?? "";
   const { data: run, isLoading } = usePayrollRun(id);
+  // Ends the title bar's breadcrumb with this run; it had a separate "Back"
+  // button instead.
+  useEntityTitle(run?.period_label);
   // Each action is its own permission server-side (`PayrollRunPolicy`). The
   // page asked for the tenant-admin role instead, so a custom role granted
   // `payroll.approve` never saw the button.
@@ -219,19 +227,10 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/payroll">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {t("common.back")}
-          </Link>
-        </Button>
-      </div>
-
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               {run.period_label}
             </h1>
             <StatusBadge status={run.status} />
@@ -331,30 +330,31 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
+          icon={Wallet}
+          tone="primary"
           label={t("payroll_detail_page.gross_total")}
           cents={run.gross_total_cents}
         />
         <SummaryCard
+          icon={Banknote}
+          tone="success"
           label={t("payroll_detail_page.net_total")}
           cents={run.net_total_cents}
-          highlight
         />
         <SummaryCard
+          icon={Landmark}
+          tone="warning"
           label={t("payroll_detail_page.total_tax")}
           cents={run.tax_total_cents}
         />
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">
-              {t("payroll_detail_page.employees")}
-            </p>
-            <p className="mt-1 text-2xl font-bold text-foreground">
-              {run.employee_count}
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          icon={Users}
+          tone="neutral"
+          label={t("payroll_detail_page.employees")}
+          value={run.employee_count}
+        />
       </div>
 
       {run.entries && run.entries.length > 0 && (
@@ -376,12 +376,15 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
                 t("payroll_detail_page.net"),
               ]}
               align={["left", "right", "right", "right", "right", "right"]}
+              // Amounts no longer wrap, so the row is wider: Basic and Pension
+              // join from xl, keeping Net — the column a run is checked by —
+              // on screen at 1024px.
               colClassName={[
                 "",
-                "",
+                "hidden xl:table-cell",
                 "hidden md:table-cell",
                 "hidden sm:table-cell",
-                "hidden sm:table-cell",
+                "hidden xl:table-cell",
                 "",
               ]}
               rows={run.entries.map((entry: PayrollEntry) => ({
@@ -494,25 +497,28 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   );
 }
 
+/**
+ * A run total: the headline compact (`2.59M ETB`), the exact figure under it.
+ * The exact amount at tile size wrapped onto two lines in a four-column row.
+ */
 function SummaryCard({
+  icon,
+  tone,
   label,
   cents,
-  highlight,
 }: {
+  icon: React.ComponentType<{ className?: string }>;
+  tone: StatTone;
   label: string;
   cents: number;
-  highlight?: boolean;
 }) {
   return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p
-          className={`mt-1 text-2xl font-bold ${highlight ? "text-primary" : "text-foreground"}`}
-        >
-          <CurrencyDisplay cents={cents} />
-        </p>
-      </CardContent>
-    </Card>
+    <StatCard
+      icon={icon}
+      tone={tone}
+      label={label}
+      value={formatETBCompact(cents)}
+      hint={<CurrencyDisplay cents={cents} />}
+    />
   );
 }
