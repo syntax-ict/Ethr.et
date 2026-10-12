@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Models\Invoice;
 use App\Models\Tenant;
 use App\Notifications\SystemAlertNotification;
+use App\Services\Admin\SystemHealthService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -215,6 +216,24 @@ test('super admin can view system health', function () {
             'queue',
             'failed_jobs',
         ]);
+
+    expect($response->json('resources.disk_free_gb'))->toBeFloat();
+});
+
+test('health reports no disk figure rather than failing when free space cannot be read', function () {
+    $tenant = createTenant();
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+    test()->actingAs($user);
+
+    // On Plesk, open_basedir made disk_free_space('/') warn, Laravel turned the
+    // warning into an exception, and every call to this endpoint answered 500
+    // (console QA F2, 2026-10-12). A path that does not exist warns the same way.
+    app()->instance(SystemHealthService::class, new SystemHealthService('/no/such/directory/ethr-health'));
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/health")
+        ->assertOk()
+        ->assertJsonPath('resources.disk_free_gb', null)
+        ->assertJsonPath('services.database.status', 'healthy');
 });
 
 // ── Admin Audit Log ──
