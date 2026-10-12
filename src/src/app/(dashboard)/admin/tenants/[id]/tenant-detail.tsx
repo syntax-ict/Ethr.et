@@ -120,6 +120,37 @@ function TenantDetail({ id }: { id: string }) {
   const [pendingStatus, setPendingStatus] = useState<
     "active" | "suspended" | "cancelled" | null
   >(null);
+  // Confirming a payment activates the subscription and books revenue, so it
+  // asks first, naming the invoice and the amount (console QA F4: one click
+  // used to do it).
+  const [pendingInvoice, setPendingInvoice] = useState<{
+    publicId: string;
+    totalCents: number;
+  } | null>(null);
+
+  function confirmMarkPaid() {
+    if (pendingInvoice === null) return;
+    markInvoicePaid.mutate(pendingInvoice.publicId, {
+      onSuccess: () =>
+        toast.success(
+          t(
+            "admin_tenant_detail_page.invoice_marked_paid",
+            "Invoice marked paid",
+          ),
+        ),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t(
+              "admin_tenant_detail_page.mark_paid_failed",
+              "Couldn't mark the invoice paid",
+            ),
+          ),
+        ),
+      onSettled: () => setPendingInvoice(null),
+    });
+  }
 
   // Cancelling a tenant is irreversible from this screen (the page says so
   // itself), and suspension cuts off everyone at that organization — so these
@@ -818,24 +849,9 @@ function TenantDetail({ id }: { id: string }) {
                           "Mark paid",
                         )} ${inv.public_id.slice(-8)}`}
                         onClick={() =>
-                          markInvoicePaid.mutate(inv.public_id, {
-                            onSuccess: () =>
-                              toast.success(
-                                t(
-                                  "admin_tenant_detail_page.invoice_marked_paid",
-                                  "Invoice marked paid",
-                                ),
-                              ),
-                            onError: (err) =>
-                              toast.error(
-                                apiErrorMessage(
-                                  err,
-                                  t(
-                                    "admin_tenant_detail_page.mark_paid_failed",
-                                    "Couldn't mark the invoice paid",
-                                  ),
-                                ),
-                              ),
+                          setPendingInvoice({
+                            publicId: inv.public_id,
+                            totalCents: inv.total_cents,
                           })
                         }
                       >
@@ -879,6 +895,33 @@ function TenantDetail({ id }: { id: string }) {
             </CardContent>
           </Card>
         )}
+
+        {/* Payment confirmation */}
+        <ConfirmDialog
+          open={pendingInvoice !== null}
+          onOpenChange={(open) => {
+            if (!open && !markInvoicePaid.isPending) setPendingInvoice(null);
+          }}
+          title={t(
+            "admin_tenant_detail_page.confirm_mark_paid_title",
+            "Confirm payment received",
+          )}
+          description={t(
+            "admin_tenant_detail_page.confirm_mark_paid",
+            "Mark invoice :invoice for :amount as paid? This activates the subscription and records the payment as revenue.",
+            {
+              invoice: pendingInvoice?.publicId.slice(-8) ?? "",
+              amount: formatETB(pendingInvoice?.totalCents ?? 0),
+            },
+          )}
+          confirmLabel={t(
+            "admin_tenant_detail_page.confirm_mark_paid_button",
+            "Mark :amount paid",
+            { amount: formatETB(pendingInvoice?.totalCents ?? 0) },
+          )}
+          loading={markInvoicePaid.isPending}
+          onConfirm={confirmMarkPaid}
+        />
 
         {/* Status change confirmation */}
         <ConfirmDialog

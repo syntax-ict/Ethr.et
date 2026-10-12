@@ -1,8 +1,16 @@
 // ETHR Service Worker — offline-first for Ethiopian field workers
 // Version is baked in at build time via build process / cache-busting
-const CACHE_VERSION = 'ethr-v1';
+// v2 (2026-10-12): bumping it makes activate delete every v1 cache, which is
+// how responses stored before the prefixes below were excluded leave devices.
+const CACHE_VERSION = 'ethr-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;
+
+// API responses that are never stored. The platform console reads every
+// tenant, and /auth answers describe the signed-in account; neither may sit in
+// Cache Storage after the session ends (console QA F3). They still go to the
+// network as usual — only the offline copy is refused.
+const NEVER_CACHED_API = ['/api/v1/admin/', '/api/v1/auth/'];
 
 // Shell assets to precache — these make the app load offline
 const SHELL_ASSETS = [
@@ -54,6 +62,8 @@ self.addEventListener('fetch', (event) => {
   ) {
     return;
   }
+
+  if (NEVER_CACHED_API.some(prefix => url.pathname.startsWith(prefix))) return;
 
   // API calls: network-first, fall back to cached response
   if (url.pathname.startsWith('/api/')) {
