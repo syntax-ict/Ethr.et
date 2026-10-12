@@ -3,9 +3,11 @@
 A live, read-only pass over the platform console at `https://admin.ethr.et/admin/`,
 signed in as the platform super admin, on release `v2026.10.11.3` (`b1b9cbe5`).
 Driven through Claude in Chrome plus signed-out `curl` probes, spaced to stay
-under the host firewall's burst limit. **No write was made**: every confirm dialog
-was opened and cancelled, and the three controls that act on a single click
-(F4–F6) were not touched.
+under the host firewall's burst limit. **The first pass made no write**: every
+confirm dialog was opened and cancelled, and the three controls that act on a
+single click (F4–F6) were not touched. A second pass on 2026-10-12, after the
+owner enabled MFA and approved it, ran the console's write actions against the
+owner's throwaway organisation **QA Audit** only — see *Write tests* below.
 
 What this report does not contain, deliberately: customer email addresses, IP
 addresses from the audit log, tokens, cookie values, platform-settings values.
@@ -18,10 +20,10 @@ behaviour an operator can live with · **S4** polish, wording, hardening.
 
 | # | Sev | Finding |
 |---|---|---|
-| F1 | S2 | The platform super admin has **no second factor**: the server reports `mfa_enabled: false` and no `auth.mfa_enabled` audit row exists |
-| F2 | S2 | `GET /api/v1/admin/health` answers **500** on every call; the System Health card never loads |
-| F3 | S2 | The service worker stores **admin API responses in Cache Storage** (23 found) and nothing clears them on logout |
-| F4 | S2 | **Mark paid** on an invoice acts on a single click, with no confirmation |
+| F1 | S2 | The platform super admin has **no second factor**: the server reports `mfa_enabled: false` and no `auth.mfa_enabled` audit row exists — **resolved 2026-10-12** (enrolled after F18's fix) |
+| F2 | S2 | `GET /api/v1/admin/health` answers **500** on every call; the System Health card never loads — fix in PR #200 |
+| F3 | S2 | The service worker stores **admin API responses in Cache Storage** (23 found) and nothing clears them on logout — fix in PR #200 |
+| F4 | S2 | **Mark paid** on an invoice acts on a single click, with no confirmation — fix in PR #200 |
 | F5 | S3 | The **address-mode select** changes an organisation's canonical address the moment an option is picked |
 | F6 | S3 | **Backup Data** queues a backup on a single click |
 | F7 | S3 | Every action button stays enabled while the account lacks MFA, though the server refuses them all |
@@ -35,7 +37,11 @@ behaviour an operator can live with · **S4** polish, wording, hardening.
 | F15 | S4 | Response headers: duplicate HSTS, version disclosure, `'unsafe-inline'` scripts |
 | F16 | S4 | Invoices card is hidden when an organisation has none; invoice rendering untested |
 | F17 | S4 | `HEAD /admin/audit` answered 503 once in the browser; not reproducible |
-| F18 | S2 | **Enable now** on the MFA banner cannot work: the console host redirects `/profile/security` to `/admin/` — fixed in PR #191 |
+| F18 | S2 | **Enable now** on the MFA banner cannot work: the console host redirects `/profile/security` to `/admin/` — **fixed in PR #191, deployed `v2026.10.12.2`** |
+| F19 | S3 | **Extend Trial** moves `trial_ends_at` but not the subscription's `current_period_end`; the console then shows two different end dates |
+| F20 | S4 | An organisation on the **shared address** shows no address in the console (`canonical_url` is null by design; the entry URL is not shown instead) |
+| F21 | S4 | `admin.tenant.backup_triggered` stores `triggered_by` as the **numeric user id** (Convention #4) |
+| F22 | S4 | On the console host, the Profile tabs other than Security lead back to `/admin/` |
 
 ## Findings
 
@@ -258,6 +264,61 @@ why F1 exists. Workaround until deployed: sign in at `www.ethr.et` and enrol at
 in both places, pinned by `SharedHostingHtaccessTest` and
 `middleware-hostname.test.ts`.
 
+### F19 · S3 · Extending a trial leaves the subscription's end date behind
+
+**Steps.** QA Audit → Extend Trial → 30 days → Extend (2026-10-12).
+
+**Actual.** POST 200; `trial_ends_at` moved 2027-04-11 → **2027-05-11**, audited as
+`admin.tenant.trial_extended {days: 30, new_end: 2027-05-11}`. The subscription's
+`current_period_end` stayed at **2027-04-11**, so the console shows "Trial ends
+11 May 2027" beside "Renews 11 Apr 2027". Registration sets both to the same date
+(`AuthService.php:77`); `AdminTenantController::extendTrial` updates only the tenant.
+
+**Impact.** Trial expiry itself runs from `trial_ends_at` (`NotifyExpiringTrialsJob`,
+`BillingService::trialDaysLeft`), so access is not cut early — but billing's
+days-remaining and proration read `current_period_end` (`BillingService.php:79-80`).
+
+**Fix.** Move a trialing subscription's `current_period_end` with the tenant's
+`trial_ends_at` in the same statement.
+
+### F20 · S4 · No address shown for the shared-address tier
+
+Switching QA Audit to **Shared address** (PUT 200) left the profile row with no
+address under the select: `FrontendUrl::canonicalOrigin()` returns null for path
+mode by design. The organisation is reached at `https://ethr.et/qa-audit` (measured:
+→ `www.ethr.et/login?org=qa-audit`). **Fix:** show the entry URL when
+`canonical_url` is null.
+
+### F21 · S4 · An audit row carries a numeric id
+
+`admin.tenant.backup_triggered` records `{"triggered_by": 1}` — the platform admin's
+internal primary key, returned to the console by `GET /admin/audit`. Convention #4
+says never expose a numeric PK. **Fix:** record the actor's `public_id` (the audit
+row already names the actor).
+
+### F22 · S4 · Profile tabs lead nowhere on the console host
+
+After F18's fix, `/profile/security` opens on `admin.ethr.et`, but its tab bar still
+offers Overview, Personal details, Change requests and Preferences — tenant pages
+that the console host redirects to `/admin/`. **Fix:** show only the Security tab
+for a platform account on the console host.
+
+## Write tests on QA Audit (2026-10-12)
+
+Approved by the owner for the organisation **QA Audit** only, after MFA was enabled.
+Each action was taken once, at human pace, and read back from the API and the
+platform audit log.
+
+| Action | Request | Audit row | Read back |
+|---|---|---|---|
+| Address mode → Shared address | `PUT …/address-mode` **200**, toast "Address mode updated" | `admin.tenant.address_mode_changed` subdomain → path | `address_mode: path`, `canonical_url: null` (F20); `ethr.et/qa-audit` → `www.ethr.et/login?org=qa-audit` |
+| Address mode → Own subdomain | `PUT …/address-mode` **200** | `admin.tenant.address_mode_changed` path → subdomain | `canonical_url: https://qa-audit.ethr.et` — restored |
+| Extend Trial, 30 days | `POST …/extend-trial` **200**, toast "Trial extended by 30 days" | `admin.tenant.trial_extended` `{days: 30, new_end: 2027-05-11}` | `trial_ends_at: 2027-05-11`; subscription still 2027-04-11 (F19) |
+| Backup Data | `POST …/backup` **200** (one click, no confirm — F6) | `admin.tenant.backup_triggered` `{triggered_by: 1}` (F21) | Queued for the next scheduler drain; 0 failed jobs at the time of writing |
+| Impersonate Admin | **Not run** | — | Needs the owner's MFA code typed into the dialog; the owner chose to skip it. The hand-off is covered by `SessionHandoffTest` and `HostnameImpersonationTest` |
+
+Not reversed, deliberately: the trial extension (QA Audit now ends 2027-05-11).
+
 ## Passed
 
 | Area | Result |
@@ -284,12 +345,11 @@ in both places, pinned by `SharedHostingHtaccessTest` and
   and could not be resized from the extension; the built-in browser has no
   session, and signing it in would mean typing credentials. Needs a phone, or the
   window restored, and a second pass.
-- **Logout invalidates `/auth/me`.** Signing out ends the owner's session; deferred
-  until the owner re-enrols MFA (F1), which needs a sign-out and sign-in anyway.
+- **Logout invalidates `/auth/me`.** Not driven deliberately. Observed once on
+  2026-10-12: after the owner signed out, the same tab's `GET /api/v1/auth/me`
+  answered **401** and the page sat on `/login`.
 - **Session idle timeout.** Observed from the cookie (8 h); not waited out.
-- **Write tests on the QA organisation** (address mode and back, extend trial,
-  impersonate and return, backup, each checked in the audit log). Blocked by F1 —
-  `RequirePlatformMfa` refuses every console write until MFA is on — and each
-  needs the owner's approval naming the organisation.
+- **Impersonation round trip.** Needs the owner's MFA code; skipped by the owner's
+  choice (see *Write tests*).
 - **Amharic in the browser.** Switching language saves a preference to the
   account; the translation file was checked instead (F13).
