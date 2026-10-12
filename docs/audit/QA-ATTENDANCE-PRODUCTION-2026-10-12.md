@@ -34,6 +34,16 @@ or a control that is missing · **S3** wrong behaviour with a workaround · **S4
 | A11 | S4 | Device registration: the mock adapter rejects an empty `connection_config`; the form has **no auto-sync switch** | Confirmed live |
 | H2, H4, H7, H8, H10 | — | Suspected from code, **not verified live** — see *Not covered* | Open |
 
+### Where each finding went
+
+| # | Resolution |
+|---|---|
+| A1–A4 | Fixed in #214 (merged 2026-10-12, `f87f080c`). A1 also closes **H2**: a punch is dated by the tenant's day |
+| A5, A6, A7, A8, A9, A11 | Fixed in #215 |
+| A10 | **Not a product defect.** Nothing in the app writes the clipboard outside its explicit Copy buttons (kiosk token, webhook URL, API key, SCIM, webhook secret, settings). The writes the browser reported came from the automated test browser |
+| A11, first half | **No change.** The Register form sends a marker config for the simulator, and since #214 the simulator exists only in development |
+| Past records | **Not recalculated.** Statuses already stored were rated on the UTC clock. Production holds trial and test organisations only, so no migration job was written; if a customer's history ever needs it, it is a separate, audited job |
+
 ## Findings
 
 ### A1 · S1 · Status is computed on the UTC clock
