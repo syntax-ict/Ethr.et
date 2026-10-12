@@ -155,11 +155,16 @@ export function ActiveSessionsCard() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {session.ip_address ?? t("common.not_set", "Not set")} ·{" "}
-                    {formatWhen(
-                      session.last_used_at,
-                      t("security_page.never_used", "Not used yet"),
-                      formatDateTime,
-                    )}
+                    {/* A browser authenticates by its session, so the token row
+                        this lists is never "used" and read "Not used yet" for
+                        the session in use (production QA 2026-10-11, P14). */}
+                    {session.is_current
+                      ? t("security_page.active_now", "Active now")
+                      : formatWhen(
+                          session.last_used_at,
+                          t("security_page.never_used", "Not used yet"),
+                          formatDateTime,
+                        )}
                   </p>
                 </div>
               </div>

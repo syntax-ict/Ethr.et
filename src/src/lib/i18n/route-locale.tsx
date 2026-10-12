@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo } from "react";
 
 import { localeHref } from "./config";
+import { rememberLocale } from "./translations";
 
 /**
  * The locale the *URL* says this page is in.
@@ -32,6 +33,12 @@ export function RouteLocaleProvider({
   locale: string;
   children: React.ReactNode;
 }) {
+  // The language a visitor is reading the site in is the one the app should
+  // open in — the sign-up form, the login page — not the app's own default.
+  useEffect(() => {
+    rememberLocale(locale);
+  }, [locale]);
+
   return (
     <RouteLocaleContext.Provider value={locale}>
       {children}
