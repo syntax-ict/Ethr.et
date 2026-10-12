@@ -116,4 +116,18 @@ describe("the device form's default", () => {
     // invented punches for real employees.
     expect(EMPTY_DEVICE_FORM.adapter_type).not.toBe("mock");
   });
+
+  // The Register form had no auto-sync switch, so every device took the
+  // server's default (attendance QA A11).
+  it("sends the auto-sync choice on create and edit", () => {
+    expect(EMPTY_DEVICE_FORM.auto_sync).toBe(true);
+    expect(
+      buildDevicePayload({ ...hikvision, auto_sync: false }, "create")
+        .auto_sync,
+    ).toBe(false);
+    expect(
+      buildDevicePayload({ ...hikvision, ip: "", auto_sync: false }, "edit")
+        .auto_sync,
+    ).toBe(false);
+  });
 });

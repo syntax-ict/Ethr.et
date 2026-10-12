@@ -263,7 +263,7 @@ it('sends an organisation entry URL to Laravel, and nothing a page or asset owns
 it('falls back to the entity shell only when no real page exists at that path', function () {
     $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
 
-    $shellRule = 'RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)$ /$1/__id__.html [L]';
+    $shellRule = 'RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)/?$ /$1/__id__.html [L]';
     $guard = 'RewriteCond %{DOCUMENT_ROOT}/$1/$2.html !-f';
 
     expect($directives)->toContain($shellRule);
@@ -291,6 +291,15 @@ it('falls back to the entity shell only when no real page exists at that path', 
 
     // The id segment has to be captured for the guard to be able to test it.
     expect($shellRule)->toContain('([^/]+)');
+
+    // A detail URL with a trailing slash is the same page. Without the
+    // optional slash /devices/<id>/ answered 404 on production while
+    // /devices/<id> worked (attendance QA A8, 2026-10-12).
+    $pattern = '#'.explode(' ', $shellRule)[1].'#';
+    expect(preg_match($pattern, 'devices/01HQZX3NDJKMNP4RSTVWXY5Z6A'))->toBe(1)
+        ->and(preg_match($pattern, 'devices/01HQZX3NDJKMNP4RSTVWXY5Z6A/'))->toBe(1)
+        ->and(preg_match($pattern, 'employees/01HQZX3NDJKMNP4RSTVWXY5Z6A/'))->toBe(1)
+        ->and(preg_match($pattern, 'devices/01HQZX3NDJKMNP4RSTVWXY5Z6A/edit'))->toBe(0);
 });
 
 it('carries the two non-Rewrite directives a name-matching script skipped', function () {
