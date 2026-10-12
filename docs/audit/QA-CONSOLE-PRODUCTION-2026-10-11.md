@@ -42,6 +42,7 @@ behaviour an operator can live with · **S4** polish, wording, hardening.
 | F20 | S4 | An organisation on the **shared address** shows no address in the console (`canonical_url` is null by design; the entry URL is not shown instead) |
 | F21 | S4 | `admin.tenant.backup_triggered` stores `triggered_by` as the **numeric user id** (Convention #4) |
 | F22 | S4 | On the console host, the Profile tabs other than Security lead back to `/admin/` |
+| F23 | S2 | The scheduler asks GitHub for a run every 5 minutes and gets **4–6 a day**: queued work waits hours |
 
 ## Findings
 
@@ -303,6 +304,29 @@ offers Overview, Personal details, Change requests and Preferences — tenant pa
 that the console host redirects to `/admin/`. **Fix:** show only the Security tab
 for a platform account on the console host.
 
+### F23 · S2 · The external scheduler runs a few times a day, not every 5 minutes
+
+**Found while waiting for QA Audit's backup**, queued 10:31 UTC on 2026-10-12.
+
+**Expected.** `.github/workflows/cron.yml` is `cron: "*/5 * * * *"` — 288 runs a
+day draining the queue and running `schedule:run`.
+
+**Actual.** The last 40 runs of *ETHR scheduler (external cron caller)*, 2026-10-04
+→ 2026-10-12, are **1.5 to 7 hours apart — about 4–6 a day**, every one `success`.
+The latest before the backup was 07:29 UTC; the backup had not run an hour later.
+`cron-caller.md` says delivery is "best-effort" and may be delayed or dropped; the
+measured rate is roughly **2 % of the requested ticks**.
+
+**Impact.** Everything asynchronous waits hours: tenant backups, queued
+notification mail, trial-expiry reminders, scheduled reports, invoicing, the
+attendance scans. Nothing is lost — Laravel's scheduler catches up on the next
+tick — but "minutes" in any user-facing promise is not true on this host.
+
+**Fix (owner decision).** Keep GitHub as a fallback and add a second caller with a
+reliable clock hitting the same two token-guarded endpoints — a free external cron
+service, or a Plesk scheduled task if the account ever gains one (G0-D). Until
+then, say "within a few hours" wherever the product implies sooner.
+
 ## Write tests on QA Audit (2026-10-12)
 
 Approved by the owner for the organisation **QA Audit** only, after MFA was enabled.
@@ -314,7 +338,7 @@ platform audit log.
 | Address mode → Shared address | `PUT …/address-mode` **200**, toast "Address mode updated" | `admin.tenant.address_mode_changed` subdomain → path | `address_mode: path`, `canonical_url: null` (F20); `ethr.et/qa-audit` → `www.ethr.et/login?org=qa-audit` |
 | Address mode → Own subdomain | `PUT …/address-mode` **200** | `admin.tenant.address_mode_changed` path → subdomain | `canonical_url: https://qa-audit.ethr.et` — restored |
 | Extend Trial, 30 days | `POST …/extend-trial` **200**, toast "Trial extended by 30 days" | `admin.tenant.trial_extended` `{days: 30, new_end: 2027-05-11}` | `trial_ends_at: 2027-05-11`; subscription still 2027-04-11 (F19) |
-| Backup Data | `POST …/backup` **200** (one click, no confirm — F6) | `admin.tenant.backup_triggered` `{triggered_by: 1}` (F21) | Queued for the next scheduler drain; 0 failed jobs at the time of writing |
+| Backup Data | `POST …/backup` **200** (one click, no confirm — F6) | `admin.tenant.backup_triggered` `{triggered_by: 1}` (F21) | Queued; still waiting for a scheduler run an hour later (F23); 0 failed jobs |
 | Impersonate Admin | **Not run** | — | Needs the owner's MFA code typed into the dialog; the owner chose to skip it. The hand-off is covered by `SessionHandoffTest` and `HostnameImpersonationTest` |
 
 Not reversed, deliberately: the trial extension (QA Audit now ends 2027-05-11).
