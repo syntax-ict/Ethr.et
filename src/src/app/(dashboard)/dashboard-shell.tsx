@@ -3,6 +3,7 @@
 import { AppSidebar } from "@/components/layouts/app-sidebar";
 import { AppHeader } from "@/components/layouts/app-header";
 import { PageTitleBar } from "@/components/layouts/page-title-bar";
+import { PageActionsSlotProvider } from "@/components/layouts/page-actions-slot";
 import { AppLayoutProvider } from "@/components/layouts/layout-context";
 import { MobileBottomNav } from "@/components/layouts/mobile-bottom-nav";
 import { OfflineBanner } from "@/components/shared/offline-banner";
@@ -50,10 +51,12 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                 className="flex-1 overflow-y-auto"
                 role="main"
               >
-                <PageTitleBar />
-                <div className="p-4 pb-20 md:p-6 lg:pb-6">
-                  <ErrorBoundary>{children}</ErrorBoundary>
-                </div>
+                <PageActionsSlotProvider>
+                  <PageTitleBar />
+                  <div className="p-4 pb-20 md:p-6 lg:pb-6">
+                    <ErrorBoundary>{children}</ErrorBoundary>
+                  </div>
+                </PageActionsSlotProvider>
               </main>
             </div>
           </div>

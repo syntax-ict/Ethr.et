@@ -1,6 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PageHeader } from "@/components/shared/page-header";
+import {
+  PageActionsSlotProvider,
+  useRegisterPageActionsSlot,
+} from "@/components/layouts/page-actions-slot";
+
+function TitleBarStandIn() {
+  const register = useRegisterPageActionsSlot();
+  return <div data-testid="title-bar-actions" ref={register} />;
+}
 
 /**
  * The actions box was `shrink-0` in a `justify-end` row (audit N35). It kept
@@ -48,5 +57,22 @@ describe("<PageHeader>", () => {
   it("renders nothing without actions", () => {
     const { container } = render(<PageHeader title="Analytics" />);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  // The title bar draws the title; until 2026-10-12 the actions sat in a row
+  // of their own beneath it on every screen. They now render beside it.
+  it("renders into the title bar's actions slot when there is one", async () => {
+    render(
+      <PageActionsSlotProvider>
+        <TitleBarStandIn />
+        <main>
+          <PageHeader actions={<button type="button">Add employee</button>} />
+        </main>
+      </PageActionsSlotProvider>,
+    );
+
+    const button = await screen.findByRole("button", { name: "Add employee" });
+    expect(screen.getByTestId("title-bar-actions")).toContainElement(button);
+    expect(screen.getByRole("main")).not.toContainElement(button);
   });
 });

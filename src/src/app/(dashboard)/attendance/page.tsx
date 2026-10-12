@@ -181,56 +181,63 @@ export default function AttendancePage() {
         }
       />
 
-      {/* Sub-nav — each link gated on the ability its page's API checks. */}
-      <div className="flex flex-wrap gap-1.5 border-b border-border/60 pb-3">
-        <SubNav href="/attendance/scan" icon={QrCode}>
-          {t("attendance.scan_qr", "Scan QR")}
-        </SubNav>
-        <SubNav href="/attendance/mobile" icon={Smartphone}>
-          {t("attendance.mobile_checkin", "Mobile Check-in")}
-        </SubNav>
-        {can.viewTeam && (
-          <SubNav href="/attendance/team" icon={UsersRound}>
-            {t("attendance.team", "Team")}
+      {/* Sub-nav — each link gated on the ability its page's API checks.
+          Grouped by what the person is there to do: twelve links in one
+          wrapping row read as a scatter of buttons, not as navigation. */}
+      <nav
+        aria-label={t("attendance.sub_nav", "Attendance pages")}
+        className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 rounded-xl border border-border bg-card px-4 py-3 shadow-xs"
+      >
+        <SubNavGroup label={t("attendance.group_check_in", "Check in")}>
+          <SubNav href="/attendance/scan" icon={QrCode}>
+            {t("attendance.scan_qr", "Scan QR")}
           </SubNav>
-        )}
-        <SubNav href="/attendance/corrections" icon={FilePenLine}>
-          {t("nav.corrections", "Corrections")}
-        </SubNav>
-        {can.viewAttendanceConflicts && (
-          <SubNav href="/attendance/conflicts" icon={GitMerge}>
-            {t("nav.conflicts", "Conflicts")}
+          <SubNav href="/attendance/mobile" icon={Smartphone}>
+            {t("attendance.mobile_checkin", "Mobile Check-in")}
           </SubNav>
-        )}
+        </SubNavGroup>
+        <SubNavGroup label={t("attendance.group_review", "Review")}>
+          {can.viewTeam && (
+            <SubNav href="/attendance/team" icon={UsersRound}>
+              {t("attendance.team", "Team")}
+            </SubNav>
+          )}
+          <SubNav href="/attendance/corrections" icon={FilePenLine}>
+            {t("nav.corrections", "Corrections")}
+          </SubNav>
+          {can.viewAttendanceConflicts && (
+            <SubNav href="/attendance/conflicts" icon={GitMerge}>
+              {t("nav.conflicts", "Conflicts")}
+            </SubNav>
+          )}
+          {can.viewAllAttendance && (
+            <SubNav href="/attendance/intelligence" icon={Activity}>
+              {t("attendance.intelligence", "Intelligence")}
+            </SubNav>
+          )}
+          {can.viewAllAttendance && (
+            <SubNav href="/attendance/overtime" icon={TrendingUp}>
+              {t("attendance.overtime", "Overtime")}
+            </SubNav>
+          )}
+        </SubNavGroup>
         {/* The kiosk management page — where a kiosk is registered and its
             token issued. This linked to /kiosk, the terminal itself, whose
             setup screen asks for that token; nothing linked here at all. */}
         {can.manageAttendance && (
-          <SubNav href="/attendance/kiosks" icon={Monitor}>
-            {t("nav.kiosks", "Kiosks")}
-          </SubNav>
+          <SubNavGroup label={t("attendance.group_manage", "Manage")}>
+            <SubNav href="/attendance/kiosks" icon={Monitor}>
+              {t("nav.kiosks", "Kiosks")}
+            </SubNav>
+            <SubNav href="/attendance/qr" icon={QrCode}>
+              {t("attendance.qr_generator", "QR Generator")}
+            </SubNav>
+            <SubNav href="/attendance/import" icon={FileSpreadsheet}>
+              {t("attendance.import_csv", "Import CSV")}
+            </SubNav>
+          </SubNavGroup>
         )}
-        {can.manageAttendance && (
-          <SubNav href="/attendance/qr" icon={QrCode}>
-            {t("attendance.qr_generator", "QR Generator")}
-          </SubNav>
-        )}
-        {can.manageAttendance && (
-          <SubNav href="/attendance/import" icon={FileSpreadsheet}>
-            {t("attendance.import_csv", "Import CSV")}
-          </SubNav>
-        )}
-        {can.viewAllAttendance && (
-          <SubNav href="/attendance/intelligence" icon={Activity}>
-            {t("attendance.intelligence", "Intelligence")}
-          </SubNav>
-        )}
-        {can.viewAllAttendance && (
-          <SubNav href="/attendance/overtime" icon={TrendingUp}>
-            {t("attendance.overtime", "Overtime")}
-          </SubNav>
-        )}
-      </div>
+      </nav>
 
       {/* Filters */}
       <div className="space-y-3">
@@ -526,11 +533,36 @@ function SubNav({
   children: React.ReactNode;
 }) {
   return (
-    <Button asChild variant="ghost" size="sm" className="h-8">
+    <Button
+      asChild
+      variant="ghost"
+      size="sm"
+      className="h-8 px-2.5 text-muted-foreground hover:text-foreground"
+    >
       <Link href={href}>
-        <Icon className="mr-2 h-3 w-3" /> {children}
+        <Icon className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+        {children}
       </Link>
     </Button>
+  );
+}
+
+function SubNavGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  // Two grid cells — the label, then its links — so the three labels line
+  // up in one column.
+  return (
+    <>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
+        {children}
+      </div>
+    </>
   );
 }
 
