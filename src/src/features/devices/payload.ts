@@ -26,9 +26,17 @@ export interface DeviceFormData {
   api_key: string;
 }
 
+/**
+ * Whether this build offers the device simulator. Never in production: its
+ * pull invents punches for real employees, and the API refuses it there
+ * (attendance QA A3). It was the form's default, so a tenant admin who only
+ * named a device and pressed Register created one.
+ */
+export const SIMULATOR_IN_FORM = process.env.NODE_ENV !== "production";
+
 export const EMPTY_DEVICE_FORM: DeviceFormData = {
   name: "",
-  adapter_type: "mock",
+  adapter_type: "hikvision",
   serial_number: "",
   branch_public_id: "",
   ip: "",

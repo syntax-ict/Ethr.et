@@ -7,6 +7,7 @@ namespace App\Services\Device;
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
 use App\Models\Employee;
+use App\Support\DeviceSimulator;
 
 final class MockAdapter implements DeviceAdapter
 {
@@ -45,6 +46,12 @@ final class MockAdapter implements DeviceAdapter
      */
     public function pullEvents(Device $device, ?string $since = null): array
     {
+        // A mock device registered before the request refused it still exists
+        // on some servers; it must not keep fabricating punches there.
+        if (! DeviceSimulator::available()) {
+            return [];
+        }
+
         $employees = Employee::where('tenant_id', $device->tenant_id)
             ->whereNotNull('employee_code')
             ->inRandomOrder()

@@ -26,7 +26,12 @@ const hikvision: DeviceFormData = {
 describe("buildDevicePayload", () => {
   it("registers a mock device with a marker config and no fake port", () => {
     const payload = buildDevicePayload(
-      { ...EMPTY_DEVICE_FORM, name: "Sim", branch_public_id: "01BRANCH" },
+      {
+        ...EMPTY_DEVICE_FORM,
+        adapter_type: "mock",
+        name: "Sim",
+        branch_public_id: "01BRANCH",
+      },
       "create",
     );
 
@@ -82,7 +87,12 @@ describe("buildDevicePayload", () => {
 
   it("never resends a mock device's config on edit", () => {
     const payload = buildDevicePayload(
-      { ...EMPTY_DEVICE_FORM, name: "Sim 2", branch_public_id: "01BRANCH" },
+      {
+        ...EMPTY_DEVICE_FORM,
+        adapter_type: "mock",
+        name: "Sim 2",
+        branch_public_id: "01BRANCH",
+      },
       "edit",
     );
 
@@ -96,5 +106,14 @@ describe("buildDevicePayload", () => {
     );
 
     expect(payload).not.toHaveProperty("connection_config");
+  });
+});
+
+describe("the device form's default", () => {
+  it("is a real device type, not the simulator", () => {
+    // Production, 2026-10-12 (attendance QA A3): the form defaulted to "mock",
+    // so naming a device and pressing Register created a simulator whose pull
+    // invented punches for real employees.
+    expect(EMPTY_DEVICE_FORM.adapter_type).not.toBe("mock");
   });
 });

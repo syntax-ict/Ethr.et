@@ -240,6 +240,62 @@ test('supervisor can approve correction', function () {
     expect($record->check_in->format('H:i'))->toBe('08:15');
 });
 
+// Production, 2026-10-12 (attendance QA A4): an admin filed a correction on an
+// employee's record and approved it with the same account — 200. Filing and
+// approving a change payroll pays are two people's acts.
+test('whoever filed a correction cannot approve it, by either route', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $hr = createUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $record = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'check_in' => Carbon::today()->setTime(9, 0),
+    ]);
+    test()->actingAs($hr);
+
+    $publicId = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections", [
+        'attendance_record_public_id' => $record->public_id,
+        'reason' => 'Filed on the employee\'s behalf',
+        'proposed_check_in' => Carbon::today()->setTime(8, 15)->toIso8601String(),
+    ])->assertStatus(201)->json('public_id');
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$publicId}/approve")
+        ->assertStatus(403)
+        ->assertJsonPath('type', 'https://ethr.et/errors/self-approval');
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/approvals/batch", [
+        'actions' => [['type' => 'correction', 'public_id' => $publicId, 'action' => 'approve']],
+    ]);
+
+    expect(AttendanceCorrection::where('public_id', $publicId)->value('status'))
+        ->toBe(CorrectionStatus::PENDING);
+});
+
+test('a correction filed by one person can be approved by another', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $record = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'check_in' => Carbon::today()->setTime(9, 0),
+    ]);
+
+    test()->actingAs(createUser(['role' => UserRole::HR_ADMIN], $tenant));
+    $publicId = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections", [
+        'attendance_record_public_id' => $record->public_id,
+        'reason' => 'Filed by HR',
+        'proposed_check_in' => Carbon::today()->setTime(8, 15)->toIso8601String(),
+    ])->assertStatus(201)->json('public_id');
+
+    app('auth')->forgetGuards();
+    test()->actingAs(createUser(['role' => UserRole::TENANT_ADMIN], $tenant));
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$publicId}/approve")
+        ->assertOk()
+        ->assertJsonPath('status', 'approved');
+});
+
 test('supervisor can preview payroll impact of a pending correction', function () {
     $tenant = createTenant();
     [, $employee] = intelligenceCorrectionSupervisorWithReport($tenant, ['salary_cents' => 1_760_000]);
