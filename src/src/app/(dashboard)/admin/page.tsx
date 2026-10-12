@@ -303,7 +303,19 @@ export default function AdminConsolePage() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <Server className="h-4 w-4" />
                 {t("admin_console_page.system_health", "System Health")}
-                <LivePulse />
+                <LivePulse
+                  state={
+                    healthError
+                      ? "error"
+                      : healthLoading || !health
+                        ? "idle"
+                        : Object.values(health.services ?? {}).some(
+                              (svc) => svc?.status === "unhealthy",
+                            )
+                          ? "error"
+                          : "ok"
+                  }
+                />
               </CardTitle>
               <div className="flex items-center gap-2">
                 {healthUpdatedAt > 0 && (
@@ -718,7 +730,23 @@ function ErrorCard({
   );
 }
 
-function LivePulse() {
+/**
+ * The dot beside "System Health". It was always green and pulsing, including
+ * while the card below said "Couldn't load system health" (console QA F9):
+ * green only once the checks loaded and none is unhealthy.
+ */
+function LivePulse({ state }: { state: "ok" | "error" | "idle" }) {
+  if (state !== "ok") {
+    return (
+      <span
+        className={cn(
+          "ml-1 inline-flex h-2 w-2 rounded-full",
+          state === "error" ? "bg-status-error" : "bg-muted-foreground/40",
+        )}
+      />
+    );
+  }
+
   return (
     <span className="relative ml-1 flex h-2 w-2">
       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-status-success opacity-40" />
