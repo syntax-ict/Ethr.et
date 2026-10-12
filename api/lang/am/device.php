@@ -11,4 +11,5 @@ return [
     'path_invalid' => ':key በአንድ ነጠላ ስላሽ (/) የሚጀምር መንገድ መሆን አለበት።',
     // English placeholder, awaiting the native-speaker review (as with the N37 keys).
     'read_failed' => 'The device could not be read. Check that it is switched on and reachable from this server, then try again.',
+    'simulator_unavailable' => 'የመሳሪያ አስመሳዩ የሚገኘው በልማት ሰርቨሮች ላይ ብቻ ነው። የእውነተኛውን መሳሪያ ዓይነት ይምረጡ።',
 ];
