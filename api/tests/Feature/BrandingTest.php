@@ -39,6 +39,22 @@ describe('PUT /api/v1/settings/branding', function () {
             ->assertJsonPath('errors.primary_color.0', fn ($m) => is_string($m));
     });
 
+    // The logo is drawn on the organisation's public landing (ethr.et/{slug})
+    // before anyone signs in: an https URL only.
+    it('accepts only an https logo URL', function (string $url) {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        $this->putJson(
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/settings/branding',
+            ['logo_url' => $url]
+        )->assertUnprocessable()->assertJsonValidationErrors('logo_url');
+    })->with([
+        'plain http' => 'http://cdn.example.et/logo.png',
+        'a script URL' => 'javascript:alert(1)',
+        'not a URL' => 'logo.png',
+    ]);
+
     it('denies branding changes to non-admin roles', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);

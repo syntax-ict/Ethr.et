@@ -3,8 +3,8 @@
 import { SITE_URL } from "@/lib/site-url";
 import { useState } from "react";
 import Link from "next/link";
+import { useEntityTitle } from "@/components/layouts/page-actions-slot";
 import {
-  ArrowLeft,
   Users,
   Calendar,
   Globe,
@@ -144,6 +144,9 @@ function TenantDetail({ id }: { id: string }) {
         : t("admin_tenant_detail_page.cancel");
 
   const { data: tenant, isLoading, isError, refetch } = useAdminTenant(id);
+  // Ends the title bar's breadcrumb with this record (it had no back
+  // trail but a separate "Back" button).
+  useEntityTitle(tenant?.name);
   const updateStatus = useUpdateTenantStatus();
   const extendTrial = useExtendTrial();
   const markInvoicePaid = useMarkTenantInvoicePaid(id);
@@ -445,22 +448,13 @@ function TenantDetail({ id }: { id: string }) {
   return (
     <>
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/admin/tenants">
-              <ArrowLeft className="mr-2 h-4 w-4" />{" "}
-              {t("admin_tenant_detail_page.back_to_tenants")}
-            </Link>
-          </Button>
-        </div>
-
         {/* The tenant's own name, rendered here rather than left to the layout's
             title bar: that bar is driven by the URL, and this route's last
             segment is an opaque ULID. `PageHeader` only renders `actions`, so
             passing a title to it would have shown nothing. */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold tracking-tight text-foreground">
+            <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
               {tenant.name}
             </h1>
             <p className="mt-0.5 font-mono text-sm text-muted-foreground">
@@ -496,7 +490,7 @@ function TenantDetail({ id }: { id: string }) {
         )}
 
         {/* Quick stats */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             icon={Users}
             label={t("payroll_detail_page.employees")}
@@ -550,7 +544,7 @@ function TenantDetail({ id }: { id: string }) {
                 </p>
               </div>
             )}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {/* Status actions */}
               {!isActive && !isCancelled && (
                 <Button

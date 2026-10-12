@@ -46,6 +46,11 @@ const base: HostCtx = {
   tenantSlug: null,
   tenantName: null,
   tenantLogoPath: null,
+  tenantBrand: null,
+  tenantLanding: null,
+  tenantSignIn: null,
+  tenantDefaultLocale: null,
+  onLanding: false,
   tenantContextLoading: false,
   tenantLookupError: null,
   tenantFieldVisible: true,
@@ -81,6 +86,27 @@ describe("login page — hostname context", () => {
     expect(
       screen.queryByRole("link", { name: /start free trial/i }),
     ).not.toBeInTheDocument();
+    // Password reset is per organisation; a super admin has none, so the
+    // link could only fail here (production QA 2026-10-11, P14).
+    expect(
+      screen.queryByRole("link", { name: /forgot password/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("tenant host still offers a password reset", () => {
+    hostContextValue.mockReturnValue({
+      ...base,
+      context: "tenant",
+      tenantSlug: "acme",
+      tenantName: "Acme",
+      tenantFieldVisible: false,
+    });
+
+    renderLogin();
+
+    expect(
+      screen.getByRole("link", { name: /forgot password/i }),
+    ).toBeInTheDocument();
   });
 
   it("tenant host: names the org in the heading and shows a read-only indicator, not an editable field", () => {
@@ -139,5 +165,77 @@ describe("login page — hostname context", () => {
     expect(
       screen.getByLabelText(/organization subdomain/i),
     ).toBeInTheDocument();
+  });
+
+  // The shared landing, ethr.et/{slug}: the organisation is in the path.
+  it("organisation landing: names it, offers a way out, and no trial", () => {
+    hostContextValue.mockReturnValue({
+      ...base,
+      context: "tenant",
+      tenantSlug: "acme",
+      tenantName: "Acme Manufacturing",
+      tenantFieldVisible: false,
+      onLanding: true,
+      tenantBrand: {
+        logo_url: null,
+        primary_color: "#0f766e",
+        accent_color: null,
+      },
+    });
+
+    renderLogin();
+
+    expect(
+      screen.getByRole("heading", { name: /sign in to acme manufacturing/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/organization subdomain/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /not yours/i })).toHaveAttribute(
+      "href",
+      "/login",
+    );
+    expect(
+      screen.queryByRole("link", { name: /start free trial/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  // An organisation's page offers only the ways in it actually has.
+  it("organisation page: hides SSO and text-message codes it does not offer", () => {
+    hostContextValue.mockReturnValue({
+      ...base,
+      context: "tenant",
+      tenantSlug: "acme",
+      tenantName: "Acme",
+      tenantFieldVisible: false,
+      tenantSignIn: { sso: false, otp: true },
+    });
+
+    renderLogin();
+
+    expect(
+      screen.queryByRole("button", { name: /sign in with sso/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /text message code/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("organisation page with neither: no divider, password only", () => {
+    hostContextValue.mockReturnValue({
+      ...base,
+      context: "tenant",
+      tenantSlug: "acme",
+      tenantName: "Acme",
+      tenantFieldVisible: false,
+      tenantSignIn: { sso: false, otp: false },
+    });
+
+    renderLogin();
+
+    expect(screen.queryByText(/^or$/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /text message code/i }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -1,48 +1,46 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CurrencyDisplay } from "@/components/shared/currency-display";
+import type { ReactNode } from "react";
+import { StatCard, type StatTone } from "@/components/dashboard/stat-card";
+import { ChartCard as KitChartCard } from "@/components/dashboard/chart-card";
+import { CHART_PALETTE } from "@/components/dashboard/chart-theme";
+import { formatETB, formatETBCompact } from "@/lib/utils/currency";
 
-export const CHART_COLORS = [
-  "var(--interactive-primary)",
-  "var(--status-success)",
-  "var(--brand-accent)",
-  "var(--status-error)",
-  "var(--status-info)",
-  "var(--interactive-hover)",
-  "var(--status-warning)",
-  "var(--border-strong)",
-];
+/**
+ * The Analytics tabs' building blocks, drawn by the shared dashboard kit so
+ * these charts and tiles match the home dashboard and the platform console.
+ *
+ * Until 2026-10-12 this file had its own palette (status and brand tokens
+ * mixed), its own KPI tile, and tone classes built from arbitrary values —
+ * including gold text, which the design tokens forbid (2.08:1 on white).
+ */
+export const CHART_COLORS = [...CHART_PALETTE];
 
-const toneMap: Record<string, string> = {
-  blue: "bg-primary-soft text-primary-on-soft",
-  green: "bg-[var(--status-success)]/10 text-[var(--status-success)]",
-  amber: "bg-[var(--brand-accent)]/10 text-[var(--brand-accent)]",
-  purple: "bg-[var(--status-info)]/10 text-[var(--status-info)]",
+const TONE: Record<string, StatTone> = {
+  blue: "primary",
+  green: "success",
+  amber: "warning",
+  purple: "info",
 };
 
 export function ChartCard({
   title,
   subtitle,
+  action,
   children,
 }: {
   title: string;
   subtitle?: string;
-  children: React.ReactNode;
+  action?: ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        {subtitle && (
-          <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
-        )}
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+    <KitChartCard title={title} description={subtitle} action={action}>
+      {children}
+    </KitChartCard>
   );
 }
 
 export function KpiBox({
-  icon: Icon,
+  icon,
   title,
   value,
   sub,
@@ -55,25 +53,18 @@ export function KpiBox({
   color: string;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-xl ${toneMap[color]}`}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{title}</p>
-          <p className="text-xl font-bold text-foreground">{value}</p>
-          <p className="text-[10px] text-muted-foreground">{sub}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <StatCard
+      icon={icon}
+      tone={TONE[color] ?? "primary"}
+      label={title}
+      value={value}
+      hint={sub}
+    />
   );
 }
 
 export function KpiBoxCurrency({
-  icon: Icon,
+  icon,
   title,
   cents,
   sub,
@@ -86,23 +77,15 @@ export function KpiBoxCurrency({
   color: string;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-xl ${toneMap[color]}`}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{title}</p>
-          <CurrencyDisplay
-            cents={cents}
-            className="text-lg font-bold text-foreground"
-          />
-          {sub && <p className="text-[10px] text-muted-foreground">{sub}</p>}
-        </div>
-      </CardContent>
-    </Card>
+    <StatCard
+      icon={icon}
+      tone={TONE[color] ?? "primary"}
+      label={title}
+      // The tile shows `2.59M ETB`; the exact figure is the tooltip, so
+      // nothing is lost by fitting it.
+      value={<span title={formatETB(cents)}>{formatETBCompact(cents)}</span>}
+      hint={sub}
+    />
   );
 }
 
@@ -116,10 +99,10 @@ export function Metric({
   highlight?: boolean;
 }) {
   return (
-    <div className="text-center">
+    <div className="min-w-0 flex-1 px-4 text-center">
       <p className="text-sm text-muted-foreground">{label}</p>
       <p
-        className={`mt-1 text-3xl font-bold ${highlight ? "text-primary" : "text-foreground"}`}
+        className={`mt-1 text-3xl font-semibold tracking-tight tabular-nums ${highlight ? "text-primary" : "text-foreground"}`}
       >
         {value}
       </p>

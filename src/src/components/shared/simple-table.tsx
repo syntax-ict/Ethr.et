@@ -127,7 +127,7 @@ export function SimpleTable({
               <th
                 key={i}
                 scope="col"
-                className={`px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground ${alignClass(i)} ${colClass(i)}`}
+                className={`px-4 py-3 text-xs font-medium text-muted-foreground ${alignClass(i)} ${colClass(i)}`}
               >
                 {h}
               </th>
@@ -135,7 +135,7 @@ export function SimpleTable({
             {hasActions && (
               <th
                 scope="col"
-                className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                className="px-4 py-3 text-right text-xs font-medium text-muted-foreground"
               >
                 {t("common.actions", "Actions")}
               </th>

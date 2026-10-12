@@ -44,6 +44,8 @@ trait ValidatesSerialUniqueness
 {
     public function withValidator(Validator $validator): void
     {
+        $this->refuseSimulatorOutsideDevelopment($validator);
+
         $validator->after(function (Validator $validator): void {
             $serial = $this->input('serial_number');
             $adapterType = $this->input('adapter_type') ?? $this->deviceBeingUpdated()?->adapter_type;

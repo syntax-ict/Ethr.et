@@ -1,7 +1,7 @@
 "use client";
 
 import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -135,6 +135,15 @@ export function RegisterForm() {
   const adminName = watch("admin_name");
   const adminEmail = watch("admin_email");
 
+  // One pending check, for the latest value only. Typing the organisation name
+  // checked on every keystroke, and the subdomain field's "debounce" returned
+  // a cleanup from an event handler, which nothing calls — five requests for
+  // "QA Audit", on a host whose firewall bans fast clients (production QA
+  // 2026-10-11, P14). An answer for an older value is also ignored, so a slow
+  // reply for "qa-a" cannot overwrite the one for "qa-audit".
+  const checkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestChecked = useRef("");
+
   const checkSubdomain = useCallback(async (value: string) => {
     if (value.length < 3) {
       setSubdomainAvailable(null);
@@ -142,31 +151,47 @@ export function RegisterForm() {
     }
     setCheckingSubdomain(true);
     try {
-      setSubdomainAvailable(await fetchSubdomainAvailability(value));
+      const available = await fetchSubdomainAvailability(value);
+      if (latestChecked.current === value) setSubdomainAvailable(available);
     } catch {
-      setSubdomainAvailable(null);
+      if (latestChecked.current === value) setSubdomainAvailable(null);
     } finally {
-      setCheckingSubdomain(false);
+      if (latestChecked.current === value) setCheckingSubdomain(false);
     }
   }, []);
+
+  const scheduleSubdomainCheck = useCallback(
+    (value: string) => {
+      if (checkTimer.current) clearTimeout(checkTimer.current);
+      latestChecked.current = value;
+      setSubdomainAvailable(null);
+      if (value.length < 3) {
+        setCheckingSubdomain(false);
+        return;
+      }
+      checkTimer.current = setTimeout(() => checkSubdomain(value), 500);
+    },
+    [checkSubdomain],
+  );
+
+  useEffect(
+    () => () => {
+      if (checkTimer.current) clearTimeout(checkTimer.current);
+    },
+    [],
+  );
 
   function handleOrgNameChange(value: string) {
     setValue("organization_name", value);
     const suggested = slugify(value);
     setValue("subdomain", suggested);
-    if (suggested.length >= 3) {
-      checkSubdomain(suggested);
-    }
+    scheduleSubdomainCheck(suggested);
   }
 
   function handleSubdomainChange(value: string) {
     const cleaned = value.toLowerCase().replace(/[^a-z0-9-]/g, "");
     setValue("subdomain", cleaned);
-    setSubdomainAvailable(null);
-    if (cleaned.length >= 3) {
-      const timeout = setTimeout(() => checkSubdomain(cleaned), 500);
-      return () => clearTimeout(timeout);
-    }
+    scheduleSubdomainCheck(cleaned);
   }
 
   const step1Valid =
@@ -689,6 +714,7 @@ export function RegisterForm() {
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {t("auth.has_account", "Already have an account?")}{" "}
           <Link
+            prefetch={false}
             href="/login"
             className="font-medium text-primary hover:underline"
           >

@@ -129,7 +129,7 @@ export default function EmployeesPage() {
       header: t("employee.code", "Code"),
       meta: { hideBelow: "md" },
       cell: ({ getValue }) => (
-        <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
+        <span className="whitespace-nowrap rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
           {getValue<string | null>() ?? "—"}
         </span>
       ),
@@ -148,7 +148,9 @@ export default function EmployeesPage() {
     {
       id: "position",
       header: t("common.position", "Position"),
-      meta: { hideBelow: "lg" },
+      // From xl: at 1024px with the sidebar open, Position pushed Status
+      // (the column a list of people is scanned for) off the right edge.
+      meta: { hideBelow: "xl" },
       enableSorting: false,
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
@@ -212,29 +214,6 @@ export default function EmployeesPage() {
           }
         />
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="w-full max-w-sm">
-            <SearchInput
-              value={search}
-              onChange={(v) => {
-                setSearch(v);
-                setPage(1);
-              }}
-              placeholder={t(
-                "employees.search_placeholder",
-                "Search by name, email, or code...",
-              )}
-            />
-          </div>
-          {data?.meta && (
-            <p className="text-sm text-muted-foreground">
-              {t("employees.total_count", ":count employees", {
-                count: data.meta.total,
-              })}
-            </p>
-          )}
-        </div>
-
         <DataTable
           key={selectionResetKey}
           tableId="employees"
@@ -253,6 +232,30 @@ export default function EmployeesPage() {
           columnVisibility={columnVisibility}
           onColumnVisibilityChange={setColumnVisibility}
           onPageChange={setPage}
+          toolbarStart={
+            <>
+              <div className="w-full max-w-sm">
+                <SearchInput
+                  value={search}
+                  onChange={(v) => {
+                    setSearch(v);
+                    setPage(1);
+                  }}
+                  placeholder={t(
+                    "employees.search_placeholder",
+                    "Search by name, email, or code...",
+                  )}
+                />
+              </div>
+              {data?.meta && (
+                <p className="text-sm text-muted-foreground">
+                  {t("employees.total_count", ":count employees", {
+                    count: data.meta.total,
+                  })}
+                </p>
+              )}
+            </>
+          }
           toolbarExtra={
             <SavedViewsMenu
               views={views}
