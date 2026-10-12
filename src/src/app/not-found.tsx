@@ -10,6 +10,9 @@ export default function NotFound() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
+      {/* The exported 404 shipped with no <title> (production QA 2026-10-11,
+          P14); React 19 hoists this into <head>. */}
+      <title>{`${t("not_found.title", "Page not found")} | ETHR`}</title>
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
         <span className="text-3xl font-bold text-muted-foreground">?</span>
       </div>

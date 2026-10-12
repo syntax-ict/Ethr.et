@@ -99,9 +99,17 @@ describe("signing in to an organisation that has its own address", () => {
 
     submit();
 
-    await waitFor(() =>
-      expect(assign).toHaveBeenCalledWith("https://hr.acme.com/login"),
-    );
+    await waitFor(() => expect(assign).toHaveBeenCalledTimes(1));
+    const target = new URL(assign.mock.calls[0][0] as string);
+    expect(target.origin + target.pathname).toBe("https://hr.acme.com/login");
+    // The email and language ride in the fragment, which no server sees —
+    // never in the query string (production QA 2026-10-11, P6).
+    expect(target.search).toBe("");
+    const fragment = new URLSearchParams(target.hash.slice(1));
+    expect(fragment.get("handoff")).toBe("1");
+    expect(fragment.get("email")).toBe("admin@acme.et");
+    expect(fragment.get("lang")).toBe("en");
+    expect(target.toString()).not.toContain("correct-horse");
     expect(push).not.toHaveBeenCalled();
   });
 
@@ -121,5 +129,68 @@ describe("signing in to an organisation that has its own address", () => {
       ),
     );
     expect(assign).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The other side of the hand-off (production QA 2026-10-11, P6). The owner
+ * landed on a blank form in the app's default language, with no word of why,
+ * and reasonably took it for a completed sign-in.
+ */
+describe("arriving at the canonical address from the apex", () => {
+  function arrive(hash: string) {
+    window.location.hash = hash;
+    const replaceState = vi.spyOn(window.history, "replaceState");
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const view = render(
+      <QueryClientProvider client={client}>
+        <LoginForm />
+      </QueryClientProvider>,
+    );
+    return { ...view, replaceState };
+  }
+
+  it("keeps the email, says why, and clears the fragment", async () => {
+    const { container, findByRole, replaceState } = arrive(
+      "#handoff=1&email=admin%40acme.et&lang=en",
+    );
+
+    const status = await findByRole("status");
+    expect(status.textContent).toMatch(/signs in at this address/);
+    expect((container.querySelector("#email") as HTMLInputElement).value).toBe(
+      "admin@acme.et",
+    );
+    expect(replaceState).toHaveBeenCalled();
+    expect(replaceState.mock.calls.at(-1)?.[2]).toBe("/login");
+  });
+
+  it("carries the language across", async () => {
+    localStorage.setItem("locale", "am");
+    const { findByRole } = arrive("#handoff=1&email=admin%40acme.et&lang=en");
+
+    await findByRole("status");
+    expect(localStorage.getItem("locale")).toBe("en");
+  });
+
+  it("ignores a fragment that is not a hand-off", () => {
+    const { queryByRole, container } = arrive("#section-2");
+
+    expect(queryByRole("status")).toBeNull();
+    expect((container.querySelector("#email") as HTMLInputElement).value).toBe(
+      "",
+    );
+  });
+
+  it("does not put something that is not an email into the field", async () => {
+    const { container, findByRole } = arrive(
+      "#handoff=1&email=%3Cscript%3E&lang=en",
+    );
+
+    await findByRole("status");
+    expect((container.querySelector("#email") as HTMLInputElement).value).toBe(
+      "",
+    );
   });
 });
