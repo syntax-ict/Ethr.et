@@ -217,7 +217,9 @@ test('super admin can view system health', function () {
             'failed_jobs',
         ]);
 
-    expect($response->json('resources.disk_free_gb'))->toBeFloat();
+    // A number, not necessarily a float: JSON writes 84.0 as 84, which decodes
+    // as an int — the CI runner's disk measured exactly that.
+    expect($response->json('resources.disk_free_gb'))->toBeNumeric();
 });
 
 test('health reports no disk figure rather than failing when free space cannot be read', function () {
