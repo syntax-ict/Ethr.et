@@ -23,6 +23,8 @@ class UpdateProfilePreferencesRequest extends FormRequest
             // Mirrors the header theme menu, high-contrast included.
             'theme' => ['nullable', 'string', 'in:light,dark,system,high-contrast'],
             'calendar' => ['nullable', 'string', 'in:gregorian,ethiopian,dual'],
+            'punch_reminders' => ['nullable', 'boolean'],
+            'auto_check_in' => ['nullable', 'boolean'],
         ];
     }
 }

@@ -24,10 +24,19 @@ use Illuminate\Http\JsonResponse;
  */
 class ProfilePreferencesController extends Controller
 {
-    /** @var array{theme: string, calendar: string} */
+    /**
+     * `punch_reminders` and `auto_check_in` are the employee's own opt-ins to
+     * the punching assistant; each also needs the organisation's switch
+     * (AttendanceSetting). Reminders are on unless turned off; checking in
+     * for someone is never assumed.
+     *
+     * @var array{theme: string, calendar: string, punch_reminders: bool, auto_check_in: bool}
+     */
     private const DEFAULTS = [
         'theme' => 'system',
         'calendar' => CalendarPreference::DEFAULT,
+        'punch_reminders' => true,
+        'auto_check_in' => false,
     ];
 
     public function update(UpdateProfilePreferencesRequest $request): JsonResponse
@@ -59,7 +68,7 @@ class ProfilePreferencesController extends Controller
     }
 
     /**
-     * @return array{locale: string, theme: string, calendar: string}
+     * @return array{locale: string, theme: string, calendar: string, punch_reminders: bool, auto_check_in: bool}
      */
     public static function present(User $user): array
     {
@@ -69,6 +78,8 @@ class ProfilePreferencesController extends Controller
             'locale' => $user->locale ?? 'en',
             'theme' => is_string($stored['theme'] ?? null) ? $stored['theme'] : self::DEFAULTS['theme'],
             'calendar' => CalendarPreference::forUser($user),
+            'punch_reminders' => (bool) ($stored['punch_reminders'] ?? self::DEFAULTS['punch_reminders']),
+            'auto_check_in' => (bool) ($stored['auto_check_in'] ?? self::DEFAULTS['auto_check_in']),
         ];
     }
 }

@@ -28,6 +28,11 @@ class AttendanceSettingResource extends JsonResource
             'grace_period_minutes' => $this->grace_period_minutes,
             'ot_daily_cap_minutes' => $this->ot_daily_cap_minutes,
             'confidence_threshold' => $this->confidence_threshold,
+            'reminders_enabled' => $this->reminders_enabled,
+            'reminder_lead_minutes' => $this->reminder_lead_minutes,
+            'auto_checkout_enabled' => $this->auto_checkout_enabled,
+            'auto_checkout_after_minutes' => $this->auto_checkout_after_minutes,
+            'geofence_auto_checkin_enabled' => $this->geofence_auto_checkin_enabled,
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }

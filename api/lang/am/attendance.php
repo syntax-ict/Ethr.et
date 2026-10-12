@@ -15,4 +15,13 @@ return [
     // English placeholders until the native-speaker review (audit N50).
     'offline_not_own' => 'You can only sync your own attendance.',
     'offline_outside_window' => 'This punch was captured more than :days days ago, or in the future, so it cannot be synced. Ask HR to enter it.',
+    'auto_checkout' => [
+        'subject' => 'ክትትልዎ በፈረቃዎ መጨረሻ ተዘግቷል',
+        'message' => 'በ:date አልወጡም ነበር፤ ስለዚህ ክትትልዎ በፈረቃዎ መጨረሻ፣ :time ላይ ተዘግቷል።',
+        'correct_it' => 'በሌላ ሰዓት ከወጡ ማስተካከያ ያስገቡ፤ አጽዳቂዎ ይገመግመዋል።',
+        'action' => 'ማስተካከያዎችን ክፈት',
+    ],
+    'photo_required' => 'ለመግባት የራስዎን ፎቶ ያንሱ። ድርጅትዎ በስልክ ሲገቡ ፎቶ ይፈልጋል።',
+    'auto_check_in_not_allowed' => 'ራስ-ሰር መግቢያ ለእርስዎ አልበራም።',
+    'auto_check_in_outside' => 'ራስ-ሰር መግቢያ በቅርንጫፍዎ ክልል ውስጥ እንዲሆኑ ይፈልጋል።',
 ];
