@@ -116,8 +116,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title ?? 'ETHR', {
       body: payload.body ?? '',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/badge-72.png',
+      icon: '/app-icons/icon-192.png',
+      badge: '/app-icons/badge-72.png',
       tag: payload.tag ?? 'ethr-notification',
       data: payload.data ?? {},
       requireInteraction: payload.requireInteraction ?? false,
