@@ -145,6 +145,22 @@ describe("route metadata for detail pages", () => {
     expect(getRouteMeta("/payroll/12345")?.label ?? "").not.toBe("12345");
   });
 
+  it("resolves a path served with a trailing slash, as the static export does", () => {
+    // Apache serves each exported page as a directory, so a page loaded
+    // directly arrives as /admin/audit/. The exact-match lookup missed it and
+    // fell back to the parent: "Audit", with /admin's description.
+    expect(getRouteMeta("/admin/audit/")).toEqual({
+      ...getRouteMeta("/admin/audit"),
+      i18nPath: "/admin/audit",
+    });
+    expect(getRouteMeta("/admin/plans/")?.description).toBe(
+      getRouteMeta("/admin/plans")?.description,
+    );
+    expect(
+      getRouteMeta("/admin/tenants/01M0H81PEVP5T5DQJ093XNSAY2/")?.i18nPath,
+    ).toBe("/admin/tenants");
+  });
+
   it("still resolves a real named sub-route", () => {
     expect(getRouteMeta("/admin/platform-settings")?.label).toBe(
       "Platform Settings",
