@@ -30,6 +30,11 @@ class UpdateAttendanceSettingRequest extends FormRequest
             'grace_period_minutes' => ['sometimes', 'integer', 'min:0', 'max:240'],
             'ot_daily_cap_minutes' => ['sometimes', 'integer', 'min:0', 'max:1440'],
             'confidence_threshold' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'reminders_enabled' => ['sometimes', 'boolean'],
+            'reminder_lead_minutes' => ['sometimes', 'integer', 'min:0', 'max:120'],
+            'auto_checkout_enabled' => ['sometimes', 'boolean'],
+            'auto_checkout_after_minutes' => ['sometimes', 'integer', 'min:15', 'max:720'],
+            'geofence_auto_checkin_enabled' => ['sometimes', 'boolean'],
         ];
     }
 }

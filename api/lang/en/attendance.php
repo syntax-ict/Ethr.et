@@ -14,4 +14,13 @@ return [
     'conflict_already_resolved' => 'This conflict has already been resolved.',
     'offline_not_own' => 'You can only sync your own attendance.',
     'offline_outside_window' => 'This punch was captured more than :days days ago, or in the future, so it cannot be synced. Ask HR to enter it.',
+    'auto_checkout' => [
+        'subject' => 'Your attendance was closed at the end of your shift',
+        'message' => 'You had not checked out on :date, so your attendance was closed at the end of your shift, :time.',
+        'correct_it' => 'If you left at another time, file a correction and your approver will review it.',
+        'action' => 'Open corrections',
+    ],
+    'photo_required' => 'Take a selfie to check in. Your organisation requires a photo when you check in on your phone.',
+    'auto_check_in_not_allowed' => 'Automatic check-in is not turned on for you.',
+    'auto_check_in_outside' => 'Automatic check-in needs you to be inside your branch area.',
 ];

@@ -2828,6 +2828,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/my-shift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My shift attendance */
+        get: operations["attendance.myShift"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/announcements": {
         parameters: {
             query?: never;
@@ -5603,6 +5620,11 @@ export interface components {
             grace_period_minutes: number;
             ot_daily_cap_minutes: number;
             confidence_threshold: number;
+            reminders_enabled: boolean;
+            reminder_lead_minutes: number;
+            auto_checkout_enabled: boolean;
+            auto_checkout_after_minutes: number;
+            geofence_auto_checkin_enabled: boolean;
             updated_at: string | null;
         };
         /** AuditLogResource */
@@ -6388,6 +6410,7 @@ export interface components {
              *     never supply `photo_path` themselves.
              */
             photo?: string | null;
+            auto?: boolean;
         };
         /** MobileCheckOutRequest */
         MobileCheckOutRequest: {
@@ -7536,6 +7559,11 @@ export interface components {
             grace_period_minutes?: number;
             ot_daily_cap_minutes?: number;
             confidence_threshold?: number;
+            reminders_enabled?: boolean;
+            reminder_lead_minutes?: number;
+            auto_checkout_enabled?: boolean;
+            auto_checkout_after_minutes?: number;
+            geofence_auto_checkin_enabled?: boolean;
         };
         /** UpdateBranchRequest */
         UpdateBranchRequest: {
@@ -7817,6 +7845,8 @@ export interface components {
             theme?: "light" | "dark" | "system" | "high-contrast" | null;
             /** @enum {string|null} */
             calendar?: "gregorian" | "ethiopian" | "dual" | null;
+            punch_reminders?: boolean | null;
+            auto_check_in?: boolean | null;
         };
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
@@ -10516,6 +10546,8 @@ export interface operations {
                                 locale: string;
                                 theme: string | "system";
                                 calendar: string;
+                                punch_reminders: boolean;
+                                auto_check_in: boolean;
                             };
                             /** Format: date-time */
                             last_login_at: string | null;
@@ -15566,6 +15598,95 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendance.myShift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        date: string;
+                        timezone: string;
+                        working_day: boolean;
+                        holiday: {
+                            name: string;
+                            name_am: string | null;
+                        } | null;
+                        on_leave: boolean;
+                        shift: {
+                            public_id: string;
+                            name: string;
+                            start_time: string;
+                            end_time: string;
+                            crosses_midnight: boolean;
+                            grace_minutes: number;
+                            early_departure_minutes: number;
+                            starts_at: string;
+                            ends_at: string;
+                        } | null;
+                        attendance: {
+                            /** @enum {string} */
+                            status: "not_checked_in" | "checked_in" | "checked_out";
+                            record_public_id: string | null;
+                            check_in: string | null;
+                            check_out: string | null;
+                            status_label: string | null;
+                            auto_checked_out: boolean;
+                        };
+                        policy: {
+                            mobile_enabled: boolean;
+                            web_enabled: boolean;
+                            geofence_required: boolean;
+                            photo_required: boolean;
+                            accuracy_threshold_meters: number;
+                            offline_sync_enabled: boolean;
+                            geofence: {
+                                latitude: number;
+                                longitude: number;
+                                radius_meters: number;
+                            } | null;
+                        };
+                        assistant: {
+                            reminders: boolean;
+                            reminders_allowed: boolean;
+                            reminder_lead_minutes: number;
+                            auto_check_in: boolean;
+                            auto_check_in_allowed: boolean;
+                            auto_checkout: boolean;
+                            auto_checkout_after_minutes: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
         };
     };
     "announcement.index": {
@@ -21974,6 +22095,8 @@ export interface operations {
                             locale: string;
                             theme: string | "system";
                             calendar: string;
+                            punch_reminders: boolean;
+                            auto_check_in: boolean;
                         };
                         employee: {
                             public_id: string;
@@ -22115,6 +22238,8 @@ export interface operations {
                         locale: string;
                         theme: string | "system";
                         calendar: string;
+                        punch_reminders: boolean;
+                        auto_check_in: boolean;
                     };
                 };
             };
