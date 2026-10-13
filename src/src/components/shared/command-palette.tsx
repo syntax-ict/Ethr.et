@@ -15,6 +15,7 @@ import {
   FilePenLine,
   Shield,
   CheckSquare,
+  Briefcase,
   Megaphone,
   Contact,
   Banknote,
@@ -235,6 +236,12 @@ export function CommandPalette() {
             label: t("nav.announcements", "Announcements"),
             href: "/announcements",
             icon: Megaphone,
+            show: true,
+          },
+          {
+            label: t("nav.vacancies", "Vacancies"),
+            href: "/vacancies",
+            icon: Briefcase,
             show: true,
           },
           {

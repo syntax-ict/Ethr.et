@@ -100,6 +100,8 @@ return [
         'App\Http\Controllers\Api\V1\Kiosk\KioskSessionController@exitKiosk' => 'The kiosk session token resolves an active KioskSession (401 when it misses), and the admin PIN set at registration must then match it (422). Reads and writes no rows beyond an audit entry; throttle:kiosk-exit allows five tries a minute per kiosk.',
         'App\Http\Controllers\Api\V1\Kiosk\KioskCheckInController@__invoke' => 'X-Kiosk-Token resolves an active KioskSession; the employee lookup then states that session\'s tenant_id.',
         'App\Http\Controllers\Api\V1\Auth\SessionClaimController@__invoke' => 'Single-use handoff nonce, bound to the hostname\'s tenant rather than the body.',
+        'App\Http\Controllers\Api\V1\Auth\LandingFeedController@index' => 'Pre-authentication sign-in page feed: only announcements and vacancies their author marked public, and holidays, each section as the organisation switched it on. Tenant from the hostname through the global scope; plain text only. LandingFeedTest.',
+        'App\Http\Controllers\Api\V1\Auth\LandingFeedController@vacancy' => 'One vacancy that is open, published and public, in the hostname\'s tenant; every other id is the same 404. LandingFeedTest.',
         'App\Http\Controllers\Api\V1\Auth\TenantContextController@__invoke' => 'Returns only a tenant\'s name, subdomain and logo — the branding a login page needs before anyone has authenticated.',
         'App\Http\Controllers\Api\V1\Auth\SsoController@initiate' => 'Pre-authentication SAML leg.',
         'App\Http\Controllers\Api\V1\Auth\SsoController@callback' => 'The signed SAML assertion is the authority.',

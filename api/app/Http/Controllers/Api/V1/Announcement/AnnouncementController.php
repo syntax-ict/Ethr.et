@@ -85,6 +85,9 @@ class AnnouncementController extends Controller
             'published_by' => $user->id,
             'published_at' => ($data['publish_now'] ?? true) ? now() : null,
             'expires_at' => $data['expires_at'] ?? null,
+            // Only a whole-organisation announcement can be public; the
+            // request refuses the other combinations.
+            'show_on_landing' => (bool) ($data['show_on_landing'] ?? false),
         ]);
 
         AuditLog::record('announcement.created', $announcement);
@@ -106,6 +109,11 @@ class AnnouncementController extends Controller
         $target = $request->resolvedTarget();
         if ($target !== null) {
             $data = array_merge($data, $target);
+        }
+
+        // Narrowing the audience takes it off the public page as well.
+        if (($data['target_type'] ?? $announcement->target_type) !== 'all') {
+            $data['show_on_landing'] = false;
         }
 
         $announcement->update($data);

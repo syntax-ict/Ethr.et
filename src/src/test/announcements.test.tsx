@@ -162,6 +162,8 @@ describe("<AnnouncementsPage>", () => {
       body: "Cut-off is Thursday.",
       priority: "normal",
       publish_now: true,
+      // Internal unless someone chooses the sign-in page.
+      show_on_landing: false,
     });
   });
 

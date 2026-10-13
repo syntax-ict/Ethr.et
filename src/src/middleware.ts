@@ -159,6 +159,7 @@ function isTenantRoute(pathname: string): boolean {
     "/reports",
     "/settings",
     "/announcements",
+    "/vacancies",
     "/approvals",
     "/profile",
   ].some((route) => pathname === route || pathname.startsWith(`${route}/`));

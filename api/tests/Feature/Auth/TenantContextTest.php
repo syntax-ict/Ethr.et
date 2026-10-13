@@ -44,6 +44,7 @@ it('returns the host-resolved tenant display info', function () {
                     'support_phone' => null,
                     'background' => 'brand',
                     'background_image_url' => null,
+                    'sections' => ['announcements' => true, 'vacancies' => true, 'holidays' => false],
                 ],
                 // Which ways in to offer: SSO only once configured.
                 'sign_in' => [

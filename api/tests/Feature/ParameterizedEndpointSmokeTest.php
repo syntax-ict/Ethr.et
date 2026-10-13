@@ -30,6 +30,7 @@ use App\Models\Position;
 use App\Models\Shift;
 use App\Models\ShiftRotation;
 use App\Models\Team;
+use App\Models\Vacancy;
 use App\Models\Webhook;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
@@ -101,7 +102,13 @@ test('parameterized GET api/v1 endpoints never 5xx with valid bound records', fu
         'tenant_id' => $tenant->id, 'source_type' => 'csv', 'status' => 'reviewing',
     ]);
 
+    $vacancy = Vacancy::query()->create([
+        'tenant_id' => $tenant->id, 'title' => 'Smoke role', 'employment_type' => 'full_time',
+        'description' => 'x', 'status' => 'open', 'visibility' => 'public', 'published_at' => now()->subDay(),
+    ]);
+
     $params = [
+        'vacancy' => $vacancy->public_id,
         'payrollRun' => $run->public_id, 'branch' => $branch->public_id, 'department' => $dept->public_id,
         'announcement' => $announcement->public_id, 'correction' => $correction->public_id,
         'attendanceRecord' => $record->public_id, 'device' => $device->public_id, 'employee' => $employee->public_id,

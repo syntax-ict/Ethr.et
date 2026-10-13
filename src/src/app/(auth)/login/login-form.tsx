@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { initiateSso, login, prepareCsrfCookie } from "@/features/auth/sign-in";
 import { InstallAppBanner } from "@/components/shared/install-app";
+import { LandingNews } from "@/features/auth/components/landing-news";
 import { useT } from "@/lib/i18n/useT";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
@@ -80,6 +81,7 @@ export function LoginForm() {
     tenantFieldVisible,
     tenantBrand,
     tenantSignIn,
+    tenantRequest,
     onLanding,
   } = useAuthHostContext();
   const [showPassword, setShowPassword] = useState(false);
@@ -568,6 +570,11 @@ export function LoginForm() {
         <div className="mt-6">
           <InstallAppBanner />
         </div>
+      )}
+
+      {/* The organisation's own news and openings, where it published any. */}
+      {hostAppContext === "tenant" && !tenantLookupError && (
+        <LandingNews request={tenantRequest} />
       )}
     </div>
   );

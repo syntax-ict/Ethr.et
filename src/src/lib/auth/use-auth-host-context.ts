@@ -29,6 +29,9 @@ export interface TenantLanding {
   background_image_url: string | null;
 }
 
+export type TenantRequest =
+  { mode: "client" } | { mode: "host" } | { mode: "entry"; slug: string };
+
 /** Which ways in the organisation offers besides a password. */
 export interface TenantSignIn {
   sso: boolean;
@@ -164,6 +167,19 @@ export function useAuthHostContext() {
       tenantLookupError = "inactive";
   }
 
+  // How a public request reaches this organisation, the same way the
+  // context itself was found: through apiClient on its own subdomain, from
+  // the host alone on a domain this build cannot classify, or with X-Tenant
+  // on the shared landing.
+  const tenantRequest: TenantRequest | null =
+    classified === "tenant" && query.data
+      ? { mode: "client" }
+      : classified === "unknown" && hostTenant
+        ? { mode: "host" }
+        : onLanding && entryTenant && entrySlug
+          ? { mode: "entry", slug: entrySlug }
+          : null;
+
   return {
     /** "public" (apex) | "platform" (admin host) | "tenant" | "unknown" (dev, no ROOT_DOMAIN). */
     context,
@@ -180,6 +196,8 @@ export function useAuthHostContext() {
     tenantDefaultLocale: resolved?.default_locale ?? null,
     /** On an organisation's own landing address, `ethr.et/{slug}`. */
     onLanding,
+    /** How to ask the server about this organisation before sign-in. */
+    tenantRequest,
     tenantContextLoading:
       (context === "tenant" && (query.isLoading || hostQuery.isLoading)) ||
       (onLanding && entryQuery.isLoading),

@@ -2604,6 +2604,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/tenant-landing/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Feed tenant landing */
+        get: operations["landingFeed.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/tenant-landing/vacancies/{vacancy}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One public vacancy in full, for its detail view on the sign-in page. A
+         *     draft, closed, internal or unknown one is the same 404
+         */
+        get: operations["landingFeed.vacancy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/leave/request": {
         parameters: {
             query?: never;
@@ -5402,6 +5439,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/vacancies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List vacancies */
+        get: operations["vacancy.index"];
+        put?: never;
+        /** Create vacancy */
+        post: operations["vacancy.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vacancies/{vacancy}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get vacancy */
+        get: operations["vacancy.show"];
+        /** Update vacancy */
+        put: operations["vacancy.update"];
+        post?: never;
+        /** Delete vacancy */
+        delete: operations["vacancy.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5446,6 +5520,7 @@ export interface components {
             published_at: string | null;
             /** Format: date-time */
             expires_at: string | null;
+            show_on_landing: boolean;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -7058,6 +7133,7 @@ export interface components {
             publish_now?: boolean;
             /** Format: date-time */
             expires_at?: string | null;
+            show_on_landing?: boolean;
         };
         /** StoreApiKeyRequest */
         StoreApiKeyRequest: {
@@ -7563,6 +7639,7 @@ export interface components {
             target_id?: string | null;
             /** Format: date-time */
             expires_at?: string | null;
+            show_on_landing?: boolean;
         };
         /** UpdateAttendanceSettingRequest */
         UpdateAttendanceSettingRequest: {
@@ -7736,6 +7813,11 @@ export interface components {
             background: "brand" | "gradient" | "image";
             /** Format: uri */
             background_image_url?: string | null;
+            sections?: {
+                announcements: boolean;
+                vacancies: boolean;
+                holidays: boolean;
+            };
         };
         /** UpdateLeaveTypeRequest */
         UpdateLeaveTypeRequest: {
@@ -8074,6 +8156,63 @@ export interface components {
          * @enum {string}
          */
         UserRole: "super_admin" | "tenant_admin" | "hr_admin" | "finance_admin" | "dept_admin" | "supervisor" | "employee";
+        /**
+         * VacancyRequest
+         * @description Creating or editing a vacancy. A public one is shown before sign-in, so
+         *     links are https-only and the text is plain (rendered as text, never HTML).
+         *
+         *     `department_id` and `branch_id` are public ids, resolved through the tenant
+         *     scope: one from another tenant is refused with the same message as one that
+         *     does not exist, as for announcement targets.
+         */
+        VacancyRequest: {
+            title: string;
+            /** @enum {string} */
+            employment_type: "full_time" | "part_time" | "contract" | "temporary" | "internship";
+            description: string;
+            requirements?: string | null;
+            location?: string | null;
+            positions?: number;
+            /** @enum {string} */
+            visibility?: "internal" | "public";
+            /** @enum {string} */
+            status?: "draft" | "open" | "closed";
+            /** Format: date */
+            closes_on?: string | null;
+            /** Format: email */
+            apply_email?: string | null;
+            /** Format: uri */
+            apply_url?: string | null;
+            department_id?: string | null;
+            branch_id?: string | null;
+        };
+        /** VacancyResource */
+        VacancyResource: {
+            public_id: string;
+            title: string;
+            employment_type: string;
+            location: string | null;
+            description: string;
+            requirements: string | null;
+            positions: number;
+            visibility: string;
+            status: string;
+            /** Format: date-time */
+            published_at: string | null;
+            closes_on: string | null;
+            apply_email: string | null;
+            apply_url: string | null;
+            department: {
+                public_id: string;
+                name: string;
+            } | null;
+            branch: {
+                public_id: string;
+                name: string;
+            } | null;
+            /** Format: date-time */
+            created_at: string | null;
+        };
         /** VerifyMfaRequest */
         VerifyMfaRequest: {
             code: string;
@@ -15025,6 +15164,86 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "landingFeed.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        announcements: {
+                            public_id: string;
+                            title: string;
+                            excerpt: string;
+                            priority: string;
+                            published_at: string | null;
+                        }[];
+                        vacancies: {
+                            public_id: string;
+                            title: string;
+                            employment_type: string;
+                            location: string | null;
+                            department: string | null;
+                            branch: string | null;
+                            positions: number;
+                            published_at: string | null;
+                            closes_on: string | null;
+                            apply_email: string | null;
+                            apply_url: string | null;
+                        }[];
+                        holidays: {
+                            name: string;
+                            name_am: string | null;
+                            date: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    "landingFeed.vacancy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vacancy: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        title: string;
+                        employment_type: string;
+                        location: string | null;
+                        department: string | null;
+                        branch: string | null;
+                        positions: number;
+                        published_at: string | null;
+                        closes_on: string | null;
+                        apply_email: string | null;
+                        apply_url: string | null;
+                        description: string;
+                        requirements: string | null;
+                    };
+                };
+            };
+        };
+    };
     "leaveRequest.store": {
         parameters: {
             query?: never;
@@ -20475,6 +20694,11 @@ export interface operations {
                             /** @description An image background with no usable image is the brand colour. */
                             background: string;
                             background_image_url: string | null;
+                            sections: {
+                                announcements: string | boolean;
+                                vacancies: string | boolean;
+                                holidays: string | boolean;
+                            };
                         };
                         /**
                          * @description Attendance rules (grace period, OT cap, confidence threshold) live
@@ -20744,6 +20968,11 @@ export interface operations {
                         /** @description An image background with no usable image is the brand colour. */
                         background: string;
                         background_image_url: string | null;
+                        sections: {
+                            announcements: string | boolean;
+                            vacancies: string | boolean;
+                            holidays: string | boolean;
+                        };
                     };
                 };
             };
@@ -21803,6 +22032,11 @@ export interface operations {
                                 /** @description An image background with no usable image is the brand colour. */
                                 background: string;
                                 background_image_url: string | null;
+                                sections: {
+                                    announcements: string | boolean;
+                                    vacancies: string | boolean;
+                                    holidays: string | boolean;
+                                };
                             };
                             sign_in: {
                                 sso: boolean;
@@ -22921,6 +23155,131 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "vacancy.index": {
+        parameters: {
+            query?: {
+                status?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `VacancyResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyResource"][];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "vacancy.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VacancyRequest"];
+            };
+        };
+        responses: {
+            /** @description `VacancyResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "vacancy.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vacancy: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `VacancyResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "vacancy.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vacancy: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VacancyRequest"];
+            };
+        };
+        responses: {
+            /** @description `VacancyResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "vacancy.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vacancy: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
 }
