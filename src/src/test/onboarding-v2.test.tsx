@@ -8,7 +8,7 @@ import { AccessStep } from "@/features/onboarding/v2/components/access-step";
 import { ReadinessStep } from "@/features/onboarding/v2/components/readiness-step";
 
 vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }));
 
 function renderWithClient(ui: React.ReactElement) {
@@ -112,23 +112,180 @@ describe("IndustryConfigStep", () => {
     // Industry picker renders after the query resolves.
     const ministry = await screen.findByText("Ministry");
     fireEvent.click(ministry);
-    fireEvent.click(screen.getByText("Generate configuration"));
+    fireEvent.click(screen.getByText("Review proposal"));
 
     // Scored review renders the sections with a confidence badge.
     expect(await screen.findByText("Administration")).toBeInTheDocument();
-    expect(screen.getByText(/Overall confidence/i)).toBeInTheDocument();
+    // A summary of what was chosen, not a confidence score.
+    expect(screen.getByText("Type of organisation")).toBeInTheDocument();
+    expect(screen.queryByText(/confidence/i)).not.toBeInTheDocument();
 
     // Remove the "Administration" department specifically, then apply.
     const adminChip = screen.getByText("Administration");
     const removeBtn = adminChip.querySelector("button");
     fireEvent.click(removeBtn as HTMLButtonElement);
-    fireEvent.click(screen.getByText("Accept & apply"));
+    fireEvent.click(screen.getByText("Apply configuration"));
 
     await waitFor(() => expect(applied).toHaveBeenCalled());
 
     const deps = (captured.plan?.departments ?? []) as string[];
     expect(deps).toHaveLength(2);
     expect(deps).not.toContain("Administration");
+  });
+});
+
+describe("IndustryConfigStep — composed profiles and review", () => {
+  it("shows the industry's usual profiles, sends only real choices, and holds apply until the review is read", async () => {
+    const previewBodies: Record<string, unknown>[] = [];
+    const applied: { body?: Record<string, unknown> } = {};
+
+    server.use(
+      http.get("*/api/v1/onboarding/industries", () =>
+        HttpResponse.json({
+          data: [
+            {
+              key: "hospital",
+              label: "Hospital",
+              label_am: "ሆስፒታል",
+              base: "hospital",
+              icon: "x",
+              group: "healthcare",
+              profile: "continuous_24_7",
+              policy: "ethiopia_private",
+            },
+          ],
+          workforce_profiles: [
+            {
+              key: "standard_office",
+              label: "Standard office hours",
+              label_am: "መደበኛ የቢሮ ሰዓት",
+              description: "Monday to Friday.",
+            },
+            {
+              key: "continuous_24_7",
+              label: "Round the clock (24/7)",
+              label_am: "ሌት ተቀን (24/7)",
+              description: "Four crews.",
+            },
+          ],
+          policy_profiles: [
+            {
+              key: "ethiopia_private",
+              label: "Ethiopia — private sector",
+              label_am: "ኢትዮጵያ — የግል ዘርፍ",
+              description: "Labour Proclamation 1156/2019.",
+            },
+          ],
+        }),
+      ),
+      http.post(
+        "*/api/v1/onboarding/configuration/preview",
+        async ({ request }) => {
+          previewBodies.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json({
+            industry: {
+              key: "hospital",
+              label: "Hospital",
+              label_am: "ሆስፒታል",
+              base: "hospital",
+            },
+            signals: {},
+            overall_confidence: 0.8,
+            sections: {
+              shifts: {
+                source: "industry_default",
+                confidence: 0.8,
+                items: [
+                  { name: "Night", start_time: "22:00", end_time: "06:00" },
+                ],
+              },
+              rotations: {
+                source: "industry_default",
+                confidence: 0.8,
+                items: [{ name: "Continuous 2-2-2-2", cycle_days: 8 }],
+              },
+              allowances: {
+                source: "industry_default",
+                confidence: 0.8,
+                items: [{ name: "Hazard allowance" }],
+              },
+            },
+            plan: {},
+            profiles: {
+              workforce: {
+                key: "continuous_24_7",
+                label: "Round the clock (24/7)",
+                label_am: "ሌት ተቀን (24/7)",
+              },
+              policy: {
+                key: "ethiopia_private",
+                label: "Ethiopia — private sector",
+                label_am: "ኢትዮጵያ — የግል ዘርፍ",
+              },
+            },
+            review: [
+              { code: "leave_private", message: "Confirm the leave values." },
+            ],
+          });
+        },
+      ),
+      http.post(
+        "*/api/v1/onboarding/configuration/apply",
+        async ({ request }) => {
+          applied.body = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({
+            message: "ok",
+            industry: null,
+            provisioned: { resources: {}, total_created: 4, warnings: [] },
+          });
+        },
+      ),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+
+    fireEvent.click(await screen.findByText("Hospital"));
+
+    // The industry's usual profiles are what the pickers show.
+    expect(
+      await screen.findByText("Round the clock (24/7)"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Ethiopia — private sector")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Review proposal"));
+
+    // A default is not sent as if it were a choice.
+    await screen.findByText("Night 22:00–06:00");
+    expect(previewBodies[0]).not.toHaveProperty("workforce_profile");
+    expect(previewBodies[0]).not.toHaveProperty("policy_profile");
+
+    expect(
+      screen.getByText("Continuous 2-2-2-2 · 8-day cycle"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Nobody's pay changes until you set one/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Confirm the leave values.")).toBeInTheDocument();
+
+    const applyButton = screen.getByRole("button", {
+      name: "Apply configuration",
+    });
+    expect(applyButton).toBeDisabled();
+
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "I have read these and will confirm the values",
+      }),
+    );
+    expect(applyButton).toBeEnabled();
+    fireEvent.click(applyButton);
+
+    await waitFor(() => expect(applied.body).toBeDefined());
+    expect(applied.body).toMatchObject({
+      industry: "hospital",
+      workforce_profile: "continuous_24_7",
+      policy_profile: "ethiopia_private",
+    });
   });
 });
 

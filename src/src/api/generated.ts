@@ -2986,6 +2986,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/leave-types/{leaveType}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A copy starts switched off: an active leave type is offered to every
+         *     employee the moment it exists, and a copy is something to adjust first
+         */
+        post: operations["leaveType.duplicate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/leave-types": {
         parameters: {
             query?: never;
@@ -5172,6 +5192,51 @@ export interface paths {
         patch: operations["shiftAssignment.update"];
         trace?: never;
     };
+    "/shifts/{shift}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A copy to adjust, not a second live shift: it is never the default and
+         *     has no assignments, so nothing is matched to it until someone assigns it
+         */
+        post: operations["shift.duplicate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shifts/{shift}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who an edit to this shift would reach, asked before the edit is saved
+         * @description Editing a shift changes how *future* punches are rated. Attendance
+         *     already recorded keeps the status it was given when it was punched, and
+         *     payroll already approved is never recalculated, so the honest preview is
+         *     the current and upcoming assignments and the people they reach. The
+         *     people count is an upper bound: someone in an assigned department may
+         *     have a shift of their own, which wins.
+         */
+        get: operations["shift.usage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/shift-rotations/assign": {
         parameters: {
             query?: never;
@@ -5778,7 +5843,11 @@ export interface components {
          */
         ApplyConfigurationRequest: {
             /** @enum {string|null} */
-            industry?: "federal_government" | "regional_government" | "city_administration" | "woreda_administration" | "ministry" | "university" | "tvet" | "school" | "hospital" | "health_center" | "ngo" | "bank" | "insurance" | "microfinance" | "manufacturing" | "construction" | "agriculture" | "hotel" | "retail" | "wholesale" | "logistics" | "transport" | "telecom" | "security_company" | "bpo" | "technology_company" | "custom" | null;
+            industry?: "federal_government" | "ministry" | "federal_agency" | "regional_government" | "regional_bureau" | "zonal_administration" | "city_administration" | "woreda_administration" | "sector_office" | "university" | "tvet" | "school" | "hospital" | "health_center" | "ngo" | "bank" | "insurance" | "microfinance" | "manufacturing" | "construction" | "agriculture" | "hotel" | "restaurant" | "retail" | "wholesale" | "professional_services" | "logistics" | "transport" | "telecom" | "security_company" | "bpo" | "technology_company" | "small_business" | "multi_branch" | "custom" | null;
+            /** @enum {string|null} */
+            workforce_profile?: "standard_office" | "six_day_week" | "flexible_hybrid" | "rotating_three_shift" | "continuous_24_7" | "extended_hours_two_shift" | "part_time" | "field_distributed" | "seasonal_agricultural" | "weekend" | null;
+            /** @enum {string|null} */
+            policy_profile?: "ethiopia_private" | "ethiopia_public" | "custom" | null;
             plan: {
                 branches?: string[];
                 departments?: string[];
@@ -5786,6 +5855,11 @@ export interface components {
                 grades?: string[];
                 shifts?: string[];
                 leave_types?: string[];
+                rotations?: {
+                    steps?: string[];
+                }[];
+                allowances?: string[];
+                attendance?: string[];
                 holidays?: string;
                 settings?: string[];
             };
@@ -7073,9 +7147,13 @@ export interface components {
         /** PreviewConfigurationRequest */
         PreviewConfigurationRequest: {
             /** @enum {string} */
-            industry: "federal_government" | "regional_government" | "city_administration" | "woreda_administration" | "ministry" | "university" | "tvet" | "school" | "hospital" | "health_center" | "ngo" | "bank" | "insurance" | "microfinance" | "manufacturing" | "construction" | "agriculture" | "hotel" | "retail" | "wholesale" | "logistics" | "transport" | "telecom" | "security_company" | "bpo" | "technology_company" | "custom";
+            industry: "federal_government" | "ministry" | "federal_agency" | "regional_government" | "regional_bureau" | "zonal_administration" | "city_administration" | "woreda_administration" | "sector_office" | "university" | "tvet" | "school" | "hospital" | "health_center" | "ngo" | "bank" | "insurance" | "microfinance" | "manufacturing" | "construction" | "agriculture" | "hotel" | "restaurant" | "retail" | "wholesale" | "professional_services" | "logistics" | "transport" | "telecom" | "security_company" | "bpo" | "technology_company" | "small_business" | "multi_branch" | "custom";
             employee_count?: number | null;
             region?: string | null;
+            /** @enum {string|null} */
+            workforce_profile?: "standard_office" | "six_day_week" | "flexible_hybrid" | "rotating_three_shift" | "continuous_24_7" | "extended_hours_two_shift" | "part_time" | "field_distributed" | "seasonal_agricultural" | "weekend" | null;
+            /** @enum {string|null} */
+            policy_profile?: "ethiopia_private" | "ethiopia_public" | "custom" | null;
         };
         /** ProcessPayrollRequest */
         ProcessPayrollRequest: {
@@ -8362,7 +8440,7 @@ export interface components {
             settings: {
                 /**
                  * @description Ethiopian month 1-13 (Meskerem = 1 ... Pagume = 13). Fiscal years
-                 *     in practice start at Meskerem 1 (private) or Hamle 1 = month 7
+                 *     in practice start at Meskerem 1 (private) or Hamle 1 = month 11
                  *     (government), but any Ethiopian month is accepted.
                  */
                 fiscal_year_start_month?: number;
@@ -16627,6 +16705,32 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "leaveType.duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The leave type public id */
+                leaveType: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `LeaveTypeResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveTypeResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "leave-types.index": {
         parameters: {
             query?: {
@@ -16786,6 +16890,22 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/leave-type-in-use";
+                        /** @constant */
+                        title: "Leave Type In Use";
+                        /** @constant */
+                        status: 409;
+                        detail: string;
+                    };
+                };
+            };
         };
     };
     "approval.pending": {
@@ -17470,7 +17590,23 @@ export interface operations {
                             base: string;
                             icon: string;
                             group: string;
+                            profile: string;
+                            policy: string;
                         }[];
+                        workforce_profiles: {
+                            key: string;
+                            label: string;
+                            label_am: string;
+                            description: string;
+                        }[];
+                        policy_profiles: {
+                            key: string;
+                            label: string;
+                            label_am: string;
+                            description: string;
+                        }[];
+                        /** @constant */
+                        catalog_version: "2026.10.1";
                     };
                 };
             };
@@ -17509,6 +17645,21 @@ export interface operations {
                         plan: {
                             [key: string]: unknown;
                         };
+                        profiles: {
+                            workforce: {
+                                key: string;
+                                label: string;
+                                label_am: string;
+                            };
+                            policy: {
+                                key: string;
+                                label: string;
+                                label_am: string;
+                            };
+                        };
+                        review: unknown[];
+                        /** @constant */
+                        catalog_version: "2026.10.1";
                     };
                 };
             };
@@ -18228,12 +18379,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No content */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -18404,12 +18556,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No content */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -18735,12 +18888,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No content */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -22553,6 +22707,71 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "shift.duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The shift public id */
+                shift: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `ShiftResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "shift.usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The shift public id */
+                shift: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            assignments: {
+                                employees: number;
+                                departments: number;
+                                branches: number;
+                            };
+                            people_up_to: number;
+                            rotations: {
+                                [key: string]: unknown;
+                            };
+                            is_default: boolean;
+                            attendance_records: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "shiftRotation.assign": {

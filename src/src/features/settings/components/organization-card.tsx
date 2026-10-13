@@ -34,7 +34,11 @@ import {
  * users into one would give them an untranslated UI.
  */
 
+// `general` is what registration defaults to and what applying a services,
+// trade or custom template records; without it those organisations saw an
+// empty Type field.
 const ORG_TYPES = [
+  "general",
   "private",
   "government",
   "university",
@@ -234,6 +238,8 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
  */
 function orgTypeLabel(value: OrgType, t: (k: string, f: string) => string) {
   switch (value) {
+    case "general":
+      return t("settings.org_type_general", "General company");
     case "private":
       return t("settings.org_type_private", "Private company");
     case "government":

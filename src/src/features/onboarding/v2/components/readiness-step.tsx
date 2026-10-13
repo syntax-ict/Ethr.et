@@ -1,13 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Rocket,
-  Loader2,
-  CheckCircle2,
-  Circle,
-  ArrowRight,
-} from "lucide-react";
+import { Loader2, CheckCircle2, Circle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -42,15 +36,12 @@ export function ReadinessStep({ onLive }: { onLive?: () => void }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-          <Rocket className="h-5 w-5 text-primary" />
-        </div>
+      <div>
         <div>
-          <h2 className="text-xl font-bold text-foreground">
+          <h2 className="text-lg font-semibold text-foreground">
             {t("setup2.readiness_title", "Readiness & go live")}
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             {t(
               "setup2.readiness_desc",
               "A quick check of how ready your workspace is. Fix the gaps or launch anyway.",
@@ -160,10 +151,8 @@ export function ReadinessStep({ onLive }: { onLive?: () => void }) {
 
             <div className="flex justify-end border-t pt-4">
               <Button size="lg" onClick={launch} disabled={goLive.isPending}>
-                {goLive.isPending ? (
+                {goLive.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Rocket className="mr-2 h-4 w-4" />
                 )}
                 {t("setup2.go_live", "Go live")}
               </Button>

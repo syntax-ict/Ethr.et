@@ -5,8 +5,10 @@ import type {
   ApplyConfigurationResult,
   CommitResult,
   ConfigurationPlan,
+  ConfigurationProfile,
   GoLiveResult,
   Industry,
+  IndustryCatalogResponse,
   LoginIdentifier,
   MigrationBatch,
   ReadinessReport,
@@ -16,20 +18,44 @@ import type {
 
 // ── Smart configuration ──────────────────────────────────────────
 
-export function useIndustries() {
-  return useQuery<Industry[]>({
+// One request serves the industry picker and the two profile pickers.
+function useIndustryCatalog<T>(select: (data: IndustryCatalogResponse) => T) {
+  return useQuery<IndustryCatalogResponse, Error, T>({
     queryKey: ["onboarding", "industries"],
-    queryFn: async () =>
-      (await apiClient.get("/onboarding/industries")).data.data,
+    queryFn: async () => (await apiClient.get("/onboarding/industries")).data,
     staleTime: 60 * 60 * 1000,
+    select,
   });
+}
+
+const selectIndustries = (data: IndustryCatalogResponse): Industry[] =>
+  data.data;
+const selectProfiles = (
+  data: IndustryCatalogResponse,
+): { workforce: ConfigurationProfile[]; policy: ConfigurationProfile[] } => ({
+  workforce: data.workforce_profiles ?? [],
+  policy: data.policy_profiles ?? [],
+});
+
+export function useIndustries() {
+  return useIndustryCatalog(selectIndustries);
+}
+
+export function useConfigurationProfiles() {
+  return useIndustryCatalog(selectProfiles);
 }
 
 export function usePreviewConfiguration() {
   return useMutation<
     ConfigurationPlan,
     unknown,
-    { industry: string; employee_count?: number; region?: string }
+    {
+      industry: string;
+      employee_count?: number;
+      region?: string;
+      workforce_profile?: string;
+      policy_profile?: string;
+    }
   >({
     mutationFn: async (payload) =>
       (await apiClient.post("/onboarding/configuration/preview", payload)).data,
@@ -41,7 +67,13 @@ export function useApplyConfiguration() {
   return useMutation<
     ApplyConfigurationResult,
     unknown,
-    { industry: string; plan: Record<string, unknown>; save?: boolean }
+    {
+      industry: string;
+      plan: Record<string, unknown>;
+      save?: boolean;
+      workforce_profile?: string;
+      policy_profile?: string;
+    }
   >({
     mutationFn: async (payload) =>
       (await apiClient.post("/onboarding/configuration/apply", payload)).data,

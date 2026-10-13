@@ -1,61 +1,46 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import type { ConfigurationSource } from "../types";
 
-const SOURCE_LABEL: Record<ConfigurationSource, [string, string]> = {
-  explicit: ["setup2.source_explicit", "Industry-specific"],
-  industry_default: ["setup2.source_default", "Industry default"],
-  heuristic: ["setup2.source_heuristic", "Suggested"],
-  global_fallback: ["setup2.source_fallback", "Fallback"],
-};
-
-/** Color-codes confidence via semantic status tokens (never raw Tailwind colors). */
-function toneFor(confidence: number): { color: string; bg: string } {
-  if (confidence >= 0.85) {
-    return {
-      color: "var(--color-status-success, #047857)",
-      bg: "color-mix(in srgb, var(--color-status-success, #047857) 12%, transparent)",
-    };
-  }
-  if (confidence >= 0.6) {
-    return {
-      color: "var(--color-status-warning, #92400E)",
-      bg: "color-mix(in srgb, var(--color-status-warning, #92400E) 14%, transparent)",
-    };
-  }
-  return {
-    color: "var(--color-text-secondary, #64748B)",
-    bg: "color-mix(in srgb, var(--color-text-secondary, #64748B) 12%, transparent)",
-  };
-}
-
-export function ConfidenceBadge({
+/**
+ * Where a proposed section came from, in words an administrator uses.
+ *
+ * This was a coloured "80% · Industry default" pill on every section, beside
+ * an "Overall confidence 78%" figure. The percentage is a fixed number per
+ * source (ConfigurationSource::confidence) — it measured nothing about the
+ * organisation, and a score on a list of departments reads as a model's guess
+ * rather than a proposal to review. The API still returns it; the screen says
+ * only what it means (2026-10-14).
+ */
+export function SourceLabel({
   source,
-  confidence,
   className,
 }: {
   source: ConfigurationSource;
-  confidence: number;
   className?: string;
 }) {
   const { t } = useT();
-  const [key, fallback] = SOURCE_LABEL[source];
-  const tone = toneFor(confidence);
+
+  let text: string;
+  switch (source) {
+    case "explicit":
+      text = t("setup2.source_explicit", "Tailored");
+      break;
+    case "industry_default":
+      text = t("setup2.source_default", "Standard for this industry");
+      break;
+    case "heuristic":
+      text = t("setup2.source_heuristic", "Based on your details");
+      break;
+    default:
+      text = t("setup2.source_fallback", "General default");
+  }
 
   return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "gap-1 border-transparent text-[11px] font-medium",
-        className,
-      )}
-      style={{ color: tone.color, background: tone.bg }}
-      title={t(key, fallback)}
-    >
-      {Math.round(confidence * 100)}% · {t(key, fallback)}
-    </Badge>
+    <span className={cn("text-xs text-muted-foreground", className)}>
+      {text}
+    </span>
   );
 }
