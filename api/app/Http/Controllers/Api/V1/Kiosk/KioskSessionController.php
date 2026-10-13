@@ -149,7 +149,7 @@ class KioskSessionController extends Controller
             'tenant' => [
                 'name' => $tenant->name,
                 'subdomain' => $tenant->subdomain,
-                'logo_path' => $tenant->logo_path,
+                'logo_path' => $tenant->logoUrl(),
             ],
             'settings' => [
                 'pin_required' => $settings?->kiosk_pin_required ?? false,

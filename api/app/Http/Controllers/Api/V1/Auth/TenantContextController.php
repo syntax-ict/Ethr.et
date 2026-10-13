@@ -38,7 +38,7 @@ class TenantContextController extends Controller
                 'subdomain' => $tenant->subdomain,
                 'logo_path' => $tenant->logo_path,
                 'brand' => [
-                    'logo_url' => self::httpsUrl($tenant->logo_path),
+                    'logo_url' => $tenant->logoUrl(),
                     'primary_color' => self::hexColour($theme['primary_color'] ?? null),
                     'secondary_color' => self::hexColour($theme['secondary_color'] ?? null),
                     'accent_color' => self::hexColour($theme['accent_color'] ?? null),
@@ -62,11 +62,5 @@ class TenantContextController extends Controller
     private static function hexColour(mixed $value): ?string
     {
         return is_string($value) && preg_match('/^#[0-9a-fA-F]{6}$/', $value) === 1 ? $value : null;
-    }
-
-    /** A logo drawn on a public page: an https URL only. */
-    private static function httpsUrl(mixed $value): ?string
-    {
-        return TenantLanding::httpsUrl($value);
     }
 }

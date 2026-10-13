@@ -105,6 +105,8 @@ use App\Http\Controllers\Api\V1\Scim\ScimUserController;
 use App\Http\Controllers\Api\V1\Settings\AuditLogController;
 use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
+use App\Http\Controllers\Api\V1\Settings\TenantLogoController;
+use App\Http\Controllers\OrganisationLogoController;
 use App\Http\Controllers\Api\V1\Shift\ShiftAssignmentController;
 use App\Http\Controllers\Api\V1\Shift\ShiftController;
 use App\Http\Controllers\Api\V1\Shift\ShiftRotationController;
@@ -200,6 +202,13 @@ Route::get('/register/check-subdomain', SubdomainCheckController::class)->middle
 // credentials-adjacent). Loaded once per page view, so it rides the general
 // `api` limiter rather than `auth`'s 10/min, which login POSTs also share.
 Route::get('/auth/tenant-context', TenantContextController::class)->middleware('throttle:api');
+
+// An organisation's uploaded logo, for its public sign-in page. Public, and
+// immutable per version (a new upload is a new URL); only the re-encoded PNG
+// is ever served. Rides the api group's per-IP guest budget.
+Route::get('/organisation-logos/{publicId}/{version}', OrganisationLogoController::class)
+    ->where(['publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'version' => '[0-9a-f]{16}'])
+    ->name('organisation.logo');
 
 // What the organisation chose to show the public on its sign-in page:
 // announcements and vacancies marked public, and upcoming holidays.
@@ -792,6 +801,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::put('/settings/address', [SettingsController::class, 'updateAddress']);
     Route::post('/settings/address/verify', [SettingsController::class, 'verifyAddress']);
     Route::put('/settings/branding', [SettingsController::class, 'updateBranding']);
+    Route::post('/settings/branding/logo', [TenantLogoController::class, 'store'])->middleware('throttle:uploads');
+    Route::delete('/settings/branding/logo', [TenantLogoController::class, 'destroy']);
     Route::put('/settings/landing', [SettingsController::class, 'updateLanding']);
     Route::put('/settings/sso', [SettingsController::class, 'updateSso']);
     Route::post('/settings/scim-token', [SettingsController::class, 'generateScimToken']);

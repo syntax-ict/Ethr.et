@@ -113,6 +113,41 @@ export function useUpdateBranding() {
   );
 }
 
+/** The uploaded logo and the logo now in effect, after an upload or removal. */
+export interface LogoUploadResult {
+  uploaded_logo_url: string | null;
+  logo_url: string | null;
+}
+
+/**
+ * Upload the organisation's logo (PNG, JPEG or WebP; the server re-encodes it).
+ * An uploaded logo is shown in preference to a linked one, everywhere: the
+ * sign-in page, the sidebar and header, the kiosk.
+ */
+export function useUploadLogo() {
+  return useSettingsMutation(
+    async (file: File): Promise<LogoUploadResult> => {
+      const body = new FormData();
+      body.append("logo", file);
+      return (
+        await apiClient.post("/settings/branding/logo", body, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+      ).data;
+    },
+    [AUTH_ME],
+  );
+}
+
+/** Remove the uploaded logo; a linked logo, if any, takes over. */
+export function useRemoveLogo() {
+  return useSettingsMutation(
+    async (): Promise<LogoUploadResult> =>
+      (await apiClient.delete("/settings/branding/logo")).data,
+    [AUTH_ME],
+  );
+}
+
 export type TenantLandingSettings = TenantSettings["landing"];
 export type LandingUpdate = components["schemas"]["UpdateLandingRequest"];
 
