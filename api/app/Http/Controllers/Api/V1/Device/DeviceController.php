@@ -103,6 +103,7 @@ class DeviceController extends Controller
             // anything without an explicit rule — persisting null and 500ing.
             'connection_config' => $request->input('connection_config', []),
             'auto_sync' => $request->validated('auto_sync', true),
+            'commands_enabled' => $request->validated('commands_enabled', false),
             'sync_interval_minutes' => $request->validated('sync_interval_minutes', 5),
             'timezone' => $request->validated('timezone'),
             'webhook_ip_allowlist' => $request->validated('webhook_ip_allowlist'),

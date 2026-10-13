@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\Device;
 
+use App\Contracts\AcceptsDeviceCommands;
 use App\Contracts\DeviceAdapter;
+use App\Exceptions\DeviceCommandRejected;
 use App\Models\Device;
+use App\Models\DeviceCommand;
 use App\Models\Employee;
 use App\Support\DeviceSimulator;
 use Illuminate\Support\Carbon;
 
-final class MockAdapter implements DeviceAdapter
+final class MockAdapter implements AcceptsDeviceCommands, DeviceAdapter
 {
     public function connect(Device $device): bool
     {
@@ -123,5 +126,17 @@ final class MockAdapter implements DeviceAdapter
     public function pushEventUrl(Device $device, string $callbackUrl): bool
     {
         return true;
+    }
+
+    /**
+     * The simulator accepts every command, unless its connection config says
+     * `reject_commands`, which is how the refusal path is exercised.
+     */
+    public function execute(Device $device, DeviceCommand $command): void
+    {
+        $config = $device->getAttribute('connection_config');
+        if (is_array($config) && ($config['reject_commands'] ?? false)) {
+            throw new DeviceCommandRejected('The simulator was told to refuse commands.');
+        }
     }
 }
