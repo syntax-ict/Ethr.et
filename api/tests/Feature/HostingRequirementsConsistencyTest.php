@@ -140,6 +140,7 @@ it('keeps the shared-hosting env template from dropping a key', function () {
         'CORS_ALLOWED_ORIGINS',
         'CORS_ALLOWED_ORIGINS_PATTERNS',
         'CRON_LOCK_SECONDS',
+        'CRON_OPPORTUNISTIC',
         'CRON_QUEUE_MAX_SECONDS',
         'CRON_TOKEN',
         'DB_CONNECTION',
