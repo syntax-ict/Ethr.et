@@ -5479,6 +5479,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/branding/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logo branding */
+        post: operations["tenantLogo.store"];
+        /** Logo branding */
+        delete: operations["tenantLogo.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/devices": {
         parameters: {
             query?: never;
@@ -8602,6 +8620,22 @@ export interface components {
              *     rules only keep obviously wrong uploads out of that path.
              */
             photo: string;
+        };
+        /**
+         * UploadTenantLogoRequest
+         * @description An organisation's logo for its public sign-in page.
+         *
+         *     Raster only: SVG can carry script and is refused. The content check reads
+         *     the file's own bytes, not the name or the browser's claim, and
+         *     FileStorageService::uploadLogo() re-encodes what passes, so the public copy
+         *     is only pixels. 1 MB and 4096 px bound the decode on shared hosting.
+         */
+        UploadTenantLogoRequest: {
+            /**
+             * Format: binary
+             * @description Maximum file size: 1024 kilobytes.
+             */
+            logo: string;
         };
         /** UserResource */
         UserResource: {
@@ -22155,6 +22189,7 @@ export interface operations {
                         };
                         branding: {
                             logo_url: string | null;
+                            uploaded_logo_url: string;
                             theme: {
                                 primary_color?: string | null;
                                 secondary_color?: string | null;
@@ -23587,6 +23622,59 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "tenantLogo.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadTenantLogoRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        uploaded_logo_url: string | null;
+                        logo_url: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "tenantLogo.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        uploaded_logo_url: null;
+                        logo_url: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "trustedDevice.index": {

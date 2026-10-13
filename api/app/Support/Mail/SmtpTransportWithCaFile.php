@@ -9,6 +9,7 @@ use Illuminate\Mail\MailManager;
 use InvalidArgumentException;
 use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 use Symfony\Component\Mailer\Transport\Smtp\Stream\SocketStream;
+use Symfony\Component\Mailer\Transport\TransportInterface;
 
 /**
  * The framework's SMTP transport, plus one option it does not expose: a CA
@@ -24,13 +25,37 @@ use Symfony\Component\Mailer\Transport\Smtp\Stream\SocketStream;
  * handed the mailbox password to anyone on the path.
  *
  * With no CA file configured this is exactly the framework transport.
+ *
+ * Since 2026-10-14 it is wrapped in ResilientSmtpTransport: a verified
+ * connection is tried first and the pin (MAIL_PEER_FINGERPRINT) only when that
+ * fails, so the provider renewing its certificate no longer stops all mail.
  */
 final class SmtpTransportWithCaFile
 {
     /**
+     * The mailer: the verified transport, with the pinned one behind it when a
+     * pin is configured (ResilientSmtpTransport).
+     *
      * @param  array<string, mixed>  $config  the mailer's config, as MailManager passes it
      */
-    public static function create(Application $app, array $config): EsmtpTransport
+    public static function create(Application $app, array $config): TransportInterface
+    {
+        $verifiedConfig = array_diff_key($config, ['peer_sha256' => true]);
+        $verified = self::smtp($app, $verifiedConfig);
+
+        $pinned = self::pinnedFingerprint($config['peer_sha256'] ?? null) === null
+            ? null
+            : self::smtp($app, $config);
+
+        return new ResilientSmtpTransport($verified, $pinned);
+    }
+
+    /**
+     * One framework SMTP transport with this class's TLS options applied.
+     *
+     * @param  array<string, mixed>  $config
+     */
+    public static function smtp(Application $app, array $config): EsmtpTransport
     {
         $transport = (new class($app) extends MailManager
         {

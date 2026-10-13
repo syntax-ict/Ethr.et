@@ -12,6 +12,7 @@ use App\Http\Resources\KioskSessionResource;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\KioskSession;
+use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\Kiosk\KioskOfflineSeal;
 use Illuminate\Http\JsonResponse;
@@ -141,6 +142,8 @@ class KioskSessionController extends Controller
         $session->load('branch');
         $session->touchActivity();
 
+        // Every session belongs to a tenant; the trait's relation is untyped.
+        /** @var Tenant $tenant */
         $tenant = $session->tenant;
         $settings = $tenant->attendanceSetting;
 
@@ -149,7 +152,7 @@ class KioskSessionController extends Controller
             'tenant' => [
                 'name' => $tenant->name,
                 'subdomain' => $tenant->subdomain,
-                'logo_path' => $tenant->logo_path,
+                'logo_path' => $tenant->logoUrl(),
             ],
             'settings' => [
                 'pin_required' => $settings?->kiosk_pin_required ?? false,

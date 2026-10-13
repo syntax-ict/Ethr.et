@@ -292,13 +292,16 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
           <div className="space-y-6">
             <BrandingCard
               logoUrl={data.branding.logo_url}
+              uploadedLogoUrl={data.branding.uploaded_logo_url ?? null}
               theme={data.branding.theme}
             />
             <LandingCard
               landing={data.landing}
               address={data.address}
               organisationName={data.organization.name}
-              logoUrl={data.branding.logo_url}
+              logoUrl={
+                data.branding.uploaded_logo_url ?? data.branding.logo_url
+              }
               secondaryColor={data.branding.theme.secondary_color}
             />
           </div>

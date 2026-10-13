@@ -60,6 +60,7 @@ class SettingsController extends Controller
             'address' => $addresses->describe($tenant),
             'branding' => [
                 'logo_url' => $tenant->logo_path === null ? null : $tenant->logo_path,
+                'uploaded_logo_url' => $tenant->uploadedLogoUrl(),
                 'theme' => $this->brandTheme($tenant),
             ],
             'landing' => TenantLanding::present($tenant),
