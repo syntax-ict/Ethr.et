@@ -28,7 +28,7 @@ describe("<BrandingCard>", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Logo URL")).toHaveValue(
+    expect(screen.getByLabelText(/link to a logo/i)).toHaveValue(
       "https://cdn.example.et/acme.png",
     );
     expect(screen.getByLabelText("Primary color")).toHaveValue("#123456");
@@ -47,7 +47,7 @@ describe("<BrandingCard>", () => {
 
     renderWithClient(<BrandingCard logoUrl={null} theme={null} />);
 
-    fireEvent.change(screen.getByLabelText("Logo URL"), {
+    fireEvent.change(screen.getByLabelText(/link to a logo/i), {
       target: { value: "https://cdn.example.et/new.png" },
     });
     fireEvent.change(screen.getByLabelText("Primary color"), {
@@ -77,7 +77,7 @@ describe("<BrandingCard>", () => {
       <BrandingCard logoUrl="https://cdn.example.et/old.png" theme={null} />,
     );
 
-    fireEvent.change(screen.getByLabelText("Logo URL"), {
+    fireEvent.change(screen.getByLabelText(/link to a logo/i), {
       target: { value: "   " },
     });
     fireEvent.click(screen.getByRole("button", { name: /save branding/i }));
