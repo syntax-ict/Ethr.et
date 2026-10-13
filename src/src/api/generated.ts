@@ -6191,6 +6191,7 @@ export interface components {
             auto_sync: boolean;
             sync_interval_minutes: number;
             timezone: string | null;
+            webhook_ip_allowlist?: string[];
             webhook_token?: string | null;
             webhook_url?: string | null;
             last_sync_at: string | null;
@@ -7540,6 +7541,12 @@ export interface components {
             serial_number?: string | null;
             auto_sync?: boolean;
             timezone?: string | null;
+            /**
+             * @description Addresses a token-less device may post webhooks from. The model
+             *     has enforced this since 2026-08 and no request could set it
+             *     (attendance QA H10), so a token was the only usable auth.
+             */
+            webhook_ip_allowlist?: string[] | null;
             sync_interval_minutes?: number;
             connection_config: {
                 /**
@@ -8080,6 +8087,12 @@ export interface components {
             serial_number?: string | null;
             auto_sync?: boolean;
             timezone?: string | null;
+            /**
+             * @description Addresses a token-less device may post webhooks from. The model
+             *     has enforced this since 2026-08 and no request could set it
+             *     (attendance QA H10), so a token was the only usable auth.
+             */
+            webhook_ip_allowlist?: string[] | null;
             sync_interval_minutes?: number;
             connection_config?: {
                 ip?: string | null;

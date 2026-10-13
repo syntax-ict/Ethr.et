@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -722,6 +723,8 @@ function EditDeviceDialog({
     serial_number: device.serial_number ?? "",
     auto_sync: device.auto_sync,
     sync_interval_minutes: String(device.sync_interval_minutes),
+    timezone: device.timezone ?? "",
+    webhook_ip_allowlist: (device.webhook_ip_allowlist ?? []).join("\n"),
   });
 
   const set = (key: string, value: string | boolean) =>
@@ -743,6 +746,11 @@ function EditDeviceDialog({
               auto_sync: form.auto_sync,
               sync_interval_minutes:
                 parseInt(form.sync_interval_minutes, 10) || 5,
+              timezone: form.timezone || null,
+              webhook_ip_allowlist: form.webhook_ip_allowlist
+                .split(/[\s,]+/)
+                .map((ip) => ip.trim())
+                .filter(Boolean),
             });
           }}
           className="space-y-4"
@@ -779,6 +787,59 @@ function EditDeviceDialog({
               onChange={(e) => set("serial_number", e.target.value)}
               className="mt-1"
             />
+          </div>
+          <div>
+            <Label htmlFor="device-timezone">
+              {t("device_detail_page.clock_zone", "Device clock time zone")}
+            </Label>
+            <Select
+              value={form.timezone || "__org__"}
+              onValueChange={(v) => set("timezone", v === "__org__" ? "" : v)}
+            >
+              <SelectTrigger id="device-timezone" className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__org__">
+                  {t(
+                    "device_detail_page.clock_zone_org",
+                    "Same as the organisation",
+                  )}
+                </SelectItem>
+                <SelectItem value="Africa/Addis_Ababa">
+                  Africa/Addis_Ababa (EAT)
+                </SelectItem>
+                <SelectItem value="UTC">UTC</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "device_detail_page.clock_zone_hint",
+                "The zone the device's own clock is set to. Its punch times are read in it.",
+              )}
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="device-allowlist">
+              {t(
+                "device_detail_page.ip_allowlist",
+                "Webhook allowed IP addresses",
+              )}
+            </Label>
+            <Textarea
+              id="device-allowlist"
+              value={form.webhook_ip_allowlist}
+              onChange={(e) => set("webhook_ip_allowlist", e.target.value)}
+              rows={2}
+              placeholder="203.0.113.7"
+              className="mt-1 font-mono"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "device_detail_page.ip_allowlist_hint",
+                "One per line. A device without a webhook token is accepted only from these addresses.",
+              )}
+            </p>
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
