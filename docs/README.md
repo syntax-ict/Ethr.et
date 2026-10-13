@@ -21,6 +21,8 @@ Several documents in this tree describe things that are not true of the code. Th
 | [`audit/QA-CONSOLE-PRODUCTION-2026-10-11.md`](audit/QA-CONSOLE-PRODUCTION-2026-10-11.md) | **Live QA of the platform console on production**, release `v2026.10.11.3`. 23 findings (six S2), plus write tests on QA Audit, what passed, and what could not be covered. |
 | [`audit/QA-ATTENDANCE-PRODUCTION-2026-10-12.md`](audit/QA-ATTENDANCE-PRODUCTION-2026-10-12.md) | **Live QA of the attendance engine and Devices on production** (QA Audit org). 11 findings — S1: lateness/early-leave classified on UTC, not Addis time; S2: offline sync rejects every record, mock simulator in production, self-approved corrections. |
 | [`audit/QA-RELEASE-2026-10-13.md`](audit/QA-RELEASE-2026-10-13.md) | **Pre-release QA on the demo organisation** (local production rehearsal), with UI/UX/functionality ratings. 17 fixed (seven accepted-invalid inputs, demo data in UTC and in the future, template-like dashboard, mobile header), two open S4. |
+| [`ENGINEERING-ONBOARDING.md`](ENGINEERING-ONBOARDING.md) | **Start here as a new maintainer**: the map, how to run it, the rules that bite, how a change reaches production, what is and is not proven. |
+| [`operations/CUSTODY.md`](operations/CUSTODY.md) | **Who holds which credential** — names and places, never values — with a quarterly two-holder review. |
 | [`payroll/ACCOUNTANT-SIGN-OFF.md`](payroll/ACCOUNTANT-SIGN-OFF.md) | **Payroll sign-off pack** for an accountant: the tax and pension rules as coded, the order of operations, seven worked payslips the tests assert to the cent, the register/journal evidence, and the checklist to sign. Not yet signed. |
 
 Three standing caveats:
