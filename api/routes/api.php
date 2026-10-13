@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\Attendance\MyShiftController;
 use App\Http\Controllers\Api\V1\Attendance\OfflineSyncController;
 use App\Http\Controllers\Api\V1\Attendance\QrAttendanceController;
 use App\Http\Controllers\Api\V1\Auth\FindOrganisationController;
+use App\Http\Controllers\Api\V1\Auth\LandingFeedController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
 use App\Http\Controllers\Api\V1\Auth\MeController;
@@ -109,6 +110,7 @@ use App\Http\Controllers\Api\V1\SiteContentController;
 use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\User\UserController;
+use App\Http\Controllers\Api\V1\Vacancy\VacancyController;
 use App\Http\Controllers\Api\V1\Webhook\WebhookController;
 use App\Http\Middleware\BlockImpersonatedActions;
 use App\Http\Middleware\EnforceApiKeyAbilities;
@@ -193,6 +195,11 @@ Route::get('/register/check-subdomain', SubdomainCheckController::class)->middle
 // credentials-adjacent). Loaded once per page view, so it rides the general
 // `api` limiter rather than `auth`'s 10/min, which login POSTs also share.
 Route::get('/auth/tenant-context', TenantContextController::class)->middleware('throttle:api');
+
+// What the organisation chose to show the public on its sign-in page:
+// announcements and vacancies marked public, and upcoming holidays.
+Route::get('/auth/tenant-landing/feed', [LandingFeedController::class, 'index'])->middleware('throttle:api');
+Route::get('/auth/tenant-landing/vacancies/{vacancy}', [LandingFeedController::class, 'vacancy'])->middleware('throttle:api');
 
 // SSO/SAML endpoints (public — IdP redirects users here)
 Route::prefix('sso/saml/{subdomain}')->middleware('throttle:auth')->group(function () {
@@ -623,6 +630,12 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/announcements', [AnnouncementController::class, 'store']);
     Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update']);
     Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
+
+    Route::get('/vacancies', [VacancyController::class, 'index']);
+    Route::get('/vacancies/{vacancy}', [VacancyController::class, 'show']);
+    Route::post('/vacancies', [VacancyController::class, 'store']);
+    Route::put('/vacancies/{vacancy}', [VacancyController::class, 'update']);
+    Route::delete('/vacancies/{vacancy}', [VacancyController::class, 'destroy']);
 
     // Approvals
     Route::get('/approvals/pending', [ApprovalController::class, 'pending']);

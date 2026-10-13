@@ -27,6 +27,10 @@ class UpdateLandingRequest extends FormRequest
             'support_phone' => ['nullable', 'string', 'regex:/^\+?[0-9 ()-]{6,24}$/'],
             'background' => ['required', 'string', 'in:brand,gradient,image'],
             'background_image_url' => ['nullable', 'required_if:background,image', 'string', 'url:https', 'max:500'],
+            'sections' => ['sometimes', 'array:announcements,vacancies,holidays'],
+            'sections.announcements' => ['sometimes', 'boolean'],
+            'sections.vacancies' => ['sometimes', 'boolean'],
+            'sections.holidays' => ['sometimes', 'boolean'],
         ];
     }
 }
