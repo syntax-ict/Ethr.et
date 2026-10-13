@@ -115,8 +115,10 @@ final class IntegrityInspector
             $findings[] = ['branch_mismatch', 'medium', ['via' => isset($input->metadata['kiosk_branch_id']) ? 'kiosk' : 'qr']];
         }
 
-        // Offline: the phone's clock is the only witness.
-        if ($input->source === AttendanceSource::OFFLINE_MOBILE) {
+        // Offline - a phone, or a kiosk through a power cut: the device's
+        // clock is the only witness, bounded by its grant.
+        $kioskOffline = ($input->metadata['kiosk_offline'] ?? false) === true;
+        if ($input->source === AttendanceSource::OFFLINE_MOBILE || $kioskOffline) {
             $grant = $input->metadata['offline_grant'] ?? null;
             if ($grant === 'invalid' || $grant === 'missing') {
                 $findings[] = ['unverified_offline', 'high', ['grant' => $grant]];
@@ -129,7 +131,7 @@ final class IntegrityInspector
                 $findings[] = ['late_sync', 'low', ['hours' => (int) $hoursLate]];
             }
 
-            if (($settings->mobile_photo_required ?? false) && $input->photoPath === null) {
+            if (! $kioskOffline && ($settings->mobile_photo_required ?? false) && $input->photoPath === null) {
                 $findings[] = ['photo_missing', 'medium', []];
             }
         }
