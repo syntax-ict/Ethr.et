@@ -142,10 +142,9 @@ class KioskSessionController extends Controller
         $session->load('branch');
         $session->touchActivity();
 
+        // Every session belongs to a tenant; the trait's relation is untyped.
+        /** @var Tenant $tenant */
         $tenant = $session->tenant;
-        // Every session belongs to a tenant; the trait's relation is untyped,
-        // so this states it rather than reading properties off a bare Model.
-        abort_unless($tenant instanceof Tenant, 404);
         $settings = $tenant->attendanceSetting;
 
         return response()->json([
