@@ -9,8 +9,6 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
   BarChart,
   Bar,
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -118,52 +116,34 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
             {data.workforce_growth && (
               <ChartCard title={t("analytics_page.hires_over_time")}>
                 <ResponsiveContainer width="100%" height={260}>
-                  <AreaChart
+                  {/* Hires are whole numbers per month: bars. As an area
+                      chart a month with no figure broke the line, and the
+                      chart read as scattered dots (QA 2026-10-13). */}
+                  <BarChart
                     data={data.workforce_growth}
                     margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
                   >
-                    <defs>
-                      <linearGradient
-                        id="analytics-hires"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor={seriesColor(1)}
-                          stopOpacity={0.28}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor={seriesColor(1)}
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
                     <CartesianGrid {...gridProps} />
                     <XAxis
                       dataKey="month"
                       {...axisProps}
-                      tickFormatter={(value) => monthKeyLabel(value, locale)}
+                      tickFormatter={(value) =>
+                        monthKeyLabel(value, locale, "short")
+                      }
                     />
                     <YAxis {...axisProps} allowDecimals={false} width={36} />
                     <Tooltip
                       {...lineTooltipProps}
                       labelFormatter={(label) => monthKeyLabel(label, locale)}
                     />
-                    <Area
-                      type="monotone"
+                    <Bar
                       dataKey="hires"
                       name={t("analytics_page.hires", "Hires")}
-                      stroke={seriesColor(1)}
-                      strokeWidth={2}
-                      fill="url(#analytics-hires)"
-                      dot={{ r: 3, strokeWidth: 0, fill: seriesColor(1) }}
-                      activeDot={{ r: 5, strokeWidth: 0 }}
+                      fill={seriesColor(1)}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={36}
                     />
-                  </AreaChart>
+                  </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
             )}

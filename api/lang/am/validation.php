@@ -24,4 +24,6 @@ return [
     'custom_domain_txt_missing' => 'No TXT record :name with the value :value was found.',
     'custom_domain_cname_missing' => ':domain is not a CNAME for :target.',
     'custom_domain_none' => 'This organisation has no custom domain to verify.',
+    'employee_minimum_age' => 'ሰራተኛው በቅጥር ቀኑ ቢያንስ 15 ዓመት መሆን አለበት።',
+    'holiday_duplicate' => 'ይህ በዓል በዚያ ቀን አስቀድሞ በቀን መቁጠሪያው ላይ አለ።',
 ];

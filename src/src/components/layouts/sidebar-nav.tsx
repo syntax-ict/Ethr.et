@@ -242,7 +242,11 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
         entries: [
           {
             kind: "leaf",
-            label: t("nav.my_attendance", "My Attendance"),
+            // /attendance lists everyone's records for whoever may see them
+            // all; calling it "My Attendance" there misnamed the page.
+            label: can.viewAllAttendance
+              ? t("nav.attendance", "Attendance")
+              : t("nav.my_attendance", "My Attendance"),
             href: "/attendance",
             icon: Clock,
             show: true,

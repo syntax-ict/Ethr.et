@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Holiday;
 
 use App\Models\Branch;
+use App\Models\Holiday;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -43,6 +44,15 @@ class StoreHolidayRequest extends FormRequest
                 $validator->errors()->add('branch_public_id', __('validation.exists', [
                     'attribute' => 'branch public id',
                 ]));
+            }
+
+            // The same holiday on the same day, twice, counts the day off
+            // twice in reports and confuses the calendar (QA 2026-10-13).
+            $name = $this->input('name');
+            $date = $this->input('date');
+            if (is_string($name) && is_string($date) && strtotime($date) !== false
+                && Holiday::query()->whereDate('date', $date)->where('name', $name)->exists()) {
+                $validator->errors()->add('name', __('validation.holiday_duplicate'));
             }
         });
     }

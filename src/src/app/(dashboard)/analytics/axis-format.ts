@@ -41,13 +41,22 @@ export function birrTooltip(value: unknown): string {
  * calendar — one Gregorian month spans two Ethiopian ones, and naming either
  * would misstate the bucket. Payroll periods read the same way ("July 2026").
  * Anything else, such as a payroll period label, passes through unchanged.
+ *
+ * `short` is for axis ticks: six "September 2026"s do not fit under a half-
+ * width chart, so Recharts silently dropped some, and a month with no hires
+ * looked like a month missing from the data (QA 2026-10-13). Tooltips keep
+ * the long form.
  */
-export function monthKeyLabel(value: unknown, locale = "en"): string {
+export function monthKeyLabel(
+  value: unknown,
+  locale = "en",
+  width: "long" | "short" = "long",
+): string {
   const match = MONTH_KEY.exec(String(value));
   if (!match) return String(value);
 
   return new Intl.DateTimeFormat(locale, {
-    month: "long",
+    month: width,
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1)));

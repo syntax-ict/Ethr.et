@@ -84,7 +84,9 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                   <XAxis
                     dataKey="month"
                     {...axisProps}
-                    tickFormatter={(value) => monthKeyLabel(value, locale)}
+                    tickFormatter={(value) =>
+                      monthKeyLabel(value, locale, "short")
+                    }
                   />
                   <YAxis {...axisProps} allowDecimals={false} width={40} />
                   <Tooltip

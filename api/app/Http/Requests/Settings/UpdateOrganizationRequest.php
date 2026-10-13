@@ -19,7 +19,7 @@ class UpdateOrganizationRequest extends FormRequest
         return [
             'name' => ['sometimes', 'string', 'min:2', 'max:255'],
             'type' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'timezone' => ['sometimes', 'string', 'max:50'],
+            'timezone' => ['sometimes', 'string', 'max:50', 'timezone:all'],
             'locale' => ['sometimes', 'string', 'in:en,am,om,ti,so'],
         ];
     }
