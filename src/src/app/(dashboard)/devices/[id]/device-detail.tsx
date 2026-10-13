@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { RoleGate } from "@/components/shared/role-gate";
+import { DeviceCommandsTab } from "@/features/devices/components/device-commands-tab";
 import {
   useDeleteDevice,
   useDevice,
@@ -387,6 +388,9 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
             <TabsTrigger value="events">
               {t("device_detail_page.attendance_events")}
             </TabsTrigger>
+            <TabsTrigger value="commands">
+              {t("device_commands.title")}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="syncs" className="mt-4">
@@ -635,6 +639,10 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="commands" className="mt-4">
+            <DeviceCommandsTab device={device} canUpdate={canUpdate} />
+          </TabsContent>
         </Tabs>
 
         {/* Edit Dialog */}
@@ -722,6 +730,7 @@ function EditDeviceDialog({
     location_description: device.location_description ?? "",
     serial_number: device.serial_number ?? "",
     auto_sync: device.auto_sync,
+    commands_enabled: device.commands_enabled,
     sync_interval_minutes: String(device.sync_interval_minutes),
     timezone: device.timezone ?? "",
     webhook_ip_allowlist: (device.webhook_ip_allowlist ?? []).join("\n"),
@@ -744,6 +753,9 @@ function EditDeviceDialog({
               location_description: form.location_description || null,
               serial_number: form.serial_number || null,
               auto_sync: form.auto_sync,
+              ...(device.accepts_commands && {
+                commands_enabled: form.commands_enabled,
+              }),
               sync_interval_minutes:
                 parseInt(form.sync_interval_minutes, 10) || 5,
               timezone: form.timezone || null,
@@ -856,6 +868,23 @@ function EditDeviceDialog({
               onCheckedChange={(v) => set("auto_sync", v)}
             />
           </div>
+          {device.accepts_commands && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">
+                  {t("device_commands.enable")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t("device_commands.enable_hint")}
+                </p>
+              </div>
+              <Switch
+                aria-label={t("device_commands.enable")}
+                checked={form.commands_enabled}
+                onCheckedChange={(v) => set("commands_enabled", v)}
+              />
+            </div>
+          )}
           {form.auto_sync && (
             <div>
               <Label htmlFor="sync-interval">

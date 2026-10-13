@@ -1806,6 +1806,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{employee}/enrol-on-devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create enrol on device */
+        post: operations["deviceCommand.enrolEmployee"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/dashboard": {
         parameters: {
             query?: never;
@@ -1953,6 +1970,57 @@ export interface paths {
         get: operations["deviceEnrollment.index"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/{device}/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List commands */
+        get: operations["deviceCommand.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/{device}/commands/set-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set time commands */
+        post: operations["deviceCommand.setTime"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/{device}/commands/send-staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send staff commands */
+        post: operations["deviceCommand.sendStaff"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6310,6 +6378,22 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** DeviceCommandResource */
+        DeviceCommandResource: {
+            public_id: string;
+            type: string;
+            status: string;
+            device_user_id: string | null;
+            employee?: {
+                public_id: string;
+                name: string;
+            } | null;
+            attempts: number;
+            last_error: string | null;
+            created_at: string | null;
+            sent_at: string | null;
+            completed_at: string | null;
+        };
         /** DeviceResource */
         DeviceResource: {
             public_id: string;
@@ -6319,6 +6403,8 @@ export interface components {
             adapter_type: string;
             status: string;
             auto_sync: boolean;
+            commands_enabled: boolean;
+            accepts_commands: boolean;
             sync_interval_minutes: number;
             timezone: string | null;
             webhook_ip_allowlist?: string[];
@@ -7674,6 +7760,7 @@ export interface components {
             branch_public_id: string;
             serial_number?: string | null;
             auto_sync?: boolean;
+            commands_enabled?: boolean;
             timezone?: string | null;
             /**
              * @description Addresses a token-less device may post webhooks from. The model
@@ -8220,6 +8307,7 @@ export interface components {
             branch_public_id?: string;
             serial_number?: string | null;
             auto_sync?: boolean;
+            commands_enabled?: boolean;
             timezone?: string | null;
             /**
              * @description Addresses a token-less device may post webhooks from. The model
@@ -13468,6 +13556,33 @@ export interface operations {
             };
         };
     };
+    "deviceCommand.enrolEmployee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        devices: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "device.dashboard": {
         parameters: {
             query?: never;
@@ -13808,6 +13923,125 @@ export interface operations {
                             ambiguous: string;
                             new: string;
                         };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deviceCommand.index": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `DeviceCommandResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["DeviceCommandResource"] & {
+                            employee: {
+                                public_id: string;
+                                name: string;
+                            } | null;
+                        })[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deviceCommand.setTime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `DeviceCommandResource` */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceCommandResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deviceCommand.sendStaff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        queued: number;
+                        skipped: number;
                     };
                 };
             };
