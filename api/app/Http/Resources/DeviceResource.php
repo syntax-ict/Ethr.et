@@ -23,6 +23,7 @@ class DeviceResource extends JsonResource
             'status' => $this->status,
             'auto_sync' => $this->auto_sync,
             'sync_interval_minutes' => $this->sync_interval_minutes,
+            'timezone' => $this->timezone,
             'webhook_token' => $this->when(
                 $request->user()?->isAtLeast(UserRole::TENANT_ADMIN),
                 $this->webhook_token,

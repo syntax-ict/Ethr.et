@@ -22,6 +22,7 @@ class MobileCheckInRequest extends FormRequest
             'idempotency_key' => ['required', 'string', 'max:64'],
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'accuracy' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             // Selfie captured on the device, sent inline as a data URL. The
             // stored object key comes back from FileStorageService — clients
             // never supply `photo_path` themselves.

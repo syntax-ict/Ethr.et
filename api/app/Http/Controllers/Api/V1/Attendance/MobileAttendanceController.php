@@ -73,7 +73,10 @@ class MobileAttendanceController extends Controller
                 longitude: $request->validated('longitude'),
                 photoPath: $this->storeSelfie($request),
                 ipAddress: $request->ip(),
-                metadata: $auto ? ['auto_punch' => true] : [],
+                metadata: array_filter([
+                    'auto_punch' => $auto ?: null,
+                    'accuracy' => $request->validated('accuracy'),
+                ], fn ($v) => $v !== null),
             ));
         } catch (\RuntimeException $e) {
             return response()->json([
@@ -121,6 +124,7 @@ class MobileAttendanceController extends Controller
             longitude: $request->validated('longitude'),
             photoPath: $this->storeSelfie($request),
             ipAddress: $request->ip(),
+            metadata: array_filter(['accuracy' => $request->validated('accuracy')], fn ($v) => $v !== null),
         ));
 
         $result->record->load('employee', 'shift');

@@ -6,6 +6,8 @@ namespace App\Services\Attendance;
 
 use App\Enums\AttendanceStatus;
 use App\Models\AttendanceRecord;
+use App\Models\Tenant;
+use App\Support\TenantTime;
 use Illuminate\Support\Collection;
 
 final class AttendanceIntelligence
@@ -47,17 +49,21 @@ final class AttendanceIntelligence
     public function getLateArrivals(int $tenantId, ?string $date = null): Collection
     {
         $date ??= now()->format('Y-m-d');
+        $zone = TenantTime::zone(Tenant::query()->find($tenantId));
 
         return AttendanceRecord::query()
             ->where('status', AttendanceStatus::LATE)
             ->whereDate('date', $date)
             ->with('employee', 'shift')
             ->get()
-            ->map(function (AttendanceRecord $record) {
+            ->map(function (AttendanceRecord $record) use ($zone) {
                 $minutesLate = 0;
                 if ($record->shift && $record->check_in) {
-                    $shiftStart = $record->check_in->copy()->setTimeFromTimeString($record->shift->start_time);
-                    $minutesLate = (int) $shiftStart->diffInMinutes($record->check_in);
+                    // The shift starts at a wall-clock time in the tenant's
+                    // zone; set on the UTC check-in it was three hours off.
+                    $local = $record->check_in->copy()->setTimezone($zone);
+                    $shiftStart = $local->copy()->setTimeFromTimeString($record->shift->start_time);
+                    $minutesLate = (int) max(0, $shiftStart->diffInMinutes($local, false));
                 }
 
                 return [

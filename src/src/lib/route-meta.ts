@@ -122,6 +122,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Conflicts",
     description: "Review attendance records that disagree about the same day",
   },
+  "/attendance/integrity": {
+    section: "Operations",
+    parent: { label: "Attendance", href: "/attendance" },
+    label: "Integrity",
+    description: "Review punches that could not be trusted on their face",
+  },
   "/attendance/overtime": {
     section: "Operations",
     parent: { label: "Attendance", href: "/attendance" },

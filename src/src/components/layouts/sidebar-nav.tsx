@@ -33,6 +33,7 @@ import {
   Landmark,
   Layers,
   GitMerge,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -351,6 +352,13 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
                 label: t("nav.conflicts", "Conflicts"),
                 href: "/attendance/conflicts",
                 icon: GitMerge,
+                show: can.viewAttendanceConflicts,
+              },
+              {
+                kind: "leaf",
+                label: t("nav.integrity", "Integrity"),
+                href: "/attendance/integrity",
+                icon: ShieldAlert,
                 show: can.viewAttendanceConflicts,
               },
               {
