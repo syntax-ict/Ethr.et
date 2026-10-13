@@ -72,24 +72,49 @@ final class HikvisionAdapter implements DeviceAdapter
         }
     }
 
+    /** Pages per pull: 10 × 100 events. The job pulls again from the last timestamp. */
+    private const MAX_PAGES = 10;
+
+    private const PAGE_SIZE = 100;
+
+    /**
+     * Every access event since `$since` that names an enrolled person,
+     * paged with `searchResultPosition` while the device answers `MORE`.
+     * The search used to ask for one minor type (75, face pass) and one page,
+     * so card and fingerprint punches were never pulled and a busy morning
+     * stopped at 100.
+     */
     public function pullEvents(Device $device, ?string $since = null): array
     {
-        $searchBody = $this->buildEventSearchBody($since);
-        $response = $this->readDevice('Hikvision', fn () => $this->request(
-            $device, 'POST', '/ISAPI/AccessControl/AcsEvent?format=json', $searchBody,
-        ));
-
-        $data = $response->json();
+        $searchId = (string) Str::uuid();
         $events = [];
 
-        // No InfoList is how ISAPI says nothing matched.
-        foreach ($data['AcsEvent']['InfoList'] ?? [] as $event) {
-            $events[] = [
-                'employee_badge' => (string) ($event['employeeNoString'] ?? $event['cardNo'] ?? ''),
-                'timestamp' => $event['time'] ?? '',
-                'type' => $this->mapEventType($event['eventType'] ?? 0),
-                'raw' => $event,
-            ];
+        for ($page = 0; $page < self::MAX_PAGES; $page++) {
+            $searchBody = $this->buildEventSearchBody($since, $searchId, $page * self::PAGE_SIZE);
+            $response = $this->readDevice('Hikvision', fn () => $this->request(
+                $device, 'POST', '/ISAPI/AccessControl/AcsEvent?format=json', $searchBody,
+            ));
+
+            $data = $response->json('AcsEvent') ?? [];
+
+            // No InfoList is how ISAPI says nothing matched.
+            foreach ($data['InfoList'] ?? [] as $event) {
+                $badge = is_array($event) ? HikvisionEvent::badge($event) : null;
+                if ($badge === null) {
+                    continue;
+                }
+
+                $events[] = [
+                    'employee_badge' => $badge,
+                    'timestamp' => $event['time'] ?? '',
+                    'type' => HikvisionEvent::direction($event),
+                    'raw' => $event,
+                ];
+            }
+
+            if (($data['responseStatusStrg'] ?? 'OK') !== 'MORE') {
+                break;
+            }
         }
 
         return $events;
@@ -173,15 +198,20 @@ final class HikvisionAdapter implements DeviceAdapter
         return $request->$method("{$baseUrl}{$path}");
     }
 
-    private function buildEventSearchBody(?string $since): array
+    /**
+     * Major 5 is "event" (authentication and door activity); minor 0 asks for
+     * every kind within it, and pullEvents() keeps only events that name an
+     * enrolled person.
+     */
+    private function buildEventSearchBody(?string $since, string $searchId, int $position): array
     {
         $searchBody = [
             'AcsEventCond' => [
-                'searchID' => (string) Str::uuid(),
-                'searchResultPosition' => 0,
-                'maxResults' => 100,
+                'searchID' => $searchId,
+                'searchResultPosition' => $position,
+                'maxResults' => self::PAGE_SIZE,
                 'major' => 5,
-                'minor' => 75,
+                'minor' => 0,
             ],
         ];
 
@@ -191,15 +221,6 @@ final class HikvisionAdapter implements DeviceAdapter
         }
 
         return $searchBody;
-    }
-
-    private function mapEventType(int $eventType): string
-    {
-        return match ($eventType) {
-            1 => 'check_in',
-            2 => 'check_out',
-            default => 'check_in',
-        };
     }
 
     private function parseXmlField(string $xml, string $field): ?string

@@ -60,6 +60,34 @@ and ZKTeco webhooks, and offline sync. Badges resolve to employees through
 [identity resolution](IDENTITY_RESOLUTION.md); unknown/ambiguous badges are
 logged for review, never guessed.
 
+**Arrival or departure (2026-10-14).** Each vendor's own field decides, the same
+way on push and pull:
+
+| vendor | field | in | out | neither |
+|---|---|---|---|---|
+| Hikvision | `attendanceStatus` (`HikvisionEvent`) | checkIn, breakIn, overtimeIn | checkOut, breakOut, overtimeOut | `undefined` / absent → `auto` |
+| ZKTeco | punch state (`ZktecoAdapter::directionFor`) | 0, 3, 4 | 1, 2, 5 | absent, 255 → `auto` |
+| Suprema | event code | — | 0x2000–0x2FFF | everything else → in |
+| Generic | `type` vs `check_in_values` | listed values | any other value | empty → `auto` |
+
+`auto` lets the engine decide: it closes the day's open record (the one a check-out
+would close) or, with none open, checks in; a second scan within 5 minutes of the
+check-in is a duplicate, not a departure. Until this date the Hikvision webhook
+recorded **every** event as a check-in and the pull read `eventType`, a field these
+events do not carry — an evening scan opened a second record and a conflict.
+
+Hikvision events count only when they name an enrolled person (`employeeNoString`):
+heartbeats answer `ignored`, and an unregistered card (`cardNo` alone) answers
+`no_badge`. Multipart notifications (`event_log` form field) are read like JSON, with
+the time taken from the envelope's `dateTime`. The pull searches every minor type
+of major 5 and pages with `searchResultPosition` (100 a page, 10 pages a pull);
+it asked for face passes only, one page, until this date. Webhooks and pulls
+resolve badges through the same `IdentityResolver`.
+
+**Not yet proven on hardware.** These shapes follow the vendors' published
+formats; no real terminal has been connected. The field test (plan O1) replays
+captured payloads against these rules before any customer depends on them.
+
 ## Discovery endpoint
 
 `GET /api/v1/devices/{device}/enrollments` — device roster with a suggested
