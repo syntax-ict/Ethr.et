@@ -18,6 +18,8 @@ use Illuminate\Support\Carbon;
  * @property-read Branch|null $branch
  * @property Carbon|null $last_sync_at
  * @property bool $commands_enabled
+ * @property int|null $clock_offset_seconds
+ * @property Carbon|null $clock_checked_at
  */
 class Device extends Model
 {
@@ -57,6 +59,8 @@ class Device extends Model
             'last_sync_at' => 'datetime',
             'auto_sync' => 'boolean',
             'commands_enabled' => 'boolean',
+            'clock_offset_seconds' => 'integer',
+            'clock_checked_at' => 'datetime',
             'sync_interval_minutes' => 'integer',
         ];
     }

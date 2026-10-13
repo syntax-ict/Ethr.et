@@ -13,6 +13,7 @@ final class DeviceManager
     private array $adapters = [
         'hikvision' => HikvisionAdapter::class,
         'zkteco' => ZktecoAdapter::class,
+        'zkteco_adms' => ZktecoAdmsAdapter::class,
         'suprema' => SupremaAdapter::class,
         'generic' => GenericHttpAdapter::class,
         'mock' => MockAdapter::class,

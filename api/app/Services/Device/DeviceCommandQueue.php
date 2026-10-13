@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Device;
 
 use App\Contracts\AcceptsDeviceCommands;
+use App\Contracts\CollectsDeviceCommands;
 use App\Enums\DeviceCommandStatus;
 use App\Enums\DeviceCommandType;
 use App\Enums\EmployeeStatus;
@@ -32,6 +33,9 @@ final class DeviceCommandQueue
     /** A device that keeps refusing a command is not asked a fourth time. */
     public const MAX_ATTEMPTS = 3;
 
+    /** A command a collecting device took and never confirmed is offered again after this. */
+    public const RESEND_AFTER_MINUTES = 30;
+
     /** Clocks are set at least this often on devices that take commands. */
     public const CLOCK_EVERY_HOURS = 24;
 
@@ -44,7 +48,9 @@ final class DeviceCommandQueue
     public function supports(Device $device): bool
     {
         try {
-            return $this->devices->adapter($device) instanceof AcceptsDeviceCommands;
+            $adapter = $this->devices->adapter($device);
+
+            return $adapter instanceof AcceptsDeviceCommands || $adapter instanceof CollectsDeviceCommands;
         } catch (\InvalidArgumentException) {
             return false;
         }
@@ -53,7 +59,8 @@ final class DeviceCommandQueue
     /** Whether ETHR itself delivers this device's commands, by calling it. */
     public function delivers(Device $device): bool
     {
-        return $device->commands_enabled && $this->supports($device);
+        return $device->commands_enabled
+            && $this->devices->adapter($device) instanceof AcceptsDeviceCommands;
     }
 
     /**
@@ -204,6 +211,82 @@ final class DeviceCommandQueue
     }
 
     /**
+     * Hand a device that collects its commands (ZKTeco ADMS) the ones waiting
+     * for it, oldest first, and mark them sent. A command sent and never
+     * confirmed is offered again after RESEND_AFTER_MINUTES, and given up on
+     * after MAX_ATTEMPTS sends.
+     *
+     * @return Collection<int, DeviceCommand>
+     */
+    public function collect(Device $device, int $limit = 20): Collection
+    {
+        if (! $device->commands_enabled) {
+            return new Collection;
+        }
+
+        $stale = now()->subMinutes(self::RESEND_AFTER_MINUTES);
+
+        $device->commands()
+            ->where('status', DeviceCommandStatus::SENT->value)
+            ->where('sent_at', '<', $stale)
+            ->where('attempts', '>=', self::MAX_ATTEMPTS)
+            ->update([
+                'status' => DeviceCommandStatus::FAILED->value,
+                'last_error' => 'The device never confirmed it.',
+                'completed_at' => now(),
+            ]);
+
+        $commands = $device->commands()
+            ->where(fn ($q) => $q
+                ->where('status', DeviceCommandStatus::PENDING->value)
+                ->orWhere(fn ($q) => $q
+                    ->where('status', DeviceCommandStatus::SENT->value)
+                    ->where('sent_at', '<', $stale)))
+            ->orderBy('id')
+            ->limit($limit)
+            ->get();
+
+        foreach ($commands as $command) {
+            $command->update([
+                'status' => DeviceCommandStatus::SENT,
+                'attempts' => $command->attempts + 1,
+                'sent_at' => now(),
+            ]);
+        }
+
+        return $commands;
+    }
+
+    /**
+     * What a collecting device reported for a command it was sent. 0 is
+     * success; anything else is the device's own error code.
+     */
+    public function acknowledge(Device $device, int $commandId, int $code): void
+    {
+        $command = $device->commands()
+            ->whereKey($commandId)
+            ->where('status', DeviceCommandStatus::SENT->value)
+            ->first();
+
+        if ($command === null) {
+            return;
+        }
+
+        if ($code === 0) {
+            $command->update(['status' => DeviceCommandStatus::DONE, 'last_error' => null, 'completed_at' => now()]);
+
+            return;
+        }
+
+        $gaveUp = $command->attempts >= self::MAX_ATTEMPTS;
+        $command->update([
+            'status' => $gaveUp ? DeviceCommandStatus::FAILED : DeviceCommandStatus::PENDING,
+            'last_error' => "The device answered with error {$code}.",
+            'completed_at' => $gaveUp ? now() : null,
+        ]);
+    }
+
+    /**
      * The id the device knows this person by: the one already linked to this
      * device, else the badge number. Null when there is neither, so nothing
      * can be sent.
@@ -277,7 +360,7 @@ final class DeviceCommandQueue
         return $command;
     }
 
-    private function setTimeIfDue(Device $device): void
+    public function setTimeIfDue(Device $device): void
     {
         $recent = $device->commands()
             ->where('type', DeviceCommandType::SET_TIME->value)

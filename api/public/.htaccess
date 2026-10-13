@@ -92,7 +92,10 @@
     # document root alongside the frontend build, this single rule handles
     # BOTH the API and Laravel's own static assets (favicon, robots.txt)
     # correctly — a real file always wins over the rewrite.
-    RewriteCond %{REQUEST_URI} ^/(api|sanctum)(/|$) [NC]
+    #
+    # /iclock is ZKTeco ADMS (2026-10-14): the terminal's firmware fixes that
+    # path, so it cannot live under /api. AdmsController answers it.
+    RewriteCond %{REQUEST_URI} ^/(api|sanctum|iclock)(/|$) [NC]
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
