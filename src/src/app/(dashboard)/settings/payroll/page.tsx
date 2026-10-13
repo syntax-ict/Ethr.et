@@ -5,6 +5,7 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { AllowanceRulesCard } from "@/features/payroll/components/allowance-rules-card";
 import { OvertimeRatesCard } from "@/features/payroll/components/overtime-rates-card";
 import { PayrollScheduleCard } from "@/features/payroll/components/payroll-schedule-card";
+import { StatutoryDetailsCard } from "@/features/payroll/components/statutory-details-card";
 import { TaxBracketsCard } from "@/features/payroll/components/tax-brackets-card";
 import { useT } from "@/lib/i18n/useT";
 
@@ -23,6 +24,7 @@ export default function PayrollConfigPage() {
         />
 
         <PayrollScheduleCard />
+        <StatutoryDetailsCard />
         <AllowanceRulesCard />
         <TaxBracketsCard />
         <OvertimeRatesCard />

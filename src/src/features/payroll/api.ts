@@ -532,3 +532,33 @@ export async function downloadPayslip(entryPublicId: string): Promise<void> {
   );
   saveBlob(`payslip-${entryPublicId}.pdf`, data);
 }
+
+// ── Statutory schedules ──────────────────────────────────────────────────────
+
+export type StatutorySchedule = "income-tax" | "pension";
+export type StatutoryCheck =
+  operations["payroll.statutory"]["responses"][200]["content"]["application/json"];
+
+/** The schedule's totals and who is missing a TIN, without the TINs. */
+export async function fetchStatutoryCheck(
+  publicId: string,
+  schedule: StatutorySchedule,
+): Promise<StatutoryCheck> {
+  return (
+    await apiClient.get(`/payroll/runs/${publicId}/statutory/${schedule}`)
+  ).data;
+}
+
+/** The schedule file, with every TIN — the server audits each download. */
+export async function downloadStatutorySchedule(
+  publicId: string,
+  schedule: StatutorySchedule,
+  format: "csv" | "pdf",
+  filename: string,
+): Promise<void> {
+  const { data } = await apiClient.get(
+    `/payroll/runs/${publicId}/statutory/${schedule}/download`,
+    { params: { format }, responseType: "blob" },
+  );
+  saveBlob(filename, data);
+}

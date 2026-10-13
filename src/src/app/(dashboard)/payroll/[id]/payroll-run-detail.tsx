@@ -9,6 +9,7 @@ import {
   CheckCircle,
   Loader2,
   FileSpreadsheet,
+  FileText,
   Landmark,
   BookOpen,
   Ban,
@@ -34,6 +35,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -45,7 +48,10 @@ import { SimpleTable } from "@/components/shared/simple-table";
 import {
   bankTransferCsv,
   fetchBankTransferExport,
+  downloadStatutorySchedule,
   fetchPayrollRegister,
+  fetchStatutoryCheck,
+  type StatutorySchedule,
   usePayrollRun,
   useApprovePayroll,
   useVoidPayroll,
@@ -153,6 +159,38 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   // the run's entries, without overtime, allowances, taxable income, the
   // deduction breakdown or a totals row — not a file an accountant could
   // reconcile (payroll proof pack, 2026-10-14).
+  // The monthly filings (StatutorySchedules on the server). The check runs
+  // first so a missing employer TIN or employee TIN is said before the file
+  // is handed over, not discovered at the tax office.
+  async function exportStatutory(
+    schedule: StatutorySchedule,
+    format: "csv" | "pdf",
+  ) {
+    if (!run) return;
+    try {
+      const check = await fetchStatutoryCheck(run.public_id, schedule);
+      if (!check.header.employer_tin) {
+        toast.warning(t("statutory.no_employer_tin"));
+      }
+      if (check.missing_tin.length > 0) {
+        toast.warning(
+          t("statutory.missing_tin", undefined, {
+            count: check.missing_tin.length,
+            names: check.missing_tin.slice(0, 3).join(", "),
+          }),
+        );
+      }
+      await downloadStatutorySchedule(
+        run.public_id,
+        schedule,
+        format,
+        `${schedule}-schedule-${run.period_label?.replace(/\s/g, "-")}.${format}`,
+      );
+    } catch (err) {
+      toast.error(apiErrorDetail(err) ?? t("statutory.failed"));
+    }
+  }
+
   async function exportPayrollRegister() {
     if (!run) return;
     try {
@@ -343,6 +381,21 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
                 <BookOpen className="mr-2 h-4 w-4" />
                 {t("payroll_detail_page.export_journal")}
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                {t("statutory.menu_label")}
+              </DropdownMenuLabel>
+              {(["income-tax", "pension"] as const).map((schedule) =>
+                (["csv", "pdf"] as const).map((format) => (
+                  <DropdownMenuItem
+                    key={`${schedule}-${format}`}
+                    onClick={() => exportStatutory(schedule, format)}
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    {t(`statutory.${schedule}_${format}`)}
+                  </DropdownMenuItem>
+                )),
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

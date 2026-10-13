@@ -4090,6 +4090,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll/runs/{payrollRun}/statutory/{schedule}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What a statutory schedule will contain, without the TINs: its header,
+         *     totals, row count and who is missing a TIN — the check before filing.
+         *     The TINs themselves are only in the downloads, which are audited
+         */
+        get: operations["payroll.statutory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/runs/{payrollRun}/statutory/{schedule}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The schedule as a file: `?format=csv` (default) or `pdf`. Carries every
+         *     employee's TIN, so each download is audited
+         */
+        get: operations["payroll.downloadStatutory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/payslips/my": {
         parameters: {
             query?: never;
@@ -8601,6 +8642,10 @@ export interface components {
                 pagumen_proration_strategy?: "full_month" | "daily_rate";
                 retirement_age?: number;
                 run_day?: number;
+                employer_tin?: string | null;
+                tax_center?: string | null;
+                /** @enum {string} */
+                pension_scheme?: "private" | "public";
                 working_days?: number[];
                 /** @enum {string} */
                 mfa_policy?: "disabled" | "optional" | "required";
@@ -20102,6 +20147,79 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "payroll.statutory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+                schedule: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schedule: string;
+                        header: {
+                            /** @enum {string} */
+                            title: "Employment Income Tax Schedule" | "Pension Contribution Schedule";
+                            employer_name: string;
+                            employer_tin: string | null;
+                            tax_center: string | null;
+                            scheme: string;
+                            period: string;
+                            /** @enum {string} */
+                            status: "Approved" | "NOT APPROVED — draft figures";
+                            approved: boolean;
+                            notice: string;
+                            generated_at: string;
+                        };
+                        employees: number;
+                        totals: string;
+                        missing_tin: unknown[] | string[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "payroll.downloadStatutory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+                schedule: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                    "text/csv": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "payroll.myPayslips": {
         parameters: {
             query?: {
@@ -22475,6 +22593,11 @@ export interface operations {
                              *     brackets and Pagumen strategy above.
                              */
                             retirement_age: number;
+                            /** @description The header of the statutory schedules (StatutorySchedules). */
+                            employer_tin: string | null;
+                            tax_center: string | null;
+                            /** @enum {string} */
+                            pension_scheme: "public" | "private";
                         };
                         security: {
                             mfa_policy: string;
