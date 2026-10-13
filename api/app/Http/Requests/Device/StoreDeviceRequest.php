@@ -31,6 +31,11 @@ class StoreDeviceRequest extends FormRequest
             'serial_number' => ['nullable', 'string', 'max:255'],
             'auto_sync' => ['sometimes', 'boolean'],
             'timezone' => ['nullable', 'string', 'timezone:all'],
+            // Addresses a token-less device may post webhooks from. The model
+            // has enforced this since 2026-08 and no request could set it
+            // (attendance QA H10), so a token was the only usable auth.
+            'webhook_ip_allowlist' => ['nullable', 'array', 'max:20'],
+            'webhook_ip_allowlist.*' => ['string', 'ip'],
             'sync_interval_minutes' => ['sometimes', 'integer', 'min:1', 'max:1440'],
             'connection_config' => ['required', 'array', new DeviceConnectionConfig($this->input('adapter_type'))],
             // IP-based vendors need ip/port; the generic HTTP adapter is URL-based

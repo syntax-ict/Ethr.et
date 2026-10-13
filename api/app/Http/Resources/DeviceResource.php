@@ -24,6 +24,10 @@ class DeviceResource extends JsonResource
             'auto_sync' => $this->auto_sync,
             'sync_interval_minutes' => $this->sync_interval_minutes,
             'timezone' => $this->timezone,
+            'webhook_ip_allowlist' => $this->when(
+                $request->user()?->isAtLeast(UserRole::TENANT_ADMIN),
+                fn () => $this->webhook_ip_allowlist ?? [],
+            ),
             'webhook_token' => $this->when(
                 $request->user()?->isAtLeast(UserRole::TENANT_ADMIN),
                 $this->webhook_token,
