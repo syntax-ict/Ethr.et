@@ -36,6 +36,9 @@ test('every api route passes through the global limiter', function () {
         ->and($outsideGlobal->map(fn ($route) => $route->uri())->values()->all())->toBe([
             'api/v1/maintenance/key',
             'api/v1/maintenance/create-admin',
+            'api/v1/maintenance/backups',
+            'api/v1/maintenance/backup',
+            'api/v1/maintenance/restore',
             'api/v1/maintenance/{task}',
         ]);
 });

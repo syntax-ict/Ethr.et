@@ -52,6 +52,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->group(function (): void {
                     Route::post('/key', [MaintenanceController::class, 'key']);
                     Route::post('/create-admin', [MaintenanceController::class, 'createAdmin']);
+                    Route::post('/backups', [MaintenanceController::class, 'backups']);
+                    Route::post('/backup', [MaintenanceController::class, 'backup']);
+                    Route::post('/restore', [MaintenanceController::class, 'restore']);
                     Route::post('/{task}', [MaintenanceController::class, 'run'])
                         ->where('task', 'migrate|seed|optimize|clear|mail-probe');
                 });
