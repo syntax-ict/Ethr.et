@@ -20,3 +20,44 @@ export function entryOrganisation(pathname: string | null): string | null {
   const slug = decodeURIComponent(segments[0]).toLowerCase();
   return SLUG.test(slug) && !OWN_ROUTES.has(slug) ? slug : null;
 }
+
+/**
+ * The organisation a sign-in page was handed by its query string: `?org=`
+ * (what the shared sign-in's own links carry, and what `ethr.et/{slug}` used
+ * to redirect with) or `?tenant=` (what reset and activation e-mails carry).
+ *
+ * Without this, one click past `ethr.et/{slug}` — "Forgot password?", a text
+ * code, a reset link — lost the organisation: the page fell back to the
+ * generic sign-in, unbranded, asking for a subdomain the person had already
+ * given (organisation-landing follow-up G5). Only a valid slug counts, and it
+ * only names the page; nothing is stored until someone signs in.
+ */
+export function queryOrganisation(search: string | null): string | null {
+  if (!search) return null;
+  const params = new URLSearchParams(search);
+  const raw = (params.get("org") ?? params.get("tenant") ?? "")
+    .trim()
+    .toLowerCase();
+
+  return SLUG.test(raw) && !OWN_ROUTES.has(raw) ? raw : null;
+}
+
+/**
+ * A sign-in flow link that keeps the organisation, when the page was reached
+ * through its shared address rather than a host that names it.
+ */
+export function withOrganisation(path: string, slug: string | null): string {
+  if (!slug) return path;
+  const [base, query] = path.split("?", 2);
+  const params = new URLSearchParams(query ?? "");
+  params.set("org", slug);
+  return `${base}?${params.toString()}`;
+}
+
+/**
+ * Where "Back to sign in" goes: the organisation's own shared address when
+ * there is one in play, else the generic sign-in.
+ */
+export function signInHref(slug: string | null): string {
+  return slug ? `/${slug}` : "/login";
+}

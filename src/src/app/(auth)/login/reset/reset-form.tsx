@@ -14,6 +14,11 @@ import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { PasswordStrengthMeter } from "@/components/shared/password-strength";
+import {
+  queryOrganisation,
+  signInHref,
+  withOrganisation,
+} from "@/lib/auth/entry-organisation";
 import { prepareCsrfCookie } from "@/features/auth/sign-in";
 
 const resetSchema = z
@@ -38,6 +43,8 @@ function ResetForm() {
   const token = params.get("token") ?? "";
   const email = params.get("email") ?? "";
   const tenant = params.get("tenant") ?? "";
+  // Keeps the organisation on "Back to sign in" and "request a new link".
+  const carryOrganisation = queryOrganisation(params.toString());
 
   const [showPassword, setShowPassword] = useState(false);
   const [done, setDone] = useState(false);
@@ -68,7 +75,10 @@ function ResetForm() {
           )}
         </p>
         <Button asChild className="mt-6 w-full">
-          <Link prefetch={false} href="/login/forgot">
+          <Link
+            prefetch={false}
+            href={withOrganisation("/login/forgot", carryOrganisation)}
+          >
             {t("auth.reset_request_new_link", "Request new link")}
           </Link>
         </Button>
@@ -208,7 +218,7 @@ function ResetForm() {
 
         <Link
           prefetch={false}
-          href="/login"
+          href={signInHref(carryOrganisation)}
           className="block text-center text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="inline h-3 w-3 mr-1" />{" "}

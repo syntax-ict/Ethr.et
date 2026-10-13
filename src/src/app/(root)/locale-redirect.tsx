@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { hostContext } from "@/lib/auth/host-context";
 import {
   AVAILABLE_LOCALES,
   LOCALE_COOKIE,
@@ -37,21 +38,64 @@ export function LocaleRedirect({ path }: { path: string }) {
   const router = useRouter();
 
   useEffect(() => {
-    let stored: string | null = null;
-    try {
-      stored = localStorage.getItem("locale");
-    } catch {
-      // Private mode, or storage disabled entirely. The cookie and the browser's
-      // own languages still answer the question.
+    let cancelled = false;
+
+    async function organisationAddress(): Promise<boolean> {
+      if (path !== "/") return false;
+      const context = hostContext(
+        window.location.host,
+        process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null,
+      );
+      if (context === "tenant") return true;
+      if (context !== "unknown") return false;
+      // A host this build cannot classify — an organisation's own domain —
+      // is named by the server from the host alone (no X-Tenant).
+      try {
+        const response = await fetch("/api/v1/auth/tenant-context", {
+          headers: { Accept: "application/json" },
+          credentials: "include",
+        });
+        if (!response.ok) return false;
+        const body = (await response.json()) as { tenant?: unknown };
+        return !!body?.tenant;
+      } catch {
+        return false;
+      }
     }
 
-    const locale = negotiateLocale([
-      stored,
-      readCookie(LOCALE_COOKIE),
-      ...(navigator.languages ?? [navigator.language]),
-    ]);
+    // An organisation's own address — `{slug}.ethr.et/` or its domain — opens
+    // its sign-in page, not ETHR's sales site (organisation-landing follow-up
+    // G2). The apex keeps the marketing redirect below.
+    void organisationAddress().then((isOrganisation) => {
+      if (cancelled) return;
+      if (isOrganisation) {
+        router.replace("/login");
+        return;
+      }
+      redirectByLocale();
+    });
 
-    router.replace(localeHref(locale, path));
+    return () => {
+      cancelled = true;
+    };
+
+    function redirectByLocale() {
+      let stored: string | null = null;
+      try {
+        stored = localStorage.getItem("locale");
+      } catch {
+        // Private mode, or storage disabled entirely. The cookie and the browser's
+        // own languages still answer the question.
+      }
+
+      const locale = negotiateLocale([
+        stored,
+        readCookie(LOCALE_COOKIE),
+        ...(navigator.languages ?? [navigator.language]),
+      ]);
+
+      router.replace(localeHref(locale, path));
+    }
   }, [router, path]);
 
   return (

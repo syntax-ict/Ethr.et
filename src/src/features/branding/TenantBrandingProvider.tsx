@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTheme } from "next-themes";
 import { useCurrentTenant } from "@/features/auth/api";
 import { parseHex, readableInkOn, tint } from "@/lib/utils/color";
 
@@ -82,6 +83,7 @@ export function TenantBrandingProvider({
   children: React.ReactNode;
 }) {
   const { data: tenant } = useCurrentTenant();
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -93,12 +95,15 @@ export function TenantBrandingProvider({
     }
 
     const theme = tenant?.theme;
-    if (!theme) return;
+    // A person who chose high contrast keeps it: the brand colours are
+    // inline styles on <html>, which beat the `.high-contrast` variables, so
+    // applying them there overrode an accessibility choice.
+    if (!theme || resolvedTheme === "high-contrast") return;
 
     for (const [property, value] of Object.entries(brandProperties(theme))) {
       root.style.setProperty(property, value);
     }
-  }, [tenant?.theme]);
+  }, [tenant?.theme, resolvedTheme]);
 
   return <>{children}</>;
 }
