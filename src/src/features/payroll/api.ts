@@ -117,6 +117,59 @@ export function usePayrollRun(publicId: string) {
   });
 }
 
+/**
+ * The run with every entry's calculation_log (`?include_log=1`), fetched only
+ * when someone opens a calculation. Kept apart from usePayrollRun so the run
+ * page does not carry every log on every load.
+ */
+export function usePayrollRunLog(publicId: string, enabled: boolean) {
+  return useQuery<PayrollRun>({
+    queryKey: ["payroll", "runs", publicId, "log"],
+    queryFn: async () =>
+      (
+        await apiClient.get(`/payroll/runs/${publicId}`, {
+          params: { include_log: 1 },
+        })
+      ).data,
+    enabled: enabled && !!publicId,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/** One row of the payroll register (RunRegisterService). */
+export interface PayrollRegisterRow {
+  employee_public_id: string | null;
+  employee_code: string;
+  employee_name: string;
+  basic_cents: number;
+  overtime_cents: number;
+  allowances_cents: number;
+  gross_cents: number;
+  taxable_cents: number;
+  income_tax_cents: number;
+  employee_pension_cents: number;
+  employer_pension_cents: number;
+  loan_cents: number;
+  cost_sharing_cents: number;
+  net_cents: number;
+}
+
+export interface PayrollRegister {
+  period: string;
+  status: string;
+  rows: PayrollRegisterRow[];
+  totals: Omit<
+    PayrollRegisterRow,
+    "employee_public_id" | "employee_code" | "employee_name"
+  >;
+}
+
+export async function fetchPayrollRegister(
+  publicId: string,
+): Promise<PayrollRegister> {
+  return (await apiClient.get(`/payroll/runs/${publicId}/register`)).data;
+}
+
 export function useProcessPayroll() {
   const queryClient = useQueryClient();
 

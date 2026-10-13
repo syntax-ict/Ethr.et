@@ -537,6 +537,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             ->middleware(['throttle:payroll-process', RequiresPlanFeature::class.':payroll']);
         Route::get('/runs/{payrollRun}/export/bank', [PayrollController::class, 'bankExport']);
         Route::get('/runs/{payrollRun}/export/bank-csv', [PayrollController::class, 'downloadBankExport']);
+        Route::get('/runs/{payrollRun}/register', [PayrollController::class, 'register']);
+        Route::get('/runs/{payrollRun}/register-csv', [PayrollController::class, 'downloadRegister']);
         Route::get('/payslips/my', [PayrollController::class, 'myPayslips']);
         Route::get('/payslips/{employeePublicId}', [PayrollController::class, 'employeePayslips']);
         Route::get('/payslips/{payrollEntry}/pdf', [PayrollController::class, 'downloadPayslip']);
