@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LogoUpload } from "@/features/settings/components/logo-upload";
 
 /**
  * Tenant branding — logo and theme colors.
@@ -19,10 +20,9 @@ import { Label } from "@/components/ui/label";
  * `tenant.logo_path`) but `PUT /settings/branding` had no consumer, so no tenant
  * could ever set either. This is that write path.
  *
- * The logo is a URL, not an upload: `logo_path` is rendered directly as an
- * `<img src>` by every consumer (header, sidebar, mobile nav, kiosk), so a
- * storage key would render broken. An upload flow needs those consumers to
- * resolve a URL first — deliberately out of scope here.
+ * The logo can be uploaded (`LogoUpload`) or linked. The server resolves which
+ * one every consumer shows — an upload wins — so `logo_path` on `/auth/me`
+ * and `brand.logo_url` on the sign-in page are always a renderable URL.
  */
 
 const DEFAULT_COLORS = {
@@ -35,11 +35,17 @@ type ColorKey = BrandColorKey;
 
 export interface BrandingCardProps {
   logoUrl?: string | null;
+  /** The uploaded logo, which is used instead of `logoUrl` when present. */
+  uploadedLogoUrl?: string | null;
   /** A colour cleared through `PUT /settings/branding` is stored as null. */
   theme?: Partial<Record<ColorKey, string | null>> | null;
 }
 
-export function BrandingCard({ logoUrl, theme }: BrandingCardProps) {
+export function BrandingCard({
+  logoUrl,
+  uploadedLogoUrl,
+  theme,
+}: BrandingCardProps) {
   const { t } = useT();
   const updateBranding = useUpdateBranding();
 
@@ -99,10 +105,17 @@ export function BrandingCard({ logoUrl, theme }: BrandingCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        <LogoUpload uploadedLogoUrl={uploadedLogoUrl} />
+
         <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
           <div>
             <Label htmlFor="branding-logo">
-              {t("settings.logo_url", "Logo URL")}
+              {uploadedLogoUrl
+                ? t(
+                    "settings.logo_url_fallback",
+                    "Logo link (used if you remove the upload)",
+                  )
+                : t("settings.logo_url_or", "Or link to a logo")}
             </Label>
             <Input
               id="branding-logo"
