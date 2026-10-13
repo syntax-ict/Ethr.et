@@ -17,6 +17,7 @@ import { rules, fieldMessage } from "@/lib/forms/rules";
 import { prepareCsrfCookie } from "@/features/auth/sign-in";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
+import { OrgMark } from "@/components/shared/org-mark";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
 
 const forgotSchema = z.object({
@@ -35,11 +36,15 @@ export function ForgotForm() {
     context: hostAppContext,
     tenantSlug: subdomainFromHost,
     tenantName,
+    tenantBrand,
     tenantContextLoading,
     tenantLookupError,
     tenantFieldVisible,
     carryOrganisation,
   } = useAuthHostContext();
+  // The organisation's own mark wherever the page is its, as on sign-in.
+  const organisationName = hostAppContext === "tenant" ? tenantName : null;
+  const organisationLogo = tenantBrand?.logo_url;
   const [sent, setSent] = useState(false);
   const [sentTo, setSentTo] = useState({ email: "", tenant: "" });
 
@@ -146,9 +151,18 @@ export function ForgotForm() {
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-          <span className="text-lg font-bold text-primary-foreground">E</span>
-        </div>
+        {organisationName ? (
+          <OrgMark
+            name={organisationName}
+            logoUrl={organisationLogo}
+            className="mx-auto h-12 w-12"
+            initialClassName="text-lg"
+          />
+        ) : (
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
+            <span className="text-lg font-bold text-primary-foreground">E</span>
+          </div>
+        )}
         <h1 className="mt-4 text-2xl font-bold text-foreground">
           {t("auth.forgot_title", "Forgot your password?")}
         </h1>
