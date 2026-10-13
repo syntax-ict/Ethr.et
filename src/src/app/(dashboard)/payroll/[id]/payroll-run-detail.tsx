@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useEntityTitle } from "@/components/layouts/page-actions-slot";
 import {
+  Calculator,
   Download,
   CheckCircle,
   Loader2,
@@ -44,12 +45,14 @@ import { SimpleTable } from "@/components/shared/simple-table";
 import {
   bankTransferCsv,
   fetchBankTransferExport,
+  fetchPayrollRegister,
   usePayrollRun,
   useApprovePayroll,
   useVoidPayroll,
   useReprocessPayroll,
   type PayrollEntry,
 } from "@/features/payroll/api";
+import { CalculationLogDialog } from "@/features/payroll/components/calculation-log-dialog";
 import {
   fetchPayrollJournal,
   journalCsv,
@@ -83,6 +86,10 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const voidPayroll = useVoidPayroll();
   const reprocessPayroll = useReprocessPayroll();
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [calcEntry, setCalcEntry] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [voidReason, setVoidReason] = useState("");
   // Approving releases every payslip in the run to its employee and cannot be
   // taken back from this screen; reprocessing creates a whole new run. Both
@@ -140,33 +147,67 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   // "12345.67" (a grouped "12,345.67" split into two columns when joined
   // unquoted — the bank transfer file included), cells quoted and
   // formula-safe.
-  function exportPayrollRegister() {
-    if (!run?.entries) return;
-    const headers = [
-      "Employee",
-      "Basic Salary",
-      "Gross",
-      "Income Tax",
-      "Employee Pension",
-      "Employer Pension",
-      "Other Deductions",
-      "Net Pay",
-    ];
-    const rows = run.entries.map((e: PayrollEntry) => [
-      e.employee?.name ?? "",
-      csvAmount(e.basic_salary_cents),
-      csvAmount(e.gross_cents),
-      csvAmount(e.income_tax_cents),
-      csvAmount(e.employee_pension_cents),
-      csvAmount(e.employer_pension_cents),
-      csvAmount(e.other_deductions_cents),
-      csvAmount(e.net_cents),
-    ]);
-    saveCsv(
-      `payroll-register-${run.period_label?.replace(/\s/g, "-")}.csv`,
-      csvFromRows(headers, rows),
-    );
-    toast.success(t("payroll_detail_page.register_downloaded"));
+  //
+  // The register comes from the server's RunRegisterService, whose totals
+  // tie to the run and to the accounting journal. It was assembled here from
+  // the run's entries, without overtime, allowances, taxable income, the
+  // deduction breakdown or a totals row — not a file an accountant could
+  // reconcile (payroll proof pack, 2026-10-14).
+  async function exportPayrollRegister() {
+    if (!run) return;
+    try {
+      const register = await fetchPayrollRegister(run.public_id);
+      const columns = [
+        "basic_cents",
+        "overtime_cents",
+        "allowances_cents",
+        "gross_cents",
+        "taxable_cents",
+        "income_tax_cents",
+        "employee_pension_cents",
+        "employer_pension_cents",
+        "loan_cents",
+        "cost_sharing_cents",
+        "net_cents",
+      ] as const;
+      const headers = [
+        "Employee Code",
+        "Employee",
+        "Basic",
+        "Overtime",
+        "Allowances",
+        "Gross",
+        "Taxable",
+        "Income Tax",
+        "Employee Pension 7%",
+        "Employer Pension 11%",
+        "Loan",
+        "Cost Sharing",
+        "Net Pay",
+      ];
+      const rows = register.rows.map((r) => [
+        r.employee_code,
+        r.employee_name,
+        ...columns.map((c) => csvAmount(r[c])),
+      ]);
+      rows.push([
+        "TOTAL",
+        String(register.rows.length),
+        ...columns.map((c) => csvAmount(register.totals[c])),
+      ]);
+      saveCsv(
+        `payroll-register-${run.period_label?.replace(/\s/g, "-")}.csv`,
+        csvFromRows(headers, rows),
+      );
+      toast.success(t("payroll_detail_page.register_downloaded"));
+    } catch {
+      toast.error(
+        t(
+          "payroll_detail_page.register_failed",
+          "Couldn't download the payroll register",
+        ),
+      );
+    }
   }
 
   // Both files are built here from the API's JSON rather than downloaded from
@@ -389,6 +430,27 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
               ]}
               rows={run.entries.map((entry: PayrollEntry) => ({
                 key: entry.public_id,
+                actions: (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setCalcEntry({
+                        id: entry.public_id,
+                        name: entry.employee?.name ?? "",
+                      })
+                    }
+                  >
+                    <Calculator className="h-4 w-4" aria-hidden="true" />
+                    <span className="sr-only">
+                      {t(
+                        "payroll_detail_page.calc_open",
+                        "How this pay was calculated",
+                      )}
+                      {entry.employee?.name ? `: ${entry.employee.name}` : ""}
+                    </span>
+                  </Button>
+                ),
                 cells: [
                   <span key="e" className="font-medium">
                     {entry.employee?.name ?? "—"}
@@ -423,6 +485,17 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
             />
           </CardContent>
         </Card>
+      )}
+
+      {run && (
+        <CalculationLogDialog
+          runId={run.public_id}
+          entryId={calcEntry?.id ?? null}
+          employeeName={calcEntry?.name ?? ""}
+          onOpenChange={(open) => {
+            if (!open) setCalcEntry(null);
+          }}
+        />
       )}
 
       <ConfirmDialog
