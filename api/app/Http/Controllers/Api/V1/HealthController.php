@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Services\Observability\QueueHealth;
+use App\Support\Mail\MailHealth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -101,6 +102,7 @@ class HealthController extends Controller
             'status' => $allHealthy ? 'healthy' : 'degraded',
             'services' => $services,
             'queue_detail' => $queueDetail,
+            'mail_detail' => MailHealth::snapshot(),
             'timestamp' => now()->toIso8601String(),
             'version' => '1.0.0',
         ], $allHealthy ? 200 : 503);
