@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Organization;
 
+use App\Http\Controllers\Api\V1\Organization\Concerns\RefusesDeletingStaffedUnit;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Organization\StoreBranchRequest;
 use App\Http\Requests\Organization\UpdateBranchRequest;
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\Gate;
 
 class BranchController extends Controller
 {
+    use RefusesDeletingStaffedUnit;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('org.viewAny');
@@ -90,6 +93,10 @@ class BranchController extends Controller
     public function destroy(Branch $branch): JsonResponse
     {
         Gate::authorize('org.delete');
+
+        if ($refusal = $this->refuseIfStaffed('branch_id', $branch->id, 'branch')) {
+            return $refusal;
+        }
 
         $branch->delete();
 

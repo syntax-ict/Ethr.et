@@ -25,7 +25,7 @@ class UpdateSettingsRequest extends FormRequest
         return [
             'settings' => ['required', 'array', 'min:1'],
             // Ethiopian month 1-13 (Meskerem = 1 ... Pagume = 13). Fiscal years
-            // in practice start at Meskerem 1 (private) or Hamle 1 = month 7
+            // in practice start at Meskerem 1 (private) or Hamle 1 = month 11
             // (government), but any Ethiopian month is accepted.
             'settings.fiscal_year_start_month' => ['sometimes', 'integer', 'between:1,13'],
             'settings.pagumen_proration_strategy' => ['sometimes', 'string', 'in:full_month,daily_rate'],

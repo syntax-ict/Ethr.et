@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Organization;
 
+use App\Http\Controllers\Api\V1\Organization\Concerns\RefusesDeletingStaffedUnit;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Organization\StoreDepartmentRequest;
 use App\Http\Requests\Organization\UpdateDepartmentRequest;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\Gate;
 
 class DepartmentController extends Controller
 {
+    use RefusesDeletingStaffedUnit;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('org.viewAny');
@@ -137,6 +140,10 @@ class DepartmentController extends Controller
     public function destroy(Department $department): JsonResponse
     {
         Gate::authorize('org.delete');
+
+        if ($refusal = $this->refuseIfStaffed('department_id', $department->id, 'department')) {
+            return $refusal;
+        }
 
         $department->delete();
 
