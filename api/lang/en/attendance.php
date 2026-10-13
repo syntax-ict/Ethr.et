@@ -23,4 +23,15 @@ return [
     'photo_required' => 'Take a selfie to check in. Your organisation requires a photo when you check in on your phone.',
     'auto_check_in_not_allowed' => 'Automatic check-in is not turned on for you.',
     'auto_check_in_outside' => 'Automatic check-in needs you to be inside your branch area.',
+    'device_clock_invalid' => 'The device reported a time that is unreadable or in the future. Check the device clock.',
+    'qr_already_used' => 'You have already used this QR code. Scan the current code on the screen.',
+    'qr_use_limit_reached' => 'This QR code has been used the maximum number of times. Scan the current code on the screen.',
+    'integrity_self_review' => 'You cannot review a flag on your own attendance.',
+    'integrity_already_reviewed' => 'This flag has already been reviewed.',
+    'punch_rejected' => [
+        'subject' => 'A punch of yours was not accepted',
+        'message' => 'Your attendance on :date was reviewed and not accepted. Reason: :reason',
+        'correct_it' => 'If this is a mistake, file a correction with the right times and your approver will review it.',
+        'action' => 'Open corrections',
+    ],
 ];

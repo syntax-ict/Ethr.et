@@ -19,6 +19,7 @@ class CheckInRequest extends FormRequest
             'idempotency_key' => ['required', 'string', 'max:64'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'accuracy' => ['nullable', 'numeric', 'min:0', 'max:100000'],
         ];
     }
 }

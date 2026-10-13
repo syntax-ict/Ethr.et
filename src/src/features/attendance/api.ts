@@ -210,6 +210,8 @@ export function useMobilePunch() {
       idempotency_key: string;
       latitude: number;
       longitude: number;
+      /** GPS accuracy in metres; a perfect 0 is a sign of a simulated location. */
+      accuracy?: number;
       photo?: string;
       /** Made by the assistant on arrival, not by a tap (check-in only). */
       auto?: boolean;
@@ -395,6 +397,68 @@ export function useResolveConflict() {
           vars.payload,
         )
       ).data,
+  );
+}
+
+// ── Integrity review ─────────────────────────────────────────────────────────
+
+export type IntegrityFlag =
+  components["schemas"]["AttendanceIntegrityFlagResource"];
+export type IntegrityStatus = "open" | "accepted" | "rejected";
+
+export interface IntegritySummary {
+  open: number;
+  by_severity: Partial<Record<"high" | "medium" | "low", number>>;
+  by_type: Record<string, number>;
+}
+
+const integrityKeys = ["attendance", "integrity"] as const;
+
+/** Punches the integrity inspector could not trust on their face. */
+export function useIntegrityFlags(params: {
+  status: IntegrityStatus;
+  severity: "all" | "high" | "medium" | "low";
+  page: number;
+}) {
+  return useQuery<PaginatedResponse<IntegrityFlag>>({
+    queryKey: [...integrityKeys, "list", params],
+    queryFn: async () => {
+      const query: Record<string, string | number> = {
+        page: params.page,
+        "filter[status]": params.status,
+      };
+      if (params.severity !== "all")
+        query["filter[severity]"] = params.severity;
+      return (await apiClient.get("/attendance/integrity", { params: query }))
+        .data;
+    },
+  });
+}
+
+export function useIntegritySummary(enabled = true) {
+  return useQuery<IntegritySummary>({
+    queryKey: [...integrityKeys, "summary"],
+    queryFn: async () =>
+      (await apiClient.get("/attendance/integrity/summary")).data,
+    enabled,
+  });
+}
+
+/** Rejecting voids the punch, so every attendance list refreshes. */
+export function useReviewIntegrityFlag() {
+  return useAttendanceMutation(
+    async (vars: {
+      publicId: string;
+      decision: "accept" | "reject";
+      note: string | null;
+    }): Promise<IntegrityFlag> =>
+      (
+        await apiClient.put(`/attendance/integrity/${vars.publicId}/review`, {
+          decision: vars.decision,
+          note: vars.note,
+        })
+      ).data,
+    [keys.all, ["dashboard"]],
   );
 }
 

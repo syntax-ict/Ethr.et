@@ -51,6 +51,7 @@ class AttendanceController extends Controller
             latitude: $request->validated('latitude'),
             longitude: $request->validated('longitude'),
             ipAddress: $request->ip(),
+            metadata: array_filter(['accuracy' => $request->validated('accuracy')], fn ($v) => $v !== null),
         ));
 
         $result->record->load('employee', 'shift');

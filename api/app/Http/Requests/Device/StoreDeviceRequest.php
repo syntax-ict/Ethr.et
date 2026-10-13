@@ -30,6 +30,7 @@ class StoreDeviceRequest extends FormRequest
             'branch_public_id' => ['required', 'string', 'exists:branches,public_id'],
             'serial_number' => ['nullable', 'string', 'max:255'],
             'auto_sync' => ['sometimes', 'boolean'],
+            'timezone' => ['nullable', 'string', 'timezone:all'],
             'sync_interval_minutes' => ['sometimes', 'integer', 'min:1', 'max:1440'],
             'connection_config' => ['required', 'array', new DeviceConnectionConfig($this->input('adapter_type'))],
             // IP-based vendors need ip/port; the generic HTTP adapter is URL-based

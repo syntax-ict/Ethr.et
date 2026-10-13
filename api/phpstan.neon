@@ -64,6 +64,12 @@ parameters:
         - message: '#^Method App\\Models\\Vacancy\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
 
+        # Same larastan limitation for attendance_integrity_flags (2026-10-13).
+        # The model is correct and covered by AttendanceIntegrityTest. Scoped
+        # to the trait file, model-named exact.
+        - message: '#^Method App\\Models\\AttendanceIntegrityFlag\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+          path: app/Traits/BelongsToTenant.php
+
         # Same larastan limitation for personnel_actions — its JSON `changes`
         # column stops larastan introspecting the table, so the trait generics
         # resolve to false positives "in context of" PersonnelAction. The model

@@ -10,6 +10,10 @@ export interface OfflineAttendanceRecord {
   offline_token: string;
   latitude?: number | null;
   longitude?: number | null;
+  /** GPS accuracy in metres, as the phone reported it. */
+  accuracy?: number | null;
+  /** The selfie, when the organisation requires one. */
+  photo?: string | null;
   captured_at: string;
   synced: 0 | 1;
   sync_error?: string | null;

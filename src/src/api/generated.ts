@@ -408,6 +408,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/offline-grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /attendance/offline-grant - fetched while online, presented with
+         *     every punch made offline (see OfflineGrant)
+         */
+        get: operations["offlineSync.grant"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/sync": {
         parameters: {
             query?: never;
@@ -607,6 +627,57 @@ export interface paths {
         get?: never;
         /** Resolve conflicts */
         put: operations["attendanceConflict.resolve"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/integrity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Integrity attendance */
+        get: operations["attendanceIntegrity.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/integrity/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open flags by severity and type, for the dashboard and the queue header */
+        get: operations["attendanceIntegrity.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/integrity/{flag}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Review integrity */
+        put: operations["attendanceIntegrity.review"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5637,6 +5708,41 @@ export interface components {
              */
             file: string;
         };
+        /** AttendanceIntegrityFlagResource */
+        AttendanceIntegrityFlagResource: {
+            public_id: string;
+            type: string;
+            severity: string;
+            punch: string;
+            status: string;
+            details: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            reviewed_at: string | null;
+            review_note: string | null;
+            reviewer_name: string | null;
+            employee: {
+                public_id: string;
+                name: string;
+                employee_code: string | null;
+            } | null;
+            record: {
+                public_id: string;
+                date: string | null;
+                /** Format: date-time */
+                check_in: string | null;
+                /** Format: date-time */
+                check_out: string | null;
+                source: string;
+                status: string;
+                shift_name: string | null;
+                latitude: number | null;
+                longitude: number | null;
+            } | null;
+        };
         /** AttendancePunchResource */
         AttendancePunchResource: {
             public_id: string;
@@ -5814,6 +5920,7 @@ export interface components {
             idempotency_key: string;
             latitude?: number | null;
             longitude?: number | null;
+            accuracy?: number | null;
         };
         /** CheckOutRequest */
         CheckOutRequest: {
@@ -5905,6 +6012,7 @@ export interface components {
             status: string;
             auto_sync: boolean;
             sync_interval_minutes: number;
+            timezone: string | null;
             webhook_token?: string | null;
             webhook_url?: string | null;
             last_sync_at: string | null;
@@ -6499,6 +6607,7 @@ export interface components {
             idempotency_key: string;
             latitude: number;
             longitude: number;
+            accuracy?: number | null;
             /**
              * @description Selfie captured on the device, sent inline as a data URL. The
              *     stored object key comes back from FileStorageService — clients
@@ -6512,6 +6621,7 @@ export interface components {
             idempotency_key: string;
             latitude?: number | null;
             longitude?: number | null;
+            accuracy?: number | null;
             photo?: string | null;
         };
         /** NotificationResource */
@@ -6536,6 +6646,8 @@ export interface components {
                 latitude?: number | null;
                 longitude?: number | null;
                 offline_token: string;
+                accuracy?: number | null;
+                photo?: string | null;
             }[];
         };
         /** OnboardingProgress */
@@ -6979,6 +7091,16 @@ export interface components {
          * @enum {string}
          */
         RetirementType: "mandatory" | "voluntary" | "early";
+        /**
+         * ReviewIntegrityFlagRequest
+         * @description Accepting or rejecting an integrity flag. A rejection voids the punch and
+         *     the note is sent to the employee, so it is required there.
+         */
+        ReviewIntegrityFlagRequest: {
+            /** @enum {string} */
+            decision: "accept" | "reject";
+            note?: string | null;
+        };
         /** ReviewProfileUpdateRequest */
         ReviewProfileUpdateRequest: {
             /** @enum {string} */
@@ -7218,6 +7340,7 @@ export interface components {
             branch_public_id: string;
             serial_number?: string | null;
             auto_sync?: boolean;
+            timezone?: string | null;
             sync_interval_minutes?: number;
             connection_config: {
                 /**
@@ -7730,6 +7853,7 @@ export interface components {
             branch_public_id?: string;
             serial_number?: string | null;
             auto_sync?: boolean;
+            timezone?: string | null;
             sync_interval_minutes?: number;
             connection_config?: {
                 ip?: string | null;
@@ -8661,6 +8785,23 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationException"];
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/too-many-attempts";
+                        /** @constant */
+                        title: "PIN Locked";
+                        /** @constant */
+                        status: 429;
+                        /** @constant */
+                        detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                    };
+                };
+            };
         };
     };
     "kioskSession.exitKiosk": {
@@ -9404,6 +9545,48 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "offlineSync.grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        grant: string;
+                        issued_at: string;
+                        expires_at: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
+        };
+    };
     "offlineSync.sync": {
         parameters: {
             query?: never;
@@ -10005,6 +10188,135 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceIntegrity.index": {
+        parameters: {
+            query?: {
+                "filter[status]"?: string;
+                "filter[severity]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AttendanceIntegrityFlagResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AttendanceIntegrityFlagResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceIntegrity.summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        open: string;
+                        by_severity: string;
+                        by_type: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceIntegrity.review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flag: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewIntegrityFlagRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendanceIntegrityFlagResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceIntegrityFlagResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        type: string;
+                        /** @constant */
+                        title: "Forbidden";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "You cannot review a flag on your own attendance.";
+                    } | {
+                        /**
+                         * @description Error overview.
+                         * @example
+                         */
+                        message: string;
+                    };
+                };
+            };
             422: components["responses"]["ValidationException"];
         };
     };

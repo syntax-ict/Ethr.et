@@ -17,6 +17,7 @@ use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
+use App\Support\DeviceTime;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -344,6 +345,21 @@ class PullDeviceEventsJob implements ShouldQueue
 
             $idempotencyKey = "device:{$this->device->id}:{$badge}:{$event['timestamp']}";
 
+            // The device's wall clock, read in its zone (DeviceTime). The key
+            // above keeps the raw string so events already ingested still
+            // dedupe on a re-pull.
+            $occurredAt = DeviceTime::normalize((string) $event['timestamp'], $this->device);
+            if ($occurredAt === null || DeviceTime::isInFuture($occurredAt)) {
+                $failed++;
+                Log::warning('Device event refused: unreadable or future timestamp', [
+                    'device_id' => $this->device->id,
+                    'badge' => $badge,
+                    'timestamp' => $event['timestamp'],
+                ]);
+
+                continue;
+            }
+
             try {
                 $engine->record(new AttendanceInput(
                     employeeId: $employee->id,
@@ -352,7 +368,7 @@ class PullDeviceEventsJob implements ShouldQueue
                     type: $event['type'],
                     idempotencyKey: $idempotencyKey,
                     deviceId: $this->device->id,
-                    occurredAt: $event['timestamp'],
+                    occurredAt: $occurredAt,
                 ));
                 $processed++;
             } catch (Throwable $e) {

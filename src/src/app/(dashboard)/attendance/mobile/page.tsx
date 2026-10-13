@@ -28,6 +28,10 @@ import { useCurrentUser } from "@/features/auth/api";
 import { useUpdatePreferences } from "@/features/profile/api";
 import { useOfflineSync } from "@/lib/hooks/useOfflineSync";
 import { enqueueOfflineRecord } from "@/lib/offline-queue";
+import {
+  currentOfflineGrant,
+  refreshOfflineGrant,
+} from "@/lib/attendance/offline-grant";
 import { requestAttendanceSync } from "@/lib/hooks/useServiceWorker";
 import { tenantHeaderValue } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
@@ -95,6 +99,14 @@ export default function MobilePunchPage() {
     const id = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  // Keep a fresh offline grant while there is signal, so a punch made in a
+  // power cut or outage later can be vouched for (see offline-grant.ts).
+  const employeePublicId = user?.employee_public_id ?? null;
+  useEffect(() => {
+    if (!isOnline || !employeePublicId) return;
+    void refreshOfflineGrant(employeePublicId);
+  }, [isOnline, employeePublicId]);
 
   useEffect(() => {
     locate();
@@ -204,9 +216,15 @@ export default function MobilePunchPage() {
           employee_public_id: user.employee_public_id,
           type,
           idempotency_key: idempotencyKey,
-          offline_token: `offline-${Date.now()}`,
+          // The server's grant, fetched while online, lets it vouch for this
+          // punch; without one it is accepted but reviewed.
+          offline_token:
+            currentOfflineGrant(user.employee_public_id) ??
+            `offline-${Date.now()}`,
           latitude: position.latitude,
           longitude: position.longitude,
+          accuracy: position.accuracy,
+          photo: photo && type === "check_in" ? photo : null,
           captured_at: new Date().toISOString(),
           tenant: tenantHeaderValue(),
           locale,
@@ -227,6 +245,7 @@ export default function MobilePunchPage() {
         idempotency_key: idempotencyKey,
         latitude: position.latitude,
         longitude: position.longitude,
+        accuracy: position.accuracy,
         ...(photo && type === "check_in" ? { photo } : {}),
         ...(auto ? { auto: true } : {}),
       },
