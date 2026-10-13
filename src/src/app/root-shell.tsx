@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_Ethiopic } from "next/font/google";
 import "@/styles/globals.css";
 import { Providers } from "./providers";
@@ -68,7 +68,7 @@ export const baseMetadata: Metadata = {
     "Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations.",
   icons: {
     icon: "/favicon.ico",
-    apple: "/icons/icon-192.png",
+    apple: "/app-icons/icon-192.png",
   },
   manifest: "/manifest.json",
   appleWebApp: {
@@ -76,6 +76,23 @@ export const baseMetadata: Metadata = {
     statusBarStyle: "default",
     title: "ETHR",
   },
+};
+
+/**
+ * Shared by every root layout, like `baseMetadata`. `themeColor` colours the
+ * browser chrome and the installed app's status bar to match the product
+ * instead of the default white; `viewportFit: "cover"` lets the installed
+ * app draw under a phone's notch, with the safe-area insets applied by the
+ * mobile bottom bar.
+ */
+export const baseViewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#0F4C75" },
+    { media: "(prefers-color-scheme: dark)", color: "#020617" },
+  ],
 };
 
 /**

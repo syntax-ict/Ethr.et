@@ -25,6 +25,12 @@ Artisan::command('inspire', function () {
 // Pull events from all registered biometric devices every 5 minutes
 Schedule::command('devices:sync')->everyFiveMinutes()->withoutOverlapping();
 
+// Close check-ins left open past the shift's end, at the shift's end, for
+// organisations that turned auto check-out on (AttendanceSetting). Every five
+// minutes; ScheduleCatchUpCommand runs it once for any number of missed ticks,
+// and it is idempotent, so a late run closes the same records the same way.
+Schedule::command('attendance:auto-checkout')->everyFiveMinutes()->name('attendance-auto-checkout')->withoutOverlapping();
+
 // Re-check verified custom domains every Monday, 03:00 UTC (06:00 EAT). Reports
 // a domain whose TXT token or CNAME no longer checks out; never revokes one.
 Schedule::command('tenancy:recheck-custom-domains')

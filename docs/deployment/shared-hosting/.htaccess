@@ -213,7 +213,12 @@
     #@ RewriteCond %{HTTP_HOST} ^__ADMIN_HOST__$ [NC]
     #@ RewriteCond %{REQUEST_FILENAME} !-f
     #@ RewriteCond %{REQUEST_URI} !^/admin
-    #@ RewriteCond %{REQUEST_URI} !^/(login|logout|_next|favicon\.ico|sw\.js|manifest)
+    #
+    # profile/security is excluded with the rest: password and two-factor
+    # enrolment belong to every account, and the console's "Enable now" links
+    # there. Bounced to /admin, the platform admin could not turn MFA on at all
+    # (production, 2026-10-11). The rest of /profile stays redirected.
+    #@ RewriteCond %{REQUEST_URI} !^/(login|logout|profile/security|_next|favicon\.ico|sw\.js|manifest)
     #@ RewriteRule ^ /admin/ [L,R=302]
     #
     #@ RewriteCond %{HTTP_HOST} !^__ADMIN_HOST__$ [NC]
@@ -293,7 +298,12 @@
     #
     #@ RewriteCond %{REQUEST_FILENAME} !-f
     #@ RewriteCond %{DOCUMENT_ROOT}/$1/$2.html !-f
-    #@ RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)$ /$1/__id__.html [L]
+    #@ RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)/?$ /$1/__id__.html [L]
+    #
+    # The optional trailing slash was added 2026-10-12. Without it
+    # /devices/<id>/ — a bookmark, a pasted link — matched nothing and
+    # answered 404 while /devices/<id> worked (attendance QA A8).
+    # useRouteId strips the slash when it reads the id back.
     #
     # THE SECOND CONDITION WAS ADDED 2026-09-27 AND WITHOUT IT SIX ROUTES WERE
     # DEAD. This rule used to guard on `!-f` alone. For /employees/new,
@@ -457,6 +467,12 @@
     Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=(self)"
+    # PHP announced its exact version on every API response (console QA F15,
+    # 2026-10-12). Both tables: PHP-FPM's header can arrive in either. The
+    # "X-Powered-By: PleskLin" that remains is added by Plesk's nginx in front,
+    # outside anything this file can reach.
+    Header always unset X-Powered-By
+    Header unset X-Powered-By
 
     # img-src widened for tenant branding logos (PUT /settings/branding
     # stores a URL, rendered straight into <img src> across the sidebar,

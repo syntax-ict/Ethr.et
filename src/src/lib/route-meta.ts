@@ -68,6 +68,22 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Announcements",
     description: "Company-wide announcements and notices",
   },
+  "/vacancies": {
+    section: "My Work",
+    label: "Vacancies",
+    description: "Open positions in the organisation",
+  },
+  "/voice": {
+    section: "My Work",
+    label: "Voice",
+    description: "Weekly pulse, speak-up and recognition",
+  },
+  "/voice/insights": {
+    section: "My Work",
+    parent: { label: "Voice", href: "/voice" },
+    label: "Insights",
+    description: "Pulse results and concerns for HR",
+  },
 
   // ── People ───────────────────────────────────────────────────────
   "/employees": {
@@ -116,6 +132,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     parent: { label: "Attendance", href: "/attendance" },
     label: "Conflicts",
     description: "Review attendance records that disagree about the same day",
+  },
+  "/attendance/integrity": {
+    section: "Operations",
+    parent: { label: "Attendance", href: "/attendance" },
+    label: "Integrity",
+    description: "Review punches that could not be trusted on their face",
   },
   "/attendance/overtime": {
     section: "Operations",
@@ -398,7 +420,27 @@ function isOpaqueId(segment: string): boolean {
   );
 }
 
+/**
+ * The metadata for a path, with or without a trailing slash.
+ *
+ * The production build is a static export served by Apache, where a page is a
+ * directory: loaded directly, `/admin/audit` arrives as `/admin/audit/`. The
+ * exact-match lookup missed every such path and fell back to the parent, so in
+ * production the audit page was titled "Audit" and Tenants, Plans and Audit all
+ * carried the console's generic description (console QA F14). The normalised
+ * path also becomes `i18nPath`, so translated titles resolve the same way.
+ */
 export function getRouteMeta(pathname: string): RouteMeta | null {
+  const path =
+    pathname.length > 1 ? pathname.replace(/\/+$/, "") || "/" : pathname;
+  const meta = lookupRouteMeta(path);
+
+  if (meta === null || path === pathname) return meta;
+
+  return { ...meta, i18nPath: meta.i18nPath ?? path };
+}
+
+function lookupRouteMeta(pathname: string): RouteMeta | null {
   if (ROUTE_META[pathname]) return ROUTE_META[pathname];
 
   const segments = pathname.split("/").filter(Boolean);

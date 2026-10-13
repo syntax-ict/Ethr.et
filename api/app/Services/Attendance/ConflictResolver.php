@@ -17,9 +17,13 @@ final class ConflictResolver
     private const MERGE_THRESHOLD_MINUTES = 5;
 
     private const SOURCE_PRIORITY = [
+        // Kiosk and offline punches counted as 0 until 2026-10-13, so a
+        // tie against any other source always went the other way.
         'biometric' => 6,
         'mobile' => 5,
+        'kiosk' => 4,
         'qr' => 4,
+        'offline_mobile' => 3,
         'web' => 3,
         'manual' => 2,
         'csv' => 1,

@@ -8,7 +8,7 @@ return [
         'greeting' => 'Welcome to ETHR',
         'intro' => 'An account has been created for you at :org. Click the button below to set your password and activate your account.',
         'action' => 'Activate Account',
-        'expiry' => 'This link will expire in 60 minutes.',
+        'expiry' => 'This link will expire in 72 hours.',
         'ignore' => 'If you were not expecting this invitation, you can safely ignore this email.',
     ],
     'invited' => ':count user(s) invited.',

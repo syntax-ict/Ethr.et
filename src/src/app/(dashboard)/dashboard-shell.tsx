@@ -3,6 +3,7 @@
 import { AppSidebar } from "@/components/layouts/app-sidebar";
 import { AppHeader } from "@/components/layouts/app-header";
 import { PageTitleBar } from "@/components/layouts/page-title-bar";
+import { PageActionsSlotProvider } from "@/components/layouts/page-actions-slot";
 import { AppLayoutProvider } from "@/components/layouts/layout-context";
 import { MobileBottomNav } from "@/components/layouts/mobile-bottom-nav";
 import { OfflineBanner } from "@/components/shared/offline-banner";
@@ -15,6 +16,7 @@ import { ImpersonationBanner } from "@/components/shared/impersonation-banner";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { CalendarPreferenceSync } from "@/components/shared/calendar-preference-sync";
 import { useCurrentUser } from "@/features/auth/api";
+import { PunchReminders } from "@/features/attendance/components/punch-reminders";
 import { useT } from "@/lib/i18n/useT";
 import { useDocumentTitle } from "@/lib/hooks/useDocumentTitle";
 
@@ -39,6 +41,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             {t("a11y.skip_to_content", "Skip to main content")}
           </a>
           <CommandPalette />
+          <PunchReminders />
           <ImpersonationBanner />
           <OfflineBanner />
           <div className="flex h-screen overflow-hidden bg-background">
@@ -50,10 +53,12 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                 className="flex-1 overflow-y-auto"
                 role="main"
               >
-                <PageTitleBar />
-                <div className="p-4 pb-20 md:p-6 lg:pb-6">
-                  <ErrorBoundary>{children}</ErrorBoundary>
-                </div>
+                <PageActionsSlotProvider>
+                  <PageTitleBar />
+                  <div className="p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-6">
+                    <ErrorBoundary>{children}</ErrorBoundary>
+                  </div>
+                </PageActionsSlotProvider>
               </main>
             </div>
           </div>

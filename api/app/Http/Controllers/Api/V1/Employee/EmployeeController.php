@@ -27,6 +27,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class EmployeeController extends Controller
 {
@@ -146,6 +147,10 @@ class EmployeeController extends Controller
                 employee: $employee,
                 invitedBy: $request->user()->id,
             ) !== null;
+
+            if (! $loginInvited) {
+                $this->linkExistingAccount($employee, $request->user());
+            }
         }
 
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
@@ -181,6 +186,40 @@ class EmployeeController extends Controller
         }
 
         return $role;
+    }
+
+    /**
+     * "Create login" for someone who already signs in: link the account to
+     * the new employee record instead of skipping it.
+     *
+     * Nothing else could. An organisation's first admin registers before any
+     * employee exists, `PATCH /users/{id}` takes no employee, and the invite
+     * path skips an email that already has an account — so on production the
+     * QA Audit admin could not check in by any route: web, mobile, QR and
+     * offline all answered 404 `no_employee_linked` (attendance QA A7).
+     *
+     * Only an account with no employee yet, and not one above the creator's
+     * own level: linking decides whose punches, payslips and leave an account
+     * acts on. The account's role is left as it is.
+     */
+    private function linkExistingAccount(Employee $employee, User $actor): void
+    {
+        $user = User::query()
+            ->where('email', Str::lower(trim((string) $employee->email)))
+            ->whereNull('employee_id')
+            ->first();
+
+        if ($user === null || (! $actor->isSuperAdmin() && $user->role->level() > $actor->role->level())) {
+            return;
+        }
+
+        $user->update(['employee_id' => $employee->id]);
+        $employee->update(['user_id' => $user->id]);
+
+        AuditLog::record('user.employee_linked', $user, [
+            'employee_id' => $employee->public_id,
+            'linked_by' => $actor->id,
+        ]);
     }
 
     public function show(Employee $employee): EmployeeResource

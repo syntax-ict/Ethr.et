@@ -10,7 +10,10 @@ use App\Http\Requests\Attendance\OfflineSyncRequest;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\Attendance\OfflineGrant;
+use App\Services\FileStorageService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 
@@ -18,7 +21,30 @@ class OfflineSyncController extends Controller
 {
     public function __construct(
         private readonly AttendanceEngine $engine,
+        private readonly OfflineGrant $grants,
+        private readonly FileStorageService $storage,
     ) {}
+
+    /**
+     * GET /attendance/offline-grant - fetched while online, presented with
+     * every punch made offline (see OfflineGrant).
+     */
+    public function grant(Request $request): JsonResponse
+    {
+        Gate::authorize('attendance.checkIn');
+
+        $employee = $request->user()?->employee;
+        if (! $employee) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/not-found',
+                'title' => 'Not Found',
+                'status' => 404,
+                'detail' => __('attendance.no_employee_linked'),
+            ], 404)->header('Content-Type', 'application/problem+json');
+        }
+
+        return response()->json($this->grants->issue($employee));
+    }
 
     public function sync(OfflineSyncRequest $request): JsonResponse
     {
@@ -86,8 +112,15 @@ class OfflineSyncController extends Controller
                     idempotencyKey: $record['idempotency_key'],
                     latitude: $record['latitude'] ?? null,
                     longitude: $record['longitude'] ?? null,
-                    offlineToken: $record['offline_token'],
+                    photoPath: isset($record['photo']) && $record['photo'] !== ''
+                        ? $this->storage->uploadDataUrlImage($record['photo'], 'selfies')['path']
+                        : null,
+                    offlineToken: OfflineGrant::fingerprint($record['offline_token']),
                     ipAddress: $request->ip(),
+                    metadata: array_filter([
+                        'accuracy' => $record['accuracy'] ?? null,
+                        'offline_grant' => $this->grants->check($record['offline_token'], $employee, $capturedAt->copy()->utc()),
+                    ], fn ($v) => $v !== null),
                     // The punch happened on the device while offline; record it at
                     // that time, not at sync time. The field is already required
                     // and validated by OfflineSyncRequest.

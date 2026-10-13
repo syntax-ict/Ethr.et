@@ -93,7 +93,10 @@ export function MobileBottomNav() {
   return (
     <>
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-center border-t border-border bg-background lg:hidden"
+        // The safe-area inset keeps the tabs clear of a phone's home
+        // indicator now that the installed app draws edge to edge
+        // (viewportFit: "cover").
+        className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-start border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:hidden"
         aria-label={t("nav.mobile_navigation", "Mobile navigation")}
       >
         {tabs.map((tab) => {
@@ -106,11 +109,20 @@ export function MobileBottomNav() {
               href={tab.href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex flex-1 flex-col items-center gap-1 py-2 text-xs font-medium",
+                "flex h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium focus-visible:outline-none",
                 isActive ? "text-interactive-primary" : "text-muted-foreground",
               )}
             >
-              <Icon className="h-5 w-5" />
+              {/* The active tab's icon sits in a pill, the pattern phones
+                  use for their own bottom bars; colour alone was a thin cue. */}
+              <span
+                className={cn(
+                  "flex h-7 w-14 items-center justify-center rounded-full transition-colors",
+                  isActive && "bg-primary-soft",
+                )}
+              >
+                <Icon className="h-5 w-5" aria-hidden="true" />
+              </span>
               {tab.label}
             </Link>
           );
@@ -118,14 +130,16 @@ export function MobileBottomNav() {
         <button
           type="button"
           onClick={() => setMoreOpen(true)}
-          className="relative flex flex-1 flex-col items-center gap-1 py-2 text-xs font-medium text-muted-foreground"
+          className="relative flex h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground focus-visible:outline-none"
         >
-          <Menu className="h-5 w-5" />
+          <span className="flex h-7 w-14 items-center justify-center rounded-full">
+            <Menu className="h-5 w-5" aria-hidden="true" />
+          </span>
           {t("nav.more", "More")}
           {showSetupDot && (
             <span className="absolute right-1/4 top-1.5 flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-accent,#E8A838)] opacity-50" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[var(--color-accent,#E8A838)]" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-accent opacity-50" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand-accent" />
             </span>
           )}
         </button>

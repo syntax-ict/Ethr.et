@@ -130,6 +130,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kiosk/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync kiosk */
+        post: operations["kiosk.kioskSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/kiosk/exit": {
         parameters: {
             query?: never;
@@ -408,6 +425,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/offline-grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /attendance/offline-grant - fetched while online, presented with
+         *     every punch made offline (see OfflineGrant)
+         */
+        get: operations["offlineSync.grant"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/sync": {
         parameters: {
             query?: never;
@@ -607,6 +644,57 @@ export interface paths {
         get?: never;
         /** Resolve conflicts */
         put: operations["attendanceConflict.resolve"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/integrity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Integrity attendance */
+        get: operations["attendanceIntegrity.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/integrity/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open flags by severity and type, for the dashboard and the queue header */
+        get: operations["attendanceIntegrity.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/integrity/{flag}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Review integrity */
+        put: operations["attendanceIntegrity.review"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1129,6 +1217,110 @@ export interface paths {
         get: operations["billing.receipt"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/concerns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /voice/concerns - every concern, for voice.manage */
+        get: operations["concern.index"];
+        put?: never;
+        /** POST /voice/concerns */
+        post: operations["concern.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/concerns/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /voice/concerns/mine - the caller's named concerns */
+        get: operations["concern.mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/concerns/track": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /voice/concerns/track - an anonymous concern, by its code */
+        post: operations["concern.track"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/concerns/track/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /voice/concerns/track/reply - the anonymous reporter answers HR */
+        post: operations["concern.trackReply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/concerns/{concern}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /voice/concerns/{id} - its reporter (named) or voice.manage */
+        get: operations["concern.show"];
+        /** PUT /voice/concerns/{id} - status and resolution, voice.manage only */
+        put: operations["concern.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/concerns/{concern}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /voice/concerns/{id}/messages */
+        post: operations["concern.message"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2604,6 +2796,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/tenant-landing/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Feed tenant landing */
+        get: operations["landingFeed.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/tenant-landing/vacancies/{vacancy}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One public vacancy in full, for its detail view on the sign-in page. A
+         *     draft, closed, internal or unknown one is the same 404
+         */
+        get: operations["landingFeed.vacancy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/leave/request": {
         parameters: {
             query?: never;
@@ -2822,6 +3051,23 @@ export interface paths {
         put?: never;
         /** Batch approvals */
         post: operations["approval.batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/my-shift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My shift attendance */
+        get: operations["attendance.myShift"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4460,6 +4706,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/voice/pulse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pulse voice */
+        get: operations["pulse.show"];
+        put?: never;
+        /** Pulse voice */
+        post: operations["pulse.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/pulse/insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /voice/pulse/insights - for whoever holds voice.manage */
+        get: operations["pulse.insights"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/recognitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recognitions */
+        get: operations["recognition.index"];
+        put?: never;
+        /** Create recognition */
+        post: operations["recognition.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{employee}/retirement-cases": {
         parameters: {
             query?: never;
@@ -4709,6 +5008,26 @@ export interface paths {
         get?: never;
         /** Branding settings */
         put: operations["settings.updateBranding"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/landing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * PUT /settings/landing - the organisation's sign-in page (ethr.et/{slug}):
+         *     headline, welcome message, help contacts and panel background
+         */
+        put: operations["settings.updateLanding"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5365,6 +5684,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/vacancies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List vacancies */
+        get: operations["vacancy.index"];
+        put?: never;
+        /** Create vacancy */
+        post: operations["vacancy.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vacancies/{vacancy}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get vacancy */
+        get: operations["vacancy.show"];
+        /** Update vacancy */
+        put: operations["vacancy.update"];
+        post?: never;
+        /** Delete vacancy */
+        delete: operations["vacancy.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5409,6 +5765,7 @@ export interface components {
             published_at: string | null;
             /** Format: date-time */
             expires_at: string | null;
+            show_on_landing: boolean;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -5525,6 +5882,41 @@ export interface components {
              */
             file: string;
         };
+        /** AttendanceIntegrityFlagResource */
+        AttendanceIntegrityFlagResource: {
+            public_id: string;
+            type: string;
+            severity: string;
+            punch: string;
+            status: string;
+            details: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            reviewed_at: string | null;
+            review_note: string | null;
+            reviewer_name: string | null;
+            employee: {
+                public_id: string;
+                name: string;
+                employee_code: string | null;
+            } | null;
+            record: {
+                public_id: string;
+                date: string | null;
+                /** Format: date-time */
+                check_in: string | null;
+                /** Format: date-time */
+                check_out: string | null;
+                source: string;
+                status: string;
+                shift_name: string | null;
+                latitude: number | null;
+                longitude: number | null;
+            } | null;
+        };
         /** AttendancePunchResource */
         AttendancePunchResource: {
             public_id: string;
@@ -5603,6 +5995,11 @@ export interface components {
             grace_period_minutes: number;
             ot_daily_cap_minutes: number;
             confidence_threshold: number;
+            reminders_enabled: boolean;
+            reminder_lead_minutes: number;
+            auto_checkout_enabled: boolean;
+            auto_checkout_after_minutes: number;
+            geofence_auto_checkin_enabled: boolean;
             updated_at: string | null;
         };
         /** AuditLogResource */
@@ -5697,6 +6094,7 @@ export interface components {
             idempotency_key: string;
             latitude?: number | null;
             longitude?: number | null;
+            accuracy?: number | null;
         };
         /** CheckOutRequest */
         CheckOutRequest: {
@@ -5705,6 +6103,10 @@ export interface components {
         /** CloseDisciplinaryCaseRequest */
         CloseDisciplinaryCaseRequest: {
             notes?: string | null;
+        };
+        /** ConcernMessageRequest */
+        ConcernMessageRequest: {
+            body: string;
         };
         /** ContactRequest */
         ContactRequest: {
@@ -5788,6 +6190,7 @@ export interface components {
             status: string;
             auto_sync: boolean;
             sync_interval_minutes: number;
+            timezone: string | null;
             webhook_token?: string | null;
             webhook_url?: string | null;
             last_sync_at: string | null;
@@ -6271,6 +6674,19 @@ export interface components {
             deactivated_at: string | null;
             created_at: string | null;
         };
+        /**
+         * KioskSyncRequest
+         * @description Punches a kiosk made while offline, each sealed with the kiosk's public key
+         *     (see KioskOfflineSeal). Everything that matters is inside the seal; the
+         *     idempotency key outside it only labels the result.
+         */
+        KioskSyncRequest: {
+            records: {
+                idempotency_key: string;
+                sealed: string;
+                grant?: string | null;
+            }[];
+        };
         /** LeaveBalanceResource */
         LeaveBalanceResource: {
             leave_type?: components["schemas"]["LeaveTypeResource"] | null;
@@ -6382,18 +6798,21 @@ export interface components {
             idempotency_key: string;
             latitude: number;
             longitude: number;
+            accuracy?: number | null;
             /**
              * @description Selfie captured on the device, sent inline as a data URL. The
              *     stored object key comes back from FileStorageService — clients
              *     never supply `photo_path` themselves.
              */
             photo?: string | null;
+            auto?: boolean;
         };
         /** MobileCheckOutRequest */
         MobileCheckOutRequest: {
             idempotency_key: string;
             latitude?: number | null;
             longitude?: number | null;
+            accuracy?: number | null;
             photo?: string | null;
         };
         /** NotificationResource */
@@ -6418,6 +6837,8 @@ export interface components {
                 latitude?: number | null;
                 longitude?: number | null;
                 offline_token: string;
+                accuracy?: number | null;
+                photo?: string | null;
             }[];
         };
         /** OnboardingProgress */
@@ -6861,6 +7282,16 @@ export interface components {
          * @enum {string}
          */
         RetirementType: "mandatory" | "voluntary" | "early";
+        /**
+         * ReviewIntegrityFlagRequest
+         * @description Accepting or rejecting an integrity flag. A rejection voids the punch and
+         *     the note is sent to the employee, so it is required there.
+         */
+        ReviewIntegrityFlagRequest: {
+            /** @enum {string} */
+            decision: "accept" | "reject";
+            note?: string | null;
+        };
         /** ReviewProfileUpdateRequest */
         ReviewProfileUpdateRequest: {
             /** @enum {string} */
@@ -7015,6 +7446,7 @@ export interface components {
             publish_now?: boolean;
             /** Format: date-time */
             expires_at?: string | null;
+            show_on_landing?: boolean;
         };
         /** StoreApiKeyRequest */
         StoreApiKeyRequest: {
@@ -7042,6 +7474,14 @@ export interface components {
             longitude?: number | null;
             geofence_radius_meters?: number | null;
             is_active?: boolean | null;
+        };
+        /** StoreConcernRequest */
+        StoreConcernRequest: {
+            /** @enum {string} */
+            category: "safety" | "harassment" | "discrimination" | "manager" | "workload" | "pay" | "facilities" | "ethics" | "wellbeing" | "other";
+            subject: string;
+            description: string;
+            anonymous: boolean;
         };
         /** StoreCorrectionRequest */
         StoreCorrectionRequest: {
@@ -7099,6 +7539,7 @@ export interface components {
             branch_public_id: string;
             serial_number?: string | null;
             auto_sync?: boolean;
+            timezone?: string | null;
             sync_interval_minutes?: number;
             connection_config: {
                 /**
@@ -7353,6 +7794,19 @@ export interface components {
             email?: string | null;
             priority?: number | null;
         };
+        /** StorePulseRequest */
+        StorePulseRequest: {
+            score: number;
+            tags?: ("workload" | "manager" | "team" | "pay" | "growth" | "recognition" | "safety" | "facilities" | "tools" | "wellbeing")[];
+            comment?: string | null;
+        };
+        /** StoreRecognitionRequest */
+        StoreRecognitionRequest: {
+            to_employee_public_id: string;
+            /** @enum {string} */
+            value: "teamwork" | "customer_care" | "integrity" | "initiative" | "excellence" | "helping_hand";
+            message: string;
+        };
         /** StoreRetirementCaseRequest */
         StoreRetirementCaseRequest: {
             retirement_type: components["schemas"]["RetirementType"];
@@ -7475,6 +7929,14 @@ export interface components {
          * @enum {string}
          */
         TenantStatus: "trial" | "active" | "suspended" | "cancelled";
+        /**
+         * TrackConcernRequest
+         * @description A concern's follow-up code, sent in the body so it never sits in a URL or a log.
+         */
+        TrackConcernRequest: {
+            code: string;
+            body?: string;
+        };
         /** TransitionEmployeeRequest */
         TransitionEmployeeRequest: {
             to_status: components["schemas"]["EmployeeStatus"];
@@ -7520,6 +7982,7 @@ export interface components {
             target_id?: string | null;
             /** Format: date-time */
             expires_at?: string | null;
+            show_on_landing?: boolean;
         };
         /** UpdateAttendanceSettingRequest */
         UpdateAttendanceSettingRequest: {
@@ -7536,6 +7999,11 @@ export interface components {
             grace_period_minutes?: number;
             ot_daily_cap_minutes?: number;
             confidence_threshold?: number;
+            reminders_enabled?: boolean;
+            reminder_lead_minutes?: number;
+            auto_checkout_enabled?: boolean;
+            auto_checkout_after_minutes?: number;
+            geofence_auto_checkin_enabled?: boolean;
         };
         /** UpdateBranchRequest */
         UpdateBranchRequest: {
@@ -7552,6 +8020,7 @@ export interface components {
         };
         /** UpdateBrandingRequest */
         UpdateBrandingRequest: {
+            /** Format: uri */
             logo_url?: string | null;
             primary_color?: string | null;
             secondary_color?: string | null;
@@ -7565,6 +8034,12 @@ export interface components {
                 account_code: string;
                 account_name: string;
             }[];
+        };
+        /** UpdateConcernRequest */
+        UpdateConcernRequest: {
+            /** @enum {string} */
+            status: "new" | "in_review" | "resolved" | "closed";
+            resolution?: string | null;
         };
         /** UpdateCostCenterRequest */
         UpdateCostCenterRequest: {
@@ -7604,6 +8079,7 @@ export interface components {
             branch_public_id?: string;
             serial_number?: string | null;
             auto_sync?: boolean;
+            timezone?: string | null;
             sync_interval_minutes?: number;
             connection_config?: {
                 ip?: string | null;
@@ -7671,6 +8147,27 @@ export interface components {
          */
         UpdateKioskPinRequest: {
             pin: string | null;
+        };
+        /**
+         * UpdateLandingRequest
+         * @description The organisation's sign-in page: its own words, help contacts and panel
+         *     background. Everything here is shown publicly, before sign-in.
+         */
+        UpdateLandingRequest: {
+            headline?: string | null;
+            message?: string | null;
+            /** Format: email */
+            support_email?: string | null;
+            support_phone?: string | null;
+            /** @enum {string} */
+            background: "brand" | "gradient" | "image";
+            /** Format: uri */
+            background_image_url?: string | null;
+            sections?: {
+                announcements: boolean;
+                vacancies: boolean;
+                holidays: boolean;
+            };
         };
         /** UpdateLeaveTypeRequest */
         UpdateLeaveTypeRequest: {
@@ -7817,6 +8314,8 @@ export interface components {
             theme?: "light" | "dark" | "system" | "high-contrast" | null;
             /** @enum {string|null} */
             calendar?: "gregorian" | "ethiopian" | "dual" | null;
+            punch_reminders?: boolean | null;
+            auto_check_in?: boolean | null;
         };
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
@@ -8007,6 +8506,63 @@ export interface components {
          * @enum {string}
          */
         UserRole: "super_admin" | "tenant_admin" | "hr_admin" | "finance_admin" | "dept_admin" | "supervisor" | "employee";
+        /**
+         * VacancyRequest
+         * @description Creating or editing a vacancy. A public one is shown before sign-in, so
+         *     links are https-only and the text is plain (rendered as text, never HTML).
+         *
+         *     `department_id` and `branch_id` are public ids, resolved through the tenant
+         *     scope: one from another tenant is refused with the same message as one that
+         *     does not exist, as for announcement targets.
+         */
+        VacancyRequest: {
+            title: string;
+            /** @enum {string} */
+            employment_type: "full_time" | "part_time" | "contract" | "temporary" | "internship";
+            description: string;
+            requirements?: string | null;
+            location?: string | null;
+            positions?: number;
+            /** @enum {string} */
+            visibility?: "internal" | "public";
+            /** @enum {string} */
+            status?: "draft" | "open" | "closed";
+            /** Format: date */
+            closes_on?: string | null;
+            /** Format: email */
+            apply_email?: string | null;
+            /** Format: uri */
+            apply_url?: string | null;
+            department_id?: string | null;
+            branch_id?: string | null;
+        };
+        /** VacancyResource */
+        VacancyResource: {
+            public_id: string;
+            title: string;
+            employment_type: string;
+            location: string | null;
+            description: string;
+            requirements: string | null;
+            positions: number;
+            visibility: string;
+            status: string;
+            /** Format: date-time */
+            published_at: string | null;
+            closes_on: string | null;
+            apply_email: string | null;
+            apply_url: string | null;
+            department: {
+                public_id: string;
+                name: string;
+            } | null;
+            branch: {
+                public_id: string;
+                name: string;
+            } | null;
+            /** Format: date-time */
+            created_at: string | null;
+        };
         /** VerifyMfaRequest */
         VerifyMfaRequest: {
             code: string;
@@ -8331,6 +8887,17 @@ export interface operations {
                             pin_required: boolean;
                             auto_reset_seconds: number;
                         };
+                        /**
+                         * @description For punching through a power cut or a dropped connection: the
+                         *     key the terminal seals offline punches with, and the grant that
+                         *     bounds its clock (KioskOfflineSeal). Renewed on every start.
+                         */
+                        offline: {
+                            public_key: string;
+                            grant: string;
+                            issued_at: string;
+                            server_time: string;
+                        };
                     };
                 };
             };
@@ -8451,6 +9018,102 @@ export interface operations {
                         status: 404;
                         /** @constant */
                         detail: "Employee not found with the given code.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/too-many-attempts";
+                        /** @constant */
+                        title: "PIN Locked";
+                        /** @constant */
+                        status: 429;
+                        /** @constant */
+                        detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                    };
+                };
+            };
+        };
+    };
+    "kiosk.kioskSync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KioskSyncRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        results: {
+                            idempotency_key: string;
+                            ""?: {
+                                /** @enum {string} */
+                                status: "duplicate" | "created";
+                                public_id: string;
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
+                                detail: "This offline punch could not be recorded. Ask HR to enter it.";
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                detail: string;
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
+                                detail: "Invalid employee PIN.";
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
+                                detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
+                                detail: "Employee not found with the given code.";
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
+                                detail: "This offline punch could not be read. Punch again.";
+                            };
+                        }[];
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/unauthorized";
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
                     };
                 };
             };
@@ -9198,6 +9861,48 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "offlineSync.grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        grant: string;
+                        issued_at: string;
+                        expires_at: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
+        };
+    };
     "offlineSync.sync": {
         parameters: {
             query?: never;
@@ -9799,6 +10504,135 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceIntegrity.index": {
+        parameters: {
+            query?: {
+                "filter[status]"?: string;
+                "filter[severity]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AttendanceIntegrityFlagResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AttendanceIntegrityFlagResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceIntegrity.summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        open: string;
+                        by_severity: string;
+                        by_type: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceIntegrity.review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flag: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewIntegrityFlagRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendanceIntegrityFlagResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceIntegrityFlagResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        type: string;
+                        /** @constant */
+                        title: "Forbidden";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "You cannot review a flag on your own attendance.";
+                    } | {
+                        /**
+                         * @description Error overview.
+                         * @example
+                         */
+                        message: string;
+                    };
+                };
+            };
             422: components["responses"]["ValidationException"];
         };
     };
@@ -10516,6 +11350,8 @@ export interface operations {
                                 locale: string;
                                 theme: string | "system";
                                 calendar: string;
+                                punch_reminders: boolean;
+                                auto_check_in: boolean;
                             };
                             /** Format: date-time */
                             last_login_at: string | null;
@@ -10910,6 +11746,383 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "concern.index": {
+        parameters: {
+            query?: {
+                "filter[status]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            category: string;
+                            subject: string;
+                            description: string;
+                            status: string;
+                            resolution: string | null;
+                            anonymous: boolean;
+                            reporter_name: string | null;
+                            messages_count: string | null;
+                            created_at: string | null;
+                            updated_at: string | null;
+                            resolved_at: string | null;
+                            messages: {
+                                public_id: string;
+                                author: string;
+                                /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                                author_name: string | null;
+                                body: string;
+                                created_at: string | null;
+                            }[] | null;
+                        }[];
+                        meta: {
+                            current_page: number;
+                            last_page: number;
+                            per_page: number;
+                            total: number;
+                        };
+                        counts: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "concern.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreConcernRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        category: string;
+                        subject: string;
+                        description: string;
+                        status: string;
+                        resolution: string | null;
+                        anonymous: boolean;
+                        reporter_name: string | null;
+                        messages_count: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[] | null;
+                        /** @description Shown once. It is the only way back to an anonymous concern. */
+                        tracking_code: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "concern.mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            category: string;
+                            subject: string;
+                            description: string;
+                            status: string;
+                            resolution: string | null;
+                            anonymous: boolean;
+                            reporter_name: string | null;
+                            messages_count: string | null;
+                            created_at: string | null;
+                            updated_at: string | null;
+                            resolved_at: string | null;
+                            messages: {
+                                public_id: string;
+                                author: string;
+                                /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                                author_name: string | null;
+                                body: string;
+                                created_at: string | null;
+                            }[] | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "concern.track": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrackConcernRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        category: string;
+                        subject: string;
+                        description: string;
+                        status: string;
+                        resolution: string | null;
+                        anonymous: boolean;
+                        reporter_name: string | null;
+                        messages_count: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "concern.trackReply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrackConcernRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        category: string;
+                        subject: string;
+                        description: string;
+                        status: string;
+                        resolution: string | null;
+                        anonymous: boolean;
+                        reporter_name: string | null;
+                        messages_count: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "concern.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                concern: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        category: string;
+                        subject: string;
+                        description: string;
+                        status: string;
+                        resolution: string | null;
+                        anonymous: boolean;
+                        reporter_name: string | null;
+                        messages_count: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "concern.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                concern: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConcernRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        category: string;
+                        subject: string;
+                        description: string;
+                        status: string;
+                        resolution: string | null;
+                        anonymous: boolean;
+                        reporter_name: string | null;
+                        messages_count: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "concern.message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                concern: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConcernMessageRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        category: string;
+                        subject: string;
+                        description: string;
+                        status: string;
+                        resolution: string | null;
+                        anonymous: boolean;
+                        reporter_name: string | null;
+                        messages_count: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "costSharing.index": {
@@ -14956,6 +16169,86 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "landingFeed.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        announcements: {
+                            public_id: string;
+                            title: string;
+                            excerpt: string;
+                            priority: string;
+                            published_at: string | null;
+                        }[];
+                        vacancies: {
+                            public_id: string;
+                            title: string;
+                            employment_type: string;
+                            location: string | null;
+                            department: string | null;
+                            branch: string | null;
+                            positions: number;
+                            published_at: string | null;
+                            closes_on: string | null;
+                            apply_email: string | null;
+                            apply_url: string | null;
+                        }[];
+                        holidays: {
+                            name: string;
+                            name_am: string | null;
+                            date: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    "landingFeed.vacancy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vacancy: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        title: string;
+                        employment_type: string;
+                        location: string | null;
+                        department: string | null;
+                        branch: string | null;
+                        positions: number;
+                        published_at: string | null;
+                        closes_on: string | null;
+                        apply_email: string | null;
+                        apply_url: string | null;
+                        description: string;
+                        requirements: string | null;
+                    };
+                };
+            };
+        };
+    };
     "leaveRequest.store": {
         parameters: {
             query?: never;
@@ -15568,6 +16861,95 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "attendance.myShift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        date: string;
+                        timezone: string;
+                        working_day: boolean;
+                        holiday: {
+                            name: string;
+                            name_am: string | null;
+                        } | null;
+                        on_leave: boolean;
+                        shift: {
+                            public_id: string;
+                            name: string;
+                            start_time: string;
+                            end_time: string;
+                            crosses_midnight: boolean;
+                            grace_minutes: number;
+                            early_departure_minutes: number;
+                            starts_at: string;
+                            ends_at: string;
+                        } | null;
+                        attendance: {
+                            /** @enum {string} */
+                            status: "not_checked_in" | "checked_in" | "checked_out";
+                            record_public_id: string | null;
+                            check_in: string | null;
+                            check_out: string | null;
+                            status_label: string | null;
+                            auto_checked_out: boolean;
+                        };
+                        policy: {
+                            mobile_enabled: boolean;
+                            web_enabled: boolean;
+                            geofence_required: boolean;
+                            photo_required: boolean;
+                            accuracy_threshold_meters: number;
+                            offline_sync_enabled: boolean;
+                            geofence: {
+                                latitude: number;
+                                longitude: number;
+                                radius_meters: number;
+                            } | null;
+                        };
+                        assistant: {
+                            reminders: boolean;
+                            reminders_allowed: boolean;
+                            reminder_lead_minutes: number;
+                            auto_check_in: boolean;
+                            auto_check_in_allowed: boolean;
+                            auto_checkout: boolean;
+                            auto_checkout_after_minutes: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
+        };
+    };
     "announcement.index": {
         parameters: {
             query?: {
@@ -15822,7 +17204,8 @@ export interface operations {
                             "payroll_processed",
                             "announcement",
                             "approval_reminder",
-                            "profile_update"
+                            "profile_update",
+                            "employee_voice"
                         ];
                         channels: [
                             "in_app",
@@ -15879,7 +17262,8 @@ export interface operations {
                             "payroll_processed",
                             "announcement",
                             "approval_reminder",
-                            "profile_update"
+                            "profile_update",
+                            "employee_voice"
                         ];
                         channels: [
                             "in_app",
@@ -19909,6 +21293,193 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "pulse.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        week: string;
+                        answered: boolean;
+                        tags: [
+                            "workload",
+                            "manager",
+                            "team",
+                            "pay",
+                            "growth",
+                            "recognition",
+                            "safety",
+                            "facilities",
+                            "tools",
+                            "wellbeing"
+                        ];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "pulse.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePulseRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        week: string;
+                        answered: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "pulse.insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        min_group: 5;
+                        trend: unknown[];
+                        recent: {
+                            weeks: unknown[];
+                            responses: number;
+                            average: number | null;
+                            distribution: string;
+                            tags: string;
+                            departments: {
+                                department: string | null;
+                                responses: number;
+                                average: number;
+                            }[];
+                            comments: {
+                                week: string;
+                                score: number;
+                                tags: string[];
+                                comment: string | null;
+                            }[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "recognition.index": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            value: string;
+                            message: string;
+                            from: {
+                                public_id: string;
+                                name: string;
+                            } | null;
+                            to: {
+                                public_id: string;
+                                name: string;
+                            } | null;
+                            created_at: string | null;
+                        }[];
+                        meta: {
+                            current_page: number;
+                            last_page: number;
+                            per_page: number;
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "recognition.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreRecognitionRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        value: string;
+                        message: string;
+                        from: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                        to: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                        created_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "retirementCase.index": {
         parameters: {
             query?: never;
@@ -20309,6 +21880,20 @@ export interface operations {
                                 accent_color?: string | null;
                             };
                         };
+                        landing: {
+                            headline: string | null;
+                            message: string | null;
+                            support_email: string | null;
+                            support_phone: string | null;
+                            /** @description An image background with no usable image is the brand colour. */
+                            background: string;
+                            background_image_url: string | null;
+                            sections: {
+                                announcements: string | boolean;
+                                vacancies: string | boolean;
+                                holidays: string | boolean;
+                            };
+                        };
                         /**
                          * @description Attendance rules (grace period, OT cap, confidence threshold) live
                          *     on the AttendanceSetting model and are served by GET/PUT
@@ -20543,6 +22128,45 @@ export interface operations {
                         message: "Branding updated";
                         logo_url: string;
                         theme: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.updateLanding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateLandingRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        headline: string | null;
+                        message: string | null;
+                        support_email: string | null;
+                        support_phone: string | null;
+                        /** @description An image background with no usable image is the brand colour. */
+                        background: string;
+                        background_image_url: string | null;
+                        sections: {
+                            announcements: string | boolean;
+                            vacancies: string | boolean;
+                            holidays: string | boolean;
+                        };
                     };
                 };
             };
@@ -21588,6 +23212,31 @@ export interface operations {
                             name: string;
                             subdomain: string;
                             logo_path: string | null;
+                            brand: {
+                                logo_url: string | null;
+                                primary_color: string | null;
+                                secondary_color: string | null;
+                                accent_color: string | null;
+                            };
+                            landing: {
+                                headline: string | null;
+                                message: string | null;
+                                support_email: string | null;
+                                support_phone: string | null;
+                                /** @description An image background with no usable image is the brand colour. */
+                                background: string;
+                                background_image_url: string | null;
+                                sections: {
+                                    announcements: string | boolean;
+                                    vacancies: string | boolean;
+                                    holidays: string | boolean;
+                                };
+                            };
+                            sign_in: {
+                                sso: boolean;
+                                otp: boolean;
+                            };
+                            default_locale: string;
                         } | null;
                     };
                 };
@@ -21974,6 +23623,8 @@ export interface operations {
                             locale: string;
                             theme: string | "system";
                             calendar: string;
+                            punch_reminders: boolean;
+                            auto_check_in: boolean;
                         };
                         employee: {
                             public_id: string;
@@ -22115,6 +23766,8 @@ export interface operations {
                         locale: string;
                         theme: string | "system";
                         calendar: string;
+                        punch_reminders: boolean;
+                        auto_check_in: boolean;
                     };
                 };
             };
@@ -22696,6 +24349,131 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "vacancy.index": {
+        parameters: {
+            query?: {
+                status?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `VacancyResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyResource"][];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "vacancy.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VacancyRequest"];
+            };
+        };
+        responses: {
+            /** @description `VacancyResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "vacancy.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vacancy: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `VacancyResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "vacancy.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vacancy: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VacancyRequest"];
+            };
+        };
+        responses: {
+            /** @description `VacancyResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "vacancy.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vacancy: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
 }

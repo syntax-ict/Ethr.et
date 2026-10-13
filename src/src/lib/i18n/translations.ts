@@ -139,6 +139,21 @@ export function getLocale(): string {
   return isAvailableLocale(stored) && stored ? stored : DEFAULT_LOCALE;
 }
 
+/**
+ * Persist a locale without switching the running page to it — no dictionary
+ * load, no `locale-changed` event. For the marketing site, whose language is
+ * the URL's: reading `/en` should carry English into the app it links to
+ * ("Start Free Trial" opened an Amharic sign-up form, production QA
+ * 2026-10-11, P8), without making a public page fetch the app's dictionary.
+ */
+export function rememberLocale(locale: string): void {
+  if (typeof window === "undefined" || !isAvailableLocale(locale)) return;
+  if (localStorage.getItem("locale") === locale) return;
+
+  localStorage.setItem("locale", locale);
+  writeLocaleCookie(locale);
+}
+
 export function setLocale(locale: string): void {
   if (typeof window === "undefined") return;
 

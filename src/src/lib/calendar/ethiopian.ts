@@ -114,7 +114,12 @@ export function toGregorian(
     1;
 
   const greg = jdnToGregorian(jdn);
-  return new Date(greg.year, greg.month - 1, greg.day);
+  // Not `new Date(year, …)`: it maps years 0–99 to 1900–1999, which turned
+  // Ethiopian year 2 into 1902 while the year was being typed (production QA
+  // 2026-10-11, P5). setFullYear takes the year literally.
+  const date = new Date(2000, 0, 1);
+  date.setFullYear(greg.year, greg.month - 1, greg.day);
+  return date;
 }
 
 export function daysInEthiopianMonth(year: number, month: number): number {

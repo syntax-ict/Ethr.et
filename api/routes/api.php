@@ -15,15 +15,18 @@ use App\Http\Controllers\Api\V1\Attendance\AttendanceConflictController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceCorrectionController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceImportController;
+use App\Http\Controllers\Api\V1\Attendance\AttendanceIntegrityController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntelligenceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceSettingController;
 use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
 use App\Http\Controllers\Api\V1\Attendance\KioskAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\ManualAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\MobileAttendanceController;
+use App\Http\Controllers\Api\V1\Attendance\MyShiftController;
 use App\Http\Controllers\Api\V1\Attendance\OfflineSyncController;
 use App\Http\Controllers\Api\V1\Attendance\QrAttendanceController;
 use App\Http\Controllers\Api\V1\Auth\FindOrganisationController;
+use App\Http\Controllers\Api\V1\Auth\LandingFeedController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
 use App\Http\Controllers\Api\V1\Auth\MeController;
@@ -66,6 +69,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Holiday\HolidayController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskCheckInController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSessionController;
+use App\Http\Controllers\Api\V1\Kiosk\KioskSyncController;
 use App\Http\Controllers\Api\V1\Leave\LeaveRequestController;
 use App\Http\Controllers\Api\V1\Leave\LeaveTypeController;
 use App\Http\Controllers\Api\V1\Notification\NotificationController;
@@ -108,6 +112,10 @@ use App\Http\Controllers\Api\V1\SiteContentController;
 use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\User\UserController;
+use App\Http\Controllers\Api\V1\Vacancy\VacancyController;
+use App\Http\Controllers\Api\V1\Voice\ConcernController;
+use App\Http\Controllers\Api\V1\Voice\PulseController;
+use App\Http\Controllers\Api\V1\Voice\RecognitionController;
 use App\Http\Controllers\Api\V1\Webhook\WebhookController;
 use App\Http\Middleware\BlockImpersonatedActions;
 use App\Http\Middleware\EnforceApiKeyAbilities;
@@ -193,6 +201,11 @@ Route::get('/register/check-subdomain', SubdomainCheckController::class)->middle
 // `api` limiter rather than `auth`'s 10/min, which login POSTs also share.
 Route::get('/auth/tenant-context', TenantContextController::class)->middleware('throttle:api');
 
+// What the organisation chose to show the public on its sign-in page:
+// announcements and vacancies marked public, and upcoming holidays.
+Route::get('/auth/tenant-landing/feed', [LandingFeedController::class, 'index'])->middleware('throttle:api');
+Route::get('/auth/tenant-landing/vacancies/{vacancy}', [LandingFeedController::class, 'vacancy'])->middleware('throttle:api');
+
 // SSO/SAML endpoints (public — IdP redirects users here)
 Route::prefix('sso/saml/{subdomain}')->middleware('throttle:auth')->group(function () {
     Route::get('/initiate', [SsoController::class, 'initiate']);
@@ -226,6 +239,7 @@ Route::prefix('devices/webhook')->middleware('throttle:api')->group(function () 
 Route::prefix('kiosk')->middleware('throttle:api')->group(function () {
     Route::post('/authenticate', [KioskSessionController::class, 'authenticate']);
     Route::post('/check-in', KioskCheckInController::class);
+    Route::post('/sync', KioskSyncController::class);
     Route::post('/exit', [KioskSessionController::class, 'exitKiosk'])->middleware('throttle:kiosk-exit');
 });
 
@@ -306,6 +320,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/check-in', [AttendanceController::class, 'checkIn']);
         Route::post('/check-out', [AttendanceController::class, 'checkOut']);
         Route::get('/my', [AttendanceController::class, 'my']);
+        Route::get('/my-shift', MyShiftController::class);
         Route::get('/team', [AttendanceController::class, 'team']);
         Route::get('/today', [AttendanceController::class, 'today']);
 
@@ -323,6 +338,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/qr/generate', [QrAttendanceController::class, 'generate']);
         Route::post('/qr', [QrAttendanceController::class, 'scan']);
 
+        Route::get('/offline-grant', [OfflineSyncController::class, 'grant']);
         Route::post('/sync', [OfflineSyncController::class, 'sync']);
 
         Route::get('/intelligence', [AttendanceIntelligenceController::class, 'dashboard']);
@@ -344,6 +360,12 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::prefix('conflicts')->group(function () {
             Route::get('/', [AttendanceConflictController::class, 'index']);
             Route::put('/{conflict}/resolve', [AttendanceConflictController::class, 'resolve']);
+        });
+
+        Route::prefix('integrity')->group(function () {
+            Route::get('/', [AttendanceIntegrityController::class, 'index']);
+            Route::get('/summary', [AttendanceIntegrityController::class, 'summary']);
+            Route::put('/{flag}/review', [AttendanceIntegrityController::class, 'review']);
         });
 
         Route::get('/', [AttendanceController::class, 'index']);
@@ -622,6 +644,31 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update']);
     Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
 
+    Route::get('/vacancies', [VacancyController::class, 'index']);
+    Route::get('/vacancies/{vacancy}', [VacancyController::class, 'show']);
+    Route::post('/vacancies', [VacancyController::class, 'store']);
+    Route::put('/vacancies/{vacancy}', [VacancyController::class, 'update']);
+    Route::delete('/vacancies/{vacancy}', [VacancyController::class, 'destroy']);
+
+    // Employee voice: the weekly pulse, speak-up concerns and recognition.
+    Route::prefix('voice')->group(function () {
+        Route::get('/pulse', [PulseController::class, 'show']);
+        Route::post('/pulse', [PulseController::class, 'store']);
+        Route::get('/pulse/insights', [PulseController::class, 'insights']);
+
+        Route::post('/concerns', [ConcernController::class, 'store']);
+        Route::get('/concerns', [ConcernController::class, 'index']);
+        Route::get('/concerns/mine', [ConcernController::class, 'mine']);
+        Route::post('/concerns/track', [ConcernController::class, 'track'])->middleware('throttle:auth');
+        Route::post('/concerns/track/reply', [ConcernController::class, 'trackReply'])->middleware('throttle:auth');
+        Route::get('/concerns/{concern}', [ConcernController::class, 'show']);
+        Route::put('/concerns/{concern}', [ConcernController::class, 'update']);
+        Route::post('/concerns/{concern}/messages', [ConcernController::class, 'message']);
+
+        Route::get('/recognitions', [RecognitionController::class, 'index']);
+        Route::post('/recognitions', [RecognitionController::class, 'store']);
+    });
+
     // Approvals
     Route::get('/approvals/pending', [ApprovalController::class, 'pending']);
     Route::post('/approvals/batch', [ApprovalController::class, 'batch']);
@@ -742,6 +789,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::put('/settings/address', [SettingsController::class, 'updateAddress']);
     Route::post('/settings/address/verify', [SettingsController::class, 'verifyAddress']);
     Route::put('/settings/branding', [SettingsController::class, 'updateBranding']);
+    Route::put('/settings/landing', [SettingsController::class, 'updateLanding']);
     Route::put('/settings/sso', [SettingsController::class, 'updateSso']);
     Route::post('/settings/scim-token', [SettingsController::class, 'generateScimToken']);
     Route::get('/settings/notification-templates', [NotificationTemplateController::class, 'index']);

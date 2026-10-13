@@ -459,8 +459,8 @@ test('updated overtime rates are applied by payroll', function () {
         'employee_id' => $employee->id,
         'shift_id' => $shift->id,
         'date' => '2026-06-15',
-        'check_in' => Carbon::parse('2026-06-15 08:30'),
-        'check_out' => Carbon::parse('2026-06-15 19:30'), // 120 min OT
+        'check_in' => Carbon::parse('2026-06-15 08:30', 'Africa/Addis_Ababa')->utc(),
+        'check_out' => Carbon::parse('2026-06-15 19:30', 'Africa/Addis_Ababa')->utc(), // 120 min OT
     ]);
 
     $run = app(PayrollEngine::class)->process(

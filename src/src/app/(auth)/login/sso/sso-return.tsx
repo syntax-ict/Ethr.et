@@ -139,7 +139,7 @@ export function SsoReturn() {
         {message}
       </p>
       <Button asChild className="mt-6">
-        <Link href="/login">
+        <Link prefetch={false} href="/login">
           {t("auth.sso_return.back", "Back to sign in")}
         </Link>
       </Button>

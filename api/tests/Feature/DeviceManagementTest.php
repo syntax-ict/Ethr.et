@@ -67,6 +67,58 @@ test('a mock device registers with a minimal non-schema connection_config', func
     expect($device->connection_config)->toBe(['mode' => 'simulator']);
 });
 
+// Production, 2026-10-12 (attendance QA A3): "Mock (Simulator)" was the
+// Register form's default, and one pull fabricated biometric punches for real
+// employees. Outside development and tests it is refused, and an existing one
+// pulls nothing.
+test('the device simulator is refused outside development and tests', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    app()->detectEnvironment(fn () => 'production');
+
+    try {
+        test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices", [
+            'name' => 'Simulator',
+            'adapter_type' => 'mock',
+            'branch_public_id' => $branch->public_id,
+            'connection_config' => ['mode' => 'simulator'],
+        ])->assertStatus(422)->assertJsonValidationErrors('adapter_type');
+
+        // Nor can a real device be turned into one.
+        $device = Device::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'adapter_type' => 'zkteco',
+        ]);
+        test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}", [
+            'adapter_type' => 'mock',
+        ])->assertStatus(422)->assertJsonValidationErrors('adapter_type');
+
+        expect(Device::where('tenant_id', $tenant->id)->where('adapter_type', 'mock')->exists())->toBeFalse();
+    } finally {
+        app()->detectEnvironment(fn () => 'testing');
+    }
+});
+
+test('a simulator registered earlier fabricates nothing outside development and tests', function () {
+    $tenant = createTenant();
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    Employee::factory()->count(3)->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'mock',
+    ]);
+    app()->detectEnvironment(fn () => 'production');
+
+    try {
+        expect(app(DeviceManager::class)->adapter($device)->pullEvents($device))->toBe([]);
+    } finally {
+        app()->detectEnvironment(fn () => 'testing');
+    }
+});
+
 test('a generic device preserves adapter-specific config keys', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);

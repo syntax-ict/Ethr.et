@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
-import Link from "next/link";
+import { useEntityTitle } from "@/components/layouts/page-actions-slot";
 import {
-  ArrowLeft,
   RefreshCw,
   Signal,
   Loader2,
@@ -101,6 +100,9 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   const [eventPage, setEventPage] = useState(1);
 
   const { data: device, isLoading } = useDevice(id);
+  // Ends the title bar's breadcrumb with this record (it had no back
+  // trail but a separate "Back" button).
+  useEntityTitle(device?.name);
 
   // Child queries wait for the device itself, so a deleted or foreign id
   // costs one 404 rather than three.
@@ -212,19 +214,10 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   return (
     <RoleGate anyPermission={["viewDevices"]}>
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/devices">
-              <ArrowLeft className="mr-2 h-4 w-4" />{" "}
-              {t("devices_dashboard_page.all_devices")}
-            </Link>
-          </Button>
-        </div>
-
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-foreground">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                 {device.name}
               </h1>
               <Badge
@@ -297,7 +290,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
         </div>
 
         {/* Info Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <InfoCard
             icon={Activity}
             label={t("device_detail_page.total_records")}

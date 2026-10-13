@@ -18,6 +18,7 @@ import {
   useAuditLogs,
   type AuditLogEndpoint,
 } from "@/features/audit-log/api";
+import { useDebounce } from "@/lib/hooks/useDebounce";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
@@ -63,7 +64,15 @@ export function AuditLogExplorer({
   const [filters, setFilters] = useState({ action: "", from: "", to: "" });
   const [exporting, setExporting] = useState(false);
 
-  const query = useAuditLogs(endpoint, queryKey, { ...filters, page });
+  // The action box is free text; without the debounce every keystroke was a
+  // request ("tenant" sent six), on a host whose firewall bans bursts and a
+  // console route with its own rate limit (console QA F8).
+  const debouncedAction = useDebounce(filters.action.trim(), 300);
+  const query = useAuditLogs(endpoint, queryKey, {
+    ...filters,
+    action: debouncedAction,
+    page,
+  });
 
   const data = query.data;
   const logs = data?.data ?? [];

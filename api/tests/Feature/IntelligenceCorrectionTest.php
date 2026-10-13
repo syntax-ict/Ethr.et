@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AttendanceStatus;
 use App\Enums\CorrectionStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceCorrection;
@@ -9,6 +10,7 @@ use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Holiday;
+use App\Models\Shift;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Attendance\AttendanceIntelligence;
@@ -98,6 +100,30 @@ test('hr admin can view intelligence dashboard', function () {
             'early_departures' => ['count'],
             'missing_punches' => ['count'],
         ]);
+});
+
+// Found 2026-10-12 while redesigning the dashboards: with anyone still checked
+// in (no check-out yet), the screen answered 500. The missing-punch list does
+// not load shifts, and the record's overtime calculation asked for the shift
+// before noticing there was no check-out to measure from.
+test('intelligence dashboard loads while someone is still checked in', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $shift = Shift::factory()->create(['tenant_id' => $tenant->id]);
+
+    foreach (Employee::factory()->count(2)->create(['tenant_id' => $tenant->id]) as $employee) {
+        AttendanceRecord::factory()->checkInOnly()->create([
+            'tenant_id' => $tenant->id,
+            'employee_id' => $employee->id,
+            'shift_id' => $shift->id,
+            'date' => '2026-10-12',
+            'check_in' => '2026-10-12 05:20:00',
+        ]);
+    }
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/intelligence?date=2026-10-12")
+        ->assertOk()
+        ->assertJsonPath('missing_punches.count', 2);
 });
 
 test('employee cannot view intelligence dashboard', function () {
@@ -238,6 +264,62 @@ test('supervisor can approve correction', function () {
 
     $record->refresh();
     expect($record->check_in->format('H:i'))->toBe('08:15');
+});
+
+// Production, 2026-10-12 (attendance QA A4): an admin filed a correction on an
+// employee's record and approved it with the same account — 200. Filing and
+// approving a change payroll pays are two people's acts.
+test('whoever filed a correction cannot approve it, by either route', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $hr = createUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $record = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'check_in' => Carbon::today()->setTime(9, 0),
+    ]);
+    test()->actingAs($hr);
+
+    $publicId = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections", [
+        'attendance_record_public_id' => $record->public_id,
+        'reason' => 'Filed on the employee\'s behalf',
+        'proposed_check_in' => Carbon::today()->setTime(8, 15)->toIso8601String(),
+    ])->assertStatus(201)->json('public_id');
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$publicId}/approve")
+        ->assertStatus(403)
+        ->assertJsonPath('type', 'https://ethr.et/errors/self-approval');
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/approvals/batch", [
+        'actions' => [['type' => 'correction', 'public_id' => $publicId, 'action' => 'approve']],
+    ]);
+
+    expect(AttendanceCorrection::where('public_id', $publicId)->value('status'))
+        ->toBe(CorrectionStatus::PENDING);
+});
+
+test('a correction filed by one person can be approved by another', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $record = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'check_in' => Carbon::today()->setTime(9, 0),
+    ]);
+
+    test()->actingAs(createUser(['role' => UserRole::HR_ADMIN], $tenant));
+    $publicId = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections", [
+        'attendance_record_public_id' => $record->public_id,
+        'reason' => 'Filed by HR',
+        'proposed_check_in' => Carbon::today()->setTime(8, 15)->toIso8601String(),
+    ])->assertStatus(201)->json('public_id');
+
+    app('auth')->forgetGuards();
+    test()->actingAs(createUser(['role' => UserRole::TENANT_ADMIN], $tenant));
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$publicId}/approve")
+        ->assertOk()
+        ->assertJsonPath('status', 'approved');
 });
 
 test('supervisor can preview payroll impact of a pending correction', function () {
@@ -663,3 +745,73 @@ test('approving a correction keeps the original punches, through a second correc
     expect($audit->payload['before']['check_in'])->toBe(Carbon::today()->setTime(8, 15)->toIso8601String())
         ->and($audit->payload['after']['check_in'])->toBe(Carbon::today()->setTime(8, 30)->toIso8601String());
 });
+
+// Production, 2026-10-12 (attendance QA A5): a correction moved a record to a
+// full shift on time and it stayed `early_leave`. The status was read from the
+// punches the correction replaced. QA Audit's shift: 17:10–23:30 Addis.
+function intelligenceCorrectionAddisRecord(Tenant $tenant, Employee $employee, array $attributes): AttendanceRecord
+{
+    $shift = Shift::factory()->create([
+        'tenant_id' => $tenant->id,
+        'start_time' => '17:10',
+        'end_time' => '23:30',
+        'crosses_midnight' => false,
+        'grace_minutes' => 10,
+        'early_departure_minutes' => 15,
+    ]);
+
+    return AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'shift_id' => $shift->id,
+        'date' => '2026-10-12',
+        ...$attributes,
+    ]);
+}
+
+test('approving a correction re-rates the record by the corrected punches', function (array $record, array $proposed, AttendanceStatus $expected) {
+    $tenant = createTenant();
+    [, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
+    $record = intelligenceCorrectionAddisRecord($tenant, $employee, $record);
+
+    $correction = AttendanceCorrection::factory()->create([
+        'tenant_id' => $tenant->id,
+        'attendance_record_id' => $record->id,
+        'employee_id' => $employee->id,
+        'status' => CorrectionStatus::PENDING,
+        ...$proposed,
+    ]);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$correction->public_id}/approve")
+        ->assertOk();
+
+    expect($record->refresh()->status)->toBe($expected);
+
+    $audit = AuditLog::query()->withoutGlobalScopes()->where('action', 'correction.approved')->first();
+    expect($audit->payload['after']['status'])->toBe($expected->value);
+})->with([
+    // 17:12–22:00 Addis, corrected to leave at 23:30: a full shift.
+    'early leave, corrected to the shift end' => [
+        ['check_in' => '2026-10-12 14:12:00', 'check_out' => '2026-10-12 19:00:00', 'status' => AttendanceStatus::EARLY_LEAVE],
+        ['proposed_check_in' => null, 'proposed_check_out' => '2026-10-12 20:30:00'],
+        AttendanceStatus::PRESENT,
+    ],
+    // Arrived 18:10 Addis, corrected to 17:12: on time.
+    'late, corrected to an on-time arrival' => [
+        ['check_in' => '2026-10-12 15:10:00', 'check_out' => '2026-10-12 20:30:00', 'status' => AttendanceStatus::LATE],
+        ['proposed_check_in' => '2026-10-12 14:12:00', 'proposed_check_out' => null],
+        AttendanceStatus::PRESENT,
+    ],
+    // On time, corrected to leave at 21:00 Addis: early.
+    'present, corrected to an early departure' => [
+        ['check_in' => '2026-10-12 14:12:00', 'check_out' => '2026-10-12 20:30:00', 'status' => AttendanceStatus::PRESENT],
+        ['proposed_check_in' => null, 'proposed_check_out' => '2026-10-12 18:00:00'],
+        AttendanceStatus::EARLY_LEAVE,
+    ],
+    // A voided record is a decision about the day, not a reading of the clock.
+    'voided stays voided' => [
+        ['check_in' => '2026-10-12 15:10:00', 'check_out' => '2026-10-12 19:00:00', 'status' => AttendanceStatus::VOIDED],
+        ['proposed_check_in' => '2026-10-12 14:12:00', 'proposed_check_out' => null],
+        AttendanceStatus::VOIDED,
+    ],
+]);

@@ -31,11 +31,13 @@ return [
     'min_token_length' => 32,
 
     /*
-    | Wall-clock ceiling for one queue drain. Kept under a typical 60s HTTP
-    | timeout so the caller gets a real response rather than a gateway error,
-    | and under the one-minute tick so two runs never overlap.
+    | Wall-clock ceiling for one queue drain. Kept under the 30s request
+    | timeout free URL-fetch cron services allow, so the caller gets a real
+    | response rather than recording a timeout, and under the one-minute tick
+    | so two runs never overlap. It was 50 until 2026-10-12, sized for the
+    | GitHub caller alone (console QA F23).
     */
-    'queue_max_seconds' => (int) env('CRON_QUEUE_MAX_SECONDS', 50),
+    'queue_max_seconds' => (int) env('CRON_QUEUE_MAX_SECONDS', 25),
 
     /*
     | How long the overlap lock is held. A fetch-a-URL task that fires while

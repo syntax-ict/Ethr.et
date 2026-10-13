@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Attendance;
 
+use App\Rules\Base64Image;
 use Illuminate\Foundation\Http\FormRequest;
 
 class OfflineSyncRequest extends FormRequest
@@ -23,7 +24,9 @@ class OfflineSyncRequest extends FormRequest
             'records.*.timestamp' => ['required', 'date'],
             'records.*.latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'records.*.longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'records.*.offline_token' => ['required', 'string', 'max:128'],
+            'records.*.offline_token' => ['required', 'string', 'max:2048'],
+            'records.*.accuracy' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'records.*.photo' => ['nullable', 'string', new Base64Image],
         ];
     }
 }

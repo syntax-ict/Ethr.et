@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FormField } from "@/components/patterns/FormField";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -129,9 +129,19 @@ export default function ApprovalsPage() {
         <QueryBoundary
           query={pending}
           loading={
-            <div className="space-y-3">
+            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-20 w-full" />
+                <div
+                  key={i}
+                  className="flex items-center gap-3 border-b border-border px-5 py-4 last:border-0"
+                >
+                  <Skeleton className="h-9 w-9 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-64" />
+                  </div>
+                  <Skeleton className="h-8 w-40" />
+                </div>
               ))}
             </div>
           }
@@ -148,57 +158,67 @@ export default function ApprovalsPage() {
           }
         >
           {() => (
-            <div className="space-y-3">
+            // One list with a row per request, where each was its own card:
+            // a queue reads as a queue, and the actions line up.
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
               {items.map((item) => (
-                <Card key={item.public_id}>
-                  <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                      <StatusBadge status={item.type} />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
+                <li
+                  key={item.public_id}
+                  className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <EmployeeAvatar
+                      name={item.employee_name ?? "—"}
+                      className="h-9 w-9 shrink-0"
+                      fallbackClassName="bg-primary-soft text-xs font-semibold text-primary-on-soft"
+                    />
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
                           {item.employee_name}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          {item.summary}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {formatDate(item.submitted_at)}
-                        </p>
+                        <StatusBadge status={item.type} />
                       </div>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {item.summary}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {formatDate(item.submitted_at)}
+                      </p>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-success-on-soft hover:bg-success-soft"
-                        onClick={() => handleApprove(item)}
-                        disabled={batchAction.isPending}
-                      >
-                        {batchAction.isPending ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Check className="mr-1 h-3 w-3" />
-                        )}
-                        {t("common.approve", "Approve")}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive hover:bg-destructive/10"
-                        onClick={() => {
-                          setRejectReason("");
-                          setRejecting(item);
-                        }}
-                        disabled={batchAction.isPending}
-                      >
-                        <X className="mr-1 h-3 w-3" aria-hidden="true" />
-                        {t("common.reject", "Reject")}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-success-on-soft hover:bg-success-soft"
+                      onClick={() => handleApprove(item)}
+                      disabled={batchAction.isPending}
+                    >
+                      {batchAction.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Check className="mr-1 h-3 w-3" />
+                      )}
+                      {t("common.approve", "Approve")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        setRejectReason("");
+                        setRejecting(item);
+                      }}
+                      disabled={batchAction.isPending}
+                    >
+                      <X className="mr-1 h-3 w-3" aria-hidden="true" />
+                      {t("common.reject", "Reject")}
+                    </Button>
+                  </div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </QueryBoundary>
 

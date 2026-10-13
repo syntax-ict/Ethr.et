@@ -24,9 +24,10 @@ name: ETHR scheduler (external cron caller)
 on:
   schedule:
     # Every 5 minutes. That is GitHub's floor for `schedule`, not a preference:
-    # finer intervals are silently rounded up. Laravel's scheduler is idempotent
-    # about "was this due since last checked", so a coarse tick delays work
-    # rather than dropping it — but read the CADENCE note in cron-caller.md
+    # finer intervals are silently rounded up, and delivery is best-effort:
+    # measured 2026-10-12 at 4-6 runs a day. A late tick still runs what came
+    # due because the endpoint runs `ethr:schedule-run`, which catches up —
+    # stock `schedule:run` did not, and dropped it. Read the CADENCE note in cron-caller.md
     # before assuming 5 minutes is good enough for a given job.
     - cron: "*/5 * * * *"
   # So an operator can prove the wiring works without waiting for a tick, and so
