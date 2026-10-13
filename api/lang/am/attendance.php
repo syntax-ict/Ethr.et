@@ -12,9 +12,8 @@ return [
     'geofence_location_required' => 'ጂኦፌንስ ሲነቃ GPS አካባቢ ያስፈልጋል።',
     'outside_geofence' => 'ከተፈቀደው ክልል ውጪ ነዎት። እባክዎ ወደ ቅርንጫፍ ቦታዎ ይቅረቡ።',
     'conflict_already_resolved' => 'ይህ ግጭት ቀድሞውኑ ተፈትቷል።',
-    // English placeholders until the native-speaker review (audit N50).
-    'offline_not_own' => 'You can only sync your own attendance.',
-    'offline_outside_window' => 'This punch was captured more than :days days ago, or in the future, so it cannot be synced. Ask HR to enter it.',
+    'offline_not_own' => 'ማመሳሰል የሚችሉት የራስዎን መገኘት ብቻ ነው።',
+    'offline_outside_window' => 'ይህ መግቢያ ከ:days ቀናት በፊት ወይም ለወደፊት ቀን ስለተመዘገበ ሊመሳሰል አይችልም። የሰው ሀብት ክፍል እንዲያስገባው ይጠይቁ።',
     'auto_checkout' => [
         'subject' => 'ክትትልዎ በፈረቃዎ መጨረሻ ተዘግቷል',
         'message' => 'በ:date አልወጡም ነበር፤ ስለዚህ ክትትልዎ በፈረቃዎ መጨረሻ፣ :time ላይ ተዘግቷል።',

@@ -52,19 +52,17 @@ return [
     'mfa_disabled_by_policy' => 'ድርጅትዎ ባለ ሁለት ደረጃ ማረጋገጫ አያቀርብም።',
     'session_idle_expired' => 'ለተወሰነ ጊዜ እንቅስቃሴ ስላልነበረ ክፍለ ጊዜዎ አብቅቷል። እንደገና ይግቡ።',
 
-    // "Find my organisation" on the apex login (2026-10-04). English placeholders,
-    // awaiting the native-speaker review (auditrecent.md N40).
+    // "Find my organisation" on the apex login (2026-10-04).
     'find_organisation' => [
-        'sent' => "If that address belongs to an organisation, we've emailed you its sign-in link.",
-        'too_many' => 'Too many requests for this address. Try again in a few minutes.',
-        'mail_subject' => 'Your ETHR sign-in link',
-        'mail_intro' => 'You asked which organisations this address can sign in to on ETHR. Use the link for the one you want:',
-        'mail_action' => 'Sign in',
-        'mail_ignore' => 'If you did not ask for this, you can ignore this email; nothing has changed.',
+        'sent' => 'ያ አድራሻ የአንድ ድርጅት ከሆነ የመግቢያ አገናኙን በኢሜይል ልከንልዎታል።',
+        'too_many' => 'ለዚህ አድራሻ ብዙ ጥያቄዎች ቀርበዋል። ከጥቂት ደቂቃዎች በኋላ እንደገና ይሞክሩ።',
+        'mail_subject' => 'የETHR መግቢያ አገናኝዎ',
+        'mail_intro' => 'ይህ አድራሻ በETHR ላይ ወደ የትኞቹ ድርጅቶች መግባት እንደሚችል ጠይቀዋል። ለሚፈልጉት ድርጅት አገናኙን ይጠቀሙ፦',
+        'mail_action' => 'ግባ',
+        'mail_ignore' => 'ይህን ካልጠየቁ ኢሜይሉን መተው ይችላሉ፤ ምንም አልተቀየረም።',
     ],
 
     // Sent when an organisation registers (production QA 2026-10-11, P7).
-    // Awaiting the native-speaker review, like the block above.
     'registered' => [
         'mail_subject' => ':org በETHR ላይ ዝግጁ ነው',
         'mail_greeting' => 'ወደ ETHR እንኳን በደህና መጡ',

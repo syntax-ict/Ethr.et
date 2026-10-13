@@ -3984,6 +3984,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll/runs/{payrollRun}/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The payroll register: every figure behind each employee's pay, with
+         *     totals that tie to the run and the accounting journal
+         *     (RunRegisterService). What an accountant reconciles a run against
+         */
+        get: operations["payroll.register"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/runs/{payrollRun}/register-csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Register csv runs */
+        get: operations["payroll.downloadRegister"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/payslips/my": {
         parameters: {
             query?: never;
@@ -19725,6 +19763,77 @@ export interface operations {
         };
     };
     "payroll.downloadBankExport": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "payroll.register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        period: string;
+                        status: string;
+                        rows: {
+                            employee_public_id: string | null;
+                            employee_code: string;
+                            employee_name: string;
+                            basic_cents: number;
+                            overtime_cents: number;
+                            allowances_cents: number;
+                            gross_cents: number;
+                            taxable_cents: number;
+                            income_tax_cents: number;
+                            employee_pension_cents: number;
+                            employer_pension_cents: number;
+                            loan_cents: number;
+                            cost_sharing_cents: number;
+                            net_cents: number;
+                        }[];
+                        totals: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "payroll.downloadRegister": {
         parameters: {
             query?: never;
             header?: never;

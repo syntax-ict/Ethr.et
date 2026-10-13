@@ -21,6 +21,7 @@ use App\Services\CurrentTenant;
 use App\Services\Payroll\BankExportService;
 use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\PayslipPdfService;
+use App\Services\Payroll\RunRegisterService;
 use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -290,6 +291,39 @@ class PayrollController extends Controller
         return response($csv, 200, [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    /**
+     * The payroll register: every figure behind each employee's pay, with
+     * totals that tie to the run and the accounting journal
+     * (RunRegisterService). What an accountant reconciles a run against.
+     */
+    public function register(PayrollRun $payrollRun, RunRegisterService $registerService): JsonResponse
+    {
+        $this->authorize('view', $payrollRun);
+
+        $register = $registerService->register($payrollRun);
+
+        return response()->json([
+            'period' => $payrollRun->period_label,
+            'status' => $payrollRun->status,
+            'rows' => $register['rows'],
+            'totals' => $register['totals'],
+        ]);
+    }
+
+    public function downloadRegister(PayrollRun $payrollRun, RunRegisterService $registerService): Response
+    {
+        $this->authorize('view', $payrollRun);
+
+        $csv = $registerService->csv($payrollRun);
+
+        AuditLog::record('payroll.register_export', $payrollRun);
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"payroll-register-{$payrollRun->public_id}.csv\"",
         ]);
     }
 
