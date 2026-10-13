@@ -132,6 +132,7 @@ use App\Http\Middleware\RequiresPlanFeature;
 use App\Http\Middleware\RequireTenantMfaEnrolment;
 use App\Http\Middleware\ScimAuth;
 use App\Http\Middleware\VerifyCronToken;
+use App\Services\Payroll\StatutorySchedules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
@@ -544,6 +545,10 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/runs/{payrollRun}/export/bank-csv', [PayrollController::class, 'downloadBankExport']);
         Route::get('/runs/{payrollRun}/register', [PayrollController::class, 'register']);
         Route::get('/runs/{payrollRun}/register-csv', [PayrollController::class, 'downloadRegister']);
+        Route::get('/runs/{payrollRun}/statutory/{schedule}', [PayrollController::class, 'statutory'])
+            ->whereIn('schedule', StatutorySchedules::SCHEDULES);
+        Route::get('/runs/{payrollRun}/statutory/{schedule}/download', [PayrollController::class, 'downloadStatutory'])
+            ->whereIn('schedule', StatutorySchedules::SCHEDULES);
         Route::get('/payslips/my', [PayrollController::class, 'myPayslips']);
         Route::get('/payslips/{employeePublicId}', [PayrollController::class, 'employeePayslips']);
         Route::get('/payslips/{payrollEntry}/pdf', [PayrollController::class, 'downloadPayslip']);
