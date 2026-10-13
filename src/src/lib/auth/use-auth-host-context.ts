@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import axios from "axios";
 import { useHydrated } from "@/lib/hooks/useHydrated";
-import { entryOrganisation } from "./entry-organisation";
+import { entryOrganisation, queryOrganisation } from "./entry-organisation";
 import { apiClient } from "@/api/client";
 import { hostContext, tenantFromHost, type HostContext } from "./host-context";
 import { useHost } from "./host-provider";
@@ -120,7 +120,8 @@ export function useAuthHostContext() {
   const hydrated = useHydrated();
   const entrySlug =
     hydrated && (classified === "public" || classified === "unknown")
-      ? entryOrganisation(pathname)
+      ? (entryOrganisation(pathname) ??
+        queryOrganisation(window.location.search))
       : null;
   const entryQuery = useQuery({
     queryKey: ["auth", "entry-tenant", entrySlug],
@@ -194,8 +195,16 @@ export function useAuthHostContext() {
     /** SSO and text-message sign-in, where the organisation offers them. */
     tenantSignIn: resolved?.sign_in ?? null,
     tenantDefaultLocale: resolved?.default_locale ?? null,
-    /** On an organisation's own landing address, `ethr.et/{slug}`. */
+    /**
+     * On an organisation's own landing address, `ethr.et/{slug}`, or a
+     * sign-in page handed the organisation by `?org=` / `?tenant=`.
+     */
     onLanding,
+    /**
+     * The slug the sign-in flow's links should carry (`?org=`), so the next
+     * page stays this organisation's. Null where the host itself names it.
+     */
+    carryOrganisation: onLanding && entryTenant ? entrySlug : null,
     /** How to ask the server about this organisation before sign-in. */
     tenantRequest,
     tenantContextLoading:

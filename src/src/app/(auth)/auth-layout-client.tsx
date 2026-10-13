@@ -21,6 +21,7 @@ import {
   useAuthHostContext,
   type TenantLanding,
 } from "@/lib/auth/use-auth-host-context";
+import { useTheme } from "next-themes";
 import { applyBrandToDocument } from "@/features/branding/TenantBrandingProvider";
 import { panelBackground } from "@/lib/auth/landing-background";
 
@@ -54,13 +55,16 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
   // button, focus rings, links - takes them, as they do once signed in.
   const primary = tenantBrand?.primary_color ?? null;
   const accent = tenantBrand?.accent_color ?? null;
+  // Not under high contrast: the person's accessibility choice wins.
+  const { resolvedTheme } = useTheme();
+  const highContrast = resolvedTheme === "high-contrast";
   useEffect(() => {
-    if (!organisation) return;
+    if (!organisation || highContrast) return;
     return applyBrandToDocument({
       primary_color: primary,
       accent_color: accent,
     });
-  }, [organisation, primary, accent]);
+  }, [organisation, primary, accent, highContrast]);
 
   // A first visit opens in the organisation's language; a choice the person
   // already made on this device stands.
@@ -90,7 +94,7 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
       <div
         className="relative hidden w-1/2 overflow-hidden bg-primary lg:flex lg:flex-col"
         style={
-          organisation
+          organisation && !highContrast
             ? panelBackground(tenantLanding, tenantBrand?.secondary_color)
             : undefined
         }
@@ -325,10 +329,15 @@ function MobileOrganisationHeader({
   landing: TenantLanding | null;
   secondary: string | null | undefined;
 }) {
+  const { resolvedTheme } = useTheme();
   return (
     <div
       className="relative overflow-hidden bg-primary px-5 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] lg:hidden"
-      style={panelBackground(landing, secondary)}
+      style={
+        resolvedTheme === "high-contrast"
+          ? undefined
+          : panelBackground(landing, secondary)
+      }
     >
       <div className="flex items-center gap-3">
         <OrgMark

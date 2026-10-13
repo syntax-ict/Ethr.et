@@ -1,5 +1,6 @@
 "use client";
 
+import { signInHref } from "@/lib/auth/entry-organisation";
 import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -38,6 +39,7 @@ export function OtpForm() {
     tenantContextLoading,
     tenantLookupError,
     tenantFieldVisible,
+    carryOrganisation,
   } = useAuthHostContext();
 
   const [step, setStep] = useState<Step>("phone");
@@ -200,7 +202,7 @@ export function OtpForm() {
           )}
         </p>
         <Button className="mt-6 w-full" asChild>
-          <Link prefetch={false} href="/login">
+          <Link prefetch={false} href={signInHref(carryOrganisation)}>
             {t("auth.otp_back_to_password", "Back to password sign-in")}
           </Link>
         </Button>
@@ -362,7 +364,7 @@ export function OtpForm() {
       <p className="mt-6 text-center text-sm text-muted-foreground">
         <Link
           prefetch={false}
-          href="/login"
+          href={signInHref(carryOrganisation)}
           className="font-medium text-primary hover:underline"
         >
           {t("auth.otp_back_to_password", "Back to password sign-in")}
