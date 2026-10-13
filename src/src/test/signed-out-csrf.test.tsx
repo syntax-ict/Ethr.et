@@ -10,6 +10,7 @@ import { ResetPasswordForm } from "@/app/(auth)/login/reset/reset-form";
 let search = new URLSearchParams();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/login/reset",
   useSearchParams: () => search,
 }));
 

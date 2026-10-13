@@ -20,6 +20,8 @@ import {
   withOrganisation,
 } from "@/lib/auth/entry-organisation";
 import { prepareCsrfCookie } from "@/features/auth/sign-in";
+import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
+import { OrgMark } from "@/components/shared/org-mark";
 
 const resetSchema = z
   .object({
@@ -48,6 +50,10 @@ function ResetForm() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [done, setDone] = useState(false);
+  // The organisation's own mark wherever the page is its, as on sign-in.
+  const { context, tenantName, tenantBrand } = useAuthHostContext();
+  const organisationName = context === "tenant" ? tenantName : null;
+  const organisationLogo = tenantBrand?.logo_url;
 
   const {
     register,
@@ -133,9 +139,18 @@ function ResetForm() {
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-          <span className="text-lg font-bold text-primary-foreground">E</span>
-        </div>
+        {organisationName ? (
+          <OrgMark
+            name={organisationName}
+            logoUrl={organisationLogo}
+            className="mx-auto h-12 w-12"
+            initialClassName="text-lg"
+          />
+        ) : (
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
+            <span className="text-lg font-bold text-primary-foreground">E</span>
+          </div>
+        )}
         <h1 className="mt-4 text-2xl font-bold text-foreground">
           {t("auth.reset_title", "Set a new password")}
         </h1>
