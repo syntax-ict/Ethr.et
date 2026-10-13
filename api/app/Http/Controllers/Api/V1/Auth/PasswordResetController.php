@@ -13,12 +13,12 @@ use App\Models\PersonalAccessToken;
 use App\Models\User;
 use App\Notifications\PasswordResetLinkNotification;
 use App\Services\CurrentTenant;
+use App\Support\Mail\CriticalMail;
 use App\Support\PasswordTokens;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
@@ -69,15 +69,9 @@ class PasswordResetController extends Controller
             // Generate token via Laravel's password broker so it's stored properly
             $token = PasswordTokens::broker()->createToken($user);
 
-            try {
-                $user->notify(new PasswordResetLinkNotification($token, $tenant->get()->subdomain));
-                AuditLog::record('user.password_reset_requested', $user);
-            } catch (\Throwable $e) {
-                Log::error('Password reset email failed', [
-                    'user_id' => $user->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            // Sent now; a failure queues retries instead of dropping the link.
+            CriticalMail::send($user, new PasswordResetLinkNotification($token, $tenant->get()->subdomain));
+            AuditLog::record('user.password_reset_requested', $user);
         }
 
         // Same response whether user exists or not — prevents enumeration

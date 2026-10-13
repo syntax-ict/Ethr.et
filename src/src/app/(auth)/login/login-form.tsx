@@ -1,5 +1,6 @@
 "use client";
 
+import { withOrganisation } from "@/lib/auth/entry-organisation";
 import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -81,6 +82,7 @@ export function LoginForm() {
     tenantBrand,
     tenantSignIn,
     onLanding,
+    carryOrganisation,
   } = useAuthHostContext();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
@@ -444,7 +446,7 @@ export function LoginForm() {
             {hostAppContext !== "platform" && (
               <Link
                 prefetch={false}
-                href="/login/forgot"
+                href={withOrganisation("/login/forgot", carryOrganisation)}
                 className="text-xs font-medium text-primary hover:underline"
               >
                 {t("auth.forgot_password", "Forgot password?")}
@@ -539,7 +541,10 @@ export function LoginForm() {
                   className="h-11 w-full"
                   asChild
                 >
-                  <Link prefetch={false} href="/login/otp">
+                  <Link
+                    prefetch={false}
+                    href={withOrganisation("/login/otp", carryOrganisation)}
+                  >
                     <MessageSquareText className="mr-2 h-4 w-4" />
                     {t("auth.sign_in_otp", "Sign in with a text message code")}
                   </Link>

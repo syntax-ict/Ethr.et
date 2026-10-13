@@ -8,7 +8,7 @@ use App\Models\AuditLog;
 use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Notifications\MfaResetNotification;
-use Illuminate\Support\Facades\Log;
+use App\Support\Mail\CriticalMail;
 use PragmaRX\Google2FA\Google2FA;
 
 class MfaService
@@ -94,17 +94,8 @@ class MfaService
 
         AuditLog::record('user.mfa_reset', $user, ['by' => $by]);
 
-        try {
-            $user->notify(new MfaResetNotification);
-
-            return true;
-        } catch (\Throwable $e) {
-            Log::error('MFA reset email failed', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
+        // Sent now; a failure queues retries (CriticalMail) and is reported
+        // as not sent, as it always was.
+        return CriticalMail::send($user, new MfaResetNotification);
     }
 }

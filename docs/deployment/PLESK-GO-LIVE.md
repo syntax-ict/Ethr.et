@@ -154,8 +154,11 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    token*: a wrong or missing token is a JSON 404.
 
    **If the site says a reset email was sent but none arrives, the send failed.** Password
-   reset, MFA reset and account activation catch a mail failure, still answer success, and log
-   it at `error` level: look in `storage/logs` for *"… email failed"*. Measured 2026-10-10:
+   reset, MFA reset and account activation still answer success, log the failure at `error`
+   level (*"Sign-in email failed; retrying from the queue"* in `storage/logs`), and — since
+   2026-10-14 — queue an encrypted retry over the next few hours instead of dropping the email.
+   `/health` → `mail_detail` shows when mail last left, when it last failed, and whether the
+   connection was `verified` or `pinned`. Measured 2026-10-10:
    `certificate verify failed` on port 465. The provider's certificate did not list the
    `smtp.` host name that resolved to it, and the server did not send its intermediate
    certificate. The fix that keeps the server verified is to set `MAIL_HOST` to a name the
@@ -170,8 +173,10 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    intermediate than the renewed one on the webmail port. No CA file can make an expired
    certificate verify. The stopgap is `MAIL_PEER_FINGERPRINT=<the SHA-256 the probe prints>`,
    which accepts that one certificate and refuses every other. Report the expiry to the
-   provider. When they renew, sends fail at `error` level: run `mail-probe` again, and remove
-   the pin.
+   provider. **Since 2026-10-14 a renewal no longer breaks mail:** the mailer tries a verified
+   connection first and uses the pin only when that fails, so once the provider renews, mail
+   simply starts verifying, `mail_detail.tls` reads `verified`, and the log says
+   *"MAIL_PEER_FINGERPRINT can be removed"*. Remove it then, at leisure.
 
    **If `migrate` fails on a first install, empty the database before running it again.**
    MySQL cannot roll back `CREATE TABLE`, so the tables a failed migration made before its
