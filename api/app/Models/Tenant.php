@@ -67,6 +67,8 @@ class Tenant extends Model
         'setup', 'shifts', 'terms', 'vacancies', 'voice',
         'en', 'am', 'om', 'ti', 'so', 'sid',
         'sanctum', 'up', 'storage', 'icons', 'auth', 'org', 'tenant',
+        // ZKTeco ADMS: the path is fixed in device firmware (AdmsController).
+        'iclock',
     ];
 
     /**

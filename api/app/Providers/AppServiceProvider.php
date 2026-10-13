@@ -285,6 +285,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by($request->ip());
         });
 
+        // ZKTeco ADMS check-ins: a device polls every half minute and uploads
+        // as people punch, so the limit is per device serial and address, and
+        // generous — a burst at shift change is a queue of real punches.
+        RateLimiter::for('adms', function (Request $request) {
+            return Limit::perMinute(240)->by('adms:'.substr((string) $request->query('SN'), 0, 64).'|'.$request->ip());
+        });
+
         RateLimiter::for('platform-admin', function (Request $request) {
             return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
         });

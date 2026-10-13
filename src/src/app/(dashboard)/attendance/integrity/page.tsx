@@ -336,6 +336,15 @@ function useDescribeFlag() {
             "The time claimed is outside the period the phone's offline grant covers - its clock may have been changed.",
           ),
         };
+      case "device_clock_ahead":
+        return {
+          title: t("integrity.type.device_clock_ahead", "Device clock ahead"),
+          detail: t(
+            "integrity.detail.device_clock_ahead",
+            "The terminal's clock was :minutes minutes ahead when this punch arrived, so its time may be late. Set the device's clock from its Commands tab.",
+            { minutes: Math.round(Number(d.offset_seconds ?? 0) / 60) },
+          ),
+        };
       case "late_sync":
         return {
           title: t("integrity.type.late_sync", "Synced late"),

@@ -8,7 +8,9 @@ type StoreDeviceRequest = components["schemas"]["StoreDeviceRequest"];
  * carries a marker rather than a fake address.
  */
 export type DeviceConnectionConfig =
-  StoreDeviceRequest["connection_config"] | { mode: "simulator" };
+  | StoreDeviceRequest["connection_config"]
+  | { mode: "simulator" }
+  | { mode: "adms" };
 
 export type DevicePayload = Omit<StoreDeviceRequest, "connection_config"> & {
   connection_config?: DeviceConnectionConfig;
@@ -82,6 +84,13 @@ export function buildDevicePayload(
 
   if (form.adapter_type === "mock") {
     if (mode === "create") payload.connection_config = { mode: "simulator" };
+    return payload;
+  }
+
+  // ZKTeco ADMS calls ETHR, so there is no address to store: the serial
+  // number identifies it, and the IP allowlist admits it.
+  if (form.adapter_type === "zkteco_adms") {
+    if (mode === "create") payload.connection_config = { mode: "adms" };
     return payload;
   }
 

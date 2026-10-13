@@ -10,6 +10,7 @@ use App\Models\AttendanceIntegrityFlag;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\Employee;
+use App\Support\DeviceClock;
 use Carbon\Carbon;
 
 /**
@@ -134,6 +135,14 @@ final class IntegrityInspector
             if (! $kioskOffline && ($settings->mobile_photo_required ?? false) && $input->photoPath === null) {
                 $findings[] = ['photo_missing', 'medium', []];
             }
+        }
+
+        // A pushed punch from a device whose clock runs ahead is dated after it
+        // happened (DeviceClock). Behind is not flagged: it looks the same as a
+        // punch that arrived late.
+        $clockOffset = $input->metadata['device_clock_offset'] ?? null;
+        if (is_int($clockOffset) && DeviceClock::isAhead($clockOffset)) {
+            $findings[] = ['device_clock_ahead', 'medium', ['offset_seconds' => $clockOffset]];
         }
 
         $flags = [];

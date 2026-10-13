@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Exceptions\AttendanceRefused;
 use App\Exceptions\DeviceRequestFailed;
+use App\Http\Controllers\Api\V1\Device\AdmsController;
 use App\Http\Controllers\Api\V1\Maintenance\MaintenanceController;
 use App\Http\Middleware\AcceptIdempotencyKeyHeader;
 use App\Http\Middleware\AuthenticateApiKey;
@@ -57,6 +58,22 @@ return Application::configure(basePath: dirname(__DIR__))
                     Route::post('/restore', [MaintenanceController::class, 'restore']);
                     Route::post('/{task}', [MaintenanceController::class, 'run'])
                         ->where('task', 'migrate|seed|optimize|clear|mail-probe');
+                });
+
+            // ZKTeco ADMS. The path is fixed in the firmware, so it is not under
+            // /api/v1; a device has no session, CSRF token or tenant host, so it
+            // is outside the api group too. AdmsDeviceResolver authenticates
+            // each request by serial and IP allowlist.
+            Route::prefix('iclock')
+                ->middleware('throttle:adms')
+                ->group(function (): void {
+                    foreach (['', '.aspx'] as $ext) {
+                        Route::get('/cdata'.$ext, [AdmsController::class, 'handshake']);
+                        Route::post('/cdata'.$ext, [AdmsController::class, 'upload']);
+                        Route::get('/getrequest'.$ext, [AdmsController::class, 'getRequest']);
+                        Route::post('/devicecmd'.$ext, [AdmsController::class, 'commandResult']);
+                        Route::get('/ping'.$ext, [AdmsController::class, 'ping']);
+                    }
                 });
         },
     )

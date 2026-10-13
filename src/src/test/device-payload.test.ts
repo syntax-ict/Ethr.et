@@ -24,6 +24,22 @@ const hikvision: DeviceFormData = {
 };
 
 describe("buildDevicePayload", () => {
+  it("registers a ZKTeco ADMS device by serial, with no address", () => {
+    const form: DeviceFormData = {
+      ...EMPTY_DEVICE_FORM,
+      adapter_type: "zkteco_adms",
+      name: "Gate",
+      serial_number: "CQZ7232460001",
+      branch_public_id: "01BRANCH",
+      ip: "192.168.1.9",
+    };
+
+    const created = buildDevicePayload(form, "create");
+    expect(created.serial_number).toBe("CQZ7232460001");
+    expect(created.connection_config).toEqual({ mode: "adms" });
+    expect(buildDevicePayload(form, "edit").connection_config).toBeUndefined();
+  });
+
   it("registers a mock device with a marker config and no fake port", () => {
     const payload = buildDevicePayload(
       {

@@ -7,6 +7,7 @@ namespace App\Http\Requests\Device;
 use App\Http\Requests\Device\Concerns\RefusesSimulatorOutsideDevelopment;
 use App\Http\Requests\Device\Concerns\ValidatesSerialUniqueness;
 use App\Rules\DeviceConnectionConfig;
+use App\Rules\IpOrCidr;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreDeviceRequest extends FormRequest
@@ -26,9 +27,9 @@ class StoreDeviceRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'location_description' => ['nullable', 'string', 'max:500'],
-            'adapter_type' => ['required', 'string', 'in:hikvision,zkteco,suprema,generic,mock'],
+            'adapter_type' => ['required', 'string', 'in:hikvision,zkteco,zkteco_adms,suprema,generic,mock'],
             'branch_public_id' => ['required', 'string', 'exists:branches,public_id'],
-            'serial_number' => ['nullable', 'string', 'max:255'],
+            'serial_number' => ['required_if:adapter_type,zkteco_adms', 'nullable', 'string', 'max:255'],
             'auto_sync' => ['sometimes', 'boolean'],
             'commands_enabled' => ['sometimes', 'boolean'],
             'timezone' => ['nullable', 'string', 'timezone:all'],
@@ -36,13 +37,13 @@ class StoreDeviceRequest extends FormRequest
             // has enforced this since 2026-08 and no request could set it
             // (attendance QA H10), so a token was the only usable auth.
             'webhook_ip_allowlist' => ['nullable', 'array', 'max:20'],
-            'webhook_ip_allowlist.*' => ['string', 'ip'],
+            'webhook_ip_allowlist.*' => ['string', new IpOrCidr],
             'sync_interval_minutes' => ['sometimes', 'integer', 'min:1', 'max:1440'],
             'connection_config' => ['required', 'array', new DeviceConnectionConfig($this->input('adapter_type'))],
             // IP-based vendors need ip/port; the generic HTTP adapter is URL-based
             // and needs base_url instead; mock needs neither.
-            'connection_config.ip' => ['required_unless:adapter_type,mock,generic', 'nullable', 'string'],
-            'connection_config.port' => ['required_unless:adapter_type,mock,generic', 'nullable', 'integer', 'min:1', 'max:65535'],
+            'connection_config.ip' => ['required_unless:adapter_type,mock,generic,zkteco_adms', 'nullable', 'string'],
+            'connection_config.port' => ['required_unless:adapter_type,mock,generic,zkteco_adms', 'nullable', 'integer', 'min:1', 'max:65535'],
             'connection_config.base_url' => ['required_if:adapter_type,generic', 'nullable', 'url'],
             'connection_config.username' => ['nullable', 'string'],
             'connection_config.password' => ['nullable', 'string'],
