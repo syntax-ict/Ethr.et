@@ -222,4 +222,6 @@ return [
     'custom_domain_cname_missing' => ':domain is not a CNAME for :target.',
     'custom_domain_none' => 'This organisation has no custom domain to verify.',
 
+    'employee_minimum_age' => 'The employee must be at least 15 years old on the hire date.',
+    'holiday_duplicate' => 'This holiday is already on the calendar for that date.',
 ];

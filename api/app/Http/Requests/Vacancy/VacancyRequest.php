@@ -47,7 +47,7 @@ class VacancyRequest extends FormRequest
             'positions' => ['sometimes', 'integer', 'min:1', 'max:999'],
             'visibility' => ['sometimes', 'string', 'in:'.implode(',', Vacancy::VISIBILITIES)],
             'status' => ['sometimes', 'string', 'in:'.implode(',', Vacancy::STATUSES)],
-            'closes_on' => ['nullable', 'date_format:Y-m-d'],
+            'closes_on' => ['nullable', 'date_format:Y-m-d', ...($this->input('status') === 'open' ? ['after_or_equal:today'] : [])],
             'apply_email' => ['nullable', 'email', 'max:120'],
             'apply_url' => ['nullable', 'string', 'url:https', 'max:500'],
             'department_id' => ['nullable', 'string', 'max:26'],

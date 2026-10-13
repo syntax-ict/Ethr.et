@@ -30,7 +30,7 @@ class UpdateEmployeeRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'name_am' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'phone' => ['nullable', 'string', 'max:20', 'regex:/^\+?[0-9 ()-]{6,20}$/'],
             'employee_code' => [
                 'nullable', 'string', 'max:30',
                 Rule::unique('employees')->where('tenant_id', $tenantId)->ignore($employee?->id),
@@ -40,7 +40,7 @@ class UpdateEmployeeRequest extends FormRequest
             'nationality' => ['nullable', 'string', 'max:100'],
             'national_id' => ['nullable', 'string', 'max:50'],
             'marital_status' => ['nullable', 'string', Rule::in(['single', 'married', 'divorced', 'widowed'])],
-            'hire_date' => ['sometimes', 'date'],
+            'hire_date' => ['sometimes', 'date', 'before_or_equal:'.now()->addYear()->toDateString()],
             'probation_end_date' => ['nullable', 'date'],
             'salary_cents' => ['nullable', 'integer', 'min:0'],
             'tin' => ['nullable', 'string', 'max:20'],

@@ -17,6 +17,9 @@ namespace App\Http\Requests\Shift\Concerns;
 trait ShiftRules
 {
     /**
+     * `end_time` must differ from `start_time`: a shift that ends when it
+     * starts has no length (QA 2026-10-13).
+     *
      * @param  'required'|'sometimes'  $presence
      * @return array<string, list<string>>
      */
@@ -26,7 +29,7 @@ trait ShiftRules
             'name' => [$presence, 'string', 'max:255'],
             'name_am' => ['nullable', 'string', 'max:255'],
             'start_time' => [$presence, 'date_format:H:i'],
-            'end_time' => [$presence, 'date_format:H:i'],
+            'end_time' => [$presence, 'date_format:H:i', 'different:start_time'],
             'crosses_midnight' => ['boolean'],
             'grace_minutes' => ['integer', 'min:0', 'max:120'],
             'early_departure_minutes' => ['integer', 'min:0', 'max:120'],
