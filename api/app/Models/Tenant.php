@@ -254,6 +254,7 @@ class Tenant extends Model
         return $this->hasMany(AttendanceRecord::class);
     }
 
+    /** @return HasOne<AttendanceSetting, $this> */
     public function attendanceSetting(): HasOne
     {
         return $this->hasOne(AttendanceSetting::class);

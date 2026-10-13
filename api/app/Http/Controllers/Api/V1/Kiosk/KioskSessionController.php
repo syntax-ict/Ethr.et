@@ -12,6 +12,7 @@ use App\Http\Resources\KioskSessionResource;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\KioskSession;
+use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\Kiosk\KioskOfflineSeal;
 use Illuminate\Http\JsonResponse;
@@ -142,6 +143,9 @@ class KioskSessionController extends Controller
         $session->touchActivity();
 
         $tenant = $session->tenant;
+        // Every session belongs to a tenant; the trait's relation is untyped,
+        // so this states it rather than reading properties off a bare Model.
+        abort_unless($tenant instanceof Tenant, 404);
         $settings = $tenant->attendanceSetting;
 
         return response()->json([

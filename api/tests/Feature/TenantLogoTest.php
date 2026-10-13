@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\Tenant;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 
 /*
  * An organisation's uploaded logo (organisation-landing follow-up G1).
@@ -31,7 +32,7 @@ function logoAdmin(): Tenant
     return $tenant;
 }
 
-function uploadLogo(UploadedFile $file): \Illuminate\Testing\TestResponse
+function uploadLogo(UploadedFile $file): TestResponse
 {
     return test()->post('http://acme.ethr.test/api/v1/settings/branding/logo', ['logo' => $file], ['Accept' => 'application/json']);
 }
