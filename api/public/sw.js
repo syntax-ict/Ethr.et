@@ -202,6 +202,8 @@ async function flushQueue() {
           offline_token: r.offline_token,
           latitude: r.latitude,
           longitude: r.longitude,
+          accuracy: r.accuracy ?? null,
+          photo: r.photo ?? null,
         })),
       }),
     });

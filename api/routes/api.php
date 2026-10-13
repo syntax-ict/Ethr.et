@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\Attendance\AttendanceConflictController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceCorrectionController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceImportController;
+use App\Http\Controllers\Api\V1\Attendance\AttendanceIntegrityController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntelligenceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceSettingController;
 use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
@@ -332,6 +333,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/qr/generate', [QrAttendanceController::class, 'generate']);
         Route::post('/qr', [QrAttendanceController::class, 'scan']);
 
+        Route::get('/offline-grant', [OfflineSyncController::class, 'grant']);
         Route::post('/sync', [OfflineSyncController::class, 'sync']);
 
         Route::get('/intelligence', [AttendanceIntelligenceController::class, 'dashboard']);
@@ -353,6 +355,12 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::prefix('conflicts')->group(function () {
             Route::get('/', [AttendanceConflictController::class, 'index']);
             Route::put('/{conflict}/resolve', [AttendanceConflictController::class, 'resolve']);
+        });
+
+        Route::prefix('integrity')->group(function () {
+            Route::get('/', [AttendanceIntegrityController::class, 'index']);
+            Route::get('/summary', [AttendanceIntegrityController::class, 'summary']);
+            Route::put('/{flag}/review', [AttendanceIntegrityController::class, 'review']);
         });
 
         Route::get('/', [AttendanceController::class, 'index']);

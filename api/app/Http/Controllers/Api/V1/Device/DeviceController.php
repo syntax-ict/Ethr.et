@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Device;
 
 use App\Enums\AttendanceSource;
+use App\Exceptions\AttendanceRefused;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Device\ImportHistoryRequest;
 use App\Http\Requests\Device\StoreDeviceRequest;
@@ -23,6 +24,7 @@ use App\Services\Attendance\AttendanceInput;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
 use App\Services\PlanLimitService;
+use App\Support\DeviceTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -98,6 +100,7 @@ class DeviceController extends Controller
             'connection_config' => $request->input('connection_config', []),
             'auto_sync' => $request->validated('auto_sync', true),
             'sync_interval_minutes' => $request->validated('sync_interval_minutes', 5),
+            'timezone' => $request->validated('timezone'),
             'webhook_token' => Device::generateWebhookToken(),
             'status' => 'pending',
         ]);
@@ -527,6 +530,14 @@ class DeviceController extends Controller
         string $idempotencyKey,
         mixed $occurredAt,
     ): void {
+        // Read in the device's zone when the device states none (see
+        // DeviceTime), and refused when the device clock runs ahead: a punch
+        // cannot be dated after it reached us.
+        $moment = DeviceTime::normalize((string) $occurredAt, $device);
+        if ($moment === null || DeviceTime::isInFuture($moment)) {
+            throw new AttendanceRefused(__('attendance.device_clock_invalid'));
+        }
+
         $engine->record(new AttendanceInput(
             employeeId: $employee->id,
             tenantId: $device->tenant_id,
@@ -534,7 +545,7 @@ class DeviceController extends Controller
             type: $type,
             idempotencyKey: $idempotencyKey,
             deviceId: $device->id,
-            occurredAt: $occurredAt,
+            occurredAt: $moment,
         ));
     }
 

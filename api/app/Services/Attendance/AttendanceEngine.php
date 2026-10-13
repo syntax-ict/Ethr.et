@@ -26,6 +26,7 @@ final class AttendanceEngine
         private readonly ConfidenceScorer $scorer,
         private readonly ShiftMatcher $shiftMatcher,
         private readonly ConflictResolver $conflictResolver,
+        private readonly IntegrityInspector $inspector,
     ) {}
 
     public function record(AttendanceInput $input): AttendanceResult
@@ -79,7 +80,7 @@ final class AttendanceEngine
         }
 
         if ($input->type === 'check_out') {
-            return $this->processCheckOut($input, $employee, $zone);
+            return $this->processCheckOut($input, $employee, $zone, $settings);
         }
 
         return $this->processCheckIn($input, $employee, $zone, $settings);
@@ -181,12 +182,23 @@ final class AttendanceEngine
             ]);
         }
 
+        // A merge can move check_in earlier (the survivor keeps the earliest
+        // of the two), and the status was rated on the punch before it. A
+        // backdated offline punch merged into a late biometric one stayed
+        // `late` - or the other way round - until 2026-10-13.
+        if (in_array($resolution->action, ['merged', 'deduped'], true)) {
+            $this->reclassify($record);
+            $record = $record->fresh() ?? $record;
+        }
+
+        $this->inspector->inspect($record, $input, $employee, $settings, 'check_in', $now);
+
         AttendanceRecorded::dispatch($record);
 
         return new AttendanceResult($record);
     }
 
-    private function processCheckOut(AttendanceInput $input, Employee $employee, string $zone): AttendanceResult
+    private function processCheckOut(AttendanceInput $input, Employee $employee, string $zone, ?AttendanceSetting $settings = null): AttendanceResult
     {
         $now = $this->resolveMoment($input);
         $local = $now->copy()->setTimezone($zone);
@@ -241,6 +253,8 @@ final class AttendanceEngine
         if ($record->shift && $record->status === AttendanceStatus::PRESENT && $this->leftEarly($record, $zone)) {
             $record->update(['status' => AttendanceStatus::EARLY_LEAVE]);
         }
+
+        $this->inspector->inspect($record, $input, $employee, $settings, 'check_out', $now);
 
         AttendanceRecorded::dispatch($record);
 

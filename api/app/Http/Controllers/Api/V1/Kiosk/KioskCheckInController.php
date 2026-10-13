@@ -9,15 +9,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\KioskCheckInRequest;
 use App\Http\Resources\AttendancePunchResource;
 use App\Models\AttendanceSetting;
+use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\KioskSession;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 
 class KioskCheckInController extends Controller
 {
+    private const PIN_ATTEMPTS = 5;
+
+    private const PIN_LOCK_SECONDS = 900;
+
     public function __construct(
         private readonly AttendanceEngine $engine,
     ) {}
@@ -73,7 +79,26 @@ class KioskCheckInController extends Controller
                 ], 422)->header('Content-Type', 'application/problem+json');
             }
 
+            // Five wrong PINs for one person at one kiosk lock that person
+            // there for 15 minutes. The route limiter counts per IP, and a
+            // kiosk is one IP for everyone in the queue, so it could neither
+            // stop a colleague guessing four digits nor avoid locking out
+            // the whole queue.
+            $lockKey = "kiosk-pin:{$session->id}:{$employee->id}";
+            if (RateLimiter::tooManyAttempts($lockKey, self::PIN_ATTEMPTS)) {
+                return response()->json([
+                    'type' => 'https://ethr.et/errors/too-many-attempts',
+                    'title' => 'PIN Locked',
+                    'status' => 429,
+                    'detail' => __('kiosk.pin_locked'),
+                ], 429)->header('Content-Type', 'application/problem+json');
+            }
+
             if (! Hash::check($pin, $employee->kiosk_pin)) {
+                if (RateLimiter::hit($lockKey, self::PIN_LOCK_SECONDS) >= self::PIN_ATTEMPTS) {
+                    AuditLog::record('kiosk.pin_locked', $employee, ['kiosk_session_id' => $session->id]);
+                }
+
                 return response()->json([
                     'type' => 'https://ethr.et/errors/unauthorized',
                     'title' => 'Invalid PIN',
@@ -81,6 +106,8 @@ class KioskCheckInController extends Controller
                     'detail' => __('kiosk.invalid_pin'),
                 ], 401)->header('Content-Type', 'application/problem+json');
             }
+
+            RateLimiter::clear($lockKey);
         }
 
         if ($settings && ! $settings->isMethodEnabled('kiosk')) {
