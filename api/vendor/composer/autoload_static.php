@@ -1334,6 +1334,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Services\\Device\\DeviceManager' => __DIR__ . '/../..' . '/app/Services/Device/DeviceManager.php',
         'App\\Services\\Device\\GenericHttpAdapter' => __DIR__ . '/../..' . '/app/Services/Device/GenericHttpAdapter.php',
         'App\\Services\\Device\\HikvisionAdapter' => __DIR__ . '/../..' . '/app/Services/Device/HikvisionAdapter.php',
+        'App\\Services\\Device\\HikvisionEvent' => __DIR__ . '/../..' . '/app/Services/Device/HikvisionEvent.php',
         'App\\Services\\Device\\MockAdapter' => __DIR__ . '/../..' . '/app/Services/Device/MockAdapter.php',
         'App\\Services\\Device\\SupremaAdapter' => __DIR__ . '/../..' . '/app/Services/Device/SupremaAdapter.php',
         'App\\Services\\Device\\ZktecoAdapter' => __DIR__ . '/../..' . '/app/Services/Device/ZktecoAdapter.php',

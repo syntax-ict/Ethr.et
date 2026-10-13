@@ -651,6 +651,7 @@ return array(
     'App\\Services\\Device\\DeviceManager' => $baseDir . '/app/Services/Device/DeviceManager.php',
     'App\\Services\\Device\\GenericHttpAdapter' => $baseDir . '/app/Services/Device/GenericHttpAdapter.php',
     'App\\Services\\Device\\HikvisionAdapter' => $baseDir . '/app/Services/Device/HikvisionAdapter.php',
+    'App\\Services\\Device\\HikvisionEvent' => $baseDir . '/app/Services/Device/HikvisionEvent.php',
     'App\\Services\\Device\\MockAdapter' => $baseDir . '/app/Services/Device/MockAdapter.php',
     'App\\Services\\Device\\SupremaAdapter' => $baseDir . '/app/Services/Device/SupremaAdapter.php',
     'App\\Services\\Device\\ZktecoAdapter' => $baseDir . '/app/Services/Device/ZktecoAdapter.php',
