@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Globe, Megaphone, Plus, Loader2, Trash2, Pencil } from "lucide-react";
+import { Megaphone, Plus, Loader2, Trash2, Pencil } from "lucide-react";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -44,8 +43,7 @@ const EMPTY_FORM: {
   title: string;
   body: string;
   priority: AnnouncementPriority;
-  show_on_landing: boolean;
-} = { title: "", body: "", priority: "normal", show_on_landing: false };
+} = { title: "", body: "", priority: "normal" };
 
 const priorityColors: Record<string, string> = {
   urgent: "bg-destructive-soft text-destructive-on-soft",
@@ -76,7 +74,6 @@ export default function AnnouncementsPage() {
       // The resource types priority as a plain string; the store rule only
       // ever writes one of these four.
       priority: a.priority as AnnouncementPriority,
-      show_on_landing: a.show_on_landing,
     });
     setDialogOpen(true);
   }
@@ -193,19 +190,6 @@ export default function AnnouncementsPage() {
                       >
                         {t(`common.${a.priority}`, a.priority)}
                       </Badge>
-                      {a.show_on_landing && (
-                        <Badge
-                          variant="outline"
-                          className="gap-1 text-[10px]"
-                          title={t(
-                            "announcements.on_landing_hint",
-                            "Also shown on your sign-in page",
-                          )}
-                        >
-                          <Globe className="h-3 w-3" aria-hidden="true" />
-                          {t("announcements.public", "Public")}
-                        </Badge>
-                      )}
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
                       {a.body}
@@ -333,26 +317,6 @@ export default function AnnouncementsPage() {
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
-              <div>
-                <Label htmlFor="announcement-landing">
-                  {t("announcements.show_on_landing", "Show on sign-in page")}
-                </Label>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t(
-                    "announcements.show_on_landing_help",
-                    "Anyone who opens your sign-in page can read it, before signing in. Leave off for anything internal.",
-                  )}
-                </p>
-              </div>
-              <Switch
-                id="announcement-landing"
-                checked={form.show_on_landing}
-                onCheckedChange={(checked) =>
-                  setForm((p) => ({ ...p, show_on_landing: checked }))
-                }
-              />
             </div>
             <DialogFooter>
               <Button

@@ -27,7 +27,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 type Background = LandingBackground["background"];
@@ -35,17 +34,6 @@ const BACKGROUNDS: readonly Background[] = ["brand", "gradient", "image"];
 
 function isBackground(value: unknown): value is Background {
   return BACKGROUNDS.includes(value as Background);
-}
-
-interface Sections {
-  announcements: boolean;
-  vacancies: boolean;
-  holidays: boolean;
-}
-
-// The contract types these loosely; the server sends booleans.
-function asBool(value: unknown, fallback: boolean): boolean {
-  return typeof value === "boolean" ? value : fallback;
 }
 
 const HEADLINE_MAX = 80;
@@ -85,11 +73,6 @@ export function LandingCard({
   );
   const [imageUrl, setImageUrl] = useState(landing.background_image_url ?? "");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [sections, setSections] = useState<Sections>({
-    announcements: asBool(landing.sections?.announcements, true),
-    vacancies: asBool(landing.sections?.vacancies, true),
-    holidays: asBool(landing.sections?.holidays, false),
-  });
 
   // The address people type or scan: the organisation's own address when it
   // has one, else the shared ethr.et/{slug}.
@@ -118,7 +101,6 @@ export function LandingCard({
         support_phone: trimmed(phone),
         background,
         background_image_url: background === "image" ? trimmed(imageUrl) : null,
-        sections,
       },
       {
         onSuccess: () =>
@@ -348,57 +330,6 @@ export function LandingCard({
             </div>
           </div>
         </div>
-
-        {/* What the page lists under the form. Each item is still opt-in
-            where it is written: an announcement marked for the sign-in
-            page, a vacancy posted as public. */}
-        <fieldset className="space-y-3 rounded-lg border p-4">
-          <legend className="px-1 text-sm font-medium">
-            {t("settings.landing_sections", "Also show on the page")}
-          </legend>
-          {(
-            [
-              [
-                "announcements",
-                t("settings.landing_section_news", "News"),
-                t(
-                  "settings.landing_section_news_help",
-                  'Announcements you marked "Show on sign-in page".',
-                ),
-              ],
-              [
-                "vacancies",
-                t("settings.landing_section_vacancies", "Open positions"),
-                t(
-                  "settings.landing_section_vacancies_help",
-                  "Vacancies posted as public.",
-                ),
-              ],
-              [
-                "holidays",
-                t("settings.landing_section_holidays", "Upcoming holidays"),
-                t(
-                  "settings.landing_section_holidays_help",
-                  "The next public holidays from your calendar.",
-                ),
-              ],
-            ] as const
-          ).map(([key, label, help]) => (
-            <div key={key} className="flex items-start justify-between gap-4">
-              <div>
-                <Label htmlFor={`landing-section-${key}`}>{label}</Label>
-                <p className="text-xs text-muted-foreground">{help}</p>
-              </div>
-              <Switch
-                id={`landing-section-${key}`}
-                checked={sections[key]}
-                onCheckedChange={(checked) =>
-                  setSections((prev) => ({ ...prev, [key]: checked }))
-                }
-              />
-            </div>
-          ))}
-        </fieldset>
 
         {/* Share it: the link, and a QR code for a poster. */}
         <div className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center">

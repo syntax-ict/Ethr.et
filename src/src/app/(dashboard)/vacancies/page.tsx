@@ -5,9 +5,7 @@ import {
   Briefcase,
   CalendarClock,
   ExternalLink,
-  Globe,
   Loader2,
-  Lock,
   Mail,
   MapPin,
   Pencil,
@@ -265,16 +263,6 @@ export default function VacanciesPage() {
                         {t(`vacancies.status_${v.status}`, v.status)}
                       </Badge>
                     )}
-                    <Badge variant="outline" className="gap-1 text-[10px]">
-                      {v.visibility === "public" ? (
-                        <Globe className="h-3 w-3" aria-hidden="true" />
-                      ) : (
-                        <Lock className="h-3 w-3" aria-hidden="true" />
-                      )}
-                      {v.visibility === "public"
-                        ? t("vacancies.visibility_public", "Public")
-                        : t("vacancies.visibility_internal", "Internal")}
-                    </Badge>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {[
@@ -529,7 +517,6 @@ function VacancyForm({
       requirements: blank(form.requirements),
       location: blank(form.location),
       positions: Math.max(1, Number.parseInt(form.positions, 10) || 1),
-      visibility: form.visibility,
       status: form.status,
       closes_on: blank(form.closes_on),
       apply_email: blank(form.apply_email),
@@ -780,30 +767,6 @@ function VacancyForm({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="vacancy-visibility">
-                {t("vacancies.visibility", "Who can see it")}
-              </Label>
-              <Select
-                value={form.visibility}
-                onValueChange={(v) => set("visibility", v as VacancyVisibility)}
-              >
-                <SelectTrigger id="vacancy-visibility" className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="internal">
-                    {t("vacancies.visibility_internal_long", "Employees only")}
-                  </SelectItem>
-                  <SelectItem value="public">
-                    {t(
-                      "vacancies.visibility_public_long",
-                      "Employees and the public sign-in page",
-                    )}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <div>
               <Label htmlFor="vacancy-status">
                 {t("common.status", "Status")}
