@@ -1381,6 +1381,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Services\\Payroll\\PayrollProcessResult' => __DIR__ . '/../..' . '/app/Services/Payroll/PayrollProcessResult.php',
         'App\\Services\\Payroll\\PayslipPdfService' => __DIR__ . '/../..' . '/app/Services/Payroll/PayslipPdfService.php',
         'App\\Services\\Payroll\\PensionCalculator' => __DIR__ . '/../..' . '/app/Services/Payroll/PensionCalculator.php',
+        'App\\Services\\Payroll\\RunRegisterService' => __DIR__ . '/../..' . '/app/Services/Payroll/RunRegisterService.php',
         'App\\Services\\Payroll\\TaxCalculator' => __DIR__ . '/../..' . '/app/Services/Payroll/TaxCalculator.php',
         'App\\Services\\PersonnelActionService' => __DIR__ . '/../..' . '/app/Services/PersonnelActionService.php',
         'App\\Services\\PlanFeatureService' => __DIR__ . '/../..' . '/app/Services/PlanFeatureService.php',

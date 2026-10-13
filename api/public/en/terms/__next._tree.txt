@@ -5,4 +5,4 @@
 3:[["children",{"s":"terms","h":64,"c":"$Q4"}]]
 2:[["children",{"s":{"n":"locale","t":"d","k":"en","s":["admin","analytics","announcements","approvals","attendance","billing","contact","dashboard","devices","directory","employees","faq","features","impersonate","kiosk","leave","login","notifications","offline","og.png","organization","payroll","pricing","privacy","profile","register","reports","settings","setup","shifts","terms","vacancies","voice"]},"h":65584,"c":"$Q3"}]]
 1:[["children",{"s":"(marketing)","h":131184,"c":"$Q2"}]]
-0:{"b":"tNY1L0u6iA7jBjVpNm0Ns","t":{"t":{"s":"","h":131152,"c":"$Q1"}}}
+0:{"b":"zLO95Y01-XAV1g7enJLMl","t":{"t":{"s":"","h":131152,"c":"$Q1"}}}
