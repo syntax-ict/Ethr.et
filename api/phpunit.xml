@@ -69,6 +69,7 @@
         <env name="FILESYSTEM_DISK" value="local" force="true"/>
         <env name="MAIL_MAILER" value="array" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
+        <env name="CRON_OPPORTUNISTIC" value="false" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>
     </php>
 </phpunit>

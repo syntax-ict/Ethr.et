@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Services\Observability\QueueHealth;
 
 /**
- * The one worker ETHR has: `POST /api/v1/cron/queue` -> CronRunController::queue()
+ * The one worker ETHR has: `POST /api/v1/cron/queue` (and the after-response hook) -> CronRunner::queue()
  * -> `queue:work`, driven by the GitHub Actions caller (.github/workflows/cron.yml).
  *
  * Until 2026-09-30 this file read `docker-compose.yml`'s `worker` service instead,
@@ -26,9 +26,14 @@ use App\Services\Observability\QueueHealth;
  * failure message becomes a second needle and the assertion fails even when the
  * real needle is present. Use `expect(str_contains(...))->toBeTrue($message)`.
  */
+/**
+ * The worker command lives in CronRunner since 2026-10-14: the cron endpoints
+ * and the after-response hook (RunBackgroundWorkAfterResponse) both start it
+ * through there, under one lock. Until then it was in CronRunController.
+ */
 function ethrCronController(): string
 {
-    return (string) file_get_contents(app_path('Http/Controllers/Api/V1/Cron/CronRunController.php'));
+    return (string) file_get_contents(app_path('Services/Observability/CronRunner.php'));
 }
 
 it('starts its worker with a command the application actually defines', function () {
@@ -46,11 +51,11 @@ it('starts its worker with a command the application actually defines', function
     $controller = ethrCronController();
 
     expect(str_contains($controller, 'horizon'))->toBeFalse(
-        'CronRunController mentions horizon, which is not a defined command.'
+        'CronRunner mentions horizon, which is not a defined command.'
     );
 
     expect(str_contains($controller, "Artisan::call('queue:work'"))->toBeTrue(
-        'CronRunController must start a queue worker. Every job in app/Jobs implements '
+        'CronRunner must start a queue worker. Every job in app/Jobs implements '
         .'ShouldQueue, so without one the asynchronous half of the product is dead.'
     );
 });
@@ -62,7 +67,7 @@ it('drains exactly the queues the application dispatches onto', function () {
     // it. A literal here is the defect this file exists to catch: a partial
     // --queue drains only what it names and starves the rest while looking healthy.
     expect(str_contains($controller, "'--queue' => implode(',', QueueHealth::QUEUES)"))->toBeTrue(
-        'CronRunController no longer builds --queue from QueueHealth::QUEUES. A worker '
+        'CronRunner no longer builds --queue from QueueHealth::QUEUES. A worker '
         .'that names its own queues drifts from the ones the code dispatches onto.'
     );
 

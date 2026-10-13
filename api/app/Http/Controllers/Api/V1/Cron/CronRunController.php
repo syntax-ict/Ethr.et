@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Cron;
 
-use App\Services\Observability\QueueHealth;
+use App\Services\Observability\CronRunner;
 use Dedoc\Scramble\Attributes\ExcludeRouteFromDocs;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * Drives `schedule:run` and `queue:work` over HTTP.
@@ -42,85 +40,51 @@ class CronRunController
      *      contract. Internal infrastructure detail does not belong there.
      */
     #[ExcludeRouteFromDocs]
-    public function schedule(): JsonResponse
+    public function schedule(CronRunner $runner): JsonResponse
     {
-        return $this->runExclusively('schedule', function (): array {
-            $exit = Artisan::call('ethr:schedule-run');
-
-            return ['exit_code' => $exit, 'output' => $this->tail(Artisan::output())];
-        });
+        return $this->respond('schedule', fn (): ?array => $runner->schedule());
     }
 
     /**
-     * `php artisan queue:work --stop-when-empty`.
-     *
-     * --stop-when-empty, never a daemon: shared hosting runs no supervisor, so
-     * the process must exit rather than linger. --max-time bounds it under the
-     * HTTP timeout AND under the one-minute tick, so runs cannot overlap even
-     * if the lock below were somehow lost.
+     * `php artisan queue:work --stop-when-empty`, bounded by
+     * `cron.queue_max_seconds` so it finishes inside the caller's HTTP timeout.
      */
     #[ExcludeRouteFromDocs]
-    public function queue(): JsonResponse
+    public function queue(CronRunner $runner): JsonResponse
     {
-        return $this->runExclusively('queue', function (): array {
-            $exit = Artisan::call('queue:work', [
-                // The authoritative list. Order is meaningful — Laravel drains
-                // left to right — but membership is the correctness property:
-                // a queue missing here is a queue nothing drains.
-                '--queue' => implode(',', QueueHealth::QUEUES),
-                '--stop-when-empty' => true,
-                '--max-time' => (int) config('cron.queue_max_seconds', 50),
-                '--tries' => 3,
-                '--backoff' => 10,
-            ]);
-
-            return ['exit_code' => $exit, 'output' => $this->tail(Artisan::output())];
-        });
+        return $this->respond('queue', fn (): ?array => $runner->queue((int) config('cron.queue_max_seconds', 25)));
     }
 
     /**
-     * One run of a given task at a time.
+     * One run of a given task at a time (CronRunner holds the lock).
      *
      * A fetch-a-URL task that fires while the previous run is still going must
      * not start a second worker — two concurrent `queue:work` processes would
      * both reserve jobs. 409 tells the caller plainly rather than looking like
      * a success that did nothing.
+     *
+     * @param  callable(): (array{exit_code: int, output: string}|null)  $run
      */
-    private function runExclusively(string $task, callable $work): JsonResponse
+    private function respond(string $task, callable $run): JsonResponse
     {
         // A caller that gives up (a URL-fetch service's request timeout) must
         // not abort a queue drain or a scheduled task part-way.
         ignore_user_abort(true);
 
-        $lock = Cache::lock("cron:{$task}", (int) config('cron.lock_seconds', 110));
+        $startedAt = microtime(true);
+        $result = $run();
 
-        if (! $lock->get()) {
+        if ($result === null) {
             return response()->json([
                 'task' => $task,
                 'status' => 'already-running',
             ], 409);
         }
 
-        $startedAt = microtime(true);
-
-        try {
-            $result = $work();
-        } finally {
-            $lock->release();
-        }
-
         return response()->json([
             'task' => $task,
-            'status' => ($result['exit_code'] ?? 1) === 0 ? 'ok' : 'failed',
+            'status' => $result['exit_code'] === 0 ? 'ok' : 'failed',
             'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
         ] + $result);
-    }
-
-    /** Artisan output is for a human reading a cron log, so cap it. */
-    private function tail(string $output): string
-    {
-        $output = trim($output);
-
-        return strlen($output) > 2000 ? '…'.substr($output, -2000) : $output;
     }
 }
