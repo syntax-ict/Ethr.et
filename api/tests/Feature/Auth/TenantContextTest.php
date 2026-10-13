@@ -75,3 +75,35 @@ it('returns the tenant-not-found problem for an unknown subdomain', function () 
         ->assertNotFound()
         ->assertJsonPath('type', 'https://ethr.et/errors/tenant-not-found');
 });
+
+/*
+ * Production QA 2026-10-11, G3: every organisation sign-in page asks for this
+ * once, and it rode the shared `api` limiter — 60 a minute per guest IP. A
+ * workplace behind one NAT address passed that at shift change and the page
+ * lost its branding.
+ */
+it('has its own limiter, sized for a workplace behind one address', function () {
+    Tenant::factory()->create(['subdomain' => 'acme']);
+
+    $route = collect(app('router')->getRoutes()->getRoutes())
+        ->first(fn ($r) => $r->uri() === 'api/v1/auth/tenant-context');
+    expect($route->gatherMiddleware())->toContain('throttle:tenant-context');
+
+    for ($i = 1; $i <= 61; $i++) {
+        $response = $this->getJson('http://acme.ethr.et/api/v1/auth/tenant-context');
+    }
+
+    $response->assertOk();
+    expect((int) $response->headers->get('X-RateLimit-Limit'))->toBe(300);
+});
+
+it('lets the browser reuse the answer briefly, never a shared cache', function () {
+    Tenant::factory()->create(['subdomain' => 'acme']);
+
+    $response = $this->getJson('http://acme.ethr.et/api/v1/auth/tenant-context')->assertOk();
+
+    expect($response->headers->get('Cache-Control'))->toContain('private')
+        ->and($response->headers->get('Cache-Control'))->toContain('max-age=60')
+        ->and($response->headers->get('Cache-Control'))->not->toContain('public')
+        ->and($response->headers->get('Vary'))->toContain('X-Tenant');
+});

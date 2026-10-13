@@ -32,6 +32,12 @@ class TenantContextController extends Controller
         $stored = $tenant?->getAttribute('theme');
         $theme = is_array($stored) ? $stored : [];
 
+        // A browser reloading the sign-in page reuses this for a minute
+        // instead of spending the rate limit. `private`, not `public`: on a
+        // stateful request Laravel may attach Set-Cookie (XSRF, session), and a
+        // shared cache must never store and replay that.
+        $cacheHeaders = ['Cache-Control' => 'private, max-age=60', 'Vary' => 'Host, X-Tenant'];
+
         return response()->json([
             'tenant' => $tenant ? [
                 'name' => $tenant->name,
@@ -50,7 +56,7 @@ class TenantContextController extends Controller
                 ],
                 'default_locale' => $tenant->default_locale,
             ] : null,
-        ]);
+        ])->withHeaders($cacheHeaders);
     }
 
     /**

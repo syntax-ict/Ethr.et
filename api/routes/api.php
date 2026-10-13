@@ -196,10 +196,10 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
 
 Route::get('/register/check-subdomain', SubdomainCheckController::class)->middleware('throttle:auth');
 
-// Pre-auth tenant display info for the login page (name/logo only — never
-// credentials-adjacent). Loaded once per page view, so it rides the general
-// `api` limiter rather than `auth`'s 10/min, which login POSTs also share.
-Route::get('/auth/tenant-context', TenantContextController::class)->middleware('throttle:api');
+// Pre-auth tenant display info for the login page (name, branding, landing
+// text — never credentials-adjacent). Loaded once per page view, with its own
+// per-IP limiter sized for a workplace behind one NAT address at shift change.
+Route::get('/auth/tenant-context', TenantContextController::class)->middleware('throttle:tenant-context');
 
 // What the organisation chose to show the public on its sign-in page:
 // announcements and vacancies marked public, and upcoming holidays.
