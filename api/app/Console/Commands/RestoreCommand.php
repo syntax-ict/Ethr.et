@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\Backup\AuditLogIntegrity;
 use App\Services\Backup\BackupService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -67,19 +68,20 @@ class RestoreCommand extends Command
 
             // The DEFINER hazard is solved at dump time rather than here: the
             // dumper emits CREATE TRIGGER with no DEFINER clause, so the
-            // triggers now belong to whichever user just ran this. Worth
-            // confirming rather than assuming — a silently missing trigger means
-            // audit_log has quietly stopped being append-only, and nothing else
-            // in the application would notice.
-            $this->newLine();
-            $this->line('Verify before trusting it:');
-            $this->line('  1. Triggers are back:  php artisan ethr:backup:verify');
-            $this->line('  2. Sign in.');
-            $this->line('  3. Read a payroll run.');
-            $this->line('  4. Write something that touches audit_log — an employee edit will do.');
-            $this->line('  5. Download an employee document.');
+            // triggers now belong to whichever user just ran this. Checked
+            // rather than assumed — a silently missing trigger means audit_log
+            // has quietly stopped being append-only, and nothing else in the
+            // application would notice. (This printed "run ethr:backup:verify",
+            // a command that never existed, until 2026-10-14.)
+            $failures = app(AuditLogIntegrity::class)->verifyAppendOnly('backup.restored', ['backup' => basename($path)]);
+            foreach ($failures as $failure) {
+                $this->error($failure);
+            }
 
-            return self::SUCCESS;
+            $this->newLine();
+            $this->line('Then by hand: sign in, read a payroll run, edit an employee, download a document.');
+
+            return $failures === [] ? self::SUCCESS : self::FAILURE;
         } catch (Throwable $e) {
             $this->error('Restore FAILED: '.$e->getMessage());
 

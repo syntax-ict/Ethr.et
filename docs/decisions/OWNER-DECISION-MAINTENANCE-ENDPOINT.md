@@ -36,7 +36,8 @@ that it needed a deliberate design of its own. This is that design.
 | Its own secret | Not `CRON_TOKEN`, which sits in GitHub secrets and is sent every five minutes |
 | Header only | `X-Maintenance-Token`. Never `?token=`, which would land in access logs |
 | Brute-force brake | 5 requests a minute per address, counted **before** the comparison, in the **file** cache |
-| Fixed tasks | `key`, `migrate`, `seed`, `optimize`, `clear`, `create-admin`. Each maps to arguments written in the controller, never to a command name from the request |
+| Fixed tasks | `key`, `migrate`, `seed`, `optimize`, `clear`, `create-admin`; later `mail-probe` (2026-10-10) and `backups`, `backup`, `restore` (2026-10-14). Each maps to arguments written in the controller, never to a command name from the request |
+| `restore` is guarded twice | The backup name must be typed twice and must be one the `backups` task lists, never a path. A `pre-restore` backup is taken first, so a wrong restore can be undone |
 | `key` is one-shot | Refused (409) once `APP_KEY` is set: a second key makes every encrypted column unreadable |
 | Secrets stay out | The generated key and the admin password are never echoed or logged |
 | One at a time | A lock in the file cache; a second call gets 409 |
@@ -51,8 +52,8 @@ middleware, and under `/api/v1/` because that is all `.htaccess` hands to Larave
 
 ## The cost, stated
 
-These routes can migrate the production database and create a platform administrator from
-the internet. Fail-closed and a 32-character secret make that safe while the token is set,
+These routes can migrate the production database, restore it from a backup and create a
+platform administrator from the internet. Fail-closed and a 32-character secret make that safe while the token is set,
 and harmless while it is not. **So set it for a release and empty it afterwards.** A token
 left in `.env` permanently is a standing credential with that power.
 

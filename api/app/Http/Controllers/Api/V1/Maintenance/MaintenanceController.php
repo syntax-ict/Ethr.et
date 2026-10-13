@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Maintenance;
 
 use App\Http\Requests\Maintenance\CreatePlatformAdminRequest;
+use App\Http\Requests\Maintenance\RestoreBackupRequest;
+use App\Services\Backup\AuditLogIntegrity;
+use App\Services\Backup\BackupService;
 use Dedoc\Scramble\Attributes\ExcludeRouteFromDocs;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 use Throwable;
 
 /**
@@ -112,6 +116,143 @@ class MaintenanceController
 
             return [['command' => 'ethr:create-admin', 'exit_code' => $exit, 'output' => $this->tail(Artisan::output())]];
         });
+    }
+
+    /**
+     * The backups on the host, newest first: name, when, and what is in it.
+     * Read-only — the list the `restore` task chooses from.
+     */
+    #[ExcludeRouteFromDocs]
+    public function backups(BackupService $backups): JsonResponse
+    {
+        return response()->json(['task' => 'backups', 'status' => 'ok', 'backups' => $this->listBackups($backups)]);
+    }
+
+    /** `ethr:backup` now, outside the 01:00 schedule — before a risky change, say. */
+    #[ExcludeRouteFromDocs]
+    public function backup(BackupService $backups): JsonResponse
+    {
+        return $this->exclusively('backup', function () use ($backups): array {
+            $this->allowLongRun();
+
+            try {
+                $result = $backups->create('manual');
+            } catch (Throwable $e) {
+                report($e);
+
+                return [['command' => 'ethr:backup', 'exit_code' => 1, 'output' => $e::class.': '.$e->getMessage()]];
+            }
+
+            return [['command' => 'ethr:backup', 'exit_code' => 0, 'output' => 'Backup '.$result['name'].' created.']];
+        });
+    }
+
+    /**
+     * Restore a backup — the recovery path the host otherwise lacks: its
+     * deployment action has no PHP, and importing a dump through phpMyAdmin
+     * breaks the audit_log triggers (BACKUP-RESTORE.md, the DEFINER problem).
+     *
+     * Four steps, stopping at the first failure:
+     *  1. a fresh backup of the current state (`pre-restore`), so a restore of
+     *     the wrong backup can itself be undone;
+     *  2. the restore (BackupService::restore, which refuses a dump whose
+     *     checksum does not match its manifest);
+     *  3. a check that audit_log is still append-only, written as a
+     *     `backup.restored` row naming both backups;
+     *  4. the response says what to check by hand.
+     */
+    #[ExcludeRouteFromDocs]
+    public function restore(RestoreBackupRequest $request, BackupService $backups, AuditLogIntegrity $integrity): JsonResponse
+    {
+        $name = (string) $request->validated('name');
+
+        if (! in_array($name, array_column($this->listBackups($backups), 'name'), true)) {
+            return response()->json([
+                'task' => 'restore',
+                'status' => 'refused',
+                'detail' => "No backup named {$name} on this host. List them with the `backups` task.",
+            ], 404);
+        }
+
+        return $this->exclusively('restore', function () use ($name, $backups, $integrity): array {
+            $this->allowLongRun();
+            $steps = [];
+
+            try {
+                $safety = $backups->create('pre-restore');
+                $steps[] = ['command' => 'ethr:backup --label=pre-restore', 'exit_code' => 0, 'output' => 'Safety backup '.$safety['name'].' created; restore it to undo this.'];
+            } catch (Throwable $e) {
+                report($e);
+
+                return [['command' => 'ethr:backup --label=pre-restore', 'exit_code' => 1, 'output' => 'No safety backup, so nothing was restored: '.$e->getMessage()]];
+            }
+
+            try {
+                $result = $backups->restore($backups->backupRoot().DIRECTORY_SEPARATOR.$name);
+                $steps[] = ['command' => "ethr:restore {$name}", 'exit_code' => 0, 'output' => sprintf('Restored %d statements, %d files.', $result['statements'], $result['files'])];
+            } catch (Throwable $e) {
+                report($e);
+                $steps[] = ['command' => "ethr:restore {$name}", 'exit_code' => 1, 'output' => $e::class.': '.$e->getMessage().' — restore '.$safety['name'].' to return to where you were.'];
+
+                return $steps;
+            }
+
+            $failures = $integrity->verifyAppendOnly('backup.restored', ['backup' => $name, 'safety_backup' => $safety['name']]);
+            $steps[] = [
+                'command' => 'audit_log append-only check',
+                'exit_code' => $failures === [] ? 0 : 1,
+                'output' => $failures === []
+                    ? 'audit_log accepts inserts and refuses updates. Now sign in, read a payroll run, edit an employee and download a document.'
+                    : implode(' ', $failures),
+            ];
+
+            return $steps;
+        });
+    }
+
+    /**
+     * @return list<array{name: string, created_at: string|null, tables: int|null, rows: int|null, files: int|null}>
+     */
+    private function listBackups(BackupService $backups): array
+    {
+        $root = $backups->backupRoot();
+        if (! File::isDirectory($root)) {
+            return [];
+        }
+
+        $list = [];
+        foreach (File::directories($root) as $dir) {
+            $manifestFile = $dir.DIRECTORY_SEPARATOR.'manifest.json';
+            if (! File::exists($manifestFile)) {
+                continue;
+            }
+
+            $manifest = json_decode(File::get($manifestFile), true);
+            $manifest = is_array($manifest) ? $manifest : [];
+
+            $list[] = [
+                'name' => basename($dir),
+                'created_at' => is_string($manifest['created_at'] ?? null) ? $manifest['created_at'] : null,
+                'tables' => isset($manifest['database']['tables']) ? (int) $manifest['database']['tables'] : null,
+                'rows' => isset($manifest['database']['rows']) ? (int) $manifest['database']['rows'] : null,
+                'files' => isset($manifest['files']['count']) ? (int) $manifest['files']['count'] : null,
+            ];
+        }
+
+        usort($list, static fn (array $a, array $b): int => strcmp($b['name'], $a['name']));
+
+        return $list;
+    }
+
+    /**
+     * A backup or restore can outlast the default execution limit on a shared
+     * host (G0-J is unmeasured); a request cut off half-way through a restore
+     * is the worst outcome there is.
+     */
+    private function allowLongRun(): void
+    {
+        ignore_user_abort(true);
+        @set_time_limit(0);
     }
 
     /**
