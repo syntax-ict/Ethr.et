@@ -77,7 +77,7 @@ final class ZktecoAdapter implements DeviceAdapter
             $events[] = [
                 'employee_badge' => (string) ($log['pin'] ?? $log['user_id'] ?? ''),
                 'timestamp' => $log['timestamp'] ?? $log['datetime'] ?? '',
-                'type' => $this->mapPunchType($log['punch'] ?? $log['status'] ?? 0),
+                'type' => self::directionFor($log['punch'] ?? $log['status'] ?? null),
                 'raw' => $log,
             ];
         }
@@ -154,12 +154,24 @@ final class ZktecoAdapter implements DeviceAdapter
         return $request->$method("{$baseUrl}{$path}");
     }
 
-    private function mapPunchType(int|string $punchType): string
+    /**
+     * ZKTeco punch states: 0 check-in, 1 check-out, 2 break-out, 3 break-in,
+     * 4 overtime-in, 5 overtime-out. A terminal with no state key, or 255
+     * ("undefined") on newer firmware, states no direction — `auto` lets the
+     * engine close the day's open record or open one. Unknown states used to
+     * default to check-in, so a terminal without state keys never recorded a
+     * check-out. Shared with the ZKTeco webhook (DeviceController).
+     */
+    public static function directionFor(mixed $state): string
     {
-        return match ((int) $punchType) {
-            0, 4 => 'check_in',
-            1, 5 => 'check_out',
-            default => 'check_in',
+        if ($state === null || $state === '' || ! is_numeric($state)) {
+            return 'auto';
+        }
+
+        return match ((int) $state) {
+            0, 3, 4 => 'check_in',
+            1, 2, 5 => 'check_out',
+            default => 'auto',
         };
     }
 }

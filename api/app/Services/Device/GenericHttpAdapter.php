@@ -31,7 +31,12 @@ use Illuminate\Support\Facades\Log;
  *                     { badge: 'userId', timestamp: 'time', type: 'direction',
  *                       user_id: 'userId', name: 'fullName', card: 'card',
  *                       events_root: 'data', enrollments_root: 'data' }
- *   check_in_values   values of the `type` field that mean check-in (default ['in','check_in','0'])
+ *   check_in_values   values of the `type` field that mean check-in (default ['in','check_in','0','i'])
+ *
+ * Any other non-empty `type` is a check-out, as it always was. An empty or
+ * missing one states no direction and is recorded as `auto` — the engine closes
+ * the day's open record or opens one. It used to be a check-out, so a
+ * middleware that sends no direction never recorded an arrival.
  */
 final class GenericHttpAdapter implements DeviceAdapter
 {
@@ -83,7 +88,11 @@ final class GenericHttpAdapter implements DeviceAdapter
             $events[] = [
                 'employee_badge' => (string) Arr::get($row, $map['badge'] ?? 'badge', ''),
                 'timestamp' => (string) Arr::get($row, $map['timestamp'] ?? 'timestamp', ''),
-                'type' => in_array(mb_strtolower($type), $checkInValues, true) ? 'check_in' : 'check_out',
+                'type' => match (true) {
+                    trim($type) === '' => 'auto',
+                    in_array(mb_strtolower($type), $checkInValues, true) => 'check_in',
+                    default => 'check_out',
+                },
                 'raw' => $row,
             ];
         }

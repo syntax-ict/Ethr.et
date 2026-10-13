@@ -23,6 +23,10 @@ use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
+use App\Services\Device\HikvisionEvent;
+use App\Services\Device\ZktecoAdapter;
+use App\Services\Identity\IdentityResolver;
+use App\Services\Identity\IdentitySignals;
 use App\Services\PlanLimitService;
 use App\Support\DeviceTime;
 use Illuminate\Http\JsonResponse;
@@ -368,13 +372,20 @@ class DeviceController extends Controller
             return response()->json(['status' => 'unauthorized'], 401);
         }
 
-        $payload = $request->all();
-        $event = $payload['AccessControllerEvent'] ?? $payload;
+        // Heartbeats and door events arrive on the same URL and name nobody;
+        // they are acknowledged and not recorded. The direction is the
+        // terminal's own `attendanceStatus` (HikvisionEvent) — this recorded
+        // every event as a check-in until 2026-10-14.
+        $event = HikvisionEvent::fromNotification($request->all());
 
-        $badge = (string) ($event['employeeNoString'] ?? $event['cardNo'] ?? '');
-        $timestamp = $event['time'] ?? $event['dateTime'] ?? now()->toIso8601String();
+        if ($event === null) {
+            return response()->json(['status' => 'ignored'], 200);
+        }
 
-        if (empty($badge)) {
+        $badge = HikvisionEvent::badge($event);
+        $timestamp = $event['time'] ?? now()->toIso8601String();
+
+        if ($badge === null) {
             return response()->json(['status' => 'no_badge'], 200);
         }
 
@@ -390,7 +401,7 @@ class DeviceController extends Controller
             app(AttendanceEngine::class),
             $device,
             $employee,
-            'check_in',
+            HikvisionEvent::direction($event),
             "webhook:hik:{$device->id}:{$badge}:{$timestamp}",
             $timestamp,
         );
@@ -416,10 +427,7 @@ class DeviceController extends Controller
         foreach ($records as $record) {
             $badge = (string) ($record['pin'] ?? $record['user_id'] ?? '');
             $timestamp = $record['timestamp'] ?? $record['datetime'] ?? now()->toIso8601String();
-            $punchType = match ((int) ($record['punch'] ?? $record['status'] ?? 0)) {
-                1, 5 => 'check_out',
-                default => 'check_in',
-            };
+            $punchType = ZktecoAdapter::directionFor($record['punch'] ?? $record['status'] ?? null);
 
             if ($this->recordBatchedWebhookPunch($engine, $device, 'zk', $badge, $timestamp, $punchType)) {
                 $processed++;
@@ -499,24 +507,38 @@ class DeviceController extends Controller
     }
 
     /**
-     * The employee a device badge belongs to, looked up inside the device's own
-     * tenant.
+     * The employee a device badge belongs to, inside the device's own tenant.
      *
-     * A webhook carries no session, so there is no resolved tenant and the
-     * `BelongsToTenant` scope would match nothing. The scope is dropped and the
-     * predicate restated from `$device->tenant_id`, which resolveWebhookDevice()
-     * has already authenticated, so a badge can only ever name an employee of
-     * the device's own tenant.
+     * The same IdentityResolver the pull path uses (PullDeviceEventsJob), so a
+     * device user id mapped once — by an earlier match or by the workforce
+     * migration — resolves the same whether the event was pushed or pulled.
+     * The webhook used a plain badge/code lookup of its own and ignored those
+     * mappings. The resolver states `tenant_id` on every query, taken here from
+     * the device resolveWebhookDevice() has already authenticated, so a badge
+     * can only name an employee of the device's own tenant. An ambiguous or
+     * unknown badge is not guessed at.
      */
     private function webhookEmployee(Device $device, string $badge): ?Employee
     {
-        return Employee::withoutGlobalScope('tenant')
-            ->where('tenant_id', $device->tenant_id)
-            ->where(function ($q) use ($badge) {
-                $q->where('badge_number', $badge)
-                    ->orWhere('employee_code', $badge);
-            })
-            ->first();
+        $signals = new IdentitySignals(
+            employeeCode: $badge,
+            badgeNumber: $badge,
+            sourceType: $device->adapter_type,
+            sourceRef: 'device:'.$device->id,
+            identifierType: 'device_user_id',
+            identifierValue: $badge,
+        );
+
+        $resolver = app(IdentityResolver::class);
+        $match = $resolver->resolve($device->tenant_id, $signals);
+
+        if (! $match->isActionable() || $match->employee === null) {
+            return null;
+        }
+
+        $resolver->link($match->employee, $signals, $match->confidence);
+
+        return $match->employee;
     }
 
     /**

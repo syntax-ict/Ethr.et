@@ -13343,6 +13343,9 @@ export interface operations {
                     } | {
                         /** @constant */
                         status: "no_badge";
+                    } | {
+                        /** @constant */
+                        status: "ignored";
                     };
                 };
             };
