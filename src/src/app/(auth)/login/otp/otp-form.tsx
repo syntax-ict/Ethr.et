@@ -36,6 +36,7 @@ export function OtpForm() {
     context: hostAppContext,
     tenantSlug: subdomainFromHost,
     tenantName,
+    tenantBrand,
     tenantContextLoading,
     tenantLookupError,
     tenantFieldVisible,
@@ -236,6 +237,7 @@ export function OtpForm() {
               name={tenantName}
               slug={subdomainFromHost}
               loading={tenantContextLoading}
+              logoUrl={tenantBrand?.logo_url}
             />
           )}
 

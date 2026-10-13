@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ForgotForm } from "@/app/(auth)/login/forgot/forgot-form";
 import { ResetPasswordForm } from "@/app/(auth)/login/reset/reset-form";
+import { OtpForm } from "@/app/(auth)/login/otp/otp-form";
 import type { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 
 /**
@@ -82,5 +83,35 @@ describe.each([
     renderWithQuery(page());
 
     expect(screen.getByText("E")).toBeInTheDocument();
+  });
+});
+
+const LOGO = "/api/v1/organisation-logos/01HXYZ/0123456789abcdef";
+
+// The organisation card under the title showed a building icon on these
+// pages while the sign-in page's card showed the uploaded logo (seen live on
+// syntax.ethr.et, 2026-10-13).
+// Forgot shows the logo twice (the mark above the title and the card); the
+// text-code page once (its card).
+describe.each([
+  ["forgot password", () => <ForgotForm />, 2],
+  ["text-code sign-in", () => <OtpForm />, 1],
+])("the %s page's organisation card", (_name, page, logos) => {
+  it("shows the organisation's logo", () => {
+    hostContextValue.mockReturnValue({
+      ...organisation,
+      tenantBrand: {
+        logo_url: LOGO,
+        primary_color: null,
+        accent_color: null,
+      } as HostCtx["tenantBrand"],
+    });
+
+    const { container } = renderWithQuery(page());
+
+    const srcs = [...container.querySelectorAll("img")].map((i) =>
+      i.getAttribute("src"),
+    );
+    expect(srcs.filter((src) => src === LOGO)).toHaveLength(logos);
   });
 });
