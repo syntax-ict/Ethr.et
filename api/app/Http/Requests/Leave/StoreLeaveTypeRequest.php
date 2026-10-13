@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Requests\Leave;
 
 use App\Enums\AccrualType;
+use App\Http\Requests\Leave\Concerns\ValidatesLeaveTypeIntegrity;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Enum;
 
 class StoreLeaveTypeRequest extends FormRequest
 {
+    use ValidatesLeaveTypeIntegrity;
+
     public function authorize(): bool
     {
         return true;
@@ -21,7 +24,7 @@ class StoreLeaveTypeRequest extends FormRequest
             'name' => ['required', 'string', 'max:100'],
             'name_am' => ['nullable', 'string', 'max:100'],
             'code' => ['required', 'string', 'max:30'],
-            'default_days' => ['required', 'numeric', 'min:0.5', 'max:365'],
+            'default_days' => ['required', 'numeric', 'min:0', 'max:365'],
             'accrual_type' => ['required', new Enum(AccrualType::class)],
             'carry_forward' => ['nullable', 'boolean'],
             'max_carry_days' => ['nullable', 'numeric', 'min:0'],

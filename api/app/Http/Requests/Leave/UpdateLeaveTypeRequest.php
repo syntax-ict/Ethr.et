@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Requests\Leave;
 
 use App\Enums\AccrualType;
+use App\Http\Requests\Leave\Concerns\ValidatesLeaveTypeIntegrity;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Enum;
 
 class UpdateLeaveTypeRequest extends FormRequest
 {
+    use ValidatesLeaveTypeIntegrity;
+
     public function authorize(): bool
     {
         return true;
@@ -21,7 +24,7 @@ class UpdateLeaveTypeRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:100'],
             'name_am' => ['sometimes', 'nullable', 'string', 'max:100'],
             'code' => ['sometimes', 'string', 'max:30'],
-            'default_days' => ['sometimes', 'numeric', 'min:0.5', 'max:365'],
+            'default_days' => ['sometimes', 'numeric', 'min:0', 'max:365'],
             'accrual_type' => ['sometimes', new Enum(AccrualType::class)],
             'carry_forward' => ['sometimes', 'boolean'],
             'max_carry_days' => ['sometimes', 'nullable', 'numeric', 'min:0'],
