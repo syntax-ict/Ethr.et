@@ -43,6 +43,10 @@ import {
   OrganisationSnapshot,
   LinkEmployeeCallout,
 } from "@/features/dashboard/components";
+import {
+  IntegrityPrompt,
+  PulsePrompt,
+} from "@/features/dashboard/components/voice-and-integrity-prompts";
 
 /**
  * Dashboard layout order is deliberate:
@@ -104,6 +108,8 @@ export default function DashboardPage() {
           <InteractiveCharts />
         </div>
         <div className="min-w-0 space-y-6">
+          {!hasNoEmployee && <PulsePrompt />}
+          {can.viewAttendanceConflicts && <IntegrityPrompt />}
           <LeaveOverview />
           <CalendarWidget />
           <AnnouncementsWidget />

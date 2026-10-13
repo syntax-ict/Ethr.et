@@ -101,6 +101,7 @@ class DeviceController extends Controller
             'auto_sync' => $request->validated('auto_sync', true),
             'sync_interval_minutes' => $request->validated('sync_interval_minutes', 5),
             'timezone' => $request->validated('timezone'),
+            'webhook_ip_allowlist' => $request->validated('webhook_ip_allowlist'),
             'webhook_token' => Device::generateWebhookToken(),
             'status' => 'pending',
         ]);

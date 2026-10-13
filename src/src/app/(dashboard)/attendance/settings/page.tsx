@@ -217,7 +217,7 @@ export default function AttendanceSettingsPage() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     {t(
                       "attendance.settings_page.grace_period_desc",
-                      "Minutes after shift start before marking late",
+                      "Default for new shifts. Each shift keeps its own grace, which is what decides lateness.",
                     )}
                   </p>
                 </div>
