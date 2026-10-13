@@ -27,6 +27,7 @@ describe("analytics axis labels", () => {
   it("names a month bucket", () => {
     expect(monthKeyLabel("2026-06")).toBe("June 2026");
     expect(monthKeyLabel("2027-01")).toBe("January 2027");
+    expect(monthKeyLabel("2026-09", "en", "short")).toBe("Sep 2026");
   });
 
   it("passes through a label that is not a month key", () => {

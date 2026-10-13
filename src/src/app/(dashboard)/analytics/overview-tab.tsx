@@ -127,7 +127,9 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
                     <XAxis
                       dataKey="month"
                       {...axisProps}
-                      tickFormatter={(value) => monthKeyLabel(value, locale)}
+                      tickFormatter={(value) =>
+                        monthKeyLabel(value, locale, "short")
+                      }
                     />
                     <YAxis {...axisProps} allowDecimals={false} width={36} />
                     <Tooltip
