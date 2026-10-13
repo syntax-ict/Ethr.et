@@ -202,6 +202,15 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by('kiosk-exit:'.hash('sha256', (string) $request->input('token')));
         });
 
+        // The organisation sign-in page asks for its branding once per view.
+        // Under the shared `api` limiter (60/min per guest IP) an office behind
+        // one NAT address — the norm here — ran out at shift change, and the
+        // page fell back to unbranded (production QA 2026-10-11, G3). Read-only,
+        // public, and answered from the tenant cache.
+        RateLimiter::for('tenant-context', function (Request $request) {
+            return Limit::perMinute(300)->by($request->ip());
+        });
+
         // Unauthenticated, cheap, and cached — but unauthenticated, so bounded
         // per IP rather than left to the global guest budget alone.
         RateLimiter::for('public-catalogue', function (Request $request) {
