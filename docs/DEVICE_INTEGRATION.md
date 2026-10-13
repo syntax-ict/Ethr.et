@@ -9,6 +9,7 @@ resolved per device by `App\Services\Device\DeviceManager` from `adapter_type`.
 |---|---|---|
 | `hikvision` | `HikvisionAdapter` | ISAPI (events, enrollments, webhook push) |
 | `zkteco` | `ZktecoAdapter` | HTTP API |
+| `zkteco_adms` | `ZktecoAdmsAdapter` | ADMS push: the terminal calls ETHR (`/iclock/*`). The way to run ZKTeco from shared hosting |
 | `suprema` | `SupremaAdapter` | HTTP API |
 | `generic` | `GenericHttpAdapter` | configurable JSON — any vendor/middleware |
 | `mock` | `MockAdapter` | simulator for tests/demos (reads real employees) |
@@ -219,7 +220,8 @@ directly: `DeliverDeviceCommandsJob` is queued when a command is added, and
 |---|---|---|
 | `hikvision` | yes | ISAPI: `PUT /ISAPI/System/time`, `POST /ISAPI/AccessControl/UserInfo/SetUp`, `PUT /ISAPI/AccessControl/UserInfo/Delete`. Written from the published specification and **not yet run on a terminal** (field test O1) |
 | `mock` | yes | Accepts everything; `connection_config.reject_commands` makes it refuse |
-| `zkteco` | queued, not delivered | Delivered when the device checks in over ADMS (`/iclock`), Wave 2 #7 |
+| `zkteco_adms` | yes, collected | The device takes them when it polls `/iclock/getrequest` (below) |
+| `zkteco` | no | The REST adapter; register the terminal as `zkteco_adms` to manage it |
 | `suprema`, `generic` | no | |
 
 **On shared hosting, direct delivery reaches only devices with a public address.**
@@ -237,3 +239,78 @@ API, all under `auth:sanctum`:
 
 Pinned in `tests/Feature/Device/DeviceCommandQueueTest.php` and
 `src/src/test/device-commands-tab.test.tsx`.
+
+## ZKTeco ADMS (2026-10-14)
+
+ADMS is the "cloud server" push protocol in ZKTeco firmware. The terminal calls ETHR, so
+it works from any office network to shared hosting, where ETHR cannot reach the
+terminal. Register it as **`zkteco_adms`** with its serial number and no address. Then,
+on the terminal, open **COMM → Cloud Server Setting**:
+
+- Server address: the application host (shown on the device page).
+- Port: 443 with HTTPS on, or 80 for firmware without HTTPS.
+- Enable domain name: on.
+
+| Request | ETHR's answer |
+|---|---|
+| `GET /iclock/cdata?SN=…` | The options: `TimeZone` from the device's zone, `Realtime=1`, `ATTLOGStamp=None`, so a first connection uploads what the device holds |
+| `POST /iclock/cdata?SN=…&table=ATTLOG` | Each line `PIN⇥YYYY-MM-DD HH:MM:SS⇥status⇥…` is a punch in device-local time. Direction comes from `ZktecoAdapter::directionFor`. The answer is `OK: <lines>` |
+| `POST /iclock/cdata?…&table=OPERLOG` (and others) | `OK: <lines>`, not stored |
+| `GET /iclock/getrequest?SN=…` | Waiting commands, `C:<id>:<command>` per line, or `OK` |
+| `POST /iclock/devicecmd?SN=…` | Results, `ID=<id>&Return=<code>`. 0 marks the command done |
+
+Commands as the terminal reads them:
+
+- `DATA UPDATE USERINFO PIN=…⇥Name=…⇥Pri=0`
+- `DATA DELETE USERINFO PIN=…`
+- `SET OPTION DateTime=<packed>`. The packed value is seconds in a calendar of
+  12 × 31-day months from 2000, the firmware's own encoding.
+
+A sent command that is not confirmed is offered again after 30 minutes and fails after
+three sends. The `.aspx` spellings some firmware uses are routed too.
+
+**Authentication: serial selects, IP allowlist admits.** ADMS sends its serial and nothing
+an administrator can configure, so this is the token-less webhook policy, applied
+strictly (`AdmsDeviceResolver`):
+
+- The serial is printed on the case and proves nothing on its own.
+- An empty allowlist admits nobody.
+- A serial held by two devices admits neither.
+- The allowlist accepts an IPv4 range (`196.188.0.0/16`), because office broadband
+  addresses change. Nothing wider than /8 is accepted.
+- A refused attempt for a known serial is remembered for a week with its address. The
+  device page shows it, because that address is usually the one the allowlist is missing.
+
+**Every line is acknowledged**, an unknown PIN or a refused time included. A line answered
+with an error is sent again by the device indefinitely.
+
+**Routing.** `/iclock` is fixed in the firmware, so it is outside `/api/v1`, and outside
+the `api` middleware group, because a device has no session, CSRF token or tenant host.
+The `.htaccess` template routes `^/(api|sanctum|iclock)` to Laravel, and `iclock` is a
+reserved tenant slug. Its limiter is `adms`: 240 requests a minute per serial and address.
+
+**Host action for HTTP-only firmware:** if Plesk's *permanent HTTP → HTTPS redirect* is on,
+a terminal that cannot do HTTPS receives a 301 it does not follow. Use a terminal with
+HTTPS, or ask the host to exempt `/iclock`.
+
+Not yet run against a real terminal (field test O1). The formats follow the PUSH SDK
+2.x protocol. Watch the first device's **Commands** tab and attendance.
+
+## Device clocks (2026-10-14)
+
+`devices.clock_offset_seconds` is how far a device's clock is from the server's, read off
+each pushed punch (`DeviceClock`): the punch time minus the time it arrived. Pushes
+arrive seconds after the punch, so the gap is the clock error plus delivery delay.
+
+- A gap over an hour is ignored. That is a backlog uploaded after an outage, or a time
+  that is simply wrong.
+- **Ahead by more than two minutes raises a `device_clock_ahead` integrity flag** on the
+  punch. Up to ten minutes ahead the punch is recorded and flagged. Beyond that,
+  `DeviceTime::isInFuture` refuses it, but the clock reading is still taken first.
+- **Behind is shown, not flagged.** It cannot be told apart from a punch that arrived
+  late.
+
+The device page shows the reading as *in step*, *N min ahead* or *N min behind*. The fix
+is the `set_time` command, sent daily to every device that takes commands, or **Set clock
+now** on its Commands tab.
+

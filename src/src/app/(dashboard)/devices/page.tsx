@@ -83,6 +83,7 @@ import { cn } from "@/lib/utils";
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
   zkteco: "ZKTeco",
+  zkteco_adms: "ZKTeco (ADMS)",
   suprema: "Suprema",
   mock: "Mock (Simulator)",
 };
@@ -718,6 +719,9 @@ function DeviceFormDialog({
                 <SelectContent>
                   <SelectItem value="hikvision">Hikvision</SelectItem>
                   <SelectItem value="zkteco">ZKTeco</SelectItem>
+                  <SelectItem value="zkteco_adms">
+                    {t("devices_page.zkteco_adms")}
+                  </SelectItem>
                   <SelectItem value="suprema">Suprema</SelectItem>
                   {SIMULATOR_IN_FORM && (
                     <SelectItem value="mock">
@@ -735,7 +739,11 @@ function DeviceFormDialog({
                 id="serial-number"
                 value={form.serial_number}
                 onChange={(e) => set("serial_number", e.target.value)}
-                placeholder={t("leave_page.optional")}
+                placeholder={
+                  form.adapter_type === "zkteco_adms"
+                    ? t("devices_page.serial_required")
+                    : t("leave_page.optional")
+                }
                 className="mt-1"
               />
             </div>
@@ -756,6 +764,12 @@ function DeviceFormDialog({
               onCheckedChange={(v) => setForm((p) => ({ ...p, auto_sync: v }))}
             />
           </div>
+
+          {form.adapter_type === "zkteco_adms" && (
+            <p className="rounded-lg border p-3 text-sm text-muted-foreground">
+              {t("devices_page.adms_hint")}
+            </p>
+          )}
 
           {isMock && (
             <div className="rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft">

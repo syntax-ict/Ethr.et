@@ -6411,6 +6411,15 @@ export interface components {
             webhook_token?: string | null;
             webhook_url?: string | null;
             last_sync_at: string | null;
+            clock_offset_seconds: number | null;
+            clock_checked_at: string | null;
+            adms?: {
+                server: string;
+                last_rejected: {
+                    ip: string | null;
+                    at: string;
+                } | null;
+            };
             branch?: components["schemas"]["BranchResource"] | null;
             branch_public_id: string | null;
             attendance_records_count?: number;
@@ -7756,7 +7765,7 @@ export interface components {
             name: string;
             location_description?: string | null;
             /** @enum {string} */
-            adapter_type: "hikvision" | "zkteco" | "suprema" | "generic" | "mock";
+            adapter_type: "hikvision" | "zkteco" | "zkteco_adms" | "suprema" | "generic" | "mock";
             branch_public_id: string;
             serial_number?: string | null;
             auto_sync?: boolean;
@@ -8303,7 +8312,7 @@ export interface components {
             name?: string;
             location_description?: string | null;
             /** @enum {string} */
-            adapter_type?: "hikvision" | "zkteco" | "suprema" | "generic" | "mock";
+            adapter_type?: "hikvision" | "zkteco" | "zkteco_adms" | "suprema" | "generic" | "mock";
             branch_public_id?: string;
             serial_number?: string | null;
             auto_sync?: boolean;
