@@ -23,6 +23,7 @@ Several documents in this tree describe things that are not true of the code. Th
 | [`audit/QA-RELEASE-2026-10-13.md`](audit/QA-RELEASE-2026-10-13.md) | **Pre-release QA on the demo organisation** (local production rehearsal), with UI/UX/functionality ratings. 17 fixed (seven accepted-invalid inputs, demo data in UTC and in the future, template-like dashboard, mobile header), two open S4. |
 | [`ENGINEERING-ONBOARDING.md`](ENGINEERING-ONBOARDING.md) | **Start here as a new maintainer**: the map, how to run it, the rules that bite, how a change reaches production, what is and is not proven. |
 | [`operations/CUSTODY.md`](operations/CUSTODY.md) | **Who holds which credential** — names and places, never values — with a quarterly two-holder review. |
+| [`payroll/ACCOUNTANT-SIGN-OFF.md`](payroll/ACCOUNTANT-SIGN-OFF.md) | **Payroll sign-off pack** for an accountant: the tax and pension rules as coded, the order of operations, seven worked payslips the tests assert to the cent, the register/journal evidence, and the checklist to sign. Not yet signed. |
 
 Three standing caveats:
 
