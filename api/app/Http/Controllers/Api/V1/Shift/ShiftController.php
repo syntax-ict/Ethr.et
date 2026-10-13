@@ -10,6 +10,7 @@ use App\Http\Requests\Shift\StoreShiftRequest;
 use App\Http\Requests\Shift\UpdateShiftRequest;
 use App\Http\Resources\ShiftAssignmentResource;
 use App\Http\Resources\ShiftResource;
+use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
@@ -48,7 +49,17 @@ class ShiftController extends Controller
     {
         Gate::authorize('shift.create');
 
-        $shift = Shift::create($request->validated());
+        // A shift with no grace of its own takes the organisation's default
+        // (Attendance settings -> grace period), which until 2026-10-13 was
+        // stored and shown but read by nothing (attendance QA H7). The
+        // shift's own value is what rates a punch.
+        $data = $request->validated();
+        if (! array_key_exists('grace_minutes', $data)) {
+            $default = AttendanceSetting::query()->value('grace_period_minutes');
+            $data['grace_minutes'] = min(120, is_numeric($default) ? (int) $default : 15);
+        }
+
+        $shift = Shift::create($data);
 
         if ($shift->is_default) {
             Shift::where('id', '!=', $shift->id)
