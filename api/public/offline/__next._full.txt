@@ -1,26 +1,41 @@
 1:"$Sreact.fragment"
-2:I[339756,["/_next/static/chunks/13gmkz50yngp8.js","/_next/static/chunks/2_5qzuj9hjjbl.js"],"default"]
-3:I[758298,["/_next/static/chunks/13gmkz50yngp8.js","/_next/static/chunks/2_5qzuj9hjjbl.js"],"default"]
-4:I[837457,["/_next/static/chunks/13gmkz50yngp8.js","/_next/static/chunks/2_5qzuj9hjjbl.js"],"default"]
-5:I[329306,["/_next/static/chunks/23_ijf5cb6e11.js","/_next/static/chunks/13gmkz50yngp8.js"],"default"]
-6:I[544636,["/_next/static/chunks/41phrta_16mm_.js","/_next/static/chunks/13gmkz50yngp8.js","/_next/static/chunks/0ii_8w-sb7bzp.js","/_next/static/chunks/1-vsiemd3imqq.js","/_next/static/chunks/1eiefbn4kcv7r.js","/_next/static/chunks/117ouq3ymy0gl.js"],"Providers"]
-7:I[735666,["/_next/static/chunks/41phrta_16mm_.js","/_next/static/chunks/13gmkz50yngp8.js","/_next/static/chunks/0ii_8w-sb7bzp.js","/_next/static/chunks/1-vsiemd3imqq.js","/_next/static/chunks/1eiefbn4kcv7r.js","/_next/static/chunks/117ouq3ymy0gl.js"],"AmharicDictionary"]
-8:I[347257,["/_next/static/chunks/13gmkz50yngp8.js","/_next/static/chunks/2_5qzuj9hjjbl.js"],"ClientPageRoot"]
-9:I[225003,["/_next/static/chunks/41phrta_16mm_.js","/_next/static/chunks/13gmkz50yngp8.js","/_next/static/chunks/0ii_8w-sb7bzp.js","/_next/static/chunks/1-vsiemd3imqq.js","/_next/static/chunks/1eiefbn4kcv7r.js","/_next/static/chunks/117ouq3ymy0gl.js","/_next/static/chunks/10pb4swz0w1vu.js"],"default"]
-c:I[897367,["/_next/static/chunks/13gmkz50yngp8.js","/_next/static/chunks/2_5qzuj9hjjbl.js"],"OutletBoundary"]
-d:"$Sreact.suspense"
-10:I[897367,["/_next/static/chunks/13gmkz50yngp8.js","/_next/static/chunks/2_5qzuj9hjjbl.js"],"ViewportBoundary"]
-12:I[897367,["/_next/static/chunks/13gmkz50yngp8.js","/_next/static/chunks/2_5qzuj9hjjbl.js"],"MetadataBoundary"]
-14:I[815104,["/_next/static/chunks/0y_so5tt_u51w.js"],"default"]
-:HL["/_next/static/chunks/2b5hxgw43qrx9.css","style"]
-:HL["/_next/static/chunks/3j4iky-gx0b5p.css","style"]
+2:"/_next/static/chunks/3ncw9n_u6uoby.js"
+3:"/_next/static/chunks/1j4g2wp9-pfes.js"
+4:I[339756,["$2","$3"],"default"]
+5:I[758298,["$2","$3"],"default"]
+6:I[837457,["$2","$3"],"default"]
+7:"/_next/static/chunks/097p7-mbzdj4h.js"
+8:I[329306,["$7","$2"],"default"]
+b:"/_next/static/chunks/3c1ta7x5plynu.js"
+c:"/_next/static/chunks/0-_ifrxkmahn-.js"
+d:"/_next/static/chunks/2pqb7yv8wplxw.js"
+e:"/_next/static/chunks/2rrhnbf_i28f9.js"
+f:"/_next/static/chunks/117ouq3ymy0gl.js"
+10:I[544636,["$b","$2","$c","$d","$e","$f"],"Providers"]
+11:"AmharicDictionary"
+12:I[735666,["$b","$2","$c","$d","$e","$f"],"$11"]
+14:I[347257,["$2","$3"],"ClientPageRoot"]
+15:"/_next/static/chunks/3ttqrgv9hpd54.js"
+16:I[225003,["$b","$2","$c","$d","$e","$f","$15"],"default"]
+19:I[897367,["$2","$3"],"OutletBoundary"]
+1a:"$Sreact.suspense"
+1c:"ViewportBoundary"
+1d:I[897367,["$2","$3"],"$1c"]
+1f:"MetadataBoundary"
+20:I[897367,["$2","$3"],"$1f"]
+22:"/_next/static/chunks/0y_so5tt_u51w.js"
+23:I[815104,["$22"],"default"]
+:HL["/_next/static/chunks/0idi3csoibjnk.css","style"]
+:HL["/_next/static/chunks/3i2q3pklpbqyv.css","style"]
 :HL["/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
-f:X
-0:{"P":null,"c":["","offline"],"q":"","i":false,"f":[[["",{"children":["offline",{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4624]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","error":"$3","errorStyles":[],"errorScripts":[["$","script","script-0",{"src":"/_next/static/chunks/13gmkz50yngp8.js","async":true,"nonce":"$undefined"}],["$","script","script-1",{"src":"/_next/static/chunks/2_5qzuj9hjjbl.js","async":true,"nonce":"$undefined"}]],"template":["$","$L4",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","$L5",null,{}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/2b5hxgw43qrx9.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","link","1",{"rel":"stylesheet","href":"/_next/static/chunks/3j4iky-gx0b5p.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/_next/static/chunks/41phrta_16mm_.js","async":true,"nonce":"$undefined"}],["$","script","script-1",{"src":"/_next/static/chunks/13gmkz50yngp8.js","async":true,"nonce":"$undefined"}],["$","script","script-2",{"src":"/_next/static/chunks/0ii_8w-sb7bzp.js","async":true,"nonce":"$undefined"}],["$","script","script-3",{"src":"/_next/static/chunks/1-vsiemd3imqq.js","async":true,"nonce":"$undefined"}],["$","script","script-4",{"src":"/_next/static/chunks/1eiefbn4kcv7r.js","async":true,"nonce":"$undefined"}],["$","script","script-5",{"src":"/_next/static/chunks/117ouq3ymy0gl.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"am","className":"inter_6ef2009b-module__gKRp4W__variable noto_sans_ethiopic_31feae54-module__VJC7UW__variable","suppressHydrationWarning":true,"children":["$","body",null,{"className":"font-sans","children":["$","$L6",null,{"children":["$","$L7",null,{"children":["$","$L2",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L4",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]}]}]}]}]]}],{"children":[["$","$1","c",{"children":[["$","$L8",null,{"Component":"$9","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@a","$@b"]}}],[["$","script","script-0",{"src":"/_next/static/chunks/10pb4swz0w1vu.js","async":true,"nonce":"$undefined"}]],["$","$Lc",null,{"children":["$","$d",null,{"name":"Next.MetadataOutlet","children":"$@e"}]}]]}],{},null,false,null]},null,false,null]},null,false,"$f"],["$","$1","h",{"children":[null,["$","$L10",null,{"children":"$L11"}],["$","div",null,{"hidden":true,"children":["$","$L12",null,{"children":["$","$d",null,{"name":"Next.Metadata","children":"$L13"}]}]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],false]],"m":"$undefined","G":["$14",[]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"iAAOf-kZzbfJMO69-ZQtR"}
-f:C
-a:{}
-b:"$0:f:0:1:1:children:1:children:0:props:children:0:props:serverProvidedParams:params"
-11:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1, viewport-fit=cover"}],["$","meta","2",{"name":"theme-color","content":"#0F4C75","media":"(prefers-color-scheme: light)"}],["$","meta","3",{"name":"theme-color","content":"#020617","media":"(prefers-color-scheme: dark)"}]]
-15:I[27201,["/_next/static/chunks/13gmkz50yngp8.js","/_next/static/chunks/2_5qzuj9hjjbl.js"],"IconMark"]
-e:null
-13:[["$","title","0",{"children":"Offline | ETHR"}],["$","meta","1",{"name":"description","content":"Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations."}],["$","link","2",{"rel":"manifest","href":"/manifest.json","crossOrigin":"$undefined"}],["$","meta","3",{"name":"mobile-web-app-capable","content":"yes"}],["$","meta","4",{"name":"apple-mobile-web-app-title","content":"ETHR"}],["$","meta","5",{"name":"apple-mobile-web-app-status-bar-style","content":"default"}],["$","link","6",{"rel":"icon","href":"/favicon.ico"}],["$","link","7",{"rel":"apple-touch-icon","href":"/app-icons/icon-192.png"}],["$","$L15","8",{}]]
+9:X
+13:[["children",{"s":"__PAGE__","h":512,"d":{"r":["$","$1","c",{"children":[["$","$L14",null,{"Component":"$16","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@17","$@18"]}}],[["$","script","script-0",{"src":"/_next/static/chunks/3ttqrgv9hpd54.js","async":true,"nonce":"$undefined"}]],["$","$L19",null,{"children":["$","$1a",null,{"name":"Next.MetadataOutlet","children":"$@1b"}]}]]}],"p":false,"v":null}}]]
+a:[["children",{"s":"offline","h":528,"d":{"r":["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/0idi3csoibjnk.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","link","1",{"rel":"stylesheet","href":"/_next/static/chunks/3i2q3pklpbqyv.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/_next/static/chunks/3c1ta7x5plynu.js","async":true,"nonce":"$undefined"}],["$","script","script-1",{"src":"/_next/static/chunks/3ncw9n_u6uoby.js","async":true,"nonce":"$undefined"}],["$","script","script-2",{"src":"/_next/static/chunks/0-_ifrxkmahn-.js","async":true,"nonce":"$undefined"}],["$","script","script-3",{"src":"/_next/static/chunks/2pqb7yv8wplxw.js","async":true,"nonce":"$undefined"}],["$","script","script-4",{"src":"/_next/static/chunks/2rrhnbf_i28f9.js","async":true,"nonce":"$undefined"}],["$","script","script-5",{"src":"/_next/static/chunks/117ouq3ymy0gl.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"am","className":"gKRp4W_variable VJC7UW_variable","suppressHydrationWarning":true,"children":["$","body",null,{"className":"font-sans","children":["$","$L10",null,{"children":["$","$L12",null,{"children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L6",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]}]}]}]}]]}],"p":false,"v":null},"c":"$Q13"}]]
+0:{"P":null,"c":["","offline"],"q":"","i":false,"t":{"t":{"s":"","h":528,"d":{"r":["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$5","errorStyles":[],"errorScripts":[["$","script","script-0",{"src":"/_next/static/chunks/3ncw9n_u6uoby.js","async":true,"nonce":"$undefined"}],["$","script","script-1",{"src":"/_next/static/chunks/1j4g2wp9-pfes.js","async":true,"nonce":"$undefined"}]],"template":["$","$L6",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","$L8",null,{}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]]}],"p":false,"v":"$9"},"c":"$Qa"},"h":{"r":["$","$1","h",{"children":[null,["$","$L1d",null,{"children":"$L1e"}],["$","$L20",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$1a",null,{"name":"Next.Metadata","children":"$L21"}]}],null]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"p":false,"v":null}},"m":"$undefined","G":["$23",[]],"S":true,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"-C0e7x8-nM4Ya0MA813dC"}
+9:C
+17:{}
+18:"$13:0:1:d:r:props:children:0:props:serverProvidedParams:params"
+1e:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1, viewport-fit=cover"}],["$","meta","2",{"name":"theme-color","content":"#0F4C75","media":"(prefers-color-scheme: light)"}],["$","meta","3",{"name":"theme-color","content":"#020617","media":"(prefers-color-scheme: dark)"}]]
+24:I[27201,["$2","$3"],"IconMark"]
+1b:null
+21:[["$","title","0",{"children":"Offline | ETHR"}],["$","meta","1",{"name":"description","content":"Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations."}],["$","link","2",{"rel":"manifest","href":"/manifest.json","crossOrigin":"$undefined"}],["$","meta","3",{"name":"mobile-web-app-capable","content":"yes"}],["$","meta","4",{"name":"apple-mobile-web-app-title","content":"ETHR"}],["$","meta","5",{"name":"apple-mobile-web-app-status-bar-style","content":"default"}],["$","link","6",{"rel":"icon","href":"/favicon.ico"}],["$","link","7",{"rel":"apple-touch-icon","href":"/app-icons/icon-192.png"}],["$","$L24","8",{}]]
