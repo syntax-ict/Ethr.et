@@ -16,10 +16,10 @@ function resolver(): IndustryProfileResolver
 }
 
 describe('IndustryCatalog', function () {
-    it('exposes all twenty-seven industries, each aliased to a seeded base', function () {
+    it('exposes all thirty-five industries, each aliased to a seeded base', function () {
         $catalog = app(IndustryCatalog::class);
 
-        expect($catalog->keys())->toHaveCount(27);
+        expect($catalog->keys())->toHaveCount(35);
 
         $baseSlugs = collect($catalog->all())->pluck('base')->unique()->values();
         expect($baseSlugs->all())->each->toBeIn([
@@ -132,7 +132,7 @@ describe('onboarding configuration endpoints', function () {
 
         $this->getJson('http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/industries')
             ->assertOk()
-            ->assertJsonCount(27, 'data')
+            ->assertJsonCount(35, 'data')
             ->assertJsonPath('data.0.key', 'federal_government');
     });
 

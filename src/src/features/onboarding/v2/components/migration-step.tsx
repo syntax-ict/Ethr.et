@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Loader2, HardDrive, FileText, Check } from "lucide-react";
+import { Loader2, HardDrive, FileText, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -146,15 +146,12 @@ export function MigrationStep({ onCommitted }: { onCommitted?: () => void }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-          <Users className="h-5 w-5 text-primary" />
-        </div>
+      <div>
         <div>
-          <h2 className="text-xl font-bold text-foreground">
+          <h2 className="text-lg font-semibold text-foreground">
             {t("setup2.migration_title", "Bring in your workforce")}
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             {t(
               "setup2.migration_desc",
               "Discover people from an attendance device or a list. We match them to existing employees so nobody is duplicated.",

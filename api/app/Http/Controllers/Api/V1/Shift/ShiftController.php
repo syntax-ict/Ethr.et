@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Shift;
 
+use App\Enums\EmployeeStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Shift\AssignShiftRequest;
 use App\Http\Requests\Shift\StoreShiftRequest;
 use App\Http\Requests\Shift\UpdateShiftRequest;
 use App\Http\Resources\ShiftAssignmentResource;
 use App\Http\Resources\ShiftResource;
+use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
+use App\Models\Branch;
+use App\Models\Department;
+use App\Models\Employee;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
 use App\Models\ShiftRotation;
+use App\Support\CopyName;
 use App\Support\ShiftAssignables;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -145,6 +151,90 @@ class ShiftController extends Controller
         AuditLog::record('shift.deleted', $shift);
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * A copy to adjust, not a second live shift: it is never the default and
+     * has no assignments, so nothing is matched to it until someone assigns it.
+     */
+    public function duplicate(Shift $shift): JsonResponse
+    {
+        Gate::authorize('shift.create');
+
+        $copy = $shift->replicate(['public_id', 'is_default']);
+        $copy->name = CopyName::name(
+            $shift->name,
+            static fn (string $name): bool => Shift::withTrashed()->where('name', $name)->exists(),
+        );
+        $copy->is_default = false;
+        $copy->save();
+
+        AuditLog::record('shift.duplicated', $copy, ['source' => $shift->public_id]);
+
+        $copy->loadCount('assignments');
+
+        return (new ShiftResource($copy))->response()->setStatusCode(201);
+    }
+
+    /**
+     * Who an edit to this shift would reach, asked before the edit is saved.
+     *
+     * Editing a shift changes how *future* punches are rated. Attendance
+     * already recorded keeps the status it was given when it was punched, and
+     * payroll already approved is never recalculated, so the honest preview is
+     * the current and upcoming assignments and the people they reach. The
+     * people count is an upper bound: someone in an assigned department may
+     * have a shift of their own, which wins.
+     */
+    public function usage(Shift $shift): JsonResponse
+    {
+        Gate::authorize('shift.view');
+
+        $assignments = $shift->assignments()
+            ->inForceOnOrAfter(ShiftAssignment::tenantToday())
+            ->get(['assignable_type', 'assignable_id']);
+
+        $idsFor = static fn (string $class): array => $assignments
+            ->where('assignable_type', $class)
+            ->pluck('assignable_id')
+            ->unique()
+            ->values()
+            ->all();
+
+        $employeeIds = $idsFor(Employee::class);
+        $departmentIds = $idsFor(Department::class);
+        $branchIds = $idsFor(Branch::class);
+
+        $people = $employeeIds === [] && $departmentIds === [] && $branchIds === []
+            ? 0
+            : Employee::query()
+                ->whereIn('status', array_map(static fn (EmployeeStatus $status): string => $status->value, EmployeeStatus::current()))
+                ->where(function ($query) use ($employeeIds, $departmentIds, $branchIds): void {
+                    $query->whereIn('id', $employeeIds)
+                        ->orWhereIn('department_id', $departmentIds)
+                        ->orWhereIn('branch_id', $branchIds);
+                })
+                ->count();
+
+        $rotations = ShiftRotation::query()
+            ->whereHas('steps', fn ($q) => $q->where('shift_id', $shift->id))
+            ->orderBy('name')
+            ->pluck('name')
+            ->all();
+
+        return response()->json([
+            'data' => [
+                'assignments' => [
+                    'employees' => count($employeeIds),
+                    'departments' => count($departmentIds),
+                    'branches' => count($branchIds),
+                ],
+                'people_up_to' => $people,
+                'rotations' => $rotations,
+                'is_default' => (bool) $shift->is_default,
+                'attendance_records' => AttendanceRecord::query()->where('shift_id', $shift->id)->count(),
+            ],
+        ]);
     }
 
     public function assign(AssignShiftRequest $request): JsonResponse

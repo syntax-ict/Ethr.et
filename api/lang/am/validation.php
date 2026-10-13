@@ -26,4 +26,5 @@ return [
     'custom_domain_none' => 'This organisation has no custom domain to verify.',
     'employee_minimum_age' => 'ሰራተኛው በቅጥር ቀኑ ቢያንስ 15 ዓመት መሆን አለበት።',
     'holiday_duplicate' => 'ይህ በዓል በዚያ ቀን አስቀድሞ በቀን መቁጠሪያው ላይ አለ።',
+    'leave_paid_needs_days' => 'የሚከፈልበት የፈቃድ ዓይነት ቢያንስ የግማሽ ቀን መብት ያስፈልገዋል። 0 የሚጠቀሙት ለክፍያ የሌለው ፈቃድ ብቻ ነው።',
 ];

@@ -22,11 +22,15 @@ final class ConfigurationPlan
      * @param  array{key: string, label: string, label_am: string, base: string, icon: string, group: string, overrides?: array<string, mixed>}  $industry
      * @param  array<string, mixed>  $signals
      * @param  array<string, array{source: ConfigurationSource, items: mixed}>  $sections
+     * @param  array<string, array{key: string, label: string, label_am: string}>  $profiles  the workforce and policy profiles the plan was composed from
+     * @param  list<array{code: string, message: string}>  $review  legally or financially sensitive defaults the admin must confirm
      */
     public function __construct(
         private readonly array $industry,
         private readonly array $signals,
         private readonly array $sections,
+        private readonly array $profiles = [],
+        private readonly array $review = [],
     ) {}
 
     /**
@@ -71,7 +75,10 @@ final class ConfigurationPlan
      *     signals: array<string, mixed>,
      *     overall_confidence: float,
      *     sections: array<string, array{source: string, confidence: float, items: mixed}>,
-     *     plan: array<string, mixed>
+     *     plan: array<string, mixed>,
+     *     profiles: array<string, array{key: string, label: string, label_am: string}>,
+     *     review: list<array{code: string, message: string}>,
+     *     catalog_version: string
      * }
      */
     public function toArray(): array
@@ -97,6 +104,9 @@ final class ConfigurationPlan
             'overall_confidence' => $this->overallConfidence(),
             'sections' => $sections,
             'plan' => $this->plan(),
+            'profiles' => $this->profiles,
+            'review' => $this->review,
+            'catalog_version' => IndustryCatalog::VERSION,
         ];
     }
 }

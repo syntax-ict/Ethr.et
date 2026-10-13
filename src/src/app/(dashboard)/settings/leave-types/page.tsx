@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Plus, Trash2, Loader2, Pencil } from "lucide-react";
+import { FileText, Plus, Trash2, Loader2, Pencil, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -36,6 +37,7 @@ import {
   useAllLeaveTypes,
   useCreateLeaveType,
   useDeleteLeaveType,
+  useDuplicateLeaveType,
   useUpdateLeaveType,
   type AccrualType,
   type LeaveType,
@@ -43,6 +45,7 @@ import {
 import { useT } from "@/lib/i18n/useT";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 import { WorkingWeekCard } from "@/features/leave/components/working-week-card";
 
 const ACCRUAL_TYPES = [
@@ -58,23 +61,26 @@ function isAccrualType(value: string): value is AccrualType {
 
 const leaveTypeSchema = z.object({
   name: rules.requiredText(255),
-  // The code is the stable key balances and payroll join on, so it is worth
-  // constraining here rather than letting a stray space or lowercase variant
-  // create a second "AL" that reconciles against nothing.
+  // The code is the stable key templates and imports match on. It is not
+  // upper-cased: the types organisation templates create are `annual`,
+  // `bereavement`, `r_and_r`, and upper-casing them on every save renamed
+  // them. Up to 30 characters, the column's width — "bereavement" alone is
+  // 11, and a 10-character cap made that type uneditable. A duplicate code is
+  // refused by the server and shown on this field.
   code: z
     .string()
     .trim()
-    .toUpperCase()
     .min(2, "validation.name_min")
-    .max(10, "validation.too_long")
-    .regex(/^[A-Z0-9_]+$/, "leave_types_page.code_format"),
+    .max(30, "validation.too_long")
+    .regex(/^[A-Za-z0-9_]+$/, "leave_types_page.code_format"),
   // Kept as a string through the form (an empty number input parses to NaN,
   // which reads as "0 days" rather than "you left this blank") and converted
-  // once, on submit.
-  // At least 1: the server rejects anything under half a day
-  // (`StoreLeaveTypeRequest`), and this field takes whole days.
-  default_days: rules.integer({ min: 1, max: 365 }),
+  // once, on submit. 0 is allowed for unpaid leave; the server refuses 0 on
+  // a paid type and the message lands on this field.
+  default_days: rules.integer({ min: 0, max: 365 }),
   accrual_type: z.enum(ACCRUAL_TYPES),
+  is_paid: z.boolean(),
+  is_active: z.boolean(),
 });
 type LeaveTypeValues = z.infer<typeof leaveTypeSchema>;
 
@@ -83,6 +89,8 @@ const EMPTY_LEAVE_TYPE: LeaveTypeValues = {
   code: "",
   default_days: "",
   accrual_type: "monthly",
+  is_paid: true,
+  is_active: true,
 };
 
 export default function LeaveTypesPage() {
@@ -122,6 +130,8 @@ export default function LeaveTypesPage() {
       accrual_type: isAccrualType(lt.accrual_type)
         ? lt.accrual_type
         : EMPTY_LEAVE_TYPE.accrual_type,
+      is_paid: lt.is_paid ?? true,
+      is_active: lt.is_active ?? true,
     });
     setDialogOpen(true);
   }
@@ -130,6 +140,7 @@ export default function LeaveTypesPage() {
   const createLeaveType = useCreateLeaveType();
   const updateLeaveType = useUpdateLeaveType();
   const deleteLeaveType = useDeleteLeaveType();
+  const duplicateLeaveType = useDuplicateLeaveType();
 
   // Rejections surface inline in the dialog through `submit` — a duplicate
   // `code` is the common one, and it belongs on the code field — so neither
@@ -140,9 +151,13 @@ export default function LeaveTypesPage() {
       code: values.code,
       default_days: Number(values.default_days),
       accrual_type: values.accrual_type,
+      is_paid: values.is_paid,
     };
     if (editingId) {
-      await updateLeaveType.mutateAsync({ publicId: editingId, payload });
+      await updateLeaveType.mutateAsync({
+        publicId: editingId,
+        payload: { ...payload, is_active: values.is_active },
+      });
       toast.success(t("leave_types_page.updated"));
       setDialogOpen(false);
       setEditingId(null);
@@ -154,10 +169,28 @@ export default function LeaveTypesPage() {
     }
   }
 
+  // A type that requests or balances use is refused with a 409 whose detail
+  // says why and what to do instead; that sentence is the useful message.
   function deleteType(publicId: string) {
     deleteLeaveType.mutate(publicId, {
       onSuccess: () => toast.success(t("leave_types_page.deleted")),
-      onError: () => toast.error(t("leave_types_page.delete_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("leave_types_page.delete_failed"))),
+    });
+  }
+
+  function duplicateType(publicId: string) {
+    duplicateLeaveType.mutate(publicId, {
+      onSuccess: (copy) =>
+        toast.success(
+          t(
+            "leave_types_page.duplicated",
+            "Created :name, switched off. Adjust it, then switch it on.",
+            { name: copy.name },
+          ),
+        ),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("leave_types_page.create_failed"))),
     });
   }
 
@@ -257,6 +290,17 @@ export default function LeaveTypesPage() {
                           <Pencil className="h-4 w-4" />
                           <span className="sr-only">
                             {t("common.edit", "Edit")}
+                          </span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => duplicateType(lt.public_id)}
+                          disabled={duplicateLeaveType.isPending}
+                        >
+                          <Copy className="h-4 w-4" />
+                          <span className="sr-only">
+                            {t("common.duplicate", "Duplicate")}
                           </span>
                         </Button>
                         <Button
@@ -383,6 +427,47 @@ export default function LeaveTypesPage() {
                   />
                 )}
               </FormField>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Controller
+                  name="is_paid"
+                  control={control}
+                  render={({ field }) => (
+                    <label className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                      <span>{t("leave_types_page.is_paid", "Paid leave")}</span>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        aria-label={t("leave_types_page.is_paid", "Paid leave")}
+                      />
+                    </label>
+                  )}
+                />
+                {editingId && (
+                  <Controller
+                    name="is_active"
+                    control={control}
+                    render={({ field }) => (
+                      <label className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                        <span>
+                          {t(
+                            "leave_types_page.is_active",
+                            "Offered to employees",
+                          )}
+                        </span>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          aria-label={t(
+                            "leave_types_page.is_active",
+                            "Offered to employees",
+                          )}
+                        />
+                      </label>
+                    )}
+                  />
+                )}
+              </div>
 
               <DialogFooter>
                 <Button

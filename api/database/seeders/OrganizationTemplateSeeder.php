@@ -16,9 +16,14 @@ use Illuminate\Support\Str;
  * positions, `start`/`end`/`days` on shifts, bare leave-type codes resolved
  * through LeaveTypeCatalog) and fully-specified objects.
  *
- * The twenty-seven industries the product offers are aliases onto these eight —
- * see ONBOARDING_V2.md decision D3. Adding an industry means adding an alias and
- * a thin override, not a ninth hand-authored configuration.
+ * The industries the product offers are aliases onto these eight — see
+ * ONBOARDING_V2.md decision D3. Adding an industry means adding an alias and a
+ * thin override, not a ninth hand-authored configuration.
+ *
+ * Since catalogue 2026.10.1 the onboarding plan takes its shifts from a
+ * WorkforceProfileCatalog entry and its statutory leave types from a
+ * PolicyProfileCatalog entry. The `shifts` and `leave_types` below still serve
+ * the public `GET /templates` listing and a plan saved before then.
  */
 class OrganizationTemplateSeeder extends Seeder
 {
@@ -128,9 +133,9 @@ class OrganizationTemplateSeeder extends Seeder
                     'positions' => ['Medical Director', 'Specialist', 'General Practitioner', 'Head Nurse', 'Nurse', 'Lab Technician', 'Pharmacist', 'Receptionist'],
                     'grades' => $this->gradeLadder(6000, 1.45),
                     'shifts' => [
-                        ['name' => 'Morning', 'start' => '07:00', 'end' => '14:00', 'days' => '1,2,3,4,5,6,0', 'break_minutes' => 30],
-                        ['name' => 'Afternoon', 'start' => '14:00', 'end' => '21:00', 'days' => '1,2,3,4,5,6,0', 'break_minutes' => 30],
-                        ['name' => 'Night', 'start' => '21:00', 'end' => '07:00', 'days' => '1,2,3,4,5,6,0', 'break_minutes' => 60],
+                        ['name' => 'Morning', 'start' => '07:00', 'end' => '14:00', 'days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
+                        ['name' => 'Afternoon', 'start' => '14:00', 'end' => '21:00', 'days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
+                        ['name' => 'Night', 'start' => '21:00', 'end' => '07:00', 'days' => '1,2,3,4,5,6,7', 'break_minutes' => 60],
                     ],
                     'leave_types' => ['annual', 'sick', 'maternity', 'paternity', 'bereavement', 'study', 'injury'],
                     'settings' => $this->baseSettings('meskerem', 'HSP', 'biometric'),
@@ -181,9 +186,9 @@ class OrganizationTemplateSeeder extends Seeder
                     'positions' => ['General Manager', 'Department Head', 'Supervisor', 'Receptionist', 'Housekeeper', 'Chef', 'Waiter', 'Guard'],
                     'grades' => $this->gradeLadder(3000, 1.3),
                     'shifts' => [
-                        ['name' => 'Morning', 'start' => '06:00', 'end' => '14:00', 'days' => '1,2,3,4,5,6,0', 'break_minutes' => 30],
-                        ['name' => 'Afternoon', 'start' => '14:00', 'end' => '22:00', 'days' => '1,2,3,4,5,6,0', 'break_minutes' => 30],
-                        ['name' => 'Night', 'start' => '22:00', 'end' => '06:00', 'days' => '1,2,3,4,5,6,0', 'break_minutes' => 30],
+                        ['name' => 'Morning', 'start' => '06:00', 'end' => '14:00', 'days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
+                        ['name' => 'Afternoon', 'start' => '14:00', 'end' => '22:00', 'days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
+                        ['name' => 'Night', 'start' => '22:00', 'end' => '06:00', 'days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
                     ],
                     'leave_types' => ['annual', 'sick', 'maternity', 'paternity', 'unpaid'],
                     'settings' => $this->baseSettings('meskerem', 'HTL', 'kiosk'),
@@ -223,20 +228,32 @@ class OrganizationTemplateSeeder extends Seeder
         ];
 
         foreach ($templates as $template) {
-            DB::table('organization_templates')->updateOrInsert(
-                ['slug' => $template['slug']],
-                [
+            $values = [
+                'name' => $template['name'],
+                'description' => $template['description'],
+                'icon' => $template['icon'],
+                'template_data' => json_encode($template['template_data']),
+                'is_active' => true,
+                'sort_order' => $template['sort_order'],
+                'updated_at' => now(),
+            ];
+
+            // ProductionSeeder runs this on every deploy. `updateOrInsert` with a
+            // fresh ULID in the values gave every template a new public_id each
+            // time, so `GET /templates/{...}` links and anything holding one broke
+            // on deploy. The id and created_at are set once, on insert.
+            $exists = DB::table('organization_templates')->where('slug', $template['slug'])->exists();
+
+            if ($exists) {
+                DB::table('organization_templates')->where('slug', $template['slug'])->update($values);
+            } else {
+                DB::table('organization_templates')->insert([
+                    'slug' => $template['slug'],
                     'public_id' => (string) Str::ulid(),
-                    'name' => $template['name'],
-                    'description' => $template['description'],
-                    'icon' => $template['icon'],
-                    'template_data' => json_encode($template['template_data']),
-                    'is_active' => true,
-                    'sort_order' => $template['sort_order'],
                     'created_at' => now(),
-                    'updated_at' => now(),
-                ]
-            );
+                    ...$values,
+                ]);
+            }
         }
     }
 }

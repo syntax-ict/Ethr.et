@@ -11,6 +11,8 @@ import {
   Star,
   Moon,
   CheckCircle2,
+  Copy,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +41,8 @@ import { RoleGate } from "@/components/shared/role-gate";
 import {
   useCreateShift,
   useDeleteShift,
+  useDuplicateShift,
+  useShiftUsage,
   useShifts,
   useUpdateShift,
   type Shift,
@@ -106,6 +110,7 @@ export default function ShiftsPage() {
   // admins, who hold create/update but not delete. The item was offered to
   // them anyway and answered with a 403.
   const canDelete = hasPermission("shift.delete");
+  const canCreate = hasPermission("shift.create");
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<Shift | null>(null);
   const [form, setForm] = useState<ShiftForm>(EMPTY_FORM);
@@ -115,6 +120,7 @@ export default function ShiftsPage() {
   const createShift = useCreateShift();
   const updateShift = useUpdateShift();
   const deleteShift = useDeleteShift();
+  const duplicateShift = useDuplicateShift();
   const saving = createShift.isPending || updateShift.isPending;
 
   const shifts = data?.data ?? [];
@@ -345,6 +351,27 @@ export default function ShiftsPage() {
                           <Pencil className="mr-2 h-3.5 w-3.5" />{" "}
                           {t("common.edit")}
                         </DropdownMenuItem>
+                        {canCreate && (
+                          <DropdownMenuItem
+                            disabled={duplicateShift.isPending}
+                            onClick={() =>
+                              duplicateShift.mutate(shift.public_id, {
+                                onSuccess: (copy) =>
+                                  toast.success(
+                                    t(
+                                      "shifts_page.duplicated",
+                                      "Created :name. Edit it, then assign it.",
+                                      { name: copy.name },
+                                    ),
+                                  ),
+                                onError: onSaveError,
+                              })
+                            }
+                          >
+                            <Copy className="mr-2 h-3.5 w-3.5" />{" "}
+                            {t("common.duplicate", "Duplicate")}
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem asChild>
                           <Link
                             href={`/shifts/assignments?shift=${shift.public_id}`}
@@ -421,6 +448,8 @@ export default function ShiftsPage() {
             </DialogHeader>
 
             <div className="space-y-4">
+              {editing && <ShiftUsageNotice publicId={editing.public_id} />}
+
               {/* Name */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -649,5 +678,74 @@ export default function ShiftsPage() {
         </Dialog>
       </div>
     </RoleGate>
+  );
+}
+
+/**
+ * Before an edit is saved: who it reaches, and what it does not touch.
+ * Attendance is rated when it is punched and approved payroll is never
+ * recalculated, so the change applies from the next punch onwards.
+ */
+function ShiftUsageNotice({ publicId }: { publicId: string }) {
+  const { t } = useT();
+  const usage = useShiftUsage(publicId);
+  const u = usage.data;
+
+  if (!u) return null;
+
+  const inUse =
+    u.people_up_to > 0 ||
+    u.rotations.length > 0 ||
+    u.is_default ||
+    u.attendance_records > 0;
+
+  if (!inUse) return null;
+
+  return (
+    <div
+      role="note"
+      className="flex gap-2 rounded-lg border border-l-4 border-l-primary bg-card p-3 text-sm"
+    >
+      <Info
+        className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+        aria-hidden="true"
+      />
+      <div className="space-y-1 text-muted-foreground">
+        {u.people_up_to > 0 && (
+          <p className="text-foreground">
+            {t(
+              "shifts_page.usage_people",
+              "This shift is assigned to up to :n people now or from a future date.",
+              { n: u.people_up_to },
+            )}
+          </p>
+        )}
+        {u.is_default && (
+          <p>
+            {t(
+              "shifts_page.usage_default",
+              "It is the default shift for everyone without one of their own.",
+            )}
+          </p>
+        )}
+        {u.rotations.length > 0 && (
+          <p>
+            {t(
+              "shifts_page.usage_rotations",
+              "Used in the rotations: :names.",
+              {
+                names: u.rotations.join(", "),
+              },
+            )}
+          </p>
+        )}
+        <p>
+          {t(
+            "shifts_page.usage_history",
+            "Changes apply from the next check-in. Attendance already recorded and approved payroll are not recalculated.",
+          )}
+        </p>
+      </div>
+    </div>
   );
 }

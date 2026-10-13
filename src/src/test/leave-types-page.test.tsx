@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
+import { toast } from "sonner";
 import LeaveTypesPage from "@/app/(dashboard)/settings/leave-types/page";
 
 vi.mock("sonner", () => ({
@@ -90,6 +91,77 @@ function renderPage() {
 }
 
 describe("<LeaveTypesPage>", () => {
+  it("edits a template's lowercase, eleven-letter code without renaming it", async () => {
+    // Organisation templates create `bereavement`; the form upper-cased every
+    // code and capped it at ten characters, so this type could not be saved.
+    let sent: Record<string, unknown> | null = null;
+    const bereavement = leaveType(2, {
+      name: "Bereavement Leave",
+      code: "bereavement",
+      default_days: 3,
+    });
+    serveLeaveTypes([bereavement]);
+    server.use(
+      me(["leave.manageTypes", "leave.viewTypes"]),
+      http.put("*/api/v1/leave-types/LT2", async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...bereavement, ...sent });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    const row = (await screen.findByText("Bereavement Leave")).closest("tr")!;
+    await user.click(within(row).getByRole("button", { name: "Edit" }));
+    await user.click(
+      await screen.findByRole("switch", { name: "Offered to employees" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+
+    await waitFor(() => expect(sent).not.toBeNull());
+    expect(sent).toMatchObject({ code: "bereavement", is_active: false });
+  });
+
+  it("duplicates a leave type and explains a refused delete", async () => {
+    let duplicated = false;
+    serveLeaveTypes([ANNUAL]);
+    server.use(
+      me(["leave.manageTypes", "leave.viewTypes"]),
+      http.post("*/api/v1/leave-types/LT1/duplicate", () => {
+        duplicated = true;
+        return HttpResponse.json(
+          { ...ANNUAL, public_id: "LT9", name: "Annual Leave (copy)" },
+          { status: 201 },
+        );
+      }),
+      http.delete("*/api/v1/leave-types/LT1", () =>
+        HttpResponse.json(
+          {
+            type: "https://ethr.et/errors/leave-type-in-use",
+            title: "Leave Type In Use",
+            status: 409,
+            detail:
+              "This leave type cannot be deleted: 3 leave requests use it.",
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    const row = (await screen.findByText("Annual Leave")).closest("tr")!;
+    await user.click(within(row).getByRole("button", { name: "Duplicate" }));
+    await waitFor(() => expect(duplicated).toBe(true));
+
+    await user.click(within(row).getByRole("button", { name: "Delete" }));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringContaining("3 leave requests use it"),
+      ),
+    );
+  });
+
   it("keeps a leave type's accrual when it is edited", async () => {
     // The edit dialog was seeded with the literal "monthly", so renaming an
     // annual leave type silently turned it into monthly accrual.

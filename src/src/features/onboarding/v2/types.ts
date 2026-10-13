@@ -8,6 +8,31 @@ export interface Industry {
   base: string;
   icon: string;
   group: string;
+  /** The workforce profile this industry usually runs on. */
+  profile?: string;
+  /** The policy profile its rules usually start from. */
+  policy?: string;
+}
+
+/** A workforce (how people work) or policy (which law) profile. */
+export interface ConfigurationProfile {
+  key: string;
+  label: string;
+  label_am: string;
+  description: string;
+  description_am?: string;
+}
+
+export interface IndustryCatalogResponse {
+  data: Industry[];
+  workforce_profiles?: ConfigurationProfile[];
+  policy_profiles?: ConfigurationProfile[];
+  catalog_version?: string;
+}
+
+export interface ConfigurationReviewNote {
+  code: string;
+  message: string;
 }
 
 export type ConfigurationSource =
@@ -25,6 +50,13 @@ export interface ConfigurationPlan {
   overall_confidence: number;
   sections: Record<string, ConfigurationSection>;
   plan: Record<string, unknown>;
+  profiles?: {
+    workforce?: { key: string; label: string; label_am: string };
+    policy?: { key: string; label: string; label_am: string };
+  };
+  /** Sensitive defaults the admin confirms before applying. */
+  review?: ConfigurationReviewNote[];
+  catalog_version?: string;
 }
 
 export interface ProvisionTally {

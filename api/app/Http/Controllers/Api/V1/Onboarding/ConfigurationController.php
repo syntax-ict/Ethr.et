@@ -14,7 +14,11 @@ use App\Services\CurrentTenant;
 use App\Services\Onboarding\IndustryCatalog;
 use App\Services\Onboarding\IndustryProfileResolver;
 use App\Services\Onboarding\OrganizationProvisioner;
+use App\Services\Onboarding\PolicyProfileCatalog;
+use App\Services\Onboarding\ProvisioningResult;
+use App\Services\Onboarding\WorkforceProfileCatalog;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -31,13 +35,20 @@ class ConfigurationController extends Controller
         private readonly IndustryCatalog $catalog,
         private readonly IndustryProfileResolver $resolver,
         private readonly OrganizationProvisioner $provisioner,
+        private readonly WorkforceProfileCatalog $workforceProfiles,
+        private readonly PolicyProfileCatalog $policyProfiles,
     ) {}
 
     public function industries(): JsonResponse
     {
         Gate::authorize('settings.manage');
 
-        return response()->json(['data' => $this->catalog->all()]);
+        return response()->json([
+            'data' => $this->catalog->all(),
+            'workforce_profiles' => $this->workforceProfiles->all(),
+            'policy_profiles' => $this->policyProfiles->all(),
+            'catalog_version' => IndustryCatalog::VERSION,
+        ]);
     }
 
     public function preview(PreviewConfigurationRequest $request): JsonResponse
@@ -47,6 +58,8 @@ class ConfigurationController extends Controller
         $signals = array_filter([
             'employee_count' => $request->integer('employee_count') ?: null,
             'region' => $request->input('region'),
+            'workforce_profile' => $request->input('workforce_profile'),
+            'policy_profile' => $request->input('policy_profile'),
         ], static fn ($value): bool => $value !== null);
 
         $plan = $this->resolver->resolve($request->string('industry')->value(), $signals);
@@ -71,43 +84,70 @@ class ConfigurationController extends Controller
 
         /** @var array<string, mixed> $plan */
         $plan = $request->input('plan');
-        $result = $this->provisioner->apply($tenant, $plan);
 
         $industryKey = $request->input('industry');
         $industry = is_string($industryKey) ? $this->catalog->find($industryKey) : null;
+        $profiles = array_filter([
+            'workforce_profile' => $request->input('workforce_profile'),
+            'policy_profile' => $request->input('policy_profile'),
+        ], static fn ($value): bool => is_string($value));
 
-        $settings = $tenant->settings ?? [];
-        $settings['configuration_applied_at'] = now()->toIso8601String();
-        if ($industry !== null) {
-            $settings['industry'] = $industry['key'];
-        }
-        if ($request->boolean('save')) {
-            // A within-tenant save so the admin can revisit or re-apply. Publishing
-            // a plan as a globally reusable OrganizationTemplate is deferred — that
-            // table is a global catalog and would need tenant scoping first
-            // (ONBOARDING_V2.md, Slice 2 note).
-            $settings['saved_configuration'] = $plan;
-        }
+        // One transaction for the records and the bookkeeping about them. The
+        // provisioner always ran in its own; the settings, progress and audit
+        // writes used to follow outside it, so a failure there left an
+        // organisation configured with no record that it had been.
+        $result = DB::transaction(function () use ($tenant, $plan, $industry, $profiles, $request): ProvisioningResult {
+            $result = $this->provisioner->apply($tenant, $plan);
 
-        $tenant->update([
-            'type' => $industry['base'] ?? $tenant->type,
-            'settings' => $settings,
-        ]);
+            $tenant->refresh();
+            $settings = $tenant->settings ?? [];
+            $settings['configuration_applied_at'] = now()->toIso8601String();
+            if ($industry !== null) {
+                $settings['industry'] = $industry['key'];
+            }
+            // Where the configuration came from, so a later catalogue can be
+            // compared against it. Records keep no per-row origin: re-applying
+            // is create-only, so this plus the audit row below is the history.
+            $settings['configuration_profile'] = [
+                'industry' => $industry['key'] ?? null,
+                'workforce_profile' => $profiles['workforce_profile'] ?? ($industry['profile'] ?? null),
+                'policy_profile' => $profiles['policy_profile'] ?? ($industry['policy'] ?? null),
+                'catalog_version' => IndustryCatalog::VERSION,
+                'applied_at' => $settings['configuration_applied_at'],
+            ];
+            if ($request->boolean('save')) {
+                // A within-tenant save so the admin can revisit or re-apply. Publishing
+                // a plan as a globally reusable OrganizationTemplate is deferred — that
+                // table is a global catalog and would need tenant scoping first
+                // (ONBOARDING_V2.md, Slice 2 note).
+                $settings['saved_configuration'] = $plan;
+            }
 
-        $progress = OnboardingProgress::firstOrCreate(
-            ['tenant_id' => $tenant->id],
-            ['current_step' => 1, 'completed_steps' => [], 'step_data' => []]
-        );
-        $progress->markStepComplete(OnboardingStep::SMART_CONFIGURATION->value, [
-            'industry' => $industry['key'] ?? null,
-            'provisioned' => $result->toArray(),
-        ]);
+            $tenant->update([
+                'type' => $industry['base'] ?? $tenant->type,
+                'settings' => $settings,
+            ]);
 
-        AuditLog::record('onboarding.configuration_applied', $tenant, [
-            'industry' => $industry['key'] ?? null,
-            'saved' => $request->boolean('save'),
-            'provisioned' => $result->toArray(),
-        ]);
+            $progress = OnboardingProgress::firstOrCreate(
+                ['tenant_id' => $tenant->id],
+                ['current_step' => 1, 'completed_steps' => [], 'step_data' => []]
+            );
+            $progress->markStepComplete(OnboardingStep::SMART_CONFIGURATION->value, [
+                'industry' => $industry['key'] ?? null,
+                'provisioned' => $result->toArray(),
+            ]);
+
+            AuditLog::record('onboarding.configuration_applied', $tenant, [
+                'industry' => $industry['key'] ?? null,
+                'workforce_profile' => $settings['configuration_profile']['workforce_profile'],
+                'policy_profile' => $settings['configuration_profile']['policy_profile'],
+                'catalog_version' => IndustryCatalog::VERSION,
+                'saved' => $request->boolean('save'),
+                'provisioned' => $result->toArray(),
+            ]);
+
+            return $result;
+        });
 
         return response()->json([
             'message' => __('general.created', ['resource' => 'Configuration']),
