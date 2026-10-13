@@ -18,6 +18,7 @@ use App\Models\AuditLog;
 use App\Models\SsoSetting;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
+use App\Services\Payroll\StatutorySchedules;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
 use App\Support\TenantLanding;
@@ -82,6 +83,10 @@ class SettingsController extends Controller
                 // rather than hard-coded, the same treatment as the tax
                 // brackets and Pagumen strategy above.
                 'retirement_age' => (int) ($tenant->settings['retirement_age'] ?? 60),
+                // The header of the statutory schedules (StatutorySchedules).
+                'employer_tin' => StatutorySchedules::setting($tenant, 'employer_tin'),
+                'tax_center' => StatutorySchedules::setting($tenant, 'tax_center'),
+                'pension_scheme' => StatutorySchedules::setting($tenant, 'pension_scheme') === 'public' ? 'public' : 'private',
             ],
             'security' => [
                 'mfa_policy' => $security->mfaPolicy(),

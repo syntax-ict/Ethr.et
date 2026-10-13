@@ -717,6 +717,7 @@ return array(
     'App\\Services\\Payroll\\PayslipPdfService' => $baseDir . '/app/Services/Payroll/PayslipPdfService.php',
     'App\\Services\\Payroll\\PensionCalculator' => $baseDir . '/app/Services/Payroll/PensionCalculator.php',
     'App\\Services\\Payroll\\RunRegisterService' => $baseDir . '/app/Services/Payroll/RunRegisterService.php',
+    'App\\Services\\Payroll\\StatutorySchedules' => $baseDir . '/app/Services/Payroll/StatutorySchedules.php',
     'App\\Services\\Payroll\\TaxCalculator' => $baseDir . '/app/Services/Payroll/TaxCalculator.php',
     'App\\Services\\PersonnelActionService' => $baseDir . '/app/Services/PersonnelActionService.php',
     'App\\Services\\PlanFeatureService' => $baseDir . '/app/Services/PlanFeatureService.php',

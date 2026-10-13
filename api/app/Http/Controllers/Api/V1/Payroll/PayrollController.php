@@ -22,6 +22,7 @@ use App\Services\Payroll\BankExportService;
 use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\PayslipPdfService;
 use App\Services\Payroll\RunRegisterService;
+use App\Services\Payroll\StatutorySchedules;
 use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -325,6 +326,50 @@ class PayrollController extends Controller
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"payroll-register-{$payrollRun->public_id}.csv\"",
         ]);
+    }
+
+    /**
+     * What a statutory schedule will contain, without the TINs: its header,
+     * totals, row count and who is missing a TIN — the check before filing.
+     * The TINs themselves are only in the downloads, which are audited.
+     */
+    public function statutory(PayrollRun $payrollRun, string $schedule, StatutorySchedules $schedules): JsonResponse
+    {
+        $this->authorize('view', $payrollRun);
+
+        $data = $schedules->build($payrollRun, $schedule);
+
+        return response()->json([
+            'schedule' => $data['schedule'],
+            'header' => $data['header'],
+            'employees' => count($data['rows']),
+            'totals' => $data['totals'],
+            'missing_tin' => $data['missing_tin'],
+        ]);
+    }
+
+    /**
+     * The schedule as a file: `?format=csv` (default) or `pdf`. Carries every
+     * employee's TIN, so each download is audited.
+     */
+    public function downloadStatutory(Request $request, PayrollRun $payrollRun, string $schedule, StatutorySchedules $schedules): Response
+    {
+        $this->authorize('view', $payrollRun);
+
+        $pdf = $request->query('format') === 'pdf';
+        AuditLog::record('payroll.statutory_export', $payrollRun, ['schedule' => $schedule, 'format' => $pdf ? 'pdf' : 'csv']);
+
+        $name = "{$schedule}-schedule-{$payrollRun->public_id}";
+
+        return $pdf
+            ? response($schedules->pdf($payrollRun, $schedule), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => "attachment; filename=\"{$name}.pdf\"",
+            ])
+            : response($schedules->csv($payrollRun, $schedule), 200, [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => "attachment; filename=\"{$name}.csv\"",
+            ]);
     }
 
     public function bankExport(PayrollRun $payrollRun, BankExportService $bankExportService): JsonResponse
