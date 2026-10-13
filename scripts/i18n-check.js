@@ -240,7 +240,34 @@ const mismatched = enKeys
   .filter((k) => amKeys.has(k))
   .filter((k) => placeholders(en[k]) !== placeholders(am[k]));
 
+// An Amharic value identical to the English one is English shown to an
+// Amharic reader. The key checks above all pass on it, which is how 103 such
+// values accumulated unseen (measured 2026-10-14). The few that are rightly
+// the same in both — acronyms, the language's own name, example values — are
+// listed here, each one deliberately.
+const SAME_IN_BOTH = new Set([
+  "admin_tenant_detail_page.custom_domain_placeholder", // hr.example.com
+  "attendance.source_qr", // QR
+  "audit_logs_page.ip", // IP
+  "nav.sso", // SSO / SAML
+  "settings.tab_sso", // SSO
+  "notification_prefs_page.channel_sms", // SMS
+  "settings.english", // a language is named in its own language
+  "password.strength_none", // empty
+  "employee.education.degree_placeholder", // BSc, MSc, MBA...
+  "webhooks_page.url", // URL
+  "shifts_page.name_english_placeholder", // the English-name field's example
+]);
+const untranslated = enKeys.filter(
+  (k) => amKeys.has(k) && am[k] === en[k] && !SAME_IN_BOTH.has(k),
+);
+
 const problems = [];
+if (untranslated.length)
+  problems.push([
+    `${untranslated.length} am value(s) identical to en — translate, or add the key to SAME_IN_BOTH with a reason`,
+    untranslated,
+  ]);
 if (missing.length)
   problems.push([`${missing.length} key(s) used but not defined`, missing]);
 if (interpolated.length)
@@ -276,7 +303,7 @@ if (mismatched.length)
 if (!problems.length) {
   console.log(
     `i18n OK — ${files.length} files (${publicFiles.size} reachable from a public page), ` +
-      `${enKeys.length} keys, en/am in sync, no interpolated fallbacks, ` +
+      `${enKeys.length} keys, en/am in sync, every am value translated, no interpolated fallbacks, ` +
       `every public key inside the shipped subset, no public fallback drift.`,
   );
   process.exit(0);

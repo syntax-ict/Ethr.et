@@ -23,9 +23,11 @@ import OfflinePage from "@/app/offline/page";
  * Each render test swaps the active dictionary for one in which every key
  * renders as `⟦key⟧`. Text that goes through t() comes out as a sentinel;
  * text that is still a literal comes out as English. That proves the routing
- * without depending on what the translations say, which matters here: the new
- * keys' Amharic values are English placeholders awaiting a native speaker, so
- * a test that switched to `am` and looked for English would pass either way.
+ * without depending on what the translations say. When this was written the
+ * new keys' Amharic values were English placeholders, so a test that switched
+ * to `am` and looked for English would have passed either way; since
+ * 2026-10-14 they are translated and the i18n gate refuses an `am` value equal
+ * to `en` (docs/i18n/AMHARIC-REVIEW.md), but routing is still the property.
  *
  * Interpolated keys keep their `:placeholders` in the sentinel, so the test
  * also proves the values are passed as parameters rather than baked into a
