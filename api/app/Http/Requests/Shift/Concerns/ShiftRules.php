@@ -26,7 +26,8 @@ trait ShiftRules
             'name' => [$presence, 'string', 'max:255'],
             'name_am' => ['nullable', 'string', 'max:255'],
             'start_time' => [$presence, 'date_format:H:i'],
-            'end_time' => [$presence, 'date_format:H:i'],
+            // A shift that ends when it starts has no length (QA 2026-10-13).
+            'end_time' => [$presence, 'date_format:H:i', 'different:start_time'],
             'crosses_midnight' => ['boolean'],
             'grace_minutes' => ['integer', 'min:0', 'max:120'],
             'early_departure_minutes' => ['integer', 'min:0', 'max:120'],
