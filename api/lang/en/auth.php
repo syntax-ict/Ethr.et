@@ -39,6 +39,11 @@ return [
     'otp_invalid' => 'That verification code is invalid or has expired.',
     'otp_unavailable' => 'Verification codes cannot be sent — no SMS gateway is configured.',
     'otp_message' => 'Your ETHR verification code is :code. It expires in :minutes minutes.',
+    'otp_email_unavailable' => 'Sign-in codes cannot be emailed — no mail server is configured.',
+    'otp_email_subject' => 'Your ETHR sign-in code: :code',
+    'otp_email_intro' => 'Use this code to sign in to :organisation on ETHR:',
+    'otp_email_expiry' => 'It expires in :minutes minutes and works once.',
+    'otp_email_ignore' => 'If you did not ask to sign in, ignore this email. Nobody can use the code without access to your inbox.',
 
     // Trusted devices
 

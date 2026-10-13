@@ -83,7 +83,7 @@ describe("login page — hostname context", () => {
       screen.queryByRole("button", { name: /sign in with sso/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: /text message code/i }),
+      screen.queryByRole("link", { name: /one-time code/i }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /start free trial/i }),
@@ -219,7 +219,25 @@ describe("login page — hostname context", () => {
       screen.queryByRole("button", { name: /sign in with sso/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /text message code/i }),
+      screen.getByRole("link", { name: /one-time code/i }),
+    ).toBeInTheDocument();
+  });
+
+  // ETHR has no SMS gateway yet, so most organisations offer codes by email only.
+  it("organisation page offers a code when only email can deliver it", () => {
+    hostContextValue.mockReturnValue({
+      ...base,
+      context: "tenant",
+      tenantSlug: "acme",
+      tenantName: "Acme",
+      tenantFieldVisible: false,
+      tenantSignIn: { sso: false, otp: false, email_code: true },
+    });
+
+    renderLogin();
+
+    expect(
+      screen.getByRole("link", { name: /one-time code/i }),
     ).toBeInTheDocument();
   });
 
@@ -237,7 +255,7 @@ describe("login page — hostname context", () => {
 
     expect(screen.queryByText(/^or$/i)).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: /text message code/i }),
+      screen.queryByRole("link", { name: /one-time code/i }),
     ).not.toBeInTheDocument();
   });
 });

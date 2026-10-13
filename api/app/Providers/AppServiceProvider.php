@@ -273,7 +273,13 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('otp', function (Request $request) {
-            return Limit::perMinute(3)->by($request->input('phone', $request->ip()));
+            // Per address asked for, by email or phone, else per caller.
+            $email = $request->input('email');
+            $key = is_string($email) && $email !== ''
+                ? 'email:'.mb_strtolower(trim($email))
+                : $request->input('phone', $request->ip());
+
+            return Limit::perMinute(3)->by($key);
         });
 
         RateLimiter::for('payroll-process', function (Request $request) {

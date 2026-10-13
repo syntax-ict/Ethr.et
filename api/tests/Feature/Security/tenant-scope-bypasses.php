@@ -119,7 +119,10 @@ return [
     // every plan. Each states plan_id as its own predicate.
     'Http/Controllers/Api/V1/Admin/AdminPlanController.php' => 2,
     'Http/Controllers/Api/V1/Admin/AdminTenantController.php' => 16,
-    'Http/Controllers/Api/V1/Auth/OtpController.php' => 1,
+    // Pre-authentication: the phone lookup and, since email sign-in codes, the
+    // email lookup. Each states tenant_id from the resolved tenant on its own
+    // chain, as AuthIdentifierResolver does for password sign-in.
+    'Http/Controllers/Api/V1/Auth/OtpController.php' => 2,
     'Http/Controllers/Api/V1/Auth/PasswordResetController.php' => 2,
     'Http/Controllers/Api/V1/Auth/SubdomainCheckController.php' => 1,
     // Two device lookups in resolveWebhookDevice() (token; serial + IP
