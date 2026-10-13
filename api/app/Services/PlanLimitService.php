@@ -43,25 +43,21 @@ class PlanLimitService
             return null;
         }
 
-        $limit = match ($resource) {
-            'employees' => $plan->max_employees,
-            'branches' => $plan->max_branches,
-            'devices' => $plan->max_devices,
-            default => null,
+        // The limit and how to count against it, from one match: two
+        // separate matches had to agree on the resource names, and the
+        // second could not tell a capped resource from an unknown one.
+        [$limit, $count] = match ($resource) {
+            'employees' => [$plan->max_employees, fn (): int => $tenant->employees()->count()],
+            'branches' => [$plan->max_branches, fn (): int => $tenant->branches()->count()],
+            'devices' => [$plan->max_devices, fn (): int => $tenant->devices()->count()],
+            default => [null, fn (): int => 0],
         };
 
         if ($limit === null) {
             return null;
         }
 
-        $current = match ($resource) {
-            'employees' => $tenant->employees()->count(),
-            'branches' => $tenant->branches()->count(),
-            'devices' => $tenant->devices()->count(),
-            default => 0,
-        };
-
-        return max(0, $limit - $current);
+        return max(0, $limit - $count());
     }
 
     /**
