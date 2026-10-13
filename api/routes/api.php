@@ -113,6 +113,9 @@ use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\User\UserController;
 use App\Http\Controllers\Api\V1\Vacancy\VacancyController;
+use App\Http\Controllers\Api\V1\Voice\ConcernController;
+use App\Http\Controllers\Api\V1\Voice\PulseController;
+use App\Http\Controllers\Api\V1\Voice\RecognitionController;
 use App\Http\Controllers\Api\V1\Webhook\WebhookController;
 use App\Http\Middleware\BlockImpersonatedActions;
 use App\Http\Middleware\EnforceApiKeyAbilities;
@@ -646,6 +649,25 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/vacancies', [VacancyController::class, 'store']);
     Route::put('/vacancies/{vacancy}', [VacancyController::class, 'update']);
     Route::delete('/vacancies/{vacancy}', [VacancyController::class, 'destroy']);
+
+    // Employee voice: the weekly pulse, speak-up concerns and recognition.
+    Route::prefix('voice')->group(function () {
+        Route::get('/pulse', [PulseController::class, 'show']);
+        Route::post('/pulse', [PulseController::class, 'store']);
+        Route::get('/pulse/insights', [PulseController::class, 'insights']);
+
+        Route::post('/concerns', [ConcernController::class, 'store']);
+        Route::get('/concerns', [ConcernController::class, 'index']);
+        Route::get('/concerns/mine', [ConcernController::class, 'mine']);
+        Route::post('/concerns/track', [ConcernController::class, 'track'])->middleware('throttle:auth');
+        Route::post('/concerns/track/reply', [ConcernController::class, 'trackReply'])->middleware('throttle:auth');
+        Route::get('/concerns/{concern}', [ConcernController::class, 'show']);
+        Route::put('/concerns/{concern}', [ConcernController::class, 'update']);
+        Route::post('/concerns/{concern}/messages', [ConcernController::class, 'message']);
+
+        Route::get('/recognitions', [RecognitionController::class, 'index']);
+        Route::post('/recognitions', [RecognitionController::class, 'store']);
+    });
 
     // Approvals
     Route::get('/approvals/pending', [ApprovalController::class, 'pending']);

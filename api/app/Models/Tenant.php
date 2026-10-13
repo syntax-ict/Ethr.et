@@ -64,7 +64,7 @@ class Tenant extends Model
         'features', 'impersonate', 'kiosk', 'leave', 'login', 'logout',
         'notifications', 'offline', 'og.png', 'organization', 'payroll',
         'pricing', 'privacy', 'profile', 'register', 'reports', 'settings',
-        'setup', 'shifts', 'terms', 'vacancies',
+        'setup', 'shifts', 'terms', 'vacancies', 'voice',
         'en', 'am', 'om', 'ti', 'so', 'sid',
         'sanctum', 'up', 'storage', 'icons', 'auth', 'org', 'tenant',
     ];

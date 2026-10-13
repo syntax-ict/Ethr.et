@@ -8,6 +8,7 @@ use App\Models\Announcement;
 use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
 use App\Models\Branch;
+use App\Models\Concern;
 use App\Models\CostCenter;
 use App\Models\CustomRole;
 use App\Models\Department;
@@ -107,7 +108,13 @@ test('parameterized GET api/v1 endpoints never 5xx with valid bound records', fu
         'description' => 'x', 'status' => 'open', 'visibility' => 'public', 'published_at' => now()->subDay(),
     ]);
 
+    $concern = Concern::query()->create([
+        'tenant_id' => $tenant->id, 'category' => 'safety', 'subject' => 'Smoke',
+        'description' => 'x', 'status' => 'new', 'anonymous' => false,
+    ]);
+
     $params = [
+        'concern' => $concern->public_id,
         'vacancy' => $vacancy->public_id,
         'payrollRun' => $run->public_id, 'branch' => $branch->public_id, 'department' => $dept->public_id,
         'announcement' => $announcement->public_id, 'correction' => $correction->public_id,

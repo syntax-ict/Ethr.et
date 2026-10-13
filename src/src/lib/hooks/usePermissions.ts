@@ -19,6 +19,7 @@ const CAN_ABILITIES = {
   manageEmployees: "employee.create",
   manageAnnouncements: "announcement.manage",
   manageVacancies: "vacancy.manage",
+  manageVoice: "voice.manage",
   recordPersonnelAction: "personnel_action.create",
   manageDisciplinaryCases: "disciplinary_case.manage",
   manageRetirementCases: "retirement_case.manage",

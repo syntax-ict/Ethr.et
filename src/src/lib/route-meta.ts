@@ -73,6 +73,17 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Vacancies",
     description: "Open positions in the organisation",
   },
+  "/voice": {
+    section: "My Work",
+    label: "Voice",
+    description: "Weekly pulse, speak-up and recognition",
+  },
+  "/voice/insights": {
+    section: "My Work",
+    parent: { label: "Voice", href: "/voice" },
+    label: "Insights",
+    description: "Pulse results and concerns for HR",
+  },
 
   // ── People ───────────────────────────────────────────────────────
   "/employees": {

@@ -17,6 +17,7 @@ import {
   CheckSquare,
   Briefcase,
   Megaphone,
+  MessageCircleHeart,
   Contact,
   Banknote,
   GraduationCap,
@@ -242,6 +243,12 @@ export function CommandPalette() {
             label: t("nav.vacancies", "Vacancies"),
             href: "/vacancies",
             icon: Briefcase,
+            show: true,
+          },
+          {
+            label: t("nav.voice", "Voice"),
+            href: "/voice",
+            icon: MessageCircleHeart,
             show: true,
           },
           {
