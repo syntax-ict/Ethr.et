@@ -7,35 +7,36 @@
 7:"/_next/static/chunks/26wnm54l_zmfu.js"
 8:I[329306,["$7","$2"],"default"]
 b:"/_next/static/chunks/2ti0i0pi6exod.js"
-c:"/_next/static/chunks/0-_ifrxkmahn-.js"
-d:"/_next/static/chunks/2pqb7yv8wplxw.js"
-e:"/_next/static/chunks/2rrhnbf_i28f9.js"
+c:"/_next/static/chunks/16jb12cvsjwe-.js"
+d:"/_next/static/chunks/0wrlldqv80y23.js"
+e:"/_next/static/chunks/0-_ifrxkmahn-.js"
 f:"/_next/static/chunks/01oaja2ggx6b1.js"
-10:I[544636,["$b","$2","$c","$d","$e","$f"],"Providers"]
-11:"AmharicDictionary"
-12:I[735666,["$b","$2","$c","$d","$e","$f"],"$11"]
-14:I[347257,["$2","$3"],"ClientPageRoot"]
-15:"/_next/static/chunks/3ttqrgv9hpd54.js"
-16:I[225003,["$b","$2","$c","$d","$e","$f","$15"],"default"]
-19:I[897367,["$2","$3"],"OutletBoundary"]
-1a:"$Sreact.suspense"
-1c:"ViewportBoundary"
-1d:I[897367,["$2","$3"],"$1c"]
-1f:"MetadataBoundary"
-20:I[897367,["$2","$3"],"$1f"]
-22:"/_next/static/chunks/0y_so5tt_u51w.js"
-23:I[815104,["$22"],"default"]
+10:"/_next/static/chunks/35ld_fhwc3eig.js"
+11:I[544636,["$b","$c","$d","$2","$e","$f","$10"],"Providers"]
+12:"AmharicDictionary"
+13:I[735666,["$b","$c","$d","$2","$e","$f","$10"],"$12"]
+15:I[347257,["$2","$3"],"ClientPageRoot"]
+16:"/_next/static/chunks/3ttqrgv9hpd54.js"
+17:I[225003,["$b","$c","$d","$2","$e","$f","$10","$16"],"default"]
+1a:I[897367,["$2","$3"],"OutletBoundary"]
+1b:"$Sreact.suspense"
+1d:"ViewportBoundary"
+1e:I[897367,["$2","$3"],"$1d"]
+20:"MetadataBoundary"
+21:I[897367,["$2","$3"],"$20"]
+23:"/_next/static/chunks/0y_so5tt_u51w.js"
+24:I[815104,["$23"],"default"]
 :HL["/_next/static/chunks/0idi3csoibjnk.css","style"]
 :HL["/_next/static/chunks/3-_4dy19ov3ba.css","style"]
 :HL["/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
 9:X
-13:[["children",{"s":"__PAGE__","h":512,"d":{"r":["$","$1","c",{"children":[["$","$L14",null,{"Component":"$16","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@17","$@18"]}}],[["$","script","script-0",{"src":"/_next/static/chunks/3ttqrgv9hpd54.js","async":true,"nonce":"$undefined"}]],["$","$L19",null,{"children":["$","$1a",null,{"name":"Next.MetadataOutlet","children":"$@1b"}]}]]}],"p":false,"v":null}}]]
-a:[["children",{"s":"offline","h":528,"d":{"r":["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/0idi3csoibjnk.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","link","1",{"rel":"stylesheet","href":"/_next/static/chunks/3-_4dy19ov3ba.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/_next/static/chunks/2ti0i0pi6exod.js","async":true,"nonce":"$undefined"}],["$","script","script-1",{"src":"/_next/static/chunks/3ncw9n_u6uoby.js","async":true,"nonce":"$undefined"}],["$","script","script-2",{"src":"/_next/static/chunks/0-_ifrxkmahn-.js","async":true,"nonce":"$undefined"}],["$","script","script-3",{"src":"/_next/static/chunks/2pqb7yv8wplxw.js","async":true,"nonce":"$undefined"}],["$","script","script-4",{"src":"/_next/static/chunks/2rrhnbf_i28f9.js","async":true,"nonce":"$undefined"}],["$","script","script-5",{"src":"/_next/static/chunks/01oaja2ggx6b1.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"am","className":"gKRp4W_variable VJC7UW_variable","suppressHydrationWarning":true,"children":["$","body",null,{"className":"font-sans","children":["$","$L10",null,{"children":["$","$L12",null,{"children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L6",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]}]}]}]}]]}],"p":false,"v":null},"c":"$Q13"}]]
-0:{"P":null,"c":["","offline"],"q":"","i":false,"t":{"t":{"s":"","h":528,"d":{"r":["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$5","errorStyles":[],"errorScripts":[["$","script","script-0",{"src":"/_next/static/chunks/3ncw9n_u6uoby.js","async":true,"nonce":"$undefined"}],["$","script","script-1",{"src":"/_next/static/chunks/3-tel6i4b5m1r.js","async":true,"nonce":"$undefined"}]],"template":["$","$L6",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","$L8",null,{}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]]}],"p":false,"v":"$9"},"c":"$Qa"},"h":{"r":["$","$1","h",{"children":[null,["$","$L1d",null,{"children":"$L1e"}],["$","$L20",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$1a",null,{"name":"Next.Metadata","children":"$L21"}]}],null]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"p":false,"v":null}},"m":"$undefined","G":["$23",[]],"S":true,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"5lIsLouxfQqbBzeVVs1EL"}
+14:[["children",{"s":"__PAGE__","h":512,"d":{"r":["$","$1","c",{"children":[["$","$L15",null,{"Component":"$17","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@18","$@19"]}}],[["$","script","script-0",{"src":"/_next/static/chunks/3ttqrgv9hpd54.js","async":true,"nonce":"$undefined"}]],["$","$L1a",null,{"children":["$","$1b",null,{"name":"Next.MetadataOutlet","children":"$@1c"}]}]]}],"p":false,"v":null}}]]
+a:[["children",{"s":"offline","h":528,"d":{"r":["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/0idi3csoibjnk.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","link","1",{"rel":"stylesheet","href":"/_next/static/chunks/3-_4dy19ov3ba.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/_next/static/chunks/2ti0i0pi6exod.js","async":true,"nonce":"$undefined"}],["$","script","script-1",{"src":"/_next/static/chunks/16jb12cvsjwe-.js","async":true,"nonce":"$undefined"}],["$","script","script-2",{"src":"/_next/static/chunks/0wrlldqv80y23.js","async":true,"nonce":"$undefined"}],["$","script","script-3",{"src":"/_next/static/chunks/3ncw9n_u6uoby.js","async":true,"nonce":"$undefined"}],["$","script","script-4",{"src":"/_next/static/chunks/0-_ifrxkmahn-.js","async":true,"nonce":"$undefined"}],["$","script","script-5",{"src":"/_next/static/chunks/01oaja2ggx6b1.js","async":true,"nonce":"$undefined"}],["$","script","script-6",{"src":"/_next/static/chunks/35ld_fhwc3eig.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"am","className":"gKRp4W_variable VJC7UW_variable","suppressHydrationWarning":true,"children":["$","body",null,{"className":"font-sans","children":["$","$L11",null,{"children":["$","$L13",null,{"children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L6",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]}]}]}]}]]}],"p":false,"v":null},"c":"$Q14"}]]
+0:{"P":null,"c":["","offline"],"q":"","i":false,"t":{"t":{"s":"","h":528,"d":{"r":["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$5","errorStyles":[],"errorScripts":[["$","script","script-0",{"src":"/_next/static/chunks/3ncw9n_u6uoby.js","async":true,"nonce":"$undefined"}],["$","script","script-1",{"src":"/_next/static/chunks/3-tel6i4b5m1r.js","async":true,"nonce":"$undefined"}]],"template":["$","$L6",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","$L8",null,{}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]]}],"p":false,"v":"$9"},"c":"$Qa"},"h":{"r":["$","$1","h",{"children":[null,["$","$L1e",null,{"children":"$L1f"}],["$","$L21",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$1b",null,{"name":"Next.Metadata","children":"$L22"}]}],null]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"p":false,"v":null}},"m":"$undefined","G":["$24",[]],"S":true,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"w9Eyt4XH2Hh6-Z7gzFxVz"}
 9:C
-17:{}
-18:"$13:0:1:d:r:props:children:0:props:serverProvidedParams:params"
-1e:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1, viewport-fit=cover"}],["$","meta","2",{"name":"theme-color","content":"#0F4C75","media":"(prefers-color-scheme: light)"}],["$","meta","3",{"name":"theme-color","content":"#020617","media":"(prefers-color-scheme: dark)"}]]
-24:I[27201,["$2","$3"],"IconMark"]
-1b:null
-21:[["$","title","0",{"children":"Offline | ETHR"}],["$","meta","1",{"name":"description","content":"Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations."}],["$","link","2",{"rel":"manifest","href":"/manifest.json","crossOrigin":"$undefined"}],["$","meta","3",{"name":"mobile-web-app-capable","content":"yes"}],["$","meta","4",{"name":"apple-mobile-web-app-title","content":"ETHR"}],["$","meta","5",{"name":"apple-mobile-web-app-status-bar-style","content":"default"}],["$","link","6",{"rel":"icon","href":"/favicon.ico"}],["$","link","7",{"rel":"apple-touch-icon","href":"/app-icons/icon-192.png"}],["$","$L24","8",{}]]
+18:{}
+19:"$14:0:1:d:r:props:children:0:props:serverProvidedParams:params"
+1f:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1, viewport-fit=cover"}],["$","meta","2",{"name":"theme-color","content":"#0F4C75","media":"(prefers-color-scheme: light)"}],["$","meta","3",{"name":"theme-color","content":"#020617","media":"(prefers-color-scheme: dark)"}]]
+25:I[27201,["$2","$3"],"IconMark"]
+1c:null
+22:[["$","title","0",{"children":"Offline | ETHR"}],["$","meta","1",{"name":"description","content":"Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations."}],["$","link","2",{"rel":"manifest","href":"/manifest.json","crossOrigin":"$undefined"}],["$","meta","3",{"name":"mobile-web-app-capable","content":"yes"}],["$","meta","4",{"name":"apple-mobile-web-app-title","content":"ETHR"}],["$","meta","5",{"name":"apple-mobile-web-app-status-bar-style","content":"default"}],["$","link","6",{"rel":"icon","href":"/favicon.ico"}],["$","link","7",{"rel":"apple-touch-icon","href":"/app-icons/icon-192.png"}],["$","$L25","8",{}]]
