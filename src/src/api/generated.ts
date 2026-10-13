@@ -17598,12 +17598,14 @@ export interface operations {
                             label: string;
                             label_am: string;
                             description: string;
+                            description_am: string;
                         }[];
                         policy_profiles: {
                             key: string;
                             label: string;
                             label_am: string;
                             description: string;
+                            description_am: string;
                         }[];
                         /** @constant */
                         catalog_version: "2026.10.1";
