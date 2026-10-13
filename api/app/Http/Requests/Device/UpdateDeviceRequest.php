@@ -30,6 +30,7 @@ class UpdateDeviceRequest extends FormRequest
             'branch_public_id' => ['sometimes', 'string', 'exists:branches,public_id'],
             'serial_number' => ['sometimes', 'nullable', 'string', 'max:255'],
             'auto_sync' => ['sometimes', 'boolean'],
+            'commands_enabled' => ['sometimes', 'boolean'],
             'timezone' => ['nullable', 'string', 'timezone:all'],
             // Addresses a token-less device may post webhooks from. The model
             // has enforced this since 2026-08 and no request could set it

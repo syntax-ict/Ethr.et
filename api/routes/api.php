@@ -49,6 +49,7 @@ use App\Http\Controllers\Api\V1\Dashboard\AlertThresholdController;
 use App\Http\Controllers\Api\V1\Dashboard\DashboardController;
 use App\Http\Controllers\Api\V1\Dashboard\DashboardDigestController;
 use App\Http\Controllers\Api\V1\Dashboard\ExecutiveDashboardController;
+use App\Http\Controllers\Api\V1\Device\DeviceCommandController;
 use App\Http\Controllers\Api\V1\Device\DeviceController;
 use App\Http\Controllers\Api\V1\Device\DeviceEnrollmentController;
 use App\Http\Controllers\Api\V1\Directory\DirectoryController;
@@ -417,6 +418,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Recover the outcome of a committed import when the client lost the response.
     Route::get('/employees/import/status/{key}', [EmployeeImportController::class, 'status']);
     Route::post('/employees/bulk-update', [EmployeeBulkController::class, 'bulkUpdate']);
+    Route::post('/employees/{employee}/enrol-on-devices', [DeviceCommandController::class, 'enrolEmployee']);
     Route::post('/employees/import/template', [EmployeeImportController::class, 'template'])->middleware('throttle:imports');
     Route::post('/employees/import/preview', [EmployeeImportController::class, 'preview'])->middleware('throttle:imports');
     Route::post('/employees/import/commit', [EmployeeImportController::class, 'commit'])->middleware('throttle:imports');
@@ -499,6 +501,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/{device}/sync-logs', [DeviceController::class, 'syncLogs']);
         Route::get('/{device}/events', [DeviceController::class, 'deviceEvents']);
         Route::get('/{device}/enrollments', [DeviceEnrollmentController::class, 'index']);
+        Route::get('/{device}/commands', [DeviceCommandController::class, 'index']);
+        Route::post('/{device}/commands/set-time', [DeviceCommandController::class, 'setTime']);
+        Route::post('/{device}/commands/send-staff', [DeviceCommandController::class, 'sendStaff']);
     });
     Route::apiResource('devices', DeviceController::class);
 

@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property array<int, string>|null $webhook_ip_allowlist
  * @property-read Branch|null $branch
  * @property Carbon|null $last_sync_at
+ * @property bool $commands_enabled
  */
 class Device extends Model
 {
@@ -38,6 +39,7 @@ class Device extends Model
         'timezone',
         'sync_interval_minutes',
         'last_sync_at',
+        'commands_enabled',
     ];
 
     protected $hidden = [
@@ -54,6 +56,7 @@ class Device extends Model
             'webhook_ip_allowlist' => 'array',
             'last_sync_at' => 'datetime',
             'auto_sync' => 'boolean',
+            'commands_enabled' => 'boolean',
             'sync_interval_minutes' => 'integer',
         ];
     }
@@ -137,6 +140,12 @@ class Device extends Model
     public function syncLogs(): HasMany
     {
         return $this->hasMany(DeviceSyncLog::class);
+    }
+
+    /** @return HasMany<DeviceCommand, $this> */
+    public function commands(): HasMany
+    {
+        return $this->hasMany(DeviceCommand::class);
     }
 
     public function latestSyncLog(): BelongsTo

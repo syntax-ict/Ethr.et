@@ -14,6 +14,7 @@ use App\Models\Tenant;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\CurrentTenant;
+use App\Services\Device\DeviceCommandQueue;
 use App\Services\Device\DeviceManager;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
@@ -140,6 +141,15 @@ class PullDeviceEventsJob implements ShouldQueue
                 'completed_at' => now(),
                 'duration_ms' => $startedAt->diffInMilliseconds(now()),
             ]);
+
+            // The device answered, so this is the moment to send it what is
+            // waiting: commands queued while it was off, and its daily clock
+            // setting. A failure here is the command's, not the sync's.
+            try {
+                app(DeviceCommandQueue::class)->deliver($this->device);
+            } catch (Throwable $e) {
+                report($e);
+            }
 
             Log::info('Device event pull complete', [
                 'device_id' => $this->device->id,

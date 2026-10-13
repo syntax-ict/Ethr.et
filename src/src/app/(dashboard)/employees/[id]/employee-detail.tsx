@@ -39,6 +39,7 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { KioskPinCard } from "@/features/employees/components/kiosk-pin-card";
 import { InviteToEthrButton } from "@/features/employees/components/invite-to-ethr-button";
+import { EnrolOnDevicesButton } from "@/features/devices/components/enrol-on-devices-button";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useEmployeeOptions } from "@/features/attendance/api";
 import { costCentersApi, teamsApi } from "@/features/organization/api";
@@ -145,6 +146,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
               email={employee.email}
             />
           )}
+          {!editing && <EnrolOnDevicesButton employeeId={employee.public_id} />}
           {!editing && (
             <Button variant="outline" size="sm" onClick={startEdit}>
               <Pencil className="mr-2 h-3 w-3" />

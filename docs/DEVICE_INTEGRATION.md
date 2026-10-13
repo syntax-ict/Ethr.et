@@ -173,3 +173,67 @@ update, so the next attempt reads from where the last good one stopped.
 
 Pinned in `tests/Feature/Device/VendorAdapterProtocolTest.php` and
 `tests/Feature/DeviceEnrollmentTest.php`.
+
+## Commands to devices (2026-10-14)
+
+Until this, device management was one-way. Punches came in and nothing went out: every
+new hire had to be enrolled on every terminal by hand, leavers stayed on them, and
+device clocks were never set. `device_commands` is the outbox that replaces that.
+
+| Command | Payload | When it is queued |
+|---|---|---|
+| `set_time` | none; the time is read when the command is sent | Once a day per device, at its next delivery, and from **Set clock now** |
+| `upsert_user` | `device_user_id`, `name` (32 characters) | A hire, a rename, a new badge number, a move into the branch, **Send all staff**, **Enrol on devices** |
+| `delete_user` | `device_user_id` | Status becomes resigned, terminated or retired; the employee is deleted; a move out of the branch |
+
+Five rules:
+
+- **Off until an administrator turns it on.** `devices.commands_enabled` defaults to
+  false, and existing devices are unchanged. Removing a person from a terminal deletes
+  the fingerprints and face enrolled there, so nobody should get that by surprise. The
+  switch is in the device's **Edit** dialog, shown only for adapters that can carry
+  commands out.
+- **A person's commands go to the devices of their branch.** The device user id is the
+  one already linked to that device (`employee_external_identities`), else the badge
+  number. A person with neither is skipped, and **Send all staff** reports how many.
+- **A newer command for the same person replaces one still waiting** (status
+  `cancelled`). Two edits in a row reach the device once, and a hire followed by a
+  termination never adds.
+- **Suspension does not remove anyone.** Only resigned, terminated and retired do. A
+  suspension is often reversed, and re-enrolling a face is not free.
+- **Biometrics are still captured at the device.** ETHR sends the person's id and name.
+  Their fingerprint, face or card is enrolled on the terminal itself.
+
+**Delivery.** An adapter that implements `App\Contracts\AcceptsDeviceCommands` is called
+directly: `DeliverDeviceCommandsJob` is queued when a command is added, and
+`PullDeviceEventsJob` delivers after every sync that finds the device online.
+
+- The device answered and refused (`DeviceCommandRejected`): the attempt counts. After
+  three, the command is `failed`.
+- The device was not reached: the command stays `pending`, with the reason in
+  `last_error`, and the attempt does not count.
+- A failure to queue never fails the employee save. The hook reports the exception and
+  moves on, which also covers the window between a deploy and its `migrate`.
+
+| Adapter | Commands | Notes |
+|---|---|---|
+| `hikvision` | yes | ISAPI: `PUT /ISAPI/System/time`, `POST /ISAPI/AccessControl/UserInfo/SetUp`, `PUT /ISAPI/AccessControl/UserInfo/Delete`. Written from the published specification and **not yet run on a terminal** (field test O1) |
+| `mock` | yes | Accepts everything; `connection_config.reject_commands` makes it refuse |
+| `zkteco` | queued, not delivered | Delivered when the device checks in over ADMS (`/iclock`), Wave 2 #7 |
+| `suprema`, `generic` | no | |
+
+**On shared hosting, direct delivery reaches only devices with a public address.**
+`DeviceHost` refuses private addresses there, and the server could not reach a customer
+LAN anyway. A device on a LAN has to collect its commands (ZKTeco ADMS) or go through a
+bridge (Wave 3 #10). Until then, its commands wait as `pending` with the reason shown on
+the device's **Commands** tab.
+
+API, all under `auth:sanctum`:
+
+- `GET /devices/{device}/commands` (`device.view`)
+- `POST /devices/{device}/commands/set-time` and `/send-staff` (`device.update`; 409
+  while commands are off)
+- `POST /employees/{employee}/enrol-on-devices` (`device.update`)
+
+Pinned in `tests/Feature/Device/DeviceCommandQueueTest.php` and
+`src/src/test/device-commands-tab.test.tsx`.
