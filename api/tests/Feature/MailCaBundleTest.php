@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Support\Mail\SmtpTransportWithCaFile;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 use Symfony\Component\Mailer\Transport\Smtp\Stream\SocketStream;
@@ -16,10 +17,15 @@ use Symfony\Component\Mailer\Transport\Smtp\Stream\SocketStream;
  */
 const MAIL_CA_BUNDLE = 'resources/certs/globalsign-gcc-r3-ev-tls-ca-2025.pem';
 
+/**
+ * The stream options of the SMTP transport the mailer uses. Since 2026-10-14
+ * the mailer wraps it in ResilientSmtpTransport (verified first, pin second);
+ * this reads the transport that wrapper sends through on the pinned path, or
+ * the verified one when no pin is set — the options these tests are about.
+ */
 function smtpStreamOptions(): array
 {
-    Mail::purge('smtp');
-    $transport = Mail::mailer('smtp')->getSymfonyTransport();
+    $transport = SmtpTransportWithCaFile::smtp(app(), (array) config('mail.mailers.smtp'));
     expect($transport)->toBeInstanceOf(EsmtpTransport::class);
 
     $stream = $transport->getStream();

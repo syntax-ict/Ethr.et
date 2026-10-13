@@ -134,8 +134,10 @@ it('never reaches a tenant user without --tenant, and refuses an unknown slug', 
 it('still resets when the email cannot be sent, and says so in the log', function () {
     // The rehearsal has no SMTP host. The reset happened, and then the request
     // answered 500 after a ten-second connection timeout.
+    // sendNow: the reset email goes out immediately (CriticalMail), and a
+    // failure queues a retry instead of dropping it.
     $this->mock(NotificationDispatcher::class)
-        ->shouldReceive('send')
+        ->shouldReceive('sendNow')
         ->andThrow(new RuntimeException('Connection could not be established with host ":587"'));
     Log::spy();
     actingAsUser(['role' => UserRole::TENANT_ADMIN]);
@@ -146,5 +148,5 @@ it('still resets when the email cannot be sent, and says so in the log', functio
         ->assertJsonPath('mfa_enabled', false);
 
     expect($target->refresh()->mfa_enabled)->toBeFalse();
-    Log::shouldHaveReceived('error')->withArgs(fn ($message) => $message === 'MFA reset email failed')->once();
+    Log::shouldHaveReceived('error')->withArgs(fn ($message) => $message === 'Sign-in email failed; retrying from the queue')->once();
 });
