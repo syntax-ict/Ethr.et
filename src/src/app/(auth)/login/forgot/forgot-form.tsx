@@ -187,6 +187,7 @@ export function ForgotForm() {
             name={tenantName}
             slug={subdomainFromHost}
             loading={tenantContextLoading}
+            logoUrl={organisationLogo}
           />
         )}
 
