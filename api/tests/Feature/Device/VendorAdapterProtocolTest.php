@@ -83,8 +83,8 @@ describe('HikvisionAdapter', function () {
             '10.0.0.5/ISAPI/AccessControl/AcsEvent*' => Http::response([
                 'AcsEvent' => [
                     'InfoList' => [
-                        ['employeeNoString' => '42', 'time' => '2026-08-04T08:00:00+03:00', 'eventType' => 1],
-                        ['employeeNoString' => '42', 'time' => '2026-08-04T17:00:00+03:00', 'eventType' => 2],
+                        ['major' => 5, 'minor' => 75, 'employeeNoString' => '42', 'time' => '2026-08-04T08:00:00+03:00', 'attendanceStatus' => 'checkIn'],
+                        ['major' => 5, 'minor' => 75, 'employeeNoString' => '42', 'time' => '2026-08-04T17:00:00+03:00', 'attendanceStatus' => 'checkOut'],
                     ],
                 ],
             ]),
