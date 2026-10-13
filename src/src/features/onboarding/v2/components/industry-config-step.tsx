@@ -1,30 +1,41 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  Sparkles,
-  ChevronRight,
-  Loader2,
-  X,
-  Check,
-  AlertTriangle,
-} from "lucide-react";
+import { Loader2, X, Check, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import {
   useApplyConfiguration,
+  useConfigurationProfiles,
   useIndustries,
   usePreviewConfiguration,
 } from "../api";
-import type { ConfigurationPlan } from "../types";
-import { ConfidenceBadge } from "./confidence-badge";
+import type { ConfigurationPlan, ConfigurationProfile } from "../types";
+import { SourceLabel } from "./source-label";
+
+const SECTION_TITLES: Record<string, [string, string]> = {
+  branches: ["setup2.section_branches", "Branches"],
+  departments: ["setup2.section_departments", "Departments"],
+  positions: ["setup2.section_positions", "Positions"],
+  grades: ["setup2.section_grades", "Grades"],
+  shifts: ["setup2.section_shifts", "Shifts"],
+  rotations: ["setup2.section_rotations", "Shift rotations"],
+  leave_types: ["setup2.section_leave_types", "Leave types"],
+  allowances: ["setup2.section_allowances", "Allowances"],
+};
 
 const LIST_SECTIONS = [
   "branches",
@@ -32,28 +43,27 @@ const LIST_SECTIONS = [
   "positions",
   "grades",
   "shifts",
+  "rotations",
   "leave_types",
+  "allowances",
 ] as const;
-
-function itemLabel(item: unknown): string {
-  if (typeof item === "string") return item;
-  if (item && typeof item === "object") {
-    const o = item as Record<string, unknown>;
-    return String(o.name ?? o.title ?? o.code ?? JSON.stringify(o));
-  }
-  return String(item);
-}
 
 export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   const { t, locale } = useT();
   const industriesQuery = useIndustries();
+  const profilesQuery = useConfigurationProfiles();
   const preview = usePreviewConfiguration();
   const apply = useApplyConfiguration();
 
   const [selected, setSelected] = useState<string | null>(null);
   const [employeeCount, setEmployeeCount] = useState("");
   const [region, setRegion] = useState("");
+  // null = the industry's usual profile; set only when the admin changes it,
+  // so the preview can tell an explicit choice from a default.
+  const [workforceProfile, setWorkforceProfile] = useState<string | null>(null);
+  const [policyProfile, setPolicyProfile] = useState<string | null>(null);
   const [plan, setPlan] = useState<ConfigurationPlan | null>(null);
+  const [reviewed, setReviewed] = useState(false);
 
   const grouped = useMemo(() => {
     const groups: Record<string, typeof industriesQuery.data> = {};
@@ -63,6 +73,69 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     return groups;
   }, [industriesQuery]);
 
+  const selectedIndustry = (industriesQuery.data ?? []).find(
+    (ind) => ind.key === selected,
+  );
+  const workforceOptions = profilesQuery.data?.workforce ?? [];
+  const policyOptions = profilesQuery.data?.policy ?? [];
+  const label = (p: { label: string; label_am: string }) =>
+    locale === "am" ? p.label_am : p.label;
+
+  function chooseIndustry(key: string) {
+    setSelected(key);
+    setWorkforceProfile(null);
+    setPolicyProfile(null);
+  }
+
+  function itemLabel(section: string, item: unknown): string {
+    if (typeof item === "string") return item;
+    if (item && typeof item === "object") {
+      const o = item as Record<string, unknown>;
+      const localName =
+        locale === "am" ? (o.name_am ?? o.title_am ?? null) : null;
+      const name = String(localName ?? o.name ?? o.title ?? o.code ?? "");
+      if (section === "shifts" && o.start_time && o.end_time) {
+        return `${name} ${String(o.start_time)}–${String(o.end_time)}`;
+      }
+      if (section === "rotations" && typeof o.cycle_days === "number") {
+        return `${name} · ${t("setup2.cycle_days", ":n-day cycle", { n: o.cycle_days })}`;
+      }
+      return name || JSON.stringify(o);
+    }
+    return String(item);
+  }
+
+  // Literal keys, so the i18n gate checks each one for en/am coverage.
+  function attendanceName(key: string): string {
+    switch (key) {
+      case "grace_period_minutes":
+        return t(
+          "setup2.attendance_grace_period_minutes",
+          "Grace period (minutes)",
+        );
+      case "auto_checkout_enabled":
+        return t(
+          "setup2.attendance_auto_checkout_enabled",
+          "Automatic check-out",
+        );
+      case "mobile_photo_required":
+        return t(
+          "setup2.attendance_mobile_photo_required",
+          "Photo with phone check-in",
+        );
+      default:
+        return key.replace(/_/g, " ");
+    }
+  }
+
+  function attendanceLabel(key: string, value: unknown): string {
+    const name = attendanceName(key);
+    if (typeof value === "boolean") {
+      return `${name}: ${value ? t("common.on", "On") : t("common.off", "Off")}`;
+    }
+    return `${name}: ${String(value)}`;
+  }
+
   async function runPreview() {
     if (!selected) return;
     try {
@@ -70,7 +143,10 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
         industry: selected,
         employee_count: employeeCount ? Number(employeeCount) : undefined,
         region: region || undefined,
+        workforce_profile: workforceProfile ?? undefined,
+        policy_profile: policyProfile ?? undefined,
       });
+      setReviewed(false);
       setPlan(result);
     } catch {
       toast.error(
@@ -93,6 +169,9 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     });
   }
 
+  const reviewNotes = plan?.review ?? [];
+  const needsReview = reviewNotes.length > 0;
+
   async function runApply() {
     if (!plan) return;
     // Rebuild the provisioner-ready plan from the (possibly edited) sections.
@@ -105,6 +184,8 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
         industry: plan.industry.key,
         plan: editedPlan,
         save: true,
+        workforce_profile: plan.profiles?.workforce?.key,
+        policy_profile: plan.profiles?.policy?.key,
       });
       const created = result.provisioned.total_created;
       toast.success(
@@ -118,64 +199,107 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
               "Configuration applied — already set up",
             ),
       );
+      if (result.provisioned.warnings.length > 0) {
+        toast.warning(result.provisioned.warnings.join(" "));
+      }
       onApplied?.();
     } catch {
       toast.error(t("setup2.apply_failed", "Could not apply configuration"));
     }
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-          <Sparkles className="h-5 w-5 text-primary" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold text-foreground">
-            {t("setup2.smart_config", "Smart configuration")}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {t(
-              "setup2.smart_config_desc",
-              "Pick your industry and we'll propose a full setup you can review and edit.",
-            )}
+  function profileSelect(
+    id: string,
+    title: string,
+    options: ConfigurationProfile[],
+    value: string | undefined,
+    onChange: (key: string) => void,
+  ) {
+    const current = options.find((o) => o.key === value);
+    return (
+      <div>
+        <Label htmlFor={id}>{title}</Label>
+        <Select value={value} onValueChange={onChange}>
+          <SelectTrigger id={id} className="mt-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((o) => (
+              <SelectItem key={o.key} value={o.key}>
+                {label(o)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {current && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {locale === "am" && current.description_am
+              ? current.description_am
+              : current.description}
           </p>
-        </div>
+        )}
       </div>
+    );
+  }
+
+  const attendance = plan?.sections.attendance;
+  const attendanceItems =
+    attendance &&
+    attendance.items &&
+    typeof attendance.items === "object" &&
+    !Array.isArray(attendance.items)
+      ? Object.entries(attendance.items as Record<string, unknown>)
+      : [];
+
+  const sectionTitle = (section: string) => {
+    const [key, fallback] = SECTION_TITLES[section] ?? [
+      section,
+      section.replace(/_/g, " "),
+    ];
+    return t(key, fallback);
+  };
+
+  const industryName = plan
+    ? locale === "am"
+      ? plan.industry.label_am
+      : plan.industry.label
+    : "";
+
+  return (
+    <div className="space-y-8">
+      <header>
+        <h2 className="text-lg font-semibold text-foreground">
+          {t("setup2.config_title", "Organisation setup")}
+        </h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          {t(
+            "setup2.config_desc",
+            "Choose the kind of organisation you run. ETHR proposes departments, shifts, leave and pay settings for you to review. Nothing is created until you apply.",
+          )}
+        </p>
+      </header>
 
       {!plan && (
         <QueryBoundary query={industriesQuery}>
           {(_industries) => (
-            <div className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <Label>
-                    {t("setup2.employee_count", "Employees (approx.)")}
-                  </Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={employeeCount}
-                    onChange={(e) => setEmployeeCount(e.target.value)}
-                    className="mt-1"
-                    placeholder="120"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <Label>{t("setup2.region", "Region")}</Label>
-                  <Input
-                    value={region}
-                    onChange={(e) => setRegion(e.target.value)}
-                    className="mt-1"
-                    placeholder={t("setup.default_city", "Addis Ababa")}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-5">
+            <div className="space-y-8">
+              <section aria-labelledby="org-type-heading" className="space-y-4">
+                <h3
+                  id="org-type-heading"
+                  className="text-sm font-medium text-foreground"
+                >
+                  {t("setup2.org_type", "Type of organisation")}
+                </h3>
                 {Object.entries(grouped).map(([group, items]) => (
-                  <div key={group}>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <div
+                    key={group}
+                    role="radiogroup"
+                    aria-label={t(
+                      `setup2.group_${group}`,
+                      group.replace(/_/g, " "),
+                    )}
+                  >
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">
                       {t(`setup2.group_${group}`, group.replace(/_/g, " "))}
                     </p>
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -185,19 +309,24 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                           <button
                             key={ind.key}
                             type="button"
-                            onClick={() => setSelected(ind.key)}
+                            role="radio"
+                            aria-checked={isSel}
+                            onClick={() => chooseIndustry(ind.key)}
                             className={cn(
-                              "flex items-center justify-between rounded-lg border-2 p-3 text-left text-sm transition-all",
+                              "flex min-h-11 items-center justify-between gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                               isSel
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50",
+                                ? "border-primary bg-primary/5 text-foreground"
+                                : "border-border text-foreground hover:bg-muted/50",
                             )}
                           >
-                            <span className="font-medium text-foreground">
+                            <span className={cn(isSel && "font-medium")}>
                               {locale === "am" ? ind.label_am : ind.label}
                             </span>
                             {isSel && (
-                              <Check className="h-4 w-4 shrink-0 text-primary" />
+                              <Check
+                                className="h-4 w-4 shrink-0 text-primary"
+                                aria-hidden="true"
+                              />
                             )}
                           </button>
                         );
@@ -205,18 +334,75 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                     </div>
                   </div>
                 ))}
-              </div>
+              </section>
 
-              <div className="flex justify-end border-t pt-4">
+              {selectedIndustry && (
+                <section
+                  aria-labelledby="operating-heading"
+                  className="space-y-4 border-t pt-6"
+                >
+                  <h3
+                    id="operating-heading"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    {t("setup2.how_you_operate", "How you operate")}
+                  </h3>
+                  <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+                    {workforceOptions.length > 0 &&
+                      profileSelect(
+                        "workforce-profile",
+                        t("setup2.workforce_profile", "How your people work"),
+                        workforceOptions,
+                        workforceProfile ?? selectedIndustry.profile,
+                        setWorkforceProfile,
+                      )}
+                    {policyOptions.length > 0 &&
+                      profileSelect(
+                        "policy-profile",
+                        t("setup2.policy_profile", "Which rules apply"),
+                        policyOptions,
+                        policyProfile ?? selectedIndustry.policy,
+                        setPolicyProfile,
+                      )}
+                    <div>
+                      <Label htmlFor="employee-count">
+                        {t("setup2.employee_count", "Employees (approx.)")}
+                      </Label>
+                      <Input
+                        id="employee-count"
+                        type="number"
+                        min={1}
+                        inputMode="numeric"
+                        value={employeeCount}
+                        onChange={(e) => setEmployeeCount(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="region">
+                        {t("setup2.region", "Region")}
+                      </Label>
+                      <Input
+                        id="region"
+                        value={region}
+                        onChange={(e) => setRegion(e.target.value)}
+                        className="mt-1"
+                        placeholder={t("setup.default_city", "Addis Ababa")}
+                      />
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              <div className="flex justify-end border-t pt-6">
                 <Button
                   onClick={runPreview}
                   disabled={!selected || preview.isPending}
                 >
-                  {preview.isPending ? (
+                  {preview.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
-                  {t("setup2.generate", "Generate configuration")}
-                  <ChevronRight className="ml-1 h-4 w-4" />
+                  )}
+                  {t("setup2.review_proposal", "Review proposal")}
                 </Button>
               </div>
             </div>
@@ -225,93 +411,179 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
       )}
 
       {plan && (
-        <div className="space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 p-3">
-            <div className="text-sm">
-              <span className="text-muted-foreground">
-                {t("setup2.overall_confidence", "Overall confidence")}:
-              </span>{" "}
-              <span className="font-semibold text-foreground">
-                {Math.round(plan.overall_confidence * 100)}%
-              </span>
-            </div>
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-start justify-between gap-4 rounded-lg border bg-muted/30 px-4 py-3">
+            <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
+              <div>
+                <dt className="text-xs text-muted-foreground">
+                  {t("setup2.org_type", "Type of organisation")}
+                </dt>
+                <dd className="font-medium text-foreground">{industryName}</dd>
+              </div>
+              {plan.profiles?.workforce && (
+                <div>
+                  <dt className="text-xs text-muted-foreground">
+                    {t("setup2.workforce_profile", "How your people work")}
+                  </dt>
+                  <dd className="font-medium text-foreground">
+                    {label(plan.profiles.workforce)}
+                  </dd>
+                </div>
+              )}
+              {plan.profiles?.policy && (
+                <div>
+                  <dt className="text-xs text-muted-foreground">
+                    {t("setup2.policy_profile", "Which rules apply")}
+                  </dt>
+                  <dd className="font-medium text-foreground">
+                    {label(plan.profiles.policy)}
+                  </dd>
+                </div>
+              )}
+            </dl>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => setPlan(null)}
               disabled={apply.isPending}
             >
-              {t("setup2.change_industry", "Change industry")}
+              {t("common.change", "Change")}
             </Button>
           </div>
 
-          <div className="space-y-4">
+          <div className="divide-y rounded-lg border">
             {LIST_SECTIONS.filter((s) =>
               Array.isArray(plan.sections[s]?.items),
             ).map((section) => {
               const sec = plan.sections[section];
               const items = sec.items as unknown[];
               return (
-                <Card key={section}>
-                  <CardContent className="p-4">
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="text-sm font-semibold capitalize text-foreground">
-                        {t(
-                          `setup2.section_${section}`,
-                          section.replace(/_/g, " "),
-                        )}{" "}
-                        <span className="text-muted-foreground">
-                          ({items.length})
-                        </span>
-                      </p>
-                      <ConfidenceBadge
-                        source={sec.source}
-                        confidence={sec.confidence}
-                      />
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
+                <div
+                  key={section}
+                  className="grid gap-3 px-4 py-4 sm:grid-cols-[11rem_1fr] sm:gap-6"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {sectionTitle(section)}{" "}
+                      <span className="font-normal text-muted-foreground tabular-nums">
+                        {items.length}
+                      </span>
+                    </p>
+                    <SourceLabel source={sec.source} />
+                  </div>
+                  <div className="min-w-0">
+                    <ul className="flex flex-wrap gap-1.5">
                       {items.map((item, i) => (
-                        <Badge
+                        <li
                           key={`${section}-${i}`}
-                          variant="secondary"
-                          className="gap-1 py-1"
+                          className="inline-flex items-center gap-1 rounded-md border bg-background py-1 pl-2 pr-1 text-xs text-foreground"
                         >
-                          {itemLabel(item)}
+                          {itemLabel(section, item)}
                           <button
                             type="button"
                             onClick={() => removeItem(section, i)}
-                            aria-label={t("setup2.remove", "Remove")}
-                            className="ml-0.5 rounded-full hover:text-destructive"
+                            aria-label={`${t("setup2.remove", "Remove")} ${itemLabel(section, item)}`}
+                            className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-3 w-3" aria-hidden="true" />
                           </button>
-                        </Badge>
+                        </li>
                       ))}
-                      {items.length === 0 && (
-                        <span className="text-xs text-muted-foreground">
-                          {t("setup2.none", "None")}
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                    </ul>
+                    {items.length === 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {t("setup2.none", "None")}
+                      </span>
+                    )}
+                    {section === "allowances" && items.length > 0 && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {t(
+                          "setup2.allowances_note",
+                          "Created switched off with no amount. Nobody's pay changes until you set one.",
+                        )}
+                      </p>
+                    )}
+                  </div>
+                </div>
               );
             })}
+
+            {attendance && attendanceItems.length > 0 && (
+              <div className="grid gap-3 px-4 py-4 sm:grid-cols-[11rem_1fr] sm:gap-6">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {t("setup2.section_attendance", "Attendance settings")}
+                  </p>
+                  <SourceLabel source={attendance.source} />
+                </div>
+                <div className="min-w-0">
+                  <ul className="space-y-1 text-sm text-foreground">
+                    {attendanceItems.map(([key, value]) => (
+                      <li key={key}>{attendanceLabel(key, value)}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {t(
+                      "setup2.attendance_note",
+                      "Only settings you have not changed yourself are set.",
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center justify-between gap-2 border-t pt-4">
-            <p className="flex items-center gap-1 text-xs text-muted-foreground">
-              <AlertTriangle className="h-3 w-3" />
+          {needsReview && (
+            <section
+              aria-labelledby="review-heading"
+              className="rounded-lg border border-l-4 border-l-warning bg-card p-4"
+            >
+              <h3
+                id="review-heading"
+                className="flex items-center gap-2 text-sm font-semibold text-foreground"
+              >
+                <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+                {t("setup2.review_title", "Confirm before you apply")}
+              </h3>
+              <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
+                {reviewNotes.map((note) => (
+                  <li key={note.code}>{note.message}</li>
+                ))}
+              </ul>
+              <label className="mt-4 flex items-start gap-2 text-sm text-foreground">
+                <Checkbox
+                  checked={reviewed}
+                  onCheckedChange={(v) => setReviewed(v === true)}
+                  aria-label={t(
+                    "setup2.review_confirm",
+                    "I have read these and will confirm the values",
+                  )}
+                />
+                <span>
+                  {t(
+                    "setup2.review_confirm",
+                    "I have read these and will confirm the values",
+                  )}
+                </span>
+              </label>
+            </section>
+          )}
+
+          <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
               {t(
                 "setup2.review_note",
                 "Nothing is created until you apply. You can edit everything later.",
               )}
             </p>
-            <Button onClick={runApply} disabled={apply.isPending}>
-              {apply.isPending ? (
+            <Button
+              onClick={runApply}
+              disabled={apply.isPending || (needsReview && !reviewed)}
+            >
+              {apply.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              {t("setup2.accept_apply", "Accept & apply")}
+              )}
+              {t("setup2.apply_configuration", "Apply configuration")}
             </Button>
           </div>
         </div>

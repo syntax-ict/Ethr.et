@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\Onboarding;
 
+use App\Models\AttendanceSetting;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Grade;
 use App\Models\LeaveType;
+use App\Models\PayrollRule;
 use App\Models\Position;
 use App\Models\Shift;
+use App\Models\ShiftRotation;
+use App\Models\ShiftRotationStep;
 use App\Models\Tenant;
 use App\Services\Holiday\HolidayService;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,8 +25,9 @@ use Illuminate\Support\Str;
 
 /**
  * Turns an organization template (or an edited configuration plan) into real
- * tenant records: branches, departments, positions, grades, shifts, leave
- * types, public holidays, and tenant settings.
+ * tenant records: branches, departments, positions, grades, shifts, shift
+ * rotations, leave types, allowance definitions, public holidays, attendance
+ * settings and tenant settings.
  *
  * Two rules govern every write:
  *
@@ -60,8 +65,13 @@ final class OrganizationProvisioner
             $this->provisionPositions($tenant, $this->listOf($plan, 'positions'), $result);
             $this->provisionGrades($tenant, $this->listOf($plan, 'grades'), $result);
             $this->provisionShifts($tenant, $this->listOf($plan, 'shifts'), $result);
+            // After shifts: a rotation's steps name shifts, and a step whose
+            // shift does not exist would silently become a rest day.
+            $this->provisionRotations($tenant, $this->listOf($plan, 'rotations'), $result);
             $this->provisionLeaveTypes($tenant, $this->listOf($plan, 'leave_types'), $result);
+            $this->provisionAllowances($tenant, $this->listOf($plan, 'allowances'), $result);
             $this->provisionHolidays($tenant, $plan, $result);
+            $this->applyAttendanceSettings($tenant, $plan['attendance'] ?? [], $result);
             $this->applySettings($tenant, $plan['settings'] ?? [], $result);
 
             return $result;
@@ -184,9 +194,17 @@ final class OrganizationProvisioner
                 continue;
             }
 
+            $days = $this->normalizeWorkingDays($attributes['working_days'] ?? $attributes['days'] ?? '1,2,3,4,5');
+
+            if ($days === null) {
+                $result->warn("Shift \"{$attributes['name']}\" skipped: working days must be ISO days 1 (Monday) to 7 (Sunday).");
+
+                continue;
+            }
+
             $isFirst = $index === 0;
 
-            $this->createOrSkip($result, 'shifts', Shift::class, $tenant, 'name', $attributes['name'], function () use ($tenant, $attributes, $start, $end, $isFirst, $tenantHasDefault) {
+            $this->createOrSkip($result, 'shifts', Shift::class, $tenant, 'name', $attributes['name'], function () use ($tenant, $attributes, $start, $end, $days, $isFirst, $tenantHasDefault) {
                 return [
                     'tenant_id' => $tenant->id,
                     'name' => $attributes['name'],
@@ -197,11 +215,101 @@ final class OrganizationProvisioner
                     'grace_minutes' => (int) ($attributes['grace_minutes'] ?? 15),
                     'early_departure_minutes' => (int) ($attributes['early_departure_minutes'] ?? 15),
                     'break_minutes' => (int) ($attributes['break_minutes'] ?? 60),
-                    'working_days' => (string) ($attributes['working_days'] ?? $attributes['days'] ?? '1,2,3,4,5'),
+                    'working_days' => $days,
                     'is_default' => $isFirst && ! $tenantHasDefault,
                     'is_active' => true,
                 ];
             });
+        }
+    }
+
+    /**
+     * A rotation and its steps, created together. Steps name shifts by name;
+     * every one must resolve to a live shift of this tenant, or the rotation is
+     * skipped with a warning rather than created with a hole where a shift
+     * should be — a missing step is read as a rest day.
+     *
+     * @param  array<int, mixed>  $entries
+     */
+    private function provisionRotations(Tenant $tenant, array $entries, ProvisioningResult $result): void
+    {
+        foreach ($entries as $entry) {
+            $attributes = $this->normalizeNamed($entry, 'name');
+            if ($attributes === null) {
+                continue;
+            }
+
+            $name = $attributes['name'];
+            $cycle = (int) ($attributes['cycle_days'] ?? 0);
+            $steps = is_array($attributes['steps'] ?? null) ? $attributes['steps'] : [];
+
+            if ($cycle < 1 || $cycle > 366 || $steps === []) {
+                $result->warn("Rotation \"{$name}\" skipped: it needs a cycle of 1 to 366 days and at least one step.");
+
+                continue;
+            }
+
+            $existing = $this->query(ShiftRotation::class, $tenant->id)->where('name', $name)->first();
+            if ($existing instanceof ShiftRotation) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                    $result->restored('rotations');
+                } else {
+                    $result->skipped('rotations');
+                }
+
+                continue;
+            }
+
+            $shiftIds = $this->query(Shift::class, $tenant->id)
+                ->whereNull('deleted_at')
+                ->pluck('id', 'name');
+
+            $resolved = [];
+            $problem = null;
+            foreach ($steps as $step) {
+                $offset = is_array($step) ? ($step['day_offset'] ?? null) : null;
+                $shiftName = is_array($step) ? ($step['shift'] ?? null) : null;
+
+                if (! is_int($offset) || $offset < 0 || $offset >= $cycle || isset($resolved[$offset])) {
+                    $problem = 'its steps must have distinct day offsets inside the cycle';
+                    break;
+                }
+                if ($shiftName !== null && (! is_string($shiftName) || ! isset($shiftIds[$shiftName]))) {
+                    $problem = 'a step names the shift "'.(is_string($shiftName) ? $shiftName : '?').'", which does not exist';
+                    break;
+                }
+
+                $resolved[$offset] = $shiftName === null ? null : (int) $shiftIds[$shiftName];
+            }
+
+            if ($problem !== null) {
+                $result->warn("Rotation \"{$name}\" skipped: {$problem}.");
+
+                continue;
+            }
+
+            $rotation = new ShiftRotation;
+            $rotation->fill([
+                'tenant_id' => $tenant->id,
+                'name' => $name,
+                'name_am' => $attributes['name_am'] ?? null,
+                'description' => $attributes['description'] ?? null,
+                'cycle_days' => $cycle,
+                'is_active' => true,
+            ]);
+            $rotation->save();
+
+            foreach ($resolved as $offset => $shiftId) {
+                ShiftRotationStep::query()->create([
+                    'tenant_id' => $tenant->id,
+                    'shift_rotation_id' => $rotation->id,
+                    'day_offset' => $offset,
+                    'shift_id' => $shiftId,
+                ]);
+            }
+
+            $result->created('rotations');
         }
     }
 
@@ -226,6 +334,94 @@ final class OrganizationProvisioner
                 return array_merge($definition, ['tenant_id' => $tenant->id]);
             });
         }
+    }
+
+    /**
+     * Allowance definitions, always created switched off with a zero amount.
+     *
+     * The payroll engine pays every active allowance to every employee
+     * (AllowanceService), so an amount here would be a pay decision a template
+     * has no business making. The admin sets the amount and tax treatment and
+     * switches it on; until then it is a named, reviewable placeholder that
+     * changes no one's pay. Natural key: the name within the allowance category.
+     *
+     * @param  array<int, mixed>  $entries
+     */
+    private function provisionAllowances(Tenant $tenant, array $entries, ProvisioningResult $result): void
+    {
+        foreach ($entries as $index => $entry) {
+            $attributes = $this->normalizeNamed($entry, 'name');
+            if ($attributes === null) {
+                continue;
+            }
+
+            $name = mb_substr($attributes['name'], 0, 100);
+
+            $exists = $this->query(PayrollRule::class, $tenant->id)
+                ->where('category', 'allowance')
+                ->where('name', $name)
+                ->exists();
+
+            if ($exists) {
+                $result->skipped('allowances');
+
+                continue;
+            }
+
+            $rule = new PayrollRule;
+            $rule->fill([
+                'tenant_id' => $tenant->id,
+                'name' => $name,
+                'type' => 'fixed',
+                'category' => 'allowance',
+                'formula' => ['amount_cents' => 0],
+                'is_taxable' => true,
+                'is_active' => false,
+                'sort_order' => ($index + 1) * 10,
+            ]);
+            $rule->save();
+
+            $result->created('allowances');
+        }
+    }
+
+    /**
+     * Per-field and create-only, like the rest. A tenant's attendance settings
+     * row is created with the model defaults the first time anything reads it,
+     * so "the row exists" says nothing about whether the admin chose anything.
+     * A field is set only while it still holds its default; one the admin has
+     * changed is reported as skipped and left alone.
+     */
+    private function applyAttendanceSettings(Tenant $tenant, mixed $values, ProvisioningResult $result): void
+    {
+        if (! is_array($values) || $values === []) {
+            return;
+        }
+
+        $defaults = AttendanceSetting::defaults();
+        $values = array_intersect_key($values, $defaults);
+
+        if ($values === []) {
+            return;
+        }
+
+        $setting = $this->query(AttendanceSetting::class, $tenant->id)->first();
+
+        if (! $setting instanceof AttendanceSetting) {
+            $setting = new AttendanceSetting;
+            $setting->fill(['tenant_id' => $tenant->id, ...$defaults]);
+        }
+
+        foreach ($values as $field => $value) {
+            if ($setting->getAttribute($field) == $defaults[$field] && $value != $defaults[$field]) {
+                $setting->setAttribute($field, $value);
+                $result->created('attendance_settings');
+            } else {
+                $result->skipped('attendance_settings');
+            }
+        }
+
+        $setting->save();
     }
 
     /**
@@ -387,6 +583,42 @@ final class OrganizationProvisioner
         $entry[$nameKey] = trim($name);
 
         return $entry;
+    }
+
+    /**
+     * ISO days, 1 = Monday … 7 = Sunday, the scale `Shift::isWorkingDay` reads.
+     * Two templates once wrote Sunday as 0, which no ISO weekday ever equals,
+     * so their seven-day shifts never worked a Sunday; 0 is accepted here and
+     * read as 7. Anything else outside 1–7 is refused.
+     */
+    private function normalizeWorkingDays(mixed $value): ?string
+    {
+        if (is_array($value)) {
+            $value = implode(',', array_map('strval', $value));
+        }
+
+        if (! is_string($value) && ! is_int($value)) {
+            return null;
+        }
+
+        $days = [];
+        foreach (explode(',', (string) $value) as $part) {
+            $part = trim($part);
+            if ($part === '' || ! ctype_digit($part)) {
+                return null;
+            }
+
+            $day = (int) $part === 0 ? 7 : (int) $part;
+            if ($day > 7) {
+                return null;
+            }
+
+            $days[$day] = $day;
+        }
+
+        ksort($days);
+
+        return implode(',', $days);
     }
 
     private function normalizeTime(mixed $value): ?string

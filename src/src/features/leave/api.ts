@@ -119,6 +119,14 @@ export function useUpdateLeaveType() {
   );
 }
 
+/** An inactive copy with its own code. Body `{}`: the host refuses a bare POST. */
+export function useDuplicateLeaveType() {
+  return useLeaveTypeMutation(
+    async (publicId: string): Promise<LeaveType> =>
+      (await apiClient.post(`/leave-types/${publicId}/duplicate`, {})).data,
+  );
+}
+
 export function useDeleteLeaveType() {
   return useLeaveTypeMutation(async (publicId: string): Promise<void> => {
     await apiClient.delete(`/leave-types/${publicId}`);

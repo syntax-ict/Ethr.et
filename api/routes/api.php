@@ -378,6 +378,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/schedule', [ShiftController::class, 'schedule']);
         Route::patch('/assignments/{assignment}', [ShiftAssignmentController::class, 'update']);
         Route::delete('/assignments/{assignment}', [ShiftAssignmentController::class, 'destroy']);
+        Route::post('/{shift}/duplicate', [ShiftController::class, 'duplicate']);
+        Route::get('/{shift}/usage', [ShiftController::class, 'usage']);
     });
 
     // Shift rotations (multi-week / non-weekly repeating patterns).
@@ -504,6 +506,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         // Kept last so the literal GET routes above are matched first.
         Route::get('/{leaveRequest}', [LeaveRequestController::class, 'show']);
     });
+    Route::post('/leave-types/{leaveType}/duplicate', [LeaveTypeController::class, 'duplicate']);
     Route::apiResource('leave-types', LeaveTypeController::class);
 
     // Payroll

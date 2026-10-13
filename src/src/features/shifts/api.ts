@@ -115,6 +115,37 @@ export function useDeleteShift() {
   });
 }
 
+/**
+ * A copy to adjust: the backend never makes it the default and gives it no
+ * assignments. The body is `{}` because the host's firewall refuses a POST
+ * without one.
+ */
+export function useDuplicateShift() {
+  return useShiftMutation(
+    async (publicId: string): Promise<Shift> =>
+      (await apiClient.post(`/shifts/${publicId}/duplicate`, {})).data,
+  );
+}
+
+/** Who an edit to a shift reaches: GET /shifts/{id}/usage. */
+export interface ShiftUsage {
+  assignments: { employees: number; departments: number; branches: number };
+  /** An upper bound: someone in an assigned department may have their own shift. */
+  people_up_to: number;
+  rotations: string[];
+  is_default: boolean;
+  attendance_records: number;
+}
+
+export function useShiftUsage(publicId: string | null) {
+  return useQuery<ShiftUsage>({
+    queryKey: ["shifts", "usage", publicId],
+    queryFn: async () =>
+      (await apiClient.get(`/shifts/${publicId}/usage`)).data.data,
+    enabled: publicId !== null,
+  });
+}
+
 export function useAssignShift() {
   return useShiftMutation(
     async (payload: AssignShiftPayload): Promise<ShiftAssignment> =>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Sparkles, Users, KeyRound, Rocket, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -18,31 +18,18 @@ import {
   useOnboardingStatus,
 } from "@/features/onboarding/useOnboardingStatus";
 
+// Numbered, not iconised: the four steps are a sequence, and a number says
+// where you are in it. The sparkle and rocket icons said nothing a label
+// did not, and read as decoration (2026-10-14).
 const STEPS = [
   {
     key: "config",
-    icon: Sparkles,
-    titleKey: "setup2.step_config",
-    title: "Configure",
+    titleKey: "setup2.step_organisation",
+    title: "Organisation",
   },
-  {
-    key: "migrate",
-    icon: Users,
-    titleKey: "setup2.step_migrate",
-    title: "Workforce",
-  },
-  {
-    key: "access",
-    icon: KeyRound,
-    titleKey: "setup2.step_access",
-    title: "Access",
-  },
-  {
-    key: "launch",
-    icon: Rocket,
-    titleKey: "setup2.step_launch",
-    title: "Go live",
-  },
+  { key: "migrate", titleKey: "setup2.step_people", title: "People" },
+  { key: "access", titleKey: "setup2.step_signin", title: "Sign-in" },
+  { key: "launch", titleKey: "setup2.step_launch", title: "Go live" },
 ] as const;
 
 export function GuidedOnboarding() {
@@ -82,57 +69,79 @@ export function GuidedOnboarding() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="space-y-3">
-        <Progress
-          value={pct}
-          className="h-1.5"
-          label={t("onboarding.setup_progress", "Setup progress")}
-        />
-        <div className="flex justify-between">
+      <nav aria-label={t("onboarding.setup_progress", "Setup progress")}>
+        <ol className="flex items-center">
           {STEPS.map((s, i) => {
-            const Icon = s.icon;
             const isDone = done.has(i);
             const isActive = i === step;
             const canJump = isDone || i <= step;
+            const last = i === STEPS.length - 1;
             return (
-              <button
+              <li
                 key={s.key}
-                type="button"
-                disabled={!canJump}
-                onClick={() => canJump && setStep(i)}
-                className="flex flex-col items-center gap-1 disabled:cursor-default"
+                className={cn("flex items-center", !last && "flex-1")}
               >
-                <div
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors",
-                    isDone
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : isActive
-                        ? "border-primary text-primary"
-                        : "border-muted text-muted-foreground",
-                  )}
+                <button
+                  type="button"
+                  disabled={!canJump}
+                  onClick={() => canJump && setStep(i)}
+                  aria-current={isActive ? "step" : undefined}
+                  className="flex items-center gap-2 rounded-md py-1 pr-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
                 >
-                  {isDone ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <Icon className="h-4 w-4" />
-                  )}
-                </div>
-                <span
-                  className={cn(
-                    "hidden text-[11px] sm:block",
-                    isActive
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {t(s.titleKey, s.title)}
-                </span>
-              </button>
+                  <span
+                    className={cn(
+                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums",
+                      isDone
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : isActive
+                          ? "border-primary text-primary"
+                          : "border-border text-muted-foreground",
+                    )}
+                  >
+                    {isDone ? (
+                      <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      i + 1
+                    )}
+                  </span>
+                  <span
+                    className={cn(
+                      "hidden text-sm sm:inline",
+                      isActive
+                        ? "font-medium text-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {t(s.titleKey, s.title)}
+                  </span>
+                </button>
+                {!last && (
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "mx-3 h-px flex-1",
+                      isDone ? "bg-primary" : "bg-border",
+                    )}
+                  />
+                )}
+              </li>
             );
           })}
+        </ol>
+        <div className="mt-3 flex items-center gap-3">
+          <Progress
+            value={pct}
+            className="h-1 flex-1"
+            label={t("onboarding.setup_progress", "Setup progress")}
+          />
+          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+            {t("setup2.steps_done", ":done of :total done", {
+              done: done.size,
+              total: STEPS.length,
+            })}
+          </span>
         </div>
-      </div>
+      </nav>
 
       <Card>
         <CardContent className="p-6 sm:p-8">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { KeyRound, Loader2, Mail, Phone, IdCard, AtSign } from "lucide-react";
+import { Loader2, Mail, Phone, IdCard, AtSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -84,15 +84,12 @@ export function AccessStep({ onSaved }: { onSaved?: () => void }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-          <KeyRound className="h-5 w-5 text-primary" />
-        </div>
+      <div>
         <div>
-          <h2 className="text-xl font-bold text-foreground">
+          <h2 className="text-lg font-semibold text-foreground">
             {t("setup2.access_title", "How employees log in")}
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             {t(
               "setup2.access_desc",
               "Pick the identifiers your team can use. Enable more than one to mix email and mobile logins.",

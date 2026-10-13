@@ -28,8 +28,8 @@ import {
   CreditCard,
   CalendarRange,
   ChevronRight,
+  ListChecks,
   Star,
-  Rocket,
   ScrollText,
   Landmark,
   Layers,
@@ -1093,11 +1093,9 @@ function SetupBanner({
             : "text-brand-accent hover:bg-sidebar-accent/50",
         )}
       >
-        <Rocket className="h-4 w-4" />
-        <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-accent opacity-50" />
-          <span className="relative inline-flex h-3 w-3 rounded-full bg-brand-accent" />
-        </span>
+        <ListChecks className="h-4 w-4" aria-hidden="true" />
+        {/* A steady dot, not a pulsing one: setup is unfinished, not urgent. */}
+        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-brand-accent" />
       </Link>
     );
   }
@@ -1114,12 +1112,10 @@ function SetupBanner({
       )}
     >
       <div className="flex items-center gap-2.5">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-accent/15">
-          <Rocket
-            className="h-3.5 w-3.5 text-brand-accent"
-            aria-hidden="true"
-          />
-        </span>
+        <ListChecks
+          className="h-4 w-4 shrink-0 text-sidebar-foreground/70"
+          aria-hidden="true"
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-semibold text-sidebar-foreground">
             {t("sidebar.getting_started", "Getting Started")}
