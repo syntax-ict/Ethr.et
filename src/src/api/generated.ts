@@ -1223,6 +1223,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/voice/concerns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /voice/concerns - every concern, for voice.manage */
+        get: operations["concern.index"];
+        put?: never;
+        /** POST /voice/concerns */
+        post: operations["concern.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/concerns/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /voice/concerns/mine - the caller's named concerns */
+        get: operations["concern.mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/concerns/track": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /voice/concerns/track - an anonymous concern, by its code */
+        post: operations["concern.track"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/concerns/track/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /voice/concerns/track/reply - the anonymous reporter answers HR */
+        post: operations["concern.trackReply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/concerns/{concern}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /voice/concerns/{id} - its reporter (named) or voice.manage */
+        get: operations["concern.show"];
+        /** PUT /voice/concerns/{id} - status and resolution, voice.manage only */
+        put: operations["concern.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/concerns/{concern}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /voice/concerns/{id}/messages */
+        post: operations["concern.message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/cost-sharing": {
         parameters: {
             query?: never;
@@ -4602,6 +4706,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/voice/pulse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pulse voice */
+        get: operations["pulse.show"];
+        put?: never;
+        /** Pulse voice */
+        post: operations["pulse.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/pulse/insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /voice/pulse/insights - for whoever holds voice.manage */
+        get: operations["pulse.insights"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice/recognitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recognitions */
+        get: operations["recognition.index"];
+        put?: never;
+        /** Create recognition */
+        post: operations["recognition.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{employee}/retirement-cases": {
         parameters: {
             query?: never;
@@ -5946,6 +6103,10 @@ export interface components {
         /** CloseDisciplinaryCaseRequest */
         CloseDisciplinaryCaseRequest: {
             notes?: string | null;
+        };
+        /** ConcernMessageRequest */
+        ConcernMessageRequest: {
+            body: string;
         };
         /** ContactRequest */
         ContactRequest: {
@@ -7314,6 +7475,14 @@ export interface components {
             geofence_radius_meters?: number | null;
             is_active?: boolean | null;
         };
+        /** StoreConcernRequest */
+        StoreConcernRequest: {
+            /** @enum {string} */
+            category: "safety" | "harassment" | "discrimination" | "manager" | "workload" | "pay" | "facilities" | "ethics" | "wellbeing" | "other";
+            subject: string;
+            description: string;
+            anonymous: boolean;
+        };
         /** StoreCorrectionRequest */
         StoreCorrectionRequest: {
             attendance_record_public_id: string;
@@ -7625,6 +7794,19 @@ export interface components {
             email?: string | null;
             priority?: number | null;
         };
+        /** StorePulseRequest */
+        StorePulseRequest: {
+            score: number;
+            tags?: ("workload" | "manager" | "team" | "pay" | "growth" | "recognition" | "safety" | "facilities" | "tools" | "wellbeing")[];
+            comment?: string | null;
+        };
+        /** StoreRecognitionRequest */
+        StoreRecognitionRequest: {
+            to_employee_public_id: string;
+            /** @enum {string} */
+            value: "teamwork" | "customer_care" | "integrity" | "initiative" | "excellence" | "helping_hand";
+            message: string;
+        };
         /** StoreRetirementCaseRequest */
         StoreRetirementCaseRequest: {
             retirement_type: components["schemas"]["RetirementType"];
@@ -7747,6 +7929,14 @@ export interface components {
          * @enum {string}
          */
         TenantStatus: "trial" | "active" | "suspended" | "cancelled";
+        /**
+         * TrackConcernRequest
+         * @description A concern's follow-up code, sent in the body so it never sits in a URL or a log.
+         */
+        TrackConcernRequest: {
+            code: string;
+            body?: string;
+        };
         /** TransitionEmployeeRequest */
         TransitionEmployeeRequest: {
             to_status: components["schemas"]["EmployeeStatus"];
@@ -7844,6 +8034,12 @@ export interface components {
                 account_code: string;
                 account_name: string;
             }[];
+        };
+        /** UpdateConcernRequest */
+        UpdateConcernRequest: {
+            /** @enum {string} */
+            status: "new" | "in_review" | "resolved" | "closed";
+            resolution?: string | null;
         };
         /** UpdateCostCenterRequest */
         UpdateCostCenterRequest: {
@@ -11550,6 +11746,383 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "concern.index": {
+        parameters: {
+            query?: {
+                "filter[status]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            category: string;
+                            subject: string;
+                            description: string;
+                            status: string;
+                            resolution: string | null;
+                            anonymous: boolean;
+                            reporter_name: string | null;
+                            messages_count: string | null;
+                            created_at: string | null;
+                            updated_at: string | null;
+                            resolved_at: string | null;
+                            messages: {
+                                public_id: string;
+                                author: string;
+                                /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                                author_name: string | null;
+                                body: string;
+                                created_at: string | null;
+                            }[] | null;
+                        }[];
+                        meta: {
+                            current_page: number;
+                            last_page: number;
+                            per_page: number;
+                            total: number;
+                        };
+                        counts: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "concern.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreConcernRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        category: string;
+                        subject: string;
+                        description: string;
+                        status: string;
+                        resolution: string | null;
+                        anonymous: boolean;
+                        reporter_name: string | null;
+                        messages_count: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[] | null;
+                        /** @description Shown once. It is the only way back to an anonymous concern. */
+                        tracking_code: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "concern.mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            category: string;
+                            subject: string;
+                            description: string;
+                            status: string;
+                            resolution: string | null;
+                            anonymous: boolean;
+                            reporter_name: string | null;
+                            messages_count: string | null;
+                            created_at: string | null;
+                            updated_at: string | null;
+                            resolved_at: string | null;
+                            messages: {
+                                public_id: string;
+                                author: string;
+                                /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                                author_name: string | null;
+                                body: string;
+                                created_at: string | null;
+                            }[] | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "concern.track": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrackConcernRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        category: string;
+                        subject: string;
+                        description: string;
+                        status: string;
+                        resolution: string | null;
+                        anonymous: boolean;
+                        reporter_name: string | null;
+                        messages_count: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "concern.trackReply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrackConcernRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        category: string;
+                        subject: string;
+                        description: string;
+                        status: string;
+                        resolution: string | null;
+                        anonymous: boolean;
+                        reporter_name: string | null;
+                        messages_count: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "concern.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                concern: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        category: string;
+                        subject: string;
+                        description: string;
+                        status: string;
+                        resolution: string | null;
+                        anonymous: boolean;
+                        reporter_name: string | null;
+                        messages_count: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "concern.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                concern: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConcernRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        category: string;
+                        subject: string;
+                        description: string;
+                        status: string;
+                        resolution: string | null;
+                        anonymous: boolean;
+                        reporter_name: string | null;
+                        messages_count: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "concern.message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                concern: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConcernMessageRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        category: string;
+                        subject: string;
+                        description: string;
+                        status: string;
+                        resolution: string | null;
+                        anonymous: boolean;
+                        reporter_name: string | null;
+                        messages_count: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            /** @description The reporter sees "HR"; HR sees which colleague answered. */
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "costSharing.index": {
@@ -16631,7 +17204,8 @@ export interface operations {
                             "payroll_processed",
                             "announcement",
                             "approval_reminder",
-                            "profile_update"
+                            "profile_update",
+                            "employee_voice"
                         ];
                         channels: [
                             "in_app",
@@ -16688,7 +17262,8 @@ export interface operations {
                             "payroll_processed",
                             "announcement",
                             "approval_reminder",
-                            "profile_update"
+                            "profile_update",
+                            "employee_voice"
                         ];
                         channels: [
                             "in_app",
@@ -20715,6 +21290,193 @@ export interface operations {
                     };
                 };
             };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "pulse.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        week: string;
+                        answered: boolean;
+                        tags: [
+                            "workload",
+                            "manager",
+                            "team",
+                            "pay",
+                            "growth",
+                            "recognition",
+                            "safety",
+                            "facilities",
+                            "tools",
+                            "wellbeing"
+                        ];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "pulse.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePulseRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        week: string;
+                        answered: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "pulse.insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        min_group: 5;
+                        trend: unknown[];
+                        recent: {
+                            weeks: unknown[];
+                            responses: number;
+                            average: number | null;
+                            distribution: string;
+                            tags: string;
+                            departments: {
+                                department: string | null;
+                                responses: number;
+                                average: number;
+                            }[];
+                            comments: {
+                                week: string;
+                                score: number;
+                                tags: string[];
+                                comment: string | null;
+                            }[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "recognition.index": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            value: string;
+                            message: string;
+                            from: {
+                                public_id: string;
+                                name: string;
+                            } | null;
+                            to: {
+                                public_id: string;
+                                name: string;
+                            } | null;
+                            created_at: string | null;
+                        }[];
+                        meta: {
+                            current_page: number;
+                            last_page: number;
+                            per_page: number;
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "recognition.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreRecognitionRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        value: string;
+                        message: string;
+                        from: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                        to: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                        created_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
             422: components["responses"]["ValidationException"];
         };
     };
