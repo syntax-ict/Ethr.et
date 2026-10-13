@@ -44,4 +44,20 @@ return [
     | the previous run is still going gets 409, not a second worker.
     */
     'lock_seconds' => (int) env('CRON_LOCK_SECONDS', 110),
+
+    /*
+    | Background work after ordinary requests (RunBackgroundWorkAfterResponse).
+    | The external timer fires only a few times a day on this host (F23), so
+    | any request that reaches Laravel may, at most once a minute, drain the
+    | queue for a few seconds and run the scheduler catch-up when its heartbeat
+    | is stale — after the response has been sent, so nobody waits for it.
+    | The cron endpoints stay; this only stops the queue depending on them.
+    */
+    'opportunistic' => (bool) env('CRON_OPPORTUNISTIC', true),
+    'opportunistic_seconds' => (int) env('CRON_OPPORTUNISTIC_SECONDS', 5),
+    'opportunistic_every_seconds' => (int) env('CRON_OPPORTUNISTIC_EVERY_SECONDS', 60),
+    'opportunistic_schedule_after_seconds' => (int) env('CRON_OPPORTUNISTIC_SCHEDULE_AFTER_SECONDS', 300),
+    // Only when the response can be sent before the work starts (PHP-FPM,
+    // LiteSpeed). Under plain CGI the visitor would wait for the drain.
+    'opportunistic_requires_early_flush' => (bool) env('CRON_OPPORTUNISTIC_REQUIRES_EARLY_FLUSH', true),
 ];

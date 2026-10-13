@@ -15,6 +15,7 @@ use App\Http\Middleware\RateLimitLoginAttempts;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
 use App\Http\Middleware\RequireTenantMfaEnrolment;
 use App\Http\Middleware\ResolveTenant;
+use App\Http\Middleware\RunBackgroundWorkAfterResponse;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\VerifyMaintenanceToken;
@@ -74,6 +75,13 @@ return Application::configure(basePath: dirname(__DIR__))
             // Must run before validation so the header can satisfy the
             // `idempotency_key` rule the FormRequests enforce.
             AcceptIdempotencyKeyHeader::class,
+        ]);
+
+        // After the response is sent: drain the queue a few seconds, at most
+        // once a minute, so background work does not wait for the external
+        // timer (console QA F23). Appended, so it sees the final response.
+        $middleware->api(append: [
+            RunBackgroundWorkAfterResponse::class,
         ]);
 
         $middleware->statefulApi();
