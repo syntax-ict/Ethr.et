@@ -126,8 +126,10 @@ return [
     // allowlist) and one employee lookup in webhookEmployee(), which states
     // `tenant_id` from the authenticated device. The employee lookup was written
     // out three times, once per vendor handler, until audit B9 (2026-10-01) made
-    // it one method: 5 -> 3, the same query at fewer call sites.
-    'Http/Controllers/Api/V1/Device/DeviceController.php' => 3,
+    // it one method: 5 -> 3, the same query at fewer call sites. 2026-10-14:
+    // 3 -> 2, webhookEmployee() now goes through IdentityResolver, which states
+    // `tenant_id` on its own queries (as the pull path always did).
+    'Http/Controllers/Api/V1/Device/DeviceController.php' => 2,
     'Http/Controllers/Api/V1/Payroll/TaxBracketController.php' => 1,
     // AuthenticateApiKey (2026-10-09): the key lookup is pre-authentication and
     // keyed on the presented secret, as ScimAuth's is; the creator lookup

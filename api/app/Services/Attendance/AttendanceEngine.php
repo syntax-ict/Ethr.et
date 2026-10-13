@@ -22,6 +22,13 @@ final class AttendanceEngine
     /** How long after a check-in a check-out on the next day may still close it. */
     private const MAX_OPEN_HOURS = 14;
 
+    /**
+     * An `auto` punch this soon after the check-in it would close is the same
+     * person scanning twice, not leaving: it is answered as a duplicate. The
+     * same window ConflictResolver merges within.
+     */
+    private const AUTO_REPEAT_MINUTES = 5;
+
     public function __construct(
         private readonly ConfidenceScorer $scorer,
         private readonly ShiftMatcher $shiftMatcher,
@@ -42,7 +49,7 @@ final class AttendanceEngine
             // gets that record back. Before, the replay looked for an open
             // check-in, found none, and showed the person an error for a
             // punch that had succeeded (attendance QA A6).
-            if ($existing === null && $input->type === 'check_out') {
+            if ($existing === null && in_array($input->type, ['check_out', 'auto'], true)) {
                 $existing = AttendanceRecord::query()
                     ->where('tenant_id', $input->tenantId)
                     ->where('employee_id', $input->employeeId)
@@ -79,11 +86,76 @@ final class AttendanceEngine
             }
         }
 
+        if ($input->type === 'auto') {
+            return $this->processAuto($input, $employee, $zone, $settings);
+        }
+
         if ($input->type === 'check_out') {
             return $this->processCheckOut($input, $employee, $zone, $settings);
         }
 
         return $this->processCheckIn($input, $employee, $zone, $settings);
+    }
+
+    /**
+     * A punch from a device that does not say whether it is arriving or
+     * leaving (a Hikvision terminal in access mode, a ZKTeco without state
+     * keys, a middleware that sends no direction). It closes the open record
+     * a check-out would close; with none open it is a check-in. Before this,
+     * every such punch was a check-in, so an evening scan opened a second
+     * record and a conflict instead of ending the day.
+     */
+    private function processAuto(AttendanceInput $input, Employee $employee, string $zone, ?AttendanceSetting $settings): AttendanceResult
+    {
+        $now = $this->resolveMoment($input);
+        $open = $this->findOpenRecord($input, $now, $zone);
+
+        if ($open === null) {
+            return $this->processCheckIn($input, $employee, $zone, $settings);
+        }
+
+        if ($open->check_in->diffInMinutes($now, absolute: true) < self::AUTO_REPEAT_MINUTES) {
+            return new AttendanceResult($open, wasDuplicate: true);
+        }
+
+        return $this->processCheckOut($input, $employee, $zone, $settings);
+    }
+
+    /**
+     * The record a check-out at `$now` closes: today's open one, or
+     * yesterday's when its shift crosses midnight or it began less than
+     * MAX_OPEN_HOURS ago. Shared by check-out and `auto`, so both close the
+     * same record.
+     */
+    private function findOpenRecord(AttendanceInput $input, Carbon $now, string $zone): ?AttendanceRecord
+    {
+        $local = $now->copy()->setTimezone($zone);
+        $today = $local->format('Y-m-d');
+
+        // Today's open record, or yesterday's when its shift crosses midnight:
+        // a 22:00-06:00 record is dated the night it began, so a lookup on
+        // today's date alone could never close it — the morning check-out
+        // answered 500 and device webhooks dropped the punch.
+        $candidates = AttendanceRecord::withoutGlobalScope('tenant')
+            ->where('tenant_id', $input->tenantId)
+            ->where('employee_id', $input->employeeId)
+            ->whereDate('date', '>=', $local->copy()->subDay()->format('Y-m-d'))
+            ->whereDate('date', '<=', $today)
+            ->whereNotNull('check_in')
+            ->whereNull('check_out')
+            ->with('shift')
+            ->latest('check_in')
+            ->get();
+
+        // Yesterday's record is also closable when it began less than
+        // MAX_OPEN_HOURS ago: an evening shift whose overtime runs past the
+        // tenant's midnight belongs to the day it began. The UTC clock hid
+        // this until 03:00 Addis by accident; dating by the tenant's day
+        // (processCheckIn) exposed it. A check-in left open yesterday morning
+        // stays out of reach — it is a missing punch, not this check-out.
+        return $candidates->first(fn (AttendanceRecord $r) => $r->date->format('Y-m-d') === $today)
+            ?? $candidates->first(fn (AttendanceRecord $r) => $r->shift?->crosses_midnight === true
+                || $r->check_in->diffInMinutes($now, absolute: true) < self::MAX_OPEN_HOURS * 60);
     }
 
     /**
@@ -201,33 +273,7 @@ final class AttendanceEngine
     private function processCheckOut(AttendanceInput $input, Employee $employee, string $zone, ?AttendanceSetting $settings = null): AttendanceResult
     {
         $now = $this->resolveMoment($input);
-        $local = $now->copy()->setTimezone($zone);
-        $today = $local->format('Y-m-d');
-
-        // Today's open record, or yesterday's when its shift crosses midnight:
-        // a 22:00-06:00 record is dated the night it began, so a lookup on
-        // today's date alone could never close it — the morning check-out
-        // answered 500 and device webhooks dropped the punch.
-        $candidates = AttendanceRecord::withoutGlobalScope('tenant')
-            ->where('tenant_id', $input->tenantId)
-            ->where('employee_id', $input->employeeId)
-            ->whereDate('date', '>=', $local->copy()->subDay()->format('Y-m-d'))
-            ->whereDate('date', '<=', $today)
-            ->whereNotNull('check_in')
-            ->whereNull('check_out')
-            ->with('shift')
-            ->latest('check_in')
-            ->get();
-
-        // Yesterday's record is also closable when it began less than
-        // MAX_OPEN_HOURS ago: an evening shift whose overtime runs past the
-        // tenant's midnight belongs to the day it began. The UTC clock hid
-        // this until 03:00 Addis by accident; dating by the tenant's day
-        // (processCheckIn) exposed it. A check-in left open yesterday morning
-        // stays out of reach — it is a missing punch, not this check-out.
-        $record = $candidates->first(fn (AttendanceRecord $r) => $r->date->format('Y-m-d') === $today)
-            ?? $candidates->first(fn (AttendanceRecord $r) => $r->shift?->crosses_midnight === true
-                || $r->check_in->diffInMinutes($now, absolute: true) < self::MAX_OPEN_HOURS * 60);
+        $record = $this->findOpenRecord($input, $now, $zone);
 
         if (! $record) {
             throw new NoOpenCheckIn(__('attendance.no_open_check_in'));
