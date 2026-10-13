@@ -35,26 +35,30 @@ test('a UTC instant converts to Africa/Addis_Ababa exactly 3 hours ahead', funct
 // ── APP_TIMEZONE is UTC, but "today" for attendance/leave/payroll purposes
 // should mean the Ethiopian calendar day, not the UTC calendar day ──
 
-test('a very-early-morning EAT check-in is dated to the UTC calendar day, not the EAT one', function () {
+test('Carbon::now() resolves the UTC calendar day, so a tenant\'s day must be asked for', function () {
     // 01:00 EAT on Aug 1 is 22:00 UTC on Jul 31 - the instant is genuinely
     // "August 1st" for the Ethiopian employee checking in, but Carbon::now()
-    // (and every now()->format('Y-m-d') call in AttendanceEngine, leave
-    // "must be in the future" checks, dashboard "today" stats, etc.) resolves
-    // against APP_TIMEZONE=UTC, not Africa/Addis_Ababa. This test pins that
-    // current, likely-unintended behavior rather than asserting it's correct.
+    // resolves against APP_TIMEZONE=UTC, not Africa/Addis_Ababa.
+    //
+    // This pinned the AttendanceEngine dating punches that way as "current,
+    // likely-unintended behavior". It was: production confirmed it on
+    // 2026-10-12 (attendance QA A1/H2), and the engine now reads the punch in
+    // the tenant's zone — tests/Feature/AttendanceTenantClockTest.php pins
+    // that. What stays true, and is all this test asserts, is the framework
+    // fact that any other `now()->format('Y-m-d')` still yields the UTC day.
     $eatCheckInInstant = Carbon::create(2026, 8, 1, 1, 0, 0, 'Africa/Addis_Ababa');
     Carbon::setTestNow($eatCheckInInstant);
 
     try {
-        $now = Carbon::now(); // matches how AttendanceEngine::processCheckIn() resolves "now"
-        $dateFieldStoredByAttendanceEngine = $now->format('Y-m-d');
+        $now = Carbon::now();
+        $utcDay = $now->format('Y-m-d');
 
         // What the employee actually experienced, in their own timezone.
         $actualEatDate = $eatCheckInInstant->format('Y-m-d');
 
-        expect($dateFieldStoredByAttendanceEngine)->toBe('2026-07-31');
+        expect($utcDay)->toBe('2026-07-31');
         expect($actualEatDate)->toBe('2026-08-01');
-        expect($dateFieldStoredByAttendanceEngine)->not->toBe($actualEatDate);
+        expect($utcDay)->not->toBe($actualEatDate);
     } finally {
         Carbon::setTestNow();
     }

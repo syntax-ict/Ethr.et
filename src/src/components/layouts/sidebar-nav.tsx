@@ -16,7 +16,9 @@ import {
   FilePenLine,
   Shield,
   CheckSquare,
+  Briefcase,
   Megaphone,
+  MessageCircleHeart,
   Contact,
   Banknote,
   GraduationCap,
@@ -32,6 +34,7 @@ import {
   Landmark,
   Layers,
   GitMerge,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -276,6 +279,20 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
             icon: Megaphone,
             show: true,
           },
+          {
+            kind: "leaf",
+            label: t("nav.vacancies", "Vacancies"),
+            href: "/vacancies",
+            icon: Briefcase,
+            show: true,
+          },
+          {
+            kind: "leaf",
+            label: t("nav.voice", "Voice"),
+            href: "/voice",
+            icon: MessageCircleHeart,
+            show: true,
+          },
         ],
       },
       {
@@ -343,6 +360,13 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
                 label: t("nav.conflicts", "Conflicts"),
                 href: "/attendance/conflicts",
                 icon: GitMerge,
+                show: can.viewAttendanceConflicts,
+              },
+              {
+                kind: "leaf",
+                label: t("nav.integrity", "Integrity"),
+                href: "/attendance/integrity",
+                icon: ShieldAlert,
                 show: can.viewAttendanceConflicts,
               },
               {
@@ -588,7 +612,7 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
           are explained rather than mysterious (Nielsen #2, #6). */}
       {favoriteItems.length > 0 && !collapsed && (
         <div className="flex flex-col gap-px">
-          <p className="px-3 py-1 text-[11px] font-medium tracking-wide text-sidebar-foreground/60">
+          <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
             {t("nav.section.pinned", "Pinned")}
           </p>
           {favoriteItems.map((item) => (
@@ -613,7 +637,7 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
             type="button"
             onClick={toggleRecentExpanded}
             aria-expanded={recentExpanded}
-            className="flex items-center gap-1.5 px-3 py-1 text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground/60"
+            className="flex items-center gap-1.5 rounded-md px-3 pb-1 pt-2 text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ChevronRight
               className={cn(
@@ -621,7 +645,7 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
                 recentExpanded && "rotate-90",
               )}
             />
-            <span className="text-[11px] font-medium tracking-wide">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">
               {t("nav.section.recent", "Recent")}
             </span>
           </button>
@@ -653,7 +677,7 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
 
       {/* Separator between quick-access and main nav */}
       {(favoriteItems.length > 0 || recentItems.length > 0) && !collapsed && (
-        <div className="my-1.5 h-px bg-sidebar-border/40" />
+        <div className="mx-3 my-2 h-px bg-sidebar-border" />
       )}
 
       {/* Main sections */}
@@ -665,7 +689,7 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
                 <div className="mx-auto my-2 h-px w-6 bg-sidebar-border" />
               )
             ) : (
-              <p className="mb-1 mt-5 px-3 text-[11px] font-semibold uppercase tracking-widest text-sidebar-foreground/60">
+              <p className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
                 {section.title}
               </p>
             ))}
@@ -753,14 +777,14 @@ function NavLink({
         aria-current={isActive ? "page" : undefined}
         aria-label={collapsed ? collapsedLabel : undefined}
         className={cn(
-          "relative flex flex-1 items-center rounded-lg font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "relative flex flex-1 items-center rounded-md font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           collapsed ? "h-10 w-10 justify-center" : "gap-3",
-          isSecondary ? "py-1 text-[13px]" : "py-1.5 text-sm",
+          !collapsed && (isSecondary ? "h-8 text-[13px]" : "h-9 text-sm"),
           indent && !collapsed ? "pl-10 pr-3" : !collapsed && "px-3",
           isActive
             ? isSecondary
               ? "bg-sidebar-accent/70 text-sidebar-accent-foreground"
-              : "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+              : "bg-sidebar-accent text-sidebar-accent-foreground"
             : isSecondary
               ? "text-sidebar-foreground/70 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/80"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
@@ -770,14 +794,14 @@ function NavLink({
           <span
             aria-hidden
             className={cn(
-              "absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary transition-opacity duration-150",
+              "absolute -left-3 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-brand-accent transition-opacity duration-150",
               isActive ? "opacity-100" : "opacity-0",
             )}
           />
         )}
         {variant === "pinned" && !collapsed && (
           <Star
-            className="h-3 w-3 shrink-0 text-[var(--color-accent,#E8A838)]"
+            className="h-3 w-3 shrink-0 text-brand-accent"
             style={{ fill: "currentColor" }}
           />
         )}
@@ -786,7 +810,9 @@ function NavLink({
             className={cn(
               "shrink-0 transition-colors duration-150",
               isSecondary ? "h-3.5 w-3.5" : "h-4 w-4",
-              isActive ? "text-sidebar-accent-foreground" : "",
+              isActive
+                ? "text-sidebar-accent-foreground"
+                : "text-sidebar-foreground/60",
             )}
           />
         )}
@@ -796,7 +822,7 @@ function NavLink({
         {!collapsed && hasBadge && (
           <span
             className={cn(
-              "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-status-error px-1.5 text-[10px] font-bold text-text-inverse",
+              "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-status-error px-1.5 text-[11px] font-semibold tabular-nums leading-none text-text-inverse",
               // Keep clear of the hover-revealed pin button
               isPinnable && "group-hover/pin:mr-6",
             )}
@@ -836,7 +862,7 @@ function NavLink({
           className={cn(
             "absolute right-1 flex h-6 w-6 items-center justify-center rounded-md transition-all duration-150",
             pinned
-              ? "text-[var(--color-accent,#E8A838)] opacity-100"
+              ? "text-brand-accent opacity-100"
               : "opacity-0 hover:bg-sidebar-accent/50 group-hover/pin:opacity-100",
           )}
           title={
@@ -871,7 +897,7 @@ function NavLink({
               e.stopPropagation();
               onTogglePin();
             }}
-            className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/60 opacity-0 transition-all duration-150 hover:text-[var(--color-accent,#E8A838)] group-hover/pin:opacity-100"
+            className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/60 opacity-0 transition-all duration-150 hover:text-brand-accent group-hover/pin:opacity-100"
             title={t("nav.pin_favorites", "Pin to favorites")}
             aria-label={`${t("nav.pin_favorites", "Pin to favorites")}: ${item.label}`}
           >
@@ -931,7 +957,7 @@ function NavGroup({
           className={cn(
             "flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             hasActiveChild
-              ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
           )}
         >
@@ -939,7 +965,7 @@ function NavGroup({
           <span className="sr-only">{group.label}</span>
         </button>
         <div className="pointer-events-none absolute left-full top-0 z-50 hidden pl-2 group-focus-within/fly:pointer-events-auto group-focus-within/fly:block group-hover/fly:pointer-events-auto group-hover/fly:block">
-          <div className="min-w-52 rounded-lg border border-sidebar-border bg-sidebar p-1.5 shadow-lg">
+          <div className="min-w-52 rounded-lg border border-sidebar-border bg-sidebar p-1.5 shadow-xl">
             <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
               {group.label}
             </p>
@@ -977,7 +1003,7 @@ function NavGroup({
         onClick={onToggle}
         aria-expanded={isExpanded}
         className={cn(
-          "group relative flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "group relative flex h-9 w-full items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           hasActiveChild
             ? "text-sidebar-accent-foreground"
             : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
@@ -986,7 +1012,7 @@ function NavGroup({
         {hasActiveChild && (
           <span
             aria-hidden
-            className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary"
+            className="absolute -left-3 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-brand-accent"
           />
         )}
         <Icon className="h-4 w-4 shrink-0" />
@@ -1060,60 +1086,66 @@ function SetupBanner({
           "relative flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-150",
           isOnSetup
             ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-            : "text-[var(--color-accent,#E8A838)] hover:bg-sidebar-accent/50",
+            : "text-brand-accent hover:bg-sidebar-accent/50",
         )}
       >
         <Rocket className="h-4 w-4" />
         <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-accent,#E8A838)] opacity-50" />
-          <span className="relative inline-flex h-3 w-3 rounded-full bg-[var(--color-accent,#E8A838)]" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-accent opacity-50" />
+          <span className="relative inline-flex h-3 w-3 rounded-full bg-brand-accent" />
         </span>
       </Link>
     );
   }
 
   return (
-    <div className="mb-2 flex flex-col gap-1.5">
-      <Link
-        href="/setup/guided"
-        className={cn(
-          "group flex flex-col gap-2 rounded-lg border px-3 py-2.5 transition-all duration-150",
-          isOnSetup
-            ? "border-[var(--color-accent,#E8A838)]/40 bg-[var(--color-accent,#E8A838)]/10"
-            : "border-sidebar-border/50 bg-sidebar-accent/20 hover:border-[var(--color-accent,#E8A838)]/40 hover:bg-[var(--color-accent,#E8A838)]/10",
-        )}
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-accent,#E8A838)]/20">
-            <Rocket className="h-4 w-4 text-[var(--color-accent,#E8A838)]" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-sidebar-foreground">
-              {t("sidebar.getting_started", "Getting Started")}
-            </p>
-            <p className="text-[10px] tabular-nums text-sidebar-foreground/70">
-              {t("sidebar.steps_completed", ":done of :total completed", {
-                done: completedCount,
-                total: totalSteps,
-              })}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="h-1.5 flex-1 rounded-full bg-sidebar-border/50">
-            <div
-              className="h-1.5 rounded-full bg-[var(--color-accent,#E8A838)] transition-all duration-500 ease-out"
-              style={{ width: `${Math.max(progress, 2)}%` }}
-            />
-          </div>
-        </div>
-
-        <span className="flex items-center gap-1 text-[11px] font-medium text-[var(--color-accent,#E8A838)] transition-colors group-hover:text-[var(--color-interactive-hover,#3282B8)]">
-          {t("sidebar.complete_setup", "Complete Setup")}
-          <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+    <Link
+      href="/setup/guided"
+      aria-current={isOnSetup ? "page" : undefined}
+      className={cn(
+        "group mb-2 block rounded-lg border p-3 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        isOnSetup
+          ? "border-brand-accent/40 bg-sidebar-accent"
+          : "border-sidebar-border bg-sidebar-accent/40 hover:bg-sidebar-accent/70",
+      )}
+    >
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-accent/15">
+          <Rocket
+            className="h-3.5 w-3.5 text-brand-accent"
+            aria-hidden="true"
+          />
         </span>
-      </Link>
-    </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-semibold text-sidebar-foreground">
+            {t("sidebar.getting_started", "Getting Started")}
+          </p>
+          <p className="truncate text-[11px] tabular-nums text-sidebar-foreground/70">
+            {t("sidebar.steps_completed", ":done of :total completed", {
+              done: completedCount,
+              total: totalSteps,
+            })}
+          </p>
+        </div>
+        <ChevronRight
+          className="h-4 w-4 shrink-0 text-sidebar-foreground/60 transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
+      </div>
+
+      <div
+        className="mt-2.5 h-1 overflow-hidden rounded-full bg-sidebar-border"
+        role="progressbar"
+        aria-label={t("sidebar.complete_setup", "Complete Setup")}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress}
+      >
+        <div
+          className="h-full rounded-full bg-brand-accent transition-[width] duration-500 ease-out"
+          style={{ width: `${Math.max(progress, 4)}%` }}
+        />
+      </div>
+    </Link>
   );
 }

@@ -47,7 +47,7 @@ final class ConfidenceScorer
             return false;
         }
 
-        $distance = $this->haversineDistance(
+        $distance = $this->distanceMeters(
             $lat,
             $lon,
             (float) $branch->latitude,
@@ -57,7 +57,8 @@ final class ConfidenceScorer
         return $distance <= $branch->geofence_radius_meters;
     }
 
-    private function haversineDistance(float $lat1, float $lon1, float $lat2, float $lon2): float
+    /** Great-circle distance in metres. */
+    public function distanceMeters(float $lat1, float $lon1, float $lat2, float $lon2): float
     {
         $earthRadius = 6371000;
 

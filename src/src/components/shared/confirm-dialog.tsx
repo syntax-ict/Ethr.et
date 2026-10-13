@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { useT } from "@/lib/i18n/useT";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -17,6 +18,8 @@ interface ConfirmDialogProps {
   title: string;
   description: string;
   confirmLabel?: string;
+  /** The dismiss button. "Cancel" by default; say something else when the action itself is a cancellation. */
+  cancelLabel?: string;
   variant?: "default" | "destructive";
   loading?: boolean;
   onConfirm: () => void;
@@ -28,10 +31,13 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = "Confirm",
+  cancelLabel,
   variant = "default",
   loading = false,
   onConfirm,
 }: ConfirmDialogProps) {
+  const { t } = useT();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -45,7 +51,7 @@ export function ConfirmDialog({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            Cancel
+            {cancelLabel ?? t("common.cancel", "Cancel")}
           </Button>
           <Button
             variant={variant === "destructive" ? "destructive" : "default"}

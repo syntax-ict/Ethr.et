@@ -1,5 +1,6 @@
 "use client";
 
+import { StatCard, type StatTone } from "@/components/dashboard/stat-card";
 import Link from "next/link";
 import {
   Fingerprint,
@@ -62,14 +63,14 @@ export default function DeviceDashboardPage() {
         />
 
         {statsLoading || !stats ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-24" />
             ))}
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <StatusCard
                 icon={Fingerprint}
                 title={t("devices_dashboard_page.total_devices")}
@@ -262,16 +263,18 @@ const ADAPTER_LABELS: Record<string, string> = {
   mock: "Mock",
 };
 
-const colorClass: Record<string, string> = {
-  info: "bg-info-soft text-info-on-soft",
-  success: "bg-success-soft text-success-on-soft",
-  neutral: "bg-neutral-soft text-neutral-on-soft",
-  danger: "bg-destructive-soft text-destructive-on-soft",
-  brand: "bg-brand-soft text-brand-on-soft",
+/** The local colour names, as `StatCard` tones. */
+const TONE: Record<string, StatTone> = {
+  info: "info",
+  success: "success",
+  warning: "warning",
+  neutral: "neutral",
+  danger: "error",
+  brand: "brand",
 };
 
 function StatusCard({
-  icon: Icon,
+  icon,
   title,
   value,
   color,
@@ -282,19 +285,12 @@ function StatusCard({
   color: string;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-xl ${colorClass[color]}`}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <StatCard
+      icon={icon}
+      tone={TONE[color] ?? "primary"}
+      label={title}
+      value={value}
+    />
   );
 }
 

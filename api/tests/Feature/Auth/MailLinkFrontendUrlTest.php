@@ -122,7 +122,10 @@ it('links every notification to a page the frontend actually has', function () {
 
         foreach ($m[1] as $path) {
             $paths[] = $path;
-            if (! is_file($pages.'/'.trim($path, '/').'/page.tsx')) {
+            // A query string (`/voice?tab=recognition`) selects a tab on the
+            // page; the page itself is what must exist.
+            $page = explode('?', $path, 2)[0];
+            if (! is_file($pages.'/'.trim($page, '/').'/page.tsx')) {
                 $missing[] = "{$file->getFilename()}: {$path}";
             }
         }

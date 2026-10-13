@@ -172,6 +172,11 @@ final class ShiftMatcher
             ->first();
     }
 
+    /**
+     * `present` or `late` against the shift's start plus grace. `$checkIn`
+     * must be in the tenant's zone: shift times are wall-clock times there,
+     * and `setTimeFromTimeString` reads them in $checkIn's own zone.
+     */
     public function calculateStatus(Carbon $checkIn, Shift $shift): string
     {
         $shiftStart = $checkIn->copy()->setTimeFromTimeString($shift->start_time);

@@ -113,6 +113,19 @@ export function useUpdateBranding() {
   );
 }
 
+export type TenantLandingSettings = TenantSettings["landing"];
+export type LandingUpdate = components["schemas"]["UpdateLandingRequest"];
+
+/** The organisation's sign-in page: its words, help contacts and background. */
+export function useUpdateLanding() {
+  return useSettingsMutation(
+    async (payload: LandingUpdate) =>
+      (await apiClient.put<TenantLandingSettings>("/settings/landing", payload))
+        .data,
+    [],
+  );
+}
+
 export function useUpdateNotificationTemplate() {
   return useSettingsMutation(
     async (vars: {

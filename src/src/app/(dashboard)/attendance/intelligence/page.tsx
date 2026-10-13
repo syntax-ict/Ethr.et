@@ -1,5 +1,6 @@
 "use client";
 
+import { StatCard, type StatTone } from "@/components/dashboard/stat-card";
 import { useState } from "react";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import {
@@ -62,9 +63,9 @@ export default function AttendanceIntelligencePage() {
         <QueryBoundary
           query={query}
           loading={
-            <div className="grid gap-4 sm:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-32" />
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-32 rounded-xl" />
               ))}
             </div>
           }
@@ -72,7 +73,7 @@ export default function AttendanceIntelligencePage() {
         >
           {() => (
             <>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <Kpi
                   icon={AlertTriangle}
                   title={t("attendance.intelligence_page.anomalies")}
@@ -309,10 +310,14 @@ export default function AttendanceIntelligencePage() {
   );
 }
 
-const colorClass: Record<string, string> = {
-  warning: "bg-warning-soft text-warning-on-soft",
-  brand: "bg-brand-soft text-brand-on-soft",
-  danger: "bg-destructive-soft text-destructive-on-soft",
+/** The local colour names, as `StatCard` tones. */
+const TONE: Record<string, StatTone> = {
+  info: "info",
+  success: "success",
+  warning: "warning",
+  neutral: "neutral",
+  danger: "error",
+  brand: "brand",
 };
 
 function formatMinutes(minutes: number): string {
@@ -322,7 +327,7 @@ function formatMinutes(minutes: number): string {
 }
 
 function Kpi({
-  icon: Icon,
+  icon,
   title,
   value,
   color,
@@ -333,18 +338,11 @@ function Kpi({
   color: string;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-5">
-        <div
-          className={`flex h-11 w-11 items-center justify-center rounded-xl ${colorClass[color]}`}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <StatCard
+      icon={icon}
+      tone={TONE[color] ?? "primary"}
+      label={title}
+      value={value}
+    />
   );
 }

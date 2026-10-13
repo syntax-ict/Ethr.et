@@ -64,7 +64,7 @@ class Tenant extends Model
         'features', 'impersonate', 'kiosk', 'leave', 'login', 'logout',
         'notifications', 'offline', 'og.png', 'organization', 'payroll',
         'pricing', 'privacy', 'profile', 'register', 'reports', 'settings',
-        'setup', 'shifts', 'terms',
+        'setup', 'shifts', 'terms', 'vacancies', 'voice',
         'en', 'am', 'om', 'ti', 'so', 'sid',
         'sanctum', 'up', 'storage', 'icons', 'auth', 'org', 'tenant',
     ];
@@ -90,6 +90,7 @@ class Tenant extends Model
         'status',
         'logo_path',
         'theme',
+        'landing',
         'default_locale',
         'timezone',
         'ethiopian_calendar',
@@ -107,6 +108,7 @@ class Tenant extends Model
         return [
             'status' => TenantStatus::class,
             'theme' => 'array',
+            'landing' => 'array',
             'settings' => 'array',
             'ethiopian_calendar' => 'boolean',
             'trial_ends_at' => 'datetime',

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { toEthiopian, toGregorian } from "@/lib/calendar/ethiopian";
@@ -130,6 +130,101 @@ describe("<DualCalendarDateInput>", () => {
       // Day 30 is impossible in Pagume; it must have clamped to <= 6.
       expect(back.day).toBeLessThanOrEqual(6);
     });
+  });
+});
+
+/**
+ * Production QA 2026-10-11, P5: the year box could not be typed into. Every
+ * keystroke emitted a whole date, so "2" became Ethiopian year 2, came back
+ * through `new Date(y, …)` — which maps years 0–99 to 1900–1999 — as 1902, and
+ * the next digit made 19020 and blanked the field. The tests above set a full
+ * value in one event and never saw it. These drive the field the way a person
+ * does: one key at a time, against a parent that feeds the value back.
+ */
+describe("<DualCalendarDateInput> typing a year", () => {
+  beforeEach(() => {
+    localStorage.removeItem("ethr.calendar");
+  });
+
+  function Controlled({
+    initial,
+    onChange,
+  }: {
+    initial: string;
+    onChange: (iso: string) => void;
+  }) {
+    const [value, setValue] = useState(initial);
+    return (
+      <>
+        <DualCalendarDateInput
+          value={value}
+          onChange={(iso) => {
+            onChange(iso);
+            setValue(iso);
+          }}
+          aria-label="Hire date"
+        />
+        <output data-testid="iso">{value}</output>
+      </>
+    );
+  }
+
+  const year = () =>
+    screen.getByRole("spinbutton", {
+      name: "Hire date — Ethiopian year",
+    }) as HTMLInputElement;
+
+  it("keeps each digit as typed into an empty field", async () => {
+    const onChange = vi.fn();
+    render(<Controlled initial="" onChange={onChange} />, {
+      wrapper: withCalendar("ethiopian"),
+    });
+
+    await userEvent.type(year(), "2019");
+
+    expect(year().value).toBe("2019");
+    // Meskerem 1, 2019 is 11 September 2026.
+    expect(screen.getByTestId("iso")).toHaveTextContent("2026-09-11");
+    // Nothing was emitted for the partial years 2, 20 and 201.
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces an existing year when the user retypes it", async () => {
+    const onChange = vi.fn();
+    render(<Controlled initial="2026-09-11" onChange={onChange} />, {
+      wrapper: withCalendar("ethiopian"),
+    });
+
+    await userEvent.clear(year());
+    await userEvent.type(year(), "2018");
+
+    expect(year().value).toBe("2018");
+    const [y, m, d] = (onChange.mock.calls.at(-1)?.[0] as string)
+      .split("-")
+      .map(Number);
+    expect(toEthiopian(y, m, d)).toEqual({ year: 2018, month: 1, day: 1 });
+  });
+
+  it("restores the committed year when the field is left unfinished", async () => {
+    render(<Controlled initial="2026-09-11" onChange={vi.fn()} />, {
+      wrapper: withCalendar("ethiopian"),
+    });
+
+    await userEvent.clear(year());
+    await userEvent.type(year(), "20");
+    expect(year().value).toBe("20");
+
+    await userEvent.tab();
+
+    expect(year().value).toBe("2019");
+    expect(screen.getByTestId("iso")).toHaveTextContent("2026-09-11");
+  });
+});
+
+describe("toGregorian", () => {
+  it("does not remap a two-digit Ethiopian year into the 1900s", () => {
+    // `new Date(9, 8, 10)` is 10 September 1909; Ethiopian year 2 is AD 9/10.
+    expect(toGregorian(2, 1, 1).getFullYear()).toBeLessThan(100);
   });
 });
 

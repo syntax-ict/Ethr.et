@@ -1,15 +1,53 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 import axios from "axios";
+import { useHydrated } from "@/lib/hooks/useHydrated";
+import { entryOrganisation } from "./entry-organisation";
 import { apiClient } from "@/api/client";
 import { hostContext, tenantFromHost, type HostContext } from "./host-context";
 import { useHost } from "./host-provider";
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null;
 
+export interface TenantBrand {
+  /** An https logo URL, or null for the organisation's initial. */
+  logo_url: string | null;
+  primary_color: string | null;
+  secondary_color?: string | null;
+  accent_color: string | null;
+}
+
+/** The organisation's own words and look on its sign-in page. */
+export interface TenantLanding {
+  headline: string | null;
+  message: string | null;
+  support_email: string | null;
+  support_phone: string | null;
+  background: "brand" | "gradient" | "image";
+  background_image_url: string | null;
+}
+
+export type TenantRequest =
+  { mode: "client" } | { mode: "host" } | { mode: "entry"; slug: string };
+
+/** Which ways in the organisation offers besides a password. */
+export interface TenantSignIn {
+  sso: boolean;
+  otp: boolean;
+}
+
 interface TenantContextResponse {
-  tenant: { name: string; subdomain: string; logo_path: string | null } | null;
+  tenant: {
+    name: string;
+    subdomain: string;
+    logo_path: string | null;
+    brand?: TenantBrand;
+    landing?: TenantLanding;
+    sign_in?: TenantSignIn;
+    default_locale?: string;
+  } | null;
 }
 
 type TenantLookupError = "not_found" | "inactive" | null;
@@ -72,22 +110,75 @@ export function useAuthHostContext() {
   });
 
   const hostTenant = hostQuery.data ?? null;
-  const context: HostContext =
-    classified === "unknown" && hostTenant ? "tenant" : classified;
-  const tenantSlug = slugFromHost ?? hostTenant?.subdomain ?? null;
 
-  const resolved = query.data ?? hostTenant;
+  // The shared landing: on the shared host, the address `/{slug}` names the
+  // organisation (see entryOrganisation). Read after hydration only - the
+  // page was prerendered as /login, and naming the organisation during the
+  // first render would disagree with that HTML (React #418). Asked with
+  // X-Tenant, which the server honours on the shared host only.
+  const pathname = usePathname();
+  const hydrated = useHydrated();
+  const entrySlug =
+    hydrated && (classified === "public" || classified === "unknown")
+      ? entryOrganisation(pathname)
+      : null;
+  const entryQuery = useQuery({
+    queryKey: ["auth", "entry-tenant", entrySlug],
+    queryFn: async () => {
+      const { data } = await axios.get<TenantContextResponse>(
+        "/api/v1/auth/tenant-context",
+        {
+          withCredentials: true,
+          headers: { Accept: "application/json", "X-Tenant": entrySlug },
+        },
+      );
+      return data.tenant;
+    },
+    enabled:
+      !!entrySlug &&
+      (classified === "public" || (hostQuery.isFetched && !hostTenant)),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+  const entryTenant = entryQuery.data ?? null;
+  const onLanding = !!entrySlug && !hostTenant;
+
+  const context: HostContext =
+    (classified === "unknown" && hostTenant) || (onLanding && entryTenant)
+      ? "tenant"
+      : classified;
+  const tenantSlug =
+    slugFromHost ??
+    hostTenant?.subdomain ??
+    (onLanding ? (entryTenant?.subdomain ?? entrySlug) : null);
+
+  const resolved = query.data ?? hostTenant ?? entryTenant;
   const errorType = (
-    (query.error ?? hostQuery.error) as
+    (query.error ??
+      hostQuery.error ??
+      (onLanding ? entryQuery.error : null)) as
       { response?: { data?: { type?: string } } } | undefined
   )?.response?.data?.type;
 
   let tenantLookupError: TenantLookupError = null;
-  if (context === "tenant" && errorType) {
+  if ((context === "tenant" || onLanding) && errorType) {
     if (errorType.endsWith("tenant-not-found")) tenantLookupError = "not_found";
     else if (errorType.endsWith("tenant-inactive"))
       tenantLookupError = "inactive";
   }
+
+  // How a public request reaches this organisation, the same way the
+  // context itself was found: through apiClient on its own subdomain, from
+  // the host alone on a domain this build cannot classify, or with X-Tenant
+  // on the shared landing.
+  const tenantRequest: TenantRequest | null =
+    classified === "tenant" && query.data
+      ? { mode: "client" }
+      : classified === "unknown" && hostTenant
+        ? { mode: "host" }
+        : onLanding && entryTenant && entrySlug
+          ? { mode: "entry", slug: entrySlug }
+          : null;
 
   return {
     /** "public" (apex) | "platform" (admin host) | "tenant" | "unknown" (dev, no ROOT_DOMAIN). */
@@ -96,14 +187,27 @@ export function useAuthHostContext() {
     tenantSlug,
     tenantName: resolved?.name ?? null,
     tenantLogoPath: resolved?.logo_path ?? null,
+    /** The organisation's logo and colours, when it names itself to this page. */
+    tenantBrand: resolved?.brand ?? null,
+    /** Its headline, message, help contacts and background, if it set any. */
+    tenantLanding: resolved?.landing ?? null,
+    /** SSO and text-message sign-in, where the organisation offers them. */
+    tenantSignIn: resolved?.sign_in ?? null,
+    tenantDefaultLocale: resolved?.default_locale ?? null,
+    /** On an organisation's own landing address, `ethr.et/{slug}`. */
+    onLanding,
+    /** How to ask the server about this organisation before sign-in. */
+    tenantRequest,
     tenantContextLoading:
-      context === "tenant" && (query.isLoading || hostQuery.isLoading),
+      (context === "tenant" && (query.isLoading || hostQuery.isLoading)) ||
+      (onLanding && entryQuery.isLoading),
     tenantLookupError,
     /**
      * Manual organization-subdomain field stays only where the hostname
      * doesn't already identify the organization: the apex (routes onward to
      * the tenant's own host) and local/dev where ROOT_DOMAIN isn't set.
      */
-    tenantFieldVisible: context !== "tenant" && context !== "platform",
+    tenantFieldVisible:
+      context !== "tenant" && context !== "platform" && !onLanding,
   };
 }

@@ -200,7 +200,7 @@ export function OtpForm() {
           )}
         </p>
         <Button className="mt-6 w-full" asChild>
-          <Link href="/login">
+          <Link prefetch={false} href="/login">
             {t("auth.otp_back_to_password", "Back to password sign-in")}
           </Link>
         </Button>
@@ -361,6 +361,7 @@ export function OtpForm() {
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         <Link
+          prefetch={false}
           href="/login"
           className="font-medium text-primary hover:underline"
         >

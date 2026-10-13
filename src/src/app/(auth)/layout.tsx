@@ -1,11 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { HostProvider } from "@/lib/auth/host-provider";
 import { IS_STATIC_EXPORT } from "@/lib/build-target";
-import { baseMetadata, RootShell } from "../root-shell";
+import { baseMetadata, RootShell, baseViewport } from "../root-shell";
 import { DEFAULT_LOCALE } from "@/lib/i18n/translations";
 import { AmharicDictionary } from "@/lib/i18n/amharic-dictionary";
 import { AuthLayoutClient } from "./auth-layout-client";
+
+export const viewport: Viewport = baseViewport;
 
 export const metadata: Metadata = baseMetadata;
 

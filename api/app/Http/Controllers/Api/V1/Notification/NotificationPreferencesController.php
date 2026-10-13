@@ -33,6 +33,7 @@ class NotificationPreferencesController extends Controller
         'announcement',
         'approval_reminder',
         'profile_update',
+        'employee_voice',
     ];
 
     public const CHANNELS = ['in_app', 'email', 'sms'];

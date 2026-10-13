@@ -141,7 +141,13 @@ Wizard sub-items that live in those modules rather than in the wizard are marked
 - [x] Mobile-optimized registration flow
 
 ### Tests
-- [x] Full registration flow (Pest): register → verify email → login → access dashboard
+- [x] Full registration flow (Pest): register → login → access dashboard
+  > **Corrected 2026-10-12** (production QA P7): this read "register → verify email → login",
+  > and no email verification exists — registration sent no email at all. Registering now
+  > sends `OrganisationRegisteredNotification` to the admin address, telling its owner the
+  > organisation exists and where it signs in (`RegistrationSessionTest`). Gating sign-in on a
+  > verified address was considered and not taken: it would block every trial on mail
+  > delivery, which this host's SMTP has already failed once.
 - [x] Duplicate email rejection (Pest)
 - [x] Duplicate subdomain rejection (Pest)
 - [x] Trial expiration enforcement — 402 response (Pest)
@@ -153,7 +159,7 @@ Wizard sub-items that live in those modules rather than in the wizard are marked
 - [x] Password strength indicator (Vitest)
 
 ### Exit Criteria
-- New user can register, verify email, and access their tenant dashboard
+- New user can register, receive the registration email, and access their tenant dashboard
 - Subdomain `company.ethr.test` resolves to their tenant
 - System roles and permissions seeded for new tenant
 - Trial is 6 months from signup with expiry notifications

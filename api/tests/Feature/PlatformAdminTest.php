@@ -2,13 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Jobs\BackupTenantJob;
 use App\Models\Employee;
 use App\Models\Invoice;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Notifications\SystemAlertNotification;
+use App\Services\Admin\SystemHealthService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -106,6 +110,36 @@ test('super admin can extend trial', function () {
     $this->assertDatabaseHas('audit_log', ['action' => 'admin.tenant.trial_extended']);
 });
 
+test('extending a trial moves the trialing subscription with it', function () {
+    $tenant = createTenant();
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+    test()->actingAs($user);
+
+    $end = now()->addDays(7)->startOfSecond();
+    $target = Tenant::factory()->create([
+        'status' => TenantStatus::TRIAL,
+        'trial_ends_at' => $end,
+    ]);
+    $subscription = Subscription::withoutGlobalScopes()->create([
+        'tenant_id' => $target->id,
+        'plan_id' => Plan::factory()->create()->id,
+        'status' => SubscriptionStatus::TRIAL,
+        'current_period_start' => now(),
+        'current_period_end' => $end,
+    ]);
+
+    // Production, 2026-10-12: the console then showed "Trial ends 11 May" beside
+    // "Renews 11 Apr" (console QA F19).
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/tenants/{$target->public_id}/extend-trial", [
+        'days' => 30,
+    ])->assertOk();
+
+    expect($subscription->fresh()->current_period_end->toDateString())
+        ->toBe($end->copy()->addDays(30)->toDateString())
+        ->and($target->fresh()->trial_ends_at->toDateString())
+        ->toBe($end->copy()->addDays(30)->toDateString());
+});
+
 test('tenant admin cannot access admin endpoints', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
@@ -131,6 +165,11 @@ test('super admin triggering backup queues the export job and audit-logs it', fu
 
     Queue::assertPushed(BackupTenantJob::class);
     test()->assertDatabaseHas('audit_log', ['action' => 'admin.tenant.backup_triggered']);
+
+    // The actor is named by public_id: GET /admin/audit returns this payload,
+    // and it carried the numeric primary key (console QA F21).
+    $row = DB::table('audit_log')->where('action', 'admin.tenant.backup_triggered')->first();
+    expect(json_decode((string) $row->payload, true)['triggered_by'] ?? null)->toBe($user->public_id);
 });
 
 test('tenant admin cannot trigger a backup', function () {
@@ -215,6 +254,26 @@ test('super admin can view system health', function () {
             'queue',
             'failed_jobs',
         ]);
+
+    // A number, not necessarily a float: JSON writes 84.0 as 84, which decodes
+    // as an int — the CI runner's disk measured exactly that.
+    expect($response->json('resources.disk_free_gb'))->toBeNumeric();
+});
+
+test('health reports no disk figure rather than failing when free space cannot be read', function () {
+    $tenant = createTenant();
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+    test()->actingAs($user);
+
+    // On Plesk, open_basedir made disk_free_space('/') warn, Laravel turned the
+    // warning into an exception, and every call to this endpoint answered 500
+    // (console QA F2, 2026-10-12). A path that does not exist warns the same way.
+    app()->instance(SystemHealthService::class, new SystemHealthService('/no/such/directory/ethr-health'));
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/health")
+        ->assertOk()
+        ->assertJsonPath('resources.disk_free_gb', null)
+        ->assertJsonPath('services.database.status', 'healthy');
 });
 
 // ── Admin Audit Log ──

@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 
 // ── Manual Attendance Entry ──
 
@@ -90,9 +91,8 @@ test('manual attendance is audit logged', function () {
         'reason' => 'Device malfunction',
     ])->assertStatus(201);
 
-    $this->assertDatabaseHas('audit_log', [
-        'action' => 'attendance.manual_entry',
-    ]);
+    // Once: five entries on production left ten rows (attendance QA A9).
+    expect(DB::table('audit_log')->where('action', 'attendance.manual_entry')->count())->toBe(1);
 });
 
 test('manual attendance idempotency returns duplicate', function () {

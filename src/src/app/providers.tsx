@@ -6,11 +6,17 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useServiceWorker } from "@/lib/hooks/useServiceWorker";
+import { listenForInstallPrompt } from "@/lib/hooks/useInstallPrompt";
 import { getLocale } from "@/lib/i18n/translations";
 import { useRouteLocale } from "@/lib/i18n/route-locale";
 
 function ServiceWorkerRegistrar() {
   useServiceWorker();
+  // Attached here, beside the worker: the browser's install event can fire
+  // before any component that offers installation has mounted.
+  useEffect(() => {
+    listenForInstallPrompt();
+  }, []);
   return null;
 }
 

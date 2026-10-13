@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Mail,
   Phone,
   Calendar,
@@ -20,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEntityTitle } from "@/components/layouts/page-actions-slot";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { useEmployee, useUpdateEmployee } from "@/features/employees/api";
@@ -38,6 +38,7 @@ import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { KioskPinCard } from "@/features/employees/components/kiosk-pin-card";
+import { InviteToEthrButton } from "@/features/employees/components/invite-to-ethr-button";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useEmployeeOptions } from "@/features/attendance/api";
 import { costCentersApi, teamsApi } from "@/features/organization/api";
@@ -47,6 +48,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   const id = useRouteId(routeId) ?? "";
   const { t } = useT();
   const { data: employee, isLoading } = useEmployee(id);
+  useEntityTitle(employee?.name);
   const canManageAttendance =
     usePermissions().hasPermission("attendance.manage");
   const [editing, setEditing] = useState(false);
@@ -114,19 +116,10 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/employees">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {t("common.back", "Back")}
-          </Link>
-        </Button>
-      </div>
-
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-            <span className="text-lg font-bold text-primary">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary-soft ring-1 ring-border">
+            <span className="text-lg font-semibold text-primary-on-soft">
               {employee.name
                 .split(" ")
                 .map((n) => n[0])
@@ -136,7 +129,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
             </span>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               {employee.name}
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -147,6 +140,12 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
         <div className="flex items-center gap-2">
           <StatusBadge status={employee.status} />
           {!editing && (
+            <InviteToEthrButton
+              employeeId={employee.public_id}
+              email={employee.email}
+            />
+          )}
+          {!editing && (
             <Button variant="outline" size="sm" onClick={startEdit}>
               <Pencil className="mr-2 h-3 w-3" />
               {t("common.edit", "Edit")}
@@ -156,7 +155,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
       </div>
 
       <Tabs defaultValue="info" className="w-full">
-        <TabsList>
+        <TabsList variant="underline">
           <TabsTrigger value="info">
             {t("employee.detail.tab.info", "Information")}
           </TabsTrigger>

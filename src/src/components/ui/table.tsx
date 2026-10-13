@@ -72,7 +72,10 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-10 whitespace-nowrap px-4 text-left align-middle text-xs font-medium uppercase tracking-wider text-muted-foreground [&:has([role=checkbox])]:pr-0",
+      // Sentence case, not uppercase: a sortable header is a <button>, which
+      // the CSS reset excludes from text-transform, so sortable columns read
+      // "Name" beside "DEPARTMENT" in one row. Amharic has no case either.
+      "h-10 whitespace-nowrap px-4 text-left align-middle text-xs font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
       className,
     )}
     {...props}

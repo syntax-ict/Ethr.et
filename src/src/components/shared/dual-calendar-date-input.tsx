@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useSyncExternalStore } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -114,6 +114,11 @@ export function DualCalendarDateInput({
   const fieldName = ariaLabel ?? labelText;
   const partLabel = (part: string) =>
     fieldName ? `${fieldName} — ${part}` : part;
+  // The year while it is being typed. Emitting a date on every keystroke made
+  // "2" a whole date in year 2, which came back as 1902 and swallowed the
+  // next digit (production QA 2026-10-11, P5). A year is committed once it
+  // has four digits; null means "show the committed value".
+  const [yearDraft, setYearDraft] = useState<string | null>(null);
 
   const parsed = parseIso(value);
 
@@ -196,12 +201,18 @@ export function DualCalendarDateInput({
           aria-describedby={ariaDescribedBy}
           placeholder={t("calendar.year", "Year")}
           className="w-20"
-          value={currentYear}
+          value={yearDraft ?? currentYear}
           onChange={(e) => {
-            const year = Number(e.target.value);
-            if (!Number.isFinite(year) || year < 1) return;
-            emit({ year, month: eth?.month ?? 1, day: eth?.day ?? 1 });
+            const typed = e.target.value;
+            setYearDraft(typed);
+            if (!/^\d{4}$/.test(typed)) return;
+            emit({
+              year: Number(typed),
+              month: eth?.month ?? 1,
+              day: eth?.day ?? 1,
+            });
           }}
+          onBlur={() => setYearDraft(null)}
         />
         <Select
           disabled={disabled}

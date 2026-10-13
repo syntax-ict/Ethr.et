@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Attendance;
 
 use App\Enums\AttendanceSource;
+use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\MobileCheckInRequest;
 use App\Http\Requests\Attendance\MobileCheckOutRequest;
 use App\Http\Resources\AttendancePunchResource;
 use App\Http\Resources\AttendanceRecordResource;
+use App\Models\AttendanceSetting;
+use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\Attendance\ConfidenceScorer;
 use App\Services\FileStorageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,6 +44,24 @@ class MobileAttendanceController extends Controller
             ], 404)->header('Content-Type', 'application/problem+json');
         }
 
+        // An automatic check-in (the phone opened at work in the check-in
+        // window) is the employee's own punch, made without a tap. It is
+        // accepted only where the organisation allows it, the employee opted
+        // in, and the position is inside their branch's area - checked here,
+        // not trusted from the phone.
+        $auto = $request->boolean('auto');
+        if ($auto) {
+            $refusal = $this->autoCheckInRefusal($request, $employee);
+            if ($refusal !== null) {
+                return response()->json([
+                    'type' => 'https://ethr.et/errors/validation',
+                    'title' => 'Validation Failed',
+                    'status' => 422,
+                    'detail' => $refusal,
+                ], 422)->header('Content-Type', 'application/problem+json');
+            }
+        }
+
         try {
             $result = $this->engine->record(new AttendanceInput(
                 employeeId: $employee->id,
@@ -51,6 +73,10 @@ class MobileAttendanceController extends Controller
                 longitude: $request->validated('longitude'),
                 photoPath: $this->storeSelfie($request),
                 ipAddress: $request->ip(),
+                metadata: array_filter([
+                    'auto_punch' => $auto ?: null,
+                    'accuracy' => $request->validated('accuracy'),
+                ], fn ($v) => $v !== null),
             ));
         } catch (\RuntimeException $e) {
             return response()->json([
@@ -98,6 +124,7 @@ class MobileAttendanceController extends Controller
             longitude: $request->validated('longitude'),
             photoPath: $this->storeSelfie($request),
             ipAddress: $request->ip(),
+            metadata: array_filter(['accuracy' => $request->validated('accuracy')], fn ($v) => $v !== null),
         ));
 
         $result->record->load('employee', 'shift');
@@ -120,5 +147,26 @@ class MobileAttendanceController extends Controller
         }
 
         return $this->storage->uploadDataUrlImage($photo, 'selfies')['path'];
+    }
+
+    private function autoCheckInRefusal(MobileCheckInRequest $request, Employee $employee): ?string
+    {
+        $settings = AttendanceSetting::query()->first();
+        $optedIn = ProfilePreferencesController::present($request->user())['auto_check_in'];
+
+        if ($settings?->geofence_auto_checkin_enabled !== true || ! $optedIn) {
+            return __('attendance.auto_check_in_not_allowed');
+        }
+
+        $branch = $employee->branch;
+        if ($branch === null || ! app(ConfidenceScorer::class)->verifyGeofence(
+            (float) $request->validated('latitude'),
+            (float) $request->validated('longitude'),
+            $branch,
+        )) {
+            return __('attendance.auto_check_in_outside');
+        }
+
+        return null;
     }
 }

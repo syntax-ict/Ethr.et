@@ -48,6 +48,9 @@ export interface User {
     locale: string;
     theme: string;
     calendar: string;
+    /** The employee's own switches for the punching assistant. */
+    punch_reminders?: boolean;
+    auto_check_in?: boolean;
   };
   last_login_at: string | null;
   employee_code: string | null;

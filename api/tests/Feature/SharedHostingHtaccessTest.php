@@ -187,6 +187,23 @@ it('keeps the /admin host boundary ahead of every catch-all', function () {
     expect($directives)->not->toContain('__ADMIN_HOST__');
 });
 
+it('lets the console host serve account security, and only that much of /profile', function () {
+    $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
+
+    // The console's MFA banner links to /profile/security. Without this exclusion
+    // the redirect to /admin/ swallowed it and the platform admin could not enrol
+    // (production, 2026-10-11). Narrow on purpose: the rest of /profile is a
+    // tenant page and still goes to the console.
+    $exclusions = array_values(array_filter(
+        $directives,
+        fn (string $line) => str_starts_with($line, 'RewriteCond %{REQUEST_URI} !^/(login|logout'),
+    ));
+
+    expect($exclusions)->toHaveCount(1);
+    expect($exclusions[0])->toContain('|profile/security|');
+    expect($exclusions[0])->not->toMatch('/\|profile(\||\))/');
+});
+
 it('serves an unknown URL as a real 404 rather than a rewritten 200', function () {
     $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
 
@@ -246,7 +263,7 @@ it('sends an organisation entry URL to Laravel, and nothing a page or asset owns
 it('falls back to the entity shell only when no real page exists at that path', function () {
     $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
 
-    $shellRule = 'RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)$ /$1/__id__.html [L]';
+    $shellRule = 'RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)/?$ /$1/__id__.html [L]';
     $guard = 'RewriteCond %{DOCUMENT_ROOT}/$1/$2.html !-f';
 
     expect($directives)->toContain($shellRule);
@@ -274,6 +291,15 @@ it('falls back to the entity shell only when no real page exists at that path', 
 
     // The id segment has to be captured for the guard to be able to test it.
     expect($shellRule)->toContain('([^/]+)');
+
+    // A detail URL with a trailing slash is the same page. Without the
+    // optional slash /devices/<id>/ answered 404 on production while
+    // /devices/<id> worked (attendance QA A8, 2026-10-12).
+    $pattern = '#'.explode(' ', $shellRule)[1].'#';
+    expect(preg_match($pattern, 'devices/01HQZX3NDJKMNP4RSTVWXY5Z6A'))->toBe(1)
+        ->and(preg_match($pattern, 'devices/01HQZX3NDJKMNP4RSTVWXY5Z6A/'))->toBe(1)
+        ->and(preg_match($pattern, 'employees/01HQZX3NDJKMNP4RSTVWXY5Z6A/'))->toBe(1)
+        ->and(preg_match($pattern, 'devices/01HQZX3NDJKMNP4RSTVWXY5Z6A/edit'))->toBe(0);
 });
 
 it('carries the two non-Rewrite directives a name-matching script skipped', function () {
@@ -312,6 +338,9 @@ it('sends the full security header set, with the CSP that lets the export hydrat
     }
 
     expect($csp)->not->toBeNull();
+
+    // PHP's version banner is stripped (console QA F15).
+    expect($directives)->toContain('Header always unset X-Powered-By');
 
     // 'unsafe-inline' is load-bearing and measured: the export emits three
     // un-nonced inline scripts (~13 KB), and script-src 'self' alone gave 3 CSP

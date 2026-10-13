@@ -35,6 +35,8 @@ class KioskSession extends Model
         'last_activity_at',
         'activated_at',
         'deactivated_at',
+        'offline_public_key',
+        'offline_private_key',
     ];
 
     protected $hidden = [
@@ -43,6 +45,8 @@ class KioskSession extends Model
         'branch_id',
         'token',
         'admin_pin',
+        'offline_public_key',
+        'offline_private_key',
     ];
 
     protected function casts(): array

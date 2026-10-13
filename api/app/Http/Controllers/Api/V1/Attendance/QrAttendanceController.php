@@ -9,6 +9,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\GenerateQrRequest;
 use App\Http\Requests\Attendance\QrAttendanceRequest;
 use App\Http\Resources\AttendancePunchResource;
+use App\Models\AttendanceRecord;
+use App\Models\AttendanceSetting;
 use App\Models\Branch;
 use App\Models\Shift;
 use App\Services\Attendance\AttendanceEngine;
@@ -16,6 +18,7 @@ use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\QrCodeService;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
 class QrAttendanceController extends Controller
@@ -92,6 +95,16 @@ class QrAttendanceController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
+        $refusal = $this->redeem($payload, $employee->id, $tenant->id, (string) $request->validated('type'), $request->validated('idempotency_key'));
+        if ($refusal !== null) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-qr',
+                'title' => 'Invalid QR Code',
+                'status' => 422,
+                'detail' => $refusal,
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
         try {
             $result = $this->engine->record(new AttendanceInput(
                 employeeId: $employee->id,
@@ -103,6 +116,7 @@ class QrAttendanceController extends Controller
                 metadata: [
                     'qr_branch_id' => $payload['branch_id'],
                     'qr_shift_id' => $payload['shift_id'] ?? null,
+                    'qr_nonce' => $payload['nonce'] ?? null,
                 ],
             ));
         } catch (\RuntimeException $e) {
@@ -123,5 +137,47 @@ class QrAttendanceController extends Controller
         }
 
         return $punch->response()->setStatusCode(201);
+    }
+
+    /**
+     * A QR code is redeemed once per person per punch, and no more than the
+     * organisation's `qr_single_use_limit` times in all when it set one. A
+     * code photographed at the door and used again from home, or passed round
+     * a group chat, is refused; the screen shows a fresh one.
+     *
+     * A retried request (same idempotency key, already recorded) is not a
+     * second use: the engine returns the first punch.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function redeem(array $payload, int $employeeId, int $tenantId, string $type, ?string $idempotencyKey): ?string
+    {
+        $nonce = $payload['nonce'] ?? null;
+        if (! is_string($nonce) || $nonce === '') {
+            return null;
+        }
+
+        if ($idempotencyKey !== null && AttendanceRecord::query()
+            ->where(fn ($q) => $q->where('idempotency_key', $idempotencyKey)
+                ->orWhere('metadata->checkout_idempotency_key', $idempotencyKey))
+            ->exists()) {
+            return null;
+        }
+
+        $ttl = now()->addDay();
+        if (! Cache::add("qr:{$tenantId}:{$nonce}:{$employeeId}:{$type}", true, $ttl)) {
+            return __('attendance.qr_already_used');
+        }
+
+        $limit = (int) (AttendanceSetting::query()->value('qr_single_use_limit') ?? 0);
+        if ($limit > 0) {
+            $countKey = "qr:{$tenantId}:{$nonce}:count";
+            Cache::add($countKey, 0, $ttl);
+            if (Cache::increment($countKey) > $limit) {
+                return __('attendance.qr_use_limit_reached');
+            }
+        }
+
+        return null;
     }
 }

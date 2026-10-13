@@ -124,7 +124,7 @@ export function ForgotForm() {
         </p>
         <div className="mt-6 space-y-2">
           <Button asChild variant="outline" className="w-full">
-            <Link href="/login">
+            <Link prefetch={false} href="/login">
               <ArrowLeft className="mr-2 h-4 w-4" />{" "}
               {t("auth.back_to_sign_in", "Back to sign in")}
             </Link>
@@ -225,6 +225,7 @@ export function ForgotForm() {
         </Button>
 
         <Link
+          prefetch={false}
           href="/login"
           className="block text-center text-sm text-muted-foreground hover:text-foreground"
         >

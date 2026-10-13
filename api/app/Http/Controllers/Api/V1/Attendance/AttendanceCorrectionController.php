@@ -61,7 +61,7 @@ class AttendanceCorrectionController extends Controller
             'proposed_check_in' => $request->validated('proposed_check_in'),
             'proposed_check_out' => $request->validated('proposed_check_out'),
             'status' => CorrectionStatus::PENDING,
-            'approval_chain' => [],
+            'approval_chain' => [CorrectionDecisionService::submittedEntry($request->user())],
         ]);
 
         AuditLog::record('correction.submitted', $correction, [
