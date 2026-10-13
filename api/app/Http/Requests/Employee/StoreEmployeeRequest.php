@@ -25,7 +25,12 @@ class StoreEmployeeRequest extends FormRequest
         return true;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * `hire_date` may be up to a year ahead, for a signed offer; 2099 is a
+     * typo (QA 2026-10-13).
+     *
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         $tenantId = app(CurrentTenant::class)->id();
@@ -47,7 +52,6 @@ class StoreEmployeeRequest extends FormRequest
             'national_id' => ['nullable', 'string', 'max:50'],
             'marital_status' => ['nullable', 'string', Rule::in(['single', 'married', 'divorced', 'widowed'])],
             'status' => ['nullable', 'string', Rule::enum(EmployeeStatus::class)],
-            // Up to a year ahead, for a signed offer; 2099 is a typo.
             'hire_date' => ['required', 'date', 'before_or_equal:'.now()->addYear()->toDateString()],
             'probation_end_date' => ['nullable', 'date', 'after_or_equal:hire_date'],
             'salary_cents' => ['nullable', 'integer', 'min:0'],
