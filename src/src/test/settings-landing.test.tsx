@@ -32,7 +32,7 @@ const landing: TenantLandingSettings = {
   support_phone: null,
   background: "brand",
   background_image_url: null,
-  sections: { announcements: true, vacancies: true, holidays: false },
+  sections: { announcements: false, vacancies: false, holidays: false },
 };
 
 const pathAddress = {
@@ -110,7 +110,6 @@ describe("<LandingCard>", () => {
       support_phone: null,
       background: "gradient",
       background_image_url: null,
-      sections: { announcements: true, vacancies: true, holidays: false },
     });
   });
 
