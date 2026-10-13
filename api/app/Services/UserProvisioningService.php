@@ -9,6 +9,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\User;
 use App\Notifications\AccountActivationNotification;
+use App\Support\Mail\CriticalMail;
 use App\Support\PasswordTokens;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -107,9 +108,9 @@ class UserProvisioningService
 
         try {
             $token = PasswordTokens::activationBroker()->createToken($user);
-            $user->notify(new AccountActivationNotification($token, $tenant->subdomain, $tenant->name));
 
-            return true;
+            // Sent now; a failure queues retries (CriticalMail).
+            return CriticalMail::send($user, new AccountActivationNotification($token, $tenant->subdomain, $tenant->name));
         } catch (\Throwable $e) {
             Log::error('Account activation email failed', [
                 'user_id' => $user->id,
