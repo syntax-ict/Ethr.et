@@ -1,5 +1,6 @@
 "use client";
 
+import { signInHref } from "@/lib/auth/entry-organisation";
 import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import { useState } from "react";
 import Link from "next/link";
@@ -37,6 +38,7 @@ export function ForgotForm() {
     tenantContextLoading,
     tenantLookupError,
     tenantFieldVisible,
+    carryOrganisation,
   } = useAuthHostContext();
   const [sent, setSent] = useState(false);
   const [sentTo, setSentTo] = useState({ email: "", tenant: "" });
@@ -124,7 +126,7 @@ export function ForgotForm() {
         </p>
         <div className="mt-6 space-y-2">
           <Button asChild variant="outline" className="w-full">
-            <Link prefetch={false} href="/login">
+            <Link prefetch={false} href={signInHref(carryOrganisation)}>
               <ArrowLeft className="mr-2 h-4 w-4" />{" "}
               {t("auth.back_to_sign_in", "Back to sign in")}
             </Link>
@@ -226,7 +228,7 @@ export function ForgotForm() {
 
         <Link
           prefetch={false}
-          href="/login"
+          href={signInHref(carryOrganisation)}
           className="block text-center text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="inline h-3 w-3 mr-1" />{" "}
