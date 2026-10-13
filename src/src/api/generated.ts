@@ -130,6 +130,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kiosk/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync kiosk */
+        post: operations["kiosk.kioskSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/kiosk/exit": {
         parameters: {
             query?: never;
@@ -6496,6 +6513,19 @@ export interface components {
             deactivated_at: string | null;
             created_at: string | null;
         };
+        /**
+         * KioskSyncRequest
+         * @description Punches a kiosk made while offline, each sealed with the kiosk's public key
+         *     (see KioskOfflineSeal). Everything that matters is inside the seal; the
+         *     idempotency key outside it only labels the result.
+         */
+        KioskSyncRequest: {
+            records: {
+                idempotency_key: string;
+                sealed: string;
+                grant?: string | null;
+            }[];
+        };
         /** LeaveBalanceResource */
         LeaveBalanceResource: {
             leave_type?: components["schemas"]["LeaveTypeResource"] | null;
@@ -8661,6 +8691,17 @@ export interface operations {
                             pin_required: boolean;
                             auto_reset_seconds: number;
                         };
+                        /**
+                         * @description For punching through a power cut or a dropped connection: the
+                         *     key the terminal seals offline punches with, and the grant that
+                         *     bounds its clock (KioskOfflineSeal). Renewed on every start.
+                         */
+                        offline: {
+                            public_key: string;
+                            grant: string;
+                            issued_at: string;
+                            server_time: string;
+                        };
                     };
                 };
             };
@@ -8802,6 +8843,85 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "kiosk.kioskSync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KioskSyncRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        results: {
+                            idempotency_key: string;
+                            ""?: {
+                                /** @enum {string} */
+                                status: "duplicate" | "created";
+                                public_id: string;
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
+                                detail: "This offline punch could not be recorded. Ask HR to enter it.";
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                detail: string;
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
+                                detail: "Invalid employee PIN.";
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
+                                detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
+                                detail: "Employee not found with the given code.";
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
+                                detail: "This offline punch could not be read. Punch again.";
+                            };
+                        }[];
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/unauthorized";
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
         };
     };
     "kioskSession.exitKiosk": {

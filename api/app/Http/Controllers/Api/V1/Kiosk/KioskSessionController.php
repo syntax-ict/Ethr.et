@@ -13,6 +13,7 @@ use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\KioskSession;
 use App\Services\CurrentTenant;
+use App\Services\Kiosk\KioskOfflineSeal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -121,7 +122,7 @@ class KioskSessionController extends Controller
         return response()->json(null, 204);
     }
 
-    public function authenticate(AuthenticateKioskRequest $request): JsonResponse
+    public function authenticate(AuthenticateKioskRequest $request, KioskOfflineSeal $seal): JsonResponse
     {
         $session = KioskSession::resolveActiveByToken((string) $request->input('token'));
 
@@ -153,6 +154,14 @@ class KioskSessionController extends Controller
             'settings' => [
                 'pin_required' => $settings?->kiosk_pin_required ?? false,
                 'auto_reset_seconds' => $settings?->kiosk_auto_reset_seconds ?? 4,
+            ],
+            // For punching through a power cut or a dropped connection: the
+            // key the terminal seals offline punches with, and the grant that
+            // bounds its clock (KioskOfflineSeal). Renewed on every start.
+            'offline' => [
+                'public_key' => $seal->publicKey($session),
+                ...$seal->grant($session),
+                'server_time' => now()->toIso8601String(),
             ],
         ]);
     }

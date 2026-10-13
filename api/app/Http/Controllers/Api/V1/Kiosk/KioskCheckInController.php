@@ -20,9 +20,9 @@ use Illuminate\Support\Facades\RateLimiter;
 
 class KioskCheckInController extends Controller
 {
-    private const PIN_ATTEMPTS = 5;
+    public const PIN_ATTEMPTS = 5;
 
-    private const PIN_LOCK_SECONDS = 900;
+    public const PIN_LOCK_SECONDS = 900;
 
     public function __construct(
         private readonly AttendanceEngine $engine,
