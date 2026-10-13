@@ -1,0 +1,7 @@
+# Minimal OpenSSL configuration for generating key pairs (KioskOfflineSeal).
+# Passed explicitly so key generation does not depend on the host's
+# OPENSSL_CONF, which on some machines points at a file that does not exist.
+[ req ]
+distinguished_name = req_distinguished_name
+
+[ req_distinguished_name ]
