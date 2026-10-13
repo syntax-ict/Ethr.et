@@ -42,7 +42,7 @@ export function WelcomeSection() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-6 shadow-xs">
+      <div className="flex items-center gap-4">
         <Skeleton className="h-12 w-12 rounded-full" />
         <div className="space-y-2">
           <Skeleton className="h-7 w-64" />
@@ -56,13 +56,10 @@ export function WelcomeSection() {
   const isCheckedIn = attendance?.status === "checked_in";
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border bg-card p-5 shadow-xs sm:p-6">
-      {/* A thin brand rule across the top: the one decorative element. */}
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-chart-1 via-chart-2 to-chart-3"
-        aria-hidden="true"
-      />
-
+    // A page header, not a card: the greeting and the day's actions sit on
+    // the page like any other title. The gradient rule and the card around
+    // it read as template decoration (QA 2026-10-13).
+    <div className="relative">
       {/* Side by side only from xl: at 1024px the four quick actions took
           the row and squeezed the greeting to nothing. */}
       <div className="relative flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">

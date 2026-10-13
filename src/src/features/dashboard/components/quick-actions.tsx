@@ -86,7 +86,7 @@ export function QuickActions() {
   if (!primary) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
       {secondary.map((a) => (
         <Button
           key={a.href}

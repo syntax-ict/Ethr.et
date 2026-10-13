@@ -215,13 +215,21 @@ class DemoTenantSeeder extends Seeder
             $monthStart = Carbon::now()->startOfMonth()->subMonths($month);
             $monthEnd = $monthStart->copy()->endOfMonth();
 
+            // Up to yesterday: a demo with punches dated next week looked
+            // broken (QA 2026-10-13).
+            $lastDay = $monthEnd->min(Carbon::yesterday());
+
             $current = $monthStart->copy();
-            while ($current->lte($monthEnd)) {
+            while ($current->lte($lastDay)) {
                 if ($current->isWeekday()) {
                     foreach (array_slice($employees, 0, 135) as $employee) {
                         $late = fake()->boolean(10);
-                        $checkIn = $current->copy()->setTime(8, $late ? fake()->numberBetween(35, 59) : fake()->numberBetween(15, 30));
-                        $checkOut = $current->copy()->setTime(17, fake()->numberBetween(25, 50));
+                        // Wall-clock times in Addis Ababa, stored in UTC like a
+                        // real punch. Set on the UTC clock, an 08:20 arrival
+                        // showed as 11:20 and every row read "Late".
+                        $day = $current->format('Y-m-d');
+                        $checkIn = Carbon::parse($day.' 08:'.($late ? fake()->numberBetween(35, 59) : fake()->numberBetween(15, 30)), 'Africa/Addis_Ababa')->utc();
+                        $checkOut = Carbon::parse($day.' 17:'.fake()->numberBetween(25, 50), 'Africa/Addis_Ababa')->utc();
 
                         AttendanceRecord::create([
                             'public_id' => (string) Str::ulid(),
@@ -245,8 +253,11 @@ class DemoTenantSeeder extends Seeder
         // realistic tax/pension calculations. The two oldest runs are
         // approved; the most recent is left completed-but-unapproved, since
         // that's the realistic state of a payroll run right after processing.
+        // The three months before this one: a run for the month still in
+        // progress, marked completed, was the first thing a demo showed
+        // wrong (QA 2026-10-13).
         $payrollEngine = app(PayrollEngine::class);
-        for ($month = 2; $month >= 0; $month--) {
+        for ($month = 3; $month >= 1; $month--) {
             // Same month-overflow guard as the attendance loop above.
             $periodStart = Carbon::now()->startOfMonth()->subMonths($month);
             $periodEnd = $periodStart->copy()->endOfMonth();
@@ -259,7 +270,7 @@ class DemoTenantSeeder extends Seeder
                 "demo-seed-payroll-{$periodStart->format('Y-m')}",
             );
 
-            if ($month > 0) {
+            if ($month > 1) {
                 $result->run->update([
                     'status' => 'approved',
                     'approved_by' => $adminUser->id,

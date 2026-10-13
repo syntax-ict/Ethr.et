@@ -106,22 +106,16 @@ export function StatCard({
 
   const body = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 text-sm font-medium text-muted-foreground">
-          {label}
-        </p>
+      {/* The icon sits small and quiet beside the label. A coloured tile
+          in every card's corner is the look of a template, and the colour
+          said nothing the label did not (QA 2026-10-13); the tone now
+          colours only the sparkline, where it carries the trend. */}
+      <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-muted-foreground">
         {Icon && (
-          <span
-            className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-              cfg.chip,
-            )}
-            aria-hidden="true"
-          >
-            <Icon className="h-[18px] w-[18px]" />
-          </span>
+          <Icon className="h-4 w-4 shrink-0 opacity-70" aria-hidden="true" />
         )}
-      </div>
+        <span className="min-w-0 truncate">{label}</span>
+      </p>
 
       <div className="mt-2 flex items-end justify-between gap-3">
         <div className="min-w-0 text-2xl font-semibold leading-tight tracking-tight text-foreground tabular-nums sm:text-[1.75rem]">

@@ -107,7 +107,9 @@ export function OrganisationSnapshot() {
           value={payrollShown > 0 ? formatETBCompact(payrollShown) : "—"}
           hint={
             thisMonth > 0
-              ? t("dashboard.this_month_payroll", "This month")
+              ? payrollDelta !== null
+                ? undefined
+                : t("dashboard.this_month_payroll", "This month")
               : t(
                   "dashboard.last_month_payroll",
                   "Last month · this month not run yet",
