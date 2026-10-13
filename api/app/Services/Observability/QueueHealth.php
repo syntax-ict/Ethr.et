@@ -60,6 +60,23 @@ class QueueHealth
     /** Kept well beyond any plausible staleness threshold so absence means "never ran", not "expired". */
     private const HEARTBEAT_TTL_SECONDS = 86400;
 
+    private const DRAIN_KEY = 'ethr:queue:last_drain_at';
+
+    /**
+     * Record that a queue drain ran to its end (CronRunner::queue). Without it
+     * "is anything working the queue?" could only be inferred from how old the
+     * oldest job is, which says nothing while the queue is empty.
+     */
+    public function recordDrain(): void
+    {
+        Cache::put(self::DRAIN_KEY, now()->toIso8601String(), self::HEARTBEAT_TTL_SECONDS);
+    }
+
+    public function lastDrain(): ?Carbon
+    {
+        return $this->readMoment(self::DRAIN_KEY);
+    }
+
     /** Record that the scheduler ran. Called once a minute by routes/console.php. */
     public function beat(): void
     {
@@ -68,7 +85,12 @@ class QueueHealth
 
     public function lastBeat(): ?Carbon
     {
-        $value = Cache::get(self::HEARTBEAT_KEY);
+        return $this->readMoment(self::HEARTBEAT_KEY);
+    }
+
+    private function readMoment(string $key): ?Carbon
+    {
+        $value = Cache::get($key);
 
         if (! is_string($value)) {
             return null;
@@ -171,6 +193,7 @@ class QueueHealth
                 'stale_after_seconds' => $schedulerStaleSeconds,
             ],
             'queues' => $queues,
+            'last_drain_at' => $this->lastDrain()?->toIso8601String(),
             'oldest_waiting_seconds' => $oldestOverall,
             'failed_jobs' => $failed,
         ];

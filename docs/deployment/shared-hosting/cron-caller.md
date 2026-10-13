@@ -1,6 +1,8 @@
 # The external cron caller — from "Q6 answered" to background work running
 
-**Status: the endpoints exist and nothing has ever called them on the target account.**
+**Status (2026-10-14): GitHub Actions calls the endpoints every 5 minutes on paper and 4–6
+times a day in practice (F23), so ordinary traffic now drains the queue too** — see
+*Background work after ordinary requests* below. The history of this file follows as written.
 This file is the step between choosing a caller and having a working background half. It
 was missing: [`../SHARED_HOSTING_PLAN.md`](../SHARED_HOSTING_PLAN.md) §5.3a lays out the
 *trade* between callers, [`cron.txt`](cron.txt) gives the *endpoint mechanics*, and §5.5
@@ -254,7 +256,7 @@ Three checks, in order. The first two need nothing but the caller's own log.
    The body also carries `duration_ms` and up to 2000 characters of Artisan output
    (**MEASURED**, `CronRunController::tail()`).
 2. **`POST /api/v1/cron/queue` returns 200** the same way. It runs
-   `queue:work --stop-when-empty --max-time=50` over `QueueHealth::QUEUES`.
+   `queue:work --stop-when-empty --max-time=25` (`CRON_QUEUE_MAX_SECONDS`; it was 50 until 2026-10-12) over `QueueHealth::QUEUES`.
 3. **`GET /api/v1/health` shows the heartbeat moving.** Unauthenticated, behind
    `throttle:health`. Read `queue_detail.scheduler.last_run_at` — it should be within a tick
    of when the caller fired, and `queue_detail.status` should read `healthy`.
@@ -288,6 +290,26 @@ caller:
   oldest job — `QueueHealth::snapshot()`). **They are not changed anywhere in this
   repository**, because the right value depends on which caller is chosen. Re-check both
   once Q6 is answered, and expect to widen rather than narrow.
+
+## 5a · Background work after ordinary requests (2026-10-14)
+
+The timer alone left the queue waiting hours (F23). `RunBackgroundWorkAfterResponse`
+(api middleware group) now does, **after a response has been sent** and **at most once a
+minute across all requests**:
+
+1. the scheduler catch-up (`ethr:schedule-run`), when the heartbeat is older than
+   `CRON_OPPORTUNISTIC_SCHEDULE_AFTER_SECONDS` (300);
+2. a queue drain bounded by `CRON_OPPORTUNISTIC_SECONDS` (5).
+
+It shares `CronRunner`'s locks with `/cron/*`, so a timer tick and a page view never start
+two workers. It runs only where PHP can hand the response back first —
+`fastcgi_finish_request` (PHP-FPM; this host is nginx → Apache → PHP-FPM, `GATE-0-RESULT.md`)
+or LiteSpeed's equivalent — so no visitor waits; under plain CGI it stays off. Failures are
+logged and never affect the request. `/health` → `queue_detail.last_drain_at` shows when a
+drain last finished, from either source.
+
+Switch: `CRON_OPPORTUNISTIC=false`. Keep the timer and the second caller: quiet hours
+(nights, weekends) still need them for scheduled work such as the 01:00 backup.
 
 ## 6 · Rotation
 
