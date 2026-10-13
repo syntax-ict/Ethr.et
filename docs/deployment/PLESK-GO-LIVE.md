@@ -129,6 +129,9 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    | `seed` | `db:seed --class=ProductionSeeder --force` | Permissions, plans, Ethiopian tax brackets and organisation templates. **Without it every role gets 403.** Idempotent; creates no accounts |
    | `create-admin` | `ethr:create-admin --email=… --password=… --force` | The platform super admin. Body `{"email": "…", "password": "…"}`, 12+ characters. Then sign in and change the password on the Security page |
    | `optimize` | `config:cache`, `route:cache`, `view:cache` | Run last |
+   | `backups` | — | Lists the backups on the host, newest first. Read-only |
+   | `backup` | `ethr:backup --label=manual` | A backup now. Take one before a release that migrates |
+   | `restore` | `ethr:restore <name> --force` | Body `{"name": "…", "confirm": "…"}`, the same backup name twice. Takes a `pre-restore` backup first, then checks `audit_log` is still append-only. See [`BACKUP-RESTORE.md`](BACKUP-RESTORE.md) |
 
    From a terminal on your own machine, with the token typed into a variable rather than
    into the command:

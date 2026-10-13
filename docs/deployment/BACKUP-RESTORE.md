@@ -169,7 +169,66 @@ A silently missing trigger means `audit_log` has stopped being append-only. Ever
 
 ---
 
+## On the Ethio Telecom target: the maintenance endpoint
+
+**Since 2026-10-14 restore has a route on the host**, and it is the only one to use. Three
+tasks join the token-guarded maintenance endpoint
+([`PLESK-GO-LIVE.md`](PLESK-GO-LIVE.md) Part 5,
+[decision](../decisions/OWNER-DECISION-MAINTENANCE-ENDPOINT.md)). Each is a `POST` to
+`https://<HOST>/api/v1/maintenance/<task>` with the `X-Maintenance-Token` header:
+
+| Task | Body | What it does |
+|---|---|---|
+| `backups` | none (`--data ''`) | Lists the backups on the host, newest first: name, time, tables, rows, files. Read-only |
+| `backup` | none | Runs `ethr:backup` now, labelled `manual`. Take one before any risky change |
+| `restore` | `{"name": "<backup>", "confirm": "<backup>"}` | Restores that backup. The name must be typed **twice**, exactly, and must appear in `backups` |
+
+`restore` runs these steps in order and stops at the first that fails:
+
+1. **A safety backup of the current state**, labelled `pre-restore`. If that cannot be
+   taken, nothing is restored. If you restored the wrong backup, restore this one to undo it.
+2. **The restore** (`BackupService::restore`). It refuses a dump whose checksum does not
+   match its manifest.
+3. **The `audit_log` check.** It writes a `backup.restored` row naming both backups, then
+   tries to change it. The insert must succeed and the change must be refused. This is the
+   step that catches the `DEFINER` problem. `ethr:restore` and `ethr:backup:rehearse` run
+   the same check (`AuditLogIntegrity`).
+
+The answer is JSON with one entry per step (`command`, `exit_code`, `output`) and
+`"status": "ok"` only when all of them passed. Then do steps 2–5 of *After any restore,
+verify* above by hand.
+
+```bash
+read -rs TOKEN   # paste MAINTENANCE_TOKEN, then Enter
+curl -sS -X POST "https://<HOST>/api/v1/maintenance/backups" --data '' \
+  -H "X-Maintenance-Token: $TOKEN" -H "Accept: application/json"; echo
+NAME=ethr-YYYYMMDD-HHMMSS   # copied from the list
+curl -sS -X POST "https://<HOST>/api/v1/maintenance/restore" \
+  -H "X-Maintenance-Token: $TOKEN" -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  --data "{\"name\":\"$NAME\",\"confirm\":\"$NAME\"}"; echo
+```
+
+Three limits, stated so they are not discovered during an outage:
+
+- **It restores only what is on the host.** It covers a bad import, a bad edit or a bad
+  migration. It does not cover losing the account. That still needs the off-host copy below.
+- **It needs the `APP_KEY` the backup was taken under.** Employee TIN and national ID
+  numbers are unreadable without it.
+- **It has not yet been run on the Ethio Telecom host (M6).** It is tested in the suite
+  (`MaintenanceRestoreTest`). Rehearse it on the host before you need it: `backup`, then
+  `restore` that same backup, then the by-hand checks.
+
+**Never import a dump through phpMyAdmin or Plesk's backup tool instead.** Under a different
+database user the `audit_log` triggers lose their definer, and every save then returns 500.
+
 ## On the Ethio Telecom target, backup has a runner and restore does not
+
+> **Superseded 2026-10-14 by the section above.** Restore now has a route: the
+> maintenance endpoint's `restore` task. What follows is the record of why it was
+> needed. The deployment-action route described below is also closed: the deployment
+> shell has no PHP (owner decision 2026-10-06, Laravel Toolkit). The *host loss* case
+> and the off-host disk are still open.
 
 Added 2026-09-23, because everything above assumes a command line and that account has
 none. **The two halves of this document do not have the same status there**, and nothing
@@ -227,8 +286,8 @@ tasks:
 - **Configure the off-host disk** and add `--off-host` to the scheduled line. This is the
   one that turns "backups exist" into "backups are a recovery path", and
   `SHARED_HOSTING_PLAN.md` Q5 (what outbound access the account has) gates it.
-- **Decide whether restore gets a real runner** on that account, and if so which — there is
-  no third option today beyond the deployment-action route above.
+- ~~**Decide whether restore gets a real runner** on that account.~~ Done 2026-10-14: the
+  maintenance endpoint's `restore` task.
 - **Rehearse a restore on the host.** `audit/BASELINE.md` item 1 still reads *"not rehearsed
   on the Ethio Telecom host"*, and this section is why that line has not moved.
 

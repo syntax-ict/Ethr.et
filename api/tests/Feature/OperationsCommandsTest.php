@@ -133,7 +133,8 @@ describe('ethr:restore', function () {
 
         $this->artisan('ethr:restore', ['name' => 'nightly', '--force' => true])
             ->expectsOutputToContain('Restored 1234 statements, 7 files.')
-            ->expectsOutputToContain('php artisan ethr:backup:verify')
+            // It checks the audit log itself; it pointed at a command that never existed.
+            ->expectsOutputToContain('Then by hand: sign in')
             ->assertExitCode(0);
     });
 
@@ -319,7 +320,7 @@ describe('ethr:backup:rehearse', function () {
 
         $this->artisan('ethr:backup:rehearse', ['--force' => true])
             ->expectsOutputToContain('tables remaining')
-            ->expectsOutputToContain('audit_log UPDATE rejected')
+            ->expectsOutputToContain('audit_log append-only after restore')
             ->expectsOutputToContain('Rehearsal passed.')
             ->assertExitCode(0);
 

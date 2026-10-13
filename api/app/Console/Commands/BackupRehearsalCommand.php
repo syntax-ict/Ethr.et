@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\Backup\AuditLogIntegrity;
 use App\Services\Backup\BackupService;
 use App\Services\Backup\DatabaseDumper;
 use Illuminate\Console\Command;
@@ -416,35 +417,12 @@ class BackupRehearsalCommand extends Command
      */
     private function checkAuditLogStillAppendOnly(): array
     {
-        $failures = [];
+        $failures = app(AuditLogIntegrity::class)->verifyAppendOnly('backup.rehearsal', ['note' => 'written after restore']);
 
-        if (! in_array('audit_log', $this->tableNames(), true)) {
-            return ['audit_log did not come back at all.'];
-        }
-
-        try {
-            $id = DB::table('audit_log')->insertGetId([
-                'action' => 'backup.rehearsal',
-                'payload' => json_encode(['note' => 'written after restore']),
-                'created_at' => now(),
-            ]);
-            $this->components->twoColumnDetail('audit_log INSERT after restore', '<fg=green>ok</>');
-        } catch (Throwable $e) {
-            // This is the DEFINER failure's actual signature. AuditLog::record()
-            // runs inside the write transaction of nearly every mutating
-            // endpoint, so in production this reads as "everything returns 500".
-            return ['audit_log INSERT failed after restore: '.$e->getMessage()
-                .' — if this mentions a definer, the dump carried one.'];
-        }
-
-        try {
-            DB::table('audit_log')->where('id', $id)->update(['action' => 'tampered']);
-            $failures[] = 'audit_log accepted an UPDATE after restore — the append-only triggers '
-                .'came back by name but are not enforcing. The log is no longer evidence.';
-            $this->components->twoColumnDetail('audit_log UPDATE rejected', '<fg=red>NO</>');
-        } catch (Throwable) {
-            $this->components->twoColumnDetail('audit_log UPDATE rejected', '<fg=green>yes</>');
-        }
+        $this->components->twoColumnDetail(
+            'audit_log append-only after restore (INSERT ok, UPDATE refused)',
+            $failures === [] ? '<fg=green>yes</>' : '<fg=red>NO</>',
+        );
 
         return $failures;
     }

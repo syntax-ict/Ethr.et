@@ -89,6 +89,7 @@ return [
         'App\Http\Controllers\Api\V1\HealthController@__invoke' => 'Deliberately public liveness probe, throttle:health.',
         'App\Http\Controllers\Api\V1\Cron\CronRunController@schedule' => 'VerifyCronToken middleware.',
         'App\Http\Controllers\Api\V1\Cron\CronRunController@queue' => 'VerifyCronToken middleware.',
+        'App\Http\Controllers\Api\V1\Maintenance\MaintenanceController@backups' => 'VerifyMaintenanceToken middleware; 404 unless MAINTENANCE_TOKEN is set. Read-only list of backup names.',
         'App\Http\Controllers\Api\V1\PlanController@index' => 'Deliberately public pricing.',
         'App\Http\Controllers\Api\V1\SiteContentController@index' => 'Deliberately public marketing copy.',
         'App\Http\Controllers\Api\V1\TemplateController@index' => 'Deliberately public template catalogue.',
