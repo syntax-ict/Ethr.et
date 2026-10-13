@@ -1,8 +1,8 @@
 :HL["/_next/static/chunks/0idi3csoibjnk.css","style"]
-:HL["/_next/static/chunks/0ij9mcscfkbpj.css","style"]
+:HL["/_next/static/chunks/3ij10hn1-mb-4.css","style"]
 :HL["/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
 4:[["children",{"s":"__PAGE__","h":160}]]
 3:[["children",{"s":"new","h":96,"c":"$Q4"}]]
 2:[["children",{"s":"employees","h":100,"c":"$Q3"}]]
 1:[["children",{"s":"(dashboard)","h":124,"c":"$Q2"}]]
-0:{"b":"iRdqn48Cn8hsNegR3KJLX","t":{"t":{"s":"","h":88,"c":"$Q1"}}}
+0:{"b":"Wd4xl_FS-hM9vF8UfnGqq","t":{"t":{"s":"","h":88,"c":"$Q1"}}}

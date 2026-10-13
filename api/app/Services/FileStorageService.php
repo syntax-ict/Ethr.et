@@ -106,6 +106,69 @@ class FileStorageService
         ];
     }
 
+    /** Longest edge of a stored organisation logo; ample for a header or a panel. */
+    public const LOGO_MAX_DIMENSION = 512;
+
+    /**
+     * Store an organisation's logo for its public sign-in page.
+     *
+     * Every format is decoded and re-encoded as PNG, bounded to
+     * {@see LOGO_MAX_DIMENSION} with transparency kept: re-encoding drops EXIF
+     * and anything appended to the file, so what is served publicly is only
+     * the pixels. `upload()` keeps a PNG's bytes, which is right for documents
+     * and wrong for an image every visitor's browser decodes.
+     *
+     * @return array{path: string, version: string, mime_type: string, size: int}
+     */
+    public function uploadLogo(UploadedFile $file): array
+    {
+        $this->verifyMimeType($file);
+
+        $image = extension_loaded('gd') ? @imagecreatefromstring($file->getContent()) : false;
+        if ($image === false) {
+            throw ValidationException::withMessages([
+                'logo' => __('validation.image', ['attribute' => 'logo']),
+            ]);
+        }
+
+        if (! imageistruecolor($image)) {
+            imagepalettetotruecolor($image);
+        }
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+
+        $scaled = $this->scaleToFit($image, self::LOGO_MAX_DIMENSION);
+        imagealphablending($scaled, false);
+        imagesavealpha($scaled, true);
+
+        ob_start();
+        imagepng($scaled, null, 9);
+        $content = (string) ob_get_clean();
+
+        if ($scaled !== $image) {
+            imagedestroy($scaled);
+        }
+        imagedestroy($image);
+
+        $version = substr(hash('sha256', $content), 0, 16);
+        $path = "{$this->tenantPrefix()}/branding/logo-{$version}.png";
+
+        Storage::disk($this->disk)->put($path, $content);
+
+        return [
+            'path' => $path,
+            'version' => $version,
+            'mime_type' => 'image/png',
+            'size' => strlen($content),
+        ];
+    }
+
+    /** The bytes of a stored file, or null when it is gone. */
+    public function read(string $path): ?string
+    {
+        return Storage::disk($this->disk)->exists($path) ? Storage::disk($this->disk)->get($path) : null;
+    }
+
     /**
      * Store an inline `data:image/...;base64,...` payload (a canvas-captured
      * selfie) as a compressed JPEG. Validate with {@see Base64Image}

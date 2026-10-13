@@ -89,6 +89,8 @@ class Tenant extends Model
         'type',
         'status',
         'logo_path',
+        'logo_storage_path',
+        'logo_version',
         'theme',
         'landing',
         'default_locale',
@@ -252,6 +254,7 @@ class Tenant extends Model
         return $this->hasMany(AttendanceRecord::class);
     }
 
+    /** @return HasOne<AttendanceSetting, $this> */
     public function attendanceSetting(): HasOne
     {
         return $this->hasOne(AttendanceSetting::class);
@@ -277,6 +280,35 @@ class Tenant extends Model
         return $this->status === TenantStatus::TRIAL
             && $this->trial_ends_at
             && $this->trial_ends_at->isPast();
+    }
+
+    /**
+     * The uploaded logo's public URL, or null when none is uploaded.
+     *
+     * Same-origin and relative on purpose: the API answers on every host the
+     * organisation is reached at (the shared address, its subdomain, its own
+     * domain), so the image never crosses origins and the CSP's `img-src
+     * 'self'` covers it.
+     */
+    public function uploadedLogoUrl(): ?string
+    {
+        if (! is_string($this->logo_storage_path) || ! is_string($this->logo_version)) {
+            return null;
+        }
+
+        return route('organisation.logo', [$this->public_id, $this->logo_version], absolute: false);
+    }
+
+    /**
+     * The logo to show: the uploaded one, else a linked https URL, else none.
+     * One answer for the sign-in page, the dashboard and the kiosk.
+     */
+    public function logoUrl(): ?string
+    {
+        $linked = $this->logo_path;
+
+        return $this->uploadedLogoUrl()
+            ?? (is_string($linked) && str_starts_with($linked, 'https://') ? $linked : null);
     }
 
     public function isActive(): bool
