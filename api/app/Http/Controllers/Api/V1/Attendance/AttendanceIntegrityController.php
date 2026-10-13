@@ -14,6 +14,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\User;
 use App\Notifications\AttendancePunchRejectedNotification;
+use App\Traits\SendsNotifications;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -29,6 +30,8 @@ use Illuminate\Support\Facades\Gate;
  */
 class AttendanceIntegrityController extends Controller
 {
+    use SendsNotifications;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('attendance.viewConflicts');
@@ -119,7 +122,9 @@ class AttendanceIntegrityController extends Controller
                 ->update(['status' => 'rejected', 'reviewed_by' => $user->id, 'reviewed_at' => now()]);
 
             $employeeUser = User::query()->where('employee_id', $record->employee_id)->first();
-            $employeeUser?->notify(new AttendancePunchRejectedNotification($record, (string) ($note ?? '')));
+            // Delivered best-effort: the rejection is already saved, and a mail
+            // outage must not turn it into an error for the reviewer.
+            $this->notify($employeeUser, new AttendancePunchRejectedNotification($record, (string) ($note ?? '')));
         }
 
         AuditLog::record('attendance.integrity_'.($decision === 'accept' ? 'accepted' : 'rejected'), $model, [

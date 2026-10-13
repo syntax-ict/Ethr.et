@@ -311,3 +311,23 @@ it('lets HR accept a flag and keep the punch', function () {
     expect(AttendanceRecord::withoutGlobalScopes()->where('idempotency_key', 'site-visit')->first()?->status)
         ->not->toBe(AttendanceStatus::VOIDED);
 });
+
+it('still rejects a punch when the notice to the employee cannot be delivered', function () {
+    // Found in the 2026-10-13 local release test: the notice was sent inside
+    // the request, the mail server was unreachable, and the reviewer got an
+    // error for a rejection that had already been saved.
+    config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => '127.0.0.1', 'mail.mailers.smtp.port' => 1]);
+    $tenant = createTenant();
+    $branch = geofencedBranch($tenant);
+    [$employee, $employeeUser] = integrityEmployee($tenant, ['branch_id' => $branch->id]);
+
+    test()->actingAs($employeeUser)->postJson(integrityUrl($tenant, '/attendance/check-in'), [
+        'idempotency_key' => 'mail-down', 'latitude' => 8.5, 'longitude' => 39.3,
+    ])->assertSuccessful();
+    $flag = AttendanceIntegrityFlag::withoutGlobalScopes()->where('employee_id', $employee->id)->firstOrFail();
+
+    $hr = createUser(['role' => UserRole::HR_ADMIN], $tenant);
+    test()->actingAs($hr)->putJson(integrityUrl($tenant, "/attendance/integrity/{$flag->public_id}/review"), [
+        'decision' => 'reject', 'note' => 'Outside the branch.',
+    ])->assertOk()->assertJsonPath('status', 'rejected');
+});

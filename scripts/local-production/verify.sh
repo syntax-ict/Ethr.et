@@ -162,17 +162,23 @@ check "/nope"                                 "404" "$BASE/nope"
 printf '
 [1m7b · path tenancy — ethr.et/{slug} (no wildcard subdomains, M3)[0m
 '
-# OrganisationEntryController: a real organisation answers 302 to its sign-in page
-# with the organisation preset; a reserved or unknown name answers a real 404. The
-# entry URL runs without the `web` group, so it must not start a session either.
+# OrganisationEntryController: a real organisation answers with its sign-in page -
+# the shared shell itself (200) when it lives at ethr.et/{slug}, or 302 to its own
+# address (subdomain or verified domain) when it has one, or 302 to
+# /login?org={slug} when no exported shell exists. A reserved or unknown name
+# answers a real 404. The entry URL runs without the `web` group, so it must not
+# start a session either. (This check expected only the last shape until
+# 2026-10-13; #187/#188/#221 added the other two.)
 entry="$(curl -s -o /dev/null -D - --max-time 15 "$BASE/$ORG_SLUG" || true)"
 entry_code="$(printf '%s' "$entry" | head -1 | awk '{print $2}')"
-entry_loc="$(printf '%s' "$entry" | grep -i '^Location:' | tr -d '' | sed 's/^[Ll]ocation: *//')"
-if [ "$entry_code" = "302" ] && [[ "$entry_loc" =~ /login\?org=$ORG_SLUG$ ]]; then
+entry_loc="$(printf '%s' "$entry" | grep -i '^Location:' | tr -d '
+' | sed 's/^[Ll]ocation: *//')"
+if { [ "$entry_code" = "302" ] && { [[ "$entry_loc" =~ /login\?org=$ORG_SLUG$ ]] || [[ "$entry_loc" =~ ^https?://[^/]+/login$ ]]; }; } \
+   || [ "$entry_code" = "200" ]; then
     printf '  [32mok[0m    %-52s 302 → %s
-' "/$ORG_SLUG (real organisation)" "$entry_loc"; pass=$((pass+1))
+' "/$ORG_SLUG (real organisation)" "${entry_loc:-the sign-in page itself}"; pass=$((pass+1))
 else
-    printf '  [31mFAIL[0m  %-52s %s → %s (want 302 → /login?org=%s)
+    printf '  [31mFAIL[0m  %-52s %s → %s (want its sign-in page: 200, or 302 to its address or /login?org=%s)
 ' "/$ORG_SLUG (real organisation)" "${entry_code:-000}" "${entry_loc:-none}" "$ORG_SLUG"; fail=$((fail+1))
 fi
 if printf '%s' "$entry" | grep -qi '^Set-Cookie:'; then

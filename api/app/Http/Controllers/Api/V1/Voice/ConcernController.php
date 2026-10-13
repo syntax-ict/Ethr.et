@@ -16,12 +16,12 @@ use App\Models\User;
 use App\Notifications\ConcernRaisedNotification;
 use App\Notifications\ConcernUpdatedNotification;
 use App\Services\CurrentTenant;
+use App\Traits\SendsNotifications;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Notification;
 
 /**
  * Speak up: an employee raises what worries them - unsafe work, harassment,
@@ -36,6 +36,8 @@ use Illuminate\Support\Facades\Notification;
  */
 class ConcernController extends Controller
 {
+    use SendsNotifications;
+
     /** POST /voice/concerns */
     public function store(StoreConcernRequest $request): JsonResponse
     {
@@ -57,7 +59,7 @@ class ConcernController extends Controller
             AuditLog::record('voice.concern_raised', $concern, ['category' => $concern->category]);
         }
 
-        Notification::send($this->handlers(), new ConcernRaisedNotification($concern));
+        $this->notify($this->handlers(), new ConcernRaisedNotification($concern));
 
         return response()->json([
             ...$this->present($concern, forHr: false),
@@ -95,7 +97,7 @@ class ConcernController extends Controller
         }
 
         $this->addMessage($concern, 'reporter', null, $body);
-        Notification::send($this->handlers(), new ConcernUpdatedNotification($concern, 'reporter_replied'));
+        $this->notify($this->handlers(), new ConcernUpdatedNotification($concern, 'reporter_replied'));
 
         return response()->json($this->present($concern->load('messages'), forHr: false, withMessages: true), 201);
     }
@@ -151,9 +153,9 @@ class ConcernController extends Controller
                 $model->update(['status' => 'in_review']);
             }
             AuditLog::record('voice.concern_replied', $model);
-            $model->reporter?->notify(new ConcernUpdatedNotification($model, 'hr_replied'));
+            $this->notify($model->reporter, new ConcernUpdatedNotification($model, 'hr_replied'));
         } else {
-            Notification::send($this->handlers(), new ConcernUpdatedNotification($model, 'reporter_replied'));
+            $this->notify($this->handlers(), new ConcernUpdatedNotification($model, 'reporter_replied'));
         }
 
         return response()->json($this->present($model->load(['messages.authorUser', 'reporter']), forHr: $forHr, withMessages: true), 201);
@@ -175,7 +177,7 @@ class ConcernController extends Controller
         ]);
 
         AuditLog::record('voice.concern_updated', $model, ['before' => $before, 'after' => $status]);
-        $model->reporter?->notify(new ConcernUpdatedNotification($model, 'status_changed'));
+        $this->notify($model->reporter, new ConcernUpdatedNotification($model, 'status_changed'));
 
         return response()->json($this->present($model->load(['messages.authorUser', 'reporter']), forHr: true, withMessages: true));
     }
