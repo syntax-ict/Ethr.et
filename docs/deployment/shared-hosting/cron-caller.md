@@ -116,10 +116,17 @@ into a procedure.
 > **Every 5 minutes**, which is GitHub's floor for `schedule:` — finer intervals are
 > silently rounded up. Two caveats that are properties of the platform and not of ETHR:
 >
-> - **Delivery is best-effort.** Scheduled runs can be delayed or dropped under load.
->   Laravel's scheduler is idempotent about *"was this due since last checked"*, so a
->   missed tick delays work rather than losing it — but anything needing minute
->   accuracy does not get it here.
+>   **Measured 2026-10-12: about 4–6 runs a day, 1.5 to 7 hours apart**, every day for
+>   the week before — roughly 2 % of the requested ticks (console QA F23).
+> - **Delivery is best-effort, and a late tick used to lose work.** This said Laravel's
+>   scheduler catches up on *"was this due since last checked"*. **It does not:** stock
+>   `schedule:run` runs only what is due in the minute it is called, so every task pinned
+>   to a time — the 01:00 backup, the 05:00 trial reminders, the monthly invoices, the
+>   hourly reports — never ran in production; the run logs show only the heartbeat.
+>   Since 2026-10-12 the endpoint runs **`ethr:schedule-run`**, which remembers its last
+>   run and runs everything that came due since, once. A missed tick now delays work
+>   rather than losing it. The first call after deploy covers only the current minute, and
+>   catch-up never reaches back more than 31 days.
 > - **GitHub disables scheduled workflows after 60 days of repository inactivity.** On a
 >   repository that goes quiet, the scheduler stops **silently**. `QueueHealth::beat()`
 >   and `ethr:queue:check` are what notice; §5 below is how to watch them.
@@ -195,9 +202,36 @@ the GitHub `production` environment and add the two secrets named in the banner 
 Then run the workflow once by hand — *Actions → ETHR scheduler → Run workflow* — rather
 than waiting for a tick, and check §4.
 
-The comparison below is kept as the reasoning, with the chosen row marked. **Do not
-configure two callers**: both would be refused by the application's lock, so the second
-produces nothing but 409s and noise.
+### A second caller — owner decision 2026-10-12
+
+GitHub alone delivered about 2 % of its ticks (above), so **a second caller with a
+reliable clock now drives the endpoints and GitHub stays as the fallback.** This replaces
+"do not configure two callers", which assumed GitHub would deliver most of its ticks.
+Two callers are safe: each endpoint holds a lock, and a call that arrives while the
+other caller's run is going gets **409 `already-running`**, which is expected, not a
+fault.
+
+The second caller is a free URL-fetch cron service. Two jobs, **every 5 minutes**:
+
+| | Job 1 | Job 2 |
+|---|---|---|
+| URL | `https://www.ethr.et/api/v1/cron/schedule` | `https://www.ethr.et/api/v1/cron/queue` |
+| Method | `POST` | `POST` |
+| Header | `X-Cron-Token: <CRON_TOKEN>` | same |
+| Header | `Accept: application/json` | same |
+| Body | `{}` with `Content-Type: application/json` — **never empty**: the host firewall answers a body-less POST with its own 403 and bans the address after a few | same |
+| Timeout | the service's maximum (30 s on free tiers) | same |
+| Treat as success | 200 **and** 409 | same |
+
+`CRON_QUEUE_MAX_SECONDS` is **25** for this reason: a drain must finish inside the
+service's 30-second request timeout. The endpoint also ignores a caller that hangs up, so
+a timeout cannot abort a run part-way.
+
+**The service then holds `CRON_TOKEN`.** What that token can do is start a scheduler run
+or a queue drain — it reads and returns no data. If the service, or the account on it,
+is ever in doubt, rotate the token (§6) in both places.
+
+The comparison below is kept as the reasoning, with the chosen row marked.
 
 | Caller | Where the token goes | What to set |
 |---|---|---|

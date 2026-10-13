@@ -74,6 +74,10 @@ export type ImportPreview =
 /** A punch endpoint's record, plus whether the request was a replay. */
 export type PunchResult = components["schemas"]["AttendancePunchResource"];
 
+/** `GET /attendance/my-shift`: today's shift, status, rules and assistant switches. */
+export type MyShift =
+  operations["attendance.myShift"]["responses"][200]["content"]["application/json"];
+
 export interface AttendanceFilters {
   page?: number;
   per_page?: number;
@@ -108,6 +112,7 @@ const keys = {
   conflicts: ["attendance", "conflicts"] as const,
   kiosks: ["attendance", "kiosks"] as const,
   settings: ["attendance", "settings"] as const,
+  myShift: ["attendance", "my-shift"] as const,
 };
 
 function useAttendanceMutation<TVars, TData>(
@@ -205,7 +210,11 @@ export function useMobilePunch() {
       idempotency_key: string;
       latitude: number;
       longitude: number;
+      /** GPS accuracy in metres; a perfect 0 is a sign of a simulated location. */
+      accuracy?: number;
       photo?: string;
+      /** Made by the assistant on arrival, not by a tap (check-in only). */
+      auto?: boolean;
     }): Promise<PunchResult> => {
       const { type, ...payload } = vars;
       const path =
@@ -391,6 +400,68 @@ export function useResolveConflict() {
   );
 }
 
+// ── Integrity review ─────────────────────────────────────────────────────────
+
+export type IntegrityFlag =
+  components["schemas"]["AttendanceIntegrityFlagResource"];
+export type IntegrityStatus = "open" | "accepted" | "rejected";
+
+export interface IntegritySummary {
+  open: number;
+  by_severity: Partial<Record<"high" | "medium" | "low", number>>;
+  by_type: Record<string, number>;
+}
+
+const integrityKeys = ["attendance", "integrity"] as const;
+
+/** Punches the integrity inspector could not trust on their face. */
+export function useIntegrityFlags(params: {
+  status: IntegrityStatus;
+  severity: "all" | "high" | "medium" | "low";
+  page: number;
+}) {
+  return useQuery<PaginatedResponse<IntegrityFlag>>({
+    queryKey: [...integrityKeys, "list", params],
+    queryFn: async () => {
+      const query: Record<string, string | number> = {
+        page: params.page,
+        "filter[status]": params.status,
+      };
+      if (params.severity !== "all")
+        query["filter[severity]"] = params.severity;
+      return (await apiClient.get("/attendance/integrity", { params: query }))
+        .data;
+    },
+  });
+}
+
+export function useIntegritySummary(enabled = true) {
+  return useQuery<IntegritySummary>({
+    queryKey: [...integrityKeys, "summary"],
+    queryFn: async () =>
+      (await apiClient.get("/attendance/integrity/summary")).data,
+    enabled,
+  });
+}
+
+/** Rejecting voids the punch, so every attendance list refreshes. */
+export function useReviewIntegrityFlag() {
+  return useAttendanceMutation(
+    async (vars: {
+      publicId: string;
+      decision: "accept" | "reject";
+      note: string | null;
+    }): Promise<IntegrityFlag> =>
+      (
+        await apiClient.put(`/attendance/integrity/${vars.publicId}/review`, {
+          decision: vars.decision,
+          note: vars.note,
+        })
+      ).data,
+    [keys.all, ["dashboard"]],
+  );
+}
+
 // ── CSV import ────────────────────────────────────────────────────────────────
 
 /** A POST, so a mutation: the template is fetched on demand, not on mount. */
@@ -530,4 +601,22 @@ export function useUpdateAttendanceSettings() {
       (await apiClient.put("/attendance/settings", payload)).data,
     [keys.settings],
   );
+}
+
+/**
+ * The signed-in employee's shift today and whether they are in. Read by the
+ * punch screen and by the reminder scheduler; refreshed when the app comes
+ * back to the foreground, since a phone may have been in a pocket for hours.
+ * Disabled for an account with no employee record (it answers 404).
+ */
+export function useMyShift(enabled = true) {
+  return useQuery<MyShift>({
+    queryKey: keys.myShift,
+    queryFn: async () => (await apiClient.get("/attendance/my-shift")).data,
+    enabled,
+    staleTime: 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
 }

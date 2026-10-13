@@ -13,6 +13,12 @@ use Throwable;
 
 final class SystemHealthService
 {
+    /**
+     * @param  string|null  $diskPath  where free space is measured; the
+     *                                 application's own directory when null
+     */
+    public function __construct(private readonly ?string $diskPath = null) {}
+
     public function check(): array
     {
         return [
@@ -151,9 +157,30 @@ final class SystemHealthService
         return [
             'php_memory_mb' => round(memory_get_usage(true) / 1024 / 1024, 1),
             'php_peak_memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 1),
-            'disk_free_gb' => function_exists('disk_free_space') && disk_free_space('/') !== false
-                ? round(disk_free_space('/') / 1024 / 1024 / 1024, 1)
-                : null,
+            'disk_free_gb' => $this->diskFreeGb(),
         ];
+    }
+
+    /**
+     * Free space on the disk holding the application, or null when it cannot
+     * be read.
+     *
+     * This measured `/` until 2026-10-12, and on Plesk that took the whole
+     * health endpoint down: `open_basedir` confines PHP to the subscription,
+     * so `disk_free_space('/')` raises a warning, Laravel turns warnings into
+     * exceptions, and every call answered 500 (console QA F2). The
+     * application's own directory is inside `open_basedir`, and the warning is
+     * suppressed so one unreadable figure reports null instead of failing
+     * every other check beside it.
+     */
+    private function diskFreeGb(): ?float
+    {
+        if (! function_exists('disk_free_space')) {
+            return null;
+        }
+
+        $free = @disk_free_space($this->diskPath ?? base_path());
+
+        return $free === false ? null : round($free / 1024 / 1024 / 1024, 1);
     }
 }

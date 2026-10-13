@@ -114,9 +114,15 @@ class PasswordResetController extends Controller
             ], 422);
         }
 
-        $broker = PasswordTokens::broker();
+        // An invitation link's token lives in the activation table (72 hours);
+        // a reset link's in the reset table (60 minutes). Links sent before the
+        // split were minted by the reset broker, so both are accepted.
+        $token = (string) $request->input('token');
+        $activations = PasswordTokens::activationBroker();
+        $resets = PasswordTokens::broker();
+        $broker = $activations->tokenExists($user, $token) ? $activations : $resets;
 
-        if (! $broker->tokenExists($user, $request->input('token'))) {
+        if (! $broker->tokenExists($user, $token)) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/invalid-token',
                 'title' => 'Invalid Reset Link',
@@ -146,7 +152,8 @@ class PasswordResetController extends Controller
 
         $user->update($updates);
         $user->tokens()->delete();
-        $broker->deleteToken($user);
+        $activations->deleteToken($user);
+        $resets->deleteToken($user);
 
         AuditLog::record($wasInvited ? 'user.activated' : 'user.password_reset_completed', $user);
 

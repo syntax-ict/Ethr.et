@@ -21,6 +21,7 @@ class AnnouncementResource extends JsonResource
             'target_type' => $this->target_type,
             'published_at' => $this->published_at,
             'expires_at' => $this->expires_at,
+            'show_on_landing' => (bool) $this->show_on_landing,
             'created_at' => $this->created_at,
         ];
     }

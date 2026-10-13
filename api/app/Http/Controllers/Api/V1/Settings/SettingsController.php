@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\GenerateScimTokenRequest;
 use App\Http\Requests\Settings\UpdateAddressRequest;
 use App\Http\Requests\Settings\UpdateBrandingRequest;
+use App\Http\Requests\Settings\UpdateLandingRequest;
 use App\Http\Requests\Settings\UpdateOrganizationRequest;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Http\Requests\Settings\UpdateSsoRequest;
@@ -19,6 +20,7 @@ use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
+use App\Support\TenantLanding;
 use App\Support\TenantSecurityPolicy;
 use App\Support\WorkingWeek;
 use Illuminate\Http\JsonResponse;
@@ -60,6 +62,7 @@ class SettingsController extends Controller
                 'logo_url' => $tenant->logo_path === null ? null : $tenant->logo_path,
                 'theme' => $this->brandTheme($tenant),
             ],
+            'landing' => TenantLanding::present($tenant),
             // Attendance rules (grace period, OT cap, confidence threshold) live
             // on the AttendanceSetting model and are served by GET/PUT
             // /attendance/settings so all attendance configuration stays in one
@@ -187,6 +190,25 @@ class SettingsController extends Controller
         AuditLog::record('settings.branding_updated', $tenant);
 
         return response()->json(['message' => 'Branding updated', 'logo_url' => $tenant->logo_path, 'theme' => $tenant->theme]);
+    }
+
+    /**
+     * PUT /settings/landing - the organisation's sign-in page (ethr.et/{slug}):
+     * headline, welcome message, help contacts and panel background.
+     */
+    public function updateLanding(UpdateLandingRequest $request): JsonResponse
+    {
+        Gate::authorize('settings.manage');
+
+        $tenant = app(CurrentTenant::class)->get();
+        $before = TenantLanding::present($tenant);
+
+        $tenant->update(['landing' => $request->validated()]);
+        $after = TenantLanding::present($tenant);
+
+        AuditLog::record('settings.landing_updated', $tenant, ['before' => $before, 'after' => $after]);
+
+        return response()->json($after);
     }
 
     public function updateSso(UpdateSsoRequest $request): JsonResponse

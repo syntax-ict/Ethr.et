@@ -10,15 +10,20 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 
 /**
- * ethr.et/{slug}: the fallback address of every organisation, which only
- * redirects.
+ * ethr.et/{slug}: every organisation's entry address.
  *
  * An organisation has one canonical address (owner decision 2026-10-08):
  * its verified custom domain, else its subdomain when this deployment serves
- * them, else the shared host. This sends a real organisation to the first of
- * those it has (FrontendUrl::canonicalOrigin), at its sign-in page. Only an
- * organisation with neither lands on `/login?org={slug}`, where the frontend
- * prefills it and names it in X-Tenant after sign-in.
+ * them, else the shared host. One with its own host is redirected to its
+ * sign-in page there (FrontendUrl::canonicalOrigin).
+ *
+ * One that lives on the shared host gets its landing page here, at this
+ * address: the shared sign-in template, drawn in the organisation's logo,
+ * name and colours (2026-10-13). It is the exported sign-in page itself,
+ * served for this path - the page reads the organisation from the URL and
+ * asks /auth/tenant-context for its branding - so there is one design and
+ * one authentication flow for every organisation. Where no exported page
+ * exists (`next dev`), it falls back to `/login?org={slug}` as before.
  *
  * An unknown or reserved name gets a real 404: the static site's own 404
  * page, with a 404 status, not a soft one.
@@ -43,8 +48,23 @@ final class OrganisationEntryController
         }
 
         $origin = FrontendUrl::canonicalOrigin($tenant);
+        if ($origin !== null) {
+            return redirect($origin.'/login');
+        }
 
-        return redirect($origin !== null ? $origin.'/login' : '/login?org='.rawurlencode($slug));
+        $landing = public_path('login.html');
+        if (! is_file($landing)) {
+            return redirect('/login?org='.rawurlencode($slug));
+        }
+
+        return response((string) file_get_contents($landing), 200)
+            ->header('Content-Type', 'text/html; charset=UTF-8')
+            // The page is the same for every organisation and every release
+            // changes it; the branding comes from the API, not this response.
+            ->header('Cache-Control', 'no-cache')
+            // A sign-in page, not content: keep each organisation's out of
+            // search results.
+            ->header('X-Robots-Tag', 'noindex, nofollow');
     }
 
     private function notFound(): Response

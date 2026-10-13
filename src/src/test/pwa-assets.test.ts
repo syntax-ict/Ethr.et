@@ -29,9 +29,11 @@ const PUBLIC_DIR = join(__dirname, "..", "..", "public");
 function iconReferencesIn(relativePath: string): string[] {
   const source = readFileSync(join(PUBLIC_DIR, relativePath), "utf8");
 
-  // Matches "/icons/badge-72.png" in JSON values and in JS string literals alike.
+  // Matches "/app-icons/badge-72.png" in JSON values and in JS string literals
+  // alike — and the old "/icons/…" too, so a reference that drifts back there is
+  // swept up and reported by the test below rather than skipped.
   const matches = source.matchAll(
-    /\/icons\/[A-Za-z0-9._-]+\.(?:png|svg|ico|webp)/g,
+    /\/(?:app-)?icons\/[A-Za-z0-9._-]+\.(?:png|svg|ico|webp)/g,
   );
 
   return [...new Set([...matches].map((m) => m[0]))];
@@ -59,6 +61,22 @@ describe("PWA assets", () => {
       ).toEqual([]);
     },
   );
+
+  it("serves nothing under /icons/, which the host's Apache keeps for itself", () => {
+    // Production QA 2026-10-11, P10: every /icons/* request answered 404 in
+    // production although the files were deployed. The host's stock
+    // `Alias /icons/ …` (Apache's autoindex icon set) takes the path before the
+    // document root does — /icons/blank.gif answered 200 image/gif. A server
+    // alias cannot be changed from a shared-hosting subscription, so the app's
+    // icons live at /app-icons/ and nothing may point back.
+    expect(existsSync(join(PUBLIC_DIR, "icons"))).toBe(false);
+    for (const file of ["manifest.json", "sw.js"]) {
+      expect(
+        iconReferencesIn(file).filter((ref) => ref.startsWith("/icons/")),
+        `${file} references the shadowed /icons/ path`,
+      ).toEqual([]);
+    }
+  });
 
   it("ships a monochrome badge, which cannot be the colour app icon", () => {
     const manifest = JSON.parse(
@@ -109,5 +127,41 @@ describe("PWA assets", () => {
     // Pinned because the deleted file disagreed on exactly this, and the
     // disagreement is invisible until someone installs the app.
     expect(manifest.theme_color?.toUpperCase()).toBe("#0F4C75");
+  });
+
+  it("declares maskable icons on their own, as full-bleed images", () => {
+    // The 192/384/512 icons were declared "maskable any". Those files have
+    // transparent rounded corners, so Android's mask showed white corners
+    // around the launcher icon; combined purposes are discouraged for that
+    // reason. Maskable icons are separate files, brand colour edge to edge.
+    const manifest = JSON.parse(
+      readFileSync(join(PUBLIC_DIR, "manifest.json"), "utf8"),
+    ) as { icons: { src: string; purpose?: string }[] };
+
+    for (const icon of manifest.icons) {
+      expect(
+        (icon.purpose ?? "any").split(/\s+/),
+        `${icon.src} mixes purposes`,
+      ).toHaveLength(1);
+    }
+
+    const maskable = manifest.icons.filter((i) => i.purpose === "maskable");
+    expect(maskable.map((i) => i.src)).toEqual([
+      "/app-icons/maskable-192.png",
+      "/app-icons/maskable-512.png",
+    ]);
+  });
+
+  it("keeps the app's identity stable across releases", () => {
+    // Browsers key an installed app on `id`, falling back to start_url. The
+    // start_url gained a query string; without an explicit id every phone
+    // would see a different app and offer to install it again.
+    const manifest = JSON.parse(
+      readFileSync(join(PUBLIC_DIR, "manifest.json"), "utf8"),
+    ) as { id?: string; start_url: string; scope?: string };
+
+    expect(manifest.id).toBe("/dashboard");
+    expect(manifest.scope).toBe("/");
+    expect(manifest.start_url.startsWith("/dashboard")).toBe(true);
   });
 });

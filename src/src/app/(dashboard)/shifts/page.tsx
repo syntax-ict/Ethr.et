@@ -276,11 +276,14 @@ export default function ShiftsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {filtered.map((shift) => (
               <Card
                 key={shift.public_id}
-                className={cn(!shift.is_active && "opacity-60")}
+                className={cn(
+                  "shadow-xs transition-shadow hover:shadow-md",
+                  !shift.is_active && "opacity-60",
+                )}
               >
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-2">
@@ -303,9 +306,14 @@ export default function ShiftsPage() {
                           </Badge>
                         )}
                       </div>
-                      <p className="mt-1 text-2xl font-mono font-bold tabular-nums text-primary">
-                        {toHHMM(shift.start_time)}{" "}
-                        <span className="text-muted-foreground text-lg">→</span>{" "}
+                      <p className="mt-2 whitespace-nowrap text-xl font-semibold tabular-nums tracking-tight text-foreground">
+                        {toHHMM(shift.start_time)}
+                        <span
+                          className="mx-1.5 text-muted-foreground"
+                          aria-hidden="true"
+                        >
+                          –
+                        </span>
                         {toHHMM(shift.end_time)}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
@@ -317,8 +325,8 @@ export default function ShiftsPage() {
                         )}{" "}
                         {t("shifts_page.worked")}
                         {shift.break_minutes > 0 &&
-                          ` · ${shift.break_minutes}m break`}
-                        {` · ${shift.grace_minutes}m grace`}
+                          ` · ${t("shifts_page.break_minutes", ":minutes min break", { minutes: shift.break_minutes })}`}
+                        {` · ${t("shifts_page.grace_minutes", ":minutes min grace", { minutes: shift.grace_minutes })}`}
                       </p>
                     </div>
                     <DropdownMenu>

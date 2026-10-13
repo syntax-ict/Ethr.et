@@ -65,6 +65,10 @@ const TYPE_LABEL_KEYS: Record<string, { labelKey: string; descKey?: string }> =
     profile_update: {
       labelKey: "approvals.type_profile_update",
     },
+    employee_voice: {
+      labelKey: "notification_prefs_page.type_employee_voice",
+      descKey: "notification_prefs_page.desc_employee_voice",
+    },
   };
 
 const CHANNEL_META: Record<

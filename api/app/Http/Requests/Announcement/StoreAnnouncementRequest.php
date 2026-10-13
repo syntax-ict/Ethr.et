@@ -26,6 +26,7 @@ class StoreAnnouncementRequest extends FormRequest
             'target_id' => ['nullable', 'string', 'required_if:target_type,department,branch'],
             'publish_now' => ['sometimes', 'boolean'],
             'expires_at' => ['nullable', 'date'],
+            'show_on_landing' => ['sometimes', 'boolean', 'declined_if:target_type,department,branch'],
         ];
     }
 }

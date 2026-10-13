@@ -101,6 +101,7 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
 
   /* ETHR design-system semantic tokens (CLAUDE.md / DESIGN_SYSTEM.md) */
   --color-surface-primary: var(--surface-primary);
@@ -273,12 +274,17 @@
   --color-secondary: var(--surface-secondary);
   --color-secondary-foreground: var(--text-primary);
 
-  /* Chart palette */
-  --chart-1: #0f4c75;
-  --chart-2: #059669;
-  --chart-3: #d97706;
-  --chart-4: #e8a838;
-  --chart-5: #dc2626;
+  /* Chart palette — categorical series, in the order they are assigned.
+     Five hues with distinct lightness so adjacent series stay apart for
+     colour-blind readers and in greyscale print. Gold is the brand accent and
+     is used for a series, never for text (2.08:1 on white). Status meanings
+     (present / late / absent) use --status-* instead, not these. */
+  --chart-1: #1f6fae;
+  --chart-2: #0f9488;
+  --chart-3: #e8a838;
+  --chart-4: #7c5cbf;
+  --chart-5: #d1495b;
+  --chart-6: #64748b;
 
   color-scheme: light;
 }
@@ -379,11 +385,12 @@
   --color-secondary: var(--surface-secondary);
   --color-secondary-foreground: var(--text-primary);
 
-  --chart-1: #3282b8;
-  --chart-2: #34d399;
-  --chart-3: #fbbf24;
-  --chart-4: #e8a838;
-  --chart-5: #f87171;
+  --chart-1: #4ea3e0;
+  --chart-2: #2dd4bf;
+  --chart-3: #f4c25b;
+  --chart-4: #a78bfa;
+  --chart-5: #fb7185;
+  --chart-6: #94a3b8;
 
   color-scheme: dark;
 }
@@ -486,6 +493,7 @@
   --chart-3: #8b4513;
   --chart-4: #b8860b;
   --chart-5: #8b0000;
+  --chart-6: #333333;
 
   color-scheme: light;
 }

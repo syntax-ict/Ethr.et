@@ -22,8 +22,8 @@ function makeOtRecord(string $checkIn, string $checkOut, string $end = '17:30', 
     ]);
 
     $record = new AttendanceRecord([
-        'check_in' => Carbon::parse($checkIn),
-        'check_out' => Carbon::parse($checkOut),
+        'check_in' => Carbon::parse($checkIn, 'Africa/Addis_Ababa')->utc(),
+        'check_out' => Carbon::parse($checkOut, 'Africa/Addis_Ababa')->utc(),
     ]);
     $record->setRelation('shift', $shift);
 
@@ -133,8 +133,8 @@ test('a public holiday on a rest day pays the higher holiday rate', function () 
 
 test('rest-day work needs no shift', function () {
     $record = new AttendanceRecord([
-        'check_in' => Carbon::parse('2026-06-14 09:00'),
-        'check_out' => Carbon::parse('2026-06-14 13:00'),
+        'check_in' => Carbon::parse('2026-06-14 09:00', 'Africa/Addis_Ababa')->utc(),
+        'check_out' => Carbon::parse('2026-06-14 13:00', 'Africa/Addis_Ababa')->utc(),
     ]);
     $record->setRelation('shift', null);
 

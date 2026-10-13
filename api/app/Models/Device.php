@@ -35,6 +35,7 @@ class Device extends Model
         'webhook_token',
         'webhook_ip_allowlist',
         'auto_sync',
+        'timezone',
         'sync_interval_minutes',
         'last_sync_at',
     ];

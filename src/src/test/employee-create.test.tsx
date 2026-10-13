@@ -157,3 +157,64 @@ describe("New employee form", () => {
     ).toBeInTheDocument();
   });
 });
+
+/**
+ * Production QA 2026-10-11, P15: the API accepted `create_login` and no screen
+ * sent it, so no employee of a new organisation could ever sign in.
+ */
+describe("New employee form — login invitation", () => {
+  function capture() {
+    const seen: { body?: Record<string, unknown> } = {};
+    server.use(
+      http.post("*/api/v1/employees", async ({ request }) => {
+        seen.body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          { ...buildEmployee(), meta: { login_invited: true } },
+          { status: 201 },
+        );
+      }),
+    );
+    return seen;
+  }
+
+  function fillBasics() {
+    fireEvent.change(screen.getByLabelText(/Full Name/), {
+      target: { value: "Hana Girma" },
+    });
+    fireEvent.change(screen.getByLabelText(/^Email/), {
+      target: { value: "hana@acme.et" },
+    });
+  }
+
+  it("does not invite unless asked", async () => {
+    const seen = capture();
+    const { container } = renderPage();
+    fillBasics();
+
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() => expect(seen.body).toBeDefined());
+    expect(seen.body).not.toHaveProperty("create_login");
+  });
+
+  it("asks for a login, as an employee, when the box is ticked", async () => {
+    const seen = capture();
+    const { container } = renderPage();
+    fillBasics();
+
+    fireEvent.click(screen.getByLabelText(/Send a login invitation/));
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() => expect(seen.body).toBeDefined());
+    expect(seen.body).toMatchObject({
+      create_login: true,
+      user_role: "employee",
+    });
+  });
+
+  it("cannot be ticked without an email", () => {
+    renderPage();
+
+    expect(screen.getByLabelText(/Send a login invitation/)).toBeDisabled();
+  });
+});

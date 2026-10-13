@@ -6,6 +6,8 @@ import { User, IdCard, Clock, ShieldCheck, Settings2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { useMyProfile } from "@/features/profile/api";
+import { hostContext } from "@/lib/auth/host-context";
+import { useHost } from "@/lib/auth/host-provider";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +59,18 @@ export default function ProfileLayout({
   const { data: profile } = useMyProfile();
   const pendingCount = profile?.pending_updates?.length ?? 0;
 
+  // The console host serves only account security from this area — the other
+  // tabs are an organisation member's own records, and that host redirects
+  // them to /admin/, so offering them led nowhere (console QA F22).
+  const host = useHost();
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null;
+  const onConsoleHost = hostContext(host, rootDomain) === "platform";
+  const tabs = onConsoleHost
+    ? TABS.filter((tab) => tab.href === "/profile/security")
+    : TABS;
+  // A static-export page loaded directly arrives with a trailing slash.
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+
   // The dashboard layout's PageTitleBar already renders the title and breadcrumb
   // from route-meta, so this layout contributes only the tab strip.
   return (
@@ -65,11 +79,11 @@ export default function ProfileLayout({
         aria-label={t("profile.tabs_label", "Profile sections")}
         className="-mx-1 flex gap-1 overflow-x-auto border-b border-border-default pb-px"
       >
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active =
             tab.href === "/profile"
-              ? pathname === "/profile"
-              : pathname.startsWith(tab.href);
+              ? path === "/profile"
+              : path.startsWith(tab.href);
           const Icon = tab.icon;
 
           return (

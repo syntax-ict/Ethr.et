@@ -11,6 +11,8 @@ import {
   Maximize,
   Lock,
   Loader2,
+  WifiOff,
+  CloudUpload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +24,16 @@ import {
   kioskPunch,
   verifyKioskExit,
 } from "@/features/kiosk/api";
+import {
+  cacheKioskConfig,
+  cachedKioskConfig,
+  forgetKioskConfig,
+  isUnreachable,
+  queuedPunches,
+  savePunchOffline,
+  syncQueuedPunches,
+  type KioskOfflineConfig,
+} from "@/features/kiosk/offline";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
@@ -38,6 +50,8 @@ interface KioskConfig {
   branchName: string | null;
   pinRequired: boolean;
   autoResetSeconds: number;
+  /** For punching through a power cut or outage; absent from older caches. */
+  offline?: KioskOfflineConfig | null;
 }
 
 /** `employee_code` is `max:30` in StoreEmployeeRequest; the kiosk accepts the same. */
@@ -69,6 +83,11 @@ export default function KioskPage() {
   const [lockLoading, setLockLoading] = useState(false);
 
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Offline: started from the cached configuration, or a punch could not
+  // reach the server. Punches made meanwhile wait, sealed, on this terminal.
+  const [offline, setOffline] = useState(false);
+  const [pending, setPending] = useState(0);
 
   // Auto-load token from localStorage
   useEffect(() => {
@@ -116,13 +135,30 @@ export default function KioskPage() {
         branchName: data.session.branch?.name ?? null,
         pinRequired: data.settings.pin_required,
         autoResetSeconds: data.settings.auto_reset_seconds,
+        offline: data.offline,
       };
       setConfig(cfg);
+      cacheKioskConfig(cfg);
+      setOffline(false);
       localStorage.setItem("kiosk_token", token);
       setScreen("kiosk");
-    } catch {
-      setSetupError("kiosk_page.token_invalid");
-      localStorage.removeItem("kiosk_token");
+    } catch (err) {
+      // A kiosk restarting in a power cut has no connection to check its
+      // token with. It opens from its last configuration instead of
+      // forgetting the token, which left the terminal unusable until
+      // someone re-registered it.
+      const cached = isUnreachable(err)
+        ? cachedKioskConfig<KioskConfig>(token)
+        : null;
+      if (cached) {
+        setConfig(cached);
+        setOffline(true);
+        setScreen("kiosk");
+      } else {
+        setSetupError("kiosk_page.token_invalid");
+        localStorage.removeItem("kiosk_token");
+        forgetKioskConfig();
+      }
     } finally {
       setSetupLoading(false);
     }
@@ -163,12 +199,43 @@ export default function KioskPage() {
     }
 
     setMode("checking");
+    const idempotencyKey = `kiosk-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    // Saved on the terminal, sealed, to be sent when the connection returns.
+    async function keepOffline() {
+      if (!config?.offline) {
+        setMessage(t("kiosk_page.offline_unavailable"));
+        setMode("error");
+        return;
+      }
+      try {
+        await savePunchOffline(config.offline, {
+          c: code,
+          p: config.pinRequired ? pin : null,
+          t: type,
+          k: idempotencyKey,
+        });
+        setOffline(true);
+        setPending((n) => n + 1);
+        setMode("success");
+        setMessage(t("kiosk_page.saved_offline", undefined, { code }));
+      } catch {
+        setMessage(t("kiosk_page.check_failed"));
+        setMode("error");
+      }
+    }
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await keepOffline();
+      return;
+    }
+
     try {
       const data = await kioskPunch(config.token, {
         employee_code: code,
         type,
         pin: config.pinRequired ? pin : undefined,
-        idempotency_key: `kiosk-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        idempotency_key: idempotencyKey,
       });
       const empName =
         data.employee_name ??
@@ -183,10 +250,50 @@ export default function KioskPage() {
         ),
       );
     } catch (err: unknown) {
+      if (isUnreachable(err)) {
+        await keepOffline();
+        return;
+      }
       setMessage(apiErrorDetail(err) ?? t("kiosk_page.check_failed"));
       setMode("error");
     }
   }, [code, config, pin, showPin, type, t]);
+
+  // Send what waited whenever the connection is back: on the browser's
+  // "online" event, and every 30 seconds in case that event never comes.
+  useEffect(() => {
+    if (!config || screen !== "kiosk") return;
+    const token = config.token;
+    let busy = false;
+
+    async function flush() {
+      if (busy) return;
+      busy = true;
+      try {
+        if ((await queuedPunches()).length > 0) {
+          await syncQueuedPunches(token);
+        }
+        setOffline(false);
+      } catch (err) {
+        if (isUnreachable(err)) setOffline(true);
+      } finally {
+        try {
+          setPending((await queuedPunches()).length);
+        } catch {
+          // IndexedDB unavailable: nothing was queued.
+        }
+        busy = false;
+      }
+    }
+
+    void flush();
+    const id = window.setInterval(() => void flush(), 30_000);
+    window.addEventListener("online", flush);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("online", flush);
+    };
+  }, [config, screen]);
 
   function enterFullscreen() {
     document.documentElement.requestFullscreen?.().catch(() => {});
@@ -225,6 +332,7 @@ export default function KioskPage() {
 
   function exitKiosk() {
     localStorage.removeItem("kiosk_token");
+    forgetKioskConfig();
     setConfig(null);
     setScreen("setup");
     setSetupToken("");
@@ -359,6 +467,21 @@ export default function KioskPage() {
               {config?.branchName ?? t("kiosk_page.unknown_branch")}
             </p>
           </div>
+          {(offline || pending > 0) && (
+            <span
+              className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-3 py-1 text-xs font-medium text-warning-on-soft"
+              role="status"
+            >
+              {offline ? (
+                <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : (
+                <CloudUpload className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              {offline
+                ? t("kiosk_page.offline_badge", undefined, { count: pending })
+                : t("kiosk_page.sending_badge", undefined, { count: pending })}
+            </span>
+          )}
         </div>
         {/* The kiosk has no authenticated tenant query, so this clock cannot
             read the tenant's configured zone -- `/kiosk/authenticate` returns

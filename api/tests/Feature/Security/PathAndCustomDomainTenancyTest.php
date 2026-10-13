@@ -207,6 +207,59 @@ it('sends ethr.et/{slug} to that organisation\'s sign-in page', function () {
         ->assertRedirect('/login?org=acme');
 });
 
+// The shared landing (2026-10-13): for an organisation on the shared host, the
+// entry URL is answered with the exported sign-in page itself, at this address,
+// and the page draws that organisation's branding. The redirect above is what
+// happens where no exported page exists (development, and these tests).
+it('serves the shared sign-in page at ethr.et/{slug} once it is exported', function () {
+    pathTenant('acme');
+    asProduction();
+
+    $page = public_path('login.html');
+    $existed = is_file($page);
+    $original = $existed ? file_get_contents($page) : null;
+    file_put_contents($page, '<!doctype html><title>Sign in</title><main id="login"></main>');
+
+    try {
+        test()->get('http://ethr.et/acme')
+            ->assertOk()
+            ->assertSee('<main id="login">', false)
+            ->assertHeader('X-Robots-Tag', 'noindex, nofollow')
+            ->assertCookieMissing(config('session.cookie'));
+
+        // Not for a name no organisation holds.
+        test()->get('http://ethr.et/no-such-org')->assertNotFound();
+    } finally {
+        $existed ? file_put_contents($page, $original) : unlink($page);
+    }
+});
+
+it('gives the sign-in page the organisation colours before sign-in', function () {
+    pathTenant('acme', [
+        'logo_path' => 'https://cdn.example.et/acme.png',
+        'theme' => ['primary_color' => '#0F766E', 'accent_color' => 'red', 'secondary_color' => '#14B8A6'],
+    ]);
+    asProduction();
+
+    test()->withHeader('X-Tenant', 'acme')
+        ->getJson('http://ethr.et/api/v1/auth/tenant-context')
+        ->assertOk()
+        ->assertJsonPath('tenant.brand.logo_url', 'https://cdn.example.et/acme.png')
+        ->assertJsonPath('tenant.brand.primary_color', '#0F766E')
+        // Only well-formed values leave; the page falls back to ETHR's own.
+        ->assertJsonPath('tenant.brand.accent_color', null);
+});
+
+it('never hands the public page a logo that is not https', function () {
+    pathTenant('acme', ['logo_path' => 'http://cdn.example.et/acme.png']);
+    asProduction();
+
+    test()->withHeader('X-Tenant', 'acme')
+        ->getJson('http://ethr.et/api/v1/auth/tenant-context')
+        ->assertOk()
+        ->assertJsonPath('tenant.brand.logo_url', null);
+});
+
 it('answers a real 404 for a slug no organisation holds', function () {
     asProduction();
 

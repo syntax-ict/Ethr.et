@@ -69,6 +69,12 @@ return [
          */
         'App\Http\Controllers\Api\V1\Directory\DirectoryController@index' => 'Tenant-wide staff directory — name, work phone, work email, photo, department, position, branch. Visible to every colleague by design; pinned by EmployeePortalTest.',
         'App\Http\Controllers\Api\V1\Announcement\AnnouncementController@index' => 'Tenant-wide, filtered to ->published()->notExpired().',
+        'App\Http\Controllers\Api\V1\Voice\PulseController@show' => 'Every employee answers the weekly pulse; returns only whether the caller answered this week (a cache key on their own user id) and the topic list.',
+        'App\Http\Controllers\Api\V1\Voice\PulseController@store' => 'Every employee answers the weekly pulse; the answer is stored with no user, employee or time of day, once per user per week. EmployeeVoiceTest.',
+        'App\Http\Controllers\Api\V1\Voice\ConcernController@mine' => 'auth:sanctum, scoped to reporter_user_id = $request->user()->id - only the caller own named concerns.',
+        'App\Http\Controllers\Api\V1\Voice\ConcernController@track' => 'The presented follow-up code is the authority (80 bits, compared as a SHA-256 hash, tenant-scoped, throttle:auth); an anonymous reporter has no other link to the concern. EmployeeVoiceTest.',
+        'App\Http\Controllers\Api\V1\Voice\RecognitionController@index' => 'The recognition wall is deliberately readable by everyone in the organisation; tenant-scoped.',
+        'App\Http\Controllers\Api\V1\Voice\RecognitionController@store' => 'Any employee may thank a colleague; sent as the caller own employee record, never themselves, to a tenant-scoped recipient. EmployeeVoiceTest.',
     ],
 
     /*
@@ -98,8 +104,11 @@ return [
         'App\Http\Controllers\Api\V1\Auth\FindOrganisationController@__invoke' => 'Pre-authentication "find my organisation": answers every request with the same sentence and emails the sign-in links to the address itself, so the address is the authority. throttle:auth plus a per-address counter.',
         'App\Http\Controllers\Api\V1\Kiosk\KioskSessionController@authenticate' => 'The kiosk session token is the authority: where(\'token\')->where(\'status\', \'active\'), 401 when it misses.',
         'App\Http\Controllers\Api\V1\Kiosk\KioskSessionController@exitKiosk' => 'The kiosk session token resolves an active KioskSession (401 when it misses), and the admin PIN set at registration must then match it (422). Reads and writes no rows beyond an audit entry; throttle:kiosk-exit allows five tries a minute per kiosk.',
+        'App\Http\Controllers\Api\V1\Kiosk\KioskSyncController@__invoke' => 'X-Kiosk-Token resolves an active KioskSession whose tenant becomes current; each punch is opened with that kiosk\'s private key, the employee lookup is tenant-scoped, and a required PIN is checked with the live lock. KioskOfflineSyncTest.',
         'App\Http\Controllers\Api\V1\Kiosk\KioskCheckInController@__invoke' => 'X-Kiosk-Token resolves an active KioskSession; the employee lookup then states that session\'s tenant_id.',
         'App\Http\Controllers\Api\V1\Auth\SessionClaimController@__invoke' => 'Single-use handoff nonce, bound to the hostname\'s tenant rather than the body.',
+        'App\Http\Controllers\Api\V1\Auth\LandingFeedController@index' => 'Pre-authentication sign-in page feed: only announcements and vacancies their author marked public, and holidays, each section as the organisation switched it on. Tenant from the hostname through the global scope; plain text only. LandingFeedTest.',
+        'App\Http\Controllers\Api\V1\Auth\LandingFeedController@vacancy' => 'One vacancy that is open, published and public, in the hostname\'s tenant; every other id is the same 404. LandingFeedTest.',
         'App\Http\Controllers\Api\V1\Auth\TenantContextController@__invoke' => 'Returns only a tenant\'s name, subdomain and logo — the branding a login page needs before anyone has authenticated.',
         'App\Http\Controllers\Api\V1\Auth\SsoController@initiate' => 'Pre-authentication SAML leg.',
         'App\Http\Controllers\Api\V1\Auth\SsoController@callback' => 'The signed SAML assertion is the authority.',

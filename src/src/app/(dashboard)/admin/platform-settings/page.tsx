@@ -61,6 +61,41 @@ export default function PlatformSettingsPage() {
   );
 }
 
+/**
+ * A form's local state, refreshed from the server only while it holds no
+ * unsaved edits.
+ *
+ * Both forms used to re-seed whenever the query delivered new data, so a save
+ * elsewhere would not be overwritten by stale local state. But either form's
+ * save is new data for both: saving the payment details re-seeded the public
+ * profile too and silently dropped whatever had been typed there and not yet
+ * saved — the owner filled in the profile, saved the payment section, saved
+ * the profile, and found one field stored (production, 2026-10-12). Adjusting
+ * state during render rather than in an effect avoids an extra commit — see
+ * https://react.dev/learn/you-might-not-need-an-effect.
+ */
+function useSeededForm<T extends Record<string, string>>(
+  settings: PlatformSettings,
+  seed: (s: PlatformSettings) => T,
+) {
+  const [form, setForm] = useState(() => seed(settings));
+  const [prevSettings, setPrevSettings] = useState(settings);
+
+  if (settings !== prevSettings) {
+    setPrevSettings(settings);
+    if (sameValues(form, seed(prevSettings))) {
+      setForm(seed(settings));
+    }
+  }
+
+  return [form, setForm] as const;
+}
+
+function sameValues(a: Record<string, string>, b: Record<string, string>) {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...keys].every((key) => a[key] === b[key]);
+}
+
 function PaymentForm({ settings }: { settings: PlatformSettings }) {
   const { t } = useT();
   const update = useUpdatePlatformSettings();
@@ -73,16 +108,7 @@ function PaymentForm({ settings }: { settings: PlatformSettings }) {
     payment_instructions_am: s.payment_instructions_am ?? "",
   });
 
-  const [form, setForm] = useState(() => seed(settings));
-
-  // Re-seed when the query refetches, so a save elsewhere is not overwritten by
-  // stale local state. Adjusting state during render (rather than in an effect)
-  // avoids an extra commit — see https://react.dev/learn/you-might-not-need-an-effect.
-  const [prevSettings, setPrevSettings] = useState(settings);
-  if (settings !== prevSettings) {
-    setPrevSettings(settings);
-    setForm(seed(settings));
-  }
+  const [form, setForm] = useSeededForm(settings, seed);
 
   const set = (key: keyof typeof form) => (value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -236,14 +262,7 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
     testimonial_consented_on: s.testimonial_consented_on ?? "",
   });
 
-  const [form, setForm] = useState(() => seed(settings));
-
-  // Re-seed on refetch, as the payment form does and for the same reason.
-  const [prevSettings, setPrevSettings] = useState(settings);
-  if (settings !== prevSettings) {
-    setPrevSettings(settings);
-    setForm(seed(settings));
-  }
+  const [form, setForm] = useSeededForm(settings, seed);
 
   const set = (key: keyof typeof form) => (value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));

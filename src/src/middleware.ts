@@ -132,8 +132,20 @@ export function middleware(request: NextRequest) {
  * Routes that only mean something inside a tenant. Deliberately a list rather
  * than "anything not /admin": the platform host still has to serve /login,
  * /logout, the marketing shell and Next's own assets.
+ *
+ * `/profile/security` is the exception inside `/profile`: password and
+ * two-factor enrolment belong to every account, the platform admin's included,
+ * and the console's own "Enable now" links there. Redirecting it left the
+ * platform admin no way to turn MFA on (production, 2026-10-11).
  */
 function isTenantRoute(pathname: string): boolean {
+  if (
+    pathname === "/profile/security" ||
+    pathname.startsWith("/profile/security/")
+  ) {
+    return false;
+  }
+
   return [
     "/dashboard",
     "/employees",
@@ -147,6 +159,8 @@ function isTenantRoute(pathname: string): boolean {
     "/reports",
     "/settings",
     "/announcements",
+    "/vacancies",
+    "/voice",
     "/approvals",
     "/profile",
   ].some((route) => pathname === route || pathname.startsWith(`${route}/`));

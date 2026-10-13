@@ -15,7 +15,7 @@ class LogoutController extends Controller
 
     public function __invoke(Request $request): JsonResponse
     {
-        $this->authService->logout($request->user());
+        $this->authService->logout($request->user(), $request);
 
         return response()->json(['message' => __('auth.logout_success')]);
     }

@@ -1,6 +1,8 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
+import { clearApiCache } from "@/lib/api-cache";
 import { hostContext } from "@/lib/auth/host-context";
+import { getLocale } from "@/lib/i18n/translations";
 
 export interface ApiError {
   type: string;
@@ -23,7 +25,11 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof window === "undefined") return config;
 
-  const locale = localStorage.getItem("locale") || "en";
+  // The UI's own resolver, so errors arrive in the language the screen is in.
+  // This fell back to "en" while the UI falls back to DEFAULT_LOCALE ("am"):
+  // a first visit read Amharic screens and English errors (production QA
+  // 2026-10-11, P9).
+  const locale = getLocale();
   if (config.headers) {
     config.headers["Accept-Language"] = locale;
   }
@@ -46,19 +52,32 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // address signs in on the apex — where nothing but this header names it.
   // On a tenant host or the platform host the server ignores or refuses it,
   // so it is simply not sent there.
-  const context = hostContext(
-    window.location.host,
-    process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null,
-  );
-  if (context === "public" || context === "unknown") {
-    const tenant = localStorage.getItem("tenant");
-    if (tenant && config.headers) {
-      config.headers["X-Tenant"] = tenant;
-    }
+  const tenant = tenantHeaderValue();
+  if (tenant && config.headers) {
+    config.headers["X-Tenant"] = tenant;
   }
 
   return config;
 });
+
+/**
+ * The `X-Tenant` value this page sends, or null where the hostname names the
+ * organisation itself. Exported so a punch queued offline can carry it: the
+ * service worker sends the queue with no page, and so no localStorage.
+ */
+export function tenantHeaderValue(): string | null {
+  if (typeof window === "undefined") return null;
+  const context = hostContext(
+    window.location.host,
+    process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null,
+  );
+  if (context !== "public" && context !== "unknown") return null;
+  try {
+    return localStorage.getItem("tenant");
+  } catch {
+    return null;
+  }
+}
 
 const SAFE_METHODS = ["get", "head", "options"];
 
@@ -121,6 +140,9 @@ export function mfaEnrolmentRedirect(
 
 let redirectingToEnrolment = false;
 
+/** The refresh in flight, shared by every 401 that arrives while it runs. */
+let refreshing: Promise<unknown> | null = null;
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiError>) => {
@@ -149,10 +171,20 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        await axios.post("/api/v1/auth/refresh", {}, { withCredentials: true });
+        // One refresh for every request that failed together. A page's
+        // parallel calls each started their own, and the first to land
+        // revoked the token the others were refreshing (production QA
+        // 2026-10-11 saw four at once).
+        refreshing ??= axios
+          .post("/api/v1/auth/refresh", {}, { withCredentials: true })
+          .finally(() => {
+            refreshing = null;
+          });
+        await refreshing;
 
         return apiClient(originalRequest);
       } catch {
+        await clearApiCache();
         window.location.href = "/login";
       }
     }

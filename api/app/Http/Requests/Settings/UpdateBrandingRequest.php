@@ -17,7 +17,7 @@ class UpdateBrandingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'logo_url' => ['nullable', 'string', 'max:500'],
+            'logo_url' => ['nullable', 'string', 'url:https', 'max:500'],
             'primary_color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'secondary_color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'accent_color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],

@@ -23,6 +23,8 @@ class CorrectionDecisionService
 {
     use SendsNotifications;
 
+    public function __construct(private readonly AttendanceEngine $engine) {}
+
     /**
      * The state checks that follow authorisation, or null when the decision may go ahead.
      *
@@ -38,6 +40,45 @@ class CorrectionDecisionService
 
         if ($approving && $by->employee_id !== null && $by->employee_id === $correction->employee_id) {
             return ApprovalRefusal::selfApproval(__('correction.cannot_approve_own'));
+        }
+
+        // Nor can the person who filed it: a correction rewrites punches that
+        // payroll pays, so filing and approving are two people's acts. On
+        // production on 2026-10-12 one admin filed a correction on an
+        // employee's record and approved it seconds later (attendance QA A4).
+        // Corrections filed before the filer was recorded carry no such entry
+        // and are decided as before.
+        if ($approving && self::filedBy($correction) === $by->public_id) {
+            return ApprovalRefusal::selfApproval(__('correction.cannot_approve_filed'));
+        }
+
+        return null;
+    }
+
+    /**
+     * The first entry of a correction's approval chain: who filed it. By
+     * public id — the chain is returned by the API.
+     *
+     * @return array{action: string, user_public_id: string, role: string, at: string}
+     */
+    public static function submittedEntry(User $by): array
+    {
+        return [
+            'action' => 'submitted',
+            'user_public_id' => $by->public_id,
+            'role' => $by->role->value,
+            'at' => now()->toIso8601String(),
+        ];
+    }
+
+    private static function filedBy(AttendanceCorrection $correction): ?string
+    {
+        $chain = $correction->getAttribute('approval_chain');
+
+        foreach (is_array($chain) ? $chain : [] as $entry) {
+            if (is_array($entry) && ($entry['action'] ?? null) === 'submitted') {
+                return $entry['user_public_id'] ?? null;
+            }
         }
 
         return null;
@@ -68,6 +109,7 @@ class CorrectionDecisionService
             $before = [
                 'check_in' => $record->check_in?->toIso8601String(),
                 'check_out' => $record->check_out?->toIso8601String(),
+                'status' => $record->status->value,
             ];
             $metadata = $record->metadata ?? [];
             $updateData = ['metadata' => array_merge($metadata, [
@@ -85,6 +127,11 @@ class CorrectionDecisionService
             }
 
             $record->update($updateData);
+
+            // The status was read from the punches being replaced. A
+            // correction that moved a record to a full shift on time left it
+            // `early_leave` on production (attendance QA A5).
+            $this->engine->reclassify($record);
         }
 
         AuditLog::record('correction.approved', $correction, [
@@ -93,6 +140,7 @@ class CorrectionDecisionService
             'after' => $record === null ? null : [
                 'check_in' => $record->check_in?->toIso8601String(),
                 'check_out' => $record->check_out?->toIso8601String(),
+                'status' => $record->status->value,
             ],
         ]);
 

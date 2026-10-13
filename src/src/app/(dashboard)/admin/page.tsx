@@ -45,7 +45,7 @@ import {
   useDismissFailedJob,
   servicesNeedingAttention,
 } from "@/features/admin/api";
-import { formatETB } from "@/lib/utils/currency";
+import { formatETB, formatETBCompact } from "@/lib/utils/currency";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -229,7 +229,7 @@ export default function AdminConsolePage() {
 
         {/* ── KPI cards ──────────────────────────────────────────────── */}
         {revLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-28 rounded-xl" />
             ))}
@@ -243,7 +243,7 @@ export default function AdminConsolePage() {
             onRetry={() => refetchRevenue()}
           />
         ) : revenue ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <KpiCard
               icon={Building2}
               tone="primary"
@@ -272,7 +272,7 @@ export default function AdminConsolePage() {
               icon={Wallet}
               tone="info"
               title={t("admin_console_page.mrr", "MRR")}
-              value={formatETB(revenue.mrr_cents)}
+              value={formatETBCompact(revenue.mrr_cents)}
               sub={t("admin_console_page.this_month", "This month")}
             />
             <KpiCard
@@ -303,7 +303,19 @@ export default function AdminConsolePage() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <Server className="h-4 w-4" />
                 {t("admin_console_page.system_health", "System Health")}
-                <LivePulse />
+                <LivePulse
+                  state={
+                    healthError
+                      ? "error"
+                      : healthLoading || !health
+                        ? "idle"
+                        : Object.values(health.services ?? {}).some(
+                              (svc) => svc?.status === "unhealthy",
+                            )
+                          ? "error"
+                          : "ok"
+                  }
+                />
               </CardTitle>
               <div className="flex items-center gap-2">
                 {healthUpdatedAt > 0 && (
@@ -718,7 +730,23 @@ function ErrorCard({
   );
 }
 
-function LivePulse() {
+/**
+ * The dot beside "System Health". It was always green and pulsing, including
+ * while the card below said "Couldn't load system health" (console QA F9):
+ * green only once the checks loaded and none is unhealthy.
+ */
+function LivePulse({ state }: { state: "ok" | "error" | "idle" }) {
+  if (state !== "ok") {
+    return (
+      <span
+        className={cn(
+          "ml-1 inline-flex h-2 w-2 rounded-full",
+          state === "error" ? "bg-status-error" : "bg-muted-foreground/40",
+        )}
+      />
+    );
+  }
+
   return (
     <span className="relative ml-1 flex h-2 w-2">
       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-status-success opacity-40" />
@@ -913,8 +941,19 @@ function RevenueBars({
 }: {
   data: Array<{ month: string; revenue_cents: number }>;
 }) {
+  const { locale } = useT();
   const recent = data.slice(-6);
   const max = Math.max(...recent.map((m) => m.revenue_cents), 1);
+  // `2026-06` read as "06" under the bar; name the month instead.
+  const monthName = (key: string) => {
+    const [y, mo] = key.split("-").map(Number);
+    return Number.isFinite(y) && Number.isFinite(mo)
+      ? new Intl.DateTimeFormat(locale, {
+          month: "short",
+          timeZone: "UTC",
+        }).format(new Date(Date.UTC(y, mo - 1, 1)))
+      : key;
+  };
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   return (
@@ -936,17 +975,15 @@ function RevenueBars({
             >
               {/* Hover tooltip */}
               {isHovered && m.revenue_cents > 0 && (
-                <div className="pointer-events-none absolute -top-8 z-10 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[10px] font-semibold tabular-nums text-background shadow-lg">
+                <div className="pointer-events-none absolute -top-9 z-10 whitespace-nowrap rounded-md border border-border bg-popover px-2 py-1 text-xs font-semibold tabular-nums text-popover-foreground shadow-lg">
                   {formatETB(m.revenue_cents)}
                 </div>
               )}
               <div className="flex w-full flex-1 items-end">
                 <div
                   className={cn(
-                    "w-full rounded-t-md transition-all duration-300",
-                    isCurrentMonth
-                      ? "bg-interactive-primary"
-                      : "bg-interactive-primary/40",
+                    "w-full max-w-12 mx-auto rounded-t-md transition-all duration-300",
+                    isCurrentMonth ? "bg-chart-1" : "bg-chart-1/45",
                     isHovered && "opacity-80",
                   )}
                   style={{ height: `${Math.max(pct, 2)}%` }}
@@ -960,14 +997,14 @@ function RevenueBars({
       {/* Labels */}
       <div className="flex gap-2">
         {recent.map((m) => {
-          const label = m.month.slice(5);
+          const label = monthName(m.month);
           const isCurrentMonth =
             m.month === new Date().toISOString().slice(0, 7);
           return (
             <div key={m.month} className="flex-1 text-center">
               <p
                 className={cn(
-                  "text-[10px]",
+                  "text-xs",
                   isCurrentMonth
                     ? "font-semibold text-foreground"
                     : "text-muted-foreground",
@@ -975,8 +1012,8 @@ function RevenueBars({
               >
                 {label}
               </p>
-              <p className="text-[10px] tabular-nums text-muted-foreground">
-                {m.revenue_cents > 0 ? formatETB(m.revenue_cents) : "—"}
+              <p className="text-xs tabular-nums text-muted-foreground">
+                {m.revenue_cents > 0 ? formatETBCompact(m.revenue_cents) : "—"}
               </p>
             </div>
           );
