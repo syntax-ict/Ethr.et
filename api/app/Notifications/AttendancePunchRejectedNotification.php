@@ -8,6 +8,7 @@ use App\Models\AttendanceRecord;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -16,7 +17,7 @@ use Illuminate\Notifications\Notification;
  * reviewer's reason and the way to correct it. Nobody loses a day's
  * attendance without being told.
  */
-class AttendancePunchRejectedNotification extends Notification
+class AttendancePunchRejectedNotification extends Notification implements ShouldQueue
 {
     use Queueable, RespectsNotificationPreferences;
 

@@ -11,6 +11,7 @@ use App\Models\Recognition;
 use App\Models\User;
 use App\Notifications\RecognitionReceivedNotification;
 use App\Services\CurrentTenant;
+use App\Traits\SendsNotifications;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -20,6 +21,8 @@ use Illuminate\Http\Request;
  */
 class RecognitionController extends Controller
 {
+    use SendsNotifications;
+
     public function index(Request $request): JsonResponse
     {
         $page = Recognition::query()
@@ -65,8 +68,10 @@ class RecognitionController extends Controller
             'message' => trim(strip_tags((string) $request->validated('message'))),
         ]);
 
-        User::query()->where('employee_id', $to->id)->first()
-            ?->notify(new RecognitionReceivedNotification($recognition->load(['from', 'to'])));
+        $this->notify(
+            User::query()->where('employee_id', $to->id)->first(),
+            new RecognitionReceivedNotification($recognition->load(['from', 'to'])),
+        );
 
         return response()->json($this->present($recognition->load(['from', 'to'])), 201);
     }
