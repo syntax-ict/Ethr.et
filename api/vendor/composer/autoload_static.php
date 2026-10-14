@@ -1282,6 +1282,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Notifications\\RecognitionReceivedNotification' => __DIR__ . '/../..' . '/app/Notifications/RecognitionReceivedNotification.php',
         'App\\Notifications\\ScheduledReportFailedNotification' => __DIR__ . '/../..' . '/app/Notifications/ScheduledReportFailedNotification.php',
         'App\\Notifications\\ScheduledReportNotification' => __DIR__ . '/../..' . '/app/Notifications/ScheduledReportNotification.php',
+        'App\\Notifications\\SignInCodeNotification' => __DIR__ . '/../..' . '/app/Notifications/SignInCodeNotification.php',
         'App\\Notifications\\SystemAlertNotification' => __DIR__ . '/../..' . '/app/Notifications/SystemAlertNotification.php',
         'App\\Notifications\\TrialExpiringNotification' => __DIR__ . '/../..' . '/app/Notifications/TrialExpiringNotification.php',
         'App\\Policies\\AttendanceConflictPolicy' => __DIR__ . '/../..' . '/app/Policies/AttendanceConflictPolicy.php',

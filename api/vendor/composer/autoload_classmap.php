@@ -599,6 +599,7 @@ return array(
     'App\\Notifications\\RecognitionReceivedNotification' => $baseDir . '/app/Notifications/RecognitionReceivedNotification.php',
     'App\\Notifications\\ScheduledReportFailedNotification' => $baseDir . '/app/Notifications/ScheduledReportFailedNotification.php',
     'App\\Notifications\\ScheduledReportNotification' => $baseDir . '/app/Notifications/ScheduledReportNotification.php',
+    'App\\Notifications\\SignInCodeNotification' => $baseDir . '/app/Notifications/SignInCodeNotification.php',
     'App\\Notifications\\SystemAlertNotification' => $baseDir . '/app/Notifications/SystemAlertNotification.php',
     'App\\Notifications\\TrialExpiringNotification' => $baseDir . '/app/Notifications/TrialExpiringNotification.php',
     'App\\Policies\\AttendanceConflictPolicy' => $baseDir . '/app/Policies/AttendanceConflictPolicy.php',

@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RequestOtpRequest;
 use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Models\LoginHistory;
+use App\Models\OtpCode;
 use App\Models\User;
 use App\Services\Auth\OtpService;
 use App\Services\AuthService;
@@ -34,19 +35,21 @@ class OtpController extends Controller
         // Stated plainly rather than pretending to send: without a gateway the
         // code can never arrive, and a generic "check your phone" would leave the
         // user waiting for a message that does not exist.
-        if (! $this->otp->isAvailable()) {
+        $channel = $this->channel($request->input('email'));
+
+        if (! $this->otp->isAvailable($channel)) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/otp-unavailable',
                 'title' => 'OTP Unavailable',
                 'status' => 503,
-                'detail' => __('auth.otp_unavailable'),
+                'detail' => __($channel === OtpService::CHANNEL_EMAIL ? 'auth.otp_email_unavailable' : 'auth.otp_unavailable'),
             ], 503);
         }
 
-        $user = $this->resolveUser($request->input('phone'));
+        $user = $this->resolveUser($request->input('phone'), $request->input('email'));
 
         if ($user !== null) {
-            $this->otp->issue($user);
+            $this->otp->issue($user, OtpCode::PURPOSE_LOGIN, $channel);
         }
 
         return response()->json(['message' => __('auth.otp_sent')]);
@@ -54,7 +57,7 @@ class OtpController extends Controller
 
     public function verify(VerifyOtpRequest $request): JsonResponse
     {
-        $user = $this->resolveUser($request->input('phone'));
+        $user = $this->resolveUser($request->input('phone'), $request->input('email'));
 
         if ($user === null || ! $this->otp->verify($user, $request->input('code'))) {
             if ($user !== null) {
@@ -94,15 +97,38 @@ class OtpController extends Controller
         return response()->json($result);
     }
 
+    /** An email address asks for the code by email; a phone number, by text. */
+    private function channel(mixed $email): string
+    {
+        return is_string($email) && $email !== '' ? OtpService::CHANNEL_EMAIL : OtpService::CHANNEL_SMS;
+    }
+
     /**
-     * Tenant-scoped phone lookup. Returns null rather than throwing so callers
-     * can keep their responses uniform for known and unknown numbers alike.
+     * Tenant-scoped lookup by email or phone. Returns null rather than throwing
+     * so callers can keep their responses uniform for known and unknown
+     * accounts alike.
      */
-    private function resolveUser(string $phone): ?User
+    private function resolveUser(?string $phone, ?string $email = null): ?User
     {
         $tenant = app(CurrentTenant::class);
 
         if (! $tenant->resolved()) {
+            return null;
+        }
+
+        // As password sign-in matches it (AuthIdentifierResolver::byEmail),
+        // including refusing an address two accounts share.
+        if ($this->channel($email) === OtpService::CHANNEL_EMAIL) {
+            $matches = User::withoutGlobalScopes()
+                ->where('tenant_id', $tenant->id())
+                ->where('email_normalized', mb_strtolower(trim((string) $email)))
+                ->limit(2)
+                ->get();
+
+            return $matches->count() === 1 ? $matches->first() : null;
+        }
+
+        if ($phone === null || $phone === '') {
             return null;
         }
 
