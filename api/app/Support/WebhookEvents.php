@@ -8,8 +8,8 @@ namespace App\Support;
  * The events the application actually sends to a tenant's webhooks.
  *
  * One entry per `DispatchesWebhooks::webhook()` call site — EmployeeController,
- * LeaveRequestController, LeaveDecisionService, PayrollController and
- * ProcessPayrollJob. `WebhookEventsTest` scans `app/` for those calls and fails
+ * LeaveRequestController, LeaveDecisionService, PayrollController,
+ * ProcessPayrollJob, AttendanceEngine and CorrectionDecisionService. `WebhookEventsTest` scans `app/` for those calls and fails
  * if this list and the call sites disagree, in either direction.
  *
  * `events.*` used to accept any string, so a webhook subscribed to a misspelt
@@ -32,5 +32,8 @@ final class WebhookEvents
         'payroll.approved',
         'payroll.voided',
         'payroll.reprocessed',
+        'attendance.checked_in',
+        'attendance.checked_out',
+        'attendance.corrected',
     ];
 }

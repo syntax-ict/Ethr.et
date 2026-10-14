@@ -1447,6 +1447,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Support\\ApiKeyAbilities' => __DIR__ . '/../..' . '/app/Support/ApiKeyAbilities.php',
         'App\\Support\\ApiReference' => __DIR__ . '/../..' . '/app/Support/ApiReference.php',
         'App\\Support\\ApprovalRefusal' => __DIR__ . '/../..' . '/app/Support/ApprovalRefusal.php',
+        'App\\Support\\AttendanceWebhookPayload' => __DIR__ . '/../..' . '/app/Support/AttendanceWebhookPayload.php',
         'App\\Support\\AuditSubjects' => __DIR__ . '/../..' . '/app/Support/AuditSubjects.php',
         'App\\Support\\CalendarPreference' => __DIR__ . '/../..' . '/app/Support/CalendarPreference.php',
         'App\\Support\\CopyName' => __DIR__ . '/../..' . '/app/Support/CopyName.php',

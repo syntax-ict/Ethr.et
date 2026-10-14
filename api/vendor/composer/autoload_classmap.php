@@ -764,6 +764,7 @@ return array(
     'App\\Support\\ApiKeyAbilities' => $baseDir . '/app/Support/ApiKeyAbilities.php',
     'App\\Support\\ApiReference' => $baseDir . '/app/Support/ApiReference.php',
     'App\\Support\\ApprovalRefusal' => $baseDir . '/app/Support/ApprovalRefusal.php',
+    'App\\Support\\AttendanceWebhookPayload' => $baseDir . '/app/Support/AttendanceWebhookPayload.php',
     'App\\Support\\AuditSubjects' => $baseDir . '/app/Support/AuditSubjects.php',
     'App\\Support\\CalendarPreference' => $baseDir . '/app/Support/CalendarPreference.php',
     'App\\Support\\CopyName' => $baseDir . '/app/Support/CopyName.php',
