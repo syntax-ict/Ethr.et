@@ -84,6 +84,29 @@ describe("<ApiKeysPage>", () => {
     expect(screen.queryByText("No API keys")).not.toBeInTheDocument();
   });
 
+  it("offers the API docs only to whom the server serves them", async () => {
+    // /api/docs is behind the super-admin-only `viewApiDocs` gate; a tenant
+    // admin who followed the link got a bare 403 (production, 2026-10-14).
+    server.use(
+      me(["apikey.manage"]),
+      http.get("*/api/v1/api-keys", () => HttpResponse.json({ keys: [KEY] })),
+    );
+    const { unmount } = renderPage();
+
+    expect(await screen.findByText("Payroll export")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /API Docs/ }),
+    ).not.toBeInTheDocument();
+    unmount();
+
+    server.use(me(["apikey.manage"], "super_admin"));
+    renderPage();
+
+    expect(
+      await screen.findByRole("link", { name: /API Docs/ }),
+    ).toHaveAttribute("href", "/api/docs");
+  });
+
   it("admits a custom role holding apikey.manage", async () => {
     server.use(
       me(["apikey.manage"], "employee"),
