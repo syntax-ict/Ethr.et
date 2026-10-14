@@ -300,11 +300,16 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
               landing={data.landing}
               address={data.address}
               organisationName={data.organization.name}
-              logoUrl={
-                data.branding.uploaded_logo_url ?? data.branding.logo_url
-              }
-              cover={data.branding.assets?.cover ?? null}
-              secondaryColor={data.branding.theme.secondary_color}
+              brand={{
+                logo_url:
+                  data.branding.uploaded_logo_url ?? data.branding.logo_url,
+                logo_dark_url: data.branding.assets?.logo_dark?.url ?? null,
+                mark_url: data.branding.assets?.mark?.url ?? null,
+                cover: data.branding.assets?.cover ?? null,
+                primary_color: data.branding.theme.primary_color ?? null,
+                secondary_color: data.branding.theme.secondary_color ?? null,
+                accent_color: data.branding.theme.accent_color ?? null,
+              }}
             />
           </div>
         </TabsContent>

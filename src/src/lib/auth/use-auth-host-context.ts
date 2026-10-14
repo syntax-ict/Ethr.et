@@ -26,13 +26,53 @@ export interface TenantBrand {
   accent_color: string | null;
 }
 
-/** The organisation's own words and look on its sign-in page. */
+/** The sections of the portal below the hero, in their default order. */
+export type PortalSection =
+  "about" | "announcements" | "vacancies" | "holidays" | "contact";
+
+/** The footer's links: https, and the networks on their own host (server-checked). */
+export interface TenantLandingLinks {
+  website: string | null;
+  linkedin: string | null;
+  facebook: string | null;
+  x: string | null;
+  telegram: string | null;
+  youtube: string | null;
+  privacy: string | null;
+  terms: string | null;
+}
+
+/**
+ * The organisation's own words and look on its portal. Every text has an
+ * Amharic twin (`*_am`); the page shows the viewer's language and falls back
+ * to the other. The keys added for the portal's content (PR 3) are optional
+ * here so a context served by an older API still renders.
+ */
 export interface TenantLanding {
   headline: string | null;
+  headline_am?: string | null;
   message: string | null;
+  message_am?: string | null;
   support_email: string | null;
   support_phone: string | null;
   background: "brand" | "gradient" | "pattern" | "image";
+  about?: string | null;
+  about_am?: string | null;
+  founded_year?: number | null;
+  sector?: string | null;
+  staff_band?: string | null;
+  show_branch_count?: boolean;
+  address?: string | null;
+  address_am?: string | null;
+  hours?: string | null;
+  hours_am?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  show_branches?: boolean;
+  links?: Partial<TenantLandingLinks> | null;
+  sections?: Partial<Record<PortalSection, boolean>> | null;
+  order?: PortalSection[] | null;
+  listed?: boolean;
 }
 
 export type TenantRequest =

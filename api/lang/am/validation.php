@@ -188,6 +188,7 @@ return [
     'base64_image_too_large' => 'ምስሉ ከ:max ኪባ መብለጥ የለበትም።',
     'cover_too_narrow' => 'የሽፋን ፎቶው ቢያንስ :width ፒክሰል ስፋት ሊኖረው ይገባል።',
     'landing_cover_missing' => 'የፎቶ ዳራን ከመምረጥዎ በፊት የሽፋን ፎቶ ይስቀሉ።',
+    'landing_link_host' => 'ይህ ሊንክ በ :hosts ላይ መሆን አለበት።',
     'custom_domain_reserved' => 'የራስ ዶሜይን የድርጅቱ የራሱ ዶሜይን መሆን አለበት እንጂ በ:root ስር ያለ መሆን የለበትም።',
     'custom_domain_not_in_plan' => 'የዚህ ድርጅት ዕቅድ የራስ ዶሜይንን አያካትትም።',
     'custom_domain_txt_missing' => ':value ዋጋ ያለው የ:name TXT መዝገብ አልተገኘም።',
