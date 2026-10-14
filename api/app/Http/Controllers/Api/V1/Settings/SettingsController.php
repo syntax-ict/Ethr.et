@@ -212,7 +212,25 @@ class SettingsController extends Controller
         $tenant = app(CurrentTenant::class)->get();
         $before = TenantLanding::present($tenant);
 
-        $tenant->update(['landing' => $request->validated()]);
+        // Merged over what is stored, never a replacement. The form sends only
+        // the fields it edits, and a wholesale write silently reset every key
+        // it did not carry: saving the headline put the section toggles back
+        // to their defaults. Sections merge per key for the same reason.
+        /** @var mixed $raw */
+        $raw = $tenant->getAttribute('landing');
+        /** @var array<string, mixed> $stored */
+        $stored = is_array($raw) ? $raw : [];
+        $incoming = $request->validated();
+
+        if (array_key_exists('sections', $incoming)) {
+            $storedSections = $stored['sections'] ?? [];
+            $incoming['sections'] = array_merge(
+                is_array($storedSections) ? $storedSections : [],
+                $incoming['sections'],
+            );
+        }
+
+        $tenant->update(['landing' => array_merge($stored, $incoming)]);
         $after = TenantLanding::present($tenant);
 
         AuditLog::record('settings.landing_updated', $tenant, ['before' => $before, 'after' => $after]);
