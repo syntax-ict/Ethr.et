@@ -37,14 +37,17 @@ const ABILITIES = [
 const SIGNATURE_SAMPLE = `// Node.js
 import crypto from "node:crypto";
 
-function verify(rawBody, header, secret) {
-  const expected = "sha256=" +
-    crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-  return header.length === expected.length &&
-    crypto.timingSafeEqual(Buffer.from(header), Buffer.from(expected));
+function verify(rawBody, headers, secret) {
+  const sentAt = headers["x-ethr-timestamp"] ?? "";
+  const given = headers["x-ethr-signature-v2"] ?? "";
+  const expected = "sha256=" + crypto.createHmac("sha256", secret)
+    .update(sentAt + ".").update(rawBody).digest("hex");
+  const fresh = Math.abs(Date.now() / 1000 - Number(sentAt)) <= 300;
+  return fresh && given.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
 }
 
-// verify(rawRequestBody, req.headers["x-ethr-signature"], process.env.ETHR_WEBHOOK_SECRET)`;
+// verify(rawRequestBody, req.headers, process.env.ETHR_WEBHOOK_SECRET)`;
 
 function Code({ children }: { children: string }) {
   return (
@@ -153,6 +156,8 @@ function Guide({ reference }: { reference: ApiReference }) {
         <Code>{`POST <your URL>
 X-ETHR-Event: employee.created
 X-ETHR-Delivery: 01J…
+X-ETHR-Timestamp: 1760436000
+X-ETHR-Signature-V2: sha256=<hex>
 X-ETHR-Signature: sha256=<hex>
 
 {

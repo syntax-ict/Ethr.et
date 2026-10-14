@@ -107,6 +107,16 @@ class DispatchWebhookJob implements ShouldQueue
         // because both encodings happened to use the same flags.
         $payloadJson = (string) json_encode($this->payload);
         $signature = 'sha256='.$webhook->sign($payloadJson);
+        // The body's own `timestamp` is when the delivery was queued, and a
+        // retry carries it unchanged up to a day later, so a receiver could not
+        // refuse an old delivery without refusing legitimate retries. This is
+        // when this attempt is sent, signed with the body - "<unix
+        // seconds>.<body>" - so it cannot be moved without breaking the
+        // signature, and a captured delivery stops verifying once it is older
+        // than the receiver's tolerance. The body-only signature is kept as it
+        // was for receivers built against it.
+        $sentAt = (string) now()->getTimestamp();
+        $timestampedSignature = 'sha256='.$webhook->sign($sentAt.'.'.$payloadJson);
         $attempt = $this->attempts();
 
         try {
@@ -116,6 +126,8 @@ class DispatchWebhookJob implements ShouldQueue
                 ->withoutRedirecting()
                 ->withHeaders([
                     'X-ETHR-Signature' => $signature,
+                    'X-ETHR-Timestamp' => $sentAt,
+                    'X-ETHR-Signature-V2' => $timestampedSignature,
                     'X-ETHR-Event' => $this->event,
                     'X-ETHR-Delivery' => (string) $delivery->public_id,
                     'User-Agent' => 'ETHR-Webhooks/1.0',
