@@ -102,6 +102,47 @@ final class TaxCalculator
     }
 
     /**
+     * Which ladder `calculate()` uses for this tenant and date, and the law it
+     * implements — written into each entry's calculation_log and printed on
+     * the statutory schedules. `source` is tenant, platform or fallback.
+     *
+     * @return array{legal_reference: string|null, effective_from: string|null, source: string}
+     */
+    public function basis(?int $tenantId, CarbonInterface $asOf): array
+    {
+        $on = $asOf->format('Y-m-d');
+
+        // No tenant: calculate() uses the hard-coded ladder, so the basis is that.
+        foreach ($tenantId === null ? [] : [$tenantId, null] as $owner) {
+            $row = TaxBracket::query()
+                ->withoutGlobalScope('tenant')
+                ->when($owner === null, fn ($q) => $q->whereNull('tenant_id'), fn ($q) => $q->where('tenant_id', $owner))
+                ->whereDate('effective_from', '<=', $on)
+                ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', $on))
+                ->orderBy('min_amount_cents')
+                ->first();
+
+            if ($row !== null) {
+                return [
+                    'legal_reference' => $row->getAttribute('legal_reference'),
+                    'effective_from' => $row->effective_from->format('Y-m-d'),
+                    'source' => $owner === null ? 'platform' : 'tenant',
+                ];
+            }
+        }
+
+        $superseded = $asOf->lt(Carbon::parse(self::AMENDMENT_1395_EFFECTIVE_FROM));
+
+        return [
+            'legal_reference' => $superseded
+                ? 'Income Tax Proclamation No. 979/2016'
+                : 'Income Tax (Amendment) Proclamation No. 1395/2025',
+            'effective_from' => $superseded ? '2016-07-08' : self::AMENDMENT_1395_EFFECTIVE_FROM,
+            'source' => 'fallback',
+        ];
+    }
+
+    /**
      * Resolution order: the tenant's own ladder, then the platform-wide
      * (tenant_id = null) ladder, then the hard-coded defaults.
      *

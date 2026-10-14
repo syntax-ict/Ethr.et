@@ -248,19 +248,44 @@ function toLines(
     lines.push({
       key: "tax",
       label: t("payroll_detail_page.calc_income_tax", "Income tax"),
+      detail: ruleReference(tax.rule),
       cents: num(tax.income_tax_cents),
       kind: "minus",
     });
   }
 
+  // The rate is the one this entry was calculated with, from its own log —
+  // an entry from before rates were logged shows none rather than a guess.
   const pension = step("pension");
+  const employeeRate = rate(pension?.employee_rate);
+  const employerRate = rate(pension?.employer_rate);
+  const exempt = pension?.exempt === true;
   if (pension) {
     lines.push({
       key: "pension",
-      label: t(
-        "payroll_detail_page.calc_employee_pension",
-        "Pension (employee 7%)",
-      ),
+      label: exempt
+        ? t("payroll_detail_page.calc_pension_exempt", "Pension: not covered")
+        : employeeRate
+          ? t(
+              "payroll_detail_page.calc_employee_pension",
+              "Pension (employee :rate)",
+              { rate: employeeRate },
+            )
+          : t(
+              "payroll_detail_page.calc_employee_pension_plain",
+              "Pension (employee)",
+            ),
+      detail: exempt
+        ? pension.exempt_reason === "min_service"
+          ? t(
+              "payroll_detail_page.calc_exempt_min_service",
+              "Not yet in service long enough under the rule",
+            )
+          : t(
+              "payroll_detail_page.calc_exempt_non_national",
+              "Not an Ethiopian national",
+            )
+        : ruleReference(pension.rule),
       cents: num(pension.employee_pension_cents),
       kind: "minus",
     });
@@ -296,17 +321,40 @@ function toLines(
     });
   }
 
-  if (pension) {
+  if (pension && !exempt) {
     lines.push({
       key: "employer",
-      label: t(
-        "payroll_detail_page.calc_employer_pension",
-        "Employer pension (11%), paid on top",
-      ),
+      label: employerRate
+        ? t(
+            "payroll_detail_page.calc_employer_pension",
+            "Employer pension (:rate), paid on top",
+            { rate: employerRate },
+          )
+        : t(
+            "payroll_detail_page.calc_employer_pension_plain",
+            "Employer pension, paid on top",
+          ),
       cents: num(pension.employer_pension_cents),
       kind: "note",
     });
   }
 
   return lines;
+}
+
+/** "7%" from a logged rate, or undefined when the entry did not record one. */
+function rate(value: unknown): string | undefined {
+  const n = typeof value === "number" ? value : Number(value);
+  return value === undefined || value === null || Number.isNaN(n)
+    ? undefined
+    : `${n}%`;
+}
+
+/** The law a logged rule names, e.g. "Proclamation No. 1268/2022, Art. 10". */
+function ruleReference(rule: unknown): string | undefined {
+  if (rule && typeof rule === "object" && "legal_reference" in rule) {
+    const ref = (rule as { legal_reference?: unknown }).legal_reference;
+    return typeof ref === "string" ? ref : undefined;
+  }
+  return undefined;
 }

@@ -22,6 +22,7 @@ class TaxBracketResource extends JsonResource
             'rate' => (float) $this->rate,
             'deduction_cents' => (int) $this->deduction_cents,
             'effective_from' => $this->effective_from->format('Y-m-d'),
+            'legal_reference' => $this->legal_reference,
             'effective_to' => $this->effective_to?->format('Y-m-d'),
         ];
     }

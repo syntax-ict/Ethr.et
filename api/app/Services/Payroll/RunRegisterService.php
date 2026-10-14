@@ -30,7 +30,12 @@ final class RunRegisterService
     ];
 
     /**
-     * @return array{rows: list<array<string, mixed>>, totals: array<string, int>}
+     * @return array{
+     *     rows: list<array<string, mixed>>,
+     *     totals: array<string, int>,
+     *     pension_rates: array{employee: list<float>, employer: list<float>},
+     *     basis: array{pension: list<array<string, mixed>>, tax: list<array<string, mixed>>},
+     * }
      */
     public function register(PayrollRun $run): array
     {
@@ -50,7 +55,73 @@ final class RunRegisterService
             $totals[$column] = (int) array_sum(array_column($rows, $column));
         }
 
-        return ['rows' => $rows, 'totals' => $totals];
+        return [
+            'rows' => $rows,
+            'totals' => $totals,
+            'pension_rates' => self::ratesUsed($rows),
+            'basis' => self::basisUsed($rows),
+        ];
+    }
+
+    /**
+     * The pension rates the run applied, from its calculation logs — never a
+     * constant. Normally one each; two only if a rule changed mid-run.
+     * Empty for a run calculated before the rates were logged (2026-10-14).
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array{employee: list<float>, employer: list<float>}
+     */
+    public static function ratesUsed(array $rows): array
+    {
+        $pick = static function (string $key) use ($rows): array {
+            $rates = [];
+            foreach ($rows as $row) {
+                if (($row['pension_exempt'] ?? false) !== true && is_numeric($row[$key] ?? null)) {
+                    $rates[] = (float) $row[$key];
+                }
+            }
+            $rates = array_values(array_unique($rates, SORT_REGULAR));
+            sort($rates);
+
+            return $rates;
+        };
+
+        return ['employee' => $pick('employee_pension_rate'), 'employer' => $pick('employer_pension_rate')];
+    }
+
+    /**
+     * The rules the run was built on, each once: legal reference, effective
+     * date and whether it was the platform's, the organisation's or the
+     * fallback.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array{pension: list<array<string, mixed>>, tax: list<array<string, mixed>>}
+     */
+    public static function basisUsed(array $rows): array
+    {
+        $collect = static function (string $key) use ($rows): array {
+            $seen = [];
+            foreach ($rows as $row) {
+                $rule = $row[$key] ?? null;
+                if (is_array($rule) && isset($rule['legal_reference'])) {
+                    $seen[$rule['legal_reference'].'|'.($rule['effective_from'] ?? '')] = [
+                        'legal_reference' => $rule['legal_reference'],
+                        'effective_from' => $rule['effective_from'] ?? null,
+                        'source' => $rule['source'] ?? null,
+                    ];
+                }
+            }
+
+            return array_values($seen);
+        };
+
+        return ['pension' => $collect('pension_rule'), 'tax' => $collect('tax_rule')];
+    }
+
+    /** "7%", "7% / 8%", or "" when the run did not record its rates. */
+    public static function rateLabel(array $rates): string
+    {
+        return implode(' / ', array_map(static fn (float $r): string => rtrim(rtrim(number_format($r, 2, '.', ''), '0'), '.').'%', $rates));
     }
 
     public function csv(PayrollRun $run): string
@@ -59,8 +130,10 @@ final class RunRegisterService
 
         $lines = [Csv::row([
             'Employee Code', 'Employee Name', 'Basic (ETB)', 'Overtime (ETB)', 'Allowances (ETB)',
-            'Gross (ETB)', 'Taxable (ETB)', 'Income Tax (ETB)', 'Employee Pension 7% (ETB)',
-            'Employer Pension 11% (ETB)', 'Loan (ETB)', 'Cost Sharing (ETB)', 'Net Pay (ETB)',
+            'Gross (ETB)', 'Taxable (ETB)', 'Income Tax (ETB)',
+            trim('Employee Pension '.self::rateLabel($register['pension_rates']['employee'])).' (ETB)',
+            trim('Employer Pension '.self::rateLabel($register['pension_rates']['employer'])).' (ETB)',
+            'Loan (ETB)', 'Cost Sharing (ETB)', 'Net Pay (ETB)',
         ])];
 
         foreach ($register['rows'] as $row) {
@@ -115,6 +188,14 @@ final class RunRegisterService
             'loan_cents' => (int) $deductions->where('type', 'loan')->sum('amount_cents'),
             'cost_sharing_cents' => (int) $deductions->where('type', 'cost_sharing')->sum('amount_cents'),
             'net_cents' => (int) $entry->net_cents,
+            // From the log, as applied (2026-10-14). Null on older entries.
+            'pensionable_cents' => (int) ($steps['pension']['pensionable_cents'] ?? $steps['pension']['pensionable_basic_cents'] ?? $entry->basic_salary_cents),
+            'pension_exempt' => isset($steps['pension']['exempt']) ? (bool) $steps['pension']['exempt'] : null,
+            'pension_exempt_reason' => $steps['pension']['exempt_reason'] ?? null,
+            'employee_pension_rate' => isset($steps['pension']['employee_rate']) ? (float) $steps['pension']['employee_rate'] : null,
+            'employer_pension_rate' => isset($steps['pension']['employer_rate']) ? (float) $steps['pension']['employer_rate'] : null,
+            'pension_rule' => is_array($steps['pension']['rule'] ?? null) ? $steps['pension']['rule'] : null,
+            'tax_rule' => is_array($steps['income_tax']['rule'] ?? null) ? $steps['income_tax']['rule'] : null,
         ];
     }
 }

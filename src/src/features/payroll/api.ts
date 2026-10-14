@@ -162,6 +162,13 @@ export interface PayrollRegister {
     PayrollRegisterRow,
     "employee_public_id" | "employee_code" | "employee_name"
   >;
+  /** The pension rates the run applied, from its calculation logs. */
+  pension_rates?: { employee: number[]; employer: number[] };
+}
+
+/** "7%", "7% / 8%", or "" for a run that did not record its rates. */
+export function rateLabel(rates: number[] | undefined): string {
+  return (rates ?? []).map((r) => `${r}%`).join(" / ");
 }
 
 export async function fetchPayrollRegister(
@@ -561,4 +568,29 @@ export async function downloadStatutorySchedule(
     { params: { format }, responseType: "blob" },
   );
   saveBlob(filename, data);
+}
+
+// ── Pension rules (Settings → Payroll) ───────────────────────────────────────
+
+export type PensionRule = Schemas["PensionRuleResource"];
+export type PensionRules =
+  operations["pensionRule.index"]["responses"][200]["content"]["application/json"];
+export type CreatePensionRule = Schemas["StorePensionRuleRequest"];
+
+export function usePensionRules() {
+  return useQuery<PensionRules>({
+    queryKey: ["payroll", "pension-rules"],
+    queryFn: async () => (await apiClient.get("/payroll/pension-rules")).data,
+  });
+}
+
+export function useCreatePensionRule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: CreatePensionRule): Promise<PensionRule> =>
+      (await apiClient.post("/payroll/pension-rules", payload)).data,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["payroll", "pension-rules"] }),
+  });
 }

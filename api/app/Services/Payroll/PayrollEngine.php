@@ -126,9 +126,21 @@ final class PayrollEngine
         $periodStart = Carbon::parse($run->period_start);
         $periodEnd = Carbon::parse($run->period_end);
 
-        $settings = Tenant::findOrFail($tenantId)->settings ?? [];
+        $tenant = Tenant::findOrFail($tenantId);
+        $settings = $tenant->settings ?? [];
         $pagumenStrategy = $settings['pagumen_proration_strategy'] ?? 'full_month';
         $fiscalYearStartMonth = (int) ($settings['fiscal_year_start_month'] ?? 1);
+
+        // The statutory rules in force for this period, resolved once per run:
+        // the pension rule for the organisation's scheme and the tax ladder's
+        // legal basis. Both are written into every entry's calculation_log, so
+        // an approved run keeps saying what it applied (convention #11).
+        $pensionRule = $this->pensionCalculator->rule(
+            $tenantId,
+            StatutorySchedules::setting($tenant, 'pension_scheme') ?? 'private',
+            $periodStart,
+        );
+        $taxBasis = $this->taxCalculator->basis($tenantId, $periodStart);
 
         $pagume = $this->calendar->pagumeDaysInRange($periodStart, $periodEnd);
 
@@ -147,7 +159,7 @@ final class PayrollEngine
             ])
             ->chunkById(100, function ($employees) use (
                 $run, $periodStart, $periodEnd,
-                $pagumenStrategy, $pagume, $fiscalYearStartMonth,
+                $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis,
                 &$totalGross, &$totalNet, &$totalTax, &$count,
             ) {
                 foreach ($employees as $employee) {
@@ -159,6 +171,8 @@ final class PayrollEngine
                         $pagumenStrategy,
                         $pagume,
                         $fiscalYearStartMonth,
+                        $pensionRule,
+                        $taxBasis,
                     );
                     if ($entry) {
                         $totalGross += $entry->gross_cents;
@@ -220,6 +234,8 @@ final class PayrollEngine
         string $pagumenStrategy,
         array $pagume,
         int $fiscalYearStartMonth,
+        PensionRuleSnapshot $pensionRule,
+        array $taxBasis,
     ): ?PayrollEntry {
         $basicSalary = $employee->salary_cents;
 
@@ -228,7 +244,7 @@ final class PayrollEngine
         }
 
         $log = [
-            'version' => '1.1',
+            'version' => '1.2',
             'calculated_at' => now()->toIso8601String(),
             'inputs' => [
                 'employee_id' => $employee->public_id,
@@ -384,15 +400,24 @@ final class PayrollEngine
             'non_taxable_allowances_cents' => $nonTaxableAllowances,
             'taxable_amount_cents' => $taxableAmount,
             'income_tax_cents' => $incomeTax,
+            'rule' => $taxBasis,
         ];
 
-        $pension = $this->pensionCalculator->calculate($proratedBasic);
+        $pension = $this->pensionCalculator->apply($pensionRule, $employee, $proratedBasic, $totalAllowances, $periodEnd);
 
         $log['steps'][] = [
             'step' => 'pension',
+            // Kept under its old name: readers before 2026-10-14 used it.
             'pensionable_basic_cents' => $proratedBasic,
+            'pensionable_cents' => $pension['pensionable_cents'],
+            'contributory_cents' => $pension['contributory_cents'],
+            'employee_rate' => $pensionRule->employeeRate,
+            'employer_rate' => $pensionRule->employerRate,
+            'exempt' => $pension['exempt'],
+            'exempt_reason' => $pension['exempt_reason'],
             'employee_pension_cents' => $pension['employee_cents'],
             'employer_pension_cents' => $pension['employer_cents'],
+            'rule' => $pensionRule->toLog(),
         ];
 
         $loanDeduction = $this->loanService->calculateMonthlyDeduction($employee);

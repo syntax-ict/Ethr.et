@@ -17,4 +17,6 @@ return [
     'run_failed_subject' => 'Payroll run FAILED: :period',
     'run_failed_body' => 'The payroll run for :period could not be completed and has been marked as failed. No payslips were issued. Reason: :reason',
     'run_failed_next_step' => 'This run will not be retried automatically. Review the cause, then submit the run again.',
+    'pension_floor_above_ceiling' => 'The floor cannot be above the ceiling.',
+    'pension_rule_not_after_latest' => 'A new rule must start after :date, the start of your latest rule for this scheme.',
 ];
