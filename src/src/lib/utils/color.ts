@@ -15,6 +15,16 @@ export function parseHex(hex: string): [number, number, number] | null {
   ];
 }
 
+function toHex(rgb: [number, number, number]): string {
+  return (
+    "#" +
+    rgb
+      .map((v) => Math.min(255, Math.max(0, Math.round(v))))
+      .map((v) => v.toString(16).padStart(2, "0"))
+      .join("")
+  );
+}
+
 /** WCAG 2.x relative luminance, 0 (black) to 1 (white). */
 export function relativeLuminance([r, g, b]: [number, number, number]): number {
   const channel = (v: number) => {
@@ -34,6 +44,9 @@ export function contrastRatio(a: string, b: string): number {
 export const INK_LIGHT = "#ffffff";
 export const INK_DARK = "#0f172a";
 
+/** WCAG 2.2 AA for text of ordinary size. */
+export const AA_CONTRAST = 4.5;
+
 /** White or near-black, whichever reads better on `background`. */
 export function readableInkOn(background: string): string {
   return contrastRatio(INK_LIGHT, background) >=
@@ -42,15 +55,44 @@ export function readableInkOn(background: string): string {
     : INK_DARK;
 }
 
+/**
+ * A brand colour as a surface for text, moved only as far as AA needs: the
+ * ink is whichever reads better on it, and while that ink falls short of
+ * 4.5:1 the colour steps toward the ink's opposite (darker under white,
+ * lighter under near-black). A colour that already reads is returned as it
+ * is, with `changed` false, so the settings screen can say when it moved.
+ */
+export function aaCorrected(
+  hex: string,
+): { color: string; ink: string; changed: boolean } | null {
+  const rgb = parseHex(hex);
+  if (!rgb) return null;
+  const original = toHex(rgb);
+  const ink = readableInkOn(original);
+  const toward = ink === INK_LIGHT ? 0 : 255;
+
+  let current = rgb;
+  for (
+    let step = 0;
+    step < 60 && contrastRatio(ink, toHex(current)) < AA_CONTRAST;
+    step++
+  ) {
+    current = current.map((v) => v + (toward - v) * 0.06) as [
+      number,
+      number,
+      number,
+    ];
+  }
+
+  const color = toHex(current);
+  return { color, ink, changed: color !== original };
+}
+
 /** Mix a colour toward white by `amount` (0..1), for a hover tone. */
 export function tint(hex: string, amount: number): string | null {
   const rgb = parseHex(hex);
   if (!rgb) return null;
-  return (
-    "#" +
-    rgb
-      .map((v) => Math.round(v + (255 - v) * amount))
-      .map((v) => v.toString(16).padStart(2, "0"))
-      .join("")
+  return toHex(
+    rgb.map((v) => v + (255 - v) * amount) as [number, number, number],
   );
 }

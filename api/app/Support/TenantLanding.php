@@ -14,10 +14,14 @@ use App\Models\Tenant;
  * same rules the settings request applies leave: a row written before a
  * rule existed, or edited by hand, cannot put a script URL or an unbounded
  * string on a public page.
+ *
+ * The photo background is the uploaded cover (`TenantBrand::cover()`), never
+ * a URL the organisation typed: a row that still holds one from before
+ * 2026-10-14 is read as having none.
  */
 final class TenantLanding
 {
-    public const BACKGROUNDS = ['brand', 'gradient', 'image'];
+    public const BACKGROUNDS = ['brand', 'gradient', 'pattern', 'image'];
 
     /**
      * What the page lists beside the sign-in form, and whether each is on by
@@ -27,14 +31,13 @@ final class TenantLanding
     public const SECTIONS = ['announcements' => true, 'vacancies' => true, 'holidays' => false];
 
     /**
-     * @return array{headline: string|null, message: string|null, support_email: string|null, support_phone: string|null, background: string, background_image_url: string|null, sections: array{announcements: bool, vacancies: bool, holidays: bool}}
+     * @return array{headline: string|null, message: string|null, support_email: string|null, support_phone: string|null, background: string, sections: array{announcements: bool, vacancies: bool, holidays: bool}}
      */
     public static function present(Tenant $tenant): array
     {
         $stored = $tenant->getAttribute('landing');
         $landing = is_array($stored) ? $stored : [];
 
-        $image = self::httpsUrl($landing['background_image_url'] ?? null);
         $background = in_array($landing['background'] ?? null, self::BACKGROUNDS, true)
             ? (string) $landing['background']
             : 'brand';
@@ -50,9 +53,8 @@ final class TenantLanding
                 && preg_match('/^\+?[0-9 ()-]{6,24}$/', $landing['support_phone']) === 1
                     ? $landing['support_phone']
                     : null,
-            // An image background with no usable image is the brand colour.
-            'background' => $background === 'image' && $image === null ? 'brand' : $background,
-            'background_image_url' => $image,
+            // A photo background with no cover uploaded is the brand colour.
+            'background' => $background === 'image' && $tenant->brandAsset('cover') === null ? 'brand' : $background,
             'sections' => self::sections($landing['sections'] ?? null),
         ];
     }

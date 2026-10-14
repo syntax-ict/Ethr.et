@@ -72,7 +72,7 @@ export function LogoUpload({
             />
           )}
         </div>
-        <div className="min-w-0 flex-1 space-y-1">
+        <div className="min-w-[11rem] flex-1 basis-44 space-y-1">
           <p className="text-sm font-medium text-foreground">
             {uploadedLogoUrl
               ? t("settings.logo_in_use", "Your uploaded logo is in use")

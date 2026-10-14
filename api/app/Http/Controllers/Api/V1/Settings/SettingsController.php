@@ -22,6 +22,7 @@ use App\Services\Payroll\PensionCalculator;
 use App\Services\Payroll\StatutorySchedules;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
+use App\Support\TenantBrand;
 use App\Support\TenantLanding;
 use App\Support\TenantSecurityPolicy;
 use App\Support\WorkingWeek;
@@ -63,6 +64,7 @@ class SettingsController extends Controller
             'branding' => [
                 'logo_url' => $tenant->logo_path === null ? null : $tenant->logo_path,
                 'uploaded_logo_url' => $tenant->uploadedLogoUrl(),
+                'assets' => TenantBrand::assets($tenant),
                 'theme' => $this->brandTheme($tenant),
             ],
             'landing' => TenantLanding::present($tenant),

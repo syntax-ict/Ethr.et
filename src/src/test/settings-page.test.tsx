@@ -41,7 +41,11 @@ const SETTINGS = {
     custom_domain_allowed: false,
     custom_domain_dns: null,
   },
-  branding: { logo_url: null, theme: [] },
+  branding: {
+    logo_url: null,
+    assets: { logo_dark: null, mark: null, cover: null },
+    theme: [],
+  },
   leave: { working_days: [1, 2, 3, 4, 5] },
   payroll: {
     pay_period: "monthly",
