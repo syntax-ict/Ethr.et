@@ -47,7 +47,9 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    // The site's own pages, and the organisation portals that switched
+    // listing on (served by the API: OrganisationSitemapController).
+    sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/sitemap-organisations.xml`],
     host: SITE_URL,
   };
 }

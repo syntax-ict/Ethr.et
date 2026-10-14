@@ -78,9 +78,16 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
   }, [organisation, primary, accent, highContrast]);
 
   // A first visit opens in the organisation's language; a choice the person
-  // already made on this device stands.
+  // already made on this device stands. A link that names a language
+  // (`?lang=am`, the hreflang alternates the server emits) opens in it.
   useEffect(() => {
-    if (!organisation || !tenantDefaultLocale) return;
+    if (!organisation) return;
+    const asked = new URLSearchParams(window.location.search).get("lang");
+    if (asked === "en" || asked === "am") {
+      setLocale(asked);
+      return;
+    }
+    if (!tenantDefaultLocale) return;
     try {
       if (localStorage.getItem("locale")) return;
     } catch {
