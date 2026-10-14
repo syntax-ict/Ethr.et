@@ -40,6 +40,7 @@ return [
     'otp_unavailable' => 'የማረጋገጫ ኮዶች ሊላኩ አይችሉም — የSMS መተላለፊያ አልተዋቀረም።',
     'otp_message' => 'የእርስዎ ETHR ማረጋገጫ ኮድ :code ነው። በ :minutes ደቂቃዎች ውስጥ ጊዜው ያበቃል።',
     'otp_email_unavailable' => 'የመግቢያ ኮዶች በኢሜይል ሊላኩ አይችሉም — የኢሜይል አገልጋይ አልተዋቀረም።',
+    'sms_mobile_only' => 'የጽሑፍ መልዕክት ኮዶች የሚላኩት ወደ ሞባይል ቁጥሮች (በ9 ወይም በ7 የሚጀምሩ) ብቻ ነው። የሞባይል ቁጥርዎን ይጠቀሙ፣ ወይም ኮዱን በኢሜይል ያግኙ።',
     'otp_email_subject' => 'የእርስዎ ETHR የመግቢያ ኮድ፦ :code',
     'otp_email_intro' => 'በETHR ወደ :organisation ለመግባት ይህን ኮድ ይጠቀሙ፦',
     'otp_email_expiry' => 'በ :minutes ደቂቃዎች ውስጥ ጊዜው ያበቃል፤ አንድ ጊዜ ብቻ ይሠራል።',

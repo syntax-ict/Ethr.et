@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
 use App\Http\Controllers\Api\V1\Admin\AdminStatutoryLayoutController;
 use App\Http\Controllers\Api\V1\Admin\AdminTenantController;
 use App\Http\Controllers\Api\V1\Admin\PlatformSettingsController;
+use App\Http\Controllers\Api\V1\Admin\SmsDeliveryController;
 use App\Http\Controllers\Api\V1\Analytics\AnalyticsController;
 use App\Http\Controllers\Api\V1\Announcement\AnnouncementController;
 use App\Http\Controllers\Api\V1\ApiKey\ApiKeyController;
@@ -790,6 +791,18 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             // Platform-wide settings (bank account tenants pay into, etc.)
             Route::get('/platform-settings', [PlatformSettingsController::class, 'show']);
             Route::put('/platform-settings', [PlatformSettingsController::class, 'update']);
+
+            // SMS delivery: gateways, routing, the switch and the daily cap.
+            // The test sends a real, billed message, so it has its own limit.
+            Route::get('/sms', [SmsDeliveryController::class, 'show']);
+            Route::put('/sms/settings', [SmsDeliveryController::class, 'updateSettings']);
+            Route::put('/sms/gateways/{slot}', [SmsDeliveryController::class, 'saveGateway'])
+                ->where('slot', 'primary|secondary');
+            Route::delete('/sms/gateways/{slot}', [SmsDeliveryController::class, 'destroyGateway'])
+                ->where('slot', 'primary|secondary');
+            Route::post('/sms/gateways/{slot}/test', [SmsDeliveryController::class, 'testGateway'])
+                ->where('slot', 'primary|secondary')
+                ->middleware('throttle:sms-test');
 
             // The plan catalog the public pricing page renders. Safe to expose
             // as an editable surface only because subscriptions.price_cents now
