@@ -34,6 +34,10 @@ final class PayslipPdfService
             'income_tax_cents' => $entry->income_tax_cents,
             'employee_pension_cents' => $entry->employee_pension_cents,
             'employer_pension_cents' => $entry->employer_pension_cents,
+            // The rates this entry was calculated with, from its own log; an
+            // entry from before they were logged prints no rate at all.
+            'employee_pension_rate' => self::rate($entry, 'employee_rate'),
+            'employer_pension_rate' => self::rate($entry, 'employer_rate'),
             'other_deductions_cents' => $entry->other_deductions_cents,
             'deductions' => $entry->deductions ?? [],
             'net_cents' => $entry->net_cents,
@@ -53,5 +57,17 @@ final class PayslipPdfService
         $pdf->setOption('isFontSubsettingEnabled', true);
 
         return $pdf->output();
+    }
+
+    private static function rate(PayrollEntry $entry, string $key): ?string
+    {
+        $log = $entry->getAttribute('calculation_log');
+        foreach ((is_array($log) && is_array($log['steps'] ?? null)) ? $log['steps'] : [] as $step) {
+            if (is_array($step) && ($step['step'] ?? null) === 'pension' && is_numeric($step[$key] ?? null)) {
+                return RunRegisterService::rateLabel([(float) $step[$key]]);
+            }
+        }
+
+        return null;
     }
 }

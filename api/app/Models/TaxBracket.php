@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property int $deduction_cents
  * @property Carbon $effective_from
  * @property Carbon|null $effective_to
+ * @property string|null $legal_reference
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -38,6 +39,7 @@ class TaxBracket extends Model
         'rate',
         'deduction_cents',
         'effective_from',
+        'legal_reference',
         'effective_to',
     ];
 

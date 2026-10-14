@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\EmployeeStatus;
+use App\Enums\NationalityStatus;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Builder;
@@ -25,6 +26,8 @@ use Illuminate\Support\Carbon;
  *
  * @property Carbon|null $date_of_birth
  * @property Carbon|null $hire_date
+ * @property NationalityStatus|null $nationality_status
+ * @property bool $nationality_needs_review
  * @property-read Department|null $department
  * @property-read Position|null $position
  * @property-read Branch|null $branch
@@ -61,6 +64,8 @@ class Employee extends Model
         'gender',
         'date_of_birth',
         'nationality',
+        'nationality_status',
+        'nationality_needs_review',
         'national_id',
         'marital_status',
         'status',
@@ -100,6 +105,8 @@ class Employee extends Model
             'termination_date' => 'date',
             'salary_cents' => 'integer',
             'tin' => 'encrypted',
+            'nationality_status' => NationalityStatus::class,
+            'nationality_needs_review' => 'boolean',
             'national_id' => 'encrypted',
         ];
     }

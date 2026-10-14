@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\V1\Accounting\AccountingController;
 use App\Http\Controllers\Api\V1\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
+use App\Http\Controllers\Api\V1\Admin\AdminStatutoryLayoutController;
 use App\Http\Controllers\Api\V1\Admin\AdminTenantController;
 use App\Http\Controllers\Api\V1\Admin\PlatformSettingsController;
 use App\Http\Controllers\Api\V1\Analytics\AnalyticsController;
@@ -92,6 +93,7 @@ use App\Http\Controllers\Api\V1\Payroll\LoanController;
 use App\Http\Controllers\Api\V1\Payroll\OvertimeRateController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollRuleController;
+use App\Http\Controllers\Api\V1\Payroll\PensionRuleController;
 use App\Http\Controllers\Api\V1\Payroll\TaxBracketController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\Profile\ProfileController;
@@ -569,6 +571,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         // Payroll configuration
         Route::get('/tax-brackets', [TaxBracketController::class, 'index']);
         Route::put('/tax-brackets', [TaxBracketController::class, 'replace']);
+        Route::get('/pension-rules', [PensionRuleController::class, 'index']);
+        Route::post('/pension-rules', [PensionRuleController::class, 'store']);
         Route::get('/overtime-rates', [OvertimeRateController::class, 'show']);
         Route::put('/overtime-rates', [OvertimeRateController::class, 'update']);
         Route::apiResource('rules', PayrollRuleController::class)->parameters(['rules' => 'payrollRule']);
@@ -797,6 +801,11 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::post('/plans', [AdminPlanController::class, 'store']);
             Route::put('/plans/{publicId}', [AdminPlanController::class, 'update']);
             Route::delete('/plans/{publicId}', [AdminPlanController::class, 'destroy']);
+
+            // Dated layouts of the monthly statutory schedules: a new form
+            // version is a row, not a deploy.
+            Route::get('/statutory-layouts', [AdminStatutoryLayoutController::class, 'index']);
+            Route::post('/statutory-layouts', [AdminStatutoryLayoutController::class, 'store']);
         });
 
     // Billing
