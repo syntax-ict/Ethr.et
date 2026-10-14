@@ -92,10 +92,44 @@ class LandingFeedController extends Controller
                 ->all()
             : [];
 
+        // Cached briefly, like tenant-context: the portal is public and read
+        // far more often than news is published, and Vary keeps one tenant's
+        // feed from being served as another's through a shared cache.
         return response()->json([
             'announcements' => $announcements,
             'vacancies' => $vacancies,
             'holidays' => $holidays,
+        ])->withHeaders(['Cache-Control' => 'public, max-age=120', 'Vary' => 'Host, X-Tenant']);
+    }
+
+    /**
+     * One landing announcement in full, for its detail view. Only what the
+     * feed itself lists can be opened: published, not expired, marked for the
+     * landing and addressed to everyone; anything else is the same 404.
+     */
+    public function announcement(CurrentTenant $currentTenant, string $announcement): JsonResponse
+    {
+        $tenant = $currentTenant->get();
+        $model = $tenant === null || ! TenantLanding::present($tenant)['sections']['announcements']
+            ? null
+            : Announcement::query()
+                ->published()
+                ->notExpired()
+                ->where('show_on_landing', true)
+                ->where('target_type', 'all')
+                ->where('public_id', $announcement)
+                ->first();
+
+        if ($model === null) {
+            throw (new ModelNotFoundException)->setModel(Announcement::class, [$announcement]);
+        }
+
+        return response()->json([
+            'public_id' => $model->public_id,
+            'title' => Str::limit($model->title, 150),
+            'body' => self::excerpt($model->body, 10000),
+            'priority' => $model->priority,
+            'published_at' => Carbon::make($model->published_at)?->toIso8601String(),
         ]);
     }
 

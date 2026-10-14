@@ -219,6 +219,7 @@ Route::get('/organisation-logos/{publicId}/{version}', OrganisationLogoControlle
 // announcements and vacancies marked public, and upcoming holidays.
 Route::get('/auth/tenant-landing/feed', [LandingFeedController::class, 'index'])->middleware('throttle:api');
 Route::get('/auth/tenant-landing/vacancies/{vacancy}', [LandingFeedController::class, 'vacancy'])->middleware('throttle:api');
+Route::get('/auth/tenant-landing/announcements/{announcement}', [LandingFeedController::class, 'announcement'])->middleware('throttle:api');
 
 // SSO/SAML endpoints (public — IdP redirects users here)
 Route::prefix('sso/saml/{subdomain}')->middleware('throttle:auth')->group(function () {

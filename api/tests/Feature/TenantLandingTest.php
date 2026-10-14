@@ -43,6 +43,47 @@ it('saves the sign-in page and shows it before sign-in', function () {
         ->assertJsonPath('tenant.landing.background_image_url', 'https://cdn.acme.et/plant.jpg');
 });
 
+it('keeps what a save does not mention, section toggles included', function () {
+    $tenant = createTenant();
+    $tenant->update(['landing' => [
+        'headline' => 'Old headline',
+        'support_email' => 'hr@acme.et',
+        'background' => 'gradient',
+        'sections' => ['announcements' => false, 'vacancies' => true, 'holidays' => true],
+    ]]);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    // The form sends only the fields it edits. Before the merge fix this
+    // write reset every absent key: the toggles went back to their defaults
+    // and the support email vanished.
+    test()->putJson(landingUrl($tenant, '/settings/landing'), [
+        'headline' => 'New headline',
+        'background' => 'brand',
+    ])->assertOk();
+
+    $landing = $tenant->fresh()->landing;
+    expect($landing['headline'])->toBe('New headline')
+        ->and($landing['support_email'])->toBe('hr@acme.et')
+        ->and($landing['sections'])->toBe(['announcements' => false, 'vacancies' => true, 'holidays' => true]);
+});
+
+it('merges section toggles per key', function () {
+    $tenant = createTenant();
+    $tenant->update(['landing' => [
+        'background' => 'brand',
+        'sections' => ['announcements' => false, 'holidays' => true],
+    ]]);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->putJson(landingUrl($tenant, '/settings/landing'), [
+        'background' => 'brand',
+        'sections' => ['vacancies' => false],
+    ])->assertOk();
+
+    expect($tenant->fresh()->landing['sections'])
+        ->toBe(['announcements' => false, 'holidays' => true, 'vacancies' => false]);
+});
+
 it('refuses what must not reach a public page', function (array $body, string $field) {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);

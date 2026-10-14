@@ -3,14 +3,52 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
-import { LandingNews } from "@/features/auth/components/landing-news";
+import { OrganisationPortal } from "@/features/auth/components/organisation-portal";
+import type { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
+import { vi } from "vitest";
 import type { LandingFeed } from "@/features/auth/landing-feed";
 
 /**
- * The news under an organisation's sign-in form. The server decides what is
- * public; the page must ask the right organisation (X-Tenant on the shared
- * landing), render text as text, and render nothing when there is nothing.
+ * The organisation portal around the sign-in form: news, open positions and
+ * holidays under the hero. The server decides what is public; the page must
+ * ask the right organisation (X-Tenant on the shared landing), render text as
+ * text, and render no section when there is nothing.
  */
+type HostCtx = ReturnType<typeof useAuthHostContext>;
+
+const hostContextValue = vi.fn<() => HostCtx>();
+vi.mock("@/lib/auth/use-auth-host-context", () => ({
+  useAuthHostContext: () => hostContextValue(),
+}));
+vi.mock("next-themes", () => ({
+  useTheme: () => ({ resolvedTheme: "light" }),
+}));
+
+function organisationContext(): HostCtx {
+  return {
+    context: "tenant",
+    tenantSlug: "acme",
+    tenantName: "Acme Manufacturing",
+    tenantLogoPath: null,
+    tenantBrand: null,
+    tenantLanding: {
+      headline: "Welcome to Acme",
+      message: null,
+      support_email: "hr@acme.et",
+      support_phone: null,
+      background: "brand",
+      background_image_url: null,
+    },
+    tenantSignIn: null,
+    tenantDefaultLocale: null,
+    onLanding: true,
+    carryOrganisation: "acme",
+    tenantRequest: { mode: "entry", slug: "acme" },
+    tenantContextLoading: false,
+    tenantLookupError: null,
+    tenantFieldVisible: false,
+  };
+}
 const feed: LandingFeed = {
   announcements: [
     {
@@ -40,17 +78,20 @@ const feed: LandingFeed = {
 };
 
 function renderNews() {
+  hostContextValue.mockReturnValue(organisationContext());
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <LandingNews request={{ mode: "entry", slug: "acme" }} />
+      <OrganisationPortal>
+        <p>the sign-in form</p>
+      </OrganisationPortal>
     </QueryClientProvider>,
   );
 }
 
-describe("<LandingNews>", () => {
+describe("<OrganisationPortal>", () => {
   it("asks for the organisation in the address and shows its news and openings", async () => {
     let tenantHeader: string | null = null;
     server.use(
@@ -114,7 +155,26 @@ describe("<LandingNews>", () => {
     expect(container.querySelector("img")).toBeNull();
   });
 
-  it("renders nothing when the organisation published nothing", async () => {
+  it("keeps the hero, header and footer around the form", async () => {
+    server.use(
+      http.get("*/auth/tenant-landing/feed", () => HttpResponse.json(feed)),
+    );
+
+    renderNews();
+
+    // The hero headline, the sign-in card, and the header link back to it.
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to Acme" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("the sign-in form")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute(
+      "href",
+      "#sign-in",
+    );
+    expect(screen.getByText(/powered by ethr/i)).toBeInTheDocument();
+  });
+
+  it("renders no sections when the organisation published nothing", async () => {
     let asked = false;
     server.use(
       http.get("*/auth/tenant-landing/feed", () => {
@@ -127,10 +187,35 @@ describe("<LandingNews>", () => {
       }),
     );
 
-    const { container } = renderNews();
-    await new Promise((r) => setTimeout(r, 50));
+    renderNews();
+    await new Promise((r) => setTimeout(r, 80));
 
     expect(asked).toBe(true);
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText(/latest news/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/open positions/i)).not.toBeInTheDocument();
+    // The form is still there: an empty portal is still the sign-in page.
+    expect(screen.getByText("the sign-in form")).toBeInTheDocument();
+  });
+
+  it("opens an announcement in full", async () => {
+    server.use(
+      http.get("*/auth/tenant-landing/feed", () => HttpResponse.json(feed)),
+      http.get("*/auth/tenant-landing/announcements/a1", () =>
+        HttpResponse.json({
+          public_id: "a1",
+          title: "Plant reopens Monday",
+          body: "All shifts resume at 06:00. Gate B stays closed.",
+          priority: "urgent",
+          published_at: "2026-10-12T08:00:00Z",
+        }),
+      ),
+    );
+
+    renderNews();
+    fireEvent.click(
+      await screen.findByRole("button", { name: /plant reopens monday/i }),
+    );
+
+    expect(await screen.findByText(/gate b stays closed/i)).toBeInTheDocument();
   });
 });

@@ -115,6 +115,7 @@ return [
         'App\Http\Controllers\Api\V1\Auth\SessionClaimController@__invoke' => 'Single-use handoff nonce, bound to the hostname\'s tenant rather than the body.',
         'App\Http\Controllers\Api\V1\Auth\LandingFeedController@index' => 'Pre-authentication sign-in page feed: only announcements and vacancies their author marked public, and holidays, each section as the organisation switched it on. Tenant from the hostname through the global scope; plain text only. LandingFeedTest.',
         'App\Http\Controllers\Api\V1\Auth\LandingFeedController@vacancy' => 'One vacancy that is open, published and public, in the hostname\'s tenant; every other id is the same 404. LandingFeedTest.',
+        'App\Http\Controllers\Api\V1\Auth\LandingFeedController@announcement' => 'One announcement that is published, unexpired, marked for the landing and addressed to everyone, in the hostname tenant; every other id is the same 404. LandingFeedTest.',
         'App\Http\Controllers\Api\V1\Auth\TenantContextController@__invoke' => 'Returns only a tenant\'s name, subdomain and logo — the branding a login page needs before anyone has authenticated.',
         'App\Http\Controllers\Api\V1\Auth\SsoController@initiate' => 'Pre-authentication SAML leg.',
         'App\Http\Controllers\Api\V1\Auth\SsoController@callback' => 'The signed SAML assertion is the authority.',

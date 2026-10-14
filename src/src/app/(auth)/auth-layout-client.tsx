@@ -24,6 +24,8 @@ import {
 import { useTheme } from "next-themes";
 import { applyBrandToDocument } from "@/features/branding/TenantBrandingProvider";
 import { panelBackground } from "@/lib/auth/landing-background";
+import { usePathname } from "next/navigation";
+import { OrganisationPortal } from "@/features/auth/components/organisation-portal";
 
 const taglineKeys = [
   "layout_multi_tenant",
@@ -48,8 +50,14 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
     tenantLanding,
     tenantDefaultLocale,
     tenantContextLoading,
+    onLanding,
   } = useAuthHostContext();
   const organisation = context === "tenant";
+  // The portal treatment belongs to the organisation's front door alone: its
+  // entry URL and its /login. Forgot, reset and the other auth pages keep the
+  // focused two-panel layout.
+  const pathname = usePathname();
+  const portal = organisation && (onLanding || pathname === "/login");
 
   // The colours go on the document so every control on the page - the
   // button, focus rings, links - takes them, as they do once signed in.
@@ -87,6 +95,10 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
       document.title = previous;
     };
   }, [organisation, tenantName, t]);
+
+  if (portal) {
+    return <OrganisationPortal>{children}</OrganisationPortal>;
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -263,7 +275,7 @@ function OrganisationPanel({
 }
 
 /** Who to ask when signing in does not work: the organisation's HR desk. */
-function SupportContacts({
+export function SupportContacts({
   landing,
   compact = false,
 }: {

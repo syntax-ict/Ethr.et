@@ -12,7 +12,9 @@
 >
 > **AMENDED BY THE OWNER, 2026-10-08: one canonical address per organisation, in three tiers.**
 > Standard is the subdomain, Enterprise a *verified* custom domain sold as a paid add-on, and
-> `ethr.et/{slug}` is a fallback that only redirects. See
+> `ethr.et/{slug}` is a fallback. *(Since 2026-10-13 it no longer only redirects: an
+> organisation whose canonical address is the path itself is served the sign-in page there
+> directly, with 200 and `X-Robots-Tag: noindex` - see the correction below.)* See
 > [*Amendment: one canonical address*](#amendment-2026-10-08-one-canonical-address-in-three-tiers)
 > below; where it and the 2026-10-06 text differ, the amendment wins.
 
@@ -64,7 +66,11 @@ the account cannot choose a tenant with the header.
   else gets `404.html` with a real 404. The answer is the same for an inactive organisation
   as for an active one; the sign-in page explains the state. *(Since 2026-10-08 it redirects
   to the organisation's canonical address first, and to `/login?org=` only when it has none —
-  see the amendment.)*
+  see the amendment.)* *(Corrected 2026-10-14: since 2026-10-13 an organisation in path mode —
+  `FrontendUrl::canonicalOrigin()` returns null — is served `login.html` at `/{slug}` with
+  200, `Cache-Control: no-cache` and `X-Robots-Tag: noindex, nofollow`, so its page lives at
+  its own address instead of bouncing to `/login?org=`. The redirect to a canonical origin,
+  and the 404 for unknown slugs, are unchanged.)*
 - The login form prefills the organisation from `?org=` and **stores nothing until sign-in**.
   Then a crafted link cannot change the `X-Tenant` of a browser that is already signed in.
 - `.htaccess` group 2b sends one lower-case segment, with no dot and no file, directory or
@@ -130,8 +136,8 @@ bypass inventory. No `withoutGlobalScope` was added, and `Tenant` is on the Glob
   host, so they share one session cookie and one `localStorage`. Signing into a second
   organisation in the same browser replaces the first. Subdomains and custom domains do not
   have this limit, which is the strongest reason to finish M3.
-- **The entry URL reveals which organisations exist.** A real slug answers 302 and anything
-  else 404. Subdomain resolution already revealed the same, so nothing new is exposed.
+- **The entry URL reveals which organisations exist.** A real slug answers 302 — or, since
+  2026-10-13, 200 for a path-mode organisation — and anything else 404. Subdomain resolution already revealed the same, so nothing new is exposed.
 - **Unknown paths now boot Laravel.** Every lower-case single-segment path with nothing behind
   it costs one PHP request and one indexed query, where it used to be a static 404. No session
   is written.
@@ -210,9 +216,10 @@ configuration change after that host work.
 
 Three things now send an organisation there:
 
-- **The entry URL.** `ethr.et/{slug}` redirects to `{canonical}/login`, and to
-  `/login?org={slug}` only when the organisation has no canonical address. It is still a
-  302 or a 404, with no session written.
+- **The entry URL.** `ethr.et/{slug}` redirects to `{canonical}/login` when a canonical
+  origin exists. *(Corrected 2026-10-14: with none, it serves the sign-in page itself since
+  2026-10-13 — 200, noindex — rather than redirecting to `/login?org=`.)* No session is
+  written either way.
 - **A sign-in on a host this deployment owns that is not the canonical one.** That means the
   apex, `www`, or the organisation's own subdomain while a verified custom domain sits above
   it. There `POST /auth/login` answers **409 `canonical-address`** with `canonical_url`,
