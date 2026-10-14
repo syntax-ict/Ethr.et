@@ -25344,6 +25344,87 @@
                                                 "uploaded_logo_url": {
                                                     "type": "string"
                                                 },
+                                                "assets": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "logo_dark": {
+                                                            "type": [
+                                                                "object",
+                                                                "null"
+                                                            ],
+                                                            "properties": {
+                                                                "url": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "url"
+                                                            ]
+                                                        },
+                                                        "mark": {
+                                                            "type": [
+                                                                "object",
+                                                                "null"
+                                                            ],
+                                                            "properties": {
+                                                                "url": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "url"
+                                                            ]
+                                                        },
+                                                        "cover": {
+                                                            "type": [
+                                                                "object",
+                                                                "null"
+                                                            ],
+                                                            "properties": {
+                                                                "url": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "srcset": {
+                                                                    "type": "string"
+                                                                },
+                                                                "width": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "height": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "focal_x": {
+                                                                    "type": "number"
+                                                                },
+                                                                "focal_y": {
+                                                                    "type": "number"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "url",
+                                                                "srcset",
+                                                                "width",
+                                                                "height",
+                                                                "focal_x",
+                                                                "focal_y"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "logo_dark",
+                                                        "mark",
+                                                        "cover"
+                                                    ]
+                                                },
                                                 "theme": {
                                                     "type": "object",
                                                     "properties": {
@@ -25371,6 +25452,7 @@
                                             "required": [
                                                 "logo_url",
                                                 "uploaded_logo_url",
+                                                "assets",
                                                 "theme"
                                             ]
                                         },
@@ -25403,13 +25485,7 @@
                                                 },
                                                 "background": {
                                                     "type": "string",
-                                                    "description": "An image background with no usable image is the brand colour."
-                                                },
-                                                "background_image_url": {
-                                                    "type": [
-                                                        "string",
-                                                        "null"
-                                                    ]
+                                                    "description": "A photo background with no cover uploaded is the brand colour."
                                                 },
                                                 "sections": {
                                                     "type": "object",
@@ -25458,7 +25534,6 @@
                                                 "support_email",
                                                 "support_phone",
                                                 "background",
-                                                "background_image_url",
                                                 "sections"
                                             ]
                                         },

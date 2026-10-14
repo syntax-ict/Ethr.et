@@ -122,33 +122,8 @@ class FileStorageService
      */
     public function uploadLogo(UploadedFile $file): array
     {
-        $this->verifyMimeType($file);
-
-        $image = extension_loaded('gd') ? @imagecreatefromstring($file->getContent()) : false;
-        if ($image === false) {
-            throw ValidationException::withMessages([
-                'logo' => __('validation.image', ['attribute' => 'logo']),
-            ]);
-        }
-
-        if (! imageistruecolor($image)) {
-            imagepalettetotruecolor($image);
-        }
-        imagealphablending($image, false);
-        imagesavealpha($image, true);
-
-        $scaled = $this->scaleToFit($image, self::LOGO_MAX_DIMENSION);
-        imagealphablending($scaled, false);
-        imagesavealpha($scaled, true);
-
-        ob_start();
-        imagepng($scaled, null, 9);
-        $content = (string) ob_get_clean();
-
-        if ($scaled !== $image) {
-            imagedestroy($scaled);
-        }
-        imagedestroy($image);
+        $image = $this->decodeImage($file, 'logo');
+        $content = $this->encodePng($this->replaceWithScaled($image, self::LOGO_MAX_DIMENSION));
 
         $version = substr(hash('sha256', $content), 0, 16);
         $path = "{$this->tenantPrefix()}/branding/logo-{$version}.png";
@@ -161,6 +136,145 @@ class FileStorageService
             'mime_type' => 'image/png',
             'size' => strlen($content),
         ];
+    }
+
+    /** The square mark's canvas edge, and the share of it the image may fill. */
+    public const MARK_SIZE = 512;
+
+    public const MARK_SAFE_AREA = 0.8;
+
+    /** Longest edge of a stored cover photo, and the narrower widths it is also encoded at. */
+    public const COVER_MAX_DIMENSION = 1920;
+
+    public const COVER_VARIANT_WIDTHS = [1280, 640];
+
+    /**
+     * Store one of an organisation's other brand images, re-encoded as the
+     * logo is, so only pixels are served:
+     *
+     * - `logo_dark`: as the logo, a PNG with its transparency, at most 512 px;
+     * - `mark`: a 512 px square PNG with the image centred inside 80% of it,
+     *   the margin a favicon, an app icon or a link preview needs;
+     * - `cover`: a JPEG at most 1920 px on the longest edge, plus 1280 and
+     *   640 px wide copies for `srcset`, at a quality a photo keeps.
+     *
+     * @return array{path: string, version: string, mime_type: string, size: int, width: int, height: int, variants: array<int, string>}
+     */
+    public function uploadBrandImage(UploadedFile $file, string $kind): array
+    {
+        $image = $this->decodeImage($file, 'image');
+        /** @var array<int, string> $encodedVariants */
+        $encodedVariants = [];
+
+        switch ($kind) {
+            case 'logo_dark':
+                $image = $this->replaceWithScaled($image, self::LOGO_MAX_DIMENSION);
+                $content = $this->encodePng($image);
+                $extension = 'png';
+                break;
+            case 'mark':
+                $fitted = $this->replaceWithScaled($image, (int) round(self::MARK_SIZE * self::MARK_SAFE_AREA), allowUpscale: true);
+                $image = $this->centreOnSquare($fitted, self::MARK_SIZE);
+                imagedestroy($fitted);
+                $content = $this->encodePng($image);
+                $extension = 'png';
+                break;
+            case 'cover':
+                $image = $this->replaceWithScaled($image, self::COVER_MAX_DIMENSION);
+                $content = $this->encodeJpeg($image, 85);
+                $extension = 'jpg';
+                foreach (self::COVER_VARIANT_WIDTHS as $width) {
+                    if ($width >= imagesx($image)) {
+                        continue;
+                    }
+                    $narrower = imagescale($image, $width, -1);
+                    if ($narrower === false) {
+                        continue;
+                    }
+                    $encodedVariants[$width] = $this->encodeJpeg($narrower, 82);
+                    imagedestroy($narrower);
+                }
+                break;
+            default:
+                imagedestroy($image);
+                throw new InvalidArgumentException("Unknown brand image kind: {$kind}");
+        }
+
+        $width = imagesx($image);
+        $height = imagesy($image);
+        imagedestroy($image);
+
+        $version = substr(hash('sha256', $content), 0, 16);
+        $slug = str_replace('_', '-', $kind);
+        $path = "{$this->tenantPrefix()}/branding/{$slug}-{$version}.{$extension}";
+        Storage::disk($this->disk)->put($path, $content);
+
+        $variants = [];
+        foreach ($encodedVariants as $variantWidth => $bytes) {
+            $variantPath = "{$this->tenantPrefix()}/branding/{$slug}-{$version}-{$variantWidth}.{$extension}";
+            Storage::disk($this->disk)->put($variantPath, $bytes);
+            $variants[$variantWidth] = $variantPath;
+        }
+
+        return [
+            'path' => $path,
+            'version' => $version,
+            'mime_type' => $extension === 'png' ? 'image/png' : 'image/jpeg',
+            'size' => strlen($content),
+            'width' => $width,
+            'height' => $height,
+            'variants' => $variants,
+        ];
+    }
+
+    /**
+     * Decode an uploaded image for re-encoding, as true colour with its
+     * alpha channel kept. The field name is for the validation message.
+     */
+    private function decodeImage(UploadedFile $file, string $field): \GdImage
+    {
+        $this->verifyMimeType($file);
+
+        $image = extension_loaded('gd') ? @imagecreatefromstring($file->getContent()) : false;
+        if ($image === false) {
+            throw ValidationException::withMessages([
+                $field => __('validation.image', ['attribute' => $field]),
+            ]);
+        }
+
+        if (! imageistruecolor($image)) {
+            imagepalettetotruecolor($image);
+        }
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+
+        return $image;
+    }
+
+    private function encodePng(\GdImage $image): string
+    {
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+
+        ob_start();
+        imagepng($image, null, 9);
+
+        return (string) ob_get_clean();
+    }
+
+    /** A transparent `$edge` square with `$image` centred on it. */
+    private function centreOnSquare(\GdImage $image, int $edge): \GdImage
+    {
+        $canvas = imagecreatetruecolor($edge, $edge);
+        imagealphablending($canvas, false);
+        imagesavealpha($canvas, true);
+        imagefill($canvas, 0, 0, (int) imagecolorallocatealpha($canvas, 0, 0, 0, 127));
+
+        $width = imagesx($image);
+        $height = imagesy($image);
+        imagecopy($canvas, $image, intdiv($edge - $width, 2), intdiv($edge - $height, 2), 0, 0, $width, $height);
+
+        return $canvas;
     }
 
     /** The bytes of a stored file, or null when it is gone. */
@@ -415,9 +529,9 @@ class FileStorageService
      * resolution photo is tens of megabytes as a GD resource, so holding on to
      * superseded copies exhausts the PHP memory limit.
      */
-    private function replaceWithScaled(\GdImage $image, int $maxDimension): \GdImage
+    private function replaceWithScaled(\GdImage $image, int $maxDimension, bool $allowUpscale = false): \GdImage
     {
-        $scaled = $this->scaleToFit($image, $maxDimension);
+        $scaled = $this->scaleToFit($image, $maxDimension, $allowUpscale);
 
         if ($scaled !== $image) {
             imagedestroy($image);
