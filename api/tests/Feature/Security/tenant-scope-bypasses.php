@@ -11,6 +11,15 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-14, statutory rules: **167 across 64 files**. Pension rates became
+ * dated rows (`pension_rules`) with the same platform/organisation split as
+ * `tax_brackets`: `Services/Payroll/PensionCalculator` reads the organisation's
+ * rule, then the platform's (`whereNull('tenant_id')`), each stating the
+ * predicate on its own chain as `TaxCalculator::effectiveBrackets` does;
+ * `Http/Controllers/Api/V1/Payroll/PensionRuleController` lists the platform
+ * rules beside the organisation's own; `TaxCalculator::basis()` reports which
+ * ladder applied, with the same two predicates (1 -> 2).)
+ *
  * (2026-10-14: **163 across 62 files**. `Services/Device/AdmsDeviceResolver`
  * finds the device a ZKTeco ADMS request speaks for: pre-authentication, by
  * serial, authenticated by the device's IP allowlist — the webhook policy for
@@ -141,6 +150,9 @@ return [
     // day the employee and punch steps moved to Services/Device/DevicePunchRecorder,
     // shared with ZKTeco ADMS; it has no bypass of its own.
     'Http/Controllers/Api/V1/Device/DeviceController.php' => 2,
+    // The platform's pension rules (tenant_id NULL), listed beside the
+    // organisation's own in Settings → Payroll (2026-10-14).
+    'Http/Controllers/Api/V1/Payroll/PensionRuleController.php' => 1,
     'Http/Controllers/Api/V1/Payroll/TaxBracketController.php' => 1,
     // AuthenticateApiKey (2026-10-09): the key lookup is pre-authentication and
     // keyed on the presented secret, as ScimAuth's is; the creator lookup
@@ -212,7 +224,11 @@ return [
     'Services/Payroll/AllowanceService.php' => 1,
     'Services/Payroll/OvertimeCalculator.php' => 1,
     'Services/Payroll/PayrollEngine.php' => 4,
-    'Services/Payroll/TaxCalculator.php' => 1,
+    // The rule in force: the organisation's (`where tenant_id = X`), else the
+    // platform's (`whereNull`) — the tax ladder's arrangement (2026-10-14).
+    'Services/Payroll/PensionCalculator.php' => 1,
+    // effectiveBrackets() and basis() (2026-10-14), each stating tenant_id.
+    'Services/Payroll/TaxCalculator.php' => 2,
     'Services/Report/ReportEngine.php' => 4,
     'Services/TenantAddressService.php' => 1,
     'Services/UserProvisioningService.php' => 1,

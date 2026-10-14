@@ -40,6 +40,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/statutory-layouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List statutory layouts */
+        get: operations["adminStatutoryLayout.index"];
+        put?: never;
+        /** Create statutory layout */
+        post: operations["adminStatutoryLayout.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/alert-thresholds": {
         parameters: {
             query?: never;
@@ -4367,6 +4385,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll/pension-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List pension rules */
+        get: operations["pensionRule.index"];
+        put?: never;
+        /** Create pension rule */
+        post: operations["pensionRule.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{employee}/personnel-actions": {
         parameters: {
             query?: never;
@@ -7198,6 +7234,23 @@ export interface components {
             /** Format: date-time */
             created_at: string | null;
         };
+        /** PensionRuleResource */
+        PensionRuleResource: {
+            public_id: string;
+            /** @enum {string} */
+            owner: "platform" | "organisation";
+            scheme: string;
+            employee_rate: number;
+            employer_rate: number;
+            ceiling_cents: number | null;
+            floor_cents: number | null;
+            base: string;
+            exempt_non_nationals: boolean;
+            min_service_days: number | null;
+            legal_reference: string;
+            effective_from: string;
+            effective_to: string | null;
+        };
         /** PersonnelActionResource */
         PersonnelActionResource: {
             public_id: string;
@@ -7698,6 +7751,18 @@ export interface components {
                 hire_date?: string | null;
             }[];
         };
+        /** StatutoryLayoutResource */
+        StatutoryLayoutResource: {
+            public_id: string;
+            schedule: string;
+            scheme: string | null;
+            agency: string;
+            title: string;
+            columns: unknown[];
+            note: string | null;
+            effective_from: string;
+            effective_to: string | null;
+        };
         /** StoreAlertThresholdRequest */
         StoreAlertThresholdRequest: {
             /** @enum {string} */
@@ -8006,6 +8071,27 @@ export interface components {
             is_active?: boolean | null;
             sort_order?: number | null;
         };
+        /**
+         * StorePensionRuleRequest
+         * @description A new pension rule for the organisation, from a date. The legal reference
+         *     is required: a rate with no stated source is the hard-coding this replaced,
+         *     moved into a form.
+         */
+        StorePensionRuleRequest: {
+            /** @enum {string} */
+            scheme: "private" | "public" | "public_military";
+            employee_rate: number;
+            employer_rate: number;
+            ceiling_cents?: number | null;
+            floor_cents?: number | null;
+            /** @enum {string} */
+            base?: "basic" | "regular_salary";
+            exempt_non_nationals?: boolean;
+            min_service_days?: number | null;
+            legal_reference: string;
+            /** Format: date-time */
+            effective_from: string;
+        };
         /** StorePersonnelActionRequest */
         StorePersonnelActionRequest: {
             type: components["schemas"]["PersonnelActionType"];
@@ -8128,6 +8214,28 @@ export interface components {
                 shift_id?: string | null;
             }[];
         };
+        /**
+         * StoreStatutoryLayoutRequest
+         * @description A new version of a statutory schedule's layout, from a date. A column's key
+         *     must be one the schedules can fill (StatutorySchedules::COLUMN_FIELDS); its
+         *     label may use {employee_rate}, {employer_rate} and {total_rate}.
+         */
+        StoreStatutoryLayoutRequest: {
+            /** @enum {string} */
+            schedule: "income-tax" | "pension";
+            /** @enum {string|null} */
+            scheme?: "private" | "public" | "public_military" | null;
+            agency: string;
+            title: string;
+            note?: string | null;
+            /** Format: date-time */
+            effective_from: string;
+            columns: {
+                /** @enum {string} */
+                key: "no" | "tin" | "employee_name" | "employee_code" | "start_date" | "basic" | "overtime" | "allowances" | "taxable" | "income_tax" | "pensionable" | "employee_pension" | "employer_pension" | "total_pension";
+                label: string;
+            }[];
+        };
         /** StoreTeamRequest */
         StoreTeamRequest: {
             name: string;
@@ -8165,6 +8273,7 @@ export interface components {
             rate: number;
             deduction_cents: number;
             effective_from: string;
+            legal_reference: string | null;
             effective_to: string | null;
         };
         /** TeamResource */
@@ -8650,7 +8759,7 @@ export interface components {
                 employer_tin?: string | null;
                 tax_center?: string | null;
                 /** @enum {string} */
-                pension_scheme?: "private" | "public";
+                pension_scheme?: "private" | "public" | "public_military";
                 working_days?: number[];
                 /** @enum {string} */
                 mfa_policy?: "disabled" | "optional" | "required";
@@ -9057,6 +9166,56 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminStatutoryLayout.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["StatutoryLayoutResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminStatutoryLayout.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreStatutoryLayoutRequest"];
+            };
+        };
+        responses: {
+            /** @description `StatutoryLayoutResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatutoryLayoutResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "alertThreshold.index": {
@@ -20118,8 +20277,24 @@ export interface operations {
                             loan_cents: number;
                             cost_sharing_cents: number;
                             net_cents: number;
+                            /** @description From the log, as applied (2026-10-14). Null on older entries. */
+                            pensionable_cents: number;
+                            pension_exempt: boolean | null;
+                            pension_exempt_reason: string | null;
+                            employee_pension_rate: number | null;
+                            employer_pension_rate: number | null;
+                            pension_rule: string | null;
+                            tax_rule: string | null;
                         }[];
                         totals: string;
+                        pension_rates: {
+                            employee: unknown[];
+                            employer: unknown[];
+                        };
+                        basis: {
+                            pension: unknown[];
+                            tax: unknown[];
+                        };
                     };
                 };
             };
@@ -20175,22 +20350,28 @@ export interface operations {
                     "application/json": {
                         schedule: string;
                         header: {
-                            /** @enum {string} */
-                            title: "Employment Income Tax Schedule" | "Pension Contribution Schedule";
+                            title: string;
+                            agency: string;
                             employer_name: string;
                             employer_tin: string | null;
                             tax_center: string | null;
-                            scheme: string;
                             period: string;
                             /** @enum {string} */
                             status: "Approved" | "NOT APPROVED — draft figures";
                             approved: boolean;
-                            notice: string;
+                            basis: string;
+                            notice: string | "Layout prepared by ETHR; to be confirmed with the agency before filing (owner action O3).";
+                            layout_effective_from: string;
                             generated_at: string;
                         };
                         employees: number;
+                        columns: unknown[];
                         totals: string;
-                        missing_tin: unknown[] | string[];
+                        missing_tin: string[];
+                        basis: {
+                            pension: unknown[];
+                            tax: unknown[];
+                        };
                     };
                 };
             };
@@ -20954,6 +21135,71 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "pensionRule.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PensionRuleResource"][];
+                        scheme: string;
+                        in_force: {
+                            scheme: string;
+                            employee_rate: number;
+                            employer_rate: number;
+                            ceiling_cents: number | null;
+                            floor_cents: number | null;
+                            base: string;
+                            exempt_non_nationals: boolean;
+                            min_service_days: number | null;
+                            legal_reference: string;
+                            effective_from: string | null;
+                            source: string;
+                            rule_public_id: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "pensionRule.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePensionRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description `PensionRuleResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PensionRuleResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "personnelAction.index": {
@@ -22603,8 +22849,7 @@ export interface operations {
                             /** @description The header of the statutory schedules (StatutorySchedules). */
                             employer_tin: string | null;
                             tax_center: string | null;
-                            /** @enum {string} */
-                            pension_scheme: "public" | "private";
+                            pension_scheme: string | null;
                         };
                         security: {
                             mfa_policy: string;

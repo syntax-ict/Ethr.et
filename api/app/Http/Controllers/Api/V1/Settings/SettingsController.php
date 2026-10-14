@@ -18,6 +18,7 @@ use App\Models\AuditLog;
 use App\Models\SsoSetting;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
+use App\Services\Payroll\PensionCalculator;
 use App\Services\Payroll\StatutorySchedules;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
@@ -86,7 +87,9 @@ class SettingsController extends Controller
                 // The header of the statutory schedules (StatutorySchedules).
                 'employer_tin' => StatutorySchedules::setting($tenant, 'employer_tin'),
                 'tax_center' => StatutorySchedules::setting($tenant, 'tax_center'),
-                'pension_scheme' => StatutorySchedules::setting($tenant, 'pension_scheme') === 'public' ? 'public' : 'private',
+                'pension_scheme' => in_array(StatutorySchedules::setting($tenant, 'pension_scheme'), PensionCalculator::SCHEMES, true)
+                    ? StatutorySchedules::setting($tenant, 'pension_scheme')
+                    : 'private',
             ],
             'security' => [
                 'mfa_policy' => $security->mfaPolicy(),

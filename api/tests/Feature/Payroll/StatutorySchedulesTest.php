@@ -70,7 +70,9 @@ it('downloads the tax schedule with each TIN, says the layout is unconfirmed, an
     expect($csv)
         ->toContain('Employment Income Tax Schedule')
         ->toContain('0012345678')
-        ->toContain('Layout to be confirmed with the Ministry of Revenues')
+        ->toContain('Agency,Ministry of Revenues')
+        ->toContain('to be confirmed with the agency before filing')
+        ->toContain('Income Tax (Amendment) Proclamation No. 1395/2025')
         ->toContain('NOT SET')
         ->toContain(Csv::amount(692500))
         ->and(AuditLog::where('action', 'payroll.statutory_export')->count())->toBe(1);
@@ -86,14 +88,23 @@ it('lists both pension shares, under the scheme the organisation belongs to', fu
         ->assertJsonPath('totals.employee_pension_cents', 199500)
         ->assertJsonPath('totals.employer_pension_cents', 313500)
         ->assertJsonPath('totals.total_pension_cents', 513000)
-        ->assertJsonPath('header.scheme', "Private Organization Employees' Social Security Agency (POESSA)");
+        ->assertJsonPath('header.agency', "Private Organization Employees' Social Security Agency (POESSA)");
 
+    // The scheme is what the run applied, not today's setting: switching the
+    // organisation to public leaves this run's schedule addressed to POESSA.
     $tenant->update(['settings' => [...($tenant->settings ?? []), 'pension_scheme' => 'public']]);
-
     expect(test()->get(statutoryUrl($tenant, $run, 'pension/download'))->getContent())
-        ->toContain('PSSSA')
+        ->toContain('POESSA')
         ->toContain('Employer 11% (ETB)')
         ->toContain(Csv::amount(513000));
+
+    $run->update(['status' => 'voided']);
+    $public = app(PayrollEngine::class)->process(
+        $tenant->id, Carbon::parse('2026-11-01'), Carbon::parse('2026-11-30'), $user->id,
+    )->run;
+    expect(test()->get(statutoryUrl($tenant, $public, 'pension/download'))->getContent())
+        ->toContain('PSSSA')
+        ->toContain('Proclamation No. 1267/2022, Art. 10');
 });
 
 it('prints a PDF of either schedule', function (string $schedule) {

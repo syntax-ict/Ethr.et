@@ -22,7 +22,7 @@ import { useT } from "@/lib/i18n/useT";
 interface StatutoryForm {
   employer_tin: string;
   tax_center: string;
-  pension_scheme: "private" | "public";
+  pension_scheme: "private" | "public" | "public_military";
 }
 
 /**
@@ -39,7 +39,10 @@ export function StatutoryDetailsCard() {
     employer_tin: data?.payroll?.employer_tin ?? "",
     tax_center: data?.payroll?.tax_center ?? "",
     pension_scheme:
-      data?.payroll?.pension_scheme === "public" ? "public" : "private",
+      data?.payroll?.pension_scheme === "public" ||
+      data?.payroll?.pension_scheme === "public_military"
+        ? data.payroll.pension_scheme
+        : "private",
   };
   const [edits, setEdits] = useState<StatutoryForm | null>(null);
   const form = edits ?? persisted;
@@ -143,7 +146,7 @@ export function StatutoryDetailsCard() {
                 onValueChange={(v) =>
                   update(
                     "pension_scheme",
-                    v === "public" ? "public" : "private",
+                    v === "public" || v === "public_military" ? v : "private",
                   )
                 }
               >
@@ -156,6 +159,9 @@ export function StatutoryDetailsCard() {
                   </SelectItem>
                   <SelectItem value="public">
                     {t("statutory.scheme_public")}
+                  </SelectItem>
+                  <SelectItem value="public_military">
+                    {t("statutory.scheme_public_military")}
                   </SelectItem>
                 </SelectContent>
               </Select>

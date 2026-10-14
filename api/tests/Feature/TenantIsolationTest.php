@@ -10,6 +10,7 @@ use App\Models\Permission;
 use App\Models\PersonalAccessToken;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
+use App\Models\StatutoryLayout;
 use App\Models\Tenant;
 use App\Models\TrustedDevice;
 use App\Models\User;
@@ -43,6 +44,9 @@ const GLOBAL_MODELS = [
     // that is not already bounded to a single user's own rows.
     TrustedDevice::class,        // MFA trust per browser, scoped by user_id
     OtpCode::class,              // one-time login codes, scoped by user_id
+    // The layouts of the national statutory schedules (MoR, POESSA, PSSSA):
+    // one set for every organisation, edited only from the platform console.
+    StatutoryLayout::class,
 ];
 
 /**

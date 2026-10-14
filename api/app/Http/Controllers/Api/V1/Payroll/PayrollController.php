@@ -311,6 +311,8 @@ class PayrollController extends Controller
             'status' => $payrollRun->status,
             'rows' => $register['rows'],
             'totals' => $register['totals'],
+            'pension_rates' => $register['pension_rates'],
+            'basis' => $register['basis'],
         ]);
     }
 
@@ -343,8 +345,10 @@ class PayrollController extends Controller
             'schedule' => $data['schedule'],
             'header' => $data['header'],
             'employees' => count($data['rows']),
+            'columns' => $data['columns'],
             'totals' => $data['totals'],
             'missing_tin' => $data['missing_tin'],
+            'basis' => $data['basis'],
         ]);
     }
 

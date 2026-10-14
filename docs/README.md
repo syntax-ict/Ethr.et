@@ -25,6 +25,7 @@ Several documents in this tree describe things that are not true of the code. Th
 | [`operations/CUSTODY.md`](operations/CUSTODY.md) | **Who holds which credential** — names and places, never values — with a quarterly two-holder review. |
 | [`payroll/ACCOUNTANT-SIGN-OFF.md`](payroll/ACCOUNTANT-SIGN-OFF.md) | **Payroll sign-off pack** for an accountant: the tax and pension rules as coded, the order of operations, seven worked payslips the tests assert to the cent, the register/journal evidence, and the checklist to sign. Not yet signed. |
 | [`payroll/STATUTORY-SCHEDULES.md`](payroll/STATUTORY-SCHEDULES.md) | The monthly **income tax** (MoR) and **pension** (POESSA/PSSSA) schedules each run exports: where the figures come from, the header settings, who sees TINs, and why the layout is still to be confirmed (owner action O3). |
+| [`payroll/STATUTORY-RULES-RESEARCH.md`](payroll/STATUTORY-RULES-RESEARCH.md) | **Research behind the statutory rules** (2026-10-14): pension rates for POESSA and PSSSA from the 1268/2022 and 1267/2022 Gazette texts, tax brackets, and what could not be confirmed — each rule with its source, access date and confidence. |
 
 Three standing caveats:
 

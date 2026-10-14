@@ -28,12 +28,14 @@ class TaxBracketSeeder extends Seeder
             [
                 'from' => '2016-07-08',
                 'to' => '2025-07-06',
+                'reference' => 'Income Tax Proclamation No. 979/2016',
                 'brackets' => TaxCalculator::SUPERSEDED_BRACKETS,
             ],
             // Proclamation No. 1395/2025 — in force from 7 July 2025.
             [
                 'from' => TaxCalculator::AMENDMENT_1395_EFFECTIVE_FROM,
                 'to' => null,
+                'reference' => 'Income Tax (Amendment) Proclamation No. 1395/2025',
                 'brackets' => TaxCalculator::CURRENT_BRACKETS,
             ],
         ];
@@ -57,6 +59,7 @@ class TaxBracketSeeder extends Seeder
                         'rate' => $bracket['rate'],
                         'deduction_cents' => $bracket['deduction'],
                         'effective_to' => $ladder['to'],
+                        'legal_reference' => $ladder['reference'],
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]

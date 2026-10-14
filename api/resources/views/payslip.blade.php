@@ -90,7 +90,7 @@
                 <td class="amount">{{ number_format($income_tax_cents / 100, 2) }} ETB</td>
             </tr>
             <tr>
-                <td>Employee Pension (7%)</td>
+                <td>Employee Pension{{ ($employee_pension_rate ?? null) ? ' ('.$employee_pension_rate.')' : '' }}</td>
                 <td class="amount">{{ number_format($employee_pension_cents / 100, 2) }} ETB</td>
             </tr>
             @foreach($deductions as $deduction)
@@ -120,7 +120,7 @@
     <table>
         <tbody>
             <tr>
-                <td class="info-label">Employer Pension Contribution (11%)</td>
+                <td class="info-label">Employer Pension Contribution{{ ($employer_pension_rate ?? null) ? ' ('.$employer_pension_rate.')' : '' }}</td>
                 <td class="amount" style="color: #64748B;">{{ number_format($employer_pension_cents / 100, 2) }} ETB</td>
             </tr>
         </tbody>

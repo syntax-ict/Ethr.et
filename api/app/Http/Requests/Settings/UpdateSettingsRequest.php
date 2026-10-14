@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Services\Payroll\PensionCalculator;
 use App\Support\CalendarPreference;
 use App\Support\TenantSecurityPolicy;
 use Illuminate\Foundation\Http\FormRequest;
@@ -33,7 +34,7 @@ class UpdateSettingsRequest extends FormRequest
             'settings.run_day' => ['sometimes', 'integer', 'between:1,28'],
             'settings.employer_tin' => ['sometimes', 'nullable', 'string', 'regex:/^\d{10}$/'],
             'settings.tax_center' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'settings.pension_scheme' => ['sometimes', 'string', 'in:private,public'],
+            'settings.pension_scheme' => ['sometimes', 'string', Rule::in(PensionCalculator::SCHEMES)],
             'settings.working_days' => ['sometimes', 'array', 'min:1'],
             'settings.working_days.*' => ['integer', 'distinct', 'between:1,7'],
             'settings.mfa_policy' => ['sometimes', 'string', Rule::in(TenantSecurityPolicy::MFA_POLICIES)],

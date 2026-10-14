@@ -7,6 +7,7 @@ import { OvertimeRatesCard } from "@/features/payroll/components/overtime-rates-
 import { PayrollScheduleCard } from "@/features/payroll/components/payroll-schedule-card";
 import { StatutoryDetailsCard } from "@/features/payroll/components/statutory-details-card";
 import { TaxBracketsCard } from "@/features/payroll/components/tax-brackets-card";
+import { PensionRulesCard } from "@/features/payroll/components/pension-rules-card";
 import { useT } from "@/lib/i18n/useT";
 
 export default function PayrollConfigPage() {
@@ -27,6 +28,7 @@ export default function PayrollConfigPage() {
         <StatutoryDetailsCard />
         <AllowanceRulesCard />
         <TaxBracketsCard />
+        <PensionRulesCard />
         <OvertimeRatesCard />
       </div>
     </RoleGate>
