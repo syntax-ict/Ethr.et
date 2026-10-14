@@ -17,8 +17,9 @@ use Illuminate\Support\Facades\Storage;
  * inputs, so a change makes a new URL and the old one can be cached for a
  * year like every other brand image.
  *
- * Noto Sans Ethiopic carries both scripts, so an Amharic headline and a
- * Latin name draw from the same face.
+ * Two faces, chosen per word: Noto Sans Ethiopic for Ethiopic script and
+ * DejaVu Sans for everything else, because neither carries the other's
+ * glyphs and a name is often Latin under an Amharic headline.
  */
 final class PortalPreviewImage
 {
@@ -34,7 +35,7 @@ final class PortalPreviewImage
         $brand = TenantBrand::present($tenant);
 
         return substr(hash('sha256', json_encode([
-            'v1',
+            'v2',
             $tenant->name,
             $landing['headline'],
             $brand['primary_color'],
@@ -76,30 +77,27 @@ final class PortalPreviewImage
 
         $inkColour = (int) imagecolorallocate($image, ...$ink);
         $soft = (int) imagecolorallocatealpha($image, $ink[0], $ink[1], $ink[2], 40);
-        $bold = resource_path('fonts/NotoSansEthiopic-Bold.ttf');
-        $regular = resource_path('fonts/NotoSansEthiopic-Regular.ttf');
 
-        $this->drawMark($image, $tenant, $brand, $ink, $primary);
+        $this->drawMark($image, $tenant, $ink, $primary);
 
         $textTop = 300;
-        $name = $this->wrap($bold, 54, $tenant->name, self::WIDTH - 2 * self::MARGIN, 2);
+        $name = $this->wrap(true, 54, $tenant->name, self::WIDTH - 2 * self::MARGIN, 2);
         foreach ($name as $i => $line) {
-            imagettftext($image, 54, 0, self::MARGIN, $textTop + $i * 72, $inkColour, $bold, $line);
+            $this->drawText($image, true, 54, self::MARGIN, $textTop + $i * 72, $inkColour, $line);
         }
         $headline = $landing['headline'];
         if (is_string($headline)) {
-            $lines = $this->wrap($regular, 30, $headline, self::WIDTH - 2 * self::MARGIN, 2);
+            $lines = $this->wrap(false, 30, $headline, self::WIDTH - 2 * self::MARGIN, 2);
             $top = $textTop + count($name) * 72 + 8;
             foreach ($lines as $i => $line) {
-                imagettftext($image, 30, 0, self::MARGIN, $top + $i * 44, $soft, $regular, $line);
+                $this->drawText($image, false, 30, self::MARGIN, $top + $i * 44, $soft, $line);
             }
         }
 
-        $address = preg_replace('#^https?://#', '', rtrim((string) config('app.frontend_url'), '/')).'/'.$tenant->subdomain;
-        imagettftext($image, 22, 0, self::MARGIN, self::HEIGHT - 28, $inkColour, $regular, (string) $address);
+        $address = (string) preg_replace('#^https?://#', '', rtrim((string) config('app.frontend_url'), '/')).'/'.$tenant->subdomain;
+        $this->drawText($image, false, 22, self::MARGIN, self::HEIGHT - 28, $inkColour, $address);
         $powered = 'Powered by ETHR';
-        $box = imagettfbbox(22, 0, $regular, $powered);
-        imagettftext($image, 22, 0, self::WIDTH - self::MARGIN - ($box[2] - $box[0]), self::HEIGHT - 28, $soft, $regular, $powered);
+        $this->drawText($image, false, 22, self::WIDTH - self::MARGIN - $this->width(false, 22, $powered), self::HEIGHT - 28, $soft, $powered);
 
         ob_start();
         imagepng($image, null, 6);
@@ -112,11 +110,10 @@ final class PortalPreviewImage
      * The mark, else the logo, else the initial on a tile: 160 px tall at
      * the top left, the same order the page itself uses.
      *
-     * @param  array<string, mixed>  $brand
      * @param  array{0: int, 1: int, 2: int}  $ink
      * @param  array{0: int, 1: int, 2: int}  $primary
      */
-    private function drawMark(\GdImage $image, Tenant $tenant, array $brand, array $ink, array $primary): void
+    private function drawMark(\GdImage $image, Tenant $tenant, array $ink, array $primary): void
     {
         $disk = Storage::disk((string) config('filesystems.default'));
         $path = $tenant->brandAsset('mark')['path'] ?? $tenant->logo_storage_path;
@@ -139,11 +136,77 @@ final class PortalPreviewImage
         $tile = (int) imagecolorallocate($image, ...$ink);
         imagefilledrectangle($image, self::MARGIN, self::MARGIN, self::MARGIN + 160, self::MARGIN + 160, $tile);
         $letter = mb_strtoupper(mb_substr(trim($tenant->name), 0, 1)) ?: 'E';
-        $bold = resource_path('fonts/NotoSansEthiopic-Bold.ttf');
-        $box = imagettfbbox(84, 0, $bold, $letter);
+        $font = self::font(true, $letter);
+        $box = imagettfbbox(84, 0, $font, $letter);
         $x = self::MARGIN + (int) round((160 - ($box[2] - $box[0])) / 2) - $box[0];
         $y = self::MARGIN + (int) round((160 + ($box[1] - $box[7])) / 2) - $box[1];
-        imagettftext($image, 84, 0, $x, $y, (int) imagecolorallocate($image, ...$primary), $bold, $letter);
+        imagettftext($image, 84, 0, $x, $y, (int) imagecolorallocate($image, ...$primary), $font, $letter);
+    }
+
+    /**
+     * Draw a line as runs of one script each, every run in the face that has
+     * its glyphs, advanced by the run's real advance width (a sentinel after
+     * the text, so trailing spaces count, which a glyph box would drop).
+     */
+    private function drawText(\GdImage $image, bool $bold, int $size, int $x, int $y, int $colour, string $text): void
+    {
+        foreach (self::runs($text) as $run) {
+            $font = self::font($bold, $run);
+            imagettftext($image, $size, 0, $x, $y, $colour, $font, $run);
+            $x += self::advance($font, $size, $run);
+        }
+    }
+
+    /** The drawn width of a line, measured the way drawText() lays it out. */
+    private function width(bool $bold, int $size, string $text): int
+    {
+        $width = 0;
+        foreach (self::runs($text) as $run) {
+            $width += self::advance(self::font($bold, $run), $size, $run);
+        }
+
+        return $width;
+    }
+
+    /**
+     * The text split where the script changes; the spaces stay with the run
+     * before them.
+     *
+     * @return list<string>
+     */
+    private static function runs(string $text): array
+    {
+        $runs = [];
+        $current = '';
+        $ethiopic = null;
+        foreach (preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $char) {
+            $isSpace = preg_match('/^\s$/u', $char) === 1;
+            $charEthiopic = $isSpace ? $ethiopic : self::isEthiopic($char);
+            if ($ethiopic !== null && $charEthiopic !== $ethiopic) {
+                $runs[] = $current;
+                $current = '';
+            }
+            $current .= $char;
+            $ethiopic = $charEthiopic;
+        }
+        if ($current !== '') {
+            $runs[] = $current;
+        }
+
+        return $runs;
+    }
+
+    private static function advance(string $font, int $size, string $text): int
+    {
+        $with = imagettfbbox($size, 0, $font, $text.'|');
+        $bar = imagettfbbox($size, 0, $font, '|');
+
+        return ($with[2] - $with[0]) - ($bar[2] - $bar[0]);
+    }
+
+    private static function isEthiopic(string $char): bool
+    {
+        return preg_match('/[\x{1200}-\x{137F}\x{1380}-\x{139F}\x{2D80}-\x{2DDF}]/u', $char) === 1;
     }
 
     /**
@@ -152,15 +215,14 @@ final class PortalPreviewImage
      *
      * @return list<string>
      */
-    private function wrap(string $font, int $size, string $text, int $width, int $maxLines): array
+    private function wrap(bool $bold, int $size, string $text, int $width, int $maxLines): array
     {
         $words = preg_split('/\s+/u', trim($text)) ?: [];
         $lines = [];
         $line = '';
         foreach ($words as $word) {
             $try = $line === '' ? $word : $line.' '.$word;
-            $box = imagettfbbox($size, 0, $font, $try);
-            if ($box[2] - $box[0] > $width && $line !== '') {
+            if ($this->width($bold, $size, $try) > $width && $line !== '') {
                 $lines[] = $line;
                 $line = $word;
                 if (count($lines) === $maxLines) {
@@ -177,6 +239,16 @@ final class PortalPreviewImage
         }
 
         return $lines;
+    }
+
+    /** Noto Sans Ethiopic for Ethiopic script, DejaVu Sans for the rest. */
+    private static function font(bool $bold, string $text): string
+    {
+        $file = self::isEthiopic($text)
+            ? ($bold ? 'NotoSansEthiopic-Bold.ttf' : 'NotoSansEthiopic-Regular.ttf')
+            : ($bold ? 'DejaVuSans-Bold.ttf' : 'DejaVuSans.ttf');
+
+        return resource_path('fonts/'.$file);
     }
 
     /** @return array{0: int, 1: int, 2: int} */

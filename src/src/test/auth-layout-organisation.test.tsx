@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthLayoutClient } from "@/app/(auth)/auth-layout-client";
@@ -171,5 +171,34 @@ describe("panel background", () => {
     const style = panelBackground({ ...landing, background: "pattern" }, null);
     expect(String(style?.backgroundImage)).toContain("radial-gradient");
     expect(style?.backgroundSize).toBe("22px 22px");
+  });
+});
+
+/**
+ * The language a link names (PR 4 of the portal): the server's hreflang
+ * alternates point at `?lang=en` and `?lang=am`, and a page opened through
+ * one reads in that language whatever the device remembers.
+ */
+describe("<AuthLayoutClient> ?lang=", () => {
+  const original = window.location.href;
+  afterEach(() => {
+    window.history.replaceState(null, "", original);
+    localStorage.removeItem("locale");
+  });
+
+  it("opens in the language the link names, over the stored choice", () => {
+    localStorage.setItem("locale", "en");
+    window.history.replaceState(null, "", "/acme?lang=am");
+    hostContextValue.mockReturnValue(organisation);
+    renderLayout();
+    expect(localStorage.getItem("locale")).toBe("am");
+  });
+
+  it("ignores a language it does not have", () => {
+    localStorage.setItem("locale", "en");
+    window.history.replaceState(null, "", "/acme?lang=fr");
+    hostContextValue.mockReturnValue(organisation);
+    renderLayout();
+    expect(localStorage.getItem("locale")).toBe("en");
   });
 });
