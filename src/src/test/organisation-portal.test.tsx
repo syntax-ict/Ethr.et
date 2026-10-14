@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -20,8 +20,9 @@ const hostContextValue = vi.fn<() => HostCtx>();
 vi.mock("@/lib/auth/use-auth-host-context", () => ({
   useAuthHostContext: () => hostContextValue(),
 }));
+const theme = { resolvedTheme: "light" as string };
 vi.mock("next-themes", () => ({
-  useTheme: () => ({ resolvedTheme: "light" }),
+  useTheme: () => theme,
 }));
 
 function organisationContext(): HostCtx {
@@ -37,7 +38,6 @@ function organisationContext(): HostCtx {
       support_email: "hr@acme.et",
       support_phone: null,
       background: "brand",
-      background_image_url: null,
     },
     tenantSignIn: null,
     tenantDefaultLocale: null,
@@ -217,5 +217,109 @@ describe("<OrganisationPortal>", () => {
     );
 
     expect(await screen.findByText(/gate b stays closed/i)).toBeInTheDocument();
+  });
+});
+
+/**
+ * The organisation's uploaded images on the portal (PR 2 of 4): the cover as
+ * the hero's picture, the mark as the page's icon, and the dark-background
+ * logo once the visitor is in dark mode.
+ */
+const brand = {
+  logo_url: "/api/v1/organisation-logos/T/l0g0",
+  logo_dark_url: "/api/v1/organisation-assets/T/logo-dark/d4rk",
+  mark_url: "/api/v1/organisation-assets/T/mark/m4rk",
+  cover: {
+    url: "/api/v1/organisation-assets/T/cover/c0v3r",
+    srcset:
+      "/api/v1/organisation-assets/T/cover-640/c0v3r 640w, /api/v1/organisation-assets/T/cover/c0v3r 1920w",
+    width: 1920,
+    height: 960,
+    focal_x: 0.25,
+    focal_y: 0.75,
+  },
+  primary_color: "#0f766e",
+  secondary_color: null,
+  accent_color: null,
+};
+
+function renderBranded(
+  overrides: Partial<HostCtx> = {},
+  background: HostCtx["tenantLanding"] extends infer L
+    ? L extends { background: infer B }
+      ? B
+      : never
+    : never = "image",
+) {
+  const base = organisationContext();
+  hostContextValue.mockReturnValue({
+    ...base,
+    tenantBrand: brand,
+    tenantLanding: { ...base.tenantLanding!, background },
+    ...overrides,
+  });
+  server.use(
+    http.get("*/auth/tenant-landing/feed", () =>
+      HttpResponse.json({ announcements: [], vacancies: [], holidays: [] }),
+    ),
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <OrganisationPortal>
+        <p>the sign-in form</p>
+      </OrganisationPortal>
+    </QueryClientProvider>,
+  );
+}
+
+describe("<OrganisationPortal> brand images", () => {
+  afterEach(() => {
+    theme.resolvedTheme = "light";
+    document.head.innerHTML = "";
+  });
+
+  it("draws the cover as the hero's picture, at the screen's width, around its focal point", () => {
+    renderBranded();
+
+    const img = screen.getByTestId("hero-cover") as HTMLImageElement;
+    expect(img.getAttribute("srcset")).toContain("cover-640/c0v3r 640w");
+    expect(img.getAttribute("sizes")).toBe("100vw");
+    expect(img.style.objectPosition).toBe("25% 75%");
+    expect(img.getAttribute("alt")).toBe("");
+  });
+
+  it("draws no cover for the other backgrounds", () => {
+    renderBranded({}, "gradient");
+    expect(screen.queryByTestId("hero-cover")).not.toBeInTheDocument();
+  });
+
+  it("makes the mark the page's icon while the portal is open, and gives the old one back", () => {
+    const existing = document.createElement("link");
+    existing.rel = "icon";
+    existing.href = "/favicon.ico";
+    document.head.appendChild(existing);
+
+    const { unmount } = renderBranded();
+    expect(existing.getAttribute("href")).toBe(brand.mark_url);
+
+    unmount();
+    expect(existing.getAttribute("href")).toBe("/favicon.ico");
+  });
+
+  it("shows the dark-background logo in the header only in dark mode", () => {
+    const { unmount } = renderBranded();
+    const [header] = screen.getAllByRole("img", { name: "Acme Manufacturing" });
+    expect(header.getAttribute("src")).toBe(brand.logo_url);
+    unmount();
+
+    theme.resolvedTheme = "dark";
+    renderBranded();
+    const [darkHeader] = screen.getAllByRole("img", {
+      name: "Acme Manufacturing",
+    });
+    expect(darkHeader.getAttribute("src")).toBe(brand.logo_dark_url);
   });
 });

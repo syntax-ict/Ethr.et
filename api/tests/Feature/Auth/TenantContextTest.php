@@ -32,6 +32,9 @@ it('returns the host-resolved tenant display info', function () {
                 // organisation with no colours set has none.
                 'brand' => [
                     'logo_url' => null,
+                    'logo_dark_url' => null,
+                    'mark_url' => null,
+                    'cover' => null,
                     'primary_color' => null,
                     'secondary_color' => null,
                     'accent_color' => null,
@@ -43,7 +46,6 @@ it('returns the host-resolved tenant display info', function () {
                     'support_email' => null,
                     'support_phone' => null,
                     'background' => 'brand',
-                    'background_image_url' => null,
                     'sections' => ['announcements' => true, 'vacancies' => true, 'holidays' => false],
                 ],
                 // Which ways in to offer: SSO only once configured.

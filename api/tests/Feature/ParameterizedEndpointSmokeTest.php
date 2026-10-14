@@ -136,6 +136,9 @@ test('parameterized GET api/v1 endpoints never 5xx with valid bound records', fu
         // An organisation logo's content hash. The seeded tenant has no
         // uploaded logo, so a well-formed hash is a 404 — a valid outcome.
         'version' => '0123456789abcdef',
+        // Which of the organisation's brand images: one the public asset route
+        // and the settings upload route both accept.
+        'kind' => 'mark',
         'slot' => 'primary',
         // A statutory schedule of a payroll run: one of StatutorySchedules::SCHEDULES.
         'schedule' => 'income-tax',

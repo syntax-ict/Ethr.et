@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import {
   useUpdateLanding,
+  type BrandAssets,
   type TenantAddress,
   type TenantLandingSettings,
 } from "@/features/settings/api";
@@ -28,9 +29,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CoverUpload } from "@/features/settings/components/brand-image-upload";
 
 type Background = LandingBackground["background"];
-const BACKGROUNDS: readonly Background[] = ["brand", "gradient", "image"];
+const BACKGROUNDS: readonly Background[] = [
+  "brand",
+  "gradient",
+  "pattern",
+  "image",
+];
 
 function isBackground(value: unknown): value is Background {
   return BACKGROUNDS.includes(value as Background);
@@ -44,6 +51,8 @@ export interface LandingCardProps {
   address: TenantAddress;
   organisationName: string;
   logoUrl: string | null;
+  /** The uploaded cover, which the photo background draws. */
+  cover?: BrandAssets["cover"];
   secondaryColor: string | null | undefined;
 }
 
@@ -52,12 +61,17 @@ export interface LandingCardProps {
  * domain. Its admin sets the words, the HR help contacts and the background,
  * sees the result as they type, and takes away the link and a QR code for
  * posters at the entrance or the time clock.
+ *
+ * The photo background is the uploaded cover: the upload sits under that
+ * choice, and until one exists the server refuses the choice, which the
+ * card says before the save is tried.
  */
 export function LandingCard({
   landing,
   address,
   organisationName,
   logoUrl,
+  cover = null,
   secondaryColor,
 }: LandingCardProps) {
   const { t } = useT();
@@ -71,7 +85,6 @@ export function LandingCard({
   const [background, setBackground] = useState<Background>(
     isBackground(landing.background) ? landing.background : "brand",
   );
-  const [imageUrl, setImageUrl] = useState(landing.background_image_url ?? "");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // The address people type or scan: the organisation's own address when it
@@ -86,10 +99,12 @@ export function LandingCard({
       value: "gradient",
       label: t("settings.landing_bg_gradient", "Gradient"),
     },
+    { value: "pattern", label: t("settings.landing_bg_pattern", "Pattern") },
     { value: "image", label: t("settings.landing_bg_image", "Photo") },
   ];
 
   const trimmed = (v: string) => (v.trim() === "" ? null : v.trim());
+  const coverMissing = background === "image" && !cover?.url;
 
   function save() {
     setFieldErrors({});
@@ -100,7 +115,6 @@ export function LandingCard({
         support_email: trimmed(email),
         support_phone: trimmed(phone),
         background,
-        background_image_url: background === "image" ? trimmed(imageUrl) : null,
       },
       {
         onSuccess: () =>
@@ -146,11 +160,6 @@ export function LandingCard({
     link.download = `${address.subdomain}-sign-in-qr.png`;
     link.click();
   }
-
-  const preview = {
-    background,
-    background_image_url: background === "image" ? trimmed(imageUrl) : null,
-  };
 
   return (
     <Card>
@@ -240,7 +249,7 @@ export function LandingCard({
               </legend>
               <div
                 role="radiogroup"
-                className="mt-1 inline-flex rounded-lg border bg-muted/40 p-0.5"
+                className="mt-1 inline-flex flex-wrap rounded-lg border bg-muted/40 p-0.5"
               >
                 {backgrounds.map((option) => (
                   <button
@@ -260,27 +269,22 @@ export function LandingCard({
                   </button>
                 ))}
               </div>
+              {fieldErrors.background && (
+                <p className="mt-1 text-xs text-destructive" role="alert">
+                  {fieldErrors.background}
+                </p>
+              )}
               {background === "image" && (
-                <div className="mt-3">
-                  <Field
-                    id="landing-image"
-                    label={t("settings.landing_image_url", "Photo URL")}
-                    error={fieldErrors.background_image_url}
-                    help={t(
-                      "settings.landing_image_help",
-                      "An https link to a wide photo - your building, your team. It is darkened so the text stays readable.",
-                    )}
-                  >
-                    <Input
-                      id="landing-image"
-                      type="url"
-                      inputMode="url"
-                      pattern="https://.*"
-                      value={imageUrl}
-                      placeholder="https://cdn.example.et/office.jpg"
-                      onChange={(e) => setImageUrl(e.target.value)}
-                    />
-                  </Field>
+                <div className="mt-3 space-y-2">
+                  <CoverUpload cover={cover} />
+                  {coverMissing && (
+                    <p className="text-xs text-muted-foreground" role="note">
+                      {t(
+                        "settings.landing_cover_missing",
+                        "Upload a cover photo to use the photo background.",
+                      )}
+                    </p>
+                  )}
                 </div>
               )}
             </fieldset>
@@ -294,7 +298,7 @@ export function LandingCard({
             <div
               data-testid="landing-preview"
               className="flex min-h-64 flex-col items-center justify-center rounded-xl bg-primary p-6 text-center"
-              style={panelBackground(preview, secondaryColor)}
+              style={panelBackground({ background }, secondaryColor, cover)}
             >
               <OrgMark
                 name={organisationName}
@@ -372,7 +376,10 @@ export function LandingCard({
         </div>
 
         <div className="flex justify-end">
-          <Button onClick={save} disabled={updateLanding.isPending}>
+          <Button
+            onClick={save}
+            disabled={updateLanding.isPending || coverMissing}
+          >
             {updateLanding.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (

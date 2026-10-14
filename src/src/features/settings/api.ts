@@ -148,6 +148,48 @@ export function useRemoveLogo() {
   );
 }
 
+/** The organisation's other brand images, as `GET /settings` lists them. */
+export type BrandAssets = TenantSettings["branding"]["assets"];
+export type BrandAssetKind = keyof BrandAssets;
+
+/**
+ * Upload one of the other brand images (a logo for dark backgrounds, a
+ * square mark, a cover photo). The server re-encodes it and serves it at a
+ * URL that changes with every upload; the response lists every asset.
+ */
+export function useUploadBrandAsset(kind: BrandAssetKind) {
+  return useSettingsMutation(
+    async (file: File): Promise<{ assets: BrandAssets }> => {
+      const body = new FormData();
+      body.append("image", file);
+      return (
+        await apiClient.post(`/settings/branding/assets/${kind}`, body, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+      ).data;
+    },
+    [],
+  );
+}
+
+export function useRemoveBrandAsset(kind: BrandAssetKind) {
+  return useSettingsMutation(
+    async (): Promise<{ assets: BrandAssets }> =>
+      (await apiClient.delete(`/settings/branding/assets/${kind}`)).data,
+    [],
+  );
+}
+
+/** Where in the cover to keep in frame, as fractions of its width and height. */
+export function useUpdateCoverFocal() {
+  return useSettingsMutation(
+    async (focal: { x: number; y: number }): Promise<{ assets: BrandAssets }> =>
+      (await apiClient.put("/settings/branding/assets/cover/focal", focal))
+        .data,
+    [],
+  );
+}
+
 export type TenantLandingSettings = TenantSettings["landing"];
 export type LandingUpdate = components["schemas"]["UpdateLandingRequest"];
 

@@ -21,7 +21,7 @@ import {
   useAuthHostContext,
   type TenantRequest,
 } from "@/lib/auth/use-auth-host-context";
-import { panelBackground } from "@/lib/auth/landing-background";
+import { coverPosition, panelBackground } from "@/lib/auth/landing-background";
 import { useLandingFeed, type LandingFeed } from "@/features/auth/landing-feed";
 import { SupportContacts } from "@/app/(auth)/auth-layout-client";
 import { VacancyDialog, VacancyMeta } from "./vacancy-dialog";
@@ -70,6 +70,46 @@ export function OrganisationPortal({
 
   const ownHeadline = Boolean(tenantLanding?.headline && tenantName);
 
+  // The uploaded cover, when the photo background is chosen: drawn as an
+  // image with its widths rather than a CSS background, so the browser picks
+  // the size for the screen and can fetch it first (it is the largest paint).
+  const cover =
+    !highContrast &&
+    tenantLanding?.background === "image" &&
+    tenantBrand?.cover?.url
+      ? tenantBrand.cover
+      : null;
+
+  // The square mark becomes the page's icon while the portal is open; the
+  // links are put back when it closes, so ETHR's own pages keep theirs.
+  const markUrl = tenantBrand?.mark_url ?? null;
+  useEffect(() => {
+    if (!markUrl || typeof document === "undefined") return;
+    const links = Array.from(
+      document.querySelectorAll<HTMLLinkElement>(
+        'link[rel~="icon"], link[rel="apple-touch-icon"]',
+      ),
+    );
+    const previous = links.map((link) => link.getAttribute("href"));
+    const added: HTMLLinkElement[] = [];
+    if (links.length === 0) {
+      const link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+      links.push(link);
+      previous.push(null);
+      added.push(link);
+    }
+    links.forEach((link) => link.setAttribute("href", markUrl));
+    return () => {
+      links.forEach((link, i) => {
+        const href = previous[i];
+        if (added.includes(link)) link.remove();
+        else if (href !== null) link.setAttribute("href", href);
+      });
+    };
+  }, [markUrl]);
+
   const features = [
     {
       icon: Clock,
@@ -97,6 +137,7 @@ export function OrganisationPortal({
           <OrgMark
             name={tenantName}
             logoUrl={tenantBrand?.logo_url}
+            darkLogoUrl={tenantBrand?.logo_dark_url}
             className="h-9 w-9 shrink-0"
             initialClassName="text-sm"
           />
@@ -117,10 +158,34 @@ export function OrganisationPortal({
         style={
           highContrast
             ? undefined
-            : panelBackground(tenantLanding, tenantBrand?.secondary_color)
+            : cover
+              ? { ["--color-primary-foreground" as string]: "#ffffff" }
+              : panelBackground(tenantLanding, tenantBrand?.secondary_color)
         }
       >
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px]" />
+        {cover ? (
+          <>
+            {/* The server's own re-encoded photo, at the width the screen
+                needs; a dark wash keeps the text readable over any photo. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={cover.url ?? undefined}
+              srcSet={cover.srcset}
+              sizes="100vw"
+              width={Number(cover.width)}
+              height={Number(cover.height)}
+              alt=""
+              fetchPriority="high"
+              decoding="async"
+              data-testid="hero-cover"
+              className="absolute inset-0 h-full w-full object-cover"
+              style={{ objectPosition: coverPosition(cover) }}
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.45),rgba(0,0,0,0.7))]" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px]" />
+        )}
         <div className="absolute bottom-0 left-0 h-1/3 w-full bg-gradient-to-t from-black/10 to-transparent" />
 
         <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)] lg:items-center lg:gap-14 lg:py-16">
@@ -128,6 +193,8 @@ export function OrganisationPortal({
             <OrgMark
               name={tenantName}
               logoUrl={tenantBrand?.logo_url}
+              darkLogoUrl={tenantBrand?.logo_dark_url}
+              surface={cover ? "dark" : undefined}
               className="h-16 w-16 rounded-2xl bg-primary-foreground/15 ring-0"
               initialClassName="text-2xl"
             />

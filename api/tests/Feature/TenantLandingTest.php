@@ -26,11 +26,10 @@ it('saves the sign-in page and shows it before sign-in', function () {
         'message' => 'Check in when you arrive at the plant.',
         'support_email' => 'hr@acme.et',
         'support_phone' => '+251 11 555 0100',
-        'background' => 'image',
-        'background_image_url' => 'https://cdn.acme.et/plant.jpg',
+        'background' => 'pattern',
     ])->assertOk()
         ->assertJsonPath('headline', 'Welcome to Acme')
-        ->assertJsonPath('background', 'image');
+        ->assertJsonPath('background', 'pattern');
 
     $this->assertDatabaseHas('audit_log', ['action' => 'settings.landing_updated']);
 
@@ -40,7 +39,8 @@ it('saves the sign-in page and shows it before sign-in', function () {
         ->assertOk()
         ->assertJsonPath('tenant.landing.headline', 'Welcome to Acme')
         ->assertJsonPath('tenant.landing.support_email', 'hr@acme.et')
-        ->assertJsonPath('tenant.landing.background_image_url', 'https://cdn.acme.et/plant.jpg');
+        ->assertJsonPath('tenant.landing.background', 'pattern')
+        ->assertJsonMissingPath('tenant.landing.background_image_url');
 });
 
 it('keeps what a save does not mention, section toggles included', function () {
@@ -92,8 +92,9 @@ it('refuses what must not reach a public page', function (array $body, string $f
         ->assertUnprocessable()
         ->assertJsonValidationErrors($field);
 })->with([
-    'an http image' => [['background' => 'image', 'background_image_url' => 'http://x.et/a.jpg'], 'background_image_url'],
-    'an image background with no image' => [['background' => 'image'], 'background_image_url'],
+    // The photo background is the uploaded cover; TenantBrandAssetTest
+    // chooses it after an upload. Without one there is nothing to draw.
+    'a photo background with no cover uploaded' => [['background' => 'image'], 'background'],
     'an unknown background' => [['background' => 'video'], 'background'],
     'a long headline' => [['headline' => str_repeat('a', 81)], 'headline'],
     'not an e-mail' => [['support_email' => 'hr at acme'], 'support_email'],
@@ -102,6 +103,8 @@ it('refuses what must not reach a public page', function (array $body, string $f
 
 it('filters a stored value that skipped the rules', function () {
     $tenant = createTenant();
+    // A row from before 2026-10-14 may still carry a typed photo URL: it is
+    // not read, and a photo background with no cover is the brand colour.
     $tenant->update(['landing' => [
         'headline' => str_repeat('x', 200),
         'background' => 'image',
@@ -113,7 +116,7 @@ it('filters a stored value that skipped the rules', function () {
         ->assertOk()
         ->assertJsonPath('tenant.landing.headline', str_repeat('x', 80))
         ->assertJsonPath('tenant.landing.background', 'brand')
-        ->assertJsonPath('tenant.landing.background_image_url', null)
+        ->assertJsonMissingPath('tenant.landing.background_image_url')
         ->assertJsonPath('tenant.landing.support_email', null);
 });
 

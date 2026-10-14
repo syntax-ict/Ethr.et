@@ -7,7 +7,12 @@ import {
   TenantBrandingProvider,
   brandProperties,
 } from "@/features/branding/TenantBrandingProvider";
-import { contrastRatio, readableInkOn, tint } from "@/lib/utils/color";
+import {
+  aaCorrected,
+  contrastRatio,
+  readableInkOn,
+  tint,
+} from "@/lib/utils/color";
 
 /**
  * Tenant branding set `--primary` to an HSL triplet. globals.css builds
@@ -28,6 +33,23 @@ describe("colour helpers", () => {
   it("tints toward white", () => {
     expect(tint("#000000", 0.5)).toBe("#808080");
     expect(tint("not-a-colour", 0.5)).toBeNull();
+  });
+
+  // This grey reads at 4.3:1 under white and 4.2:1 under near-black: neither
+  // ink reaches AA, so the colour itself moves, and only as far as it must.
+  it("moves a colour only as far as AA contrast needs, and says so", () => {
+    const grey = aaCorrected("#7a7a7a");
+    expect(grey?.changed).toBe(true);
+    expect(["#ffffff", "#0f172a"]).toContain(grey?.ink);
+    expect(contrastRatio(grey!.ink, grey!.color)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(grey!.ink, grey!.color)).toBeLessThan(5.5);
+
+    expect(aaCorrected("#0f4c75")).toEqual({
+      color: "#0f4c75",
+      ink: "#ffffff",
+      changed: false,
+    });
+    expect(aaCorrected("nope")).toBeNull();
   });
 });
 
@@ -50,6 +72,17 @@ describe("brandProperties", () => {
     expect(
       brandProperties({ primary_color: "red; background: url(x)" }),
     ).toEqual({});
+  });
+
+  it("hands the buttons the AA-corrected colour, not the raw one", () => {
+    const props = brandProperties({ primary_color: "#7a7a7a" });
+    expect(props["--interactive-primary"]).not.toBe("#7a7a7a");
+    expect(
+      contrastRatio(
+        props["--color-primary-foreground"]!,
+        props["--interactive-primary"]!,
+      ),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 });
 

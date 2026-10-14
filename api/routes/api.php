@@ -109,6 +109,7 @@ use App\Http\Controllers\Api\V1\Scim\ScimUserController;
 use App\Http\Controllers\Api\V1\Settings\AuditLogController;
 use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
+use App\Http\Controllers\Api\V1\Settings\TenantBrandAssetController;
 use App\Http\Controllers\Api\V1\Settings\TenantLogoController;
 use App\Http\Controllers\Api\V1\Shift\ShiftAssignmentController;
 use App\Http\Controllers\Api\V1\Shift\ShiftController;
@@ -122,6 +123,7 @@ use App\Http\Controllers\Api\V1\Voice\ConcernController;
 use App\Http\Controllers\Api\V1\Voice\PulseController;
 use App\Http\Controllers\Api\V1\Voice\RecognitionController;
 use App\Http\Controllers\Api\V1\Webhook\WebhookController;
+use App\Http\Controllers\OrganisationAssetController;
 use App\Http\Controllers\OrganisationLogoController;
 use App\Http\Middleware\BlockImpersonatedActions;
 use App\Http\Middleware\EnforceApiKeyAbilities;
@@ -214,6 +216,12 @@ Route::get('/auth/tenant-context', TenantContextController::class)->middleware('
 Route::get('/organisation-logos/{publicId}/{version}', OrganisationLogoController::class)
     ->where(['publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'version' => '[0-9a-f]{16}'])
     ->name('organisation.logo');
+
+// Its other brand images on the same terms: the dark-background logo, the
+// square mark, the cover photo and the cover's narrower copies.
+Route::get('/organisation-assets/{publicId}/{kind}/{version}', OrganisationAssetController::class)
+    ->where(['publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'kind' => 'logo-dark|mark|cover|cover-1280|cover-640', 'version' => '[0-9a-f]{16}'])
+    ->name('organisation.asset');
 
 // What the organisation chose to show the public on its sign-in page:
 // announcements and vacancies marked public, and upcoming holidays.
@@ -839,6 +847,11 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::put('/settings/branding', [SettingsController::class, 'updateBranding']);
     Route::post('/settings/branding/logo', [TenantLogoController::class, 'store'])->middleware('throttle:uploads');
     Route::delete('/settings/branding/logo', [TenantLogoController::class, 'destroy']);
+    Route::post('/settings/branding/assets/{kind}', [TenantBrandAssetController::class, 'store'])
+        ->middleware('throttle:uploads')->where('kind', 'logo_dark|mark|cover');
+    Route::delete('/settings/branding/assets/{kind}', [TenantBrandAssetController::class, 'destroy'])
+        ->where('kind', 'logo_dark|mark|cover');
+    Route::put('/settings/branding/assets/cover/focal', [TenantBrandAssetController::class, 'focal']);
     Route::put('/settings/landing', [SettingsController::class, 'updateLanding']);
     Route::put('/settings/sso', [SettingsController::class, 'updateSso']);
     Route::post('/settings/scim-token', [SettingsController::class, 'generateScimToken']);

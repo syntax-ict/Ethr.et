@@ -1,16 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { readableInkOn } from "@/lib/utils/color";
+import { aaCorrected, readableInkOn } from "@/lib/utils/color";
 import { Loader2, Palette, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
-import { useUpdateBranding, type BrandColorKey } from "@/features/settings/api";
+import {
+  useUpdateBranding,
+  type BrandAssets,
+  type BrandColorKey,
+} from "@/features/settings/api";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogoUpload } from "@/features/settings/components/logo-upload";
+import { BrandImageUpload } from "@/features/settings/components/brand-image-upload";
 
 /**
  * Tenant branding — logo and theme colors.
@@ -37,6 +42,8 @@ export interface BrandingCardProps {
   logoUrl?: string | null;
   /** The uploaded logo, which is used instead of `logoUrl` when present. */
   uploadedLogoUrl?: string | null;
+  /** The other uploaded images: the dark-background logo and the square mark. */
+  assets?: Pick<BrandAssets, "logo_dark" | "mark"> | null;
   /** A colour cleared through `PUT /settings/branding` is stored as null. */
   theme?: Partial<Record<ColorKey, string | null>> | null;
 }
@@ -44,6 +51,7 @@ export interface BrandingCardProps {
 export function BrandingCard({
   logoUrl,
   uploadedLogoUrl,
+  assets,
   theme,
 }: BrandingCardProps) {
   const { t } = useT();
@@ -94,6 +102,15 @@ export function BrandingCard({
     { key: "accent_color", label: t("settings.accent_color", "Accent color") },
   ];
 
+  // The primary and accent colours carry text (buttons, badges), so they are
+  // shown as the page will show them: moved only as far as AA contrast
+  // needs, and said so. The secondary colour carries none and is not moved.
+  const corrected = (key: ColorKey) =>
+    key === "secondary_color" ? null : aaCorrected(colors[key]);
+  const surface = (key: ColorKey) => corrected(key)?.color ?? colors[key];
+  const ink = (key: ColorKey) =>
+    corrected(key)?.ink ?? readableInkOn(colors[key]);
+
   return (
     <Card>
       <CardHeader>
@@ -106,6 +123,35 @@ export function BrandingCard({
       </CardHeader>
       <CardContent className="space-y-6">
         <LogoUpload uploadedLogoUrl={uploadedLogoUrl} />
+
+        <BrandImageUpload
+          kind="logo_dark"
+          url={assets?.logo_dark?.url}
+          title={t("settings.logo_dark_title", "Logo for dark backgrounds")}
+          inUse={t(
+            "settings.logo_dark_in_use",
+            "Your dark-background logo is in use",
+          )}
+          help={t(
+            "settings.logo_dark_help",
+            "A version of your logo that reads on dark surfaces; a PNG with transparency works best. Shown when a visitor uses dark mode.",
+          )}
+          fileLabel={t("settings.logo_dark_file", "Dark-background logo file")}
+          previewClassName="bg-slate-900"
+        />
+
+        <BrandImageUpload
+          kind="mark"
+          url={assets?.mark?.url}
+          title={t("settings.mark_title", "Square mark")}
+          inUse={t("settings.mark_in_use", "Your square mark is in use")}
+          help={t(
+            "settings.mark_help",
+            "A square version of your mark for the browser tab, the home-screen icon and link previews. We centre it on a 512 px square with a safe margin.",
+          )}
+          fileLabel={t("settings.mark_file", "Square mark file")}
+          previewClassName="rounded-xl"
+        />
 
         <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
           <div>
@@ -186,6 +232,15 @@ export function BrandingCard({
                   spellCheck={false}
                 />
               </div>
+              {corrected(key)?.changed && (
+                <p className="mt-1 text-xs text-muted-foreground" role="note">
+                  {t(
+                    "settings.color_adjusted",
+                    "Shown as :hex where text sits on it, so the text reads at AA contrast.",
+                    { hex: surface(key).toUpperCase() },
+                  )}
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -201,8 +256,8 @@ export function BrandingCard({
             <span
               className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium"
               style={{
-                backgroundColor: colors.primary_color,
-                color: readableInkOn(colors.primary_color),
+                backgroundColor: surface("primary_color"),
+                color: ink("primary_color"),
               }}
             >
               {t("common.save", "Save Changes")}
@@ -210,8 +265,8 @@ export function BrandingCard({
             <span
               className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium"
               style={{
-                backgroundColor: colors.secondary_color,
-                color: readableInkOn(colors.secondary_color),
+                backgroundColor: surface("secondary_color"),
+                color: ink("secondary_color"),
               }}
             >
               {t("common.cancel", "Cancel")}
@@ -219,8 +274,8 @@ export function BrandingCard({
             <span
               className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
               style={{
-                backgroundColor: colors.accent_color,
-                color: readableInkOn(colors.accent_color),
+                backgroundColor: surface("accent_color"),
+                color: ink("accent_color"),
               }}
             >
               {t("settings.branding_badge_sample", "Badge")}
