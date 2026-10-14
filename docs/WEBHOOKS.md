@@ -100,6 +100,8 @@ Headers (`DispatchWebhookJob::handle()`):
 | `Content-Type` | `application/json` |
 | `X-ETHR-Signature` | `sha256=<hex HMAC-SHA256 of the body, keyed with your secret>` |
 | `X-ETHR-Event` | The event name |
+| `X-ETHR-Timestamp` | When this attempt was sent, Unix seconds; signed in `X-ETHR-Signature-V2` (see below) |
+| `X-ETHR-Signature-V2` | The timestamped signature to verify (see below) |
 | `X-ETHR-Delivery` | The delivery's `public_id`. **The same on every retry of one delivery** — use it to de-duplicate |
 | `User-Agent` | `ETHR-Webhooks/1.0` |
 
@@ -113,14 +115,24 @@ that creates the webhook (`:59`). It is in no other response. There is no rotate
 change it, delete the webhook and create a new one. On ETHR's side it is stored under the `encrypted` cast, like `Device.connection_config`
 (since 2026-10-02; before that it was plain text).
 
-The signature is `"sha256=" . hash_hmac("sha256", <body>, <secret>)`
-(`DispatchWebhookJob.php:101-102`). Compute it over the **raw request body exactly as received**
-— never over a parsed-and-re-encoded copy — and compare in constant time:
+Every delivery carries two signatures. **Verify `X-ETHR-Signature-V2`**; the first is kept, unchanged, for receivers built before it.
+
+| Header | Value |
+|---|---|
+| `X-ETHR-Timestamp` | When **this attempt** was sent, in Unix seconds. A retry carries a new one |
+| `X-ETHR-Signature-V2` | `"sha256=" . hash_hmac("sha256", <X-ETHR-Timestamp> . "." . <body>, <secret>)` |
+| `X-ETHR-Signature` | `"sha256=" . hash_hmac("sha256", <body>, <secret>)`: the body alone, as before 2026-10-14 |
+
+Compute it over the **raw request body exactly as received**, never over a parsed-and-re-encoded
+copy. Compare in constant time, then refuse a timestamp outside your tolerance (five minutes
+is usual):
 
 ```php
 $raw = file_get_contents('php://input');
-$expected = 'sha256='.hash_hmac('sha256', $raw, $secret);
-if (! hash_equals($expected, $_SERVER['HTTP_X_ETHR_SIGNATURE'] ?? '')) {
+$sentAt = $_SERVER['HTTP_X_ETHR_TIMESTAMP'] ?? '';
+$expected = 'sha256='.hash_hmac('sha256', $sentAt.'.'.$raw, $secret);
+if (! hash_equals($expected, $_SERVER['HTTP_X_ETHR_SIGNATURE_V2'] ?? '')
+    || abs(time() - (int) $sentAt) > 300) {
     http_response_code(401);
     exit;
 }
@@ -129,18 +141,25 @@ if (! hash_equals($expected, $_SERVER['HTTP_X_ETHR_SIGNATURE'] ?? '')) {
 ```js
 // Node — rawBody must be the Buffer as received (e.g. express.raw({ type: "application/json" })).
 const crypto = require("node:crypto");
-const expected = Buffer.from("sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex"));
-const given = Buffer.from(req.get("X-ETHR-Signature") || "");
-const ok = given.length === expected.length && crypto.timingSafeEqual(given, expected);
+const sentAt = req.get("X-ETHR-Timestamp") || "";
+const expected = Buffer.from("sha256=" + crypto.createHmac("sha256", secret)
+  .update(sentAt + ".").update(rawBody).digest("hex"));
+const given = Buffer.from(req.get("X-ETHR-Signature-V2") || "");
+const ok = given.length === expected.length && crypto.timingSafeEqual(given, expected)
+  && Math.abs(Date.now() / 1000 - Number(sentAt)) <= 300;
 ```
 
 The signed bytes are the bytes sent: the job encodes the payload once and posts that string
 (`withBody()`), so there is no second serialisation to disagree with the signature.
-`WebhookDeliveryReliabilityTest` checks the header against the body that actually left.
+`WebhookDeliveryReliabilityTest` checks both headers against the body that actually left.
 
-**Replay:** the timestamp is inside the signed body, so it cannot be altered without breaking the
-signature. Rejecting deliveries much older than your tolerance, and de-duplicating on
-`X-ETHR-Delivery`, is up to you — ETHR does neither for you.
+**Replay** *(closed 2026-10-14)*: the body's `timestamp` is when the delivery was **queued**,
+and a retry carries it unchanged for up to a day, so a receiver could not refuse an old
+delivery without refusing legitimate retries. `X-ETHR-Timestamp` is when each attempt is
+**sent**, and it is signed together with the body, so it cannot be moved without breaking the
+signature. A captured delivery therefore stops verifying once it is older than your tolerance.
+Still de-duplicate on `X-ETHR-Delivery` — the same delivery can legitimately arrive twice if
+your answer was lost on the way back.
 
 ## Delivery, retries and auto-disable
 
