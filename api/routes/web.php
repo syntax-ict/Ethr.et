@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\OrganisationEntryController;
+use App\Http\Controllers\OrganisationPreviewImageController;
+use App\Http\Controllers\OrganisationSitemapController;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +15,17 @@ if (class_exists(Scramble::class)) {
     Scramble::registerUiRoute(path: 'api/docs');
     Scramble::registerJsonSpecificationRoute(path: 'api/docs');
 }
+
+// The portals' sitemap, named beside the site's own in robots.txt, and the
+// picture a shared link to a portal shows. Both public, both without the web
+// group for the reason the entry URL below gives; both before it, so neither
+// name can be taken for an organisation's.
+Route::get('/sitemap-organisations.xml', OrganisationSitemapController::class)
+    ->withoutMiddleware('web');
+Route::get('/organisation-previews/{publicId}/{version}', OrganisationPreviewImageController::class)
+    ->where(['publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'version' => '[0-9a-f]{16}'])
+    ->withoutMiddleware('web')
+    ->name('organisation.preview');
 
 // ethr.et/{slug} — an organisation's entry URL. Registered last and limited to
 // one lower-case segment, so it can never shadow a real route. .htaccess sends

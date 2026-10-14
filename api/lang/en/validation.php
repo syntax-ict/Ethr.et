@@ -214,6 +214,7 @@ return [
     'base64_image_too_large' => 'The image must not be larger than :max KB.',
     'cover_too_narrow' => 'The cover photo must be at least :width pixels wide.',
     'landing_cover_missing' => 'Upload a cover photo before choosing the photo background.',
+    'landing_link_host' => 'This link must be on :hosts.',
 
     // App\Http\Requests\Admin\UpdateTenantDomainRequest: a host ETHR already owns.
     'custom_domain_reserved' => 'A custom domain must be the organisation\'s own domain, not one under :root.',

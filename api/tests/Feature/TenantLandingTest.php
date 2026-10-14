@@ -145,3 +145,105 @@ it('lets only an administrator change the sign-in page', function () {
     test()->putJson(landingUrl($tenant, '/settings/landing'), ['background' => 'brand'])
         ->assertForbidden();
 });
+
+// The portal's content (organisation portal, PR 3 of 4): words in both
+// languages, what the organisation says about itself, how to reach it, its
+// links, the sections and their order, and whether search engines may list
+// the page.
+it('saves the portal content and serves it, filtered, before sign-in', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->putJson(landingUrl($tenant, '/settings/landing'), [
+        'background' => 'brand',
+        'headline_am' => 'እንኳን ወደ አክሜ በደህና መጡ',
+        'message_am' => 'ሲደርሱ ይግቡ።',
+        'about' => '  Acme makes pumps in Adama since 1998.  ',
+        'about_am' => 'አክሜ ከ1998 ጀምሮ በአዳማ ፓምፖችን ይሠራል።',
+        'founded_year' => 1998,
+        'sector' => 'manufacturing',
+        'staff_band' => '201-500',
+        'show_branch_count' => true,
+        'address' => 'Industrial zone, Adama',
+        'hours' => 'Mon to Sat, 08:00 to 17:00',
+        'latitude' => 8.54,
+        'longitude' => 39.27,
+        'show_branches' => true,
+        'links' => [
+            'website' => 'https://acme.et',
+            'linkedin' => 'https://www.linkedin.com/company/acme',
+            'telegram' => 'https://t.me/acme',
+            'privacy' => 'https://acme.et/privacy',
+        ],
+        'sections' => ['holidays' => true, 'about' => true],
+        'order' => ['contact', 'about'],
+        'listed' => true,
+    ])->assertOk()
+        ->assertJsonPath('about', 'Acme makes pumps in Adama since 1998.')
+        ->assertJsonPath('order', ['contact', 'about', 'announcements', 'vacancies', 'holidays'])
+        ->assertJsonPath('links.linkedin', 'https://www.linkedin.com/company/acme')
+        ->assertJsonPath('links.facebook', null)
+        ->assertJsonPath('listed', true);
+
+    app('auth')->forgetGuards();
+
+    test()->getJson(landingUrl($tenant, '/auth/tenant-context'))
+        ->assertOk()
+        ->assertJsonPath('tenant.landing.headline_am', 'እንኳን ወደ አክሜ በደህና መጡ')
+        ->assertJsonPath('tenant.landing.founded_year', 1998)
+        ->assertJsonPath('tenant.landing.sector', 'manufacturing')
+        ->assertJsonPath('tenant.landing.staff_band', '201-500')
+        ->assertJsonPath('tenant.landing.latitude', 8.54)
+        ->assertJsonPath('tenant.landing.longitude', 39.27)
+        ->assertJsonPath('tenant.landing.show_branches', true)
+        ->assertJsonPath('tenant.landing.links.telegram', 'https://t.me/acme')
+        ->assertJsonPath('tenant.landing.sections.holidays', true)
+        ->assertJsonPath('tenant.landing.order.0', 'contact');
+});
+
+it('refuses portal content that must not reach a public page', function (array $body, string $field) {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->putJson(landingUrl($tenant, '/settings/landing'), ['background' => 'brand', ...$body])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors($field);
+})->with([
+    'a long about' => [['about' => str_repeat('a', 601)], 'about'],
+    'a sector off the list' => [['sector' => 'crypto'], 'sector'],
+    'a staff band off the list' => [['staff_band' => '7'], 'staff_band'],
+    'a year before 1800' => [['founded_year' => 1750], 'founded_year'],
+    'a latitude with no longitude' => [['latitude' => 9.0], 'longitude'],
+    'a latitude off the globe' => [['latitude' => 95, 'longitude' => 39], 'latitude'],
+    'an http website' => [['links' => ['website' => 'http://acme.et']], 'links.website'],
+    'a LinkedIn link on another host' => [['links' => ['linkedin' => 'https://evil.example/linkedin.com']], 'links.linkedin'],
+    'a YouTube link on a look-alike host' => [['links' => ['youtube' => 'https://youtube.com.evil.example/x']], 'links.youtube'],
+    'an unknown link' => [['links' => ['tiktok' => 'https://tiktok.com/@acme']], 'links'],
+    'an unknown section in the order' => [['order' => ['about', 'map']], 'order.1'],
+    'a repeated section in the order' => [['order' => ['about', 'about']], 'order.0'],
+]);
+
+it('serves nothing from a hand-edited portal row that skipped the rules', function () {
+    $tenant = createTenant();
+    $tenant->update(['landing' => [
+        'about' => str_repeat('x', 700),
+        'founded_year' => 'soon',
+        'sector' => 'crypto',
+        'latitude' => 9.0,
+        'links' => ['website' => 'javascript:alert(1)', 'x' => 'https://x.com.evil.example/a', 'telegram' => 'https://t.me/acme'],
+        'order' => ['map', 'contact', 'contact'],
+        'listed' => 'yes',
+    ]]);
+
+    test()->getJson(landingUrl($tenant, '/auth/tenant-context'))
+        ->assertOk()
+        ->assertJsonPath('tenant.landing.about', str_repeat('x', 600))
+        ->assertJsonPath('tenant.landing.founded_year', null)
+        ->assertJsonPath('tenant.landing.sector', null)
+        ->assertJsonPath('tenant.landing.latitude', null)
+        ->assertJsonPath('tenant.landing.links.website', null)
+        ->assertJsonPath('tenant.landing.links.x', null)
+        ->assertJsonPath('tenant.landing.links.telegram', 'https://t.me/acme')
+        ->assertJsonPath('tenant.landing.order', ['contact', 'about', 'announcements', 'vacancies', 'holidays'])
+        ->assertJsonPath('tenant.landing.listed', false);
+});

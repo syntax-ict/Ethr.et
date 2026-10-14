@@ -42,11 +42,32 @@ it('returns the host-resolved tenant display info', function () {
                 // Its own words on the page, none set: ETHR's defaults.
                 'landing' => [
                     'headline' => null,
+                    'headline_am' => null,
                     'message' => null,
+                    'message_am' => null,
                     'support_email' => null,
                     'support_phone' => null,
                     'background' => 'brand',
-                    'sections' => ['announcements' => true, 'vacancies' => true, 'holidays' => false],
+                    'about' => null,
+                    'about_am' => null,
+                    'founded_year' => null,
+                    'sector' => null,
+                    'staff_band' => null,
+                    'show_branch_count' => false,
+                    'address' => null,
+                    'address_am' => null,
+                    'hours' => null,
+                    'hours_am' => null,
+                    'latitude' => null,
+                    'longitude' => null,
+                    'show_branches' => false,
+                    'links' => [
+                        'website' => null, 'linkedin' => null, 'facebook' => null, 'x' => null,
+                        'telegram' => null, 'youtube' => null, 'privacy' => null, 'terms' => null,
+                    ],
+                    'sections' => ['about' => true, 'announcements' => true, 'vacancies' => true, 'holidays' => false, 'contact' => true],
+                    'order' => ['about', 'announcements', 'vacancies', 'holidays', 'contact'],
+                    'listed' => false,
                 ],
                 // Which ways in to offer: SSO only once configured.
                 'sign_in' => [

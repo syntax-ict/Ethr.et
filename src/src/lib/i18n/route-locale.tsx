@@ -51,6 +51,34 @@ export function useRouteLocale(): string | null {
 }
 
 /**
+ * A locale for one subtree only: the settings screen's portal preview shows
+ * the page in English and in Amharic without touching the reader's own
+ * preference or `<html lang>`. `useT` reads the locale through the same
+ * context the route provides, and skips the document sync while scoped.
+ */
+const ScopedLocaleContext = createContext(false);
+
+export function ScopedLocaleProvider({
+  locale,
+  children,
+}: {
+  locale: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <RouteLocaleContext.Provider value={locale}>
+      <ScopedLocaleContext.Provider value={true}>
+        {children}
+      </ScopedLocaleContext.Provider>
+    </RouteLocaleContext.Provider>
+  );
+}
+
+export function useLocaleIsScoped(): boolean {
+  return useContext(ScopedLocaleContext);
+}
+
+/**
  * `localeHref` bound to the locale the current route is in.
  *
  * Outside the locale-prefixed tree it is the identity function, so the same

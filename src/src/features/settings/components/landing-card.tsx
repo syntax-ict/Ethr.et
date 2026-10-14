@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
+  ArrowDown,
+  ArrowUp,
   Copy,
   Download,
   ExternalLink,
@@ -13,23 +15,42 @@ import {
 import { toast } from "sonner";
 import {
   useUpdateLanding,
-  type BrandAssets,
+  type LandingUpdate,
   type TenantAddress,
   type TenantLandingSettings,
 } from "@/features/settings/api";
+import type {
+  PortalSection,
+  TenantBrand,
+  TenantLanding,
+} from "@/lib/auth/use-auth-host-context";
 import {
-  panelBackground,
-  type LandingBackground,
-} from "@/lib/auth/landing-background";
+  LINKS,
+  PORTAL_SECTIONS,
+  SECTORS,
+  STAFF_BANDS,
+  sectionOn,
+  sectionOrder,
+} from "@/lib/auth/landing-text";
+import type { LandingBackground } from "@/lib/auth/landing-background";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
-import { OrgMark } from "@/components/shared/org-mark";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { CoverUpload } from "@/features/settings/components/brand-image-upload";
+import { PortalPreview } from "@/features/settings/components/portal-preview";
 
 type Background = LandingBackground["background"];
 const BACKGROUNDS: readonly Background[] = [
@@ -45,22 +66,138 @@ function isBackground(value: unknown): value is Background {
 
 const HEADLINE_MAX = 80;
 const MESSAGE_MAX = 280;
+const ABOUT_MAX = 600;
+const ADDRESS_MAX = 200;
+const HOURS_MAX = 120;
+
+type LinkKey = (typeof LINKS)[number];
+
+/** The form as edited: every text as a string, every switch as a boolean. */
+interface LandingForm {
+  headline: string;
+  headline_am: string;
+  message: string;
+  message_am: string;
+  support_email: string;
+  support_phone: string;
+  background: Background;
+  about: string;
+  about_am: string;
+  founded_year: string;
+  sector: string;
+  staff_band: string;
+  show_branch_count: boolean;
+  address: string;
+  address_am: string;
+  hours: string;
+  hours_am: string;
+  latitude: string;
+  longitude: string;
+  show_branches: boolean;
+  links: Record<LinkKey, string>;
+  sections: Record<PortalSection, boolean>;
+  order: PortalSection[];
+  listed: boolean;
+}
+
+function fromSettings(landing: TenantLandingSettings): LandingForm {
+  const text = (v: string | null | undefined) => v ?? "";
+  const links = {} as Record<LinkKey, string>;
+  for (const key of LINKS) links[key] = text(landing.links?.[key]);
+  const sections = {} as Record<PortalSection, boolean>;
+  for (const key of PORTAL_SECTIONS) sections[key] = sectionOn(landing, key);
+  return {
+    headline: text(landing.headline),
+    headline_am: text(landing.headline_am),
+    message: text(landing.message),
+    message_am: text(landing.message_am),
+    support_email: text(landing.support_email),
+    support_phone: text(landing.support_phone),
+    background: isBackground(landing.background) ? landing.background : "brand",
+    about: text(landing.about),
+    about_am: text(landing.about_am),
+    founded_year: landing.founded_year ? String(landing.founded_year) : "",
+    sector: text(landing.sector),
+    staff_band: text(landing.staff_band),
+    show_branch_count: Boolean(landing.show_branch_count),
+    address: text(landing.address),
+    address_am: text(landing.address_am),
+    hours: text(landing.hours),
+    hours_am: text(landing.hours_am),
+    latitude: landing.latitude == null ? "" : String(landing.latitude),
+    longitude: landing.longitude == null ? "" : String(landing.longitude),
+    show_branches: Boolean(landing.show_branches),
+    links,
+    sections,
+    order: sectionOrder(landing),
+    listed: Boolean(landing.listed),
+  };
+}
+
+const trimmed = (v: string) => (v.trim() === "" ? null : v.trim());
+const numberOrNull = (v: string) => (v.trim() === "" ? null : Number(v));
+
+/** What is sent: trimmed strings, nulls for blanks, numbers as numbers. */
+function toUpdate(form: LandingForm): LandingUpdate {
+  const links = {} as Record<LinkKey, string | null>;
+  for (const key of LINKS) links[key] = trimmed(form.links[key]);
+  return {
+    headline: trimmed(form.headline),
+    headline_am: trimmed(form.headline_am),
+    message: trimmed(form.message),
+    message_am: trimmed(form.message_am),
+    support_email: trimmed(form.support_email),
+    support_phone: trimmed(form.support_phone),
+    background: form.background,
+    about: trimmed(form.about),
+    about_am: trimmed(form.about_am),
+    founded_year: numberOrNull(form.founded_year),
+    sector: trimmed(form.sector) as LandingUpdate["sector"],
+    staff_band: trimmed(form.staff_band) as LandingUpdate["staff_band"],
+    show_branch_count: form.show_branch_count,
+    address: trimmed(form.address),
+    address_am: trimmed(form.address_am),
+    hours: trimmed(form.hours),
+    hours_am: trimmed(form.hours_am),
+    latitude: numberOrNull(form.latitude),
+    longitude: numberOrNull(form.longitude),
+    show_branches: form.show_branches,
+    links,
+    sections: form.sections,
+    order: form.order,
+    listed: form.listed,
+  };
+}
+
+/** The form as the portal reads it, for the live preview. */
+function toLanding(form: LandingForm): TenantLanding {
+  const update = toUpdate(form);
+  return {
+    ...update,
+    headline: update.headline ?? null,
+    message: update.message ?? null,
+    support_email: update.support_email ?? null,
+    support_phone: update.support_phone ?? null,
+    background: form.background,
+    order: form.order,
+  };
+}
 
 export interface LandingCardProps {
   landing: TenantLandingSettings;
   address: TenantAddress;
   organisationName: string;
-  logoUrl: string | null;
-  /** The uploaded cover, which the photo background draws. */
-  cover?: BrandAssets["cover"];
-  secondaryColor: string | null | undefined;
+  /** The organisation's images and colours, for the preview. */
+  brand: TenantBrand;
 }
 
 /**
- * The organisation's sign-in page - ethr.et/{slug}, its subdomain or its own
- * domain. Its admin sets the words, the HR help contacts and the background,
- * sees the result as they type, and takes away the link and a QR code for
- * posters at the entrance or the time clock.
+ * The organisation's portal - ethr.et/{slug}, its subdomain or its own
+ * domain. Its admin sets the words in both languages, what the page says
+ * about the organisation, how to reach it, its links, which sections show
+ * and in what order, and whether search engines may list the page; sees the
+ * whole page as it will render while typing; and takes away the link and a
+ * QR code for posters at the entrance or the time clock.
  *
  * The photo background is the uploaded cover: the upload sits under that
  * choice, and until one exists the server refuses the choice, which the
@@ -70,22 +207,17 @@ export function LandingCard({
   landing,
   address,
   organisationName,
-  logoUrl,
-  cover = null,
-  secondaryColor,
+  brand,
 }: LandingCardProps) {
   const { t } = useT();
   const updateLanding = useUpdateLanding();
+  const linkLabel = useLinkLabel();
   const qrRef = useRef<HTMLCanvasElement>(null);
 
-  const [headline, setHeadline] = useState(landing.headline ?? "");
-  const [message, setMessage] = useState(landing.message ?? "");
-  const [email, setEmail] = useState(landing.support_email ?? "");
-  const [phone, setPhone] = useState(landing.support_phone ?? "");
-  const [background, setBackground] = useState<Background>(
-    isBackground(landing.background) ? landing.background : "brand",
-  );
+  const [form, setForm] = useState<LandingForm>(() => fromSettings(landing));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const set = <K extends keyof LandingForm>(key: K, value: LandingForm[K]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
   // The address people type or scan: the organisation's own address when it
   // has one, else the shared ethr.et/{slug}.
@@ -103,44 +235,51 @@ export function LandingCard({
     { value: "image", label: t("settings.landing_bg_image", "Photo") },
   ];
 
-  const trimmed = (v: string) => (v.trim() === "" ? null : v.trim());
-  const coverMissing = background === "image" && !cover?.url;
+  const sectionLabels: Record<PortalSection, string> = {
+    about: t("landing.about", "About us"),
+    announcements: t("landing.news", "Latest news"),
+    vacancies: t("landing.vacancies", "Open positions"),
+    holidays: t("landing.holidays", "Upcoming holidays"),
+    contact: t("landing.contact", "Contact"),
+  };
+
+  const coverMissing = form.background === "image" && !brand.cover?.url;
+
+  function move(section: PortalSection, by: -1 | 1) {
+    setForm((prev) => {
+      const order = [...prev.order];
+      const from = order.indexOf(section);
+      const to = from + by;
+      if (from < 0 || to < 0 || to >= order.length) return prev;
+      order.splice(from, 1);
+      order.splice(to, 0, section);
+      return { ...prev, order };
+    });
+  }
 
   function save() {
     setFieldErrors({});
-    updateLanding.mutate(
-      {
-        headline: trimmed(headline),
-        message: trimmed(message),
-        support_email: trimmed(email),
-        support_phone: trimmed(phone),
-        background,
-      },
-      {
-        onSuccess: () =>
-          toast.success(t("settings.landing_saved", "Sign-in page saved")),
-        onError: (error: unknown) => {
-          const errors = (
-            error as {
-              response?: { data?: { errors?: Record<string, string[]> } };
-            }
-          ).response?.data?.errors;
-          if (errors) {
-            setFieldErrors(
-              Object.fromEntries(
-                Object.entries(errors).map(([k, v]) => [k, v[0] ?? ""]),
-              ),
-            );
+    updateLanding.mutate(toUpdate(form), {
+      onSuccess: () =>
+        toast.success(t("settings.landing_saved", "Sign-in page saved")),
+      onError: (error: unknown) => {
+        const errors = (
+          error as {
+            response?: { data?: { errors?: Record<string, string[]> } };
           }
-          toast.error(
-            t(
-              "settings.landing_save_failed",
-              "Failed to save the sign-in page",
+        ).response?.data?.errors;
+        if (errors) {
+          setFieldErrors(
+            Object.fromEntries(
+              Object.entries(errors).map(([k, v]) => [k, v[0] ?? ""]),
             ),
           );
-        },
+        }
+        toast.error(
+          t("settings.landing_save_failed", "Failed to save the sign-in page"),
+        );
       },
-    );
+    });
   }
 
   async function copyLink() {
@@ -161,6 +300,51 @@ export function LandingCard({
     link.click();
   }
 
+  const bilingual = (
+    key: "headline" | "message" | "about" | "address" | "hours",
+    label: string,
+    max: number,
+    multiline: boolean,
+    placeholder?: string,
+  ) => {
+    const amKey = `${key}_am` as const;
+    const Control = multiline ? Textarea : Input;
+    return (
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          id={`landing-${key}`}
+          label={`${label} (English)`}
+          error={fieldErrors[key]}
+          counter={`${form[key].length}/${max}`}
+        >
+          <Control
+            id={`landing-${key}`}
+            value={form[key]}
+            maxLength={max}
+            placeholder={placeholder}
+            rows={multiline ? 3 : undefined}
+            onChange={(e) => set(key, e.target.value)}
+          />
+        </Field>
+        <Field
+          id={`landing-${amKey}`}
+          label={`${label} (አማርኛ)`}
+          error={fieldErrors[amKey]}
+          counter={`${form[amKey].length}/${max}`}
+        >
+          <Control
+            id={`landing-${amKey}`}
+            value={form[amKey]}
+            maxLength={max}
+            lang="am"
+            rows={multiline ? 3 : undefined}
+            onChange={(e) => set(amKey, e.target.value)}
+          />
+        </Field>
+      </div>
+    );
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -178,71 +362,43 @@ export function LandingCard({
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
-          <div className="space-y-4">
-            <Field
-              id="landing-headline"
-              label={t("settings.landing_headline", "Headline")}
-              error={fieldErrors.headline}
-              counter={`${headline.length}/${HEADLINE_MAX}`}
-            >
-              <Input
-                id="landing-headline"
-                value={headline}
-                maxLength={HEADLINE_MAX}
-                placeholder={organisationName}
-                onChange={(e) => setHeadline(e.target.value)}
-              />
-            </Field>
+        <Tabs defaultValue="words">
+          <TabsList className="flex w-full flex-wrap">
+            <TabsTrigger value="words">
+              {t("settings.landing_tab_words", "Words")}
+            </TabsTrigger>
+            <TabsTrigger value="about">
+              {t("settings.landing_tab_about", "About")}
+            </TabsTrigger>
+            <TabsTrigger value="contact">
+              {t("settings.landing_tab_contact", "Contact")}
+            </TabsTrigger>
+            <TabsTrigger value="links">
+              {t("settings.landing_tab_links", "Links")}
+            </TabsTrigger>
+            <TabsTrigger value="sections">
+              {t("settings.landing_tab_sections", "Sections")}
+            </TabsTrigger>
+          </TabsList>
 
-            <Field
-              id="landing-message"
-              label={t("settings.landing_message", "Welcome message")}
-              error={fieldErrors.message}
-              counter={`${message.length}/${MESSAGE_MAX}`}
-            >
-              <Textarea
-                id="landing-message"
-                value={message}
-                maxLength={MESSAGE_MAX}
-                rows={3}
-                placeholder={t(
-                  "auth.org_welcome",
-                  "Your workspace for attendance, leave and pay.",
-                )}
-                onChange={(e) => setMessage(e.target.value)}
-              />
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                id="landing-email"
-                label={t("settings.landing_support_email", "HR help e-mail")}
-                error={fieldErrors.support_email}
-              >
-                <Input
-                  id="landing-email"
-                  type="email"
-                  value={email}
-                  placeholder="hr@example.et"
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </Field>
-              <Field
-                id="landing-phone"
-                label={t("settings.landing_support_phone", "HR help phone")}
-                error={fieldErrors.support_phone}
-              >
-                <Input
-                  id="landing-phone"
-                  type="tel"
-                  value={phone}
-                  placeholder="+251 11 000 0000"
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </Field>
-            </div>
-
+          <TabsContent value="words" className="mt-4 space-y-4">
+            {bilingual(
+              "headline",
+              t("settings.landing_headline", "Headline"),
+              HEADLINE_MAX,
+              false,
+              organisationName,
+            )}
+            {bilingual(
+              "message",
+              t("settings.landing_message", "Welcome message"),
+              MESSAGE_MAX,
+              true,
+              t(
+                "auth.org_welcome",
+                "Your workspace for attendance, leave and pay.",
+              ),
+            )}
             <fieldset>
               <legend className="text-sm font-medium">
                 {t("settings.landing_background", "Background")}
@@ -256,11 +412,11 @@ export function LandingCard({
                     key={option.value}
                     type="button"
                     role="radio"
-                    aria-checked={background === option.value}
-                    onClick={() => setBackground(option.value)}
+                    aria-checked={form.background === option.value}
+                    onClick={() => set("background", option.value)}
                     className={cn(
                       "rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      background === option.value
+                      form.background === option.value
                         ? "bg-background text-foreground shadow-xs"
                         : "text-muted-foreground hover:text-foreground",
                     )}
@@ -274,9 +430,9 @@ export function LandingCard({
                   {fieldErrors.background}
                 </p>
               )}
-              {background === "image" && (
+              {form.background === "image" && (
                 <div className="mt-3 space-y-2">
-                  <CoverUpload cover={cover} />
+                  <CoverUpload cover={brand.cover ?? null} />
                   {coverMissing && (
                     <p className="text-xs text-muted-foreground" role="note">
                       {t(
@@ -288,52 +444,289 @@ export function LandingCard({
                 </div>
               )}
             </fieldset>
-          </div>
+          </TabsContent>
 
-          {/* Live preview: the side panel as it will render. */}
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t("settings.branding_preview", "Preview")}
-            </p>
-            <div
-              data-testid="landing-preview"
-              className="flex min-h-64 flex-col items-center justify-center rounded-xl bg-primary p-6 text-center"
-              style={panelBackground({ background }, secondaryColor, cover)}
-            >
-              <OrgMark
-                name={organisationName}
-                logoUrl={logoUrl}
-                className="h-12 w-12 bg-primary-foreground/15 ring-0"
-                initialClassName="text-xl"
-              />
-              {headline.trim() && (
-                <p className="mt-4 text-[10px] font-medium uppercase tracking-wider text-primary-foreground/70">
-                  {organisationName}
-                </p>
+          <TabsContent value="about" className="mt-4 space-y-4">
+            {bilingual(
+              "about",
+              t("settings.landing_about", "About the organisation"),
+              ABOUT_MAX,
+              true,
+            )}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field
+                id="landing-founded"
+                label={t("settings.landing_founded", "Founded in")}
+                error={fieldErrors.founded_year}
+              >
+                <Input
+                  id="landing-founded"
+                  inputMode="numeric"
+                  value={form.founded_year}
+                  placeholder="1998"
+                  onChange={(e) =>
+                    set("founded_year", e.target.value.replace(/\D/g, ""))
+                  }
+                />
+              </Field>
+              <Field
+                id="landing-sector"
+                label={t("settings.landing_sector", "Sector")}
+                error={fieldErrors.sector}
+              >
+                <Select
+                  value={form.sector || "none"}
+                  onValueChange={(v) => set("sector", v === "none" ? "" : v)}
+                >
+                  <SelectTrigger id="landing-sector">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">
+                      {t("settings.landing_not_stated", "Not stated")}
+                    </SelectItem>
+                    {SECTORS.map((sector) => (
+                      <SelectItem key={sector} value={sector}>
+                        {t(`landing.sector_${sector}`, sector)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field
+                id="landing-staff"
+                label={t("settings.landing_staff_band", "Staff size")}
+                error={fieldErrors.staff_band}
+              >
+                <Select
+                  value={form.staff_band || "none"}
+                  onValueChange={(v) =>
+                    set("staff_band", v === "none" ? "" : v)
+                  }
+                >
+                  <SelectTrigger id="landing-staff">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">
+                      {t("settings.landing_not_stated", "Not stated")}
+                    </SelectItem>
+                    {STAFF_BANDS.map((band) => (
+                      <SelectItem key={band} value={band}>
+                        {band}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <SwitchRow
+              id="landing-branch-count"
+              label={t(
+                "settings.landing_show_branch_count",
+                "Show how many places we have",
               )}
-              <p
-                className={cn(
-                  "text-balance text-lg font-bold leading-tight text-primary-foreground",
-                  headline.trim() ? "mt-1" : "mt-4",
+              help={t(
+                "settings.landing_show_branch_count_help",
+                "Counts your active branches; nothing else about them.",
+              )}
+              checked={form.show_branch_count}
+              onCheckedChange={(v) => set("show_branch_count", v)}
+            />
+          </TabsContent>
+
+          <TabsContent value="contact" className="mt-4 space-y-4">
+            {bilingual(
+              "address",
+              t("settings.landing_address", "Address"),
+              ADDRESS_MAX,
+              true,
+            )}
+            {bilingual(
+              "hours",
+              t("settings.landing_hours", "Office hours"),
+              HOURS_MAX,
+              false,
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                id="landing-email"
+                label={t("settings.landing_support_email", "HR help e-mail")}
+                error={fieldErrors.support_email}
+              >
+                <Input
+                  id="landing-email"
+                  type="email"
+                  value={form.support_email}
+                  placeholder="hr@example.et"
+                  onChange={(e) => set("support_email", e.target.value)}
+                />
+              </Field>
+              <Field
+                id="landing-phone"
+                label={t("settings.landing_support_phone", "HR help phone")}
+                error={fieldErrors.support_phone}
+              >
+                <Input
+                  id="landing-phone"
+                  type="tel"
+                  value={form.support_phone}
+                  placeholder="+251 11 000 0000"
+                  onChange={(e) => set("support_phone", e.target.value)}
+                />
+              </Field>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                id="landing-latitude"
+                label={t("settings.landing_latitude", "Latitude")}
+                error={fieldErrors.latitude}
+                help={t(
+                  "settings.landing_coordinates_help",
+                  "For an Open in Maps link; no map is embedded.",
                 )}
               >
-                {headline.trim() || organisationName}
-              </p>
-              <p className="mt-2 line-clamp-4 whitespace-pre-line text-xs text-primary-foreground/80">
-                {message.trim() ||
-                  t(
-                    "auth.org_welcome",
-                    "Your workspace for attendance, leave and pay.",
-                  )}
-              </p>
-              {(email.trim() || phone.trim()) && (
-                <p className="mt-4 text-[11px] text-primary-foreground/80">
-                  {[email.trim(), phone.trim()].filter(Boolean).join(" · ")}
-                </p>
-              )}
+                <Input
+                  id="landing-latitude"
+                  inputMode="decimal"
+                  value={form.latitude}
+                  placeholder="9.0108"
+                  onChange={(e) => set("latitude", e.target.value)}
+                />
+              </Field>
+              <Field
+                id="landing-longitude"
+                label={t("settings.landing_longitude", "Longitude")}
+                error={fieldErrors.longitude}
+              >
+                <Input
+                  id="landing-longitude"
+                  inputMode="decimal"
+                  value={form.longitude}
+                  placeholder="38.7613"
+                  onChange={(e) => set("longitude", e.target.value)}
+                />
+              </Field>
             </div>
-          </div>
-        </div>
+            <SwitchRow
+              id="landing-branches"
+              label={t("settings.landing_show_branches", "List our places")}
+              help={t(
+                "settings.landing_show_branches_help",
+                "Your active branches with their city, address and phone, from the branches you already keep.",
+              )}
+              checked={form.show_branches}
+              onCheckedChange={(v) => set("show_branches", v)}
+            />
+          </TabsContent>
+
+          <TabsContent value="links" className="mt-4 space-y-4">
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "settings.landing_links_help",
+                "https links only. Each network link must be on that network's own site. Privacy and terms fall back to ETHR's when empty.",
+              )}
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {LINKS.map((key) => (
+                <Field
+                  key={key}
+                  id={`landing-link-${key}`}
+                  label={linkLabel(key)}
+                  error={fieldErrors[`links.${key}`]}
+                >
+                  <Input
+                    id={`landing-link-${key}`}
+                    type="url"
+                    inputMode="url"
+                    value={form.links[key]}
+                    placeholder={LINK_PLACEHOLDERS[key]}
+                    onChange={(e) =>
+                      set("links", { ...form.links, [key]: e.target.value })
+                    }
+                  />
+                </Field>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="sections" className="mt-4 space-y-4">
+            <ul className="divide-y divide-border rounded-lg border">
+              {form.order.map((section, index) => (
+                <li key={section} className="flex items-center gap-3 px-3 py-2">
+                  <Switch
+                    id={`landing-section-${section}`}
+                    checked={form.sections[section]}
+                    onCheckedChange={(v) =>
+                      set("sections", { ...form.sections, [section]: v })
+                    }
+                  />
+                  <Label
+                    htmlFor={`landing-section-${section}`}
+                    className="min-w-0 flex-1"
+                  >
+                    {sectionLabels[section]}
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={index === 0}
+                    aria-label={t(
+                      "settings.landing_move_up",
+                      "Move :section up",
+                      {
+                        section: sectionLabels[section],
+                      },
+                    )}
+                    onClick={() => move(section, -1)}
+                  >
+                    <ArrowUp className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={index === form.order.length - 1}
+                    aria-label={t(
+                      "settings.landing_move_down",
+                      "Move :section down",
+                      { section: sectionLabels[section] },
+                    )}
+                    onClick={() => move(section, 1)}
+                  >
+                    <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "settings.landing_sections_help",
+                "A section with nothing to show stays hidden even when it is on.",
+              )}
+            </p>
+            <SwitchRow
+              id="landing-listed"
+              label={t(
+                "settings.landing_listed",
+                "List this page in search engines",
+              )}
+              help={t(
+                "settings.landing_listed_help",
+                "Off by default. When on, search engines may index your page; nothing behind sign-in is ever listed.",
+              )}
+              checked={form.listed}
+              onCheckedChange={(v) => set("listed", v)}
+            />
+          </TabsContent>
+        </Tabs>
+
+        <PortalPreview
+          name={organisationName}
+          brand={brand}
+          landing={toLanding(form)}
+        />
 
         {/* Share it: the link, and a QR code for a poster. */}
         <div className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center">
@@ -390,6 +783,69 @@ export function LandingCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/** The networks keep their own names in every language; the rest are translated. */
+function useLinkLabel() {
+  const { t } = useT();
+  return (key: LinkKey): string => {
+    switch (key) {
+      case "website":
+        return t("settings.landing_link_website", "Website");
+      case "privacy":
+        return t("settings.landing_link_privacy", "Privacy policy");
+      case "terms":
+        return t("settings.landing_link_terms", "Terms");
+      default:
+        return LINK_LABELS[key];
+    }
+  };
+}
+
+const LINK_LABELS: Record<LinkKey, string> = {
+  website: "Website",
+  linkedin: "LinkedIn",
+  facebook: "Facebook",
+  x: "X",
+  telegram: "Telegram",
+  youtube: "YouTube",
+  privacy: "Privacy policy",
+  terms: "Terms",
+};
+
+const LINK_PLACEHOLDERS: Record<LinkKey, string> = {
+  website: "https://example.et",
+  linkedin: "https://www.linkedin.com/company/example",
+  facebook: "https://www.facebook.com/example",
+  x: "https://x.com/example",
+  telegram: "https://t.me/example",
+  youtube: "https://www.youtube.com/@example",
+  privacy: "https://example.et/privacy",
+  terms: "https://example.et/terms",
+};
+
+function SwitchRow({
+  id,
+  label,
+  help,
+  checked,
+  onCheckedChange,
+}: {
+  id: string;
+  label: string;
+  help: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border p-3">
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
+      <div className="min-w-0">
+        <Label htmlFor={id}>{label}</Label>
+        <p className="mt-0.5 text-xs text-muted-foreground">{help}</p>
+      </div>
+    </div>
   );
 }
 

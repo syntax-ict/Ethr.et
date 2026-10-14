@@ -227,6 +227,14 @@ it('serves the shared sign-in page at ethr.et/{slug} once it is exported', funct
             ->assertHeader('X-Robots-Tag', 'noindex, nofollow')
             ->assertCookieMissing(config('session.cookie'));
 
+        // Listed only once the organisation switched it on in its portal
+        // settings (PR 3 of the portal); the default above stays off.
+        Tenant::query()->where('subdomain', 'acme')->firstOrFail()
+            ->update(['landing' => ['background' => 'brand', 'listed' => true]]);
+        test()->get('http://ethr.et/acme')
+            ->assertOk()
+            ->assertHeader('X-Robots-Tag', 'index, follow');
+
         // Not for a name no organisation holds.
         test()->get('http://ethr.et/no-such-org')->assertNotFound();
     } finally {
