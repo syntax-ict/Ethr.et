@@ -12,8 +12,8 @@ export interface LandingBackground {
 export interface LandingCover {
   url: string | null;
   srcset: string;
-  width: number | string;
-  height: number | string;
+  width: number;
+  height: number;
   focal_x: number;
   focal_y: number;
 }

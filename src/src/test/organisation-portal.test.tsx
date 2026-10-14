@@ -4,7 +4,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { OrganisationPortal } from "@/features/auth/components/organisation-portal";
-import type { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
+import type {
+  PortalSection,
+  useAuthHostContext,
+} from "@/lib/auth/use-auth-host-context";
 import { vi } from "vitest";
 import type { LandingFeed } from "@/features/auth/landing-feed";
 
@@ -75,6 +78,8 @@ const feed: LandingFeed = {
     },
   ],
   holidays: [],
+  branches: [],
+  branch_count: null,
 };
 
 function renderNews() {
@@ -321,5 +326,186 @@ describe("<OrganisationPortal> brand images", () => {
       name: "Acme Manufacturing",
     });
     expect(darkHeader.getAttribute("src")).toBe(brand.logo_dark_url);
+  });
+});
+
+/**
+ * The portal's content sections (PR 3 of 4): the organisation's own words
+ * in the viewer's language, the about and contact sections, the order it
+ * chose, and the footer's links.
+ */
+const contentLanding = {
+  headline: "Welcome to Acme",
+  headline_am: "እንኳን ወደ አክሜ በደህና መጡ",
+  message: "Check in when you arrive.",
+  message_am: null,
+  support_email: "hr@acme.et",
+  support_phone: "+251 11 555 0100",
+  background: "brand" as const,
+  about: "Acme makes pumps in Adama.",
+  about_am: "አክሜ በአዳማ ፓምፖችን ይሠራል።",
+  founded_year: 1998,
+  sector: "manufacturing",
+  staff_band: "201-500",
+  show_branch_count: true,
+  address: "Industrial zone, Adama",
+  address_am: null,
+  hours: "Mon to Sat, 08:00 to 17:00",
+  hours_am: null,
+  latitude: 8.54,
+  longitude: 39.27,
+  show_branches: true,
+  links: {
+    website: "https://acme.et",
+    linkedin: "https://www.linkedin.com/company/acme",
+    facebook: null,
+    x: null,
+    telegram: "https://t.me/acme",
+    youtube: null,
+    privacy: "https://acme.et/privacy",
+    terms: null,
+  },
+  sections: {
+    about: true,
+    announcements: true,
+    vacancies: true,
+    holidays: false,
+    contact: true,
+  },
+  order: [
+    "contact",
+    "about",
+    "announcements",
+    "vacancies",
+    "holidays",
+  ] as PortalSection[],
+  listed: true,
+};
+
+function renderContent(
+  landing: HostCtx["tenantLanding"] = contentLanding,
+  feedOverrides: Partial<LandingFeed> = {},
+) {
+  hostContextValue.mockReturnValue({
+    ...organisationContext(),
+    tenantLanding: landing,
+  });
+  server.use(
+    http.get("*/auth/tenant-landing/feed", () =>
+      HttpResponse.json({
+        ...feed,
+        branches: [
+          {
+            public_id: "b1",
+            name: "Adama plant",
+            name_am: "አዳማ",
+            city: "Adama",
+            address: "Industrial zone",
+            phone: "+251 22 111 0000",
+            latitude: 8.54,
+            longitude: 39.27,
+          },
+        ],
+        branch_count: 3,
+        ...feedOverrides,
+      }),
+    ),
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <OrganisationPortal>
+        <p>the sign-in form</p>
+      </OrganisationPortal>
+    </QueryClientProvider>,
+  );
+}
+
+describe("<OrganisationPortal> content", () => {
+  afterEach(() => {
+    localStorage.removeItem("locale");
+    window.dispatchEvent(new Event("locale-changed"));
+  });
+
+  it("draws the about and contact sections, in the organisation's order", async () => {
+    renderContent();
+
+    expect(
+      await screen.findByText("Acme makes pumps in Adama."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Founded 1998")).toBeInTheDocument();
+    expect(screen.getByText("Manufacturing")).toBeInTheDocument();
+    expect(screen.getByText("201-500 employees")).toBeInTheDocument();
+    expect(screen.getByText("3 branches")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Industrial zone, Adama").length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText("Mon to Sat, 08:00 to 17:00")).toBeInTheDocument();
+    expect(screen.getByText("Adama plant")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: "Open in Maps" })[0],
+    ).toHaveAttribute("href", expect.stringContaining("8.54,39.27"));
+
+    // Contact first, as the organisation ordered it.
+    const ids = Array.from(document.querySelectorAll("main section")).map(
+      (s) => s.id,
+    );
+    expect(ids).toEqual(["contact", "about", "news", "careers"]);
+  });
+
+  it("hides a section that is switched off, and one with nothing to show", async () => {
+    renderContent(
+      {
+        ...contentLanding,
+        sections: { ...contentLanding.sections, contact: false },
+        about: null,
+        about_am: null,
+        founded_year: null,
+        sector: null,
+        staff_band: null,
+        show_branch_count: false,
+      },
+      { branch_count: null },
+    );
+
+    expect(await screen.findByText("Plant reopens Monday")).toBeInTheDocument();
+    expect(document.querySelector("#contact")).toBeNull();
+    expect(document.querySelector("#about")).toBeNull();
+  });
+
+  it("links the organisation's networks and policies in the footer, with ETHR's policy when none is set", async () => {
+    renderContent();
+    await screen.findByText("Acme makes pumps in Adama.");
+
+    const footer = document.querySelector("footer")!;
+    const hrefs = Array.from(footer.querySelectorAll("a")).map((a) => [
+      a.textContent,
+      a.getAttribute("href"),
+    ]);
+    expect(hrefs).toEqual(
+      expect.arrayContaining([
+        ["Website", "https://acme.et"],
+        ["LinkedIn", "https://www.linkedin.com/company/acme"],
+        ["Telegram", "https://t.me/acme"],
+        ["Privacy", "https://acme.et/privacy"],
+        ["Terms", "/en/terms"],
+      ]),
+    );
+    expect(footer.textContent).not.toContain("Facebook");
+  });
+
+  it("shows the Amharic words when the viewer reads Amharic, and falls back to English", async () => {
+    localStorage.setItem("locale", "am");
+    window.dispatchEvent(new Event("locale-changed"));
+    renderContent();
+
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
+      "እንኳን ወደ አክሜ በደህና መጡ",
+    );
+    expect(await screen.findByText("አክሜ በአዳማ ፓምፖችን ይሠራል።")).toBeInTheDocument();
+    // No Amharic message was written: the English one stands in.
+    expect(screen.getByText("Check in when you arrive.")).toBeInTheDocument();
   });
 });

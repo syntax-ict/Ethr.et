@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Announcement;
+use App\Models\Branch;
 use App\Models\Holiday;
 use App\Models\Tenant;
 use App\Models\Vacancy;
@@ -81,7 +82,7 @@ it('never shows another organisation', function () {
 
     test()->getJson(feedUrl($mine))
         ->assertOk()
-        ->assertExactJson(['announcements' => [], 'vacancies' => [], 'holidays' => []]);
+        ->assertExactJson(['announcements' => [], 'vacancies' => [], 'holidays' => [], 'branches' => [], 'branch_count' => null]);
 });
 
 it('sends announcement text as plain text, shortened', function () {
@@ -195,4 +196,39 @@ it('keeps announcement detail behind the same section switch as the feed', funct
 
     test()->getJson(feedUrl($tenant, "/auth/tenant-landing/announcements/{$announcement->public_id}"))
         ->assertNotFound();
+});
+
+// The organisation's places and their count (organisation portal, PR 3 of 4):
+// only when it chose to show them, only what a visitor would look for, and
+// never another organisation's.
+it('lists active branches and their count only when the organisation chose to', function () {
+    $tenant = createTenant();
+    $other = createTenant();
+    Branch::query()->create(['tenant_id' => $tenant->id, 'name' => 'Adama plant', 'name_am' => 'አዳማ', 'city' => 'Adama', 'address' => 'Industrial zone', 'phone' => '+251 22 111 0000', 'latitude' => 8.54, 'longitude' => 39.27, 'is_active' => true]);
+    Branch::query()->create(['tenant_id' => $tenant->id, 'name' => 'Old depot', 'is_active' => false]);
+    Branch::query()->create(['tenant_id' => $other->id, 'name' => 'Elsewhere', 'is_active' => true]);
+
+    test()->getJson(feedUrl($tenant))
+        ->assertOk()
+        ->assertJsonPath('branches', [])
+        ->assertJsonPath('branch_count', null);
+
+    $tenant->update(['landing' => ['background' => 'brand', 'show_branches' => true, 'show_branch_count' => true]]);
+
+    test()->getJson(feedUrl($tenant))
+        ->assertOk()
+        ->assertJsonCount(1, 'branches')
+        ->assertJsonPath('branches.0.name', 'Adama plant')
+        ->assertJsonPath('branches.0.city', 'Adama')
+        ->assertJsonPath('branches.0.phone', '+251 22 111 0000')
+        ->assertJsonPath('branches.0.latitude', 8.54)
+        ->assertJsonMissingPath('branches.0.id')
+        ->assertJsonMissingPath('branches.0.geofence_radius_meters')
+        ->assertJsonPath('branch_count', 1);
+
+    // The contact and about switches cover the places and the count too.
+    $tenant->update(['landing' => ['background' => 'brand', 'show_branches' => true, 'show_branch_count' => true, 'sections' => ['contact' => false, 'about' => false]]]);
+    test()->getJson(feedUrl($tenant))
+        ->assertJsonPath('branches', [])
+        ->assertJsonPath('branch_count', null);
 });

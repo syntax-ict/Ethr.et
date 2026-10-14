@@ -8760,27 +8760,70 @@ export interface components {
         };
         /**
          * UpdateLandingRequest
-         * @description The organisation's sign-in page: its own words, help contacts and panel
-         *     background. Everything here is shown publicly, before sign-in.
+         * @description The organisation's portal: its own words in both languages, what it says
+         *     about itself, how to reach it, its links, which sections show and in what
+         *     order, and whether search engines may list the page. Everything here is
+         *     shown publicly, before sign-in.
          *
          *     The photo background draws the cover the organisation uploaded through
-         *     `POST /settings/branding/assets/cover`; there is no image URL to give.
-         *     Choosing it before a cover exists is refused in withValidator(), which
-         *     Scramble does not read, so the contract stays a plain rule set.
+         *     `POST /settings/branding/assets/cover`; choosing it before a cover exists
+         *     is refused in withValidator(). The network links are checked against the
+         *     network's own host there too, with TenantLanding::linkUrl(), the same test
+         *     the public side applies before serving. Scramble does not read
+         *     withValidator(), so the contract stays a plain rule set.
          */
         UpdateLandingRequest: {
             headline?: string | null;
+            headline_am?: string | null;
             message?: string | null;
+            message_am?: string | null;
             /** Format: email */
             support_email?: string | null;
             support_phone?: string | null;
             /** @enum {string} */
             background: "brand" | "gradient" | "pattern" | "image";
+            about?: string | null;
+            about_am?: string | null;
+            founded_year?: number | null;
+            /** @enum {string|null} */
+            sector?: "agriculture" | "construction" | "education" | "finance" | "government" | "health" | "hospitality" | "logistics" | "manufacturing" | "media" | "mining" | "ngo" | "retail" | "services" | "technology" | "telecom" | "utilities" | "other" | null;
+            /** @enum {string|null} */
+            staff_band?: "1-10" | "11-50" | "51-200" | "201-500" | "501-1000" | "1000+" | null;
+            show_branch_count?: boolean;
+            address?: string | null;
+            address_am?: string | null;
+            hours?: string | null;
+            hours_am?: string | null;
+            latitude?: number | null;
+            longitude?: number | null;
+            show_branches?: boolean;
+            links?: {
+                /** Format: uri */
+                website: string | null;
+                /** Format: uri */
+                linkedin: string | null;
+                /** Format: uri */
+                facebook: string | null;
+                /** Format: uri */
+                x: string | null;
+                /** Format: uri */
+                telegram: string | null;
+                /** Format: uri */
+                youtube: string | null;
+                /** Format: uri */
+                privacy: string | null;
+                /** Format: uri */
+                terms: string | null;
+            };
             sections?: {
+                about: boolean;
                 announcements: boolean;
                 vacancies: boolean;
                 holidays: boolean;
+                contact: boolean;
             };
+            order?: ("about" | "announcements" | "vacancies" | "holidays" | "contact")[];
+            listed?: boolean;
         };
         /** UpdateLeaveTypeRequest */
         UpdateLeaveTypeRequest: {
@@ -17100,6 +17143,17 @@ export interface operations {
                             name_am: string | null;
                             date: string;
                         }[];
+                        branches: {
+                            public_id: string;
+                            name: string;
+                            name_am: string | null;
+                            city: string | null;
+                            address: string | null;
+                            phone: string | null;
+                            latitude: number | null;
+                            longitude: number | null;
+                        }[];
+                        branch_count: number | null;
                     };
                 };
             };
@@ -23123,16 +23177,34 @@ export interface operations {
                         };
                         landing: {
                             headline: string | null;
+                            headline_am: string | null;
                             message: string | null;
+                            message_am: string | null;
                             support_email: string | null;
                             support_phone: string | null;
                             /** @description A photo background with no cover uploaded is the brand colour. */
                             background: string;
-                            sections: {
-                                announcements: string | boolean;
-                                vacancies: string | boolean;
-                                holidays: string | boolean;
+                            about: string | null;
+                            about_am: string | null;
+                            founded_year: number | null;
+                            sector: string | null;
+                            staff_band: string | null;
+                            show_branch_count: boolean;
+                            address: string | null;
+                            address_am: string | null;
+                            hours: string | null;
+                            hours_am: string | null;
+                            latitude: number | null;
+                            longitude: number | null;
+                            show_branches: boolean;
+                            links: {
+                                [key: string]: string | null;
                             };
+                            sections: {
+                                [key: string]: boolean;
+                            };
+                            order: string[];
+                            listed: boolean;
                         };
                         /**
                          * @description Attendance rules (grace period, OT cap, confidence threshold) live
@@ -23400,16 +23472,34 @@ export interface operations {
                 content: {
                     "application/json": {
                         headline: string | null;
+                        headline_am: string | null;
                         message: string | null;
+                        message_am: string | null;
                         support_email: string | null;
                         support_phone: string | null;
                         /** @description A photo background with no cover uploaded is the brand colour. */
                         background: string;
-                        sections: {
-                            announcements: string | boolean;
-                            vacancies: string | boolean;
-                            holidays: string | boolean;
+                        about: string | null;
+                        about_am: string | null;
+                        founded_year: number | null;
+                        sector: string | null;
+                        staff_band: string | null;
+                        show_branch_count: boolean;
+                        address: string | null;
+                        address_am: string | null;
+                        hours: string | null;
+                        hours_am: string | null;
+                        latitude: number | null;
+                        longitude: number | null;
+                        show_branches: boolean;
+                        links: {
+                            [key: string]: string | null;
                         };
+                        sections: {
+                            [key: string]: boolean;
+                        };
+                        order: string[];
+                        listed: boolean;
                     };
                 };
             };
@@ -25046,16 +25136,34 @@ export interface operations {
                             };
                             landing: {
                                 headline: string | null;
+                                headline_am: string | null;
                                 message: string | null;
+                                message_am: string | null;
                                 support_email: string | null;
                                 support_phone: string | null;
                                 /** @description A photo background with no cover uploaded is the brand colour. */
                                 background: string;
-                                sections: {
-                                    announcements: string | boolean;
-                                    vacancies: string | boolean;
-                                    holidays: string | boolean;
+                                about: string | null;
+                                about_am: string | null;
+                                founded_year: number | null;
+                                sector: string | null;
+                                staff_band: string | null;
+                                show_branch_count: boolean;
+                                address: string | null;
+                                address_am: string | null;
+                                hours: string | null;
+                                hours_am: string | null;
+                                latitude: number | null;
+                                longitude: number | null;
+                                show_branches: boolean;
+                                links: {
+                                    [key: string]: string | null;
                                 };
+                                sections: {
+                                    [key: string]: boolean;
+                                };
+                                order: string[];
+                                listed: boolean;
                             };
                             sign_in: {
                                 sso: boolean;

@@ -25465,7 +25465,19 @@
                                                         "null"
                                                     ]
                                                 },
+                                                "headline_am": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "message": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "message_am": {
                                                     "type": [
                                                         "string",
                                                         "null"
@@ -25487,54 +25499,128 @@
                                                     "type": "string",
                                                     "description": "A photo background with no cover uploaded is the brand colour."
                                                 },
+                                                "about": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "about_am": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "founded_year": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "sector": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "staff_band": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "show_branch_count": {
+                                                    "type": "boolean"
+                                                },
+                                                "address": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "address_am": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "hours": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "hours_am": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "latitude": {
+                                                    "type": [
+                                                        "number",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "longitude": {
+                                                    "type": [
+                                                        "number",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "show_branches": {
+                                                    "type": "boolean"
+                                                },
+                                                "links": {
+                                                    "type": "object",
+                                                    "additionalProperties": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
                                                 "sections": {
                                                     "type": "object",
-                                                    "properties": {
-                                                        "announcements": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "boolean"
-                                                                }
-                                                            ]
-                                                        },
-                                                        "vacancies": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "boolean"
-                                                                }
-                                                            ]
-                                                        },
-                                                        "holidays": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "boolean"
-                                                                }
-                                                            ]
-                                                        }
-                                                    },
-                                                    "required": [
-                                                        "announcements",
-                                                        "vacancies",
-                                                        "holidays"
-                                                    ]
+                                                    "additionalProperties": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "order": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "listed": {
+                                                    "type": "boolean"
                                                 }
                                             },
                                             "required": [
                                                 "headline",
+                                                "headline_am",
                                                 "message",
+                                                "message_am",
                                                 "support_email",
                                                 "support_phone",
                                                 "background",
-                                                "sections"
+                                                "about",
+                                                "about_am",
+                                                "founded_year",
+                                                "sector",
+                                                "staff_band",
+                                                "show_branch_count",
+                                                "address",
+                                                "address_am",
+                                                "hours",
+                                                "hours_am",
+                                                "latitude",
+                                                "longitude",
+                                                "show_branches",
+                                                "links",
+                                                "sections",
+                                                "order",
+                                                "listed"
                                             ]
                                         },
                                         "leave": {

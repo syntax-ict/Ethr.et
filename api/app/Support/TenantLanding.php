@@ -79,7 +79,8 @@ final class TenantLanding
             ? (string) $landing['background']
             : 'brand';
 
-        $coordinates = self::coordinates($landing['latitude'] ?? null, $landing['longitude'] ?? null);
+        $latitude = $landing['latitude'] ?? null;
+        $longitude = $landing['longitude'] ?? null;
 
         return [
             'headline' => self::text($landing['headline'] ?? null, self::HEADLINE_MAX),
@@ -96,15 +97,15 @@ final class TenantLanding
             'about' => self::text($landing['about'] ?? null, self::ABOUT_MAX),
             'about_am' => self::text($landing['about_am'] ?? null, self::ABOUT_MAX),
             'founded_year' => self::year($landing['founded_year'] ?? null),
-            'sector' => in_array($landing['sector'] ?? null, self::SECTORS, true) ? (string) $landing['sector'] : null,
-            'staff_band' => in_array($landing['staff_band'] ?? null, self::STAFF_BANDS, true) ? (string) $landing['staff_band'] : null,
+            'sector' => self::choice($landing['sector'] ?? null, self::SECTORS),
+            'staff_band' => self::choice($landing['staff_band'] ?? null, self::STAFF_BANDS),
             'show_branch_count' => ($landing['show_branch_count'] ?? null) === true,
             'address' => self::text($landing['address'] ?? null, self::ADDRESS_MAX),
             'address_am' => self::text($landing['address_am'] ?? null, self::ADDRESS_MAX),
             'hours' => self::text($landing['hours'] ?? null, self::HOURS_MAX),
             'hours_am' => self::text($landing['hours_am'] ?? null, self::HOURS_MAX),
-            'latitude' => $coordinates[0],
-            'longitude' => $coordinates[1],
+            'latitude' => self::coordinate($latitude, $longitude, 90),
+            'longitude' => self::coordinate($longitude, $latitude, 180),
             'show_branches' => ($landing['show_branches'] ?? null) === true,
             'links' => self::links($landing['links'] ?? null),
             'sections' => self::sections($landing['sections'] ?? null),
@@ -199,6 +200,16 @@ final class TenantLanding
         return is_string($value) && preg_match('/^\+?[0-9 ()-]{6,24}$/', $value) === 1 ? $value : null;
     }
 
+    /**
+     * One of a curated list, or nothing.
+     *
+     * @param  list<string>  $choices
+     */
+    private static function choice(mixed $value, array $choices): ?string
+    {
+        return is_string($value) && in_array($value, $choices, true) ? $value : null;
+    }
+
     private static function year(mixed $value): ?int
     {
         $year = is_int($value) ? $value : (is_string($value) && ctype_digit($value) ? (int) $value : null);
@@ -207,19 +218,18 @@ final class TenantLanding
     }
 
     /**
-     * Both coordinates or neither, each within its range.
-     *
-     * @return array{0: float|null, 1: float|null}
+     * One coordinate, within its range, and only together with the other:
+     * a latitude with no longitude places nothing.
      */
-    private static function coordinates(mixed $latitude, mixed $longitude): array
+    private static function coordinate(mixed $value, mixed $other, float $limit): ?float
     {
-        if (! is_numeric($latitude) || ! is_numeric($longitude)) {
-            return [null, null];
+        if (! is_numeric($value) || ! is_numeric($other)) {
+            return null;
         }
-        $lat = round((float) $latitude, 6);
-        $lng = round((float) $longitude, 6);
+        $rounded = round((float) $value, 6);
+        $otherLimit = $limit === 90.0 ? 180.0 : 90.0;
 
-        return abs($lat) <= 90 && abs($lng) <= 180 ? [$lat, $lng] : [null, null];
+        return abs($rounded) <= $limit && abs((float) $other) <= $otherLimit ? $rounded : null;
     }
 
     private static function text(mixed $value, int $max): ?string

@@ -6,7 +6,7 @@ import {
   translateStatic,
   DEFAULT_LOCALE,
 } from "./translations";
-import { useRouteLocale } from "./route-locale";
+import { useLocaleIsScoped, useRouteLocale } from "./route-locale";
 
 /**
  * The locale is external state — it lives in localStorage and changes via a
@@ -40,6 +40,7 @@ export function useT() {
     () => DEFAULT_LOCALE,
   );
   const locale = routeLocale ?? storedLocale;
+  const scoped = useLocaleIsScoped();
 
   // Translation dictionaries load asynchronously. This forces one re-render once
   // the active locale's strings are in memory, so the first paint's fallbacks are
@@ -61,7 +62,9 @@ export function useT() {
     // single place that knows the resolved locale, and syncDocumentLang is a
     // no-op when the attribute already matches — so the repetition costs an
     // equality check, not a DOM write.
-    syncDocumentLang(locale);
+    // A scoped locale (the portal preview in settings) is one subtree's,
+    // not the document's.
+    if (!scoped) syncDocumentLang(locale);
 
     preloadLocale(locale).then(() => {
       if (!cancelled) setDictionaryVersion((v) => v + 1);
@@ -70,7 +73,7 @@ export function useT() {
     return () => {
       cancelled = true;
     };
-  }, [locale]);
+  }, [locale, scoped]);
 
   /**
    * `replacements` substitutes `:name` placeholders, matching the convention the
