@@ -35,6 +35,7 @@ final class RunRegisterService
      *     totals: array<string, int>,
      *     pension_rates: array{employee: list<float>, employer: list<float>},
      *     basis: array{pension: list<array<string, mixed>>, tax: list<array<string, mixed>>},
+     *     pension_exemptions: array{count: int, by_reason: array<string, int>, employees: list<array{employee_public_id: mixed, employee_name: mixed, reason: string}>},
      * }
      */
     public function register(PayrollRun $run): array
@@ -60,7 +61,36 @@ final class RunRegisterService
             'totals' => $totals,
             'pension_rates' => self::ratesUsed($rows),
             'basis' => self::basisUsed($rows),
+            'pension_exemptions' => self::exemptions($rows),
         ];
+    }
+
+    /**
+     * Who the run exempted from pension, and why, from each entry's log —
+     * shown on the run page and acknowledged at approval, so an exemption is
+     * seen by a person before anyone is paid.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array{count: int, by_reason: array<string, int>, employees: list<array{employee_public_id: mixed, employee_name: mixed, reason: string}>}
+     */
+    public static function exemptions(array $rows): array
+    {
+        $employees = [];
+        $byReason = [];
+        foreach ($rows as $row) {
+            if (($row['pension_exempt'] ?? null) !== true) {
+                continue;
+            }
+            $reason = is_string($row['pension_exempt_reason'] ?? null) ? $row['pension_exempt_reason'] : 'unknown';
+            $byReason[$reason] = ($byReason[$reason] ?? 0) + 1;
+            $employees[] = [
+                'employee_public_id' => $row['employee_public_id'],
+                'employee_name' => $row['employee_name'],
+                'reason' => $reason,
+            ];
+        }
+
+        return ['count' => count($employees), 'by_reason' => $byReason, 'employees' => $employees];
     }
 
     /**

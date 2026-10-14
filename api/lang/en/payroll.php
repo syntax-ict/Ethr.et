@@ -19,4 +19,5 @@ return [
     'run_failed_next_step' => 'This run will not be retried automatically. Review the cause, then submit the run again.',
     'pension_floor_above_ceiling' => 'The floor cannot be above the ceiling.',
     'pension_rule_not_after_latest' => 'A new rule must start after :date, the start of your latest rule for this scheme.',
+    'pension_exemptions_unacknowledged' => 'This run exempts :count employee(s) from pension. Review them, then approve with that count.',
 ];

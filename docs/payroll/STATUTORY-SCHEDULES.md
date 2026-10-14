@@ -56,6 +56,29 @@ Nothing statutory is written in code any more
   (Amendment) Proclamation No. 1395/2025, effective 07/07/2025"*. The pension scheme and
   agency are the ones the run applied, not today's setting.
 
+## Nationality decides coverage — as a fixed choice (2026-10-14)
+
+Pension covers Ethiopian nationals (research P8). That used to be read from the free-text
+`nationality`, so a typo ("Ethiopean", "Ethiopian national") exempted an Ethiopian silently,
+and the employer then owes the contributions plus 5 % a month (P12). Now:
+
+- **`nationality_status`** — `ethiopian`, `ethiopian_origin` (a foreign national of
+  Ethiopian origin, Proclamation 270/2002) or `foreign` — is the only thing
+  `PensionCalculator` reads. `nationality` stays for the country name. `ethiopian_origin`
+  is exempt under its own reason, `ethiopian_origin_unconfirmed`, until P8 is settled.
+- **Existing rows** were mapped once (`NationalityBackfill`): blank or a known Ethiopian
+  spelling → `ethiopian`; anything else → `foreign` **and flagged** (`nationality_needs_review`).
+  Employees → *Check nationality* lists them until someone saves their status. The local demo
+  data (152 employees, all "Ethiopian") flagged none.
+- **Forms, API and import** take the status. The import accepts it as people write it
+  ("Ethiopian origin", "FOREIGN"), takes a blank as `ethiopian`, and refuses anything else.
+- **Before approval** the run page lists every pension-exempt employee with the reason,
+  linked to the profile, and approval needs the count confirmed; the API refuses
+  `PUT …/approve` unless `acknowledged_pension_exemptions` equals it.
+
+Not covered: a per-employee pension scheme (military and police at 33 % inside a mixed
+public body). The scheme is still the organisation's.
+
 ## The header
 
 The header comes from **Settings → Payroll → Statutory filing**: employer TIN (10 digits),

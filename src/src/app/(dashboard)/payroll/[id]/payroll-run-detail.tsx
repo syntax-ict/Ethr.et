@@ -55,11 +55,13 @@ import {
   type StatutorySchedule,
   usePayrollRun,
   useApprovePayroll,
+  usePayrollRegister,
   useVoidPayroll,
   useReprocessPayroll,
   type PayrollEntry,
 } from "@/features/payroll/api";
 import { CalculationLogDialog } from "@/features/payroll/components/calculation-log-dialog";
+import { PensionExemptionsBanner } from "@/features/payroll/components/pension-exemptions-banner";
 import {
   fetchPayrollJournal,
   journalCsv,
@@ -90,6 +92,12 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const canVoid = hasPayroll && hasPermission("payroll.void");
   const canReprocess = hasPayroll && hasPermission("payroll.reprocess");
   const approvePayroll = useApprovePayroll();
+  // The pension exemptions, shown before approval and acknowledged by count.
+  const { data: register, isLoading: registerLoading } = usePayrollRegister(
+    id,
+    !!id,
+  );
+  const exemptionCount = register?.pension_exemptions?.count ?? 0;
   const voidPayroll = useVoidPayroll();
   const reprocessPayroll = useReprocessPayroll();
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
@@ -106,14 +114,18 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const [reprocessDialogOpen, setReprocessDialogOpen] = useState(false);
 
   function approve() {
-    approvePayroll.mutate(id, {
-      onSuccess: () => toast.success(t("payroll_detail_page.approved_success")),
-      onError: (err: unknown) => {
-        toast.error(
-          apiErrorDetail(err) || t("payroll_detail_page.approve_failed"),
-        );
+    approvePayroll.mutate(
+      { publicId: id, acknowledgedPensionExemptions: exemptionCount },
+      {
+        onSuccess: () =>
+          toast.success(t("payroll_detail_page.approved_success")),
+        onError: (err: unknown) => {
+          toast.error(
+            apiErrorDetail(err) || t("payroll_detail_page.approve_failed"),
+          );
+        },
       },
-    });
+    );
   }
 
   function handleVoid(e: React.FormEvent) {
@@ -327,7 +339,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
             <Button
               size="sm"
               onClick={() => setApproveDialogOpen(true)}
-              disabled={approvePayroll.isPending}
+              disabled={approvePayroll.isPending || registerLoading}
             >
               {approvePayroll.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -412,6 +424,10 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
             <p className="mt-1 text-muted-foreground">{run.void_reason}</p>
           )}
         </div>
+      )}
+
+      {register?.pension_exemptions && run.status !== "voided" && (
+        <PensionExemptionsBanner exemptions={register.pension_exemptions} />
       )}
 
       {run.reprocessed_from_public_id && (
@@ -557,8 +573,20 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         open={approveDialogOpen}
         onOpenChange={setApproveDialogOpen}
         title={t("payroll_detail_page.approve_confirm_title")}
-        description={t("payroll_detail_page.approve_confirm_description")}
-        confirmLabel={t("payroll_detail_page.approve_payroll")}
+        description={
+          exemptionCount > 0
+            ? t("payroll_detail_page.approve_confirm_exemptions", undefined, {
+                count: exemptionCount,
+              })
+            : t("payroll_detail_page.approve_confirm_description")
+        }
+        confirmLabel={
+          exemptionCount > 0
+            ? t("payroll_detail_page.approve_with_exemptions", undefined, {
+                count: exemptionCount,
+              })
+            : t("payroll_detail_page.approve_payroll")
+        }
         onConfirm={() => {
           setApproveDialogOpen(false);
           approve();

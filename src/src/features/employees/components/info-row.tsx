@@ -7,7 +7,7 @@ export function InfoRow({
 }: {
   icon?: React.ComponentType<{ className?: string }>;
   label: string;
-  value: string;
+  value: React.ReactNode;
 }) {
   return (
     <div className="flex items-center justify-between">

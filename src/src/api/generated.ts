@@ -6066,6 +6066,15 @@ export interface components {
             };
             save?: boolean;
         };
+        /**
+         * ApprovePayrollRunRequest
+         * @description Approving a run. When the run exempts anyone from pension, the approver
+         *     must say how many they saw (PayrollController::approve) — the count, not a
+         *     checkbox, so approving a run that has since changed does not slip through.
+         */
+        ApprovePayrollRunRequest: {
+            acknowledged_pension_exemptions?: number | null;
+        };
         /** AssignShiftRequest */
         AssignShiftRequest: {
             shift_public_id: string;
@@ -6720,6 +6729,8 @@ export interface components {
             gender: string | null;
             date_of_birth: string | null;
             nationality: string | null;
+            nationality_status: string;
+            nationality_needs_review: boolean;
             marital_status: string | null;
             status: string;
             hire_date: string | null;
@@ -6925,6 +6936,9 @@ export interface components {
                 branch_code?: string | null;
                 position_code?: string | null;
                 salary_cents?: number | null;
+                nationality?: string | null;
+                /** @enum {string|null} */
+                nationality_status?: "ethiopian" | "ethiopian_origin" | "foreign" | null;
             }[];
         };
         /**
@@ -7119,6 +7133,17 @@ export interface components {
             accuracy?: number | null;
             photo?: string | null;
         };
+        /**
+         * NationalityStatus
+         * @description Whether an employee is an Ethiopian national — the fact pension coverage turns on (Proclamations 1268/2022 and 1267/2022, Art. 3(1)). A fixed choice, not the free-text `nationality`: a typo there ("Ethiopean") used to exempt an Ethiopian from pension silently, and the employer then owes the contributions plus 5 % a month (research P12). `nationality` stays for the country name.
+         *     | |
+         *     |---|
+         *     | `ethiopian` <br/>  |
+         *     | `ethiopian_origin` <br/> A foreign national of Ethiopian origin (Proclamation 270/2002). Coverage unsettled — research P8. |
+         *     | `foreign` <br/>  |
+         * @enum {string}
+         */
+        NationalityStatus: "ethiopian" | "ethiopian_origin" | "foreign";
         /** NotificationResource */
         NotificationResource: {
             id: string;
@@ -7967,6 +7992,7 @@ export interface components {
             /** Format: date-time */
             date_of_birth?: string | null;
             nationality?: string | null;
+            nationality_status?: components["schemas"]["NationalityStatus"] | null;
             /**
              * @description Encrypted at rest; a blind index drives duplicate detection during
              *     import and device sync (see IDENTITY_RESOLUTION.md).
@@ -8498,6 +8524,7 @@ export interface components {
             /** Format: date-time */
             date_of_birth?: string | null;
             nationality?: string | null;
+            nationality_status?: components["schemas"]["NationalityStatus"] | null;
             national_id?: string | null;
             /** @enum {string|null} */
             marital_status?: "single" | "married" | "divorced" | "widowed" | null;
@@ -14915,7 +14942,9 @@ export interface operations {
                             "department_code",
                             "branch_code",
                             "position_code",
-                            "salary_cents"
+                            "salary_cents",
+                            "nationality",
+                            "nationality_status"
                         ];
                     };
                 };
@@ -20085,7 +20114,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ApprovePayrollRunRequest"];
+            };
+        };
         responses: {
             /** @description `PayrollRunResource` */
             200: {
@@ -20099,23 +20132,7 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/invalid-state";
-                        /** @constant */
-                        title: "Invalid State";
-                        /** @constant */
-                        status: 422;
-                        /** @constant */
-                        detail: "Payroll run has not been completed yet.";
-                    };
-                };
-            };
+            422: components["responses"]["ValidationException"];
         };
     };
     "payroll.void": {
@@ -20294,6 +20311,15 @@ export interface operations {
                         basis: {
                             pension: unknown[];
                             tax: unknown[];
+                        };
+                        pension_exemptions: {
+                            count: number;
+                            by_reason: string;
+                            employees: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                reason: string | "unknown";
+                            }[];
                         };
                     };
                 };

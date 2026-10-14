@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Payroll;
 
+use App\Enums\NationalityStatus;
 use App\Models\Employee;
 use App\Models\PensionRule;
 use Carbon\CarbonInterface;
@@ -128,15 +129,20 @@ final class PensionCalculator
     /**
      * Why the rule does not cover this employee, or null when it does.
      *
-     * Nationality is free text on the employee; blank counts as Ethiopian
-     * (the forms default to it). A foreign national of Ethiopian origin may be
-     * covered under Proclamation 270/2002 — how is not settled (research P8),
-     * so such a person is treated as foreign until that is answered.
+     * Only `nationality_status` decides — never the free-text nationality,
+     * where a typo used to exempt an Ethiopian silently. Unset counts as
+     * Ethiopian, the column's default. A foreign national of Ethiopian origin
+     * may be covered under Proclamation 270/2002, but how is not settled
+     * (research P8), so they are exempt under their own reason until it is.
      */
     private function exemption(PensionRuleSnapshot $rule, Employee $employee, CarbonInterface $periodEnd): ?string
     {
-        if ($rule->exemptNonNationals && ! self::isEthiopian($employee->nationality)) {
+        $status = $employee->nationality_status;
+        if ($rule->exemptNonNationals && $status === NationalityStatus::FOREIGN) {
             return 'non_national';
+        }
+        if ($rule->exemptNonNationals && $status === NationalityStatus::ETHIOPIAN_ORIGIN) {
+            return 'ethiopian_origin_unconfirmed';
         }
 
         if ($rule->minServiceDays !== null && $employee->hire_date !== null) {
@@ -149,6 +155,11 @@ final class PensionCalculator
         return null;
     }
 
+    /**
+     * Whether a free-text nationality is a known Ethiopian spelling. No longer
+     * decides coverage; NationalityBackfill uses it once, to map the values
+     * people had typed before `nationality_status` existed.
+     */
     public static function isEthiopian(?string $nationality): bool
     {
         $value = mb_strtolower(trim((string) $nationality));

@@ -77,6 +77,12 @@ class EmployeeController extends Controller
             $query->where('status', $request->input('filter.status'));
         }
 
+        // The "check nationality" list: employees the 2026-10-14 backfill
+        // mapped to foreign from a free-text value nobody has confirmed.
+        if ($request->boolean('filter.nationality_needs_review')) {
+            $query->where('nationality_needs_review', true);
+        }
+
         if ($request->has('filter.department_id')) {
             $dept = Department::where('public_id', $request->input('filter.department_id'))->first();
             if ($dept) {
@@ -127,6 +133,10 @@ class EmployeeController extends Controller
 
         $data = $this->resolveRelationIds($data);
         $data['status'] ??= EmployeeStatus::HIRED->value;
+        // Unset means the column default, Ethiopian — never a null.
+        if (($data['nationality_status'] ?? null) === null) {
+            unset($data['nationality_status']);
+        }
 
         // Store in one canonical shape (+251…) regardless of whether the form
         // submitted the local 09… or E.164 form — this is the primary,
@@ -244,6 +254,14 @@ class EmployeeController extends Controller
 
         if (isset($data['phone'])) {
             $data['phone'] = EthiopianPhone::canonicalOrRaw($data['phone']);
+        }
+
+        // Saving a status is the review the 2026-10-14 backfill asked for: a
+        // person has now said whether this employee is an Ethiopian national.
+        if (($data['nationality_status'] ?? null) === null) {
+            unset($data['nationality_status']);
+        } else {
+            $data['nationality_needs_review'] = false;
         }
 
         $before = $employee->only(array_keys($data));

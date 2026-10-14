@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  NationalityStatusSelect,
+  useNationalityStatusLabel,
+} from "@/features/employees/components/nationality-status-select";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -15,6 +19,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +56,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   const id = useRouteId(routeId) ?? "";
   const { t } = useT();
   const { data: employee, isLoading } = useEmployee(id);
+  const nationalityLabel = useNationalityStatusLabel();
   useEntityTitle(employee?.name);
   const canManageAttendance =
     usePermissions().hasPermission("attendance.manage");
@@ -71,6 +77,8 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
       // The id terminals know the person by; a change goes to the branch's
       // devices that take commands (DeviceCommandQueue).
       badge_number: employee.badge_number ?? "",
+      // Decides pension coverage; saving it clears a "check nationality" flag.
+      nationality_status: employee.nationality_status ?? "ethiopian",
       // Settable nowhere else: no screen assigned a supervisor, team or cost
       // centre, so the reporting chart was flat (audit N73). Empty clears it.
       supervisor_id: employee.supervisor?.public_id ?? "",
@@ -291,6 +299,21 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                         {t("employee.badge_number_hint")}
                       </p>
                     </div>
+                    <div>
+                      <Label htmlFor="edit-nationality-status">
+                        {t("employee.nationality_status")}
+                      </Label>
+                      <NationalityStatusSelect
+                        id="edit-nationality-status"
+                        value={editForm.nationality_status}
+                        onChange={(v) =>
+                          setEditForm((p) => ({ ...p, nationality_status: v }))
+                        }
+                      />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t("employee.nationality_status_hint")}
+                      </p>
+                    </div>
                     <RelationPicker
                       id="edit-supervisor"
                       label={t("employee.supervisor", "Supervisor")}
@@ -348,6 +371,19 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                       icon={Fingerprint}
                       label={t("employee.badge_number")}
                       value={employee.badge_number ?? "—"}
+                    />
+                    <InfoRow
+                      label={t("employee.nationality_status")}
+                      value={
+                        <span className="inline-flex flex-wrap items-center gap-2">
+                          {nationalityLabel(employee.nationality_status)}
+                          {employee.nationality_needs_review && (
+                            <Badge className="border-0 bg-warning-soft text-warning-on-soft">
+                              {t("employee.nationality_needs_review")}
+                            </Badge>
+                          )}
+                        </span>
+                      }
                     />
                     {employee.gender && (
                       <InfoRow

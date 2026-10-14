@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Employee;
 
+use App\Enums\NationalityStatus;
 use App\Http\Requests\Employee\Concerns\ValidatesRelationTenancy;
 use App\Services\CurrentTenant;
 use Illuminate\Foundation\Http\FormRequest;
@@ -42,6 +43,7 @@ class UpdateEmployeeRequest extends FormRequest
             'gender' => ['nullable', 'string', Rule::in(['male', 'female'])],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'nationality' => ['nullable', 'string', 'max:100'],
+            'nationality_status' => ['nullable', 'string', Rule::enum(NationalityStatus::class)],
             'national_id' => ['nullable', 'string', 'max:50'],
             'marital_status' => ['nullable', 'string', Rule::in(['single', 'married', 'divorced', 'widowed'])],
             'hire_date' => ['sometimes', 'date', 'before_or_equal:'.now()->addYear()->toDateString()],

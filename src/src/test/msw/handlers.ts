@@ -14,6 +14,8 @@ export function buildEmployee(
     phone: "+251911223344",
     employee_code: "EMP-0001",
     badge_number: null,
+    nationality_status: "ethiopian",
+    nationality_needs_review: false,
     has_kiosk_pin: false,
     gender: "male",
     date_of_birth: "1990-01-01",
