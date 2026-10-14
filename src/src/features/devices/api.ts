@@ -332,3 +332,45 @@ export function useImportDeviceHistory() {
     [["attendance"]],
   );
 }
+
+// ── Commands to the device ───────────────────────────────────────────────────
+
+export type DeviceCommand = components["schemas"]["DeviceCommandResource"];
+export type SendStaffResult =
+  operations["deviceCommand.sendStaff"]["responses"][202]["content"]["application/json"];
+
+export function useDeviceCommands(
+  publicId: string,
+  params: { page?: number; per_page?: number },
+  options: { enabled?: boolean } = {},
+) {
+  return useQuery<PaginatedResponse<DeviceCommand>>({
+    queryKey: [...keys.detail(publicId), "commands", params],
+    queryFn: async () =>
+      (await apiClient.get(`/devices/${publicId}/commands`, { params })).data,
+    enabled: !!publicId && (options.enabled ?? true),
+  });
+}
+
+export function useSetDeviceTime() {
+  return useDeviceMutation(
+    async (publicId: string): Promise<DeviceCommand> =>
+      (await apiClient.post(`/devices/${publicId}/commands/set-time`)).data,
+  );
+}
+
+export function useSendStaffToDevice() {
+  return useDeviceMutation(
+    async (publicId: string): Promise<SendStaffResult> =>
+      (await apiClient.post(`/devices/${publicId}/commands/send-staff`)).data,
+  );
+}
+
+/** Add one employee to every device of their branch that takes commands. */
+export function useEnrolEmployeeOnDevices() {
+  return useDeviceMutation(
+    async (employeePublicId: string): Promise<{ devices: number }> =>
+      (await apiClient.post(`/employees/${employeePublicId}/enrol-on-devices`))
+        .data,
+  );
+}

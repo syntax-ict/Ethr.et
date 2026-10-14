@@ -48,6 +48,8 @@ import {
 } from "@/components/ui/dialog";
 
 import { RoleGate } from "@/components/shared/role-gate";
+import { DeviceCommandsTab } from "@/features/devices/components/device-commands-tab";
+import { AdmsSetupCard } from "@/features/devices/components/adms-setup-card";
 import {
   useDeleteDevice,
   useDevice,
@@ -71,6 +73,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
   zkteco: "ZKTeco",
+  zkteco_adms: "ZKTeco (ADMS)",
   suprema: "Suprema",
   mock: "Mock (Simulator)",
 };
@@ -291,7 +294,13 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
         </div>
 
         {/* Info Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div
+          className={
+            device.clock_checked_at
+              ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
+              : "grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+          }
+        >
           <InfoCard
             icon={Activity}
             label={t("device_detail_page.total_records")}
@@ -320,63 +329,76 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 : t("device_detail_page.disabled")
             }
           />
+          {device.clock_checked_at && (
+            <InfoCard
+              icon={Clock}
+              label={t("device_clock.label")}
+              value={clockLabel(device.clock_offset_seconds, t)}
+            />
+          )}
         </div>
 
+        <AdmsSetupCard device={device} />
+
         {/* Webhook URL */}
-        {device.webhook_token && device.adapter_type !== "mock" && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">
-                {t("device_detail_page.webhook_config")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">
-                    {t("device_detail_page.webhook_url_hint")}
-                  </Label>
-                  <div className="mt-1 flex items-center gap-2">
-                    <code className="flex-1 rounded border bg-muted/50 px-3 py-2 text-xs font-mono break-all">
-                      {device.webhook_url ?? "N/A"}
-                    </code>
+        {device.webhook_token &&
+          device.adapter_type !== "mock" &&
+          device.adapter_type !== "zkteco_adms" && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">
+                  {t("device_detail_page.webhook_config")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">
+                      {t("device_detail_page.webhook_url_hint")}
+                    </Label>
+                    <div className="mt-1 flex items-center gap-2">
+                      <code className="flex-1 rounded border bg-muted/50 px-3 py-2 text-xs font-mono break-all">
+                        {device.webhook_url ?? "N/A"}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        // Icon-only, so the Copy glyph is the entire content and
+                        // a screen reader announced an unnamed "button".
+                        aria-label={t(
+                          "device_detail_page.copy_webhook_url",
+                          "Copy webhook URL",
+                        )}
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            device.webhook_url ?? "",
+                          );
+                          toast.success(t("attendance.kiosks_page.copied"));
+                        }}
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 shrink-0"
-                      // Icon-only, so the Copy glyph is the entire content and
-                      // a screen reader announced an unnamed "button".
-                      aria-label={t(
-                        "device_detail_page.copy_webhook_url",
-                        "Copy webhook URL",
-                      )}
-                      onClick={() => {
-                        navigator.clipboard.writeText(device.webhook_url ?? "");
-                        toast.success(t("attendance.kiosks_page.copied"));
-                      }}
+                      variant="ghost"
+                      size="sm"
+                      onClick={regenerateToken}
+                      disabled={regenTokenMutation.isPending}
                     >
-                      <Copy className="h-3 w-3" />
+                      <RotateCw className="mr-2 h-3 w-3" />
+                      {t("device_detail_page.regenerate_token")}
                     </Button>
+                    <span className="text-xs text-muted-foreground">
+                      {t("device_detail_page.regenerate_hint")}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={regenerateToken}
-                    disabled={regenTokenMutation.isPending}
-                  >
-                    <RotateCw className="mr-2 h-3 w-3" />
-                    {t("device_detail_page.regenerate_token")}
-                  </Button>
-                  <span className="text-xs text-muted-foreground">
-                    {t("device_detail_page.regenerate_hint")}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          )}
 
         {/* Tabs: Sync History + Events */}
         <Tabs defaultValue="syncs">
@@ -386,6 +408,9 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
             </TabsTrigger>
             <TabsTrigger value="events">
               {t("device_detail_page.attendance_events")}
+            </TabsTrigger>
+            <TabsTrigger value="commands">
+              {t("device_commands.title")}
             </TabsTrigger>
           </TabsList>
 
@@ -635,6 +660,10 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="commands" className="mt-4">
+            <DeviceCommandsTab device={device} canUpdate={canUpdate} />
+          </TabsContent>
         </Tabs>
 
         {/* Edit Dialog */}
@@ -722,6 +751,7 @@ function EditDeviceDialog({
     location_description: device.location_description ?? "",
     serial_number: device.serial_number ?? "",
     auto_sync: device.auto_sync,
+    commands_enabled: device.commands_enabled,
     sync_interval_minutes: String(device.sync_interval_minutes),
     timezone: device.timezone ?? "",
     webhook_ip_allowlist: (device.webhook_ip_allowlist ?? []).join("\n"),
@@ -744,6 +774,9 @@ function EditDeviceDialog({
               location_description: form.location_description || null,
               serial_number: form.serial_number || null,
               auto_sync: form.auto_sync,
+              ...(device.accepts_commands && {
+                commands_enabled: form.commands_enabled,
+              }),
               sync_interval_minutes:
                 parseInt(form.sync_interval_minutes, 10) || 5,
               timezone: form.timezone || null,
@@ -856,6 +889,23 @@ function EditDeviceDialog({
               onCheckedChange={(v) => set("auto_sync", v)}
             />
           </div>
+          {device.accepts_commands && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">
+                  {t("device_commands.enable")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t("device_commands.enable_hint")}
+                </p>
+              </div>
+              <Switch
+                aria-label={t("device_commands.enable")}
+                checked={form.commands_enabled}
+                onCheckedChange={(v) => set("commands_enabled", v)}
+              />
+            </div>
+          )}
           {form.auto_sync && (
             <div>
               <Label htmlFor="sync-interval">
@@ -935,4 +985,20 @@ function syncStatusLabel(
     running: t("device_detail_page.sync_running"),
   };
   return map[status] ?? status;
+}
+
+/**
+ * The device clock as last read off a pushed punch (DeviceClock). Within two
+ * minutes is in step: delivery delay and rounding.
+ */
+function clockLabel(
+  offset: number | null,
+  t: ReturnType<typeof useT>["t"],
+): string {
+  if (offset === null) return "—";
+  const minutes = Math.round(Math.abs(offset) / 60);
+  if (Math.abs(offset) <= 120) return t("device_clock.in_step");
+  return offset > 0
+    ? t("device_clock.ahead", undefined, { minutes })
+    : t("device_clock.behind", undefined, { minutes });
 }

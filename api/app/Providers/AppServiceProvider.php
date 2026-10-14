@@ -48,6 +48,7 @@ use App\Policies\ProfileUpdateRequestPolicy;
 use App\Policies\RetirementCasePolicy;
 use App\Policies\ShiftRotationPolicy;
 use App\Services\Auth\SessionIdleTimeout;
+use App\Services\Device\DeviceCommandQueue;
 use App\Services\Dns\SystemDnsResolver;
 use App\Services\Sms\EthioTelecomSmsSender;
 use App\Services\Sms\LogSmsSender;
@@ -75,6 +76,7 @@ use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\PersonalAccessToken as SanctumToken;
 use Laravel\Sanctum\Sanctum;
 use Sentry\Laravel\Integration;
+use Throwable;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -183,6 +185,25 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(PayrollProcessed::class, NotifyPayrollProcessed::class);
         Event::listen(PayrollApproved::class, NotifyPayslipsReleased::class);
 
+        // Devices that take commands follow the people of their branch: a new
+        // hire is added, a rename or new badge is sent, a leaver is removed
+        // (DeviceCommandQueue). A failure here must never fail the save — the
+        // table does not exist between a deploy and its `migrate`.
+        Employee::saved(function (Employee $employee): void {
+            try {
+                app(DeviceCommandQueue::class)->employeeSaved($employee);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        });
+        Employee::deleted(function (Employee $employee): void {
+            try {
+                app(DeviceCommandQueue::class)->employeeDeleted($employee);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        });
+
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
@@ -262,6 +283,13 @@ class AppServiceProvider extends ServiceProvider
         // other order would brake legitimate callers and nobody else.
         RateLimiter::for('cron', function (Request $request) {
             return Limit::perMinute(10)->by($request->ip());
+        });
+
+        // ZKTeco ADMS check-ins: a device polls every half minute and uploads
+        // as people punch, so the limit is per device serial and address, and
+        // generous — a burst at shift change is a queue of real punches.
+        RateLimiter::for('adms', function (Request $request) {
+            return Limit::perMinute(240)->by('adms:'.substr((string) $request->query('SN'), 0, 64).'|'.$request->ip());
         });
 
         RateLimiter::for('platform-admin', function (Request $request) {

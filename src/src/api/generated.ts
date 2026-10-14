@@ -1806,6 +1806,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{employee}/enrol-on-devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create enrol on device */
+        post: operations["deviceCommand.enrolEmployee"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/dashboard": {
         parameters: {
             query?: never;
@@ -1953,6 +1970,57 @@ export interface paths {
         get: operations["deviceEnrollment.index"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/{device}/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List commands */
+        get: operations["deviceCommand.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/{device}/commands/set-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set time commands */
+        post: operations["deviceCommand.setTime"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/{device}/commands/send-staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send staff commands */
+        post: operations["deviceCommand.sendStaff"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4014,6 +4082,47 @@ export interface paths {
         };
         /** Register csv runs */
         get: operations["payroll.downloadRegister"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/runs/{payrollRun}/statutory/{schedule}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What a statutory schedule will contain, without the TINs: its header,
+         *     totals, row count and who is missing a TIN — the check before filing.
+         *     The TINs themselves are only in the downloads, which are audited
+         */
+        get: operations["payroll.statutory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/runs/{payrollRun}/statutory/{schedule}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The schedule as a file: `?format=csv` (default) or `pdf`. Carries every
+         *     employee's TIN, so each download is audited
+         */
+        get: operations["payroll.downloadStatutory"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6310,6 +6419,22 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** DeviceCommandResource */
+        DeviceCommandResource: {
+            public_id: string;
+            type: string;
+            status: string;
+            device_user_id: string | null;
+            employee?: {
+                public_id: string;
+                name: string;
+            } | null;
+            attempts: number;
+            last_error: string | null;
+            created_at: string | null;
+            sent_at: string | null;
+            completed_at: string | null;
+        };
         /** DeviceResource */
         DeviceResource: {
             public_id: string;
@@ -6319,12 +6444,23 @@ export interface components {
             adapter_type: string;
             status: string;
             auto_sync: boolean;
+            commands_enabled: boolean;
+            accepts_commands: boolean;
             sync_interval_minutes: number;
             timezone: string | null;
             webhook_ip_allowlist?: string[];
             webhook_token?: string | null;
             webhook_url?: string | null;
             last_sync_at: string | null;
+            clock_offset_seconds: number | null;
+            clock_checked_at: string | null;
+            adms?: {
+                server: string;
+                last_rejected: {
+                    ip: string | null;
+                    at: string;
+                } | null;
+            };
             branch?: components["schemas"]["BranchResource"] | null;
             branch_public_id: string | null;
             attendance_records_count?: number;
@@ -7672,10 +7808,11 @@ export interface components {
             name: string;
             location_description?: string | null;
             /** @enum {string} */
-            adapter_type: "hikvision" | "zkteco" | "suprema" | "generic" | "mock";
+            adapter_type: "hikvision" | "zkteco" | "zkteco_adms" | "suprema" | "generic" | "mock";
             branch_public_id: string;
             serial_number?: string | null;
             auto_sync?: boolean;
+            commands_enabled?: boolean;
             timezone?: string | null;
             /**
              * @description Addresses a token-less device may post webhooks from. The model
@@ -8218,10 +8355,11 @@ export interface components {
             name?: string;
             location_description?: string | null;
             /** @enum {string} */
-            adapter_type?: "hikvision" | "zkteco" | "suprema" | "generic" | "mock";
+            adapter_type?: "hikvision" | "zkteco" | "zkteco_adms" | "suprema" | "generic" | "mock";
             branch_public_id?: string;
             serial_number?: string | null;
             auto_sync?: boolean;
+            commands_enabled?: boolean;
             timezone?: string | null;
             /**
              * @description Addresses a token-less device may post webhooks from. The model
@@ -8506,6 +8644,10 @@ export interface components {
                 pagumen_proration_strategy?: "full_month" | "daily_rate";
                 retirement_age?: number;
                 run_day?: number;
+                employer_tin?: string | null;
+                tax_center?: string | null;
+                /** @enum {string} */
+                pension_scheme?: "private" | "public";
                 working_days?: number[];
                 /** @enum {string} */
                 mfa_policy?: "disabled" | "optional" | "required";
@@ -13472,6 +13614,33 @@ export interface operations {
             };
         };
     };
+    "deviceCommand.enrolEmployee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        devices: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "device.dashboard": {
         parameters: {
             query?: never;
@@ -13812,6 +13981,125 @@ export interface operations {
                             ambiguous: string;
                             new: string;
                         };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deviceCommand.index": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `DeviceCommandResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["DeviceCommandResource"] & {
+                            employee: {
+                                public_id: string;
+                                name: string;
+                            } | null;
+                        })[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deviceCommand.setTime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `DeviceCommandResource` */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceCommandResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deviceCommand.sendStaff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        queued: number;
+                        skipped: number;
                     };
                 };
             };
@@ -19863,6 +20151,79 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "payroll.statutory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+                schedule: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schedule: string;
+                        header: {
+                            /** @enum {string} */
+                            title: "Employment Income Tax Schedule" | "Pension Contribution Schedule";
+                            employer_name: string;
+                            employer_tin: string | null;
+                            tax_center: string | null;
+                            scheme: string;
+                            period: string;
+                            /** @enum {string} */
+                            status: "Approved" | "NOT APPROVED — draft figures";
+                            approved: boolean;
+                            notice: string;
+                            generated_at: string;
+                        };
+                        employees: number;
+                        totals: string;
+                        missing_tin: unknown[] | string[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "payroll.downloadStatutory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+                schedule: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                    "text/csv": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "payroll.myPayslips": {
         parameters: {
             query?: {
@@ -22236,6 +22597,11 @@ export interface operations {
                              *     brackets and Pagumen strategy above.
                              */
                             retirement_age: number;
+                            /** @description The header of the statutory schedules (StatutorySchedules). */
+                            employer_tin: string | null;
+                            tax_center: string | null;
+                            /** @enum {string} */
+                            pension_scheme: "public" | "private";
                         };
                         security: {
                             mfa_policy: string;

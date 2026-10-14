@@ -4,15 +4,22 @@ declare(strict_types=1);
 
 namespace App\Services\Device;
 
+use App\Contracts\AcceptsDeviceCommands;
 use App\Contracts\DeviceAdapter;
+use App\Enums\DeviceCommandType;
+use App\Exceptions\DeviceCommandRejected;
 use App\Models\Device;
+use App\Models\DeviceCommand;
 use App\Services\Device\Concerns\ReadsFromDevice;
+use App\Support\DeviceTime;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
-final class HikvisionAdapter implements DeviceAdapter
+final class HikvisionAdapter implements AcceptsDeviceCommands, DeviceAdapter
 {
     use ReadsFromDevice;
 
@@ -176,7 +183,90 @@ final class HikvisionAdapter implements DeviceAdapter
         }
     }
 
+    /**
+     * Carry out a command through ISAPI. The calls follow Hikvision's published
+     * ISAPI access-control specification; they have not yet been run against a
+     * real terminal (field test O1), so the first one should be watched.
+     *
+     * - set_time: PUT /ISAPI/System/time, the device's zone as a POSIX string
+     * - upsert_user: POST /ISAPI/AccessControl/UserInfo/SetUp (add or modify)
+     * - delete_user: PUT /ISAPI/AccessControl/UserInfo/Delete
+     */
+    public function execute(Device $device, DeviceCommand $command): void
+    {
+        $payload = $command->payload ?? [];
+
+        $response = match ($command->type) {
+            DeviceCommandType::SET_TIME => $this->setTime($device),
+            DeviceCommandType::UPSERT_USER => $this->request($device, 'POST', '/ISAPI/AccessControl/UserInfo/SetUp?format=json', [
+                'UserInfo' => [
+                    'employeeNo' => (string) $payload['device_user_id'],
+                    'name' => (string) ($payload['name'] ?? ''),
+                    'userType' => 'normal',
+                    'Valid' => [
+                        'enable' => true,
+                        'beginTime' => '2020-01-01T00:00:00',
+                        'endTime' => '2037-12-31T23:59:59',
+                        'timeType' => 'local',
+                    ],
+                ],
+            ]),
+            DeviceCommandType::DELETE_USER => $this->request($device, 'PUT', '/ISAPI/AccessControl/UserInfo/Delete?format=json', [
+                'UserInfoDelCond' => [
+                    'EmployeeNoList' => [['employeeNo' => (string) $payload['device_user_id']]],
+                ],
+            ]),
+        };
+
+        if ($response->successful()) {
+            return;
+        }
+
+        // Removing someone the device does not have has the outcome asked for.
+        if ($command->type === DeviceCommandType::DELETE_USER && str_contains($response->body(), 'NotExist')) {
+            return;
+        }
+
+        throw new DeviceCommandRejected(sprintf(
+            'HTTP %d: %s',
+            $response->status(),
+            mb_substr(trim(strip_tags($response->body())), 0, 300),
+        ));
+    }
+
+    private function setTime(Device $device): Response
+    {
+        $zone = DeviceTime::zone($device);
+        $now = Carbon::now($zone);
+
+        // ISAPI takes a POSIX zone, whose sign is the reverse of the offset:
+        // UTC+3 (Addis Ababa) is "CST-3:00:00".
+        $offset = $now->getOffset();
+        $posix = sprintf('CST%s%d:%02d:00', $offset >= 0 ? '-' : '+', intdiv(abs($offset), 3600), intdiv(abs($offset) % 3600, 60));
+
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'
+            .'<Time><timeMode>manual</timeMode>'
+            .'<localTime>'.$now->format('Y-m-d\TH:i:s').'</localTime>'
+            .'<timeZone>'.$posix.'</timeZone></Time>';
+
+        [$client, $baseUrl] = $this->client($device);
+
+        return $client->withBody($xml, 'application/xml')->put("{$baseUrl}/ISAPI/System/time");
+    }
+
     private function request(Device $device, string $method, string $path, ?array $body = null): Response
+    {
+        [$request, $baseUrl] = $this->client($device);
+
+        if ($body !== null) {
+            return $request->$method("{$baseUrl}{$path}", $body);
+        }
+
+        return $request->$method("{$baseUrl}{$path}");
+    }
+
+    /** @return array{0: PendingRequest, 1: string} */
+    private function client(Device $device): array
     {
         // encrypted:array, but typed as string without a model @property; narrow
         // it the way GenericHttpAdapter::config() does.
@@ -191,11 +281,7 @@ final class HikvisionAdapter implements DeviceAdapter
         $request = Http::connectTimeout(2)->timeout(10)
             ->withBasicAuth($config['username'] ?? 'admin', $config['password'] ?? '');
 
-        if ($body !== null) {
-            return $request->$method("{$baseUrl}{$path}", $body);
-        }
-
-        return $request->$method("{$baseUrl}{$path}");
+        return [$request, $baseUrl];
     }
 
     /**

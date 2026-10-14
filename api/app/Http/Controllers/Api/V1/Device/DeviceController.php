@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Device;
 
 use App\Enums\AttendanceSource;
-use App\Exceptions\AttendanceRefused;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Device\ImportHistoryRequest;
 use App\Http\Requests\Device\StoreDeviceRequest;
@@ -18,17 +17,12 @@ use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Device;
 use App\Models\DeviceSyncLog;
-use App\Models\Employee;
-use App\Services\Attendance\AttendanceEngine;
-use App\Services\Attendance\AttendanceInput;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
+use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\HikvisionEvent;
 use App\Services\Device\ZktecoAdapter;
-use App\Services\Identity\IdentityResolver;
-use App\Services\Identity\IdentitySignals;
 use App\Services\PlanLimitService;
-use App\Support\DeviceTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -40,6 +34,7 @@ class DeviceController extends Controller
 {
     public function __construct(
         private readonly DeviceManager $deviceManager,
+        private readonly DevicePunchRecorder $punches,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -103,6 +98,7 @@ class DeviceController extends Controller
             // anything without an explicit rule — persisting null and 500ing.
             'connection_config' => $request->input('connection_config', []),
             'auto_sync' => $request->validated('auto_sync', true),
+            'commands_enabled' => $request->validated('commands_enabled', false),
             'sync_interval_minutes' => $request->validated('sync_interval_minutes', 5),
             'timezone' => $request->validated('timezone'),
             'webhook_ip_allowlist' => $request->validated('webhook_ip_allowlist'),
@@ -358,9 +354,9 @@ class DeviceController extends Controller
     // --- Webhook endpoints (called without auth, verified by token) ---
     //
     // Each handler owns its vendor's payload shape and its response; the steps
-    // every vendor shares are below them: resolveWebhookDevice() authenticates,
-    // webhookEmployee() finds the badge holder inside the device's tenant,
-    // recordWebhookPunch() hands the punch to the engine, and
+    // every vendor shares are below them and in DevicePunchRecorder:
+    // resolveWebhookDevice() authenticates, the recorder finds the badge holder
+    // inside the device's tenant and hands the punch to the engine, and
     // markWebhookReceived() stamps the device. The responses stay written out
     // in each handler because Scramble infers the published response schemas
     // from these method bodies.
@@ -389,7 +385,7 @@ class DeviceController extends Controller
             return response()->json(['status' => 'no_badge'], 200);
         }
 
-        $employee = $this->webhookEmployee($device, $badge);
+        $employee = $this->punches->employee($device, $badge);
 
         if (! $employee) {
             return response()->json(['status' => 'employee_not_found'], 200);
@@ -397,8 +393,7 @@ class DeviceController extends Controller
 
         // A single event, so an engine failure is the request's failure: unlike
         // the batch handlers this does not catch and skip.
-        $this->recordWebhookPunch(
-            app(AttendanceEngine::class),
+        $this->punches->record(
             $device,
             $employee,
             HikvisionEvent::direction($event),
@@ -421,7 +416,6 @@ class DeviceController extends Controller
         $payload = $request->all();
         $records = $payload['records'] ?? [$payload];
 
-        $engine = app(AttendanceEngine::class);
         $processed = 0;
 
         foreach ($records as $record) {
@@ -429,7 +423,7 @@ class DeviceController extends Controller
             $timestamp = $record['timestamp'] ?? $record['datetime'] ?? now()->toIso8601String();
             $punchType = ZktecoAdapter::directionFor($record['punch'] ?? $record['status'] ?? null);
 
-            if ($this->recordBatchedWebhookPunch($engine, $device, 'zk', $badge, $timestamp, $punchType)) {
+            if ($this->punches->recordBatched($device, 'zk', $badge, $timestamp, $punchType)) {
                 $processed++;
             }
         }
@@ -449,7 +443,6 @@ class DeviceController extends Controller
         $payload = $request->all();
         $events = $payload['EventCollection'] ?? $payload['events'] ?? [$payload];
 
-        $engine = app(AttendanceEngine::class);
         $processed = 0;
 
         foreach ($events as $event) {
@@ -458,7 +451,7 @@ class DeviceController extends Controller
             $eventTypeId = (int) ($event['event_type_id'] ?? 0);
             $type = ($eventTypeId >= 0x2000 && $eventTypeId < 0x3000) ? 'check_out' : 'check_in';
 
-            if ($this->recordBatchedWebhookPunch($engine, $device, 'sup', $badge, $timestamp, $type)) {
+            if ($this->punches->recordBatched($device, 'sup', $badge, $timestamp, $type)) {
                 $processed++;
             }
         }
@@ -466,110 +459,6 @@ class DeviceController extends Controller
         $this->markWebhookReceived($device);
 
         return response()->json(['status' => 'processed', 'count' => $processed], 200);
-    }
-
-    /**
-     * One event from a batch webhook. An event with no badge, no matching
-     * employee, or that the engine refuses is skipped rather than failing the
-     * batch; the return value says whether it was recorded.
-     *
-     * The idempotency key is `webhook:<vendor>:<device id>:<badge>:<timestamp>`,
-     * and `$vendor` is the short prefix each handler has always used (`zk`,
-     * `sup`), so keys already stored still dedupe a redelivered event.
-     */
-    private function recordBatchedWebhookPunch(
-        AttendanceEngine $engine,
-        Device $device,
-        string $vendor,
-        string $badge,
-        mixed $timestamp,
-        string $type,
-    ): bool {
-        if (empty($badge)) {
-            return false;
-        }
-
-        $employee = $this->webhookEmployee($device, $badge);
-
-        if (! $employee) {
-            return false;
-        }
-
-        $idempotencyKey = "webhook:{$vendor}:{$device->id}:{$badge}:{$timestamp}";
-
-        try {
-            $this->recordWebhookPunch($engine, $device, $employee, $type, $idempotencyKey, $timestamp);
-
-            return true;
-        } catch (\Throwable) {
-            return false;
-        }
-    }
-
-    /**
-     * The employee a device badge belongs to, inside the device's own tenant.
-     *
-     * The same IdentityResolver the pull path uses (PullDeviceEventsJob), so a
-     * device user id mapped once — by an earlier match or by the workforce
-     * migration — resolves the same whether the event was pushed or pulled.
-     * The webhook used a plain badge/code lookup of its own and ignored those
-     * mappings. The resolver states `tenant_id` on every query, taken here from
-     * the device resolveWebhookDevice() has already authenticated, so a badge
-     * can only name an employee of the device's own tenant. An ambiguous or
-     * unknown badge is not guessed at.
-     */
-    private function webhookEmployee(Device $device, string $badge): ?Employee
-    {
-        $signals = new IdentitySignals(
-            employeeCode: $badge,
-            badgeNumber: $badge,
-            sourceType: $device->adapter_type,
-            sourceRef: 'device:'.$device->id,
-            identifierType: 'device_user_id',
-            identifierValue: $badge,
-        );
-
-        $resolver = app(IdentityResolver::class);
-        $match = $resolver->resolve($device->tenant_id, $signals);
-
-        if (! $match->isActionable() || $match->employee === null) {
-            return null;
-        }
-
-        $resolver->link($match->employee, $signals, $match->confidence);
-
-        return $match->employee;
-    }
-
-    /**
-     * Hand one punch to the engine, dated by the event's own time: a webhook is
-     * delayed ingestion, so `occurredAt` is required (see AttendanceInput).
-     */
-    private function recordWebhookPunch(
-        AttendanceEngine $engine,
-        Device $device,
-        Employee $employee,
-        string $type,
-        string $idempotencyKey,
-        mixed $occurredAt,
-    ): void {
-        // Read in the device's zone when the device states none (see
-        // DeviceTime), and refused when the device clock runs ahead: a punch
-        // cannot be dated after it reached us.
-        $moment = DeviceTime::normalize((string) $occurredAt, $device);
-        if ($moment === null || DeviceTime::isInFuture($moment)) {
-            throw new AttendanceRefused(__('attendance.device_clock_invalid'));
-        }
-
-        $engine->record(new AttendanceInput(
-            employeeId: $employee->id,
-            tenantId: $device->tenant_id,
-            source: AttendanceSource::BIOMETRIC,
-            type: $type,
-            idempotencyKey: $idempotencyKey,
-            deviceId: $device->id,
-            occurredAt: $moment,
-        ));
     }
 
     private function markWebhookReceived(Device $device): void

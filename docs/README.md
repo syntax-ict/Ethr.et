@@ -24,6 +24,7 @@ Several documents in this tree describe things that are not true of the code. Th
 | [`ENGINEERING-ONBOARDING.md`](ENGINEERING-ONBOARDING.md) | **Start here as a new maintainer**: the map, how to run it, the rules that bite, how a change reaches production, what is and is not proven. |
 | [`operations/CUSTODY.md`](operations/CUSTODY.md) | **Who holds which credential** — names and places, never values — with a quarterly two-holder review. |
 | [`payroll/ACCOUNTANT-SIGN-OFF.md`](payroll/ACCOUNTANT-SIGN-OFF.md) | **Payroll sign-off pack** for an accountant: the tax and pension rules as coded, the order of operations, seven worked payslips the tests assert to the cent, the register/journal evidence, and the checklist to sign. Not yet signed. |
+| [`payroll/STATUTORY-SCHEDULES.md`](payroll/STATUTORY-SCHEDULES.md) | The monthly **income tax** (MoR) and **pension** (POESSA/PSSSA) schedules each run exports: where the figures come from, the header settings, who sees TINs, and why the layout is still to be confirmed (owner action O3). |
 
 Three standing caveats:
 

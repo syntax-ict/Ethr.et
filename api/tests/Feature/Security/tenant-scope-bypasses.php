@@ -11,6 +11,12 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-14: **163 across 62 files**. `Services/Device/AdmsDeviceResolver`
+ * finds the device a ZKTeco ADMS request speaks for: pre-authentication, by
+ * serial, authenticated by the device's IP allowlist — the webhook policy for
+ * token-less firmware. Earlier the same day the count had fallen to 162/61,
+ * when `DeviceController::webhookEmployee()` moved onto `IdentityResolver`.)
+ *
  * (2026-10-11: **163 across 61 files**. `Services/TenantAddressService` is the one
  * implementation behind the platform console's domain endpoints and the
  * organisation's own `PUT /settings/address`. Its single bypass loads a
@@ -126,12 +132,14 @@ return [
     'Http/Controllers/Api/V1/Auth/PasswordResetController.php' => 2,
     'Http/Controllers/Api/V1/Auth/SubdomainCheckController.php' => 1,
     // Two device lookups in resolveWebhookDevice() (token; serial + IP
-    // allowlist) and one employee lookup in webhookEmployee(), which states
+    // allowlist) and, until 2026-10-14, one employee lookup in webhookEmployee(), which states
     // `tenant_id` from the authenticated device. The employee lookup was written
     // out three times, once per vendor handler, until audit B9 (2026-10-01) made
     // it one method: 5 -> 3, the same query at fewer call sites. 2026-10-14:
     // 3 -> 2, webhookEmployee() now goes through IdentityResolver, which states
-    // `tenant_id` on its own queries (as the pull path always did).
+    // `tenant_id` on its own queries (as the pull path always did). Later that
+    // day the employee and punch steps moved to Services/Device/DevicePunchRecorder,
+    // shared with ZKTeco ADMS; it has no bypass of its own.
     'Http/Controllers/Api/V1/Device/DeviceController.php' => 2,
     'Http/Controllers/Api/V1/Payroll/TaxBracketController.php' => 1,
     // AuthenticateApiKey (2026-10-09): the key lookup is pre-authentication and
@@ -187,6 +195,12 @@ return [
     'Services/Auth/OrganisationFinder.php' => 1,
     'Services/Billing/BillingService.php' => 5,
     'Services/Dashboard/EmployeeDashboardService.php' => 1,
+    // ZKTeco ADMS (2026-10-14). Pre-authentication, like the webhook lookup:
+    // the firmware sends its serial and nothing else, so the serial selects a
+    // `zkteco_adms` device and the device's IP allowlist authenticates the
+    // request (fail-closed when empty). It states no `tenant_id` — the tenant
+    // is what it finds out — and two rows for one serial authenticate neither.
+    'Services/Device/AdmsDeviceResolver.php' => 1,
     'Services/Holiday/HolidayService.php' => 2,
     'Services/Identity/IdentityResolver.php' => 2,
     'Services/Import/EmployeeImporter.php' => 1,

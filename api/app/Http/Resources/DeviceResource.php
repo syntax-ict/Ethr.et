@@ -6,6 +6,8 @@ namespace App\Http\Resources;
 
 use App\Enums\UserRole;
 use App\Models\Device;
+use App\Services\Device\AdmsDeviceResolver;
+use App\Services\Device\DeviceCommandQueue;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,6 +24,8 @@ class DeviceResource extends JsonResource
             'adapter_type' => $this->adapter_type,
             'status' => $this->status,
             'auto_sync' => $this->auto_sync,
+            'commands_enabled' => (bool) $this->commands_enabled,
+            'accepts_commands' => (bool) app(DeviceCommandQueue::class)->supports($this->resource),
             'sync_interval_minutes' => $this->sync_interval_minutes,
             'timezone' => $this->timezone,
             'webhook_ip_allowlist' => $this->when(
@@ -37,6 +41,15 @@ class DeviceResource extends JsonResource
                 fn () => $this->buildWebhookUrl(),
             ),
             'last_sync_at' => $this->last_sync_at?->toIso8601String(),
+            'clock_offset_seconds' => $this->clock_offset_seconds,
+            'clock_checked_at' => $this->clock_checked_at?->toIso8601String(),
+            'adms' => $this->when(
+                $this->adapter_type === AdmsDeviceResolver::ADAPTER && (bool) $request->user()?->isAtLeast(UserRole::TENANT_ADMIN),
+                fn () => [
+                    'server' => (string) parse_url((string) config('app.url'), PHP_URL_HOST),
+                    'last_rejected' => AdmsDeviceResolver::lastRejection($this->resource),
+                ],
+            ),
             'branch' => new BranchResource($this->whenLoaded('branch')),
             'branch_public_id' => $this->branch?->public_id,
             'attendance_records_count' => $this->whenCounted('attendanceRecords'),

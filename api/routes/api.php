@@ -49,6 +49,7 @@ use App\Http\Controllers\Api\V1\Dashboard\AlertThresholdController;
 use App\Http\Controllers\Api\V1\Dashboard\DashboardController;
 use App\Http\Controllers\Api\V1\Dashboard\DashboardDigestController;
 use App\Http\Controllers\Api\V1\Dashboard\ExecutiveDashboardController;
+use App\Http\Controllers\Api\V1\Device\DeviceCommandController;
 use App\Http\Controllers\Api\V1\Device\DeviceController;
 use App\Http\Controllers\Api\V1\Device\DeviceEnrollmentController;
 use App\Http\Controllers\Api\V1\Directory\DirectoryController;
@@ -131,6 +132,7 @@ use App\Http\Middleware\RequiresPlanFeature;
 use App\Http\Middleware\RequireTenantMfaEnrolment;
 use App\Http\Middleware\ScimAuth;
 use App\Http\Middleware\VerifyCronToken;
+use App\Services\Payroll\StatutorySchedules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
@@ -417,6 +419,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Recover the outcome of a committed import when the client lost the response.
     Route::get('/employees/import/status/{key}', [EmployeeImportController::class, 'status']);
     Route::post('/employees/bulk-update', [EmployeeBulkController::class, 'bulkUpdate']);
+    Route::post('/employees/{employee}/enrol-on-devices', [DeviceCommandController::class, 'enrolEmployee']);
     Route::post('/employees/import/template', [EmployeeImportController::class, 'template'])->middleware('throttle:imports');
     Route::post('/employees/import/preview', [EmployeeImportController::class, 'preview'])->middleware('throttle:imports');
     Route::post('/employees/import/commit', [EmployeeImportController::class, 'commit'])->middleware('throttle:imports');
@@ -499,6 +502,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/{device}/sync-logs', [DeviceController::class, 'syncLogs']);
         Route::get('/{device}/events', [DeviceController::class, 'deviceEvents']);
         Route::get('/{device}/enrollments', [DeviceEnrollmentController::class, 'index']);
+        Route::get('/{device}/commands', [DeviceCommandController::class, 'index']);
+        Route::post('/{device}/commands/set-time', [DeviceCommandController::class, 'setTime']);
+        Route::post('/{device}/commands/send-staff', [DeviceCommandController::class, 'sendStaff']);
     });
     Route::apiResource('devices', DeviceController::class);
 
@@ -539,6 +545,10 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/runs/{payrollRun}/export/bank-csv', [PayrollController::class, 'downloadBankExport']);
         Route::get('/runs/{payrollRun}/register', [PayrollController::class, 'register']);
         Route::get('/runs/{payrollRun}/register-csv', [PayrollController::class, 'downloadRegister']);
+        Route::get('/runs/{payrollRun}/statutory/{schedule}', [PayrollController::class, 'statutory'])
+            ->whereIn('schedule', StatutorySchedules::SCHEDULES);
+        Route::get('/runs/{payrollRun}/statutory/{schedule}/download', [PayrollController::class, 'downloadStatutory'])
+            ->whereIn('schedule', StatutorySchedules::SCHEDULES);
         Route::get('/payslips/my', [PayrollController::class, 'myPayslips']);
         Route::get('/payslips/{employeePublicId}', [PayrollController::class, 'employeePayslips']);
         Route::get('/payslips/{payrollEntry}/pdf', [PayrollController::class, 'downloadPayslip']);

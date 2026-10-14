@@ -116,7 +116,7 @@ it('renders the rewrite engine and the front controller', function () {
 
     // /api and /sanctum reach Laravel with no proxy directive. Measured
     // reaching index.php 18/18 on Apache 2.4.58 — BASELINE.md §21g.
-    expect($directives)->toContain('RewriteCond %{REQUEST_URI} ^/(api|sanctum)(/|$) [NC]');
+    expect($directives)->toContain('RewriteCond %{REQUEST_URI} ^/(api|sanctum|iclock)(/|$) [NC]');
     expect($directives)->toContain('RewriteRule ^ index.php [L]');
 
     // Certificate renewal depends on this passthrough being unrewritten.
