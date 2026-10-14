@@ -23,7 +23,10 @@ import {
 } from "@/lib/auth/use-auth-host-context";
 import { useTheme } from "next-themes";
 import { applyBrandToDocument } from "@/features/branding/TenantBrandingProvider";
-import { panelBackground } from "@/lib/auth/landing-background";
+import {
+  panelBackground,
+  type LandingCover,
+} from "@/lib/auth/landing-background";
 import { usePathname } from "next/navigation";
 import { OrganisationPortal } from "@/features/auth/components/organisation-portal";
 
@@ -107,7 +110,11 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
         className="relative hidden w-1/2 overflow-hidden bg-primary lg:flex lg:flex-col"
         style={
           organisation && !highContrast
-            ? panelBackground(tenantLanding, tenantBrand?.secondary_color)
+            ? panelBackground(
+                tenantLanding,
+                tenantBrand?.secondary_color,
+                tenantBrand?.cover,
+              )
             : undefined
         }
       >
@@ -177,6 +184,7 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
             logoUrl={tenantBrand?.logo_url}
             landing={tenantLanding}
             secondary={tenantBrand?.secondary_color}
+            cover={tenantBrand?.cover}
           />
         )}
         <div className="flex justify-end px-6 pt-4">
@@ -335,11 +343,13 @@ function MobileOrganisationHeader({
   logoUrl,
   landing,
   secondary,
+  cover,
 }: {
   name: string | null;
   logoUrl: string | null | undefined;
   landing: TenantLanding | null;
   secondary: string | null | undefined;
+  cover?: LandingCover | null;
 }) {
   const { resolvedTheme } = useTheme();
   return (
@@ -348,7 +358,7 @@ function MobileOrganisationHeader({
       style={
         resolvedTheme === "high-contrast"
           ? undefined
-          : panelBackground(landing, secondary)
+          : panelBackground(landing, secondary, cover)
       }
     >
       <div className="flex items-center gap-3">

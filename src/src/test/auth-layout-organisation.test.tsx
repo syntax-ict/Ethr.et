@@ -32,7 +32,6 @@ const landing: TenantLanding = {
   support_email: "hr@acme.et",
   support_phone: "+251 11 555 0100",
   background: "brand",
-  background_image_url: null,
 };
 
 const organisation: HostCtx = {
@@ -147,23 +146,30 @@ describe("panel background", () => {
     expect(String(style?.backgroundImage)).toContain("#14b8a6");
   });
 
-  it("quotes the photo so its URL cannot escape url()", () => {
-    const style = panelBackground(
-      {
-        ...landing,
-        background: "image",
-        background_image_url: 'https://cdn.acme.et/a.jpg"),red',
-      },
-      null,
-    );
+  it("draws the uploaded cover around its focal point, quoted so the URL cannot escape url()", () => {
+    const style = panelBackground({ ...landing, background: "image" }, null, {
+      url: '/api/v1/organisation-assets/T/cover/abc"),red',
+      srcset: "",
+      width: 1920,
+      height: 960,
+      focal_x: 0.25,
+      focal_y: 0.8,
+    });
     expect(String(style?.backgroundImage)).toContain(
-      'url("https://cdn.acme.et/a.jpg\\"),red")',
+      'url("/api/v1/organisation-assets/T/cover/abc\\"),red")',
     );
+    expect(style?.backgroundPosition).toBe("25% 80%");
   });
 
-  it("ignores an image background with no image", () => {
+  it("ignores a photo background with no cover uploaded", () => {
     expect(
-      panelBackground({ ...landing, background: "image" }, null),
+      panelBackground({ ...landing, background: "image" }, null, null),
     ).toBeUndefined();
+  });
+
+  it("lays a quiet dot pattern over the brand colour", () => {
+    const style = panelBackground({ ...landing, background: "pattern" }, null);
+    expect(String(style?.backgroundImage)).toContain("radial-gradient");
+    expect(style?.backgroundSize).toBe("22px 22px");
   });
 });

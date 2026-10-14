@@ -8,12 +8,19 @@ import { entryOrganisation, queryOrganisation } from "./entry-organisation";
 import { apiClient } from "@/api/client";
 import { hostContext, tenantFromHost, type HostContext } from "./host-context";
 import { useHost } from "./host-provider";
+import type { LandingCover } from "./landing-background";
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null;
 
 export interface TenantBrand {
   /** An https logo URL, or null for the organisation's initial. */
   logo_url: string | null;
+  /** The logo for dark surfaces, when one is uploaded. */
+  logo_dark_url?: string | null;
+  /** The square mark: the browser tab, the home-screen icon. */
+  mark_url?: string | null;
+  /** The uploaded cover photo, drawn by the photo background. */
+  cover?: LandingCover | null;
   primary_color: string | null;
   secondary_color?: string | null;
   accent_color: string | null;
@@ -25,8 +32,7 @@ export interface TenantLanding {
   message: string | null;
   support_email: string | null;
   support_phone: string | null;
-  background: "brand" | "gradient" | "image";
-  background_image_url: string | null;
+  background: "brand" | "gradient" | "pattern" | "image";
 }
 
 export type TenantRequest =

@@ -293,6 +293,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
             <BrandingCard
               logoUrl={data.branding.logo_url}
               uploadedLogoUrl={data.branding.uploaded_logo_url ?? null}
+              assets={data.branding.assets ?? null}
               theme={data.branding.theme}
             />
             <LandingCard
@@ -302,6 +303,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
               logoUrl={
                 data.branding.uploaded_logo_url ?? data.branding.logo_url
               }
+              cover={data.branding.assets?.cover ?? null}
               secondaryColor={data.branding.theme.secondary_color}
             />
           </div>

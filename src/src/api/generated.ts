@@ -5718,6 +5718,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/branding/assets/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create asset */
+        post: operations["tenantBrandAsset.store"];
+        /** Delete asset */
+        delete: operations["tenantBrandAsset.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/branding/assets/cover/focal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Focal cover */
+        put: operations["tenantBrandAsset.focal"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/tenant-context": {
         parameters: {
             query?: never;
@@ -8610,6 +8645,15 @@ export interface components {
             status?: components["schemas"]["CostSharingStatus"];
             notes?: string | null;
         };
+        /**
+         * UpdateCoverFocalRequest
+         * @description Where in the cover photo to keep in frame when the hero crops it: a point
+         *     as fractions of the width and the height, 0 to 1, the centre by default.
+         */
+        UpdateCoverFocalRequest: {
+            x: number;
+            y: number;
+        };
         /** UpdateCustomRoleRequest */
         UpdateCustomRoleRequest: {
             name?: string;
@@ -8718,6 +8762,11 @@ export interface components {
          * UpdateLandingRequest
          * @description The organisation's sign-in page: its own words, help contacts and panel
          *     background. Everything here is shown publicly, before sign-in.
+         *
+         *     The photo background draws the cover the organisation uploaded through
+         *     `POST /settings/branding/assets/cover`; there is no image URL to give.
+         *     Choosing it before a cover exists is refused in withValidator(), which
+         *     Scramble does not read, so the contract stays a plain rule set.
          */
         UpdateLandingRequest: {
             headline?: string | null;
@@ -8726,9 +8775,7 @@ export interface components {
             support_email?: string | null;
             support_phone?: string | null;
             /** @enum {string} */
-            background: "brand" | "gradient" | "image";
-            /** Format: uri */
-            background_image_url?: string | null;
+            background: "brand" | "gradient" | "pattern" | "image";
             sections?: {
                 announcements: boolean;
                 vacancies: boolean;
@@ -9036,6 +9083,25 @@ export interface components {
             url?: string;
             events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
             is_active?: boolean;
+        };
+        /**
+         * UploadBrandAssetRequest
+         * @description One of an organisation's other brand images: a logo for dark backgrounds,
+         *     a square mark, or a cover photo for its portal. The kind is in the route.
+         *
+         *     Raster only, as the logo: SVG can carry script and is refused. The content
+         *     check reads the file's own bytes, and FileStorageService::uploadBrandImage()
+         *     re-encodes what passes, so the public copy is only pixels. 5 MB and
+         *     4096 px bound the decode on shared hosting; a cover narrower than the
+         *     phone-width variant it would be served at is refused in withValidator(),
+         *     which Scramble does not read, so the contract stays one rule set.
+         */
+        UploadBrandAssetRequest: {
+            /**
+             * Format: binary
+             * @description Maximum file size: 5120 kilobytes.
+             */
+            image: string;
         };
         /**
          * UploadProfilePhotoRequest
@@ -23033,6 +23099,22 @@ export interface operations {
                         branding: {
                             logo_url: string | null;
                             uploaded_logo_url: string;
+                            assets: {
+                                logo_dark: {
+                                    url: string | null;
+                                } | null;
+                                mark: {
+                                    url: string | null;
+                                } | null;
+                                cover: {
+                                    url: string | null;
+                                    srcset: string;
+                                    width: number;
+                                    height: number;
+                                    focal_x: number;
+                                    focal_y: number;
+                                } | null;
+                            };
                             theme: {
                                 primary_color?: string | null;
                                 secondary_color?: string | null;
@@ -23044,9 +23126,8 @@ export interface operations {
                             message: string | null;
                             support_email: string | null;
                             support_phone: string | null;
-                            /** @description An image background with no usable image is the brand colour. */
+                            /** @description A photo background with no cover uploaded is the brand colour. */
                             background: string;
-                            background_image_url: string | null;
                             sections: {
                                 announcements: string | boolean;
                                 vacancies: string | boolean;
@@ -23322,9 +23403,8 @@ export interface operations {
                         message: string | null;
                         support_email: string | null;
                         support_phone: string | null;
-                        /** @description An image background with no usable image is the brand colour. */
+                        /** @description A photo background with no cover uploaded is the brand colour. */
                         background: string;
-                        background_image_url: string | null;
                         sections: {
                             announcements: string | boolean;
                             vacancies: string | boolean;
@@ -24800,6 +24880,135 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "tenantBrandAsset.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadBrandAssetRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        assets: {
+                            logo_dark: {
+                                url: string | null;
+                            } | null;
+                            mark: {
+                                url: string | null;
+                            } | null;
+                            cover: {
+                                url: string | null;
+                                srcset: string;
+                                width: number;
+                                height: number;
+                                focal_x: number;
+                                focal_y: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "tenantBrandAsset.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        assets: {
+                            logo_dark: {
+                                url: string | null;
+                            } | null;
+                            mark: {
+                                url: string | null;
+                            } | null;
+                            cover: {
+                                url: string | null;
+                                srcset: string;
+                                width: number;
+                                height: number;
+                                focal_x: number;
+                                focal_y: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "tenantBrandAsset.focal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCoverFocalRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        assets: {
+                            logo_dark: {
+                                url: string | null;
+                            } | null;
+                            mark: {
+                                url: string | null;
+                            } | null;
+                            cover: {
+                                url: string | null;
+                                srcset: string;
+                                width: number;
+                                height: number;
+                                focal_x: number;
+                                focal_y: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "auth.tenantContext": {
         parameters: {
             query?: never;
@@ -24821,6 +25030,16 @@ export interface operations {
                             logo_path: string | null;
                             brand: {
                                 logo_url: string | null;
+                                logo_dark_url: string | null;
+                                mark_url: string | null;
+                                cover: {
+                                    url: string | null;
+                                    srcset: string;
+                                    width: number;
+                                    height: number;
+                                    focal_x: number;
+                                    focal_y: number;
+                                } | null;
                                 primary_color: string | null;
                                 secondary_color: string | null;
                                 accent_color: string | null;
@@ -24830,9 +25049,8 @@ export interface operations {
                                 message: string | null;
                                 support_email: string | null;
                                 support_phone: string | null;
-                                /** @description An image background with no usable image is the brand colour. */
+                                /** @description A photo background with no cover uploaded is the brand colour. */
                                 background: string;
-                                background_image_url: string | null;
                                 sections: {
                                     announcements: string | boolean;
                                     vacancies: string | boolean;

@@ -93,6 +93,7 @@ class Tenant extends Model
         'logo_path',
         'logo_storage_path',
         'logo_version',
+        'brand_assets',
         'theme',
         'landing',
         'default_locale',
@@ -112,6 +113,7 @@ class Tenant extends Model
         return [
             'status' => TenantStatus::class,
             'theme' => 'array',
+            'brand_assets' => 'array',
             'landing' => 'array',
             'settings' => 'array',
             'ethiopian_calendar' => 'boolean',
@@ -311,6 +313,55 @@ class Tenant extends Model
 
         return $this->uploadedLogoUrl()
             ?? (is_string($linked) && str_starts_with($linked, 'https://') ? $linked : null);
+    }
+
+    /**
+     * The other brand images an organisation may upload beside its logo,
+     * keyed as they are stored in `brand_assets`: a logo for dark
+     * backgrounds, a square mark, a cover photo.
+     */
+    public const BRAND_ASSET_KINDS = ['logo_dark', 'mark', 'cover'];
+
+    /**
+     * One stored brand image, or null when none of that kind is uploaded or
+     * the entry is not well formed. Read raw for the reason `TenantLanding`
+     * reads `landing` raw: a value edited by hand must not put a half entry
+     * on a public page.
+     *
+     * @return array{path: string, version: string, width: int, height: int, variants?: array<int, string>, focal?: array{x: float|int, y: float|int}}|null
+     */
+    public function brandAsset(string $kind): ?array
+    {
+        $raw = $this->getAttribute('brand_assets');
+        $asset = is_array($raw) ? ($raw[$kind] ?? null) : null;
+
+        if (! is_array($asset)
+            || ! is_string($asset['path'] ?? null)
+            || ! is_string($asset['version'] ?? null)
+            || ! is_int($asset['width'] ?? null)
+            || ! is_int($asset['height'] ?? null)) {
+            return null;
+        }
+
+        /** @var array{path: string, version: string, width: int, height: int, variants?: array<int, string>, focal?: array{x: float|int, y: float|int}} $asset */
+        return $asset;
+    }
+
+    /**
+     * The public URL of a stored brand image, or of one of its narrower
+     * variants (`$variant` is the width, as the cover stores them). Relative
+     * and same-origin, like {@see uploadedLogoUrl()}.
+     */
+    public function brandAssetUrl(string $kind, ?int $variant = null): ?string
+    {
+        $asset = $this->brandAsset($kind);
+        if ($asset === null || ($variant !== null && ! isset($asset['variants'][$variant]))) {
+            return null;
+        }
+
+        $segment = str_replace('_', '-', $kind).($variant === null ? '' : '-'.$variant);
+
+        return route('organisation.asset', [$this->public_id, $segment, $asset['version']], absolute: false);
     }
 
     public function isActive(): bool

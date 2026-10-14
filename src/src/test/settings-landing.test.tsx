@@ -31,7 +31,6 @@ const landing: TenantLandingSettings = {
   support_email: null,
   support_phone: null,
   background: "brand",
-  background_image_url: null,
   sections: { announcements: false, vacancies: false, holidays: false },
 };
 
@@ -109,35 +108,54 @@ describe("<LandingCard>", () => {
       support_email: "hr@acme.et",
       support_phone: null,
       background: "gradient",
-      background_image_url: null,
     });
   });
 
-  it("asks for a photo URL only with the photo background, and shows the server's refusal", async () => {
-    server.use(
-      http.put("*/settings/landing", () =>
-        HttpResponse.json(
-          {
-            message: "Invalid",
-            errors: { background_image_url: ["Must be an https link."] },
-          },
-          { status: 422 },
-        ),
-      ),
-    );
-
+  it("offers the cover upload under the photo background, and holds the save until one exists", () => {
     renderCard();
-    expect(screen.queryByLabelText("Photo URL")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Cover photo file")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("radio", { name: "Photo" }));
-    fireEvent.change(screen.getByLabelText("Photo URL"), {
-      target: { value: "http://x.et/a.jpg" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /save sign-in page/i }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Must be an https link.",
+    expect(screen.getByLabelText("Cover photo file")).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "Upload a cover photo to use the photo background.",
     );
+    expect(
+      screen.getByRole("button", { name: /save sign-in page/i }),
+    ).toBeDisabled();
+  });
+
+  it("previews the uploaded cover around its focal point and lets the photo be saved", () => {
+    renderCard({
+      cover: {
+        url: "/api/v1/organisation-assets/T/cover/abc",
+        srcset: "/api/v1/organisation-assets/T/cover/abc 1920w",
+        width: 1920,
+        height: 960,
+        focal_x: 0.3,
+        focal_y: 0.6,
+      },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "Photo" }));
+
+    const preview = screen.getByTestId("landing-preview");
+    expect(preview.style.backgroundImage).toContain(
+      'url("/api/v1/organisation-assets/T/cover/abc")',
+    );
+    expect(preview.style.backgroundPosition).toBe("30% 60%");
+    expect(screen.getByText("Your cover photo is in use")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /save sign-in page/i }),
+    ).toBeEnabled();
+  });
+
+  it("offers the pattern background", () => {
+    renderCard();
+    fireEvent.click(screen.getByRole("radio", { name: "Pattern" }));
+    expect(
+      screen.getByTestId("landing-preview").style.backgroundImage,
+    ).toContain("radial-gradient");
   });
 
   it("shares ethr.et/{slug} on the shared address", () => {

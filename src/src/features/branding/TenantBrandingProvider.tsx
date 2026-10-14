@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useCurrentTenant } from "@/features/auth/api";
-import { parseHex, readableInkOn, tint } from "@/lib/utils/color";
+import { aaCorrected, tint } from "@/lib/utils/color";
 
 /**
  * Reads the current tenant from /auth/me and applies its saved brand colours
@@ -24,6 +24,11 @@ import { parseHex, readableInkOn, tint } from "@/lib/utils/color";
  * near-white surface, and painting a brand colour across every card would be
  * wrong. An inline style on <html> outranks both the light and dark themes,
  * so a brand colour holds in either.
+ *
+ * Since 2026-10-14 the colour that carries text is `aaCorrected()`: a brand
+ * colour whose best ink still falls short of 4.5:1 is darkened or lightened
+ * only as far as AA needs, and the settings screen says so beside the swatch.
+ * The organisation's exact colour stays where no text sits on it.
  */
 const BRAND_PROPERTIES = [
   "--interactive-primary",
@@ -40,18 +45,18 @@ export function brandProperties(theme: {
 }): Partial<Record<(typeof BRAND_PROPERTIES)[number], string>> {
   const out: Partial<Record<(typeof BRAND_PROPERTIES)[number], string>> = {};
 
-  const primary = theme.primary_color ?? "";
-  if (parseHex(primary)) {
-    out["--interactive-primary"] = primary;
-    out["--interactive-focus"] = primary;
-    out["--interactive-hover"] = tint(primary, 0.25) ?? primary;
-    out["--color-primary-foreground"] = readableInkOn(primary);
+  const primary = aaCorrected(theme.primary_color ?? "");
+  if (primary) {
+    out["--interactive-primary"] = primary.color;
+    out["--interactive-focus"] = primary.color;
+    out["--interactive-hover"] = tint(primary.color, 0.25) ?? primary.color;
+    out["--color-primary-foreground"] = primary.ink;
   }
 
-  const accent = theme.accent_color ?? "";
-  if (parseHex(accent)) {
-    out["--brand-accent"] = accent;
-    out["--brand-accent-foreground"] = readableInkOn(accent);
+  const accent = aaCorrected(theme.accent_color ?? "");
+  if (accent) {
+    out["--brand-accent"] = accent.color;
+    out["--brand-accent-foreground"] = accent.ink;
   }
 
   return out;
