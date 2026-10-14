@@ -1472,6 +1472,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Support\\TenantTime' => __DIR__ . '/../..' . '/app/Support/TenantTime.php',
         'App\\Support\\VoiceLabels' => __DIR__ . '/../..' . '/app/Support/VoiceLabels.php',
         'App\\Support\\WebhookEvents' => __DIR__ . '/../..' . '/app/Support/WebhookEvents.php',
+        'App\\Support\\WebhookTargets' => __DIR__ . '/../..' . '/app/Support/WebhookTargets.php',
         'App\\Support\\WorkingWeek' => __DIR__ . '/../..' . '/app/Support/WorkingWeek.php',
         'App\\Traits\\BelongsToTenant' => __DIR__ . '/../..' . '/app/Traits/BelongsToTenant.php',
         'App\\Traits\\DispatchesWebhooks' => __DIR__ . '/../..' . '/app/Traits/DispatchesWebhooks.php',

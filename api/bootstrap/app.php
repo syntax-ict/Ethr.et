@@ -24,6 +24,7 @@ use App\Http\Middleware\VerifyUploadedFiles;
 use App\Services\Auth\SessionCookie;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -205,6 +206,17 @@ return Application::configure(basePath: dirname(__DIR__))
 
             $status = $e->getStatusCode();
 
+            // Route-model binding throws "No query results for model
+            // [App\Models\Employee] 01M…", which named our classes to any
+            // caller; the 404 says only that nothing was found. The exception's
+            // own headers are kept: a 429 carries Retry-After and the
+            // X-RateLimit-* pair, and dropping them left an API client to
+            // guess when to try again (API/webhook end-to-end test, 2026-10-14,
+            // D2 and D3).
+            $detail = $e->getPrevious() instanceof ModelNotFoundException
+                ? 'The requested resource was not found.'
+                : ($e->getMessage() ?: 'An error occurred.');
+
             return response()->json([
                 'type' => 'https://ethr.et/errors/http',
                 'title' => match ($status) {
@@ -218,8 +230,8 @@ return Application::configure(basePath: dirname(__DIR__))
                     default => 'Error',
                 },
                 'status' => $status,
-                'detail' => $e->getMessage() ?: 'An error occurred.',
-            ], $status);
+                'detail' => $detail,
+            ], $status, [...$e->getHeaders(), 'Content-Type' => 'application/problem+json']);
         });
 
         // A punch the engine refuses (nothing to close, method off, outside

@@ -80,7 +80,7 @@ class RateLimitLoginAttempts
             'title' => 'Too Many Login Attempts',
             'status' => 429,
             'detail' => "Too many failed login attempts. Please try again in {$retryAfter} seconds.",
-        ], 429)->header('Retry-After', $retryAfter);
+        ], 429, ['Content-Type' => 'application/problem+json', 'Retry-After' => $retryAfter]);
     }
 
     private function submittedIdentifier(Request $request): string

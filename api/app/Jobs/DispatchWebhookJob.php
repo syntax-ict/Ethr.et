@@ -6,7 +6,7 @@ namespace App\Jobs;
 
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
-use App\Support\OutboundHost;
+use App\Support\WebhookTargets;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -96,7 +96,7 @@ class DispatchWebhookJob implements ShouldQueue
         // resolves inside the network is refused the same way. Not retried —
         // retrying cannot make an internal address external.
         $host = parse_url((string) $webhook->url, PHP_URL_HOST);
-        if (! is_string($host) || OutboundHost::isInternal(trim($host, '[]'))) {
+        if (! is_string($host) || WebhookTargets::refused(trim($host, '[]'))) {
             $this->markFailed($delivery, null, 'Refused: the webhook URL points to an internal address', 0);
 
             return;

@@ -789,6 +789,7 @@ return array(
     'App\\Support\\TenantTime' => $baseDir . '/app/Support/TenantTime.php',
     'App\\Support\\VoiceLabels' => $baseDir . '/app/Support/VoiceLabels.php',
     'App\\Support\\WebhookEvents' => $baseDir . '/app/Support/WebhookEvents.php',
+    'App\\Support\\WebhookTargets' => $baseDir . '/app/Support/WebhookTargets.php',
     'App\\Support\\WorkingWeek' => $baseDir . '/app/Support/WorkingWeek.php',
     'App\\Traits\\BelongsToTenant' => $baseDir . '/app/Traits/BelongsToTenant.php',
     'App\\Traits\\DispatchesWebhooks' => $baseDir . '/app/Traits/DispatchesWebhooks.php',
