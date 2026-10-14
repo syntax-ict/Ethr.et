@@ -9,6 +9,7 @@ use App\Models\Webhook;
 use App\Models\WebhookDelivery;
 use App\Services\CurrentTenant;
 use App\Services\Webhook\WebhookDispatcher;
+use Carbon\Carbon;
 use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -59,6 +60,48 @@ test('the signature is over the exact bytes sent', function () {
 
     Http::assertSent(fn (ClientRequest $request): bool => $request->header('X-ETHR-Signature')[0]
         === 'sha256='.hash_hmac('sha256', $request->body(), 'shh'));
+});
+
+test('each attempt is signed with the moment it is sent, so an old delivery stops verifying', function () {
+    // The body's timestamp is the queue time and survives every retry, so a
+    // receiver could not refuse a replayed delivery without refusing a late
+    // retry. X-ETHR-Timestamp is the send time, signed with the body.
+    Http::fake(['*' => Http::response('ok', 200)]);
+    Carbon::setTestNow('2026-10-14 12:00:00');
+    $tenant = createTenant();
+    [$job] = reliableJob($tenant, reliableWebhook($tenant));
+
+    $job->handle();
+    Carbon::setTestNow();
+
+    Http::assertSent(function (ClientRequest $request): bool {
+        $sentAt = $request->header('X-ETHR-Timestamp')[0];
+        $expected = 'sha256='.hash_hmac('sha256', $sentAt.'.'.$request->body(), 'shh');
+
+        return $sentAt === (string) Carbon::parse('2026-10-14 12:00:00')->getTimestamp()
+            && $request->header('X-ETHR-Signature-V2')[0] === $expected
+            // The body-only signature is unchanged, for receivers built on it.
+            && $request->header('X-ETHR-Signature')[0] === 'sha256='.hash_hmac('sha256', $request->body(), 'shh');
+    });
+});
+
+test('a retry is signed afresh: same body, new timestamp, new signature', function () {
+    Http::fake(['*' => Http::response('ok', 200)]);
+    $tenant = createTenant();
+    $webhook = reliableWebhook($tenant);
+
+    Carbon::setTestNow('2026-10-14 12:00:00');
+    [$first] = reliableJob($tenant, $webhook);
+    $first->handle();
+    Carbon::setTestNow('2026-10-14 14:00:00');
+    [$second] = reliableJob($tenant, $webhook);
+    $second->handle();
+    Carbon::setTestNow();
+
+    $sent = Http::recorded()->map(fn ($pair) => $pair[0]);
+    expect($sent)->toHaveCount(2)
+        ->and($sent[0]->header('X-ETHR-Timestamp')[0])->not->toBe($sent[1]->header('X-ETHR-Timestamp')[0])
+        ->and($sent[0]->header('X-ETHR-Signature-V2')[0])->not->toBe($sent[1]->header('X-ETHR-Signature-V2')[0]);
 });
 
 test('the delivery header is the public id, the same on every retry', function () {
