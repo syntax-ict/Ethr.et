@@ -35,6 +35,10 @@ class UpdateEmployeeRequest extends FormRequest
                 'nullable', 'string', 'max:30',
                 Rule::unique('employees')->where('tenant_id', $tenantId)->ignore($employee?->id),
             ],
+            'badge_number' => [
+                'nullable', 'string', 'max:32', 'regex:/^[A-Za-z0-9-]+$/',
+                Rule::unique('employees')->where('tenant_id', $tenantId)->ignore($employee?->id),
+            ],
             'gender' => ['nullable', 'string', Rule::in(['male', 'female'])],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'nationality' => ['nullable', 'string', 'max:100'],

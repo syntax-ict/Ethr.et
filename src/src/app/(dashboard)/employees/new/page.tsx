@@ -55,6 +55,7 @@ export default function NewEmployeePage() {
     email: "",
     phone: "",
     employee_code: "",
+    badge_number: "",
     gender: "",
     date_of_birth: "",
     nationality: "Ethiopian",
@@ -109,6 +110,7 @@ export default function NewEmployeePage() {
       email: form.email || null,
       phone: form.phone || null,
       employee_code: form.employee_code || null,
+      badge_number: form.badge_number || null,
       gender: (form.gender || null) as CreateEmployeePayload["gender"],
       date_of_birth: form.date_of_birth || null,
       nationality: form.nationality || null,
@@ -317,6 +319,20 @@ export default function NewEmployeePage() {
                   onChange={(e) => updateField("employee_code", e.target.value)}
                   required
                   placeholder="EMP-0001"
+                />
+              </FormField>
+
+              <FormField
+                id="badge_number"
+                label={t("employee.badge_number")}
+                hint={t("employee.badge_number_hint")}
+                error={errors.badge_number}
+              >
+                <Input
+                  value={form.badge_number}
+                  maxLength={32}
+                  onChange={(e) => updateField("badge_number", e.target.value)}
+                  className="font-mono"
                 />
               </FormField>
 

@@ -257,7 +257,8 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               )}
               {t("devices_page.test")}
             </Button>
-            {canUpdate && (
+            {/* An ADMS terminal pushes its punches; there is nothing to pull. */}
+            {canUpdate && device.adapter_type !== "zkteco_adms" && (
               <Button
                 variant="outline"
                 size="sm"
@@ -425,7 +426,9 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                   </div>
                 ) : syncLogItems.length === 0 ? (
                   <div className="py-12 text-center text-sm text-muted-foreground">
-                    {t("device_detail_page.no_sync_history")}
+                    {device.adapter_type === "zkteco_adms"
+                      ? t("device_detail_page.push_no_sync_history")
+                      : t("device_detail_page.no_sync_history")}
                   </div>
                 ) : (
                   <>

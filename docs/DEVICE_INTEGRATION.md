@@ -196,7 +196,10 @@ Five rules:
   commands out.
 - **A person's commands go to the devices of their branch.** The device user id is the
   one already linked to that device (`employee_external_identities`), else the badge
-  number. A person with neither is skipped, and **Send all staff** reports how many.
+  number. The badge number is set on the employee's profile or the new-employee form
+  (*Badge / device ID*, since 2026-10-14; letters, digits and hyphens, at most 32, unique
+  in the organisation). ZKTeco terminals take digits only. Until then nothing in the
+  product could set it, so a new hire never reached a terminal by badge. A person with neither is skipped, and **Send all staff** reports how many.
 - **A newer command for the same person replaces one still waiting** (status
   `cancelled`). Two edits in a row reach the device once, and a hire followed by a
   termination never adds.
