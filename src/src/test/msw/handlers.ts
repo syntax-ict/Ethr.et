@@ -13,6 +13,7 @@ export function buildEmployee(
     email: "abebe@example.com",
     phone: "+251911223344",
     employee_code: "EMP-0001",
+    badge_number: null,
     has_kiosk_pin: false,
     gender: "male",
     date_of_birth: "1990-01-01",

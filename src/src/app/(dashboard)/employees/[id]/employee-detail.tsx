@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
+  Fingerprint,
   Mail,
   Phone,
   Calendar,
@@ -37,6 +38,7 @@ import { InfoRow } from "@/features/employees/components/info-row";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 import { KioskPinCard } from "@/features/employees/components/kiosk-pin-card";
 import { InviteToEthrButton } from "@/features/employees/components/invite-to-ethr-button";
 import { EnrolOnDevicesButton } from "@/features/devices/components/enrol-on-devices-button";
@@ -66,6 +68,9 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
       name: employee.name ?? "",
       email: employee.email ?? "",
       phone: employee.phone ?? "",
+      // The id terminals know the person by; a change goes to the branch's
+      // devices that take commands (DeviceCommandQueue).
+      badge_number: employee.badge_number ?? "",
       // Settable nowhere else: no screen assigned a supervisor, team or cost
       // centre, so the reporting chart was flat (audit N73). Empty clears it.
       supervisor_id: employee.supervisor?.public_id ?? "",
@@ -81,9 +86,13 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
         toast.success(t("employee.detail.updated", "Employee updated"));
         setEditing(false);
       },
-      onError: () =>
+      // The server's reason, so a badge already taken says so.
+      onError: (err) =>
         toast.error(
-          t("employee.detail.update_failed", "Failed to update employee"),
+          apiErrorMessage(
+            err,
+            t("employee.detail.update_failed", "Failed to update employee"),
+          ),
         ),
     });
   }
@@ -262,6 +271,26 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                         className="mt-1"
                       />
                     </div>
+                    <div>
+                      <Label htmlFor="edit-badge">
+                        {t("employee.badge_number")}
+                      </Label>
+                      <Input
+                        id="edit-badge"
+                        value={editForm.badge_number}
+                        maxLength={32}
+                        onChange={(e) =>
+                          setEditForm((p) => ({
+                            ...p,
+                            badge_number: e.target.value,
+                          }))
+                        }
+                        className="mt-1 font-mono"
+                      />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t("employee.badge_number_hint")}
+                      </p>
+                    </div>
                     <RelationPicker
                       id="edit-supervisor"
                       label={t("employee.supervisor", "Supervisor")}
@@ -314,6 +343,11 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                       icon={Calendar}
                       label={t("employee.detail.hire_date", "Hire Date")}
                       value={employee.hire_date ?? "—"}
+                    />
+                    <InfoRow
+                      icon={Fingerprint}
+                      label={t("employee.badge_number")}
+                      value={employee.badge_number ?? "—"}
                     />
                     {employee.gender && (
                       <InfoRow

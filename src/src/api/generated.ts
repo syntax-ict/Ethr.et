@@ -6679,6 +6679,7 @@ export interface components {
             email: string | null;
             phone: string | null;
             employee_code: string | null;
+            badge_number: string | null;
             has_kiosk_pin: boolean;
             gender: string | null;
             date_of_birth: string | null;
@@ -7893,6 +7894,7 @@ export interface components {
             email?: string | null;
             phone?: string | null;
             employee_code?: string | null;
+            badge_number?: string | null;
             /** @enum {string|null} */
             gender?: "male" | "female" | null;
             /** Format: date-time */
@@ -8379,6 +8381,7 @@ export interface components {
             email?: string | null;
             phone?: string | null;
             employee_code?: string | null;
+            badge_number?: string | null;
             /** @enum {string|null} */
             gender?: "male" | "female" | null;
             /** Format: date-time */
