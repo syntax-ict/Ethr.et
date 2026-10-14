@@ -19,7 +19,7 @@ class UpdateWebhookRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'url' => ['sometimes', 'url', 'max:500', new ExternalUrl],
+            'url' => ['sometimes', 'url', 'max:500', new ExternalUrl(webhookTarget: true)],
             'events' => ['sometimes', 'array', 'min:1'],
             'events.*' => ['string', 'distinct', Rule::in(WebhookEvents::ALL)],
             'is_active' => ['sometimes', 'boolean'],

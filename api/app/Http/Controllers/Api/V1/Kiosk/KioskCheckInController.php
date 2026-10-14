@@ -91,7 +91,7 @@ class KioskCheckInController extends Controller
                     'title' => 'PIN Locked',
                     'status' => 429,
                     'detail' => __('kiosk.pin_locked'),
-                ], 429)->header('Content-Type', 'application/problem+json');
+                ], 429, ['Content-Type' => 'application/problem+json', 'Retry-After' => RateLimiter::availableIn($lockKey)]);
             }
 
             if (! Hash::check($pin, $employee->kiosk_pin)) {

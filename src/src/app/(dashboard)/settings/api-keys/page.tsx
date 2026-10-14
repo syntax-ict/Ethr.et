@@ -15,6 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -55,6 +62,18 @@ const ABILITIES = [
   "reports",
 ] as const satisfies readonly ApiKeyAbility[];
 
+// How long a new key lives. A key that never expires is still offered, but it
+// is no longer the only choice: the form had no expiry at all, so every key
+// made in the console lived until someone remembered to revoke it
+// (API/webhook end-to-end test, 2026-10-14, D5).
+const EXPIRY_DAYS = ["30", "90", "365", "never"] as const;
+type Expiry = (typeof EXPIRY_DAYS)[number];
+
+function expiresAt(expiry: Expiry): string | null {
+  if (expiry === "never") return null;
+  return new Date(Date.now() + Number(expiry) * 86_400_000).toISOString();
+}
+
 const apiKeySchema = z.object({
   name: rules.requiredText(255),
   // An API key granting nothing authenticates and then 403s on every call — it
@@ -63,6 +82,7 @@ const apiKeySchema = z.object({
   abilities: z
     .array(z.enum(ABILITIES))
     .min(1, "api_keys_page.abilities_required"),
+  expiry: z.enum(EXPIRY_DAYS),
 });
 type ApiKeyValues = z.infer<typeof apiKeySchema>;
 
@@ -83,10 +103,17 @@ export default function ApiKeysPage() {
     formState: { errors, isSubmitting },
   } = useZodForm<ApiKeyValues>({
     schema: apiKeySchema,
-    defaultValues: { name: "", abilities: ["read"] },
+    defaultValues: { name: "", abilities: ["read"], expiry: "90" },
   });
 
   const selectedAbilities = watch("abilities");
+  const expiry = watch("expiry");
+  const expiryLabel: Record<Expiry, string> = {
+    "30": t("api_keys_page.expiry_30"),
+    "90": t("api_keys_page.expiry_90"),
+    "365": t("api_keys_page.expiry_365"),
+    never: t("api_keys_page.expiry_never"),
+  };
 
   const keysQuery = useApiKeys();
   const createKey = useCreateApiKey();
@@ -97,7 +124,11 @@ export default function ApiKeysPage() {
   // No `onError` toast — `submit` reports a rejected create inside the dialog,
   // on the field that caused it.
   async function create(values: ApiKeyValues) {
-    const created = await createKey.mutateAsync(values);
+    const created = await createKey.mutateAsync({
+      name: values.name,
+      abilities: values.abilities,
+      expires_at: expiresAt(values.expiry),
+    });
     setNewKey(created.key);
     setCreateOpen(false);
     reset();
@@ -222,11 +253,13 @@ export default function ApiKeysPage() {
                     t("api_keys_page.prefix"),
                     t("api_keys_page.abilities"),
                     t("attendance.kiosks_page.created"),
+                    t("api_keys_page.expires"),
                   ]}
                   colClassName={[
                     "",
                     "",
                     "hidden sm:table-cell",
+                    "hidden md:table-cell",
                     "hidden md:table-cell",
                   ]}
                   rows={keys.map((k) => ({
@@ -258,6 +291,11 @@ export default function ApiKeysPage() {
                       </div>,
                       <span key="c" className="text-muted-foreground">
                         {k.created_at ? formatDate(k.created_at) : "—"}
+                      </span>,
+                      <span key="e" className="text-muted-foreground">
+                        {k.expires_at
+                          ? formatDate(k.expires_at)
+                          : t("api_keys_page.expiry_never")}
                       </span>,
                     ],
                     actions: (
@@ -343,6 +381,28 @@ export default function ApiKeysPage() {
                       </label>
                     ))}
                   </div>
+                )}
+              </FormField>
+
+              <FormField id="api-key-expiry" label={t("api_keys_page.expiry")}>
+                {(control) => (
+                  <Select
+                    value={expiry}
+                    onValueChange={(value) =>
+                      setValue("expiry", value as Expiry, { shouldDirty: true })
+                    }
+                  >
+                    <SelectTrigger {...control} className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EXPIRY_DAYS.map((d) => (
+                        <SelectItem key={d} value={d}>
+                          {expiryLabel[d]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </FormField>
 

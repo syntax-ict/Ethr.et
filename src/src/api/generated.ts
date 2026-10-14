@@ -9627,10 +9627,11 @@ export interface operations {
             422: components["responses"]["ValidationException"];
             429: {
                 headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
+                    "application/problem+json": {
                         /** @constant */
                         type: "https://ethr.et/errors/too-many-attempts";
                         /** @constant */
@@ -11713,10 +11714,11 @@ export interface operations {
             422: components["responses"]["ValidationException"];
             429: {
                 headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
+                    "application/problem+json": {
                         /** @constant */
                         type: "https://ethr.et/errors/rate-limit";
                         /** @constant */
@@ -16107,10 +16109,11 @@ export interface operations {
             422: components["responses"]["ValidationException"];
             429: {
                 headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
+                    "application/problem+json": {
                         /** @constant */
                         type: "https://ethr.et/errors/rate-limit";
                         /** @constant */

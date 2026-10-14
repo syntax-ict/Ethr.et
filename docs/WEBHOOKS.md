@@ -179,19 +179,47 @@ saved** — on create and, since 2026-10-01, on update (`StoreWebhookRequest.php
 send** (`DispatchWebhookJob.php:94-99`), so a hostname whose DNS later points inside the network
 is refused too.
 
-Refused (`api/app/Support/OutboundHost.php:26-71`): `localhost`, `0.0.0.0`, `::`, `::1`; any
-name ending `.localhost`, `.local`, `.internal`, `.localdomain`; the cloud metadata names; bare
-integer or hex IPv4 literals (`2130706433`, `0x7f000001`); private and reserved IPv4 and IPv6
-ranges, including IPv4-mapped IPv6; and any hostname that resolves (A or AAAA) to one of those.
+Refused (`api/app/Support/OutboundHost.php`): `localhost`, `0.0.0.0`, `::`, `::1`; any
+name ending `.localhost`, `.local`, `.internal`, `.localdomain`; the cloud metadata names; **any
+all-numeric host that is not a plain dotted quad** — `2130706433`, `0x7f000001`, and the short
+and octal forms `127.1` and `0177.0.0.1`, which curl connects to 127.0.0.1; every address that is
+not globally routable (private, loopback, link-local and reserved, plus carrier-grade NAT
+`100.64.0.0/10`, `192.0.0.0/24` and `198.18.0.0/15`, which PHP's own flags let through), including the IPv4 address carried by an
+IPv4-mapped (`::ffff:…`) or NAT64 (`64:ff9b::…`) IPv6 one; and any hostname that resolves (A or
+AAAA) to one of those.
 
-Two residual gaps, stated rather than hidden:
+*(2026-10-14, end-to-end test D8: `127.1` and `0177.0.0.1` were accepted. PHP's resolver
+returned nothing for them on the test machine, so they passed as external, while curl expanded
+both to loopback and the delivery reached a receiver on 127.0.0.1. `100.64.0.1` was accepted
+too: `NO_PRIV_RANGE | NO_RES_RANGE` does not cover it.)*
+
+**Redirects are not followed** (`withoutRedirecting()`), verified end to end on 2026-10-14: a
+receiver answering `302` got one request, the delivery recorded `302`, and nothing was retried.
+
+One residual gap, stated rather than hidden:
 
 - **DNS rebinding.** The name is checked, then connected to separately; a name whose DNS
-  changes between the two is not caught (`OutboundHost.php:20-22` says so).
-- **Redirects — not verified.** The job does not disable redirects (`:106-114`), and Laravel's
-  HTTP client follows them by default, so a public URL that answers `302` to an internal address
-  would be followed without the target being checked. Read from the library defaults; no test
-  here exercises it. Recorded as a finding of this document.
+  changes between the two is not caught (`OutboundHost.php` says so).
+
+### Testing against a receiver on your own machine
+
+The rule above refuses `http://127.0.0.1:…`, so a local receiver cannot be registered as it
+stands. On a developer machine set
+
+```
+WEBHOOK_ALLOW_PRIVATE_HOSTS=true
+```
+
+in `api/.env` (or the dev server's environment) and restart the API and the queue worker. It is
+honoured **only when `APP_ENV` is `local` or `testing`** — in production it is ignored, so a stray
+line cannot open SSRF — and only for webhook URLs: the SMS gateway endpoint, which uses the same
+rule, stays refused (`App\Support\WebhookTargets`, `config/webhooks.php`).
+
+### API keys cannot manage webhooks
+
+Creating, listing, changing or testing a webhook needs a signed-in admin. An API key gets
+`403 api-key-session-only` there, whatever its abilities: a key that could create a webhook
+could route every event to a receiver of its choosing and keep it after the key is revoked.
 
 ## Where to look when deliveries stop
 

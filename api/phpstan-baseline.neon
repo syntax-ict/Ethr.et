@@ -289,12 +289,6 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Webhook/WebhookController.php
 
 		-
-			message: '#^Parameter \#2 \$values of method Illuminate\\Http\\JsonResponse\:\:header\(\) expects array\|string, int given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Middleware/RateLimitLoginAttempts.php
-
-		-
 			message: '#^Method App\\Http\\Middleware\\SecurityHeaders\:\:handle\(\) has no return type specified\.$#'
 			identifier: missingType.return
 			count: 1

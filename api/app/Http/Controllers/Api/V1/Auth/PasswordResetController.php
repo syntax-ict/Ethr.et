@@ -55,7 +55,7 @@ class PasswordResetController extends Controller
                 'title' => 'Too Many Requests',
                 'status' => 429,
                 'detail' => 'Too many password reset attempts. Try again in a few minutes.',
-            ], 429);
+            ], 429, ['Content-Type' => 'application/problem+json', 'Retry-After' => RateLimiter::availableIn($key)]);
         }
         RateLimiter::hit($key, 300);
 

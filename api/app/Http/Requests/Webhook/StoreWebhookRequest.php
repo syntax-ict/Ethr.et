@@ -19,7 +19,7 @@ class StoreWebhookRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'url' => ['required', 'url', 'max:500', new ExternalUrl],
+            'url' => ['required', 'url', 'max:500', new ExternalUrl(webhookTarget: true)],
             'events' => ['required', 'array', 'min:1'],
             'events.*' => ['string', 'distinct', Rule::in(WebhookEvents::ALL)],
         ];

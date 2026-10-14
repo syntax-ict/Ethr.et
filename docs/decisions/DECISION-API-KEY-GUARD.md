@@ -41,12 +41,30 @@ Three things, each with the alternative it was chosen over.
 What the key refuses says nothing about why: unknown, expired, revoked, creator inactive and
 tenant suspended all answer the same 401, so a leaked key reveals no state.
 
+### Amended 2026-10-14 — what no key reaches, and whose budget it spends
+
+The end-to-end test of the public API found that a key with `write` could mint another key
+(`POST /api-keys` → 201), create a webhook and read its secret, and create users — each of which
+outlives revoking the key that made it, so one leaked key could make itself permanent (D1).
+
+4. **Some surfaces are session-only.** `ApiKeyAbilities::SESSION_ONLY` — `admin`, `api-keys`,
+   `auth`, `billing`, `maintenance`, `permissions`, `profile`, `roles`, `scim`, `sso`, `users`,
+   `webhooks` — answers `403 api-key-session-only` to every key, and organisation **settings**
+   are readable by key but not writable (`PUT /settings` carries the MFA policy, and
+   `POST /settings/scim-token` mints a credential). `GET /auth/me` stays open so a key can ask
+   who it is. *Over* a new "admin" ability, which would have put the same power back one
+   checkbox away.
+5. **A key has a rate budget of its own.** `api-global` is keyed `api-key:<id>` for a request
+   that authenticated by key, so a busy integration no longer spends the allowance of the admin
+   who made it (D4). The route-level limits (`dashboard`, `payroll-process`, …) are unchanged.
+
 ## What it costs
 
 - Two new `withoutGlobalScopes` sites (161/59): the key lookup is pre-authentication and keyed on
   the secret, like `ScimAuth`; the creator lookup states `tenant_id` from the key.
-- `api-global` rate limiting counts a key's calls against its creator's budget (300/min), since
-  the creator is the user. A busy integration shares a budget with the person who made the key.
+- ~~`api-global` rate limiting counts a key's calls against its creator's budget (300/min), since
+  the creator is the user. A busy integration shares a budget with the person who made the key.~~
+  *Closed 2026-10-14 (decision 5 above): each key now has its own 300/min.*
 - A key inherits every constraint on its creator, including `RequireTenantMfaEnrolment` when a
   tenant enforces enrolment: an un-enrolled creator's keys stop working. That is a feature of
   acting as a person, not a side effect; document it where keys are issued if it bites.
