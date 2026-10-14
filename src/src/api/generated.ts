@@ -2919,6 +2919,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/tenant-landing/announcements/{announcement}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One landing announcement in full, for its detail view. Only what the
+         *     feed itself lists can be opened: published, not expired, marked for the
+         *     landing and addressed to everyone; anything else is the same 404
+         */
+        get: operations["landingFeed.announcement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/leave/request": {
         parameters: {
             query?: never;
@@ -16935,6 +16956,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /**
+             * @description Cached briefly, like tenant-context: the portal is public and read
+             *     far more often than news is published, and Vary keeps one tenant's
+             *     feed from being served as another's through a shared cache.
+             */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17001,6 +17027,33 @@ export interface operations {
                         apply_url: string | null;
                         description: string;
                         requirements: string | null;
+                    };
+                };
+            };
+        };
+    };
+    "landingFeed.announcement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                announcement: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        title: string;
+                        body: string;
+                        priority: string;
+                        published_at: string | null;
                     };
                 };
             };

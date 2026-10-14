@@ -1129,3 +1129,23 @@
     animation-delay: 0ms !important;
   }
 }
+
+/* A vacancy or announcement opened on the portal prints as the page's only
+   content, so a position can be pinned on a notice board. The dialog is
+   portalled to the end of <body>, which is why this hides by visibility
+   rather than display: the dialog's ancestors must keep their boxes. */
+@media print {
+  body:has(.print-surface) *:not(.print-surface, .print-surface *) {
+    visibility: hidden;
+  }
+  body:has(.print-surface) .print-surface {
+    visibility: visible;
+    position: absolute;
+    inset: 0;
+    max-height: none;
+    overflow: visible;
+    transform: none;
+    border: 0;
+    box-shadow: none;
+  }
+}

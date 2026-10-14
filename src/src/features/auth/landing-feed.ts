@@ -9,6 +9,8 @@ export type LandingFeed =
   operations["landingFeed.index"]["responses"][200]["content"]["application/json"];
 export type LandingVacancy =
   operations["landingFeed.vacancy"]["responses"][200]["content"]["application/json"];
+export type LandingAnnouncement =
+  operations["landingFeed.announcement"]["responses"][200]["content"]["application/json"];
 
 /**
  * A public request to the organisation the sign-in page is for, asked the
@@ -55,6 +57,22 @@ export function useLandingVacancy(
       getPublic<LandingVacancy>(
         request!,
         `/auth/tenant-landing/vacancies/${encodeURIComponent(publicId!)}`,
+      ),
+    enabled: request !== null && publicId !== null,
+    retry: false,
+  });
+}
+
+export function useLandingAnnouncement(
+  request: TenantRequest | null,
+  publicId: string | null,
+) {
+  return useQuery<LandingAnnouncement>({
+    queryKey: ["auth", "landing-announcement", requestKey(request), publicId],
+    queryFn: () =>
+      getPublic<LandingAnnouncement>(
+        request!,
+        `/auth/tenant-landing/announcements/${encodeURIComponent(publicId!)}`,
       ),
     enabled: request !== null && publicId !== null,
     retry: false,

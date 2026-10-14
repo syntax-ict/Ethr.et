@@ -155,3 +155,44 @@ it('drops a stored apply link that is not https', function () {
         ->assertJsonPath('vacancies.0.apply_url', null)
         ->assertJsonPath('vacancies.0.apply_email', null);
 });
+
+it('is cached briefly and varies by host and tenant header', function () {
+    $tenant = createTenant();
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/auth/tenant-landing/feed")
+        ->assertOk()
+        ->assertHeader('Cache-Control', 'max-age=120, public')
+        ->assertHeader('Vary', 'Host, X-Tenant, Origin');
+});
+
+it('opens a landing announcement in full, and nothing else', function () {
+    $tenant = createTenant();
+    $onLanding = feedAnnouncement($tenant, [
+        'title' => 'Site maintenance on Saturday',
+        'body' => 'The plant gate closes at noon.
+<script>x</script>Bring your badge.',
+    ]);
+    $internal = feedAnnouncement($tenant, ['show_on_landing' => false]);
+    $other = feedAnnouncement(createTenant());
+
+    $url = fn (string $id) => feedUrl($tenant, "/auth/tenant-landing/announcements/{$id}");
+
+    test()->getJson($url($onLanding->public_id))
+        ->assertOk()
+        ->assertJsonPath('title', 'Site maintenance on Saturday')
+        ->assertJsonMissingPath('id')
+        ->assertJsonPath('body', fn (string $body) => ! str_contains($body, '<script>')
+            && str_contains($body, 'Bring your badge.'));
+
+    test()->getJson($url($internal->public_id))->assertNotFound();
+    test()->getJson($url($other->public_id))->assertNotFound();
+});
+
+it('keeps announcement detail behind the same section switch as the feed', function () {
+    $tenant = createTenant();
+    $tenant->update(['landing' => ['background' => 'brand', 'sections' => ['announcements' => false]]]);
+    $announcement = feedAnnouncement($tenant);
+
+    test()->getJson(feedUrl($tenant, "/auth/tenant-landing/announcements/{$announcement->public_id}"))
+        ->assertNotFound();
+});
