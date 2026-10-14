@@ -10,3 +10,4 @@ Disallow: /reset-password
 
 Host: https://www.ethr.et
 Sitemap: https://www.ethr.et/sitemap.xml
+Sitemap: https://www.ethr.et/sitemap-organisations.xml
