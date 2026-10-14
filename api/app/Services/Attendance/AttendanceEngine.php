@@ -14,11 +14,15 @@ use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Tenant;
+use App\Support\AttendanceWebhookPayload;
 use App\Support\TenantTime;
+use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
 
 final class AttendanceEngine
 {
+    use DispatchesWebhooks;
+
     /** How long after a check-in a check-out on the next day may still close it. */
     private const MAX_OPEN_HOURS = 14;
 
@@ -267,6 +271,17 @@ final class AttendanceEngine
 
         AttendanceRecorded::dispatch($record);
 
+        // A punch that became a record of its own: a new one, or one kept
+        // beside an earlier record of the day and flagged for review (a
+        // second session, another device hours later) - its check-out is
+        // announced too, so its check-in must be. One merged into or
+        // deduplicated against an existing record - the same person seen by
+        // a second device minutes apart - announces nothing: the record it
+        // joined was announced when it was made.
+        if (in_array($resolution->action, ['created', 'flagged'], true)) {
+            $this->webhook($record->tenant_id, 'attendance.checked_in', AttendanceWebhookPayload::of($record, $employee));
+        }
+
         return new AttendanceResult($record);
     }
 
@@ -303,6 +318,8 @@ final class AttendanceEngine
         $this->inspector->inspect($record, $input, $employee, $settings, 'check_out', $now);
 
         AttendanceRecorded::dispatch($record);
+
+        $this->webhook($record->tenant_id, 'attendance.checked_out', AttendanceWebhookPayload::of($record, $employee));
 
         return new AttendanceResult($record);
     }
