@@ -39,6 +39,11 @@ return [
     'otp_invalid' => 'ያ የማረጋገጫ ኮድ ልክ ያልሆነ ወይም ጊዜው ያለፈበት ነው።',
     'otp_unavailable' => 'የማረጋገጫ ኮዶች ሊላኩ አይችሉም — የSMS መተላለፊያ አልተዋቀረም።',
     'otp_message' => 'የእርስዎ ETHR ማረጋገጫ ኮድ :code ነው። በ :minutes ደቂቃዎች ውስጥ ጊዜው ያበቃል።',
+    'otp_email_unavailable' => 'የመግቢያ ኮዶች በኢሜይል ሊላኩ አይችሉም — የኢሜይል አገልጋይ አልተዋቀረም።',
+    'otp_email_subject' => 'የእርስዎ ETHR የመግቢያ ኮድ፦ :code',
+    'otp_email_intro' => 'በETHR ወደ :organisation ለመግባት ይህን ኮድ ይጠቀሙ፦',
+    'otp_email_expiry' => 'በ :minutes ደቂቃዎች ውስጥ ጊዜው ያበቃል፤ አንድ ጊዜ ብቻ ይሠራል።',
+    'otp_email_ignore' => 'ለመግባት ካልጠየቁ ይህን ኢሜይል ችላ ይበሉ። ማንም ሰው የኢሜይል ሳጥንዎን ሳይደርስ ኮዱን መጠቀም አይችልም።',
 
     // Trusted devices
 

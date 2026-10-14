@@ -8,15 +8,19 @@ use App\Contracts\SmsSender;
 use App\Models\AuditLog;
 use App\Models\OtpCode;
 use App\Models\User;
+use App\Notifications\SignInCodeNotification;
 use App\Services\Sms\SmsNumber;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Issue and verify one-time login codes (PHASE_00 S02).
  *
- * Delivery goes through `SmsSender`, so this is only usable where a gateway is
- * configured. The `log` driver reports itself unavailable, which is what keeps
- * the endpoint from claiming to have sent something it did not.
+ * A code goes by text message through `SmsSender`, or by email. Each channel
+ * says whether it can deliver: the `log` SMS driver and the `log`/`array`
+ * mailers report themselves unavailable, which is what keeps the endpoint from
+ * claiming to have sent something it did not.
  */
 class OtpService
 {
@@ -24,13 +28,24 @@ class OtpService
 
     public const TTL_MINUTES = 5;
 
+    public const CHANNEL_SMS = 'sms';
+
+    public const CHANNEL_EMAIL = 'email';
+
     /** Codes a user may have outstanding before new requests are refused. */
     private const MAX_OUTSTANDING = 3;
 
+    /** Mailers that accept a message without delivering it anywhere. */
+    private const UNDELIVERED_MAILERS = ['log', 'array'];
+
     public function __construct(private readonly SmsSender $sms) {}
 
-    public function isAvailable(): bool
+    public function isAvailable(string $channel = self::CHANNEL_SMS): bool
     {
+        if ($channel === self::CHANNEL_EMAIL) {
+            return ! in_array(config('mail.default'), self::UNDELIVERED_MAILERS, true);
+        }
+
         return $this->sms->isAvailable();
     }
 
@@ -41,9 +56,13 @@ class OtpService
      * user always has exactly one live code and an attacker cannot widen the
      * guessing surface by requesting many at once.
      */
-    public function issue(User $user, string $purpose = OtpCode::PURPOSE_LOGIN): bool
+    public function issue(User $user, string $purpose = OtpCode::PURPOSE_LOGIN, string $channel = self::CHANNEL_SMS): bool
     {
-        if ($user->phone === null || ! SmsNumber::isValid($user->phone)) {
+        $reachable = $channel === self::CHANNEL_EMAIL
+            ? $user->email !== ''
+            : $user->phone !== null && SmsNumber::isValid($user->phone);
+
+        if (! $reachable) {
             return false;
         }
 
@@ -67,12 +86,14 @@ class OtpService
             'expires_at' => now()->addMinutes(self::TTL_MINUTES),
         ]);
 
-        $sent = $this->sms->send($user->phone, __('auth.otp_message', [
-            'code' => $code,
-            'minutes' => self::TTL_MINUTES,
-        ]));
+        $sent = $channel === self::CHANNEL_EMAIL
+            ? $this->sendByEmail($user, $code)
+            : $this->sms->send((string) $user->phone, __('auth.otp_message', [
+                'code' => $code,
+                'minutes' => self::TTL_MINUTES,
+            ]));
 
-        AuditLog::record('user.otp_issued', $user, ['purpose' => $purpose, 'delivered' => $sent]);
+        AuditLog::record('user.otp_issued', $user, ['purpose' => $purpose, 'channel' => $channel, 'delivered' => $sent]);
 
         return $sent;
     }
@@ -105,6 +126,30 @@ class OtpService
         AuditLog::record('user.otp_failed', $user, ['purpose' => $purpose]);
 
         return false;
+    }
+
+    /**
+     * Sent now and never retried later — see SignInCodeNotification. A failure
+     * is logged and reported as not delivered; the caller is never thrown at.
+     */
+    private function sendByEmail(User $user, string $code): bool
+    {
+        try {
+            $user->notifyNow(new SignInCodeNotification(
+                $code,
+                self::TTL_MINUTES,
+                (string) ($user->tenant->name ?? 'ETHR'),
+            ));
+
+            return true;
+        } catch (Throwable $e) {
+            Log::error('Sign-in code email failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     private function outstandingCount(User $user, string $purpose): int

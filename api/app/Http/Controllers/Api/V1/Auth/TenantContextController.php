@@ -53,6 +53,7 @@ class TenantContextController extends Controller
                 'sign_in' => [
                     'sso' => SsoSetting::query()->where('is_enabled', true)->exists(),
                     'otp' => $otp->isAvailable(),
+                    'email_code' => $otp->isAvailable(OtpService::CHANNEL_EMAIL),
                 ],
                 'default_locale' => $tenant->default_locale,
             ] : null,

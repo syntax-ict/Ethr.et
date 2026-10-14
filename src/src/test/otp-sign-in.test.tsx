@@ -51,7 +51,10 @@ beforeEach(() => {
   localStorage.setItem("tenant", "acme");
 });
 
+// Codes go by email by default since email sign-in codes; these tests are the
+// text-message path, so they choose it first, as a person would.
 function fillPhone(container: HTMLElement) {
+  fireEvent.click(screen.getByRole("radio", { name: /text message/i }));
   const input = container.querySelector("#phone") as HTMLInputElement;
   fireEvent.change(input, { target: { value: "911223344" } });
 }
