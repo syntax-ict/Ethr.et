@@ -17,7 +17,8 @@ class RequestOtpRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone' => ['required', 'string', 'max:20'],
+            'phone' => ['required_without:email', 'prohibits:email', 'nullable', 'string', 'max:20'],
+            'email' => ['required_without:phone', 'nullable', 'string', 'email', 'max:255'],
             // Read by the ResolveTenant middleware when the request is not on a
             // tenant subdomain and carries no X-Tenant header.
             'tenant' => ['nullable', 'string'],

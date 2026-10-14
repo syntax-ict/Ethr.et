@@ -7490,7 +7490,9 @@ export interface components {
         };
         /** RequestOtpRequest */
         RequestOtpRequest: {
-            phone: string;
+            phone?: string | null;
+            /** Format: email */
+            email?: string | null;
             /**
              * @description Read by the ResolveTenant middleware when the request is not on a
              *     tenant subdomain and carries no X-Tenant header.
@@ -8876,7 +8878,9 @@ export interface components {
         };
         /** VerifyOtpRequest */
         VerifyOtpRequest: {
-            phone: string;
+            phone?: string | null;
+            /** Format: email */
+            email?: string | null;
             code: string;
             tenant?: string | null;
         };
@@ -19709,7 +19713,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["RequestOtpRequest"];
             };
@@ -19739,8 +19743,8 @@ export interface operations {
                         title: "OTP Unavailable";
                         /** @constant */
                         status: 503;
-                        /** @constant */
-                        detail: "Verification codes cannot be sent — no SMS gateway is configured.";
+                        /** @enum {string} */
+                        detail: "auth.otp_email_unavailable" | "auth.otp_unavailable";
                     };
                 };
             };
@@ -23982,6 +23986,7 @@ export interface operations {
                             sign_in: {
                                 sso: boolean;
                                 otp: boolean;
+                                email_code: boolean;
                             };
                             default_locale: string;
                         } | null;

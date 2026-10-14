@@ -35,7 +35,10 @@ export type TenantRequest =
 /** Which ways in the organisation offers besides a password. */
 export interface TenantSignIn {
   sso: boolean;
+  /** Codes by text message: only once an SMS gateway is configured. */
   otp: boolean;
+  /** Codes by email: wherever mail is configured. */
+  email_code?: boolean;
 }
 
 interface TenantContextResponse {

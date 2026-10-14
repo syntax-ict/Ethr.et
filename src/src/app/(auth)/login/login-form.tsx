@@ -323,8 +323,12 @@ export function LoginForm() {
   // organisation is not known yet, so both stay on offer.
   const offerSso =
     hostAppContext === "tenant" && tenantSignIn ? tenantSignIn.sso : true;
+  // A one-time code by email or by text message, whichever this organisation
+  // can deliver: email wherever mail works, SMS once a gateway is configured.
   const offerOtp =
-    hostAppContext === "tenant" && tenantSignIn ? tenantSignIn.otp : true;
+    hostAppContext === "tenant" && tenantSignIn
+      ? tenantSignIn.otp || Boolean(tenantSignIn.email_code)
+      : true;
   // Not on an organisation's own address: the people there are its
   // employees, and a trial would start a new organisation.
   const offerTrial = hostAppContext !== "tenant";
@@ -546,7 +550,7 @@ export function LoginForm() {
                     href={withOrganisation("/login/otp", carryOrganisation)}
                   >
                     <MessageSquareText className="mr-2 h-4 w-4" />
-                    {t("auth.sign_in_otp", "Sign in with a text message code")}
+                    {t("auth.sign_in_code", "Sign in with a one-time code")}
                   </Link>
                 </Button>
               )}

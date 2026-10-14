@@ -50,6 +50,7 @@ it('returns the host-resolved tenant display info', function () {
                 'sign_in' => [
                     'sso' => false,
                     'otp' => app(OtpService::class)->isAvailable(),
+                    'email_code' => app(OtpService::class)->isAvailable(OtpService::CHANNEL_EMAIL),
                 ],
                 'default_locale' => 'en',
             ],
