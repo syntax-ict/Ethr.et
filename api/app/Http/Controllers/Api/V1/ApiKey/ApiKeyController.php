@@ -9,13 +9,31 @@ use App\Http\Requests\ApiKey\StoreApiKeyRequest;
 use App\Models\ApiKey;
 use App\Models\AuditLog;
 use App\Services\CurrentTenant;
+use App\Support\ApiReference;
 use App\Support\StringList;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class ApiKeyController extends Controller
 {
+    /**
+     * API reference for your organisation's developers.
+     *
+     * Every operation an API key can call, with the abilities each needs, and
+     * the webhook events. Built from the routes at release time.
+     */
+    public function reference(Request $request): JsonResponse
+    {
+        Gate::authorize('apikey.manage');
+
+        $document = json_decode((string) file_get_contents(base_path(ApiReference::PATH)), true);
+        $document['servers'] = [['url' => $request->getSchemeAndHttpHost().'/api/v1']];
+
+        return response()->json($document)->header('Cache-Control', 'private, max-age=300');
+    }
+
     public function index(): JsonResponse
     {
         Gate::authorize('apikey.manage');

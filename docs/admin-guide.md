@@ -283,6 +283,14 @@ For integrating with accounting software or custom systems:
 
 Settings → API Keys → Generate. Keys are scoped (read-only, or per-module write) and can be revoked.
 
-The interactive API documentation at `/api/docs` is available to platform administrators only. Ask your ETHR provider for the API reference.
+**Settings → API Keys → API reference** is the reference for your developers. It covers:
+
+- how to authenticate with a key;
+- what each ability allows;
+- pagination, errors, rate limits and idempotency;
+- webhook signatures and retries;
+- every operation a key can call, with its parameters and the shape of its answer.
+
+It is open to anyone who manages API keys. The full interactive documentation at `/api/docs` also maps the platform console, so it stays with platform administrators.
 
 For event-driven integration, use **Webhooks** (Settings → Webhooks) — HMAC-signed payloads with automatic retry.

@@ -715,6 +715,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // API Keys
     Route::prefix('api-keys')->group(function () {
         Route::get('/', [ApiKeyController::class, 'index']);
+        Route::get('/reference', [ApiKeyController::class, 'reference']);
         // Issuing a key is the capability; listing and revoking stay open so a
         // downgraded tenant can see and withdraw keys that are still live.
         Route::post('/', [ApiKeyController::class, 'store'])
