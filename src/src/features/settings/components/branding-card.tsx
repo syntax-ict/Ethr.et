@@ -137,7 +137,7 @@ export function BrandingCard({
             "A version of your logo that reads on dark surfaces; a PNG with transparency works best. Shown when a visitor uses dark mode.",
           )}
           fileLabel={t("settings.logo_dark_file", "Dark-background logo file")}
-          previewClassName="bg-slate-900"
+          previewClassName="bg-foreground dark:bg-background"
         />
 
         <BrandImageUpload
