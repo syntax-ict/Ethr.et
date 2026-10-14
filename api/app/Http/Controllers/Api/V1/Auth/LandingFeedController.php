@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
+use App\Models\Branch;
 use App\Models\Holiday;
 use App\Models\Vacancy;
 use App\Services\CurrentTenant;
@@ -37,12 +38,38 @@ class LandingFeedController extends Controller
 
     private const HOLIDAYS = 4;
 
+    private const BRANCHES = 12;
+
     public function index(CurrentTenant $currentTenant): JsonResponse
     {
         $tenant = $currentTenant->get();
-        $sections = $tenant !== null
-            ? TenantLanding::present($tenant)['sections']
-            : ['announcements' => false, 'vacancies' => false, 'holidays' => false];
+        $landing = $tenant !== null ? TenantLanding::present($tenant) : null;
+        $sections = $landing['sections'] ?? ['announcements' => false, 'vacancies' => false, 'holidays' => false, 'contact' => false, 'about' => false];
+
+        // The organisation's places, only when it chose to show them: the
+        // name, city and phone a visitor would look for, nothing about who
+        // works there. The count alone is a fact for the about section.
+        $branches = $sections['contact'] && ($landing['show_branches'] ?? false)
+            ? Branch::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->limit(self::BRANCHES)
+                ->get()
+                ->map(fn (Branch $b): array => [
+                    'public_id' => $b->public_id,
+                    'name' => $b->name,
+                    'name_am' => $b->name_am,
+                    'city' => $b->city,
+                    'address' => $b->address,
+                    'phone' => TenantLanding::phone($b->phone),
+                    'latitude' => $b->latitude === null ? null : (float) $b->latitude,
+                    'longitude' => $b->longitude === null ? null : (float) $b->longitude,
+                ])
+                ->all()
+            : [];
+        $branchCount = $sections['about'] && ($landing['show_branch_count'] ?? false)
+            ? Branch::query()->where('is_active', true)->count()
+            : null;
 
         $announcements = $sections['announcements']
             ? Announcement::query()
@@ -99,6 +126,8 @@ class LandingFeedController extends Controller
             'announcements' => $announcements,
             'vacancies' => $vacancies,
             'holidays' => $holidays,
+            'branches' => $branches,
+            'branch_count' => $branchCount,
         ])->withHeaders(['Cache-Control' => 'public, max-age=120', 'Vary' => 'Host, X-Tenant']);
     }
 

@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Tenant;
 use App\Support\FrontendUrl;
+use App\Support\TenantLanding;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 
@@ -57,14 +58,17 @@ final class OrganisationEntryController
             return redirect('/login?org='.rawurlencode($slug));
         }
 
+        // Out of search results unless the organisation switched listing on
+        // in its portal settings (default off): the page is its public
+        // portal, and listing is its choice, not ETHR's.
+        $listed = TenantLanding::present($tenant)['listed'];
+
         return response((string) file_get_contents($landing), 200)
             ->header('Content-Type', 'text/html; charset=UTF-8')
             // The page is the same for every organisation and every release
             // changes it; the branding comes from the API, not this response.
             ->header('Cache-Control', 'no-cache')
-            // A sign-in page, not content: keep each organisation's out of
-            // search results.
-            ->header('X-Robots-Tag', 'noindex, nofollow');
+            ->header('X-Robots-Tag', $listed ? 'index, follow' : 'noindex, nofollow');
     }
 
     private function notFound(): Response
