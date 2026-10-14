@@ -27,6 +27,8 @@ import { DashboardSection } from "@/components/dashboard";
 import { InstallAppBanner } from "@/components/shared/install-app";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { useT } from "@/lib/i18n/useT";
 import { localizedName } from "@/lib/i18n/localizedName";
 import { formatETB } from "@/lib/utils/currency";
@@ -110,7 +112,9 @@ export default function DashboardPage() {
         <div className="min-w-0 space-y-6">
           {!hasNoEmployee && <PulsePrompt />}
           {can.viewAttendanceConflicts && <IntegrityPrompt />}
-          <LeaveOverview />
+          {/* Personal balances; an account with no employee record has none,
+              and "My Day" already says how to get one. */}
+          {!hasNoEmployee && <LeaveOverview />}
           <CalendarWidget />
           <AnnouncementsWidget />
           {/* The standalone unread-count tile that used to sit here restated
@@ -127,6 +131,7 @@ function SelfServiceKpis() {
   const { t, locale } = useT();
   const { data, isLoading } = useEmployeeDashboard();
   const { formatTime } = useDateFormatters();
+  const { formatDate } = useCalendar();
 
   if (isLoading) {
     return (
@@ -179,12 +184,12 @@ function SelfServiceKpis() {
         value={
           balances.length > 0
             ? `${balances[0].remaining} ${t("common.days", "days")}`
-            : "—"
+            : t("dashboard.none", "None")
         }
         sub={
           balances.length > 0
             ? // Null once the leave type has been deleted.
-              (balances[0].type ?? "—")
+              (balances[0].type ?? t("dashboard.leave", "Leave"))
             : t("dashboard.no_leave_configured", "No leave configured")
         }
       />
@@ -192,18 +197,26 @@ function SelfServiceKpis() {
         icon={Wallet}
         tone="primary"
         title={t("dashboard.latest_payslip", "Latest Payslip")}
-        value={payslip ? formatETB(payslip.net_cents) : "—"}
+        value={
+          payslip
+            ? formatETB(payslip.net_cents)
+            : t("dashboard.none_yet", "None yet")
+        }
         sub={payslip?.period ?? t("dashboard.no_payslips", "No payslips")}
       />
       <KpiCard
         icon={CalendarDays}
         tone="warning"
         title={t("dashboard.next_holiday", "Next Holiday")}
-        value={holidays.length > 0 ? localizedName(holidays[0], locale) : "—"}
+        value={
+          holidays.length > 0
+            ? localizedName(holidays[0], locale)
+            : t("dashboard.none", "None")
+        }
         sub={
           holidays.length > 0
-            ? holidays[0].date
-            : t("dashboard.no_upcoming", "No upcoming")
+            ? formatDate(dateFromIso(holidays[0].date), locale)
+            : t("dashboard.no_upcoming", "No upcoming holidays")
         }
       />
     </div>

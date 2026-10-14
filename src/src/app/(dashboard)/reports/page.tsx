@@ -636,7 +636,7 @@ function PreviewResult({ result }: { result: ReportResult }) {
                 <p className="text-xs text-muted-foreground">
                   {t(
                     "reports_page.group_totals",
-                    "Totals per group — for statutory filing (e.g. monthly tax/pension remittance):",
+                    "Totals per group, for statutory filing (e.g. monthly tax and pension remittance):",
                   )}
                 </p>
                 {Object.entries(groupSums).map(([key, sums]) => (

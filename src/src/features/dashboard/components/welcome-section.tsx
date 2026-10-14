@@ -80,7 +80,10 @@ export function WelcomeSection() {
                   <span className="font-medium text-foreground/80">
                     {tenant.name}
                   </span>
-                  <span className="text-border-strong">|</span>
+                  <span
+                    aria-hidden="true"
+                    className="h-1 w-1 rounded-full bg-border-strong"
+                  />
                 </>
               )}
               <time dateTime={new Date().toISOString()}>{dateStr}</time>

@@ -12,6 +12,7 @@ import {
   Loader2,
   Network,
   Users,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -264,8 +265,12 @@ function BranchesTab() {
                     </p>
                   )}
                   {b.address && (
-                    <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                      📍 {b.address}
+                    <p className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
+                      <MapPin
+                        aria-hidden="true"
+                        className="mt-0.5 h-3 w-3 shrink-0"
+                      />
+                      <span className="line-clamp-2">{b.address}</span>
                     </p>
                   )}
                   <div className="mt-2 flex flex-wrap gap-1">
@@ -1513,10 +1518,7 @@ function ActiveToggle({
       />
       <span className="text-sm font-medium">{t("org.active", "Active")}</span>
       <span className="text-xs text-muted-foreground">
-        {t(
-          "org.active_desc",
-          "— inactive items are hidden from selection menus",
-        )}
+        {t("org.active_desc", "Inactive items are hidden from selection menus")}
       </span>
     </label>
   );

@@ -172,10 +172,7 @@ export function ContactContent() {
                       <CheckCircle2 className="h-6 w-6 text-status-success" />
                     </div>
                     <p className="font-semibold text-foreground">
-                      {t(
-                        "marketing.contact.success",
-                        "Message sent successfully!",
-                      )}
+                      {t("marketing.contact.success", "Message sent.")}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {t(

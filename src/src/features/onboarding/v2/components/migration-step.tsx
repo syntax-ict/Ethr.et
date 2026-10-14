@@ -133,7 +133,7 @@ export function MigrationStep({ onCommitted }: { onCommitted?: () => void }) {
       toast.success(
         t(
           "setup2.migration_done",
-          "Migration complete — {{c}} created, {{m}} merged",
+          "Migration complete: {{c}} created, {{m}} merged",
         )
           .replace("{{c}}", String(result.totals.created ?? 0))
           .replace("{{m}}", String(result.totals.merged ?? 0)),

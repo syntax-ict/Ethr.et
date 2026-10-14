@@ -437,7 +437,7 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
           <p className="text-xs text-muted-foreground">
             {t(
               "site_content.testimonial_note",
-              "A quote from a real customer who has agreed to be quoted. The author and the date they agreed are both required — without them the quote is not published, and the landing page shows nothing in its place.",
+              "A quote from a real customer who has agreed to be quoted. The author and the date they agreed are both required. Without them the quote is not published, and the landing page shows nothing in its place.",
             )}
           </p>
           <div className="mt-3 space-y-4">
@@ -494,7 +494,7 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
               ? t("site_content.metrics_live", "Figures are live on the site.")
               : t(
                   "site_content.metrics_empty",
-                  "No figures published — the site states none.",
+                  "No figures published. The site states none.",
                 )}
           </p>
           <Button onClick={save} disabled={update.isPending}>

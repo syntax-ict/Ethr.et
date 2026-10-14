@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEmployeeDashboard } from "@/features/dashboard/api";
 import { useT } from "@/lib/i18n/useT";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -13,6 +14,7 @@ import { WidgetError } from "./widget-error";
 
 export function LeaveOverview() {
   const { t } = useT();
+  const { can } = usePermissions();
   const { data, isLoading, isError, refetch } = useEmployeeDashboard();
 
   if (isError) {
@@ -74,19 +76,27 @@ export function LeaveOverview() {
             <p className="mt-3 text-sm font-medium text-foreground">
               {t("dashboard.no_leave_configured", "No leave configured")}
             </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(
-                "dashboard.contact_hr_leave",
-                "Contact HR to set up leave types",
-              )}
-            </p>
+            {can.manageLeaveTypes ? (
+              <Button variant="outline" size="sm" className="mt-3" asChild>
+                <Link href="/settings/leave-types">
+                  {t("dashboard.set_up_leave_types", "Set up leave types")}
+                </Link>
+              </Button>
+            ) : (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t(
+                  "dashboard.contact_hr_leave",
+                  "Contact HR to set up leave types",
+                )}
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
             {balances.map((b, i) => {
               const { entitled, used, remaining } = b;
               // Null once the leave type has been deleted.
-              const type = b.type ?? "—";
+              const type = b.type ?? t("dashboard.leave", "Leave");
               const pct =
                 entitled > 0 ? Math.round((used / entitled) * 100) : 0;
               const isLow = remaining <= 3 && entitled > 0;

@@ -125,7 +125,7 @@ export default function ApprovalsPage() {
 
         {/* QueryBoundary, so a failed load says so. It used to fall through
             to the empty state: a reviewer whose queue could not be read was
-            told "All caught up!". */}
+            told "No pending approvals". */}
         <QueryBoundary
           query={pending}
           loading={
@@ -149,7 +149,7 @@ export default function ApprovalsPage() {
           empty={
             <EmptyState
               icon={CheckSquare}
-              title={t("approvals.empty_title", "All caught up!")}
+              title={t("approvals.empty_title", "No pending approvals")}
               description={t(
                 "approvals.empty_desc",
                 "No pending approvals at this time",

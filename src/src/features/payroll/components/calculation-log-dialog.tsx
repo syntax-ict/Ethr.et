@@ -284,7 +284,7 @@ function toLines(
           : pension.exempt_reason === "ethiopian_origin_unconfirmed"
             ? t(
                 "payroll_detail_page.calc_exempt_ethiopian_origin",
-                "Foreign national of Ethiopian origin — coverage not yet confirmed",
+                "Foreign national of Ethiopian origin: coverage not yet confirmed",
               )
             : t(
                 "payroll_detail_page.calc_exempt_non_national",

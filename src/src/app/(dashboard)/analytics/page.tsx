@@ -74,7 +74,7 @@ export default function AnalyticsPage() {
           value: data.leave_utilization.utilization_rate,
         },
         ...data.headcount.by_department.map((d) => ({
-          metric: `Headcount — ${d.department}`,
+          metric: `Headcount: ${d.department}`,
           value: d.count,
         })),
       ],

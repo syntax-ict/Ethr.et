@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useManagerDashboard } from "@/features/dashboard/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +22,8 @@ import { KpiCard } from "./kpi-card";
 import { WidgetError } from "./widget-error";
 
 export function TeamOverview() {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { formatDate } = useCalendar();
   const { isSupervisor, can } = usePermissions();
   const { data, isLoading, isError, refetch } =
     useManagerDashboard(isSupervisor);
@@ -153,7 +156,8 @@ export function TeamOverview() {
               {data.team_on_leave.map((member, i) => {
                 // `employee?->name`; the team is live employees, so this is
                 // a type-level null rather than one seen in practice.
-                const name = member.employee_name ?? "—";
+                const name =
+                  member.employee_name ?? t("dashboard.employee", "Employee");
                 return (
                   <div
                     key={i}
@@ -173,7 +177,9 @@ export function TeamOverview() {
                       variant="outline"
                       className="text-[11px] tabular-nums"
                     >
-                      {member.start_date} — {member.end_date}
+                      {formatDate(dateFromIso(member.start_date), locale)}
+                      {" – "}
+                      {formatDate(dateFromIso(member.end_date), locale)}
                     </Badge>
                   </div>
                 );

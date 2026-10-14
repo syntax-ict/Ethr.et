@@ -257,11 +257,11 @@ export function AppHeader() {
               calendar === "ethiopian"
                 ? t(
                     "calendar.ethiopian_active",
-                    "Ethiopian Calendar — click for Gregorian",
+                    "Ethiopian calendar. Click for Gregorian.",
                   )
                 : t(
                     "calendar.gregorian_active",
-                    "Gregorian Calendar — click for Ethiopian",
+                    "Gregorian calendar. Click for Ethiopian.",
                   )
             }
           >

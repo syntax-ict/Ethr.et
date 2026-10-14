@@ -31,7 +31,7 @@ describe("Legal documents", () => {
     // this test should stop demanding a banner, not start failing.
     if (LEGAL_REVIEW_REQUIRED) {
       expect(
-        screen.getByText("Draft — pending legal review"),
+        screen.getByText("Draft: pending legal review"),
       ).toBeInTheDocument();
       expect(
         screen.getByText(/not yet been reviewed by a qualified legal adviser/i),

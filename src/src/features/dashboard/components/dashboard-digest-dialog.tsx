@@ -234,7 +234,7 @@ export function DashboardDigestDialog({
                             <CalendarClock className="h-3 w-3" />{" "}
                             {d.next_run_at
                               ? formatDateTime(d.next_run_at)
-                              : "—"}
+                              : t("dashboard.not_scheduled", "Not scheduled")}
                           </span>
                         </div>
                       </div>

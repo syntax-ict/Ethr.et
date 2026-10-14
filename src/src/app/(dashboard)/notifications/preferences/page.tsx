@@ -261,7 +261,7 @@ export default function NotificationPreferencesPage() {
                           type="checkbox"
                           checked={value && !unavailable}
                           disabled={cm?.alwaysOn || unavailable}
-                          aria-label={`${label} — ${cm ? t(cm.labelKey) : ch}`}
+                          aria-label={`${label}: ${cm ? t(cm.labelKey) : ch}`}
                           onChange={() => toggle(type, ch)}
                           className="h-5 w-5 cursor-pointer rounded disabled:cursor-not-allowed disabled:opacity-60"
                         />

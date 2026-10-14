@@ -311,7 +311,7 @@ export function LoginForm() {
     hostAppContext === "platform"
       ? t(
           "auth.platform_subtitle",
-          "Platform administration — super admin sign-in",
+          "Platform administration: super admin sign-in",
         )
       : t(
           "auth.enter_credentials",

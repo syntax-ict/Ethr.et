@@ -169,7 +169,7 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
                         key={di}
                         onClick={() => !isEmpty && setSelectedDay(day)}
                         disabled={isEmpty}
-                        title={isEmpty ? "" : `${day.date} — ${day.status}`}
+                        title={isEmpty ? "" : `${day.date}: ${day.status}`}
                         className={cn(
                           "h-4 w-4 rounded-sm transition-colors",
                           bg,

@@ -192,11 +192,11 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
         created > 0
           ? t(
               "setup2.applied",
-              "Configuration applied — {{n}} records created",
+              "Configuration applied: {{n}} records created",
             ).replace("{{n}}", String(created))
           : t(
               "setup2.applied_already",
-              "Configuration applied — already set up",
+              "Configuration applied. Already set up.",
             ),
       );
       if (result.provisioned.warnings.length > 0) {

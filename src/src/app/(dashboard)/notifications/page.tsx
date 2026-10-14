@@ -73,7 +73,7 @@ export default function NotificationsPage() {
         <EmptyState
           icon={Bell}
           title={t("common.no_notifications", "No notifications")}
-          description={t("notifications.caught_up", "You're all caught up!")}
+          description={t("notifications.caught_up", "No new notifications")}
         />
       ) : (
         <div className="space-y-2">

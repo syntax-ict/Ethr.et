@@ -65,7 +65,7 @@ export function LegalDocumentView({ document }: { document: LegalDocument }) {
               <p className="font-semibold text-foreground">
                 {t(
                   "marketing.legal.draft_title",
-                  "Draft — pending legal review",
+                  "Draft: pending legal review",
                 )}
               </p>
               <p className="mt-1 text-muted-foreground">

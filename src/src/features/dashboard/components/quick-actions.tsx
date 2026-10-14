@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useEmployeeDashboard } from "@/features/dashboard/api";
+import { useCurrentUser } from "@/features/auth/api";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +45,11 @@ export function QuickActions() {
   // One attendance CTA that reflects the current state, rather than offering
   // "Check In" to someone who checked in two hours ago (Nielsen #1).
   const isCheckedIn = data?.attendance_today?.status === "checked_in";
+  const { data: user } = useCurrentUser();
+  // Checking in and applying for leave are things an employee does. An
+  // account with no employee record (an organisation's first admin) would
+  // only meet an error, and "My Day" already tells it how to get one.
+  const isEmployee = user?.employee_public_id !== null;
 
   const actions: QuickAction[] = [
     {
@@ -52,13 +58,13 @@ export function QuickActions() {
         : t("common.check_in", "Check In"),
       href: "/attendance",
       icon: isCheckedIn ? LogOut : LogIn,
-      show: true,
+      show: isEmployee,
     },
     {
       label: t("common.apply_leave", "Apply for Leave"),
       href: "/leave",
       icon: Plus,
-      show: true,
+      show: isEmployee,
     },
     {
       label: t("dashboard.review_approvals", "Review Approvals"),

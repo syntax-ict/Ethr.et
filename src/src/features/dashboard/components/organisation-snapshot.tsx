@@ -104,16 +104,25 @@ export function OrganisationSnapshot() {
           icon={Wallet}
           tone="brand"
           label={t("dashboard.payroll_gross", "Payroll (gross)")}
-          value={payrollShown > 0 ? formatETBCompact(payrollShown) : "—"}
+          value={
+            payrollShown > 0
+              ? formatETBCompact(payrollShown)
+              : t("dashboard.payroll_not_run", "Not run yet")
+          }
           hint={
-            thisMonth > 0
-              ? payrollDelta !== null
-                ? undefined
-                : t("dashboard.this_month_payroll", "This month")
-              : t(
-                  "dashboard.last_month_payroll",
-                  "Last month · this month not run yet",
+            payrollShown === 0
+              ? t(
+                  "dashboard.payroll_none_hint",
+                  "No payroll this month or last",
                 )
+              : thisMonth > 0
+                ? payrollDelta !== null
+                  ? undefined
+                  : t("dashboard.this_month_payroll", "This month")
+                : t(
+                    "dashboard.last_month_payroll",
+                    "Last month · this month not run yet",
+                  )
           }
           delta={
             payrollDelta !== null

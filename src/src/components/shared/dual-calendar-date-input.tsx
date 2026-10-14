@@ -113,7 +113,7 @@ export function DualCalendarDateInput({
   const labelText = useLabelText(fieldId);
   const fieldName = ariaLabel ?? labelText;
   const partLabel = (part: string) =>
-    fieldName ? `${fieldName} — ${part}` : part;
+    fieldName ? `${fieldName}, ${part}` : part;
   // The year while it is being typed. Emitting a date on every keystroke made
   // "2" a whole date in year 2, which came back as 1902 and swallowed the
   // next digit (production QA 2026-10-11, P5). A year is committed once it

@@ -12,7 +12,7 @@ export async function generateMetadata({
   return marketingMetadata(locale, "/features", "features", {
     title: "Features",
     description:
-      "Explore ETHR features — attendance, payroll, leave, offline-first, bilingual, and more.",
+      "Explore ETHR features: attendance, payroll, leave, offline-first, bilingual and more.",
   });
 }
 

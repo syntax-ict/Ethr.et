@@ -198,7 +198,7 @@ function tsxFiles(dir: string): string[] {
 
 const N37_PLACEHOLDERS = [
   "Morning Shift",
-  "Optional — context for the transition",
+  "Optional: context for the transition",
   "Spouse, Parent...",
   "BSc, MSc, MBA...",
   "Computer Science...",
