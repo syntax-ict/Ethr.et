@@ -116,6 +116,11 @@ export function OtpForm() {
         "validation.phone",
         "Enter a valid Ethiopian phone number, e.g. 0911223344",
       );
+    } else if (!rules.mobilePhone().safeParse(phone).success) {
+      next.phone = t(
+        "auth.sms_mobile_only",
+        "Text-message codes go only to mobile numbers (starting 9 or 7). Use your mobile number, or get the code by email.",
+      );
     }
 
     setFieldError(next);

@@ -10,6 +10,9 @@ use App\Models\Permission;
 use App\Models\PersonalAccessToken;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
+use App\Models\SmsGateway;
+use App\Models\SmsSend;
+use App\Models\SmsSetting;
 use App\Models\StatutoryLayout;
 use App\Models\Tenant;
 use App\Models\TrustedDevice;
@@ -32,6 +35,12 @@ const GLOBAL_MODELS = [
     OrganizationTemplate::class, // global industry template catalogue
     PersonalAccessToken::class,  // Sanctum's own table
     PlatformSetting::class,      // super-admin settings; every tenant reads the same row
+    // SMS is bought and switched on once for the whole platform by the super
+    // admin, so no tenant owns a gateway, the switch or the send ledger. The
+    // ledger holds no number and no text — only which gateway and why.
+    SmsGateway::class,           // console-configured HTTP gateways (credential encrypted)
+    SmsSetting::class,           // the SMS switch, route and daily cap; one row
+    SmsSend::class,              // accepted messages counted for the daily cap
     // Unlike every other entry here, this one is not a catalogue tenants read.
     // A lead comes from a prospect, so there is no tenant to own the row and no
     // tenant that should ever see it: the missing tenant_id is an absent owner,

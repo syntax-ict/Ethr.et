@@ -30,7 +30,10 @@ async function fillTenantIfAsked(page: Page) {
 // are offered, the SMS specs choose text message first, as a person would.
 async function chooseTextMessage(page: Page) {
   const sms = page.getByRole("radio", { name: "Text message" });
-  await sms.or(page.getByPlaceholder("9XXXXXXXX")).first().waitFor();
+  await sms
+    .or(page.getByPlaceholder("9XXXXXXXX / 7XXXXXXXX"))
+    .first()
+    .waitFor();
   if (await sms.isVisible()) await sms.click();
 }
 
@@ -116,7 +119,7 @@ test.describe("Sign-in flows", () => {
     await fillTenantIfAsked(page);
     await chooseTextMessage(page);
 
-    await page.getByPlaceholder("9XXXXXXXX").fill("911223344");
+    await page.getByPlaceholder("9XXXXXXXX / 7XXXXXXXX").fill("911223344");
     await page.getByRole("button", { name: "Send code" }).click();
 
     await expect(
@@ -138,7 +141,7 @@ test.describe("Sign-in flows", () => {
     await fillTenantIfAsked(page);
     await chooseTextMessage(page);
 
-    await page.getByPlaceholder("9XXXXXXXX").fill("123");
+    await page.getByPlaceholder("9XXXXXXXX / 7XXXXXXXX").fill("123");
     await page.getByRole("button", { name: "Send code" }).click();
 
     await expect(page.getByText(/valid Ethiopian phone number/)).toBeVisible();

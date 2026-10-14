@@ -27,6 +27,8 @@ return [
     */
     'daily_limit_per_user' => (int) env('SMS_DAILY_LIMIT_PER_USER', 5),
 
+    'daily_cap' => (int) env('SMS_DAILY_CAP', 500),
+
     'ethiotelecom' => [
         'endpoint' => env('ETHIOTELECOM_SMS_ENDPOINT'),
         'username' => env('ETHIOTELECOM_SMS_USERNAME'),

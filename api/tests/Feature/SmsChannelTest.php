@@ -6,7 +6,7 @@ use App\Contracts\SmsSender;
 use App\Enums\UserRole;
 use App\Models\Employee;
 use App\Notifications\Channels\SmsChannel;
-use App\Services\Sms\EthioTelecomSmsSender;
+use App\Services\Sms\ConfiguredSmsSender;
 use App\Services\Sms\LogSmsSender;
 use App\Services\Sms\SmsNumber;
 use Illuminate\Notifications\Notification;
@@ -124,40 +124,52 @@ test('the log driver reports itself unavailable so the UI does not offer SMS', f
     expect((new LogSmsSender)->isAvailable())->toBeFalse();
 });
 
-test('the EthioTelecom driver is unavailable until it is configured', function () {
-    config(['sms.ethiotelecom' => ['endpoint' => null, 'username' => null, 'password' => null]]);
-    expect((new EthioTelecomSmsSender)->isAvailable())->toBeFalse();
+// The `.env` gateway (SMS_DRIVER=ethiotelecom + ETHIOTELECOM_SMS_*) is the
+// fallback while no gateway is saved in the console. The class that sent it,
+// EthioTelecomSmsSender, is gone: the same form post is now configuration for
+// the one generic HTTP gateway (see SmsGatewayTest).
+function envGateway(array $overrides = []): void
+{
+    config([
+        'sms.driver' => 'ethiotelecom',
+        'sms.ethiotelecom' => array_merge([
+            'endpoint' => 'https://sms.example.et/send',
+            'username' => 'u',
+            'password' => 'p',
+            'sender_id' => 'ETHR',
+            'timeout' => 5,
+        ], $overrides),
+    ]);
+}
 
-    config(['sms.ethiotelecom' => [
-        'endpoint' => 'https://sms.example.et/send',
-        'username' => 'u',
-        'password' => 'p',
-        'sender_id' => 'ETHR',
-        'timeout' => 5,
-    ]]);
-    expect((new EthioTelecomSmsSender)->isAvailable())->toBeTrue();
+test('the .env gateway is unavailable until it is configured', function () {
+    envGateway(['endpoint' => null, 'username' => null, 'password' => null]);
+    expect(app(ConfiguredSmsSender::class)->isAvailable())->toBeFalse();
+
+    envGateway();
+    expect(app(ConfiguredSmsSender::class)->isAvailable())->toBeTrue();
 });
 
-test('an unconfigured EthioTelecom driver refuses to send instead of pretending', function () {
-    config(['sms.ethiotelecom' => ['endpoint' => null, 'username' => null, 'password' => null]]);
+test('an unconfigured .env gateway refuses to send instead of pretending', function () {
+    Http::fake();
+    envGateway(['endpoint' => null, 'username' => null, 'password' => null]);
 
-    expect((new EthioTelecomSmsSender)->send('0911223344', 'hello'))->toBeFalse();
+    expect(app(ConfiguredSmsSender::class)->send('0911223344', 'hello'))->toBeFalse();
+    Http::assertNothingSent();
 });
 
-test('a configured EthioTelecom driver posts a normalized number to the gateway', function () {
+test('a configured .env gateway posts the same form it always did', function () {
     Http::fake(['*' => Http::response('OK', 200)]);
+    envGateway();
 
-    config(['sms.ethiotelecom' => [
-        'endpoint' => 'https://sms.example.et/send',
-        'username' => 'u',
-        'password' => 'p',
-        'sender_id' => 'ETHR',
-        'timeout' => 5,
-    ]]);
+    expect(app(ConfiguredSmsSender::class)->send('0911223344', 'hello'))->toBeTrue();
 
-    expect((new EthioTelecomSmsSender)->send('0911223344', 'hello'))->toBeTrue();
-
-    Http::assertSent(fn ($request) => $request['to'] === '251911223344' && $request['text'] === 'hello');
+    Http::assertSent(fn ($request) => $request->url() === 'https://sms.example.et/send'
+        && $request['username'] === 'u'
+        && $request['password'] === 'p'
+        && $request['from'] === 'ETHR'
+        && $request['to'] === '251911223344'
+        && $request['text'] === 'hello');
 });
 
 // ── Client-facing availability ──

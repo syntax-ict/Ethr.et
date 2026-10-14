@@ -128,6 +128,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | [`operations/QUEUE-MONITORING.md`](operations/QUEUE-MONITORING.md) | Detecting silent queue death on a host with no supervisor |
 | [`operations/ON-CALL.md`](operations/ON-CALL.md) | **What to do when** something breaks in production — symptom, cause, action, on a host with no shell |
 | [`operations/COMMANDS-AND-SCHEDULE.md`](operations/COMMANDS-AND-SCHEDULE.md) | Every `ethr:*` Artisan command, the full schedule, and first checks when something looks wrong |
+| [`operations/SMS-DELIVERY.md`](operations/SMS-DELIVERY.md) | **SMS on subscription day.** Configured in the platform console, not `.env`; any HTTP gateway, both networks, test before switching on, daily cap. SMPP is out of scope on this host |
 | [`operations/IMPERSONATION.md`](operations/IMPERSONATION.md) | How a platform super admin acts as a tenant admin: MFA re-check, 30-minute token, cross-host handoff, audit tagging, what is blocked. **Ends with three findings on the production (hostname) path that no test covers** |
 
 ### The Bronze/Plesk migration audit — Phases 0–2, 2026-09-25

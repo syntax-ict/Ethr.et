@@ -106,7 +106,7 @@ Enterprise-grade, multi-tenant, offline-first HCM SaaS for Ethiopian organizatio
 | Testing | Pest (PHP), Vitest (TS), Playwright (E2E) | Contract tests via OpenAPI types |
 | Infrastructure | Plesk shared hosting: Apache + PHP-FPM, MariaDB | Docker/Nginx/Supervisor described the VPS target; see *Deployment Compatibility* below |
 | PDF | DomPDF | Payslips, reports |
-| SMS | Interface-based | LogSms (dev), EthioTelecom (prod) |
+| SMS | Interface-based | One configuration-driven HTTP gateway set up in the platform console (`/admin/sms`), `.env` as fallback, log in development — see [`operations/SMS-DELIVERY.md`](operations/SMS-DELIVERY.md). No SMPP |
 
 **Rule:** No paid API dependencies. Everything self-hosted or free-tier.
 
@@ -809,6 +809,7 @@ These models are global and must NOT have `tenant_id` or `BelongsToTenant`:
 - `FeatureFlag` — when `tenant_id` is null (global flag)
 - `SuperAdmin` — platform administrators
 - `StatutoryLayout` — the dated layouts of the national statutory schedules (MoR, POESSA, PSSSA), edited from the platform console *(2026-10-14)*
+- `SmsGateway`, `SmsSetting`, `SmsSend` — SMS delivery, bought and switched on once for the platform; the send ledger holds no number or text *(2026-10-14)*
 
 All other models MUST have `tenant_id` and use `BelongsToTenant`. The `TenantIsolationTest` enforces this.
 

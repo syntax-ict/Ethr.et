@@ -50,8 +50,7 @@ use App\Policies\ShiftRotationPolicy;
 use App\Services\Auth\SessionIdleTimeout;
 use App\Services\Device\DeviceCommandQueue;
 use App\Services\Dns\SystemDnsResolver;
-use App\Services\Sms\EthioTelecomSmsSender;
-use App\Services\Sms\LogSmsSender;
+use App\Services\Sms\ConfiguredSmsSender;
 use App\Services\Sso\SamlProvider;
 use App\Services\Sso\SsoProviderInterface;
 use App\Support\Mail\SmtpTransportWithCaFile;
@@ -90,10 +89,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SsoProviderInterface::class, SamlProvider::class);
         $this->app->bind(DnsResolver::class, SystemDnsResolver::class);
 
-        $this->app->singleton(SmsSender::class, fn () => match (config('sms.driver')) {
-            'ethiotelecom' => new EthioTelecomSmsSender,
-            default => new LogSmsSender,
-        });
+        $this->app->singleton(SmsSender::class, fn ($app) => $app->make(ConfiguredSmsSender::class));
     }
 
     public function boot(): void
@@ -320,6 +316,11 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('dashboard', function (Request $request) {
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Each test is a real message the platform pays for.
+        RateLimiter::for('sms-test', function (Request $request) {
+            return Limit::perHour(10)->by('sms-test:'.($request->user()?->id ?: $request->ip()));
         });
 
         RateLimiter::for('webhooks-test', function (Request $request) {
