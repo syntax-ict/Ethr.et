@@ -363,6 +363,28 @@
     #@ Options -Indexes
     #@ DirectorySlash Off
     #
+    # ── 2a. /login on an organisation's own host → Laravel ────────
+    #
+    # Added 2026-10-14 (organisation portal, PR 5). On the shared host an
+    # organisation's page is ethr.et/{slug} (group 2b), and Laravel renders
+    # the organisation's own <head> into the exported sign-in page: title,
+    # description, canonical, link preview, structured data. On the
+    # organisation's own host - a subdomain or a verified custom domain -
+    # the same page is /login, which group 2 below would serve as a file,
+    # with the generic head. These two conditions carve /login out on every
+    # host that is not the apex, its www alias or the console, and send it
+    # to OrganisationLoginPageController, which resolves the organisation
+    # from the host alone and serves the same file with its head. A host
+    # that names no organisation gets the file unchanged.
+    #
+    # Before group 2 on purpose: group 2 takes every exported page, and
+    # /login is one. __APP_DOMAIN__ is the deployment's apex, taken from
+    # the console host the renderer is given (admin.<APP_DOMAIN>).
+    #
+    #@ RewriteCond %{HTTP_HOST} !^__ADMIN_HOST__$ [NC]
+    #@ RewriteCond %{HTTP_HOST} !^(www\.)?__APP_DOMAIN__(:[0-9]+)?$ [NC]
+    #@ RewriteRule ^login/?$ index.php [L,NC]
+    #
     #@ RewriteCond %{REQUEST_FILENAME} !-f
     #@ RewriteCond %{DOCUMENT_ROOT}/$1.html -f
     #@ RewriteRule ^(.+?)/?$ /$1.html [L]

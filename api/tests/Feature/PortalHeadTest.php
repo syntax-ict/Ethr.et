@@ -41,7 +41,7 @@ function portalTenant(array $landing = [], array $attributes = []): Tenant
 }
 
 /** The exported page, served for the slug with a stand-in login.html. */
-function servePortal(string $slug = 'acme'): TestResponse
+function servePortal(string $url = 'http://ethr.et/acme'): TestResponse
 {
     $page = public_path('login.html');
     $existed = is_file($page);
@@ -49,7 +49,7 @@ function servePortal(string $slug = 'acme'): TestResponse
     file_put_contents($page, '<!doctype html><html lang="am"><head><meta charset="utf-8"><title>Sign in | ETHR</title><meta name="description" content="Sign in to your ETHR workspace."><meta name="theme-color" content="#0F4C75" media="(prefers-color-scheme: light)"><link rel="icon" href="/favicon.ico"></head><body><main id="login"></main></body></html>');
 
     try {
-        return test()->get("http://ethr.et/{$slug}");
+        return test()->get($url);
     } finally {
         $existed ? file_put_contents($page, $original) : unlink($page);
     }
@@ -197,3 +197,58 @@ it('lists only listed organisations in use in the portals sitemap, at their cano
         ->not->toContain('quiet')
         ->not->toContain('gone');
 });
+
+// Organisation portal, PR 5: the same head on the organisation's own host.
+it('renders the head on the organisation subdomain, with that host as the canonical address', function () {
+    config(['tenancy.subdomains' => true]);
+    portalTenant(['message' => 'Check in when you arrive.', 'listed' => true]);
+
+    $html = servePortal('http://acme.ethr.et/login')
+        ->assertOk()
+        ->assertHeader('X-Robots-Tag', 'index, follow')
+        ->getContent();
+
+    expect($html)
+        ->toContain('<title>Acme Manufacturing | ETHR</title>')
+        ->toContain('<link rel="canonical" href="https://acme.ethr.et/login">')
+        ->toContain('<link rel="alternate" hreflang="am" href="https://acme.ethr.et/login?lang=am">')
+        ->toContain('<meta property="og:url" content="https://acme.ethr.et/login">')
+        ->toContain('"url":"https://acme.ethr.et/login"')
+        ->toContain('<main id="login">');
+});
+
+it('renders the head on a verified custom domain, and not on one still pending', function () {
+    portalTenant([], ['custom_domain' => 'hr.acme.com', 'custom_domain_verified_at' => now(), 'address_mode' => 'custom_domain']);
+
+    $html = servePortal('http://hr.acme.com/login')->assertOk()->getContent();
+    expect($html)
+        ->toContain('<title>Acme Manufacturing | ETHR</title>')
+        ->toContain('<link rel="canonical" href="https://hr.acme.com/login">');
+
+    Tenant::factory()->create(['subdomain' => 'pending', 'name' => 'Pending Ltd', 'custom_domain' => 'hr.pending.com', 'landing' => ['background' => 'brand']]);
+    $html = servePortal('http://hr.pending.com/login')->assertOk()->getContent();
+    expect($html)
+        ->toContain('<title>Sign in | ETHR</title>')
+        ->not->toContain('Pending Ltd');
+});
+
+it('serves the page as exported on the apex, the console host, an unknown host and a suspended organisation', function (string $url) {
+    config(['tenancy.subdomains' => true]);
+    portalTenant([], ['status' => $url === 'http://acme.ethr.et/login' ? TenantStatus::SUSPENDED : TenantStatus::ACTIVE]);
+
+    $html = servePortal($url)
+        ->assertOk()
+        ->assertHeader('X-Robots-Tag', 'noindex, nofollow')
+        ->getContent();
+
+    expect($html)
+        ->toContain('<title>Sign in | ETHR</title>')
+        ->not->toContain('Acme Manufacturing');
+})->with([
+    'the apex' => 'http://ethr.et/login',
+    'www' => 'http://www.ethr.et/login',
+    'the console host' => 'http://admin.ethr.et/login',
+    'a subdomain nobody holds' => 'http://nobody.ethr.et/login',
+    'a stranger domain' => 'http://stranger.example/login',
+    'a suspended organisation' => 'http://acme.ethr.et/login',
+]);

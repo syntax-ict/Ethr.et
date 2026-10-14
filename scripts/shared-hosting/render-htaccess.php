@@ -89,6 +89,8 @@ const REQUIRED_IN_BRANCH_B = [
     'RewriteRule ^ index.php [L]',
     // Group 0: the /admin host boundary, which must precede the fallback.
     'RewriteRule ^admin(/|$) - [F,L]',
+    // Group 2a: /login on an organisation's own host, through Laravel.
+    'RewriteRule ^login/?$ index.php [L,NC]',
     // Group 2's two non-Rewrite directives, the ones a name-matching script skipped.
     'Options -Indexes',
     'DirectorySlash Off',
@@ -333,11 +335,25 @@ if (trim($adminHost) === '' || preg_match('/\s/', $adminHost) === 1) {
 // dot matches any character — so admin.example.com would also match adminXexample.com.
 $rendered = str_replace('__ADMIN_HOST__', preg_quote($adminHost, '/'), $rendered);
 
+// `__APP_DOMAIN__` is the deployment's apex (group 2a: /login on every other
+// host goes through Laravel for the organisation's own head). It is the
+// console host without its `admin.` label and port, so the two cannot name
+// different domains; a console host not of that shape is refused rather than
+// guessed at, for the reason __ADMIN_HOST__ has no default.
+$appDomain = preg_replace('/:\d+$/', '', $adminHost);
+if (! is_string($appDomain) || ! str_starts_with($appDomain, 'admin.') || strlen($appDomain) <= strlen('admin.')) {
+    fail('--admin-host must be admin.<APP_DOMAIN>, so the apex can be derived for group 2a. Got: '.var_export($adminHost, true), 2);
+}
+$appDomain = substr($appDomain, strlen('admin.'));
+$rendered = str_replace('__APP_DOMAIN__', preg_quote($appDomain, '/'), $rendered);
+
 $directives = directivesOnly($rendered);
 
-// Nothing may ship with the placeholder still in it.
-if (str_contains($directives, '__ADMIN_HOST__')) {
-    fail('__ADMIN_HOST__ survived into the rendered directives', 3);
+// Nothing may ship with a placeholder still in it.
+foreach (['__ADMIN_HOST__', '__APP_DOMAIN__'] as $placeholder) {
+    if (str_contains($directives, $placeholder)) {
+        fail("{$placeholder} survived into the rendered directives", 3);
+    }
 }
 
 $missing = [];

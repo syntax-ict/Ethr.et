@@ -402,8 +402,10 @@ it('promotes exactly the sentinel lines and no prose', function () {
     // conditions and its rule). 24 → 37 on 2026-10-08: group 0b, per-page
     // segment prefetches (four depths × two conditions and a rule), and the
     // directory condition that stopped group 1's entity rule looping into a 500.
+    // 37 → 40 on 2026-10-14: group 2a, /login on an organisation's own host
+    // through Laravel (two host conditions and its rule).
     expect($sentinels)->toHaveCount(
-        37,
+        40,
         'the sentinel set changed. If that is intended, update this count and say why in the '
         .'commit message; if it is not, a directive has been lost or a prose line marked.'
     );
@@ -414,9 +416,14 @@ it('promotes exactly the sentinel lines and no prose', function () {
         // Apply the same substitution the renderer does, or the two host predicates
         // never match: the template carries __ADMIN_HOST__ and the output carries the
         // escaped hostname. Comparing them raw fails on a correct render.
+        // __APP_DOMAIN__ is the console host without its admin. label and
+        // port, as the renderer derives it (group 2a, 2026-10-14).
         $expected = str_replace(
-            '__ADMIN_HOST__',
-            preg_quote(ETHR_TEST_ADMIN_HOST, '/'),
+            ['__ADMIN_HOST__', '__APP_DOMAIN__'],
+            [
+                preg_quote(ETHR_TEST_ADMIN_HOST, '/'),
+                preg_quote((string) preg_replace('/^admin\.|:\d+$/', '', ETHR_TEST_ADMIN_HOST), '/'),
+            ],
             $sentinel
         );
 
@@ -516,4 +523,34 @@ it('requires an admin host rather than defaulting to a domain', function () {
     expect($status)->toBe(2);
     expect($stderr)->toContain('--admin-host is required');
     expect($stderr)->toContain('denies /admin on the real admin host');
+});
+
+// Organisation portal, PR 5 (2026-10-14): /login on an organisation's own
+// host goes through Laravel so that host gets the organisation's head too.
+it('sends /login on an organisation host to Laravel, and leaves the apex and the console alone', function () {
+    $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
+
+    $loginRule = 'RewriteRule ^login/?$ index.php [L,NC]';
+    expect($directives)->toContain($loginRule);
+    $ruleIndex = ethrHtaccessIndexOf($directives, $loginRule);
+
+    // The two host guards are the two lines directly above the rule: neither
+    // the console host nor the apex (bare or www, with or without a port)
+    // is sent here, because the exported page is right for both of them.
+    $apex = preg_quote(preg_replace('/^admin\.|:\d+$/', '', ETHR_TEST_ADMIN_HOST), '/');
+    expect(array_slice($directives, $ruleIndex - 2, 2))->toBe([
+        'RewriteCond %{HTTP_HOST} !^'.preg_quote(ETHR_TEST_ADMIN_HOST, '/').'$ [NC]',
+        'RewriteCond %{HTTP_HOST} !^(www\.)?'.$apex.'(:[0-9]+)?$ [NC]',
+    ]);
+
+    // After the /admin boundary, before group 2 takes every exported page
+    // (which /login is): the order is what makes the carve-out reachable.
+    $spaFallback = ethrHtaccessIndexOf($directives, 'RewriteRule ^(.+?)/?$ /$1.html [L]');
+    $adminDeny = ethrHtaccessIndexOf($directives, 'RewriteRule ^admin(/|$) - [F,L]');
+    expect($adminDeny)->toBeLessThan($ruleIndex)
+        ->and($ruleIndex)->toBeLessThan($spaFallback);
+
+    // The route exists to answer it.
+    $routes = (string) file_get_contents(base_path('routes/web.php'));
+    expect($routes)->toContain("Route::get('/login', OrganisationLoginPageController::class)");
 });

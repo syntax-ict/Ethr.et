@@ -5,11 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Tenant;
-use App\Models\Vacancy;
-use App\Services\CurrentTenant;
 use App\Support\FrontendUrl;
-use App\Support\PortalHead;
-use App\Support\TenantLanding;
+use App\Support\PortalPage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 
@@ -39,9 +36,6 @@ use Illuminate\Http\Response;
  */
 final class OrganisationEntryController
 {
-    /** As many JobPosting records as the feed lists vacancies. */
-    private const JOB_POSTINGS = 6;
-
     public function __invoke(string $slug): RedirectResponse|Response
     {
         $slug = strtolower($slug);
@@ -64,33 +58,9 @@ final class OrganisationEntryController
             return redirect('/login?org='.rawurlencode($slug));
         }
 
-        // Out of search results unless the organisation switched listing on
-        // in its portal settings (default off): the page is its public
-        // portal, and listing is its choice, not ETHR's.
-        $listed = TenantLanding::present($tenant)['listed'];
-
-        // The organisation's own head (PortalHead): what a search result or
-        // a shared link shows, and the structured data behind it, rendered
-        // here because the exported page is the same file for everyone. Only
-        // the public vacancies the feed lists get a JobPosting.
-        app(CurrentTenant::class)->set($tenant);
-        try {
-            $vacancies = TenantLanding::present($tenant)['sections']['vacancies']
-                ? Vacancy::query()->publiclyListed()->orderByDesc('published_at')->limit(self::JOB_POSTINGS)->get()->all()
-                : [];
-            $head = PortalHead::render($tenant, $vacancies);
-            $ownIcon = $tenant->brandAssetUrl('mark') !== null;
-        } finally {
-            app(CurrentTenant::class)->forget();
-        }
-        $html = PortalHead::inject((string) file_get_contents($landing), $head, $ownIcon);
-
-        return response($html, 200)
-            ->header('Content-Type', 'text/html; charset=UTF-8')
-            // The page is the same for every organisation and every release
-            // changes it; the branding comes from the API, not this response.
-            ->header('Cache-Control', 'no-cache')
-            ->header('X-Robots-Tag', $listed ? 'index, follow' : 'noindex, nofollow');
+        // The organisation's portal: the exported page with its own head
+        // (PortalPage), robots by its listing switch.
+        return PortalPage::respond($tenant, $landing);
     }
 
     private function notFound(): Response
