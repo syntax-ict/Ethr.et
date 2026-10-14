@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  NationalityStatusSelect,
+  type NationalityStatus,
+} from "@/features/employees/components/nationality-status-select";
 import { useState } from "react";
 import {
   branchesApi,
@@ -59,6 +63,7 @@ export default function NewEmployeePage() {
     gender: "",
     date_of_birth: "",
     nationality: "Ethiopian",
+    nationality_status: "ethiopian" as NationalityStatus,
     national_id: "",
     marital_status: "single",
     hire_date: "",
@@ -114,6 +119,7 @@ export default function NewEmployeePage() {
       gender: (form.gender || null) as CreateEmployeePayload["gender"],
       date_of_birth: form.date_of_birth || null,
       nationality: form.nationality || null,
+      nationality_status: form.nationality_status,
       national_id: form.national_id || null,
       marital_status: (form.marital_status ||
         null) as CreateEmployeePayload["marital_status"],
@@ -373,6 +379,19 @@ export default function NewEmployeePage() {
                 <Input
                   value={form.nationality}
                   onChange={(e) => updateField("nationality", e.target.value)}
+                />
+              </FormField>
+
+              <FormField
+                id="nationality_status"
+                label={t("employee.nationality_status")}
+                hint={t("employee.nationality_status_hint")}
+                error={errors.nationality_status}
+              >
+                <NationalityStatusSelect
+                  id="nationality_status"
+                  value={form.nationality_status}
+                  onChange={(v) => updateField("nationality_status", v)}
                 />
               </FormField>
 

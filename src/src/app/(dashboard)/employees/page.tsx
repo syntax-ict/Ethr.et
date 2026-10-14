@@ -43,6 +43,14 @@ export default function EmployeesPage() {
   const { t } = useT();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  // The "check nationality" list: people the 2026-10-14 backfill could not
+  // confirm as Ethiopian from their free-text nationality.
+  const [reviewOnly, setReviewOnly] = useState(false);
+  const { data: reviewData } = useEmployees({
+    per_page: 1,
+    nationalityReview: true,
+  });
+  const reviewCount = reviewData?.meta.total ?? 0;
   const [sorting, setSorting] = useState<SortingState>([
     { id: "name", desc: false },
   ]);
@@ -77,6 +85,7 @@ export default function EmployeesPage() {
     search,
     per_page: 25,
     sort,
+    nationalityReview: reviewOnly,
   });
 
   const exportCsv = useMutation({
@@ -213,6 +222,28 @@ export default function EmployeesPage() {
             </>
           }
         />
+
+        {(reviewCount > 0 || reviewOnly) && (
+          <div className="flex flex-col gap-2 rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft sm:flex-row sm:items-center sm:justify-between">
+            <p>
+              {t("employees.nationality_review_banner", undefined, {
+                count: reviewCount,
+              })}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setReviewOnly((v) => !v);
+                setPage(1);
+              }}
+            >
+              {reviewOnly
+                ? t("employees.nationality_review_show_all")
+                : t("employees.nationality_review_show")}
+            </Button>
+          </div>
+        )}
 
         <DataTable
           key={selectionResetKey}

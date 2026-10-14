@@ -164,6 +164,27 @@ export interface PayrollRegister {
   >;
   /** The pension rates the run applied, from its calculation logs. */
   pension_rates?: { employee: number[]; employer: number[] };
+  /** Who the run exempted from pension, and why — acknowledged at approval. */
+  pension_exemptions?: PensionExemptions;
+}
+
+export interface PensionExemptions {
+  count: number;
+  by_reason: Record<string, number>;
+  employees: {
+    employee_public_id: string | null;
+    employee_name: string;
+    reason: string;
+  }[];
+}
+
+/** The register, as a query: the run page reads its pension exemptions. */
+export function usePayrollRegister(publicId: string, enabled = true) {
+  return useQuery<PayrollRegister>({
+    queryKey: ["payroll", "register", publicId],
+    queryFn: () => fetchPayrollRegister(publicId),
+    enabled: !!publicId && enabled,
+  });
 }
 
 /** "7%", "7% / 8%", or "" for a run that did not record its rates. */
@@ -197,8 +218,21 @@ export function useApprovePayroll() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (publicId: string) => {
-      const { data } = await apiClient.put(`/payroll/runs/${publicId}/approve`);
+    // A run that exempts anyone from pension is approved only with that
+    // count acknowledged; the server refuses any other number.
+    mutationFn: async (vars: {
+      publicId: string;
+      acknowledgedPensionExemptions?: number;
+    }) => {
+      const { data } = await apiClient.put(
+        `/payroll/runs/${vars.publicId}/approve`,
+        vars.acknowledgedPensionExemptions
+          ? {
+              acknowledged_pension_exemptions:
+                vars.acknowledgedPensionExemptions,
+            }
+          : {},
+      );
       return data;
     },
     onSuccess: () => {

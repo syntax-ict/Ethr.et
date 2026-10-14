@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Import;
 
 use App\Enums\EmployeeStatus;
+use App\Enums\NationalityStatus;
 use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\Department;
@@ -166,6 +167,8 @@ class EmployeeImporter
                 'employee_code' => $row['employee_code'] ?? null,
                 'national_id' => $row['national_id'] ?? null,
                 'gender' => $row['gender'] ?? null,
+                'nationality' => $row['nationality'] ?? null,
+                'nationality_status' => $row['nationality_status'] ?? NationalityStatus::ETHIOPIAN->value,
                 'hire_date' => $row['hire_date'],
                 'salary_cents' => isset($row['salary_cents']) ? (int) $row['salary_cents'] : 0,
                 'status' => EmployeeStatus::HIRED,

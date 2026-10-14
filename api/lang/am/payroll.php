@@ -19,4 +19,5 @@ return [
     'run_failed_next_step' => 'ይህ ሂደት በራስ-ሰር እንደገና አይሞከርም። ምክንያቱን ከገመገሙ በኋላ ሂደቱን እንደገና ያስገቡ።',
     'pension_floor_above_ceiling' => 'ዝቅተኛው ገደብ ከከፍተኛው ገደብ በላይ ሊሆን አይችልም።',
     'pension_rule_not_after_latest' => 'አዲስ ደንብ ከ:date በኋላ መጀመር አለበት፤ ይህ ለዚህ ዕቅድ የመጨረሻው ደንብዎ የሚጀምርበት ቀን ነው።',
+    'pension_exemptions_unacknowledged' => 'ይህ ደመወዝ :count ሠራተኛ(ዎች)ን ከጡረታ ነፃ ያደርጋል። ይገምግሟቸው፤ ከዚያ ያንን ቁጥር አረጋግጠው ያጽድቁ።',
 ];

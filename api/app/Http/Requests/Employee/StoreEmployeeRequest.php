@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Employee;
 
 use App\Enums\EmployeeStatus;
+use App\Enums\NationalityStatus;
 use App\Enums\UserRole;
 use App\Http\Requests\Employee\Concerns\ValidatesRelationTenancy;
 use App\Services\CurrentTenant;
@@ -51,6 +52,7 @@ class StoreEmployeeRequest extends FormRequest
             'gender' => ['nullable', 'string', Rule::in(['male', 'female'])],
             'date_of_birth' => ['nullable', 'date', 'before:today', $this->oldEnoughToWork()],
             'nationality' => ['nullable', 'string', 'max:100'],
+            'nationality_status' => ['nullable', 'string', Rule::enum(NationalityStatus::class)],
             // Encrypted at rest; a blind index drives duplicate detection during
             // import and device sync (see IDENTITY_RESOLUTION.md).
             'national_id' => ['nullable', 'string', 'max:50'],
