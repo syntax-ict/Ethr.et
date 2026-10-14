@@ -43,6 +43,7 @@ import {
   type ApiKey,
   type ApiKeyAbility,
 } from "@/features/api-keys/api";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
@@ -119,6 +120,7 @@ export default function ApiKeysPage() {
   const createKey = useCreateApiKey();
   // Creating a key needs the plan's `api_access` feature (N66).
   const hasApiAccess = usePlanFeatures().has("api_access");
+  const { isSuperAdmin } = usePermissions();
   const revokeKey = useRevokeApiKey();
 
   // No `onError` toast — `submit` reports a rejected create inside the dialog,
@@ -172,18 +174,24 @@ export default function ApiKeysPage() {
           description={t("api_keys_page.description")}
           actions={
             <div className="flex gap-2">
-              <Button variant="outline" asChild>
-                {/* A plain <a>, not next/link. `/api/docs` is the backend's
-                    Swagger page reached through the `/api/:path*` rewrite, not
-                    an app route — so next/link prefetched it as an RSC
-                    navigation on mount, and that request never resolved. It
-                    left the page permanently short of network-idle and made
-                    every visit fire a pointless call to the docs endpoint. */}
-                <a href="/api/docs" target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />{" "}
-                  {t("api_keys_page.api_docs")}
-                </a>
-              </Button>
+              {/* Only for whom the backend serves it: `/api/docs` is behind
+                  the `viewApiDocs` gate, super admins only (admin-guide.md).
+                  Shown to every tenant admin, it opened a bare 403 (production
+                  check, 2026-10-14). */}
+              {isSuperAdmin && (
+                <Button variant="outline" asChild>
+                  {/* A plain <a>, not next/link. `/api/docs` is the backend's
+                      Swagger page reached through the `/api/:path*` rewrite,
+                      not an app route — so next/link prefetched it as an RSC
+                      navigation on mount, and that request never resolved. It
+                      left the page permanently short of network-idle and made
+                      every visit fire a pointless call to the docs endpoint. */}
+                  <a href="/api/docs" target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />{" "}
+                    {t("api_keys_page.api_docs")}
+                  </a>
+                </Button>
+              )}
               {hasApiAccess && (
                 <Button onClick={() => setCreateOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />{" "}
