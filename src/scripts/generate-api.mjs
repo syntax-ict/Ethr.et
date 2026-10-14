@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 //
-// Regenerate the API contract: `api/openapi.json` and `src/api/generated.ts`.
+// Regenerate the API contract: `api/openapi.json`, `src/api/generated.ts` and
+// the tenant-facing reference `api/resources/api-reference.json`.
 //
 // It is the command `scripts/api-types-check.sh` tells you to run when the
 // contract gate fails. Native PHP only: a Docker-container fallback lived here
@@ -10,7 +11,10 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const WEB_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 const REPO_ROOT = path.resolve(WEB_DIR, "..");
 const API_DIR = path.join(REPO_ROOT, "api");
 
@@ -35,19 +39,42 @@ const has = (cmd, probeArgs) => {
 
 // Step 1 — export the OpenAPI spec to api/openapi.json.
 if (has("php", ["-v"])) {
-  run("php", ["-d", "memory_limit=512M", "artisan", "scramble:export", "--path=openapi.json"], {
-    cwd: API_DIR,
-  });
+  run(
+    "php",
+    [
+      "-d",
+      "memory_limit=512M",
+      "artisan",
+      "scramble:export",
+      "--path=openapi.json",
+    ],
+    {
+      cwd: API_DIR,
+    },
+  );
 } else {
-  console.error("✗ no php on PATH — install PHP 8.2+ natively (on Windows, XAMPP).");
+  console.error(
+    "✗ no php on PATH — install PHP 8.2+ natively (on Windows, XAMPP).",
+  );
   process.exit(1);
 }
 
 // Step 2 — compile the spec into the TypeScript contract the frontend imports.
 run(
   process.execPath,
-  ["node_modules/openapi-typescript/bin/cli.js", "../api/openapi.json", "-o", "src/api/generated.ts"],
+  [
+    "node_modules/openapi-typescript/bin/cli.js",
+    "../api/openapi.json",
+    "-o",
+    "src/api/generated.ts",
+  ],
   { cwd: WEB_DIR },
 );
 
-console.log("API contract regenerated: api/openapi.json, src/api/generated.ts");
+// Step 3 — the reference an organisation's developers read: the operations an
+// API key can call, filtered from the same spec (App\Support\ApiReference).
+run("php", ["artisan", "ethr:api-reference", "openapi.json"], { cwd: API_DIR });
+
+console.log(
+  "API contract regenerated: api/openapi.json, src/api/generated.ts, api/resources/api-reference.json",
+);

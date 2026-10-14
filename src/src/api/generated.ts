@@ -2795,6 +2795,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api-keys/reference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * API reference for your organisation's developers
+         * @description Every operation an API key can call, with the abilities each needs, and
+         *     the webhook events. Built from the routes at release time.
+         */
+        get: operations["apiKey.reference"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api-keys/{apiKey}": {
         parameters: {
             query?: never;
@@ -16728,6 +16749,27 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "apiKey.reference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "apiKey.destroy": {
