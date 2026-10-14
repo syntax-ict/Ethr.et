@@ -343,6 +343,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Platform Settings",
     description: "Bank account and payment instructions shown to every tenant",
   },
+  "/admin/sms": {
+    section: "Admin",
+    parent: { label: "Admin Console", href: "/admin" },
+    label: "SMS delivery",
+    description: "Gateways, routing and the daily limit for text messages",
+  },
   "/admin/plans": {
     section: "Admin",
     parent: { label: "Admin Console", href: "/admin" },

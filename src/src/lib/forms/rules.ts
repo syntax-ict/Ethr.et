@@ -26,6 +26,14 @@ import { z } from "zod";
  *  bug that made registration unusable for most Ethiopian users. */
 const ETHIOPIAN_PHONE = /^(?:\+?251|0)?[1-9]\d{8}$/;
 
+/**
+ * A mobile number on either network — Ethio Telecom (9…) or Safaricom
+ * Ethiopia (7…) — matching SmsNumber::isValid on the server. Only the text-
+ * message code path uses it: a landline is a valid phone number everywhere
+ * else, and cannot receive a text.
+ */
+const ETHIOPIAN_MOBILE = /^(?:\+?251|0)?[79]\d{8}$/;
+
 /** Mirrors `RegisterTenantRequest`'s `subdomain` regex. */
 const SUBDOMAIN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
@@ -75,6 +83,9 @@ export const rules = {
 
   /** `nullable|string|regex:/^\+251\d{9}$/` after canonicalization. */
   phone: () => z.string().trim().regex(ETHIOPIAN_PHONE, "validation.phone"),
+  /** An Ethiopian mobile number, for SMS. See ETHIOPIAN_MOBILE. */
+  mobilePhone: () =>
+    z.string().trim().regex(ETHIOPIAN_MOBILE, "auth.sms_mobile_only"),
 
   /** Optional phone: empty string is allowed and means "not provided". */
   optionalPhone: () =>

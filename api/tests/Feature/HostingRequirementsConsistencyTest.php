@@ -179,6 +179,7 @@ it('keeps the shared-hosting env template from dropping a key', function () {
         'SESSION_DRIVER',
         'SESSION_LIFETIME',
         'SESSION_SECURE_COOKIE',
+        'SMS_DAILY_CAP',
         'SMS_DAILY_LIMIT_PER_USER',
         'SMS_DRIVER',
         'TENANCY_SUBDOMAINS',

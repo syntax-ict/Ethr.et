@@ -5607,6 +5607,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/sms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List sms */
+        get: operations["smsDelivery.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/sms/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update setting */
+        put: operations["smsDelivery.updateSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/sms/gateways/{slot}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update gateway */
+        put: operations["smsDelivery.saveGateway"];
+        post?: never;
+        /** Delete gateway */
+        delete: operations["smsDelivery.destroyGateway"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/sms/gateways/{slot}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test gateways */
+        post: operations["smsDelivery.testGateway"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/tenant-context": {
         parameters: {
             query?: never;
@@ -7658,6 +7727,31 @@ export interface components {
                 source: "employees" | "attendance" | "leave" | "payroll";
             };
         };
+        /** SaveSmsGatewayRequest */
+        SaveSmsGatewayRequest: {
+            label?: string | null;
+            /** Format: uri */
+            endpoint: string;
+            /** @enum {string} */
+            method: "form" | "json" | "get";
+            /** @enum {string} */
+            auth_type: "none" | "header" | "bearer" | "fields" | "basic";
+            auth_header?: string | null;
+            auth_username?: string | null;
+            auth_secret?: string | null;
+            username_field?: string | null;
+            password_field?: string | null;
+            recipient_field: string;
+            message_field: string;
+            sender_field?: string | null;
+            sender_id?: string | null;
+            /** @enum {string} */
+            number_format: "e164" | "international" | "local";
+            success_json_path?: string | null;
+            success_json_value?: string | null;
+            success_body_contains?: string | null;
+            timeout_seconds?: number;
+        };
         /** ScheduleDashboardDigestRequest */
         ScheduleDashboardDigestRequest: {
             /** @enum {string} */
@@ -8346,6 +8440,10 @@ export interface components {
          * @enum {string}
          */
         TenantStatus: "trial" | "active" | "suspended" | "cancelled";
+        /** TestSmsGatewayRequest */
+        TestSmsGatewayRequest: {
+            phone: string;
+        };
         /**
          * TrackConcernRequest
          * @description A concern's follow-up code, sent in the body so it never sits in a URL or a log.
@@ -8808,6 +8906,13 @@ export interface components {
             working_days?: string;
             is_default?: boolean;
             is_active?: boolean;
+        };
+        /** UpdateSmsSettingsRequest */
+        UpdateSmsSettingsRequest: {
+            enabled?: boolean;
+            /** @enum {string|null} */
+            route_prefix?: "7" | "9" | null;
+            daily_cap?: number;
         };
         /** UpdateSsoRequest */
         UpdateSsoRequest: {
@@ -24216,6 +24321,385 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "smsDelivery.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        route_prefix: string | null;
+                        daily_cap: number;
+                        sent_today: number;
+                        available: boolean;
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        primary: {
+                            slot: string;
+                            label: string | null;
+                            endpoint: string;
+                            method: string;
+                            auth_type: string;
+                            auth_header: string | null;
+                            auth_username: string | null;
+                            secret_set: boolean;
+                            username_field: string | null;
+                            password_field: string | null;
+                            recipient_field: string;
+                            message_field: string;
+                            sender_field: string | null;
+                            sender_id: string | null;
+                            number_format: string;
+                            success_json_path: string | null;
+                            success_json_value: string | null;
+                            success_body_contains: string | null;
+                            timeout_seconds: number;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_status: number | null;
+                            last_test_response: string | null;
+                        } | null;
+                        secondary: {
+                            slot: string;
+                            label: string | null;
+                            endpoint: string;
+                            method: string;
+                            auth_type: string;
+                            auth_header: string | null;
+                            auth_username: string | null;
+                            secret_set: boolean;
+                            username_field: string | null;
+                            password_field: string | null;
+                            recipient_field: string;
+                            message_field: string;
+                            sender_field: string | null;
+                            sender_id: string | null;
+                            number_format: string;
+                            success_json_path: string | null;
+                            success_json_value: string | null;
+                            success_body_contains: string | null;
+                            timeout_seconds: number;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_status: number | null;
+                            last_test_response: string | null;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "smsDelivery.updateSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateSmsSettingsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        route_prefix: string | null;
+                        daily_cap: number;
+                        sent_today: number;
+                        available: boolean;
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        primary: {
+                            slot: string;
+                            label: string | null;
+                            endpoint: string;
+                            method: string;
+                            auth_type: string;
+                            auth_header: string | null;
+                            auth_username: string | null;
+                            secret_set: boolean;
+                            username_field: string | null;
+                            password_field: string | null;
+                            recipient_field: string;
+                            message_field: string;
+                            sender_field: string | null;
+                            sender_id: string | null;
+                            number_format: string;
+                            success_json_path: string | null;
+                            success_json_value: string | null;
+                            success_body_contains: string | null;
+                            timeout_seconds: number;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_status: number | null;
+                            last_test_response: string | null;
+                        } | null;
+                        secondary: {
+                            slot: string;
+                            label: string | null;
+                            endpoint: string;
+                            method: string;
+                            auth_type: string;
+                            auth_header: string | null;
+                            auth_username: string | null;
+                            secret_set: boolean;
+                            username_field: string | null;
+                            password_field: string | null;
+                            recipient_field: string;
+                            message_field: string;
+                            sender_field: string | null;
+                            sender_id: string | null;
+                            number_format: string;
+                            success_json_path: string | null;
+                            success_json_value: string | null;
+                            success_body_contains: string | null;
+                            timeout_seconds: number;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_status: number | null;
+                            last_test_response: string | null;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "smsDelivery.saveGateway": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slot: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveSmsGatewayRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        route_prefix: string | null;
+                        daily_cap: number;
+                        sent_today: number;
+                        available: boolean;
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        primary: {
+                            slot: string;
+                            label: string | null;
+                            endpoint: string;
+                            method: string;
+                            auth_type: string;
+                            auth_header: string | null;
+                            auth_username: string | null;
+                            secret_set: boolean;
+                            username_field: string | null;
+                            password_field: string | null;
+                            recipient_field: string;
+                            message_field: string;
+                            sender_field: string | null;
+                            sender_id: string | null;
+                            number_format: string;
+                            success_json_path: string | null;
+                            success_json_value: string | null;
+                            success_body_contains: string | null;
+                            timeout_seconds: number;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_status: number | null;
+                            last_test_response: string | null;
+                        } | null;
+                        secondary: {
+                            slot: string;
+                            label: string | null;
+                            endpoint: string;
+                            method: string;
+                            auth_type: string;
+                            auth_header: string | null;
+                            auth_username: string | null;
+                            secret_set: boolean;
+                            username_field: string | null;
+                            password_field: string | null;
+                            recipient_field: string;
+                            message_field: string;
+                            sender_field: string | null;
+                            sender_id: string | null;
+                            number_format: string;
+                            success_json_path: string | null;
+                            success_json_value: string | null;
+                            success_body_contains: string | null;
+                            timeout_seconds: number;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_status: number | null;
+                            last_test_response: string | null;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "smsDelivery.destroyGateway": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slot: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        route_prefix: string | null;
+                        daily_cap: number;
+                        sent_today: number;
+                        available: boolean;
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        primary: {
+                            slot: string;
+                            label: string | null;
+                            endpoint: string;
+                            method: string;
+                            auth_type: string;
+                            auth_header: string | null;
+                            auth_username: string | null;
+                            secret_set: boolean;
+                            username_field: string | null;
+                            password_field: string | null;
+                            recipient_field: string;
+                            message_field: string;
+                            sender_field: string | null;
+                            sender_id: string | null;
+                            number_format: string;
+                            success_json_path: string | null;
+                            success_json_value: string | null;
+                            success_body_contains: string | null;
+                            timeout_seconds: number;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_status: number | null;
+                            last_test_response: string | null;
+                        } | null;
+                        secondary: {
+                            slot: string;
+                            label: string | null;
+                            endpoint: string;
+                            method: string;
+                            auth_type: string;
+                            auth_header: string | null;
+                            auth_username: string | null;
+                            secret_set: boolean;
+                            username_field: string | null;
+                            password_field: string | null;
+                            recipient_field: string;
+                            message_field: string;
+                            sender_field: string | null;
+                            sender_id: string | null;
+                            number_format: string;
+                            success_json_path: string | null;
+                            success_json_value: string | null;
+                            success_body_contains: string | null;
+                            timeout_seconds: number;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_status: number | null;
+                            last_test_response: string | null;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "smsDelivery.testGateway": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slot: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestSmsGatewayRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                        status: number | null;
+                        response: string;
+                        verified: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "auth.tenantContext": {

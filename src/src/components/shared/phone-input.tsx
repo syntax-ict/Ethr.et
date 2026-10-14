@@ -56,7 +56,7 @@ export function PhoneInput({
         value={digits}
         onChange={handleChange}
         onBlur={onBlur}
-        placeholder="9XXXXXXXX"
+        placeholder="9XXXXXXXX / 7XXXXXXXX"
         disabled={disabled}
         required={required}
         aria-invalid={ariaInvalid}

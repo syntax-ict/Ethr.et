@@ -21,7 +21,9 @@ describe("PhoneInput", () => {
 
   it("strips the +251 prefix from the editable field's displayed value", () => {
     render(<ControlledPhoneInput initialValue="+251912345678" />);
-    expect(screen.getByPlaceholderText("9XXXXXXXX")).toHaveValue("912345678");
+    expect(screen.getByPlaceholderText("9XXXXXXXX / 7XXXXXXXX")).toHaveValue(
+      "912345678",
+    );
   });
 
   it("emits a full +251-prefixed value as the user types digits", async () => {
@@ -42,7 +44,10 @@ describe("PhoneInput", () => {
     }
 
     render(<Harness />);
-    await user.type(screen.getByPlaceholderText("9XXXXXXXX"), "912345678");
+    await user.type(
+      screen.getByPlaceholderText("9XXXXXXXX / 7XXXXXXXX"),
+      "912345678",
+    );
 
     expect(lastValue).toBe("+251912345678");
   });
@@ -65,7 +70,10 @@ describe("PhoneInput", () => {
     }
 
     render(<Harness />);
-    await user.type(screen.getByPlaceholderText("9XXXXXXXX"), "91-234a5678999");
+    await user.type(
+      screen.getByPlaceholderText("9XXXXXXXX / 7XXXXXXXX"),
+      "91-234a5678999",
+    );
 
     expect(lastValue).toBe("+251912345678");
   });
@@ -74,7 +82,7 @@ describe("PhoneInput", () => {
     const user = userEvent.setup();
     render(<ControlledPhoneInput initialValue="+251912345678" />);
 
-    const input = screen.getByPlaceholderText("9XXXXXXXX");
+    const input = screen.getByPlaceholderText("9XXXXXXXX / 7XXXXXXXX");
     await user.clear(input);
 
     expect(input).toHaveValue("");
