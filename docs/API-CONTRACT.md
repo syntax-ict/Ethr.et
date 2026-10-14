@@ -25,8 +25,9 @@ API Resources       ─┘
 | 1 | **Scramble** (`dedoc/scramble`, locked at **v0.13.36**) documents every route under `api/v1` | `api/composer.json:14`, `api/composer.lock:367-368`, `api/config/scramble.php` (`api_path`) |
 | 2 | `php artisan scramble:export --path=openapi.json` writes **`api/openapi.json`** — not committed | `src/scripts/generate-api.mjs:36-44`; `api/.gitignore:26` |
 | 3 | **openapi-typescript** compiles it to **`src/src/api/generated.ts`** — committed | `src/scripts/generate-api.mjs:46-51`; `src/package.json` (`openapi-typescript` ^7.13.0) |
+| 4 | `php artisan ethr:api-reference openapi.json` filters it to **`api/resources/api-reference.json`** — committed. It keeps the operations an API key can call (routes behind `EnforceApiKeyAbilities` that `ApiKeyAbilities` does not reserve for a session), each with its `x-abilities`. It is served at `GET /api-keys/reference` and rendered at Settings → API Keys → API reference | `api/app/Support/ApiReference.php`; `src/scripts/generate-api.mjs` |
 
-One command runs both steps:
+One command runs every step:
 
 ```bash
 cd src && npm run generate:api        # src/package.json:23 → node scripts/generate-api.mjs

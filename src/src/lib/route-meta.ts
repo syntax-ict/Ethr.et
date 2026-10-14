@@ -288,6 +288,13 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "API Keys",
     description: "Generate and manage API keys for external integrations",
   },
+  "/settings/api-keys/reference": {
+    section: "Admin",
+    parent: { label: "API Keys", href: "/settings/api-keys" },
+    label: "API reference",
+    description:
+      "How to call the ETHR API with an API key, and every operation a key can use",
+  },
   "/settings/webhooks": {
     section: "Admin",
     parent: { label: "Settings", href: "/settings" },

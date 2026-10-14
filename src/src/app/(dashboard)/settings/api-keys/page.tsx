@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
+  BookOpen,
   KeyRound,
   Plus,
   Trash2,
@@ -174,6 +176,12 @@ export default function ApiKeysPage() {
           description={t("api_keys_page.description")}
           actions={
             <div className="flex gap-2">
+              <Button variant="outline" asChild>
+                <Link href="/settings/api-keys/reference">
+                  <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />{" "}
+                  {t("api_keys_page.reference")}
+                </Link>
+              </Button>
               {/* Only for whom the backend serves it: `/api/docs` is behind
                   the `viewApiDocs` gate, super admins only (admin-guide.md).
                   Shown to every tenant admin, it opened a bare 403 (production

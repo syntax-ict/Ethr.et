@@ -64,8 +64,25 @@ if ! (cd "$WEB_DIR" && node node_modules/openapi-typescript/bin/cli.js "$TMP/ope
     exit 1
 fi
 
+# The tenant-facing API reference is filtered from the same spec, so it drifts
+# the same way: a route added for keys and never listed, or one listed that a
+# key is now refused.
+REFERENCE="$API_DIR/resources/api-reference.json"
+if ! (cd "$API_DIR" && php artisan ethr:api-reference "$TMP/openapi.json" --output="$TMP/api-reference.json" >/dev/null 2>&1); then
+    echo "✗ could not build the API reference (php artisan ethr:api-reference)"
+    exit 1
+fi
+if ! diff -q "$TMP/api-reference.json" "$REFERENCE" >/dev/null 2>&1; then
+    echo "✗ api/resources/api-reference.json is stale — the routes an API key can call have changed."
+    echo ""
+    diff "$REFERENCE" "$TMP/api-reference.json" | head -40
+    echo ""
+    echo "Regenerate with:  cd src && npm run generate:api"
+    exit 1
+fi
+
 if diff -q "$TMP/generated.ts" "$COMMITTED" >/dev/null 2>&1; then
-    echo "API types in sync with the live routes."
+    echo "API types and API reference in sync with the live routes."
     exit 0
 fi
 

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
+  BookOpen,
   Webhook,
   Plus,
   Trash2,
@@ -41,6 +43,7 @@ import {
   useWebhooks,
   type Webhook as WebhookEntry,
 } from "@/features/webhooks/api";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
@@ -93,6 +96,7 @@ export default function WebhooksPage() {
   const createWebhook = useCreateWebhook();
   // Creating and editing webhooks needs the plan's `webhooks` feature (N66).
   const hasWebhooks = usePlanFeatures().has("webhooks");
+  const { can } = usePermissions();
   const deleteWebhook = useDeleteWebhook();
   const updateWebhook = useUpdateWebhook();
   const testWebhook = useTestWebhook();
@@ -191,12 +195,23 @@ export default function WebhooksPage() {
           title={t("webhooks_page.title")}
           description={t("webhooks_page.description")}
           actions={
-            hasWebhooks && (
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />{" "}
-                {t("webhooks_page.add_webhook")}
-              </Button>
-            )
+            <>
+              {/* The reference is served to holders of apikey.manage. */}
+              {can.manageApiKeys && (
+                <Button variant="outline" asChild>
+                  <Link href="/settings/api-keys/reference#webhooks">
+                    <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />{" "}
+                    {t("webhooks_page.reference")}
+                  </Link>
+                </Button>
+              )}
+              {hasWebhooks && (
+                <Button onClick={() => setCreateOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />{" "}
+                  {t("webhooks_page.add_webhook")}
+                </Button>
+              )}
+            </>
           }
         />
 

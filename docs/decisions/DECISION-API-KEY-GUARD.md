@@ -48,7 +48,7 @@ The end-to-end test of the public API found that a key with `write` could mint a
 outlives revoking the key that made it, so one leaked key could make itself permanent (D1).
 
 4. **Some surfaces are session-only.** `ApiKeyAbilities::SESSION_ONLY` — `admin`, `api-keys`,
-   `auth`, `billing`, `maintenance`, `permissions`, `profile`, `roles`, `scim`, `sso`, `users`,
+   `auth`, `billing`, `broadcasting`, `maintenance`, `permissions`, `profile`, `roles`, `scim`, `sso`, `users`,
    `webhooks` — answers `403 api-key-session-only` to every key, and organisation **settings**
    are readable by key but not writable (`PUT /settings` carries the MFA policy, and
    `POST /settings/scim-token` mints a credential). `GET /auth/me` stays open so a key can ask
