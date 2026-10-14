@@ -119,7 +119,7 @@ it('exempts a non-national, keeps them off the pension schedule, and leaves thei
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
     pensionEmployee($tenant, 'ET', 600000);
-    pensionEmployee($tenant, 'KE', 600000, ['nationality' => 'Kenyan']);
+    pensionEmployee($tenant, 'KE', 600000, ['nationality' => 'Kenyan', 'nationality_status' => 'foreign']);
 
     $run = pensionRun($tenant, $user->id, '2026-10-01', '2026-10-31');
 

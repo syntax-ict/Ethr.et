@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Enums\NationalityStatus;
 use App\Http\Resources\Concerns\ExposesPhotoUrls;
 use App\Models\Employee;
 use Illuminate\Http\Request;
@@ -30,6 +31,8 @@ class EmployeeResource extends JsonResource
             'gender' => $this->gender,
             'date_of_birth' => $this->date_of_birth?->format('Y-m-d'),
             'nationality' => $this->nationality,
+            'nationality_status' => $this->nationality_status->value ?? NationalityStatus::ETHIOPIAN->value,
+            'nationality_needs_review' => (bool) $this->nationality_needs_review,
             'marital_status' => $this->marital_status,
             'status' => $this->status?->value,
             'hire_date' => $this->hire_date?->format('Y-m-d'),

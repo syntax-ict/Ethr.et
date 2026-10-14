@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Payroll;
 use App\Events\PayrollApproved;
 use App\Events\PayrollProcessed;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Payroll\ApprovePayrollRunRequest;
 use App\Http\Requests\Payroll\ProcessPayrollRequest;
 use App\Http\Requests\Payroll\ReprocessPayrollRunRequest;
 use App\Http\Requests\Payroll\VoidPayrollRunRequest;
@@ -121,7 +122,7 @@ class PayrollController extends Controller
         return new PayrollRunResource($payrollRun);
     }
 
-    public function approve(Request $request, PayrollRun $payrollRun): JsonResponse
+    public function approve(ApprovePayrollRunRequest $request, PayrollRun $payrollRun, RunRegisterService $registerService): JsonResponse
     {
         $this->authorize('approve', $payrollRun);
 
@@ -131,6 +132,20 @@ class PayrollController extends Controller
                 'title' => 'Invalid State',
                 'status' => 422,
                 'detail' => __('payroll.not_completed'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        // A run that exempts anyone from pension is approved only by someone
+        // who says how many: an exemption wrongly applied leaves the employer
+        // owing the contributions plus 5 % a month (research P12).
+        $exempt = RunRegisterService::exemptions($registerService->register($payrollRun)['rows'])['count'];
+        if ($exempt > 0 && (int) $request->validated('acknowledged_pension_exemptions') !== $exempt) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/pension-exemptions-unacknowledged',
+                'title' => 'Pension exemptions not acknowledged',
+                'status' => 422,
+                'detail' => __('payroll.pension_exemptions_unacknowledged', ['count' => $exempt]),
+                'pension_exemptions' => $exempt,
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
@@ -313,6 +328,7 @@ class PayrollController extends Controller
             'totals' => $register['totals'],
             'pension_rates' => $register['pension_rates'],
             'basis' => $register['basis'],
+            'pension_exemptions' => $register['pension_exemptions'],
         ]);
     }
 

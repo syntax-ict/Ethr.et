@@ -217,3 +217,83 @@ describe("<PayrollRunDetail> confirmation before approving", () => {
     await waitFor(() => expect(approvals).toEqual(["approve"]));
   });
 });
+
+describe("<PayrollRunDetail> pension exemptions", () => {
+  const exemptions = {
+    count: 3,
+    by_reason: { non_national: 2, ethiopian_origin_unconfirmed: 1 },
+    employees: [
+      {
+        employee_public_id: "E1",
+        employee_name: "Liam Otieno",
+        reason: "non_national",
+      },
+      {
+        employee_public_id: "E2",
+        employee_name: "Amina Yusuf",
+        reason: "non_national",
+      },
+      {
+        employee_public_id: "E3",
+        employee_name: "Sara Haile",
+        reason: "ethiopian_origin_unconfirmed",
+      },
+    ],
+  };
+
+  function register() {
+    return http.get("*/api/v1/payroll/runs/RUN1/register", () =>
+      HttpResponse.json({
+        period: "Meskerem 2019",
+        status: "completed",
+        rows: [],
+        totals: {},
+        pension_exemptions: exemptions,
+      }),
+    );
+  }
+
+  it("lists every exempt employee with the reason, linked to the profile", async () => {
+    server.use(me("finance_admin", ["payroll.viewAll"]), register());
+    renderDetail();
+
+    expect(
+      await screen.findByText(
+        "3 employee(s) exempt from pension: 2 non-national, 1 Ethiopian origin (unconfirmed).",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sara Haile" })).toHaveAttribute(
+      "href",
+      "/employees/E3",
+    );
+  });
+
+  it("asks the approver to confirm the count, and sends it", async () => {
+    const bodies: unknown[] = [];
+    server.use(
+      me("finance_admin", ["payroll.viewAll", "payroll.approve"]),
+      register(),
+      http.put("*/api/v1/payroll/runs/RUN1/approve", async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({ ...RUN, status: "approved" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderDetail();
+
+    await screen.findByText(/exempt from pension/);
+    await user.click(screen.getByRole("button", { name: /Approve Payroll/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/exempts 3 employee\(s\) from pension/),
+    ).toBeInTheDocument();
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: "Approve with 3 pension exemption(s)",
+      }),
+    );
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toEqual({ acknowledged_pension_exemptions: 3 });
+  });
+});

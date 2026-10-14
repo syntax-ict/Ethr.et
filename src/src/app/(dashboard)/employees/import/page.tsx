@@ -292,6 +292,11 @@ export default function EmployeeImportPage() {
                       • <code className="font-mono">gender</code>
                     </li>
                     <li>
+                      • <code className="font-mono">nationality</code>,{" "}
+                      <code className="font-mono">nationality_status</code> (
+                      {t("employees_import_page.nationality_status_values")})
+                    </li>
+                    <li>
                       • <code className="font-mono">department_code</code>
                     </li>
                     <li>

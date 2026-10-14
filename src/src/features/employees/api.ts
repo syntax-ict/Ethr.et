@@ -22,11 +22,18 @@ export function useEmployees(params?: {
   search?: string;
   per_page?: number;
   sort?: string;
+  /** Only those whose nationality status nobody has confirmed (2026-10-14). */
+  nationalityReview?: boolean;
 }) {
   return useQuery<PaginatedResponse<Employee>>({
     queryKey: ["employees", params],
     queryFn: async () => {
-      const { data } = await apiClient.get("/employees", { params });
+      const { nationalityReview, ...rest } = params ?? {};
+      const { data } = await apiClient.get("/employees", {
+        params: nationalityReview
+          ? { ...rest, "filter[nationality_needs_review]": 1 }
+          : rest,
+      });
       return data;
     },
     staleTime: 2 * 60 * 1000,

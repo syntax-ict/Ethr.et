@@ -281,10 +281,15 @@ function toLines(
               "payroll_detail_page.calc_exempt_min_service",
               "Not yet in service long enough under the rule",
             )
-          : t(
-              "payroll_detail_page.calc_exempt_non_national",
-              "Not an Ethiopian national",
-            )
+          : pension.exempt_reason === "ethiopian_origin_unconfirmed"
+            ? t(
+                "payroll_detail_page.calc_exempt_ethiopian_origin",
+                "Foreign national of Ethiopian origin — coverage not yet confirmed",
+              )
+            : t(
+                "payroll_detail_page.calc_exempt_non_national",
+                "Not an Ethiopian national",
+              )
         : ruleReference(pension.rule),
       cents: num(pension.employee_pension_cents),
       kind: "minus",

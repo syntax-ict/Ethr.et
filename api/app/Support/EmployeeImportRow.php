@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Enums\NationalityStatus;
 use Illuminate\Support\Facades\Validator;
 
 /**
@@ -28,6 +29,7 @@ final class EmployeeImportRow
     public const COLUMNS = [
         'name', 'email', 'phone', 'employee_code', 'national_id', 'gender',
         'hire_date', 'department_code', 'branch_code', 'position_code', 'salary_cents',
+        'nationality', 'nationality_status',
     ];
 
     /**
@@ -50,6 +52,8 @@ final class EmployeeImportRow
             'branch_code' => ['nullable', 'string'],
             'position_code' => ['nullable', 'string'],
             'salary_cents' => ['nullable', 'integer', 'min:0'],
+            'nationality' => ['nullable', 'string', 'max:100'],
+            'nationality_status' => ['nullable', 'string', 'in:'.implode(',', NationalityStatus::values())],
         ];
 
         $prefixed = [];
@@ -74,7 +78,7 @@ final class EmployeeImportRow
      */
     public static function normalize(array $row): array
     {
-        return array_map(function (mixed $value): mixed {
+        $row = array_map(function (mixed $value): mixed {
             if (! is_string($value)) {
                 return $value;
             }
@@ -83,6 +87,17 @@ final class EmployeeImportRow
 
             return $value === '' ? null : $value;
         }, $row);
+
+        // "Ethiopian origin" and "FOREIGN" mean what they say; anything else
+        // is left as written, so the rule above refuses it rather than this
+        // guessing. A blank cell stays blank and the importer applies the
+        // column default, ethiopian — the same as the new-employee form.
+        if (is_string($row['nationality_status'] ?? null)) {
+            $status = NationalityStatus::fromInput($row['nationality_status']);
+            $row['nationality_status'] = $status === null ? $row['nationality_status'] : $status->value;
+        }
+
+        return $row;
     }
 
     /**
