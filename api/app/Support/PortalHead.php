@@ -44,7 +44,9 @@ final class PortalHead
         $landing = TenantLanding::present($tenant);
         $brand = TenantBrand::present($tenant);
         $name = $tenant->name;
-        $url = FrontendUrl::to($tenant->subdomain);
+        // The organisation's canonical sign-in address: its own host when it
+        // has one, else ethr.et/{slug}; the same address the sitemap lists.
+        $url = FrontendUrl::at($tenant, 'login');
         $title = $name.' | ETHR';
         $description = self::description($landing, $name);
         $image = FrontendUrl::to(route('organisation.preview', [$tenant->public_id, PortalPreviewImage::version($tenant)], absolute: false));
