@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ShieldCheck, Loader2 } from "lucide-react";
+import { ArrowLeft, Lightbulb, ShieldCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { OtpCodeInput } from "@/components/shared/otp-code-input";
@@ -186,7 +186,10 @@ export function MfaForm() {
       </form>
 
       <div className="mt-8 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
-        💡{" "}
+        <Lightbulb
+          aria-hidden="true"
+          className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-muted-foreground"
+        />
         <span className="font-medium text-foreground">
           {t("auth.mfa_lost_device", "Lost your device?")}
         </span>{" "}

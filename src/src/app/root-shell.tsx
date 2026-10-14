@@ -62,7 +62,7 @@ export const baseMetadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     template: "%s | ETHR",
-    default: "ETHR — Ethiopian Workforce Operating System",
+    default: "ETHR | Ethiopian Workforce Operating System",
   },
   description:
     "Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations.",

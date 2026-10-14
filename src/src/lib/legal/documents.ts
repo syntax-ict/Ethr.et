@@ -126,7 +126,7 @@ export const privacyEn: LegalDocument = {
           ],
         },
         {
-          text: "When your organization uses the product, it enters the workforce data it needs — employee records, attendance, leave, payroll. That data belongs to your organization, and the first section above explains who is responsible for it.",
+          text: "When your organization uses the product, it enters the workforce data it needs: employee records, attendance, leave, payroll. That data belongs to your organization, and the first section above explains who is responsible for it.",
         },
         {
           text: "Automatically, for security rather than analytics, we record the IP address and browser user-agent attached to sign-ins, active sessions, API tokens, and entries in the audit log. This is how an administrator can see which devices are signed in and revoke one they do not recognise. It is not used to build a profile of you or to measure your behaviour.",
@@ -158,7 +158,7 @@ export const privacyEn: LegalDocument = {
           text: "Signed-in use requires a session cookie. It is restricted to same-site requests, it carries no personal data itself, and the session it refers to is stored on the server.",
         },
         {
-          text: "Your browser also stores two preferences locally — your chosen language and your light or dark theme. These never leave your device and are not sent to us.",
+          text: "Your browser also stores two preferences locally: your chosen language and your light or dark theme. These never leave your device and are not sent to us.",
         },
       ],
     },
@@ -190,7 +190,7 @@ export const privacyEn: LegalDocument = {
       heading: "Where your data is held",
       blocks: [
         {
-          text: "ETHR is deployed on infrastructure chosen by the organization operating it, and the physical location of the data follows that deployment. If you are an employee, your employer can tell you where their instance runs. If you are evaluating ETHR, ask us before you commit — we will answer specifically rather than generally.",
+          text: "ETHR is deployed on infrastructure chosen by the organization operating it, and the physical location of the data follows that deployment. If you are an employee, your employer can tell you where their instance runs. If you are evaluating ETHR, ask us before you commit. We will answer specifically rather than generally.",
         },
       ],
     },
@@ -202,7 +202,7 @@ export const privacyEn: LegalDocument = {
           text: "Stated plainly, because the honest answer is not yet a reassuring one: ETHR does not currently delete any category of data automatically. Records persist until the organization that owns them removes them, or until an account is closed and its data is deleted on request.",
         },
         {
-          text: "Defined retention periods for each category of data are being established and will be published here. Until then, if you want something deleted, ask — and we will act on it rather than point at a schedule that does not exist.",
+          text: "Defined retention periods for each category of data are being established and will be published here. Until then, if you want something deleted, ask, and we will act on it rather than point at a schedule that does not exist.",
         },
       ],
     },
@@ -269,7 +269,7 @@ export const termsEn: LegalDocument = {
       heading: "The trial",
       blocks: [
         {
-          text: "New organizations begin on a six-month trial. During the trial, every feature is available and the plan limits on employees, branches and devices are not applied — the trial is not a restricted tier.",
+          text: "New organizations begin on a six-month trial. During the trial, every feature is available and the plan limits on employees, branches and devices are not applied. The trial is not a restricted tier.",
         },
         {
           text: "We will tell you before the trial ends. Nothing is charged during it and no payment details are required to start.",
@@ -324,7 +324,7 @@ export const termsEn: LegalDocument = {
           text: "We do not currently offer a contractual uptime guarantee, and we would rather say that than publish a number we cannot stand behind. We aim to keep ETHR available and to be candid when it is not.",
         },
         {
-          text: "Much of ETHR is built to keep working without a network connection — attendance in particular records offline and synchronises when connectivity returns — but that is a property of the software, not a service commitment.",
+          text: "Much of ETHR is built to keep working without a network connection (attendance in particular records offline and synchronises when connectivity returns), but that is a property of the software, not a service commitment.",
         },
         {
           text: "Where a service level is agreed in writing as part of an enterprise arrangement, that agreement governs and takes precedence over this section.",
@@ -360,7 +360,7 @@ export const termsEn: LegalDocument = {
       heading: "Warranties and liability",
       blocks: [
         {
-          text: "ETHR is provided as it is. We work to make it correct and reliable, and this section does not limit any liability that cannot be limited under Ethiopian law — including for death or personal injury caused by negligence, or for fraud.",
+          text: "ETHR is provided as it is. We work to make it correct and reliable, and this section does not limit any liability that cannot be limited under Ethiopian law, including for death or personal injury caused by negligence, or for fraud.",
         },
         {
           text: "The precise limits of liability, and the warranties given, are subject to the review noted at the top of this page and will be stated in full before these terms are relied upon commercially.",

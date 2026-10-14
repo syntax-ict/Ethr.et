@@ -51,7 +51,7 @@ export function InviteToEthrButton({
         toast.info(
           t(
             "employee.login_exists",
-            "This email already signs in to ETHR — manage it under Settings → Users.",
+            "This email already signs in to ETHR. Manage it under Settings → Users.",
           ),
         );
         return;

@@ -29,7 +29,7 @@ export function websiteJsonLd(locale: string) {
     name: serverTranslate(
       locale,
       "marketing.meta.site.title",
-      "ETHR — Ethiopian Workforce Operating System",
+      "ETHR | Ethiopian Workforce Operating System",
     ),
     url: `${SITE_URL}${localeHref(locale, "/")}`,
     inLanguage: locale,

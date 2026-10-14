@@ -191,7 +191,7 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
                     <div>
                       <p className="text-sm font-medium">
                         {e.degree}
-                        {e.field_of_study && ` — ${e.field_of_study}`}
+                        {e.field_of_study && `, ${e.field_of_study}`}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {e.institution}

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarDays, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { useCalendar } from "@/lib/calendar/calendar-context";
+import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import {
   toGregorian,
   formatEthiopianMonthYear,
@@ -170,7 +171,7 @@ function EthiopianGrid({
 export function CalendarWidget() {
   const { t, locale } = useT();
   const { data, isLoading } = useEmployeeDashboard();
-  const { calendar } = useCalendar();
+  const { calendar, formatDate } = useCalendar();
 
   const [gregOffset, setGregOffset] = useState(0);
   const [ethView, setEthView] = useState<{ year: number; month: number }>(
@@ -346,7 +347,7 @@ export function CalendarWidget() {
                     </span>
                   </div>
                   <span className="tabular-nums text-muted-foreground">
-                    {h.date}
+                    {formatDate(dateFromIso(h.date), locale)}
                   </span>
                 </div>
               ))}

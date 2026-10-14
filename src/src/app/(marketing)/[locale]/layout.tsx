@@ -48,7 +48,7 @@ export async function generateMetadata({
       default: serverTranslate(
         locale,
         "marketing.meta.site.title",
-        "ETHR — Ethiopian Workforce Operating System",
+        "ETHR | Ethiopian Workforce Operating System",
       ),
       template: "%s | ETHR",
     },

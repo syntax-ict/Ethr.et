@@ -15,9 +15,9 @@ export async function generateMetadata({
   const { locale } = await params;
 
   return marketingMetadata(locale, "/", "home", {
-    title: "ETHR — Ethiopian Workforce Operating System",
+    title: "ETHR | Ethiopian Workforce Operating System",
     description:
-      "Enterprise-grade HR platform for Ethiopian organizations. Manage attendance, payroll, leave, and more — offline-first, bilingual, and built for Ethiopian labor law.",
+      "Enterprise-grade HR platform for Ethiopian organizations. Manage attendance, payroll, leave and more. Offline-first, bilingual, and built for Ethiopian labor law.",
   });
 }
 

@@ -67,7 +67,7 @@ describe("contact form", () => {
     expect(
       await screen.findByText("The message must be at least 20 characters."),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/message sent successfully/i)).toBeNull();
+    expect(screen.queryByText(/^message sent\.$/i)).toBeNull();
   });
 
   it("sends the CSRF header the stateful API checks, and confirms on 201", async () => {
@@ -86,9 +86,7 @@ describe("contact form", () => {
 
     await fillAndSend();
 
-    expect(
-      await screen.findByText(/message sent successfully/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/^message sent\.$/i)).toBeInTheDocument();
     expect(xsrf).toBe("csrf-test-token");
   });
 

@@ -14,7 +14,7 @@ export async function generateMetadata({
   return marketingMetadata(locale, "/faq", "faq", {
     title: "FAQ",
     description:
-      "Answers to common questions about ETHR — the trial, Ethiopian payroll and calendar, offline support, security, and hosting.",
+      "Answers to common questions about ETHR: the trial, Ethiopian payroll and calendar, offline support, security and hosting.",
   });
 }
 

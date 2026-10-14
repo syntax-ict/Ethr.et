@@ -97,7 +97,7 @@ export function AlertThresholdsDialog({
           <DialogDescription>
             {t(
               "alert_dialog.description",
-              "Get flagged when a KPI crosses a line you set — shown on the Compliance card and included in email digests.",
+              "Get flagged when a KPI crosses a line you set. Alerts show on the Compliance card and in email digests.",
             )}
           </DialogDescription>
         </DialogHeader>

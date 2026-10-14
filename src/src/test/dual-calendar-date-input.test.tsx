@@ -171,7 +171,7 @@ describe("<DualCalendarDateInput> typing a year", () => {
 
   const year = () =>
     screen.getByRole("spinbutton", {
-      name: "Hire date — Ethiopian year",
+      name: "Hire date, Ethiopian year",
     }) as HTMLInputElement;
 
   it("keeps each digit as typed into an empty field", async () => {
@@ -255,16 +255,16 @@ describe("<DualCalendarDateInput> names", () => {
 
     expect(
       await screen.findByRole("spinbutton", {
-        name: "Effective From — Ethiopian year",
+        name: "Effective From, Ethiopian year",
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("combobox", {
-        name: "Effective From — Ethiopian month",
+        name: "Effective From, Ethiopian month",
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("combobox", { name: "Effective To — Ethiopian day" }),
+      screen.getByRole("combobox", { name: "Effective To, Ethiopian day" }),
     ).toBeInTheDocument();
   });
 
@@ -280,7 +280,7 @@ describe("<DualCalendarDateInput> names", () => {
 
     expect(
       await screen.findByRole("spinbutton", {
-        name: "Hire date — Ethiopian year",
+        name: "Hire date, Ethiopian year",
       }),
     ).toBeInTheDocument();
   });

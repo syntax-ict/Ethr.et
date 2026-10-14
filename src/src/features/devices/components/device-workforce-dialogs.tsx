@@ -68,7 +68,7 @@ export function DeviceEnrollmentsDialog({
           </DialogTitle>
           <DialogDescription>
             {deviceName}
-            {" — "}
+            {" · "}
             {t(
               "devices_page.discover_desc",
               "People enrolled on this device, matched against existing employees. Nothing is created here.",
@@ -176,7 +176,7 @@ export function ImportHistoryDialog({
       toast.success(
         t(
           "devices_page.history_queued",
-          "History import queued — records will appear as they sync.",
+          "History import queued. Records will appear as they sync.",
         ),
       );
       onClose();
@@ -195,7 +195,7 @@ export function ImportHistoryDialog({
           </DialogTitle>
           <DialogDescription>
             {deviceName}
-            {" — "}
+            {" · "}
             {t(
               "devices_page.import_history_desc",
               "Backfill past punches. Each is dated when it happened, and duplicates are skipped.",

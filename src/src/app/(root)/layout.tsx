@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     default: serverTranslate(
       DEFAULT_LOCALE,
       "marketing.meta.site.title",
-      "ETHR — Ethiopian Workforce Operating System",
+      "ETHR | Ethiopian Workforce Operating System",
     ),
     template: "%s | ETHR",
   },
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     title: serverTranslate(
       DEFAULT_LOCALE,
       "marketing.meta.site.title",
-      "ETHR — Ethiopian Workforce Operating System",
+      "ETHR | Ethiopian Workforce Operating System",
     ),
     description: serverTranslate(
       DEFAULT_LOCALE,

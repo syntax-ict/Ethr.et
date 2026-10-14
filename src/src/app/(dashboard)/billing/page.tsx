@@ -218,7 +218,7 @@ function PaymentInstructions({ details }: { details: PaymentDetails | null }) {
             <p className="font-semibold text-foreground">
               {t(
                 "billing.payment_instructions_title",
-                "Payment Instructions — Manual Bank Transfer",
+                "Payment instructions: manual bank transfer",
               )}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">

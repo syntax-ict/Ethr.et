@@ -239,8 +239,8 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 ? t("devices_page.mock_simulator")
                 : (ADAPTER_LABELS[device.adapter_type] ?? device.adapter_type)}
               {device.location_description &&
-                ` — ${device.location_description}`}
-              {device.branch?.name && ` — ${device.branch.name}`}
+                ` · ${device.location_description}`}
+              {device.branch?.name && ` · ${device.branch.name}`}
             </p>
           </div>
           <div className="flex items-center gap-2">

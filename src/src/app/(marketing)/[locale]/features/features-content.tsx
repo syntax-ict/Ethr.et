@@ -186,7 +186,7 @@ export function FeaturesContent() {
               <p className="mt-4 text-lg text-muted-foreground">
                 {t(
                   "marketing.features_page.compliance_subtitle",
-                  "Tax brackets, pension rules, calendar, and labor law — we handle the complexity so you don't have to.",
+                  "Tax brackets, pension rules, calendar and labor law. We handle the complexity so you don't have to.",
                 )}
               </p>
             </div>

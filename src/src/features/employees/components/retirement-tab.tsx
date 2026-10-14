@@ -612,7 +612,7 @@ function FinalizeDialog({
     toast.success(
       t(
         "employee.retirement.finalized",
-        "Retirement finalized — employee status updated",
+        "Retirement finalized. Employee status updated.",
       ),
     );
     reset({ effective_date: "" });

@@ -130,7 +130,7 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
               <p className="mt-4 text-base leading-relaxed text-primary-foreground/75">
                 {t(
                   "auth.layout_subtitle",
-                  "Manage employees, attendance, payroll, and leave — all in one platform built for Ethiopian organizations.",
+                  "Manage employees, attendance, payroll and leave in one platform built for Ethiopian organizations.",
                 )}
               </p>
 
