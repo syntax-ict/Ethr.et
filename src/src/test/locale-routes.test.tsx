@@ -29,6 +29,7 @@ import { FeaturesContent } from "@/app/(marketing)/[locale]/features/features-co
 import { LandingContent } from "@/app/(marketing)/[locale]/landing-content";
 import { PricingContent } from "@/app/(marketing)/[locale]/pricing/pricing-content";
 import sitemap from "@/app/sitemap";
+import robots from "@/app/robots";
 import { marketingMetadata } from "@/app/(marketing)/[locale]/page-metadata";
 
 const replace = vi.fn();
@@ -416,5 +417,20 @@ describe("structured data", () => {
 
     expect(html).not.toContain("</script><img");
     expect(html).toContain("\\u003c/script");
+  });
+});
+
+/**
+ * robots.txt names the portals' sitemap beside the site's own (PR 4 of the
+ * portal), so a crawler that honours the default noindex still finds the
+ * organisations that switched listing on.
+ */
+describe("robots", () => {
+  it("names both sitemaps", () => {
+    const sitemaps = robots().sitemap;
+    expect(Array.isArray(sitemaps) ? sitemaps : [sitemaps]).toEqual([
+      expect.stringMatching(/\/sitemap\.xml$/),
+      expect.stringMatching(/\/sitemap-organisations\.xml$/),
+    ]);
   });
 });
