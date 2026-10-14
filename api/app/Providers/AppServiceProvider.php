@@ -13,6 +13,7 @@ use App\Events\PayrollApproved;
 use App\Events\PayrollProcessed;
 use App\Events\PayrollRunFailed;
 use App\Events\TenantCreated;
+use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Listeners\InvalidateDashboardCache;
 use App\Listeners\NotifyDeviceOffline;
@@ -21,6 +22,7 @@ use App\Listeners\NotifyPayrollProcessed;
 use App\Listeners\NotifyPayrollRunFailed;
 use App\Listeners\NotifyPayslipsReleased;
 use App\Listeners\ProvisionTenant;
+use App\Models\ApiKey;
 use App\Models\AttendanceConflict;
 use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
@@ -207,8 +209,16 @@ class AppServiceProvider extends ServiceProvider
         // Applied to the whole api group (bootstrap/app.php). Five requests a
         // second sustained per signed-in user is far above what the busiest
         // page fires, and it caps scripted scraping by one account. Guests are
-        // keyed by IP.
+        // keyed by IP. An API key has a budget of its own: keyed by its
+        // creator, one busy integration spent the console's allowance and
+        // locked the admin who made it out of their own pages (API/webhook
+        // end-to-end test, 2026-10-14, D4).
         RateLimiter::for('api-global', function (Request $request) {
+            $apiKey = $request->attributes->get(AuthenticateApiKey::ATTRIBUTE);
+            if ($apiKey instanceof ApiKey) {
+                return Limit::perMinute(300)->by('api-key:'.$apiKey->id);
+            }
+
             return Limit::perMinute(300)->by($request->user()?->id ?: $request->ip());
         });
 
