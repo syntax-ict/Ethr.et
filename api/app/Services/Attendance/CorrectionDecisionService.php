@@ -10,6 +10,8 @@ use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\AttendanceCorrectionApprovedNotification;
 use App\Support\ApprovalRefusal;
+use App\Support\AttendanceWebhookPayload;
+use App\Traits\DispatchesWebhooks;
 use App\Traits\SendsNotifications;
 
 /**
@@ -21,7 +23,7 @@ use App\Traits\SendsNotifications;
  */
 class CorrectionDecisionService
 {
-    use SendsNotifications;
+    use DispatchesWebhooks, SendsNotifications;
 
     public function __construct(private readonly AttendanceEngine $engine) {}
 
@@ -143,6 +145,13 @@ class CorrectionDecisionService
                 'status' => $record->status->value,
             ],
         ]);
+
+        if ($record !== null && $correction->employee !== null) {
+            $this->webhook($record->tenant_id, 'attendance.corrected', [
+                ...AttendanceWebhookPayload::of($record->fresh() ?? $record, $correction->employee),
+                'correction_public_id' => $correction->public_id,
+            ]);
+        }
 
         $this->notify($this->userOf($correction->employee), new AttendanceCorrectionApprovedNotification($correction, true));
     }

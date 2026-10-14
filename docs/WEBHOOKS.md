@@ -48,9 +48,18 @@ searching `api/app` for every call site:
 | `payroll.approved` | A payroll run is approved | `public_id`, `period` | `PayrollController.php:135-138` |
 | `payroll.voided` | A payroll run is voided | `public_id`, `period` | `PayrollController.php:162-165` |
 | `payroll.reprocessed` | A voided run is reprocessed into a new one | `public_id` (the new run), `period`, `reprocessed_from` (the old run's `public_id`) | `PayrollController.php:196-200` |
+| `attendance.checked_in` | A check-in becomes an attendance record of its own: a new one, or one kept beside an earlier record of the day and flagged for review (a second session, another device hours later). A punch merged into or deduplicated against an existing record (the same person seen twice minutes apart) sends nothing | the record's `public_id`, `employee_public_id`, `employee_name`, `date`, `check_in`, `check_out` (null), `status`, `source` | `AttendanceEngine.php` |
+| `attendance.checked_out` | A check-out closes an open record | the same fields, `check_out` set | `AttendanceEngine.php` |
+| `attendance.corrected` | An attendance correction is approved and the record rewritten | the same fields, after the correction, plus `correction_public_id` | `CorrectionDecisionService.php` |
 | `test` | You pressed *Send test* | `message`, `timestamp` | `WebhookDispatcher.php:67-73` |
 
-The settings page offers exactly the first nine (`src/src/features/webhooks/api.ts:31-41`).
+The settings page offers exactly the first twelve (`src/src/features/webhooks/api.ts`).
+
+**Attendance events carry no location, photo, IP address or integrity score** — the record's
+other columns stay inside ETHR (`App\Support\AttendanceWebhookPayload`). Every punch from a
+kiosk, device, phone, offline sync or manual entry goes through `AttendanceEngine`, so each
+source sends them; times are ISO 8601 in UTC. *(Added 2026-10-14; before that there were nine
+events and none for attendance.)*
 **The API checks the list** *(since 2026-10-02, audit N11)*: `events.*` must be one of
 `App\Support\WebhookEvents::ALL`, and each at most once, on create and on update — anything
 else is a 422. Before that it accepted any string, so a webhook subscribed to a misspelt event

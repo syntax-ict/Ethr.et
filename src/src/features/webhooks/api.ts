@@ -29,6 +29,9 @@ export const WEBHOOK_EVENTS = [
   "payroll.approved",
   "payroll.voided",
   "payroll.reprocessed",
+  "attendance.checked_in",
+  "attendance.checked_out",
+  "attendance.corrected",
 ] as const;
 
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];

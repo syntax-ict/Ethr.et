@@ -37,6 +37,9 @@ const DISPATCHED = [
   "payroll.approved",
   "payroll.voided",
   "payroll.reprocessed",
+  "attendance.checked_in",
+  "attendance.checked_out",
+  "attendance.corrected",
 ];
 
 function me(permissions: string[], role = "tenant_admin") {
@@ -64,6 +67,8 @@ describe("<WebhooksPage>", () => {
     // It offered five events nothing sends (attendance.*, device.*,
     // employee.transitioned) — a webhook on those is Active and never fires —
     // and left out payroll.voided and payroll.reprocessed, which do fire.
+    // The three attendance events are real since 2026-10-14
+    // (AttendanceEngine, CorrectionDecisionService).
     server.use(
       me(["webhook.manage"]),
       http.get("*/api/v1/webhooks", () => HttpResponse.json({ webhooks: [] })),
