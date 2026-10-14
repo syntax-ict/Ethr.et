@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
+use App\Http\Middleware\AuthenticateApiKey;
 use App\Models\ApiKey;
 use App\Models\Employee;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use Illuminate\Foundation\Testing\TestCase;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Testing\TestResponse;
 
 /**
@@ -199,4 +202,76 @@ it('leaves a session untouched: no key, no ability check', function () {
 
     test()->getJson('/api/v1/payroll/runs')->assertOk();
     test()->postJson('/api/v1/organization/departments', ['name' => 'Session'])->assertCreated();
+});
+
+// ── What no key may call ────────────────────────────────────────────────────
+// A key with `write` could create another key, a webhook that receives every
+// event, or an admin user — each outlives revoking the key that made it
+// (API/webhook end-to-end test, 2026-10-14, D1).
+
+it('keeps every key out of the surfaces that mint credentials or grant access', function (string $method, string $uri, array $body) {
+    [$tenant, $admin] = keyTenant();
+    $key = consoleKey($tenant, $admin, ['read', 'write', 'employees', 'attendance', 'leave', 'payroll', 'reports']);
+
+    withKey($key)->json($method, $uri, $body)
+        ->assertForbidden()
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonPath('type', 'https://ethr.et/errors/api-key-session-only');
+})->with([
+    'mint a key' => ['POST', '/api/v1/api-keys', ['name' => 'minted', 'abilities' => ['read']]],
+    'list keys' => ['GET', '/api/v1/api-keys', []],
+    'create a webhook' => ['POST', '/api/v1/webhooks', ['url' => 'https://hooks.example.et/x', 'events' => ['employee.created']]],
+    'list webhooks' => ['GET', '/api/v1/webhooks', []],
+    'list users' => ['GET', '/api/v1/users', []],
+    'list roles' => ['GET', '/api/v1/roles', []],
+    'change organisation settings' => ['PUT', '/api/v1/settings', ['mfa_policy' => 'off']],
+    'issue a SCIM token' => ['POST', '/api/v1/settings/scim-token', []],
+    'revoke the creator\'s sessions' => ['POST', '/api/v1/auth/sessions/revoke-all', []],
+    'sign the creator out' => ['POST', '/api/v1/auth/logout', []],
+]);
+
+it('still lets a key read organisation settings and say who it is', function () {
+    [$tenant, $admin] = keyTenant();
+    $key = consoleKey($tenant, $admin, ['read']);
+
+    withKey($key)->getJson('/api/v1/settings')->assertOk();
+    withKey($key)->getJson('/api/v1/auth/me')->assertOk();
+});
+
+it('mints nothing when a key tries: the key count is unchanged', function () {
+    [$tenant, $admin] = keyTenant();
+    $key = consoleKey($tenant, $admin, ['read', 'write']);
+    $before = ApiKey::withoutGlobalScopes()->count();
+
+    withKey($key)->postJson('/api/v1/api-keys', ['name' => 'minted', 'abilities' => ['read', 'write']])->assertForbidden();
+
+    expect(ApiKey::withoutGlobalScopes()->count())->toBe($before);
+});
+
+it('leaves key and webhook management to a signed-in admin', function () {
+    $tenant = createTenant(['subdomain' => 'acme']);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->getJson('/api/v1/api-keys')->assertOk();
+    test()->getJson('/api/v1/webhooks')->assertOk();
+});
+
+// ── Whose budget ────────────────────────────────────────────────────────────
+
+it('gives each key a rate budget of its own, apart from its creator\'s', function () {
+    [$tenant, $admin] = keyTenant();
+    consoleKey($tenant, $admin, ['read']);
+    $apiKey = ApiKey::withoutGlobalScopes()->firstOrFail();
+
+    $limiter = RateLimiter::limiter('api-global');
+
+    $byKey = Request::create('/api/v1/employees');
+    $byKey->setUserResolver(fn () => $admin);
+    $byKey->attributes->set(AuthenticateApiKey::ATTRIBUTE, $apiKey);
+
+    $bySession = Request::create('/api/v1/employees');
+    $bySession->setUserResolver(fn () => $admin);
+
+    expect($limiter($byKey)->key)->toBe('api-key:'.$apiKey->id)
+        ->and($limiter($bySession)->key)->toBe($admin->id);
 });

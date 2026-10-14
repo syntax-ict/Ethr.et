@@ -36,7 +36,7 @@ class FindOrganisationController extends Controller
                 'title' => 'Too Many Requests',
                 'status' => 429,
                 'detail' => __('auth.find_organisation.too_many'),
-            ], 429);
+            ], 429, ['Content-Type' => 'application/problem+json', 'Retry-After' => RateLimiter::availableIn($key)]);
         }
         RateLimiter::hit($key, 300);
 

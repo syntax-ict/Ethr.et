@@ -128,7 +128,17 @@ describe("<ApiKeysPage>", () => {
     expect(
       await screen.findByText("ethr_plainsecretvalue"),
     ).toBeInTheDocument();
-    expect(posted).toEqual({ name: "Reporting", abilities: ["read"] });
+    // A new key expires in 90 days unless the admin chooses otherwise; the
+    // form had no expiry at all (API/webhook end-to-end test, 2026-10-14, D5).
+    const { expires_at, ...rest } = posted as {
+      expires_at: string;
+      name: string;
+      abilities: string[];
+    };
+    expect(rest).toEqual({ name: "Reporting", abilities: ["read"] });
+    const days = (new Date(expires_at).getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(89.9);
+    expect(days).toBeLessThan(90.1);
     expect(screen.getByRole("button", { name: "Copy" })).toBeInTheDocument();
   });
 });

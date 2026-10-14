@@ -103,11 +103,13 @@ export function WebhookDeliveriesDialog({
                     <span key="a" className="tabular-nums">
                       {d.attempt}
                     </span>,
+                    // An undelivered row used to show its creation time under
+                    // "Delivered", so a delivery that failed six times read as
+                    // delivered (API/webhook end-to-end test, 2026-10-14, D9).
                     <span key="d" className="text-muted-foreground">
-                      {formatWhen(
-                        d.delivered_at ?? d.created_at,
-                        formatDateTime,
-                      )}
+                      {d.delivered_at
+                        ? formatWhen(d.delivered_at, formatDateTime)
+                        : `${t("webhooks_page.not_delivered", "Not delivered")} · ${formatWhen(d.created_at, formatDateTime)}`}
                     </span>,
                   ],
                 }))}

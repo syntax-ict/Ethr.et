@@ -84,6 +84,31 @@ describe("<WebhookDeliveriesDialog>", () => {
     expect(screen.getByText("3")).toBeInTheDocument();
   });
 
+  it("does not call an undelivered attempt delivered", async () => {
+    mockMe("UTC");
+    server.use(
+      http.get("*/webhooks/:id/deliveries", () =>
+        HttpResponse.json({
+          deliveries: [
+            {
+              event: "payroll.voided",
+              response_status: null,
+              attempt: 6,
+              delivered_at: null,
+              created_at: "2026-08-20T11:00:00+00:00",
+            },
+          ],
+        }),
+      ),
+    );
+
+    renderDialog();
+
+    // The Delivered column showed created_at for a delivery that failed six
+    // times (API/webhook end-to-end test, 2026-10-14, D9).
+    expect(await screen.findByText(/^Not delivered · /)).toBeInTheDocument();
+  });
+
   it("distinguishes a connection failure from an HTTP error response", async () => {
     mockMe(null);
     server.use(

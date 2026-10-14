@@ -28,6 +28,15 @@ final class EnforceApiKeyAbilities
             return $next($request);
         }
 
+        if (ApiKeyAbilities::sessionOnly($request)) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/api-key-session-only',
+                'title' => 'Not Available To API Keys',
+                'status' => 403,
+                'detail' => 'API keys cannot manage keys, webhooks, users, roles, sign-in or organisation settings. Sign in to the console instead.',
+            ], 403)->withHeaders(['Content-Type' => 'application/problem+json']);
+        }
+
         $abilities = (array) $apiKey->abilities;
         if (ApiKeyAbilities::allows($abilities, $request)) {
             return $next($request);
