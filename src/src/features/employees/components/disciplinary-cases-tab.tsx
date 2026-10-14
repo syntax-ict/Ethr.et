@@ -268,7 +268,7 @@ function CaseCard({
             {c.investigation_notes.map((n, i) => (
               <li key={i} className="text-sm text-muted-foreground">
                 <span className="text-foreground">{n.note}</span>
-                {n.by_name && ` — ${n.by_name}`}
+                {n.by_name && ` · ${n.by_name}`}
               </li>
             ))}
           </ul>

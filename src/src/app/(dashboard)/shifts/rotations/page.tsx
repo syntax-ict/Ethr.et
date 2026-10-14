@@ -527,7 +527,7 @@ function RotationAssignDialog({
         <DialogHeader>
           <DialogTitle>
             {t("rotations_page.assign_title", "Assign rotation")}
-            {rotation ? ` — ${rotation.name}` : ""}
+            {rotation ? ` · ${rotation.name}` : ""}
           </DialogTitle>
           <DialogDescription>
             {t(
@@ -622,7 +622,7 @@ function RotationAssignDialog({
             <p className="text-xs text-muted-foreground">
               {t(
                 "rotations_page.anchor_hint",
-                "Which date counts as day 1 of the pattern. Leave empty to start at the effective date — set it only when someone joins a team already part-way through its cycle.",
+                "Which date counts as day 1 of the pattern. Leave it empty to start at the effective date; set it only when someone joins a team already part-way through its cycle.",
               )}
             </p>
           </div>
@@ -671,7 +671,7 @@ function RotationPreviewDialog({
         <DialogHeader>
           <DialogTitle>
             {t("rotations_page.preview_title", "Preview")}
-            {rotation ? ` — ${rotation.name}` : ""}
+            {rotation ? ` · ${rotation.name}` : ""}
           </DialogTitle>
           <DialogDescription>
             {t(

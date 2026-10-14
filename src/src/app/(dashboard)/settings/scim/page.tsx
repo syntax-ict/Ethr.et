@@ -133,7 +133,7 @@ export default function ScimSettingsPage() {
                   <span className="text-sm font-medium">
                     {t(
                       "settings.token_warning",
-                      "Copy this token now — it will not be shown again",
+                      "Copy this token now. It will not be shown again.",
                     )}
                   </span>
                 </div>

@@ -59,6 +59,6 @@ describe("Dashboard leave balances", () => {
 
     await screen.findByText("Annual");
     expect(screen.queryByText("null")).not.toBeInTheDocument();
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getByText("Leave")).toBeInTheDocument();
   });
 });

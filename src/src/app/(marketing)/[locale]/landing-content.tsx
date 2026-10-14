@@ -168,7 +168,7 @@ export function LandingContent() {
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
               {t(
                 "marketing.hero.subtitle",
-                "Manage employees, attendance, payroll, and leave — offline-first, bilingual, and built for Ethiopian labor law.",
+                "Manage employees, attendance, payroll and leave. Offline-first, bilingual, and built for Ethiopian labor law.",
               )}
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">

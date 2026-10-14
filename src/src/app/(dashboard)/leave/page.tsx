@@ -648,7 +648,7 @@ function TeamLeaveCalendar({ requests }: { requests: LeaveRequest[] }) {
                           "block truncate px-1 py-0 text-[10px] leading-4 border-0 font-normal",
                           STATUS_COLORS[leave.status] ?? STATUS_COLORS.pending,
                         )}
-                        title={`${name} — ${leaveTypeName(leave.leave_type, t("leave_page.unknown"))} (${leave.status})`}
+                        title={`${name}: ${leaveTypeName(leave.leave_type, t("leave_page.unknown"))} (${leave.status})`}
                       >
                         {firstName}
                       </Badge>

@@ -98,12 +98,12 @@ export function PendingApprovalsPanel() {
               <CheckCircle className="h-6 w-6 text-status-success" />
             </div>
             <p className="mt-3 text-sm font-medium text-foreground">
-              {t("dashboard.all_caught_up", "All caught up!")}
+              {t("dashboard.all_caught_up", "No pending approvals")}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {t(
                 "dashboard.no_pending_approvals",
-                "No pending approvals at the moment",
+                "New requests appear here as they arrive.",
               )}
             </p>
           </div>

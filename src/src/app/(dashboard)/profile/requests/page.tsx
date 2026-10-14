@@ -95,7 +95,7 @@ function ProfileRequests({ profile }: { profile: ProfileResponse }) {
       } else {
         // Everything submitted already matched what is on record.
         toast.info(
-          t("profile.request_no_change", "Nothing changed — no request sent."),
+          t("profile.request_no_change", "Nothing changed. No request sent."),
         );
       }
       reset();

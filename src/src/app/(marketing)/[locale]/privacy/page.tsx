@@ -13,7 +13,7 @@ export async function generateMetadata({
   return marketingMetadata(locale, "/privacy", "privacy", {
     title: "Privacy Policy",
     description:
-      "What ETHR collects, why, and what it does not collect — including no web analytics, no session recording, and no tracking cookies.",
+      "What ETHR collects, why, and what it does not collect, including no web analytics, no session recording and no tracking cookies.",
   });
 }
 

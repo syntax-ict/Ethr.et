@@ -181,7 +181,7 @@ describe("SMS delivery page", () => {
     renderPage();
 
     expect(
-      await screen.findByText(/second gateway — routed numbers/i),
+      await screen.findByText(/second gateway: routed numbers/i),
     ).toBeInTheDocument();
   });
 });

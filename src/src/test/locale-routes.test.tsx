@@ -174,11 +174,11 @@ describe("page metadata", () => {
     // Its title already starts with the product name; the template would make
     // it "ETHR — … | ETHR".
     const home = marketingMetadata("en", "/", "home", {
-      title: "ETHR — Ethiopian Workforce Operating System",
+      title: "ETHR | Ethiopian Workforce Operating System",
       description: "…",
     });
     expect(home.title).toEqual({
-      absolute: "ETHR — Ethiopian Workforce Operating System",
+      absolute: "ETHR | Ethiopian Workforce Operating System",
     });
   });
 

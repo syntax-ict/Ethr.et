@@ -130,7 +130,7 @@ describe("My Payslips — telling payslips apart", () => {
     expect(await screen.findByText("Meskerem 2019")).toBeInTheDocument();
     expect(screen.getByText("Tikimt 2019")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Download payslip — Tikimt 2019" }),
+      screen.getByRole("button", { name: "Download payslip · Tikimt 2019" }),
     ).toBeInTheDocument();
   });
 });

@@ -27,7 +27,7 @@ export function ReadinessStep({ onLive }: { onLive?: () => void }) {
   async function launch() {
     try {
       await goLive.mutateAsync();
-      toast.success(t("setup2.went_live", "Your organization is live!"));
+      toast.success(t("setup2.went_live", "Your organization is live."));
       onLive?.();
     } catch {
       toast.error(t("setup2.golive_failed", "Could not complete go-live"));

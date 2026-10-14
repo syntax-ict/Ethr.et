@@ -124,7 +124,7 @@ export default function AttendanceConflictsPage() {
         title={t("attendance.conflicts.title", "Attendance Conflicts")}
         description={t(
           "attendance.conflicts.description",
-          "Records that disagree about the same day — review and decide which one stands",
+          "Records that disagree about the same day. Review them and decide which one stands.",
         )}
         actions={
           <Select
@@ -258,7 +258,7 @@ export default function AttendanceConflictsPage() {
                   <SelectItem value="dismissed">
                     {t(
                       "attendance.conflicts.dismissed",
-                      "Dismiss — not a conflict",
+                      "Dismiss: not a conflict",
                     )}
                   </SelectItem>
                 </SelectContent>
@@ -373,7 +373,7 @@ function ConflictCard({
             <p className="text-xs text-muted-foreground sm:max-w-40">
               {t(
                 "attendance.conflicts.own_hint",
-                "Your own attendance — someone else reviews this.",
+                "Your own attendance. Someone else reviews this.",
               )}
             </p>
           )}

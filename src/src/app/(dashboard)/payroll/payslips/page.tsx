@@ -75,7 +75,7 @@ export default function MyPayslipsPage() {
                       entry.period_label,
                     ]
                       .filter(Boolean)
-                      .join(" — ")}
+                      .join(" · ")}
                   >
                     <Download className="h-4 w-4" aria-hidden="true" />
                   </Button>

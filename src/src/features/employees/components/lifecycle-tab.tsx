@@ -381,7 +381,7 @@ export function LifecycleTab({
                 {...register("reason")}
                 placeholder={t(
                   "employee.lifecycle.reason_placeholder",
-                  "Optional — context for the transition",
+                  "Optional: context for the transition",
                 )}
                 rows={3}
                 className="mt-1"

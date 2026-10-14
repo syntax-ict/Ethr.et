@@ -290,8 +290,8 @@ function GatewayCard({
 
   const title =
     slot === "primary"
-      ? t("admin_sms.primary_title", "Primary gateway — all numbers")
-      : t("admin_sms.secondary_title", "Second gateway — routed numbers");
+      ? t("admin_sms.primary_title", "Primary gateway: all numbers")
+      : t("admin_sms.secondary_title", "Second gateway: routed numbers");
 
   const needsUser = form.auth_type === "fields" || form.auth_type === "basic";
 
@@ -394,7 +394,7 @@ function GatewayCard({
               autoComplete="new-password"
               placeholder={
                 gateway?.secret_set
-                  ? t("admin_sms.secret_set", "Set — leave empty to keep it")
+                  ? t("admin_sms.secret_set", "Set. Leave empty to keep it")
                   : t("admin_sms.secret_not_set", "Not set")
               }
               error={errors.auth_secret}
