@@ -45,8 +45,8 @@ final class ApiKeyAbilities
      * @var list<string>
      */
     public const SESSION_ONLY = [
-        'admin', 'api-keys', 'auth', 'billing', 'maintenance', 'permissions',
-        'profile', 'roles', 'scim', 'sso', 'users', 'webhooks',
+        'admin', 'api-keys', 'auth', 'billing', 'broadcasting', 'maintenance',
+        'permissions', 'profile', 'roles', 'scim', 'sso', 'users', 'webhooks',
     ];
 
     /** @var list<string> */
