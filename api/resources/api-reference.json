@@ -25336,10 +25336,7 @@
                                             "type": "object",
                                             "properties": {
                                                 "logo_url": {
-                                                    "type": [
-                                                        "string",
-                                                        "null"
-                                                    ]
+                                                    "type": "string"
                                                 },
                                                 "uploaded_logo_url": {
                                                     "type": "string"
@@ -37775,6 +37772,12 @@
                             "null"
                         ]
                     },
+                    "logo_dark_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "theme": {
                         "type": [
                             "array",
@@ -37800,6 +37803,7 @@
                     "timezone",
                     "ethiopian_calendar",
                     "logo_path",
+                    "logo_dark_url",
                     "theme",
                     "created_at"
                 ],
