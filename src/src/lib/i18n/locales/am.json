@@ -2839,6 +2839,7 @@
   "payroll_detail_page.reprocessed_from_notice": "ይህ አሂድ የተሰረዘን አሂድ ይተካል፦",
   "payroll_detail_page.reprocessed_success": "ደመወዝ በተሳካ ሁኔታ እንደገና ተሰርቷል",
   "payroll_detail_page.run_not_found": "የደመወዝ ስሌት አልተገኘም",
+  "payroll_detail_page.skipped_no_salary": "ደመወዝ ስላልተቀመጠላቸው :count ሰራተኞች ታልፈዋል",
   "payroll_detail_page.tax": "ግብር",
   "payroll_detail_page.to": "እስከ",
   "payroll_detail_page.total_tax": "ጠቅላላ ግብር",

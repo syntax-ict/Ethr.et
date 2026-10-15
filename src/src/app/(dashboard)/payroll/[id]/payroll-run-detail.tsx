@@ -333,6 +333,15 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
             &middot; {run.employee_count}{" "}
             {t("payroll_detail_page.employees_lc")}
           </p>
+          {(run.skipped_no_salary ?? 0) > 0 && (
+            <p className="mt-1 text-sm text-status-warning">
+              {t(
+                "payroll_detail_page.skipped_no_salary",
+                ":count employees were skipped because no salary is set for them",
+                { count: run.skipped_no_salary },
+              )}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {run.status === "completed" && canApprove && (

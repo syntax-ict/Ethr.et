@@ -7390,6 +7390,7 @@ export interface components {
             period_end: string | null;
             status: string;
             employee_count: number;
+            skipped_no_salary: number;
             gross_total_cents: number;
             net_total_cents: number;
             tax_total_cents: number;
