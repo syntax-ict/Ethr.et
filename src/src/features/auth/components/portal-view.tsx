@@ -521,9 +521,14 @@ function AboutSection({
   if (landing?.show_branch_count && branchCount) {
     facts.push({
       icon: Building2,
-      label: t("landing.branch_count", ":count branches", {
-        count: branchCount,
-      }),
+      // One place is "1 branch", not "1 branches" (found on the live
+      // portal, 2026-10-15).
+      label:
+        branchCount === 1
+          ? t("landing.branch_count_one", "1 branch")
+          : t("landing.branch_count", ":count branches", {
+              count: branchCount,
+            }),
     });
   }
 

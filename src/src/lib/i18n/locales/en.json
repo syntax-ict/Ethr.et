@@ -2062,6 +2062,7 @@
   "landing.about": "About us",
   "landing.announcement_gone": "This announcement is no longer available.",
   "landing.branch_count": ":count branches",
+  "landing.branch_count_one": "1 branch",
   "landing.closes": "Closes :date",
   "landing.contact": "Contact",
   "landing.founded": "Founded :year",
