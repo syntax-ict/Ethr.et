@@ -209,3 +209,75 @@ describe("Employee CSV import (S08)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("Employee CSV import, 2026-10-15", () => {
+  it("lists every problem by line, without the server's row prefix", async () => {
+    server.use(
+      http.post(PREVIEW_URL, () =>
+        HttpResponse.json({
+          ...PREVIEW,
+          errors: {
+            3: [
+              "Row 3: The name field is required.",
+              "Row 3: Email is invalid",
+            ],
+          },
+        }),
+      ),
+    );
+
+    const { container } = renderPage();
+    await screen.findByText("Upload CSV File");
+    uploadCsv(container);
+
+    expect(await screen.findByText("What to fix")).toBeInTheDocument();
+    expect(screen.getByText("The name field is required.")).toBeInTheDocument();
+    expect(screen.getAllByText("Line 3")).toHaveLength(2);
+  });
+
+  it("says that a row with no code will be numbered", async () => {
+    server.use(
+      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
+      http.get("*/api/v1/employees/next-code", () =>
+        HttpResponse.json({ employee_code: "EMP-0007", format: "EMP-{SEQ:4}" }),
+      ),
+    );
+
+    const { container } = renderPage();
+    await screen.findByText("Upload CSV File");
+    uploadCsv(container);
+
+    expect(
+      await screen.findByText(
+        "1 row has no employee code. It gets the next number.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("sends login invitations only when the box is ticked", async () => {
+    const bodies: Array<{ create_logins?: boolean }> = [];
+    server.use(
+      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
+      http.post(COMMIT_URL, async ({ request }) => {
+        bodies.push((await request.json()) as { create_logins?: boolean });
+        return HttpResponse.json(
+          { created: 1, skipped: 0, matched: 0, users_created: 1, errors: [] },
+          { status: 201 },
+        );
+      }),
+    );
+
+    const { container } = renderPage();
+    await screen.findByText("Upload CSV File");
+    uploadCsv(container);
+    fireEvent.click(await screen.findByLabelText(/Send a login invitation/));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Import 1 valid row/i }),
+    );
+
+    expect(
+      await screen.findByText("1 login invitation sent."),
+    ).toBeInTheDocument();
+    expect(bodies[0]?.create_logins).toBe(true);
+  });
+});

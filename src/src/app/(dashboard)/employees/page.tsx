@@ -89,7 +89,8 @@ export default function EmployeesPage() {
   });
 
   const exportCsv = useMutation({
-    mutationFn: () => exportEmployees({ search }),
+    mutationFn: () =>
+      exportEmployees({ search, sort, nationalityReview: reviewOnly }),
     onSuccess: (data) => {
       saveCsv(
         `employees-${new Date().toISOString().split("T")[0]}.csv`,

@@ -421,6 +421,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Employees
     Route::get('/employees/stats', [EmployeeController::class, 'stats']);
     Route::get('/employees/export', [EmployeeBulkController::class, 'export']);
+    Route::get('/employees/next-code', [EmployeeController::class, 'nextCode']);
 
     // Tenant-wide expiring-document watchlist. Declared before the
     // /employees/{employee} routes so "documents" is not captured as an employee.
@@ -432,7 +433,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::get('/employees/import/status/{key}', [EmployeeImportController::class, 'status']);
     Route::post('/employees/bulk-update', [EmployeeBulkController::class, 'bulkUpdate']);
     Route::post('/employees/{employee}/enrol-on-devices', [DeviceCommandController::class, 'enrolEmployee']);
-    Route::post('/employees/import/template', [EmployeeImportController::class, 'template'])->middleware('throttle:imports');
+    // The template is a header line, not an import: under `imports` it spent
+    // one of the five an hour before a file was chosen.
+    Route::post('/employees/import/template', [EmployeeImportController::class, 'template']);
     Route::post('/employees/import/preview', [EmployeeImportController::class, 'preview'])->middleware('throttle:imports');
     Route::post('/employees/import/commit', [EmployeeImportController::class, 'commit'])->middleware('throttle:imports');
     Route::apiResource('employees', EmployeeController::class);
