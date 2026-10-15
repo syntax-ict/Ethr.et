@@ -18,6 +18,7 @@ use App\Models\Employee;
 use App\Models\Position;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\EmployeeNumbering;
 use App\Services\PlanLimitService;
 use App\Services\UserProvisioningService;
 use App\Support\EmployeeRelations;
@@ -117,7 +118,25 @@ class EmployeeController extends Controller
         );
     }
 
-    public function store(StoreEmployeeRequest $request, UserProvisioningService $provisioning, PlanLimitService $planLimits): JsonResponse
+    /**
+     * The employee code the next new employee will get when the form leaves
+     * it blank, from the organisation's `employee_number_format`. A preview:
+     * someone else adding at the same moment can take it first, and then the
+     * save takes the one after.
+     */
+    public function nextCode(EmployeeNumbering $numbering): JsonResponse
+    {
+        $this->authorize('create', Employee::class);
+
+        $tenant = app(CurrentTenant::class)->get();
+
+        return response()->json([
+            'employee_code' => $numbering->next($tenant),
+            'format' => $numbering->format($tenant),
+        ]);
+    }
+
+    public function store(StoreEmployeeRequest $request, UserProvisioningService $provisioning, PlanLimitService $planLimits, EmployeeNumbering $numbering): JsonResponse
     {
         $this->authorize('create', Employee::class);
 
@@ -147,7 +166,9 @@ class EmployeeController extends Controller
             $data['phone'] = EthiopianPhone::canonicalOrRaw($data['phone']);
         }
 
-        $employee = Employee::create($data);
+        // No code given: the next one in the organisation's format, so the
+        // person can sign in by code and use a kiosk from the first day.
+        $employee = $numbering->create(app(CurrentTenant::class)->get(), $data);
 
         $loginInvited = false;
         if ($createLogin && ! empty($employee->email)) {

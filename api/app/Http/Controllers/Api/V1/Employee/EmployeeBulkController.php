@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\Position;
 use App\Support\Csv;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -81,6 +82,13 @@ class EmployeeBulkController extends Controller
             $query->where('status', $request->input('filter.status'));
         }
 
+        // The list's own filters and sort (EmployeeController::index), so the
+        // file holds what the screen showed: the export read only search,
+        // status and department, and the page sent only search.
+        if ($request->boolean('filter.nationality_needs_review')) {
+            $query->where('nationality_needs_review', true);
+        }
+
         if ($request->has('filter.department_id')) {
             $dept = Department::where('public_id', $request->input('filter.department_id'))->first();
             if ($dept) {
@@ -88,23 +96,58 @@ class EmployeeBulkController extends Controller
             }
         }
 
+        if ($request->has('filter.branch_id')) {
+            $branch = Branch::where('public_id', $request->input('filter.branch_id'))->first();
+            if ($branch) {
+                $query->where('branch_id', $branch->id);
+            }
+        }
+
+        if ($request->has('filter.position_id')) {
+            $position = Position::where('public_id', $request->input('filter.position_id'))->first();
+            if ($position) {
+                $query->where('position_id', $position->id);
+            }
+        }
+
+        $sortField = (string) $request->input('sort', 'name');
+        $sortDir = str_starts_with($sortField, '-') ? 'desc' : 'asc';
+        $sortField = ltrim($sortField, '-');
+        if (in_array($sortField, ['name', 'employee_code', 'hire_date', 'status', 'created_at'], true)) {
+            $query->orderBy($sortField, $sortDir);
+        }
+
         $employees = $query->get();
 
-        $headers = ['name', 'email', 'phone', 'employee_code', 'gender', 'status', 'hire_date', 'department', 'branch', 'position'];
+        // The import's own column names, so an exported file imports as it
+        // stands; department, branch and position by name, which the import
+        // reads as readily as a code. Salary, national ID and TIN stay out:
+        // this is a viewAny export, and a supervisor can run it.
+        $headers = [
+            'name', 'name_am', 'employee_code', 'email', 'phone', 'gender', 'date_of_birth',
+            'hire_date', 'department', 'branch', 'position', 'badge_number',
+            'nationality', 'nationality_status', 'marital_status', 'status',
+        ];
         $rows = [];
 
         foreach ($employees as $emp) {
             $rows[] = [
                 $emp->name,
+                $emp->name_am,
+                $emp->employee_code,
                 $emp->email,
                 $emp->phone,
-                $emp->employee_code,
                 $emp->gender,
-                $emp->status?->value,
+                $emp->date_of_birth?->format('Y-m-d'),
                 $emp->hire_date?->format('Y-m-d'),
                 $emp->department?->name,
                 $emp->branch?->name,
                 $emp->position?->title,
+                $emp->badge_number,
+                $emp->nationality,
+                $emp->nationality_status?->value,
+                $emp->marital_status,
+                $emp->status?->value,
             ];
         }
 

@@ -7,8 +7,10 @@ import { buildEmployee } from "./msw/handlers";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import NewEmployeePage from "@/app/(dashboard)/employees/new/page";
 
+const router = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn() }));
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
+  useRouter: () => router,
 }));
 
 vi.mock("sonner", () => ({
@@ -32,6 +34,9 @@ function paginated<T>(rows: T[]) {
 
 function renderPage() {
   server.use(
+    http.get("*/api/v1/employees/next-code", () =>
+      HttpResponse.json({ employee_code: "EMP-0042", format: "EMP-{SEQ:4}" }),
+    ),
     http.get("*/api/v1/organization/departments", () =>
       HttpResponse.json(
         paginated([
@@ -216,5 +221,104 @@ describe("New employee form — login invitation", () => {
     renderPage();
 
     expect(screen.getByLabelText(/Send a login invitation/)).toBeDisabled();
+  });
+});
+
+/**
+ * The 2026-10-15 redesign: the API's own two required fields, the next code
+ * as a hint, the only branch chosen, and two ways to finish.
+ */
+describe("New employee form, redesigned", () => {
+  function capture() {
+    const seen: { bodies: Record<string, unknown>[] } = { bodies: [] };
+    server.use(
+      http.post("*/api/v1/employees", async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        seen.bodies.push(body);
+        return HttpResponse.json(
+          {
+            ...buildEmployee(),
+            public_id: "01NEWEMPLOYEE000000000000",
+            name: body.name,
+          },
+          { status: 201 },
+        );
+      }),
+    );
+    return seen;
+  }
+
+  it("marks only the name and the hire date as required", () => {
+    renderPage();
+
+    expect(screen.getByLabelText(/Full Name/)).toHaveAttribute(
+      "aria-required",
+      "true",
+    );
+    expect(screen.getByLabelText(/^Email/)).not.toHaveAttribute(
+      "aria-required",
+    );
+    expect(screen.getByLabelText(/^Code/)).not.toHaveAttribute("aria-required");
+  });
+
+  it("says which code a blank one will get", async () => {
+    renderPage();
+
+    expect(
+      await screen.findByText("Leave blank and ETHR assigns EMP-0042."),
+    ).toBeInTheDocument();
+  });
+
+  it("sends a blank code as null and chooses the only branch", async () => {
+    const seen = capture();
+    const { container } = renderPage();
+    fireEvent.change(screen.getByLabelText(/Full Name/), {
+      target: { value: "Hana Girma" },
+    });
+    await screen.findAllByText("Headquarters");
+
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() => expect(seen.bodies).toHaveLength(1));
+    expect(seen.bodies[0]).toMatchObject({
+      employee_code: null,
+      branch_id: "01BRANCHHQ000000000000000",
+    });
+  });
+
+  it("opens the new record after saving", async () => {
+    capture();
+    router.push.mockClear();
+    const { container } = renderPage();
+    fireEvent.change(screen.getByLabelText(/Full Name/), {
+      target: { value: "Hana Girma" },
+    });
+
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith(
+        "/employees/01NEWEMPLOYEE000000000000",
+      ),
+    );
+  });
+
+  it("starts the next one on Save and add another", async () => {
+    const seen = capture();
+    router.push.mockClear();
+    renderPage();
+    fireEvent.change(screen.getByLabelText(/Full Name/), {
+      target: { value: "Hana Girma" },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save and add another" }),
+    );
+
+    await waitFor(() => expect(seen.bodies).toHaveLength(1));
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Full Name/)).toHaveValue(""),
+    );
+    expect(router.push).not.toHaveBeenCalled();
   });
 });
