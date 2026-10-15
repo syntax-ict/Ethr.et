@@ -20,4 +20,5 @@ return [
     'pension_floor_above_ceiling' => 'The floor cannot be above the ceiling.',
     'pension_rule_not_after_latest' => 'A new rule must start after :date, the start of your latest rule for this scheme.',
     'pension_exemptions_unacknowledged' => 'This run exempts :count employee(s) from pension. Review them, then approve with that count.',
+    'period_overlaps' => 'A payroll run already covers :start to :end (:label). Void that run first if this period must be computed again.',
 ];

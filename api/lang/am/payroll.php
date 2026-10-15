@@ -20,4 +20,5 @@ return [
     'pension_floor_above_ceiling' => 'ዝቅተኛው ገደብ ከከፍተኛው ገደብ በላይ ሊሆን አይችልም።',
     'pension_rule_not_after_latest' => 'አዲስ ደንብ ከ:date በኋላ መጀመር አለበት፤ ይህ ለዚህ ዕቅድ የመጨረሻው ደንብዎ የሚጀምርበት ቀን ነው።',
     'pension_exemptions_unacknowledged' => 'ይህ ደመወዝ :count ሠራተኛ(ዎች)ን ከጡረታ ነፃ ያደርጋል። ይገምግሟቸው፤ ከዚያ ያንን ቁጥር አረጋግጠው ያጽድቁ።',
+    'period_overlaps' => 'ከ:start እስከ :end ያለውን ጊዜ የሚሸፍን የደመወዝ ሂደት (:label) አስቀድሞ አለ። ይህ ጊዜ እንደገና መሰላት ካለበት መጀመሪያ ያንን ሂደት ይሰርዙ።',
 ];
