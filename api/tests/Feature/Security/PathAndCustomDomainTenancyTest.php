@@ -249,10 +249,12 @@ it('gives the sign-in page the organisation colours before sign-in', function ()
     ]);
     asProduction();
 
+    // A logo is the uploaded one or nothing: the typed link in logo_path was
+    // retired on 2026-10-15 and is not read, whatever it holds.
     test()->withHeader('X-Tenant', 'acme')
         ->getJson('http://ethr.et/api/v1/auth/tenant-context')
         ->assertOk()
-        ->assertJsonPath('tenant.brand.logo_url', 'https://cdn.example.et/acme.png')
+        ->assertJsonPath('tenant.brand.logo_url', null)
         ->assertJsonPath('tenant.brand.primary_color', '#0F766E')
         // Only well-formed values leave; the page falls back to ETHR's own.
         ->assertJsonPath('tenant.brand.accent_color', null);
