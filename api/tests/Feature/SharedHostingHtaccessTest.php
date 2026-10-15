@@ -403,9 +403,11 @@ it('promotes exactly the sentinel lines and no prose', function () {
     // segment prefetches (four depths × two conditions and a rule), and the
     // directory condition that stopped group 1's entity rule looping into a 500.
     // 37 → 40 on 2026-10-14: group 2a, /login on an organisation's own host
-    // through Laravel (two host conditions and its rule).
+    // through Laravel (two host conditions and its rule). 40 → 42 on
+    // 2026-10-15: group 2c, the portals' sitemap and link-preview images
+    // (one condition and its rule), found 404 on the live host.
     expect($sentinels)->toHaveCount(
-        40,
+        42,
         'the sentinel set changed. If that is intended, update this count and say why in the '
         .'commit message; if it is not, a directive has been lost or a prose line marked.'
     );
@@ -553,4 +555,30 @@ it('sends /login on an organisation host to Laravel, and leaves the apex and the
     // The route exists to answer it.
     $routes = (string) file_get_contents(base_path('routes/web.php'));
     expect($routes)->toContain("Route::get('/login', OrganisationLoginPageController::class)");
+});
+
+// Found on the live host on 2026-10-15, the day the portal's head shipped:
+// the sitemap named in robots.txt and the og:image of every portal were
+// Apache 404s, because nothing sent a dotted name or a two-segment path to
+// Laravel. The in-app tests could not see it; only the rendered rule set can.
+it('sends the portals sitemap and the link-preview images to Laravel, and nothing else of that shape', function () {
+    $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
+
+    $rule = 'RewriteRule ^(sitemap-organisations\.xml|organisation-previews/[0-9A-HJKMNP-TV-Z]{26}/[0-9a-f]{16})$ index.php [L]';
+    expect($directives)->toContain($rule);
+    $ruleIndex = ethrHtaccessIndexOf($directives, $rule);
+    expect($directives[$ruleIndex - 1])->toBe('RewriteCond %{REQUEST_FILENAME} !-f');
+
+    // After the exported pages and the entry URL, before the 404.
+    $entry = ethrHtaccessIndexOf($directives, 'RewriteRule ^([a-z0-9][a-z0-9-]{0,62})/?$ index.php [L,NC]');
+    $notFound = ethrHtaccessIndexOf($directives, 'ErrorDocument 404 /404.html');
+    expect($entry)->toBeLessThan($ruleIndex)
+        ->and($ruleIndex)->toBeLessThan($notFound);
+
+    // The pattern is the two routes' own constraints, so Apache hands Laravel
+    // exactly what the routes answer.
+    $routes = (string) file_get_contents(base_path('routes/web.php'));
+    expect($routes)->toContain("Route::get('/sitemap-organisations.xml', OrganisationSitemapController::class)")
+        ->toContain("Route::get('/organisation-previews/{publicId}/{version}', OrganisationPreviewImageController::class)")
+        ->toContain("'publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'version' => '[0-9a-f]{16}'");
 });
