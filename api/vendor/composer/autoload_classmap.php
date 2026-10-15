@@ -708,6 +708,7 @@ return array(
     'App\\Services\\DisciplinaryCaseService' => $baseDir . '/app/Services/DisciplinaryCaseService.php',
     'App\\Services\\Dns\\SystemDnsResolver' => $baseDir . '/app/Services/Dns/SystemDnsResolver.php',
     'App\\Services\\EmployeeContractService' => $baseDir . '/app/Services/EmployeeContractService.php',
+    'App\\Services\\EmployeeNumbering' => $baseDir . '/app/Services/EmployeeNumbering.php',
     'App\\Services\\FileStorageService' => $baseDir . '/app/Services/FileStorageService.php',
     'App\\Services\\Holiday\\HolidayService' => $baseDir . '/app/Services/Holiday/HolidayService.php',
     'App\\Services\\Identity\\IdentityMatch' => $baseDir . '/app/Services/Identity/IdentityMatch.php',

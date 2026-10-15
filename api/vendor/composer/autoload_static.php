@@ -1391,6 +1391,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Services\\DisciplinaryCaseService' => __DIR__ . '/../..' . '/app/Services/DisciplinaryCaseService.php',
         'App\\Services\\Dns\\SystemDnsResolver' => __DIR__ . '/../..' . '/app/Services/Dns/SystemDnsResolver.php',
         'App\\Services\\EmployeeContractService' => __DIR__ . '/../..' . '/app/Services/EmployeeContractService.php',
+        'App\\Services\\EmployeeNumbering' => __DIR__ . '/../..' . '/app/Services/EmployeeNumbering.php',
         'App\\Services\\FileStorageService' => __DIR__ . '/../..' . '/app/Services/FileStorageService.php',
         'App\\Services\\Holiday\\HolidayService' => __DIR__ . '/../..' . '/app/Services/Holiday/HolidayService.php',
         'App\\Services\\Identity\\IdentityMatch' => __DIR__ . '/../..' . '/app/Services/Identity/IdentityMatch.php',

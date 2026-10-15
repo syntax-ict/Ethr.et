@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Services\EmployeeNumbering;
 use App\Services\Payroll\PensionCalculator;
 use App\Support\CalendarPreference;
 use App\Support\TenantSecurityPolicy;
@@ -40,6 +41,15 @@ class UpdateSettingsRequest extends FormRequest
             'settings.mfa_policy' => ['sometimes', 'string', Rule::in(TenantSecurityPolicy::MFA_POLICIES)],
             'settings.session_timeout_minutes' => ['sometimes', 'integer', $timeout],
             'settings.calendar' => ['sometimes', 'string', Rule::in(CalendarPreference::ORGANISATION_CHOICES)],
+            'settings.employee_number_format' => ['sometimes', 'string', 'max:40', 'regex:'.EmployeeNumbering::SHAPE],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'settings.employee_number_format.regex' => __('employee.number_format_invalid'),
         ];
     }
 
