@@ -405,9 +405,11 @@ it('promotes exactly the sentinel lines and no prose', function () {
     // 37 → 40 on 2026-10-14: group 2a, /login on an organisation's own host
     // through Laravel (two host conditions and its rule). 40 → 42 on
     // 2026-10-15: group 2c, the portals' sitemap and link-preview images
-    // (one condition and its rule), found 404 on the live host.
+    // (one condition and its rule), found 404 on the live host. 42 → 46 the
+    // same day: group 2d, / on an organisation's subdomain redirected to
+    // /login by the server (three host conditions and its rule).
     expect($sentinels)->toHaveCount(
-        42,
+        46,
         'the sentinel set changed. If that is intended, update this count and say why in the '
         .'commit message; if it is not, a directive has been lost or a prose line marked.'
     );
@@ -581,4 +583,31 @@ it('sends the portals sitemap and the link-preview images to Laravel, and nothin
     expect($routes)->toContain("Route::get('/sitemap-organisations.xml', OrganisationSitemapController::class)")
         ->toContain("Route::get('/organisation-previews/{publicId}/{version}', OrganisationPreviewImageController::class)")
         ->toContain("'publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'version' => '[0-9a-f]{16}'");
+});
+
+// 2026-10-15: an organisation's subdomain root loaded ETHR's home page and
+// then redirected in the browser. The server answers instead, on subdomains
+// of the deployment's own domain only.
+it('redirects / on an organisation subdomain to /login, and leaves the apex, www and the console alone', function () {
+    $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
+
+    $rule = 'RewriteRule ^$ /login [R=302,L]';
+    expect($directives)->toContain($rule);
+    $ruleIndex = ethrHtaccessIndexOf($directives, $rule);
+
+    $apex = preg_quote((string) preg_replace('/^admin\.|:\d+$/', '', ETHR_TEST_ADMIN_HOST), '/');
+    expect(array_slice($directives, $ruleIndex - 3, 3))->toBe([
+        'RewriteCond %{HTTP_HOST} !^'.preg_quote(ETHR_TEST_ADMIN_HOST, '/').'$ [NC]',
+        'RewriteCond %{HTTP_HOST} !^www\. [NC]',
+        'RewriteCond %{HTTP_HOST} ^[a-z0-9-]+\.'.$apex.'(:[0-9]+)?$ [NC]',
+    ]);
+
+    // A temporary redirect, so a later change of address is not cached for good.
+    expect($rule)->toContain('R=302');
+
+    // After the /admin boundary, before group 2 and the 404.
+    $adminDeny = ethrHtaccessIndexOf($directives, 'RewriteRule ^admin(/|$) - [F,L]');
+    $spaFallback = ethrHtaccessIndexOf($directives, 'RewriteRule ^(.+?)/?$ /$1.html [L]');
+    expect($adminDeny)->toBeLessThan($ruleIndex)
+        ->and($ruleIndex)->toBeLessThan($spaFallback);
 });
