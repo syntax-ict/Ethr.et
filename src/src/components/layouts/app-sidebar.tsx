@@ -90,7 +90,7 @@ function WorkspaceMenu({
       <DropdownMenuContent align={align} sideOffset={8} className="w-60">
         <DropdownMenuLabel className="font-normal">
           <div className="flex items-center gap-2.5">
-            <TenantLogoBadge showName={false} />
+            <TenantLogoBadge showName={false} surface="dark" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{tenantName}</p>
               {roleName && (
@@ -177,7 +177,7 @@ export function AppSidebar() {
               aria-label={t("nav.workspace_menu", "Workspace menu")}
               className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-sidebar-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-sidebar-accent"
             >
-              <TenantLogoBadge showName={false} />
+              <TenantLogoBadge showName={false} surface="dark" />
               <div className="min-w-0 flex-1 text-left">
                 <p className="truncate text-sm font-semibold text-sidebar-foreground">
                   {tenantName}

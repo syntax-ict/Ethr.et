@@ -23,6 +23,7 @@ class TenantResource extends JsonResource
             'timezone' => $this->timezone,
             'ethiopian_calendar' => $this->ethiopian_calendar,
             'logo_path' => $this->resource->logoUrl(),
+            'logo_dark_url' => $this->resource->brandAssetUrl('logo_dark'),
             'theme' => $this->theme,
             'created_at' => $this->created_at,
         ];

@@ -26,10 +26,11 @@ it('returns the host-resolved tenant display info', function () {
             'tenant' => [
                 'name' => 'Acme Corporation',
                 'subdomain' => 'acme',
-                'logo_path' => 'tenants/acme/logo.png',
-                // The shared landing's branding (2026-10-13). A logo that is
-                // not an https URL is not handed to the public page, and an
+                // A logo is the uploaded one or nothing (2026-10-15: the typed
+                // link in logo_path is retired, and the column is not read), so
+                // the stored path is not handed to the public page; an
                 // organisation with no colours set has none.
+                'logo_path' => null,
                 'brand' => [
                     'logo_url' => null,
                     'logo_dark_url' => null,

@@ -26,6 +26,8 @@ interface MeResponse {
      */
     timezone?: string | null;
     logo_path?: string | null;
+    /** The logo for dark surfaces, when one is uploaded (the sidebar is one). */
+    logo_dark_url?: string | null;
     theme?: {
       primary_color?: string;
       secondary_color?: string;

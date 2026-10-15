@@ -116,21 +116,31 @@ export function TenantBrandingProvider({
 /**
  * Small header component showing the tenant logo (or a fallback initial)
  * plus the tenant name. Drop into any header/sidebar.
+ *
+ * With a logo for dark backgrounds uploaded, it is the one shown on a dark
+ * surface: the sidebar always (`surface="dark"`, its surface is dark in both
+ * themes), and anywhere else in dark mode.
  */
 export function TenantLogoBadge({
   size = "md",
   showName = true,
+  surface,
 }: {
   size?: "sm" | "md";
   showName?: boolean;
+  surface?: "dark";
 }) {
   const { data: tenant } = useCurrentTenant();
+  const { resolvedTheme } = useTheme();
 
   const boxCls =
     size === "sm" ? "h-7 w-7 rounded-md text-xs" : "h-8 w-8 rounded-lg text-sm";
   const initial = (tenant?.name ?? "E").trim().charAt(0).toUpperCase();
 
   const name = tenant?.name ?? "ETHR";
+  const onDark = surface === "dark" || resolvedTheme === "dark";
+  const logo =
+    (onDark ? tenant?.logo_dark_url : null) ?? tenant?.logo_path ?? null;
 
   // One line, truncated: at phone width a long organisation name wrapped over
   // its own logo and crowded the header icons (audit N34). The logo keeps its
@@ -140,11 +150,11 @@ export function TenantLogoBadge({
       <div
         className={`flex ${boxCls} shrink-0 items-center justify-center bg-primary text-primary-foreground font-bold overflow-hidden`}
       >
-        {tenant?.logo_path ? (
+        {logo ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={tenant.logo_path}
-            alt={tenant.name ?? "Logo"}
+            src={logo}
+            alt={tenant?.name ?? "Logo"}
             className="h-full w-full object-cover"
             onError={(e) => {
               // Fallback to initial if logo URL is broken
@@ -155,7 +165,7 @@ export function TenantLogoBadge({
             }}
           />
         ) : null}
-        <span className={tenant?.logo_path ? "hidden" : ""}>{initial}</span>
+        <span className={logo ? "hidden" : ""}>{initial}</span>
       </div>
       {showName && (
         <span

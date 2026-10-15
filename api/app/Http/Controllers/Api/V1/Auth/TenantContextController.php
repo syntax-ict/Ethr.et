@@ -39,7 +39,7 @@ class TenantContextController extends Controller
             'tenant' => $tenant ? [
                 'name' => $tenant->name,
                 'subdomain' => $tenant->subdomain,
-                'logo_path' => $tenant->logo_path,
+                'logo_path' => $tenant->logoUrl(),
                 'brand' => TenantBrand::present($tenant),
                 'landing' => TenantLanding::present($tenant),
                 'sign_in' => [

@@ -18,16 +18,16 @@ import { LogoUpload } from "@/features/settings/components/logo-upload";
 import { BrandImageUpload } from "@/features/settings/components/brand-image-upload";
 
 /**
- * Tenant branding — logo and theme colors.
+ * Tenant branding — the logo and its variants, and the theme colours.
  *
  * The read path already existed everywhere (`TenantBrandingProvider` applies
  * `tenant.theme` to CSS custom properties, `TenantLogoBadge` renders
  * `tenant.logo_path`) but `PUT /settings/branding` had no consumer, so no tenant
  * could ever set either. This is that write path.
  *
- * The logo can be uploaded (`LogoUpload`) or linked. The server resolves which
- * one every consumer shows — an upload wins — so `logo_path` on `/auth/me`
- * and `brand.logo_url` on the sign-in page are always a renderable URL.
+ * Every image is an upload (`LogoUpload`, `BrandImageUpload`): the typed logo
+ * link this card offered until 2026-10-15 is retired, because the portal shows
+ * only images ETHR re-encoded and serves itself.
  */
 
 const DEFAULT_COLORS = {
@@ -39,8 +39,7 @@ const DEFAULT_COLORS = {
 type ColorKey = BrandColorKey;
 
 export interface BrandingCardProps {
-  logoUrl?: string | null;
-  /** The uploaded logo, which is used instead of `logoUrl` when present. */
+  /** The uploaded logo in effect. */
   uploadedLogoUrl?: string | null;
   /** The other uploaded images: the dark-background logo and the square mark. */
   assets?: Pick<BrandAssets, "logo_dark" | "mark"> | null;
@@ -49,7 +48,6 @@ export interface BrandingCardProps {
 }
 
 export function BrandingCard({
-  logoUrl,
   uploadedLogoUrl,
   assets,
   theme,
@@ -57,20 +55,18 @@ export function BrandingCard({
   const { t } = useT();
   const updateBranding = useUpdateBranding();
 
-  const [logo, setLogo] = useState(logoUrl ?? "");
   const [colors, setColors] = useState<Record<ColorKey, string>>({
     primary_color: theme?.primary_color ?? DEFAULT_COLORS.primary_color,
     secondary_color: theme?.secondary_color ?? DEFAULT_COLORS.secondary_color,
     accent_color: theme?.accent_color ?? DEFAULT_COLORS.accent_color,
   });
-  const [logoBroken, setLogoBroken] = useState(false);
 
   // The hook refreshes /auth/me as well as the settings query: it carries the
   // theme TenantBrandingProvider applies, so without it the saved colors only
   // appear after a reload.
   function save() {
     updateBranding.mutate(
-      { logo_url: logo.trim() === "" ? null : logo.trim(), ...colors },
+      { ...colors },
       {
         onSuccess: () =>
           toast.success(t("settings.branding_saved", "Branding saved")),
@@ -152,60 +148,6 @@ export function BrandingCard({
           fileLabel={t("settings.mark_file", "Square mark file")}
           previewClassName="rounded-xl"
         />
-
-        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
-          <div>
-            <Label htmlFor="branding-logo">
-              {uploadedLogoUrl
-                ? t(
-                    "settings.logo_url_fallback",
-                    "Logo link (used if you remove the upload)",
-                  )
-                : t("settings.logo_url_or", "Or link to a logo")}
-            </Label>
-            <Input
-              id="branding-logo"
-              type="url"
-              inputMode="url"
-              pattern="https://.*"
-              placeholder="https://cdn.example.et/logo.png"
-              value={logo}
-              onChange={(e) => {
-                setLogo(e.target.value);
-                setLogoBroken(false);
-              }}
-              className="mt-1"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t(
-                "settings.logo_url_help",
-                "An https image link. Shown on your sign-in page, the sidebar, header and kiosk screen. Leave empty to use the organization initial.",
-              )}
-            </p>
-          </div>
-          <div className="sm:mt-6">
-            <div
-              className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg border bg-muted"
-              aria-live="polite"
-            >
-              {logo.trim() !== "" && !logoBroken ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={logo}
-                  alt={t("settings.logo_preview", "Logo preview")}
-                  className="h-full w-full object-contain"
-                  onError={() => setLogoBroken(true)}
-                />
-              ) : (
-                <span className="px-1 text-center text-[10px] text-muted-foreground">
-                  {logoBroken
-                    ? t("settings.logo_unreachable", "Image not reachable")
-                    : t("settings.no_logo", "No logo")}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           {colorFields.map(({ key, label }) => (
