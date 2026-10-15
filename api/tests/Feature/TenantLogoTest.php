@@ -126,8 +126,10 @@ it('lets only an admin change it', function () {
     test()->deleteJson('http://acme.ethr.test/api/v1/settings/branding/logo')->assertForbidden();
 });
 
-it('shows the same logo on the sign-in page, the dashboard and the kiosk, and falls back to the link when removed', function () {
+it('shows the same logo on the sign-in page, the dashboard and the kiosk, and none once removed', function () {
     $tenant = logoAdmin();
+    // A link left in logo_path from before 2026-10-15 is not read: the
+    // portal shows only images ETHR re-encoded and serves itself.
     $tenant->update(['logo_path' => 'https://cdn.acme.test/logo.png']);
 
     $url = uploadLogo(UploadedFile::fake()->image('a.png', 100, 100))->json('uploaded_logo_url');
@@ -135,14 +137,15 @@ it('shows the same logo on the sign-in page, the dashboard and the kiosk, and fa
     test()->getJson('http://acme.ethr.test/api/v1/auth/me')->assertJsonPath('tenant.logo_path', $url);
     test()->getJson('http://acme.ethr.test/api/v1/settings')
         ->assertJsonPath('branding.uploaded_logo_url', $url)
-        ->assertJsonPath('branding.logo_url', 'https://cdn.acme.test/logo.png');
+        ->assertJsonPath('branding.logo_url', $url);
 
     test()->deleteJson('http://acme.ethr.test/api/v1/settings/branding/logo')
         ->assertOk()
         ->assertJsonPath('uploaded_logo_url', null)
-        ->assertJsonPath('logo_url', 'https://cdn.acme.test/logo.png');
+        ->assertJsonPath('logo_url', null);
 
     app('auth')->forgetGuards();
     test()->getJson('http://acme.ethr.test/api/v1/auth/tenant-context')
-        ->assertJsonPath('tenant.brand.logo_url', 'https://cdn.acme.test/logo.png');
+        ->assertJsonPath('tenant.brand.logo_url', null)
+        ->assertJsonPath('tenant.logo_path', null);
 });

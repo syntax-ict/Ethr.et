@@ -8508,6 +8508,7 @@ export interface components {
             timezone: string;
             ethiopian_calendar: boolean;
             logo_path: string | null;
+            logo_dark_url: string | null;
             theme: unknown[] | null;
             /** Format: date-time */
             created_at: string | null;
@@ -8610,10 +8611,14 @@ export interface components {
             geofence_radius_meters?: number | null;
             is_active?: boolean | null;
         };
-        /** UpdateBrandingRequest */
+        /**
+         * UpdateBrandingRequest
+         * @description The organisation's colours. Its images are uploads (TenantLogoController,
+         *     TenantBrandAssetController): the `logo_url` link this request took until
+         *     2026-10-15 is retired, because the portal shows only images ETHR
+         *     re-encoded and serves itself. A client still sending it is ignored.
+         */
         UpdateBrandingRequest: {
-            /** Format: uri */
-            logo_url?: string | null;
             primary_color?: string | null;
             secondary_color?: string | null;
             accent_color?: string | null;
@@ -23151,7 +23156,7 @@ export interface operations {
                             } | null;
                         };
                         branding: {
-                            logo_url: string | null;
+                            logo_url: string;
                             uploaded_logo_url: string;
                             assets: {
                                 logo_dark: {

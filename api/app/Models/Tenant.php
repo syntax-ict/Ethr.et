@@ -304,15 +304,17 @@ class Tenant extends Model
     }
 
     /**
-     * The logo to show: the uploaded one, else a linked https URL, else none.
-     * One answer for the sign-in page, the dashboard and the kiosk.
+     * The logo to show: the uploaded one, else none. One answer for the
+     * portal, the dashboard and the kiosk.
+     *
+     * Until 2026-10-15 a linked https URL in `logo_path` stood in when nothing
+     * was uploaded. The portal shows only images ETHR re-encoded and serves
+     * itself, so the link is retired: the column stays (nullable, written by
+     * nothing) and is no longer read. No live organisation used it.
      */
     public function logoUrl(): ?string
     {
-        $linked = $this->logo_path;
-
-        return $this->uploadedLogoUrl()
-            ?? (is_string($linked) && str_starts_with($linked, 'https://') ? $linked : null);
+        return $this->uploadedLogoUrl();
     }
 
     /**

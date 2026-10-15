@@ -23,20 +23,20 @@ describe("<BrandingCard>", () => {
   it("seeds the fields from the tenant's saved branding", () => {
     renderWithClient(
       <BrandingCard
-        logoUrl="https://cdn.example.et/acme.png"
+        uploadedLogoUrl="/api/v1/organisation-logos/T/abc"
         theme={{ primary_color: "#123456" }}
       />,
     );
 
-    expect(screen.getByLabelText(/link to a logo/i)).toHaveValue(
-      "https://cdn.example.et/acme.png",
-    );
+    expect(
+      screen.getByText("Your uploaded logo is in use"),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Primary color")).toHaveValue("#123456");
     // Unset colors fall back to the ETHR defaults rather than empty inputs.
     expect(screen.getByLabelText("Accent color")).toHaveValue("#E8A838");
   });
 
-  it("sends the logo and all three colors to PUT /settings/branding", async () => {
+  it("sends the three colors, and no logo link, to PUT /settings/branding", async () => {
     let body: Record<string, unknown> | null = null;
     server.use(
       http.put("*/settings/branding", async ({ request }) => {
@@ -45,51 +45,26 @@ describe("<BrandingCard>", () => {
       }),
     );
 
-    renderWithClient(<BrandingCard logoUrl={null} theme={null} />);
+    renderWithClient(<BrandingCard theme={null} />);
 
-    fireEvent.change(screen.getByLabelText(/link to a logo/i), {
-      target: { value: "https://cdn.example.et/new.png" },
-    });
+    // The typed logo link was retired on 2026-10-15: images are uploads.
+    expect(screen.queryByLabelText(/link to a logo/i)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Primary color"), {
       target: { value: "#0f4c75" },
     });
     fireEvent.click(screen.getByRole("button", { name: /save branding/i }));
 
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body).toMatchObject({
-      logo_url: "https://cdn.example.et/new.png",
+    expect(body).toEqual({
       primary_color: "#0f4c75",
       secondary_color: "#3282B8",
       accent_color: "#E8A838",
     });
   });
 
-  it("sends null rather than an empty string when the logo is cleared", async () => {
-    let body: Record<string, unknown> | null = null;
-    server.use(
-      http.put("*/settings/branding", async ({ request }) => {
-        body = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ message: "Branding updated" });
-      }),
-    );
-
-    renderWithClient(
-      <BrandingCard logoUrl="https://cdn.example.et/old.png" theme={null} />,
-    );
-
-    fireEvent.change(screen.getByLabelText(/link to a logo/i), {
-      target: { value: "   " },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /save branding/i }));
-
-    await waitFor(() => expect(body).not.toBeNull());
-    expect(body!.logo_url).toBeNull();
-  });
-
   it("restores the default palette when reset is clicked", () => {
     renderWithClient(
       <BrandingCard
-        logoUrl={null}
         theme={{ primary_color: "#ff0000", accent_color: "#00ff00" }}
       />,
     );

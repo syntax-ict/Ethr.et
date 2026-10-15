@@ -62,7 +62,7 @@ class SettingsController extends Controller
             ],
             'address' => $addresses->describe($tenant),
             'branding' => [
-                'logo_url' => $tenant->logo_path === null ? null : $tenant->logo_path,
+                'logo_url' => $tenant->logoUrl(),
                 'uploaded_logo_url' => $tenant->uploadedLogoUrl(),
                 'assets' => TenantBrand::assets($tenant),
                 'theme' => $this->brandTheme($tenant),
@@ -184,23 +184,14 @@ class SettingsController extends Controller
 
         $tenant = app(CurrentTenant::class)->get();
 
-        $updates = [];
-        if (array_key_exists('logo_url', $validated)) {
-            $updates['logo_path'] = $validated['logo_url'];
-        }
-
         $themeFields = array_intersect_key($validated, ['primary_color' => 1, 'secondary_color' => 1, 'accent_color' => 1]);
         if (! empty($themeFields)) {
-            $updates['theme'] = array_merge($tenant->theme ?? [], $themeFields);
-        }
-
-        if (! empty($updates)) {
-            $tenant->update($updates);
+            $tenant->update(['theme' => array_merge($tenant->theme ?? [], $themeFields)]);
         }
 
         AuditLog::record('settings.branding_updated', $tenant);
 
-        return response()->json(['message' => 'Branding updated', 'logo_url' => $tenant->logo_path, 'theme' => $tenant->theme]);
+        return response()->json(['message' => 'Branding updated', 'logo_url' => $tenant->logoUrl(), 'theme' => $tenant->theme]);
     }
 
     /**

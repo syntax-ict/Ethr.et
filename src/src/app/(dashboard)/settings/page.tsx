@@ -291,7 +291,6 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
         <TabsContent value="branding" className="mt-6">
           <div className="space-y-6">
             <BrandingCard
-              logoUrl={data.branding.logo_url}
               uploadedLogoUrl={data.branding.uploaded_logo_url ?? null}
               assets={data.branding.assets ?? null}
               theme={data.branding.theme}
@@ -301,8 +300,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
               address={data.address}
               organisationName={data.organization.name}
               brand={{
-                logo_url:
-                  data.branding.uploaded_logo_url ?? data.branding.logo_url,
+                logo_url: data.branding.uploaded_logo_url ?? null,
                 logo_dark_url: data.branding.assets?.logo_dark?.url ?? null,
                 mark_url: data.branding.assets?.mark?.url ?? null,
                 cover: data.branding.assets?.cover ?? null,
