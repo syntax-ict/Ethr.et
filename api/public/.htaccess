@@ -385,6 +385,23 @@
     RewriteCond %{HTTP_HOST} !^(www\.)?ethr\.et(:[0-9]+)?$ [NC]
     RewriteRule ^login/?$ index.php [L,NC]
     #
+    # ── 2d. / on an organisation's subdomain → its /login ──────────
+    #
+    # Added 2026-10-15. An organisation's own address opens its portal, which
+    # lives at /login. The browser did that redirect (the root's
+    # locale-redirect), so acme.ethr.et/ first loaded ETHR's home page and
+    # then replaced it: a flash of the wrong site and a wasted page load on
+    # every visit. Here the server answers 302 at once, on a subdomain of
+    # the deployment's own domain only: not the apex or www, not the console
+    # host. A custom domain keeps the browser redirect, because only the API
+    # can say whether a custom domain belongs to an organisation. 302, not
+    # 301, so a later change of address is not cached by browsers forever.
+    #
+    RewriteCond %{HTTP_HOST} !^admin\.ethr\.et$ [NC]
+    RewriteCond %{HTTP_HOST} !^www\. [NC]
+    RewriteCond %{HTTP_HOST} ^[a-z0-9-]+\.ethr\.et(:[0-9]+)?$ [NC]
+    RewriteRule ^$ /login [R=302,L]
+    #
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{DOCUMENT_ROOT}/$1.html -f
     RewriteRule ^(.+?)/?$ /$1.html [L]

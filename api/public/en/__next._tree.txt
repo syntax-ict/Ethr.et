@@ -4,4 +4,4 @@
 3:[["children",{"s":"__PAGE__","h":128}]]
 2:[["children",{"s":{"n":"locale","t":"d","k":"en","s":["admin","analytics","announcements","approvals","attendance","billing","contact","dashboard","devices","directory","employees","faq","features","impersonate","kiosk","leave","login","notifications","offline","og.png","organization","payroll","pricing","privacy","profile","register","reports","settings","setup","shifts","terms","vacancies","voice"]},"h":65584,"c":"$Q3"}]]
 1:[["children",{"s":"(marketing)","h":131184,"c":"$Q2"}]]
-0:{"b":"rn2GxJIfKItGwv_QBta70","t":{"t":{"s":"","h":131152,"c":"$Q1"}}}
+0:{"b":"6KMy40yqkY1w5I_xKp9Au","t":{"t":{"s":"","h":131152,"c":"$Q1"}}}
