@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
+use App\Support\InstallMode;
 use App\Support\TenancyDomain;
 use Closure;
 use Illuminate\Http\Request;
@@ -69,7 +70,8 @@ class ResolveTenant
         $tenant = $this->resolveFromCustomDomain($request)
             ?? $this->resolveFromSubdomain($request)
             ?? $this->resolveFromHeader($request)
-            ?? $this->resolveFromFormField($request);
+            ?? $this->resolveFromFormField($request)
+            ?? $this->resolveSingleInstall();
 
         if ($tenant !== null) {
             if ($tenant instanceof Response) {
@@ -127,6 +129,12 @@ class ResolveTenant
      */
     private function resolveFromCustomDomain(Request $request): Tenant|Response|null
     {
+        // On a single-tenant install hosts carry no tenant meaning — see
+        // resolveSingleInstall() for why both host selectors step aside.
+        if (InstallMode::single()) {
+            return null;
+        }
+
         $root = TenancyDomain::root();
         if ($root === null) {
             return null;
@@ -175,6 +183,10 @@ class ResolveTenant
 
     private function resolveFromSubdomain(Request $request): Tenant|Response|null
     {
+        if (InstallMode::single()) {
+            return null;
+        }
+
         $subdomain = $this->extractSubdomain($request->getHost());
 
         if ($subdomain === null || in_array($subdomain, Tenant::RESERVED_SUBDOMAINS, true)) {
@@ -235,6 +247,51 @@ class ResolveTenant
         }
 
         return $this->lookupTenant($tenantSlug);
+    }
+
+    /**
+     * Single-tenant installs (ETHR_MODE=single): the one organisation this
+     * deployment exists to serve, resolved when no explicit selector named one.
+     *
+     * Runs LAST, so the header and the form field still win and the frontend
+     * behaves exactly as on a multi-tenant install — EnsureUserBelongsToTenant
+     * still decides access whichever selector answered. The HOST selectors are
+     * skipped entirely in this mode: an on-prem host (ethr.corp.local, a bare
+     * IP) carries no tenant meaning, and without APP_DOMAIN the label-counting
+     * fallback would read "ethr" off ethr.corp.local as an organisation and
+     * answer 404 on every request. The platform host keeps its exemption —
+     * handle() returned before any selector ran — so the console stays
+     * tenant-free at admin.<host>.
+     *
+     * ETHR_SINGLE_TENANT names the organisation by slug. When it is unset, a
+     * sole organisation resolves by itself; anything else fails closed — zero
+     * organisations because there is nothing to serve, two or more because
+     * guessing between them is a cross-tenant defect waiting to happen. A
+     * configured slug that names no organisation propagates lookupTenant()'s
+     * 404 on every request, deliberately loud: a misconfigured install must
+     * fail at smoke-test time, not serve empty pages for weeks. The sole-slug
+     * cache is busted by AuthService::registerTenant(), so the setup window's
+     * first registration resolves immediately rather than after five minutes.
+     */
+    private function resolveSingleInstall(): Tenant|Response|null
+    {
+        if (! InstallMode::single()) {
+            return null;
+        }
+
+        $slug = InstallMode::singleTenantSlug();
+
+        if ($slug !== null) {
+            return $this->lookupTenant($slug);
+        }
+
+        $sole = Cache::remember('tenant:single-install', 300, function (): string|false {
+            $slugs = Tenant::query()->limit(2)->pluck('subdomain');
+
+            return $slugs->count() === 1 ? (string) $slugs->first() : false;
+        });
+
+        return is_string($sole) ? $this->lookupTenant($sole) : null;
     }
 
     private function isTenantCreationEndpoint(Request $request): bool
