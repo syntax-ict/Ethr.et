@@ -18,6 +18,7 @@ use App\Models\AuditLog;
 use App\Models\SsoSetting;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
+use App\Services\EmployeeNumbering;
 use App\Services\Payroll\PensionCalculator;
 use App\Services\Payroll\StatutorySchedules;
 use App\Services\TenantAddressService;
@@ -32,7 +33,7 @@ use Illuminate\Support\Str;
 
 class SettingsController extends Controller
 {
-    public function index(TenantAddressService $addresses): JsonResponse
+    public function index(TenantAddressService $addresses, EmployeeNumbering $numbering): JsonResponse
     {
         Gate::authorize('settings.manage');
 
@@ -99,6 +100,10 @@ class SettingsController extends Controller
             ],
             'display' => [
                 'calendar' => $this->organisationCalendar($tenant),
+            ],
+            'employees' => [
+                'number_format' => $numbering->format($tenant),
+                'next_code' => $numbering->next($tenant),
             ],
             'sso' => $this->ssoConfig($tenant),
         ]);

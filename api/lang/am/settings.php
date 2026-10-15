@@ -17,5 +17,6 @@ return [
         'employer_tin' => 'የአሠሪ የግብር ከፋይ መለያ ቁጥር',
         'tax_center' => 'የግብር ማዕከል',
         'pension_scheme' => 'የጡረታ ዕቅድ',
+        'employee_number_format' => 'የሰራተኛ ቁጥር ቅርጸት',
     ],
 ];
