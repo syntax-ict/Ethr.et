@@ -36,6 +36,15 @@ final class FrontendUrl
      */
     public static function canonicalOrigin(Tenant $tenant): ?string
     {
+        // A single-tenant install (ETHR_MODE=single) has no per-organisation
+        // origin: the one organisation lives at FRONTEND_URL itself, whatever
+        // its address mode says — the row may carry SaaS-era settings an
+        // on-prem host cannot serve, and honouring them would point every
+        // mail link at a host that does not answer.
+        if (InstallMode::single()) {
+            return null;
+        }
+
         // Both hosted tiers take the scheme and port from the frontend URL,
         // which is https in production and whatever the rehearsal serves
         // locally. A custom domain hard-coded to https pointed every redirect
@@ -86,7 +95,9 @@ final class FrontendUrl
         }
 
         if ($tenant !== null && trim($path, '/') === 'login') {
-            return self::to($tenant->subdomain);
+            // A single install has no entry URL: there is nothing to choose
+            // between, so the sign-in page is plain /login.
+            return InstallMode::single() ? self::to('login') : self::to($tenant->subdomain);
         }
 
         return self::to($path);

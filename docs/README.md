@@ -1,6 +1,6 @@
 # ETHR Documentation
 
-Index for 34 top-level documents plus `phases/`, `audit/`, `migration/`, `deployment/`, `operations/` and `archive/`. *(It said 39 until 2026-10-01, when five superseded migration documents moved to [`archive/migration/`](archive/migration/README.md).)* There was no index before Phase 1, and `README.md` mapped eight of them.
+Index for 35 top-level documents plus `phases/`, `audit/`, `migration/`, `deployment/`, `operations/` and `archive/`. *(It said 39 until 2026-10-01, when five superseded migration documents moved to [`archive/migration/`](archive/migration/README.md).)* There was no index before Phase 1, and `README.md` mapped eight of them.
 
 **Start here:** root [`CLAUDE.md`](../CLAUDE.md) for the environment traps · [`CLAUDE.md`](CLAUDE.md) for the conventions · [`audit/BASELINE.md`](audit/BASELINE.md) for what is measured versus merely documented.
 
@@ -118,6 +118,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | [`decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md) | **Decided 2026-10-06: an organisation is reached at `ethr.et/{slug}` or its own domain**, because M3 serves no subdomain. Subdomains return with `TENANCY_SUBDOMAINS=true` |
 | [`PRODUCTION_CHECKLIST.md`](PRODUCTION_CHECKLIST.md) · [`archive/vps/ROLLBACK_RUNBOOK.md`](archive/vps/ROLLBACK_RUNBOOK.md) · [`archive/vps/DEPLOYMENT.md`](archive/vps/DEPLOYMENT.md) | **Historical.** The original 24-item brief and the VPS-era rollback and deployment guides, archived 2026-10-08; [`ROLLBACK_RUNBOOK.md`](ROLLBACK_RUNBOOK.md) and [`DEPLOYMENT.md`](DEPLOYMENT.md) now only point at the shared-hosting route |
 | [`LOCAL_SETUP.md`](LOCAL_SETUP.md) | Development environment |
+| [`ON-PREM.md`](ON-PREM.md) | **Run ETHR on your own server** — single-tenant mode (`ETHR_MODE=single`): the same release tree, one organisation, registration closed, local cron and backups |
 
 ## Decisions and audit
 

@@ -129,6 +129,7 @@ use App\Http\Middleware\BlockImpersonatedActions;
 use App\Http\Middleware\EnforceApiKeyAbilities;
 use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Http\Middleware\EnsurePlatformContext;
+use App\Http\Middleware\EnsureRegistrationOpen;
 use App\Http\Middleware\EnsureUserBelongsToTenant;
 use App\Http\Middleware\RejectInactiveUser;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
@@ -180,7 +181,7 @@ Route::post('/contact', ContactController::class)->middleware('throttle:auth');
 
 // Public auth routes
 Route::prefix('auth')->middleware('throttle:auth')->group(function () {
-    Route::post('/register', RegisterController::class);
+    Route::post('/register', RegisterController::class)->middleware(EnsureRegistrationOpen::class);
     Route::post('/login', LoginController::class);
     // OTP sign-in. The dedicated `otp` limiter (3/min per phone, SMS cost
     // control) existed in AppServiceProvider but had no route to protect.
@@ -203,7 +204,8 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
     Route::post('/session/claim', SessionClaimController::class);
 });
 
-Route::get('/register/check-subdomain', SubdomainCheckController::class)->middleware('throttle:auth');
+Route::get('/register/check-subdomain', SubdomainCheckController::class)
+    ->middleware(['throttle:auth', EnsureRegistrationOpen::class]);
 
 // Pre-auth tenant display info for the login page (name, branding, landing
 // text — never credentials-adjacent). Loaded once per page view, with its own

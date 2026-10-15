@@ -22,6 +22,7 @@ use App\Services\Auth\TrustedDeviceService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -50,6 +51,12 @@ class AuthService
                 'status' => TenantStatus::TRIAL,
                 'trial_ends_at' => now()->addMonths(6),
             ]);
+
+            // A single-tenant install's sole-organisation cache (ResolveTenant::
+            // resolveSingleInstall) must see this row immediately, not after its
+            // TTL: the setup window's first registration is exactly when it is
+            // consulted. A no-op everywhere else.
+            Cache::forget('tenant:single-install');
 
             $this->currentTenant->set($tenant);
 
