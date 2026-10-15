@@ -2889,6 +2889,7 @@
   "payroll_detail_page.reprocessed_from_notice": "This run replaces a voided run:",
   "payroll_detail_page.reprocessed_success": "Payroll reprocessed successfully",
   "payroll_detail_page.run_not_found": "Payroll run not found",
+  "payroll_detail_page.skipped_no_salary": ":count employees were skipped because no salary is set for them",
   "payroll_detail_page.tax": "Tax",
   "payroll_detail_page.to": "to",
   "payroll_detail_page.total_tax": "Total Tax",

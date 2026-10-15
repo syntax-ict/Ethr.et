@@ -34750,6 +34750,9 @@
                     "employee_count": {
                         "type": "integer"
                     },
+                    "skipped_no_salary": {
+                        "type": "integer"
+                    },
                     "gross_total_cents": {
                         "type": "integer"
                     },
@@ -34813,6 +34816,7 @@
                     "period_end",
                     "status",
                     "employee_count",
+                    "skipped_no_salary",
                     "gross_total_cents",
                     "net_total_cents",
                     "tax_total_cents",

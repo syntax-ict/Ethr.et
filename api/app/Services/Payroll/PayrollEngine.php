@@ -148,6 +148,7 @@ final class PayrollEngine
         $totalNet = 0;
         $totalTax = 0;
         $count = 0;
+        $skippedNoSalary = 0;
 
         Employee::query()
             ->withoutGlobalScope('tenant')
@@ -157,10 +158,16 @@ final class PayrollEngine
                 EmployeeStatus::PROBATION,
                 EmployeeStatus::CONFIRMED,
             ])
+            // For the contract fallback in processEmployee(): an employee whose
+            // salary_cents is unset may still have a contract that states one,
+            // and until 2026-10-15 that employee silently vanished from the run
+            // (production QA, F1). Loaded here so the fallback costs no query
+            // per employee.
+            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
             ->chunkById(100, function ($employees) use (
                 $run, $periodStart, $periodEnd,
                 $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis,
-                &$totalGross, &$totalNet, &$totalTax, &$count,
+                &$totalGross, &$totalNet, &$totalTax, &$count, &$skippedNoSalary,
             ) {
                 foreach ($employees as $employee) {
                     $entry = $this->processEmployee(
@@ -179,6 +186,8 @@ final class PayrollEngine
                         $totalNet += $entry->net_cents;
                         $totalTax += $entry->income_tax_cents;
                         $count++;
+                    } else {
+                        $skippedNoSalary++;
                     }
                 }
             });
@@ -186,6 +195,7 @@ final class PayrollEngine
         $run->update([
             'status' => 'completed',
             'employee_count' => $count,
+            'skipped_no_salary' => $skippedNoSalary,
             'gross_total_cents' => $totalGross,
             'net_total_cents' => $totalNet,
             'tax_total_cents' => $totalTax,
@@ -226,6 +236,46 @@ final class PayrollEngine
     /**
      * @param  array{days: int, ethiopian_year: int|null, pagume_length: int|null}  $pagume
      */
+    /**
+     * The salary stated by the contract in force during the period, in cents,
+     * or null when no contract states one.
+     *
+     * A contract's effective window runs from start_date to ended_at (set when
+     * it is renewed or terminated early), else end_date, else open. Status is
+     * deliberately not consulted: a RENEWED or EXPIRED contract still governed
+     * the months it covered, and the window already encodes that. The contract
+     * in force at the period's end wins; failing that, the latest one that
+     * overlaps the period at all (a contract that ended mid-period still pays
+     * that month under the engine's one-salary-per-run model).
+     */
+    private function contractSalaryFor(Employee $employee, Carbon $periodStart, Carbon $periodEnd): ?int
+    {
+        $overlapping = $employee->contracts
+            ->filter(function ($contract) use ($periodStart, $periodEnd): bool {
+                if ((int) $contract->salary_cents <= 0) {
+                    return false;
+                }
+                if ($contract->start_date->gt($periodEnd)) {
+                    return false;
+                }
+                $effectiveEnd = $contract->ended_at ?? $contract->end_date;
+
+                return $effectiveEnd === null || ! $effectiveEnd->lt($periodStart);
+            })
+            ->sortByDesc(fn ($contract) => $contract->start_date);
+
+        $atPeriodEnd = $overlapping->first(function ($contract) use ($periodEnd): bool {
+            $effectiveEnd = $contract->ended_at ?? $contract->end_date;
+
+            return ! $contract->start_date->gt($periodEnd)
+                && ($effectiveEnd === null || ! $effectiveEnd->lt($periodEnd));
+        });
+
+        $salary = ($atPeriodEnd ?? $overlapping->first())?->salary_cents;
+
+        return $salary !== null ? (int) $salary : null;
+    }
+
     private function processEmployee(
         Employee $employee,
         PayrollRun $run,
@@ -238,6 +288,15 @@ final class PayrollEngine
         array $taxBasis,
     ): ?PayrollEntry {
         $basicSalary = $employee->salary_cents;
+
+        // An employee whose own salary is unset is paid what the contract in
+        // force during this period states. Writes to employees.salary_cents are
+        // kept in sync by EmployeeContractService for contracts effective at
+        // creation time; this covers the ones that became effective later, and
+        // rows from before the sync existed (production QA 2026-10-15, F1).
+        if ($basicSalary <= 0) {
+            $basicSalary = $this->contractSalaryFor($employee, $periodStart, $periodEnd) ?? 0;
+        }
 
         if ($basicSalary <= 0) {
             return null;

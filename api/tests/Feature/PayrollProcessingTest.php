@@ -205,7 +205,13 @@ test('replaying the same idempotency key does not double-process payroll', funct
     $this->assertDatabaseHas('audit_log', ['action' => 'payroll.processed']);
 });
 
-test('different idempotency keys allow separate payroll runs for the same period', function () {
+test('a different idempotency key no longer buys a second run for the same period', function () {
+    // Inverted on 2026-10-15. This test used to assert the opposite — two keys,
+    // two runs over the same days — which pinned exactly the defect production
+    // QA then found live (F2, docs/audit/QA-PRODUCTION-2026-10-15.md): both
+    // runs completed, and only a careful human stood between that and both
+    // being approved. One live run per period now; voiding is the way to redo
+    // one, and ContractSalaryAndRunOverlapTest pins the rest of the shape.
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
 
@@ -224,9 +230,11 @@ test('different idempotency keys allow separate payroll runs for the same period
         'period_start' => '2026-06-01',
         'period_end' => '2026-06-30',
         'idempotency_key' => 'run-2026-06-second',
-    ])->assertStatus(202);
+    ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['period_start']);
 
-    expect(PayrollRun::where('tenant_id', $tenant->id)->count())->toBe(2);
+    expect(PayrollRun::where('tenant_id', $tenant->id)->count())->toBe(1);
 });
 
 test('finance admin can list payroll runs', function () {
