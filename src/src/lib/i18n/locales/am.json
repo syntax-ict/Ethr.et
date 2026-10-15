@@ -2062,6 +2062,7 @@
   "landing.about": "ስለ እኛ",
   "landing.announcement_gone": "ይህ ማስታወቂያ ከእንግዲህ አይገኝም።",
   "landing.branch_count": ":count ቅርንጫፎች",
+  "landing.branch_count_one": "1 ቅርንጫፍ",
   "landing.closes": ":date ይዘጋል",
   "landing.contact": "አድራሻ",
   "landing.founded": "በ:year የተመሠረተ",

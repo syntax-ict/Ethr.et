@@ -509,3 +509,12 @@ describe("<OrganisationPortal> content", () => {
     expect(screen.getByText("Check in when you arrive.")).toBeInTheDocument();
   });
 });
+
+describe("<OrganisationPortal> branch count", () => {
+  // Found on the live portal, 2026-10-15: one place read "1 branches".
+  it("says one branch in the singular", async () => {
+    renderContent(contentLanding, { branch_count: 1 });
+    expect(await screen.findByText("1 branch")).toBeInTheDocument();
+    expect(screen.queryByText("1 branches")).not.toBeInTheDocument();
+  });
+});
