@@ -125,17 +125,45 @@ export type EmployeeExport =
   operations["employeeBulk.export"]["responses"][200]["content"]["application/json"];
 
 /**
- * Every employee matching `search`, as one CSV the server builds from the
+ * Every employee the list is showing, as one CSV the server builds from the
  * whole filtered set — not the page on screen. A one-shot download, so a plain
- * function rather than a query.
+ * function rather than a query. It sends the list's search, sort and
+ * nationality filter; it sent only the search, so a filtered list exported
+ * everyone.
  */
 export async function exportEmployees(params: {
   search?: string;
+  sort?: string;
+  nationalityReview?: boolean;
 }): Promise<EmployeeExport> {
   const { data } = await apiClient.get<EmployeeExport>("/employees/export", {
-    params: { search: params.search || undefined },
+    params: {
+      search: params.search || undefined,
+      sort: params.sort || undefined,
+      ...(params.nationalityReview
+        ? { "filter[nationality_needs_review]": 1 }
+        : {}),
+    },
   });
   return data;
+}
+
+// ── Employee numbers ───────────────────────────────────────────────
+
+export type NextEmployeeCode =
+  operations["employee.nextCode"]["responses"][200]["content"]["application/json"];
+
+/**
+ * The code a new employee gets when the form leaves it blank. A preview: the
+ * save may take the one after if someone else adds an employee first. Under
+ * `["employees", …]`, so every create refreshes it.
+ */
+export function useNextEmployeeCode() {
+  return useQuery<NextEmployeeCode>({
+    queryKey: ["employees", "next-code"],
+    queryFn: async () => (await apiClient.get("/employees/next-code")).data,
+    staleTime: 0,
+  });
 }
 
 // ── CSV import (template → preview → commit) ──────────────────────
@@ -190,10 +218,16 @@ export function useCommitEmployeeImport() {
     mutationFn: async (vars: {
       importKey: string;
       rows: EmployeeImportPreview["rows"];
+      /** A sign-in invitation to every imported row with an email. */
+      createLogins?: boolean;
     }): Promise<EmployeeImportResult> => {
       const { data } = await apiClient.post<EmployeeImportResult>(
         "/employees/import/commit",
-        { import_key: vars.importKey, rows: vars.rows },
+        {
+          import_key: vars.importKey,
+          rows: vars.rows,
+          create_logins: vars.createLogins ?? false,
+        },
       );
       return data;
     },

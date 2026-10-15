@@ -35,6 +35,7 @@ import { AddressCard } from "@/features/settings/components/address-card";
 import { OrganizationCard } from "@/features/settings/components/organization-card";
 import { BrandingCard } from "@/features/settings/components/branding-card";
 import { LandingCard } from "@/features/settings/components/landing-card";
+import { EmployeeNumberCard } from "@/features/employees/components/employee-number-card";
 import {
   useSettings,
   useUpdateSettings,
@@ -286,6 +287,8 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
               </div>
             </CardContent>
           </Card>
+
+          <EmployeeNumberCard employees={data.employees} />
         </TabsContent>
 
         <TabsContent value="branding" className="mt-6">

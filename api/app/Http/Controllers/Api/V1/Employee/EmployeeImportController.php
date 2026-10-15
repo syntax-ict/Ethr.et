@@ -28,7 +28,7 @@ class EmployeeImportController extends Controller
 
         // From the same list as the template row: this was a second literal
         // that had fallen behind it and omitted `national_id`.
-        $headers = EmployeeImportRow::COLUMNS;
+        $headers = EmployeeImportRow::TEMPLATE;
 
         return response()->json([
             'template' => $csv,

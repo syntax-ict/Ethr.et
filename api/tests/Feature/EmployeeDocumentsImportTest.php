@@ -413,7 +413,7 @@ describe('employee export', function () {
         $response->assertOk()
             ->assertJsonPath('count', 3);
 
-        expect($response->json('csv'))->toContain('name,email,phone');
+        expect($response->json('csv'))->toStartWith('name,name_am,employee_code,email,phone');
     });
 
     it('exports employees with status filter', function () {
