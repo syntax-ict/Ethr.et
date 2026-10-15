@@ -94,3 +94,22 @@ Device hardware (owner action O1), SMS delivery (sender still an untested guess)
 webhook deliveries to an external receiver (the previous QA endpoint was deleted on
 request), mail beyond what #249 already verified end to end, and anything in a real
 organisation.
+
+## Resolutions — 2026-10-16
+
+- **F1 and F2 are fixed, merged in #273** (`f3f74ab2d230`, released as v2026.10.15.8):
+  a contract in force now syncs the employee's salary (audited with from/to), the
+  engine falls back to the contract covering the run's period, what is still skipped is
+  counted in `payroll_runs.skipped_no_salary` and said on the run page, and a period
+  overlapping a live run is refused — voided and failed runs do not block, replay is
+  untouched. One existing test had **pinned F2's behaviour as intended** ("different
+  idempotency keys allow separate payroll runs for the same period"); it is inverted
+  with the reasoning recorded in place. The deploy carries one additive migration.
+- **F3 took its one look and closes as environmental.** The page runs a single devices
+  query on first load — no polling, no interval, no loop — and the live page serves in
+  under 0.25 s on repeated measurement. The freeze happened minutes after a deploy, on
+  the first navigation to that segment, and never again: a cold first hit, not a page
+  defect. Reopen only if it recurs away from a deploy.
+- The QA Audit artifacts above stay as described, and the two 0-value runs stay
+  unapproved: with the overlap guard live they are also the quickest manual proof that
+  a third run for that period is refused.
