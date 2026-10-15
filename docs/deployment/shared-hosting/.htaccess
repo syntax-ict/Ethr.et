@@ -411,6 +411,19 @@
     #@ RewriteCond %{DOCUMENT_ROOT}/$1.html !-f
     #@ RewriteRule ^([a-z0-9][a-z0-9-]{0,62})/?$ index.php [L,NC]
     #
+    # ── 2c. The portals' sitemap and link-preview images → Laravel ──
+    #
+    # Added 2026-10-15, found on the live host the day the portal's head
+    # shipped: /sitemap-organisations.xml (named in robots.txt) and
+    # /organisation-previews/{publicId}/{version} (the og:image of every
+    # portal) are Laravel routes outside /api, and nothing above sent them
+    # there: the sitemap has a dot, the preview has two segments, so group
+    # 2b passed both to group 3's 404. Exactly those two shapes, the
+    # routes' own constraints in routes/web.php, with no file behind them.
+    #
+    #@ RewriteCond %{REQUEST_FILENAME} !-f
+    #@ RewriteRule ^(sitemap-organisations\.xml|organisation-previews/[0-9A-HJKMNP-TV-Z]{26}/[0-9a-f]{16})$ index.php [L]
+    #
     # ── 3. Anything with no file behind it ───────────────────────
     #
     # ErrorDocument, not a rewrite. Measured 2026-09-26: the rewrite form

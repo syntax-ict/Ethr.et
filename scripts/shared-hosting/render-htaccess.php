@@ -91,6 +91,8 @@ const REQUIRED_IN_BRANCH_B = [
     'RewriteRule ^admin(/|$) - [F,L]',
     // Group 2a: /login on an organisation's own host, through Laravel.
     'RewriteRule ^login/?$ index.php [L,NC]',
+    // Group 2c: the portals' sitemap and link-preview images, through Laravel.
+    'RewriteRule ^(sitemap-organisations\.xml|organisation-previews/[0-9A-HJKMNP-TV-Z]{26}/[0-9a-f]{16})$ index.php [L]',
     // Group 2's two non-Rewrite directives, the ones a name-matching script skipped.
     'Options -Indexes',
     'DirectorySlash Off',
