@@ -68,6 +68,7 @@ Three standing caveats:
 | [`INDUSTRY_TEMPLATES.md`](INDUSTRY_TEMPLATES.md) | Per-sector organization templates |
 | [`DEVICE_INTEGRATION.md`](DEVICE_INTEGRATION.md) | Biometric and attendance devices |
 | [`BRIDGE-DESIGN.md`](BRIDGE-DESIGN.md) | **ETHR Bridge design** (Wave 3 #10): outbound-only LAN agent carrying the device command queue and events for Hikvision/Suprema, with capture mode for O1. Design only — the build waits on the hardware test |
+| [`field-test/O1-FIELD-TEST.md`](field-test/O1-FIELD-TEST.md) | **Field test O1**: real ZKTeco (ADMS) and Hikvision terminals against ETHR, step by step, with [`scripts/field-test/hikvision_capture.py`](../scripts/field-test/hikvision_capture.py) to record what a Hikvision answers, personal data removed |
 | [`IDENTITY_RESOLUTION.md`](IDENTITY_RESOLUTION.md) | Matching people across sources |
 | [`MIGRATION.md`](MIGRATION.md) | **Workforce** data migration — the product feature, not hosting |
 | [`WEBHOOKS.md`](WEBHOOKS.md) | **For tenant developers.** The nine events actually sent, the payload, verifying `X-ETHR-Signature`, retries and auto-disable, and why the URL must be public |
