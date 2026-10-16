@@ -1,8 +1,23 @@
 # Health Checking — Shared Hosting
 
-No uptime-monitoring infrastructure exists yet for this deployment (the VPS's
-Horizon dashboard is gone by design — see `docs/archive/migration/SHARED_HOSTING_AUDIT.md` §F). This is
-what to actually watch instead, and why each one matters here specifically.
+**An uptime monitor watches this endpoint since 2026-10-16** (owner action O9). It is a
+job named **ETHR uptime (health)** on the cron-job.org account that already runs the
+second cron caller. It is set up as follows:
+
+- It sends `GET https://www.ethr.et/api/v1/health` every 5 minutes.
+- It emails the account's address after **2 failures in a row**, so a single blip such as a
+  momentary `503` stays quiet. It also emails when the endpoint recovers, and when the site's
+  TLS certificate is about to expire.
+- Any status other than 2xx is a failure, so the `503` this endpoint returns when a
+  service is degraded alerts too.
+
+It is not GitHub Actions on purpose. Scheduled workflows were measured on 2026-10-12 at
+4–6 runs a day (`.github/workflows/cron.yml`), which is too sparse to notice an outage.
+Who holds the account is recorded in [`../../operations/CUSTODY.md`](../../operations/CUSTODY.md).
+
+The Horizon dashboard of the VPS era is gone by design (see
+`docs/archive/migration/SHARED_HOSTING_AUDIT.md` §F). Below is what else to watch, and
+why each one matters here specifically.
 
 ## The one built-in endpoint
 
