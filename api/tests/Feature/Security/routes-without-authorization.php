@@ -68,7 +68,6 @@ return [
          * colleague is meant to read.
          */
         'App\Http\Controllers\Api\V1\Directory\DirectoryController@index' => 'Tenant-wide staff directory — name, work phone, work email, photo, department, position, branch. Visible to every colleague by design; pinned by EmployeePortalTest.',
-        'App\Http\Controllers\Api\V1\Announcement\AnnouncementController@index' => 'Tenant-wide, filtered to ->published()->notExpired().',
         'App\Http\Controllers\Api\V1\Voice\PulseController@show' => 'Every employee answers the weekly pulse; returns only whether the caller answered this week (a cache key on their own user id) and the topic list.',
         'App\Http\Controllers\Api\V1\Voice\PulseController@store' => 'Every employee answers the weekly pulse; the answer is stored with no user, employee or time of day, once per user per week. EmployeeVoiceTest.',
         'App\Http\Controllers\Api\V1\Voice\ConcernController@mine' => 'auth:sanctum, scoped to reporter_user_id = $request->user()->id - only the caller own named concerns.',
@@ -115,6 +114,7 @@ return [
         'App\Http\Controllers\Api\V1\Auth\SessionClaimController@__invoke' => 'Single-use handoff nonce, bound to the hostname\'s tenant rather than the body.',
         'App\Http\Controllers\Api\V1\Auth\LandingFeedController@index' => 'Pre-authentication sign-in page feed: only announcements and vacancies their author marked public, and holidays, each section as the organisation switched it on. Tenant from the hostname through the global scope; plain text only. LandingFeedTest.',
         'App\Http\Controllers\Api\V1\Auth\LandingFeedController@vacancy' => 'One vacancy that is open, published and public, in the hostname\'s tenant; every other id is the same 404. LandingFeedTest.',
+        'App\Http\Controllers\Api\V1\Auth\LandingFeedController@news' => 'The organisation\'s public news page: only announcements published, unexpired, marked public and addressed to everyone (Announcement::publiclyListed), and only with its news section on; search and category are validated (LandingNewsRequest) and the search text is a literal. Tenant from the hostname through the global scope; plain text only. LandingNewsTest.',
         'App\Http\Controllers\Api\V1\Auth\LandingFeedController@announcement' => 'One announcement that is published, unexpired, marked for the landing and addressed to everyone, in the hostname tenant; every other id is the same 404. LandingFeedTest.',
         'App\Http\Controllers\Api\V1\Auth\TenantContextController@__invoke' => 'Returns only a tenant\'s name, subdomain and logo — the branding a login page needs before anyone has authenticated.',
         'App\Http\Controllers\Api\V1\Auth\SsoController@initiate' => 'Pre-authentication SAML leg.',

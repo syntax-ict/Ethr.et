@@ -16,12 +16,29 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 
 class AnnouncementController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
+        // The publishing view: every announcement whatever its state (drafts,
+        // scheduled, archived), newest first, for whoever may manage them.
+        // Asked for explicitly so the reading list everyone else gets - and
+        // the dashboard card built on it - keeps its rules and its order.
+        if ($request->boolean('manage')) {
+            Gate::authorize('announcement.manage');
+
+            return AnnouncementResource::collection(
+                Announcement::query()
+                    ->orderByRaw('published_at IS NULL DESC')
+                    ->orderByDesc('published_at')
+                    ->orderByDesc('id')
+                    ->paginate($request->integer('per_page', 25))
+            );
+        }
+
         $query = Announcement::query()
             ->published()
             ->notExpired()
@@ -75,26 +92,32 @@ class AnnouncementController extends Controller
         $data = $request->validated();
         $target = $request->resolvedTarget();
 
+        // A publication time wins; without one, `publish_now` decides between
+        // now and a draft, as it always has.
+        $publishedAt = array_key_exists('published_at', $data)
+            ? ($data['published_at'] === null ? null : Carbon::parse($data['published_at']))
+            : (($data['publish_now'] ?? true) ? now() : null);
+
         $announcement = Announcement::create([
             'tenant_id' => $tenant->id,
             'title' => $data['title'],
             'body' => $data['body'],
+            'category' => $data['category'] ?? null,
             'priority' => $data['priority'] ?? 'normal',
             'target_type' => $target['target_type'] ?? 'all',
             'target_id' => $target['target_id'] ?? null,
             'published_by' => $user->id,
-            'published_at' => ($data['publish_now'] ?? true) ? now() : null,
+            'published_at' => $publishedAt,
             'expires_at' => $data['expires_at'] ?? null,
             // Only a whole-organisation announcement can be public; the
             // request refuses the other combinations.
             'show_on_landing' => (bool) ($data['show_on_landing'] ?? false),
+            'featured' => (bool) ($data['featured'] ?? false),
         ]);
 
         AuditLog::record('announcement.created', $announcement);
 
-        // Publishing is what makes an announcement visible; a draft scheduled for
-        // later is notified when the job runs against a published_at in the past.
-        NotifyAnnouncementAudienceJob::dispatch($announcement->id, $announcement->tenant_id)->onQueue('notifications');
+        self::notifyWhenPublished($announcement);
 
         return (new AnnouncementResource($announcement))
             ->response()
@@ -116,11 +139,44 @@ class AnnouncementController extends Controller
             $data['show_on_landing'] = false;
         }
 
+        $wasStatus = $announcement->status();
         $announcement->update($data);
 
-        AuditLog::record('announcement.updated', $announcement);
+        // Publishing, unpublishing, scheduling and archiving are recorded as
+        // what they are, not as an edit, so the audit log answers "who made
+        // this public, and when".
+        $status = $announcement->status();
+        AuditLog::record(
+            $status === $wasStatus ? 'announcement.updated' : match ($status) {
+                'draft' => 'announcement.unpublished',
+                default => "announcement.{$status}",
+            },
+            $announcement,
+        );
+
+        if (array_key_exists('published_at', $data)) {
+            self::notifyWhenPublished($announcement);
+        }
 
         return new AnnouncementResource($announcement);
+    }
+
+    /**
+     * Tell the audience once the announcement is out: now if it is published,
+     * at its time if it is scheduled, never for a draft. The job notifies at
+     * most once (`notified_at`), so publishing again, rescheduling or
+     * unpublishing and republishing does not repeat the message.
+     */
+    private static function notifyWhenPublished(Announcement $announcement): void
+    {
+        if ($announcement->published_at === null || $announcement->notified_at !== null) {
+            return;
+        }
+
+        $job = NotifyAnnouncementAudienceJob::dispatch($announcement->id, $announcement->tenant_id)->onQueue('notifications');
+        if ($announcement->published_at->isFuture()) {
+            $job->delay($announcement->published_at);
+        }
     }
 
     public function destroy(Announcement $announcement): JsonResponse

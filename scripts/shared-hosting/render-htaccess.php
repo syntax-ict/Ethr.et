@@ -89,6 +89,8 @@ const REQUIRED_IN_BRANCH_B = [
     'RewriteRule ^ index.php [L]',
     // Group 0: the /admin host boundary, which must precede the fallback.
     'RewriteRule ^admin(/|$) - [F,L]',
+    // Group 1a: /news and its articles on an organisation's own host, through Laravel.
+    'RewriteRule ^news(/[0-9A-HJKMNP-TV-Z]{26})?/?$ index.php [L]',
     // Group 2a: /login on an organisation's own host, through Laravel.
     'RewriteRule ^login/?$ index.php [L,NC]',
     // Group 2d: / on an organisation's subdomain, straight to its /login.

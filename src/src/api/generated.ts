@@ -2942,6 +2942,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/tenant-landing/news": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The organisation's news page (`/news`): every public announcement, the
+         *     featured ones first, then newest, a page at a time, optionally narrowed
+         *     by a search over title and text and by category. Only what the feed
+         *     itself could show; with the news section off there is no news page,
+         *     and the answer is the same 404 as for an organisation that has none
+         */
+        get: operations["landingFeed.news"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/tenant-landing/vacancies/{vacancy}": {
         parameters: {
             query?: never;
@@ -2970,9 +2993,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * One landing announcement in full, for its detail view. Only what the
-         *     feed itself lists can be opened: published, not expired, marked for the
-         *     landing and addressed to everyone; anything else is the same 404
+         * One public announcement in full, for its article page. Only what the
+         *     news page itself lists can be opened: published, not expired, marked for
+         *     the public and addressed to everyone; anything else is the same 404.
+         *     Up to three related stories follow: the same category first, then the
+         *     newest
          */
         get: operations["landingFeed.announcement"];
         put?: never;
@@ -6193,13 +6218,16 @@ export interface components {
             public_id: string;
             title: string;
             body: string;
+            category: string | null;
             priority: string;
             target_type: string;
+            status: string;
             /** Format: date-time */
             published_at: string | null;
             /** Format: date-time */
             expires_at: string | null;
             show_on_landing: boolean;
+            featured: boolean;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -8009,10 +8037,15 @@ export interface components {
             /** @enum {string} */
             target_type?: "all" | "department" | "branch";
             target_id?: string | null;
+            /** @enum {string|null} */
+            category?: "news" | "notice" | "event" | "deadline" | null;
             publish_now?: boolean;
+            /** Format: date-time */
+            published_at?: string | null;
             /** Format: date-time */
             expires_at?: string | null;
             show_on_landing?: boolean;
+            featured?: boolean;
         };
         /** StoreApiKeyRequest */
         StoreApiKeyRequest: {
@@ -8604,9 +8637,14 @@ export interface components {
             /** @enum {string} */
             target_type?: "all" | "department" | "branch";
             target_id?: string | null;
+            /** @enum {string|null} */
+            category?: "news" | "notice" | "event" | "deadline" | null;
+            /** Format: date-time */
+            published_at?: string | null;
             /** Format: date-time */
             expires_at?: string | null;
             show_on_landing?: boolean;
+            featured?: boolean;
         };
         /** UpdateAttendanceSettingRequest */
         UpdateAttendanceSettingRequest: {
@@ -17190,6 +17228,8 @@ export interface operations {
                             public_id: string;
                             title: string;
                             excerpt: string;
+                            category: string | null;
+                            featured: boolean;
                             priority: string;
                             published_at: string | null;
                         }[];
@@ -17225,6 +17265,47 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "landingFeed.news": {
+        parameters: {
+            query?: {
+                q?: string | null;
+                category?: "news" | "notice" | "event" | "deadline" | null;
+                page?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            title: string;
+                            excerpt: string;
+                            category: string | null;
+                            featured: boolean;
+                            priority: string;
+                            published_at: string | null;
+                        }[];
+                        meta: {
+                            current_page: number;
+                            last_page: number;
+                            per_page: number;
+                            total: number;
+                        };
+                        categories: unknown[];
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
         };
     };
     "landingFeed.vacancy": {
@@ -17281,9 +17362,21 @@ export interface operations {
                     "application/json": {
                         public_id: string;
                         title: string;
-                        body: string;
+                        excerpt: string;
+                        category: string | null;
+                        featured: boolean;
                         priority: string;
                         published_at: string | null;
+                        body: string;
+                        related: {
+                            public_id: string;
+                            title: string;
+                            excerpt: string;
+                            category: string | null;
+                            featured: boolean;
+                            priority: string;
+                            published_at: string | null;
+                        }[];
                     };
                 };
             };
@@ -18080,6 +18173,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "announcement.store": {

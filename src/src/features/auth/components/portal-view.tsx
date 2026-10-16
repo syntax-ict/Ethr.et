@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
   Briefcase,
   Building2,
@@ -16,7 +16,6 @@ import {
   Megaphone,
   Phone,
   Receipt,
-  ShieldCheck,
   Users,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -24,8 +23,9 @@ import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LanguageSwitcher } from "@/components/shared/language-switcher";
 import { OrgMark } from "@/components/shared/org-mark";
+import { NewsCard } from "@/features/news/components/news-card";
+import { PortalFooter, PortalHeader, type PortalLinks } from "./portal-chrome";
 import type {
   PortalSection,
   TenantBrand,
@@ -35,7 +35,6 @@ import { coverPosition, panelBackground } from "@/lib/auth/landing-background";
 import {
   hasAbout,
   hasContact,
-  LINKS,
   localised,
   mapsUrl,
   sectionOn,
@@ -44,10 +43,8 @@ import {
 import type { LandingFeed } from "@/features/auth/landing-feed";
 import { SupportContacts } from "@/app/(auth)/auth-layout-client";
 import { VacancyMeta } from "./vacancy-dialog";
-import { formatDate, formatDateOnly } from "@/lib/utils/date";
+import { formatDateOnly } from "@/lib/utils/date";
 import { toEthiopian, formatEthiopian } from "@/lib/calendar/ethiopian";
-
-const TIME_ZONE = "Africa/Addis_Ababa";
 
 export interface PortalViewProps {
   name: string | null;
@@ -58,7 +55,11 @@ export interface PortalViewProps {
   feedLoading: boolean;
   /** The context itself still loading: the headline is held back. */
   loading?: boolean;
-  onOpenAnnouncement: (publicId: string) => void;
+  /**
+   * Where the page's links lead (news page, articles). Null in the settings
+   * preview, where the same page draws but nothing navigates away.
+   */
+  links: PortalLinks | null;
   onOpenVacancy: (publicId: string) => void;
   /** The shared sign-in form, placed in the hero card. */
   children: ReactNode;
@@ -86,23 +87,13 @@ export function PortalView({
   feed,
   feedLoading,
   loading = false,
-  onOpenAnnouncement,
+  links,
   onOpenVacancy,
   children,
 }: PortalViewProps) {
   const { t, locale } = useT();
   const { resolvedTheme } = useTheme();
   const highContrast = resolvedTheme === "high-contrast";
-
-  // The header compacts once the page scrolls, so it gives the content room
-  // while keeping the way back to the form one click away.
-  const [compact, setCompact] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setCompact(window.scrollY > 24);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const headline = localised(landing, "headline", locale);
   const message = localised(landing, "message", locale);
@@ -133,31 +124,7 @@ export function PortalView({
 
   return (
     <div className="@container flex min-h-screen flex-col bg-background">
-      <header
-        className={cn(
-          "sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur transition-[padding] duration-200 motion-reduce:transition-none",
-          compact ? "py-2" : "py-3.5",
-        )}
-      >
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 @sm:px-6">
-          <OrgMark
-            name={name}
-            logoUrl={brand?.logo_url}
-            darkLogoUrl={brand?.logo_dark_url}
-            className="h-9 w-9 shrink-0"
-            initialClassName="text-sm"
-          />
-          <p className="min-w-0 truncate text-sm font-semibold text-foreground">
-            {name ?? ""}
-          </p>
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            <LanguageSwitcher />
-            <Button size="sm" asChild>
-              <a href="#sign-in">{t("auth.sign_in", "Sign In")}</a>
-            </Button>
-          </div>
-        </div>
-      </header>
+      <PortalHeader name={name} brand={brand} links={links} current="home" />
 
       <section
         className="relative overflow-hidden bg-primary"
@@ -260,7 +227,7 @@ export function PortalView({
           landing={landing}
           feed={feed}
           loading={feedLoading}
-          onOpenAnnouncement={onOpenAnnouncement}
+          links={links}
           onOpenVacancy={onOpenVacancy}
         />
       </main>
@@ -278,13 +245,13 @@ function PortalSections({
   landing,
   feed,
   loading,
-  onOpenAnnouncement,
+  links,
   onOpenVacancy,
 }: {
   landing: TenantLanding | null | undefined;
   feed: LandingFeed | null | undefined;
   loading: boolean;
-  onOpenAnnouncement: (publicId: string) => void;
+  links: PortalLinks | null;
   onOpenVacancy: (publicId: string) => void;
 }) {
   const { t, locale } = useT();
@@ -340,46 +307,24 @@ function PortalSections({
                 id="news"
                 icon={Megaphone}
                 title={t("landing.news", "Latest news")}
+                action={
+                  links?.news ? (
+                    <a
+                      href={links.news}
+                      className="rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {t("landing.all_news", "All news")}
+                    </a>
+                  ) : null
+                }
               >
                 <div className="grid gap-4 @sm:grid-cols-2 @lg:grid-cols-3">
                   {announcements.map((a) => (
-                    <button
+                    <NewsCard
                       key={a.public_id}
-                      type="button"
-                      onClick={() => onOpenAnnouncement(a.public_id)}
-                      className="group flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-border-strong hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {a.published_at && (
-                          <time dateTime={a.published_at}>
-                            {formatDate(a.published_at, TIME_ZONE)}
-                          </time>
-                        )}
-                        {(a.priority === "urgent" || a.priority === "high") && (
-                          <span
-                            className={cn(
-                              "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
-                              a.priority === "urgent"
-                                ? "bg-destructive-soft text-destructive-on-soft"
-                                : "bg-warning-soft text-warning-on-soft",
-                            )}
-                          >
-                            {a.priority === "urgent"
-                              ? t("landing.urgent", "Urgent")
-                              : t("landing.important", "Important")}
-                          </span>
-                        )}
-                      </span>
-                      <span className="mt-2 text-sm font-semibold text-foreground">
-                        {a.title}
-                      </span>
-                      <span className="mt-1 line-clamp-4 whitespace-pre-line text-sm text-muted-foreground">
-                        {a.excerpt}
-                      </span>
-                      <span className="mt-3 text-xs font-medium text-primary group-hover:underline">
-                        {t("landing.read_more", "Read more")}
-                      </span>
-                    </button>
+                      item={a}
+                      href={links ? links.article(a.public_id) : null}
+                    />
                   ))}
                 </div>
               </PortalSectionFrame>
@@ -467,19 +412,25 @@ function PortalSectionFrame({
   id,
   icon: Icon,
   title,
+  action,
   children,
 }: {
   id: string;
   icon: typeof Megaphone;
   title: string;
+  /** A link beside the heading, such as "All news". */
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section id={id} aria-label={title} className="scroll-mt-24">
-      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-        <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
-        {title}
-      </h2>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
+          {title}
+        </h2>
+        {action}
+      </div>
       {children}
     </section>
   );
@@ -680,106 +631,6 @@ function ContactSection({
         </div>
       )}
     </div>
-  );
-}
-
-const LINK_LABELS: Record<(typeof LINKS)[number], string> = {
-  website: "Website",
-  linkedin: "LinkedIn",
-  facebook: "Facebook",
-  x: "X",
-  telegram: "Telegram",
-  youtube: "YouTube",
-  privacy: "Privacy",
-  terms: "Terms",
-};
-
-/**
- * The footer: the organisation's links (its own site and networks, each
- * server-checked to be https on the network's own host), its privacy and
- * terms or ETHR's when it set none, the support email, the year and the
- * ETHR mark.
- */
-function PortalFooter({
-  name,
-  landing,
-}: {
-  name: string | null;
-  landing: TenantLanding | null | undefined;
-}) {
-  const { t, locale } = useT();
-  const links = landing?.links ?? {};
-  const social = (
-    ["website", "linkedin", "facebook", "x", "telegram", "youtube"] as const
-  ).filter((key) => Boolean(links[key]));
-  const policies = [
-    {
-      key: "privacy" as const,
-      href: links.privacy || `/${locale}/privacy`,
-      label: t("landing.privacy", LINK_LABELS.privacy),
-    },
-    {
-      key: "terms" as const,
-      href: links.terms || `/${locale}/terms`,
-      label: t("landing.terms", LINK_LABELS.terms),
-    },
-  ];
-  const link =
-    "rounded-sm underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
-  return (
-    <footer className="border-t border-border">
-      <div className="mx-auto w-full max-w-6xl space-y-3 px-4 py-6 text-xs text-muted-foreground @sm:px-6">
-        {social.length > 0 && (
-          <nav
-            aria-label={t("landing.links", "Links")}
-            className="flex flex-wrap gap-x-5 gap-y-1"
-          >
-            {social.map((key) => (
-              <a
-                key={key}
-                href={links[key] ?? undefined}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(link, "font-medium text-foreground")}
-              >
-                {key === "website"
-                  ? t("landing.website", LINK_LABELS.website)
-                  : LINK_LABELS[key]}
-              </a>
-            ))}
-          </nav>
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-          <p>
-            © {new Date().getFullYear()} {name ?? "ETHR"}
-          </p>
-          <span className="flex flex-wrap gap-x-4 gap-y-1">
-            {policies.map((p) => (
-              <a
-                key={p.key}
-                href={p.href}
-                className={link}
-                {...(links[p.key]
-                  ? { target: "_blank", rel: "noopener noreferrer" }
-                  : {})}
-              >
-                {p.label}
-              </a>
-            ))}
-          </span>
-          {landing?.support_email && (
-            <a className={link} href={`mailto:${landing.support_email}`}>
-              {landing.support_email}
-            </a>
-          )}
-          <p className="inline-flex items-center gap-1.5">
-            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-            {t("auth.powered_by", "Powered by ETHR")}
-          </p>
-        </div>
-      </div>
-    </footer>
   );
 }
 

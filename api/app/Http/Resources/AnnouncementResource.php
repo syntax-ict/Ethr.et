@@ -17,11 +17,14 @@ class AnnouncementResource extends JsonResource
             'public_id' => $this->public_id,
             'title' => $this->title,
             'body' => $this->body,
+            'category' => $this->category,
             'priority' => $this->priority,
             'target_type' => $this->target_type,
+            'status' => $this->status(),
             'published_at' => $this->published_at,
             'expires_at' => $this->expires_at,
             'show_on_landing' => (bool) $this->show_on_landing,
+            'featured' => (bool) $this->featured,
             'created_at' => $this->created_at,
         ];
     }

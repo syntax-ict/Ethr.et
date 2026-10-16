@@ -60,7 +60,12 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
   // entry URL and its /login. Forgot, reset and the other auth pages keep the
   // focused two-panel layout.
   const pathname = usePathname();
-  const portal = organisation && (onLanding || pathname === "/login");
+  // The organisation's news pages draw the portal's own header and footer
+  // (PortalChrome), with or without an organisation behind the address, so
+  // they take neither the portal nor the two-panel sign-in layout.
+  const news =
+    pathname === "/news" || (pathname?.startsWith("/news/") ?? false);
+  const portal = !news && organisation && (onLanding || pathname === "/login");
 
   // The colours go on the document so every control on the page - the
   // button, focus rings, links - takes them, as they do once signed in.
@@ -96,15 +101,20 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
     setLocale(tenantDefaultLocale);
   }, [organisation, tenantDefaultLocale]);
 
-  // The tab names the organisation, as its own page should.
+  // The tab names the organisation, as its own page should. The news pages
+  // name themselves.
   useEffect(() => {
-    if (!organisation || !tenantName) return;
+    if (!organisation || !tenantName || news) return;
     const previous = document.title;
     document.title = `${t("auth.sign_in", "Sign In")} · ${tenantName}`;
     return () => {
       document.title = previous;
     };
-  }, [organisation, tenantName, t]);
+  }, [organisation, tenantName, news, t]);
+
+  if (news) {
+    return <>{children}</>;
+  }
 
   if (portal) {
     return <OrganisationPortal>{children}</OrganisationPortal>;

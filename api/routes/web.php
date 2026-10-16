@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\NewsPageController;
 use App\Http\Controllers\OrganisationEntryController;
 use App\Http\Controllers\OrganisationLoginPageController;
 use App\Http\Controllers\OrganisationPreviewImageController;
@@ -33,6 +34,16 @@ Route::get('/organisation-previews/{publicId}/{version}', OrganisationPreviewIma
 // page as a file, so that host gets the organisation's head too. On the
 // shared host the file is served by Apache and this route is never reached.
 Route::get('/login', OrganisationLoginPageController::class)
+    ->withoutMiddleware('web');
+
+// /news and /news/{id} on an organisation's own host: the same treatment as
+// /login (.htaccess group 1a), so each article carries its own head. The id
+// is a public id (a ULID); anything else is not an article and never reaches
+// here.
+Route::get('/news', [NewsPageController::class, 'index'])
+    ->withoutMiddleware('web');
+Route::get('/news/{publicId}', [NewsPageController::class, 'show'])
+    ->where('publicId', '[0-9A-HJKMNP-TV-Z]{26}')
     ->withoutMiddleware('web');
 
 // ethr.et/{slug} — an organisation's entry URL. Registered last and limited to

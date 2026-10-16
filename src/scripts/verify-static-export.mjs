@@ -29,7 +29,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const WEB_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 const OUT = path.join(WEB_DIR, "out");
 
 /**
@@ -41,7 +44,7 @@ const OUT = path.join(WEB_DIR, "out");
  * which is precisely the class of defect this script exists to make loud.
  * `src/lib/static-export.ts` owns the sentinel value.
  */
-const ID_ROUTES = ["employees", "payroll", "devices", "admin/tenants"];
+const ID_ROUTES = ["employees", "payroll", "devices", "admin/tenants", "news"];
 const SENTINEL = "__id__";
 
 /** Routes whose absence breaks a documented behaviour rather than one page. */
@@ -190,7 +193,10 @@ check(
 
 if (fs.existsSync(nextDir)) {
   const assets = countFiles(nextDir);
-  check(assets > 20, `out/_next holds only ${assets} files, which cannot be a full bundle`);
+  check(
+    assets > 20,
+    `out/_next holds only ${assets} files, which cannot be a full bundle`,
+  );
   notes.push(`out/_next: ${assets} files`);
 }
 
