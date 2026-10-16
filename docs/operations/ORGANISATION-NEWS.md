@@ -83,6 +83,30 @@ can be fetched by whoever has its address. Only the publishing desk shows that
 address, and it carries a 64-bit content hash beside two ULIDs. Do not use a
 cover for anything that must stay private until publication.
 
+### Documents
+
+A story may carry up to **three PDFs** of at most 5 MB each, such as a
+circular or a form, chosen in the story form (Documents → Add a PDF) and sent
+once the story is saved. Each is checked by its own bytes (`%PDF`) and stored
+under a fresh ULID; the name it was uploaded under is kept, cleaned, for the
+download.
+
+| Where | Who | Address |
+|---|---|---|
+| Article page | Anyone, **only while the story is public** (published, not expired, on the website, for everyone) and the organisation shows news | `GET /api/v1/news-files/{organisation}/{story}/{file}`, cached for five minutes |
+| Announcements screen | Whoever may read the story in the app, and managers in any state | `GET /api/v1/announcements/{story}/files/{file}` |
+
+Every download is `attachment` with `nosniff` and a `default-src 'none'`
+policy, so a document is saved, never shown inside an ETHR page. Removing a
+document or deleting its story deletes the file. Audit log:
+`announcement.file_attached`, `announcement.file_removed`.
+
+The public address names the organisation because a download link cannot
+send `X-Tenant`; the lookup states that organisation's `tenant_id` on the
+same chain and refuses a host that resolved a different one. That is a
+tenant-scope bypass, pinned in
+`tests/Feature/Security/tenant-scope-bypasses.php` (168/65).
+
 ## Search engines
 
 Listing is the organisation's choice (Settings → Sign-in page → listing, off by
@@ -104,3 +128,8 @@ Cover photos came in a later release with one more migration (`cover` on
 `announcements`, nullable JSON), so that release needs `migrate` as well. Its
 `down()` drops the column; the photo files stay under
 `storage/app/private/tenants/{organisation}/news/` until deleted by hand.
+
+Documents came in the release after that, with one more migration
+(`attachments` on `announcements`, nullable JSON), so it needs `migrate` too.
+Its `down()` drops the column; the PDFs stay under
+`storage/app/private/tenants/{organisation}/news/{story}-files/`.

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -278,6 +278,14 @@ describe("<NewsArticle>", () => {
       http.get("*/auth/tenant-landing/announcements/A1", () =>
         HttpResponse.json({
           ...story("A1", "Open day", { category: "event", cover: COVER }),
+          attachments: [
+            {
+              id: "F1",
+              name: "Open day programme.pdf",
+              size: 250_000,
+              url: "/api/v1/news-files/T/A1/F1",
+            },
+          ],
           body: "Come and see the plant.\n\nDetails at https://acme.example/open-day. <b>Not bold</b>",
           related: [story("A2", "Fees due")],
         }),
@@ -296,6 +304,14 @@ describe("<NewsArticle>", () => {
       "src",
       COVER.url,
     );
+    // Its documents download from the public address, named and sized.
+    const documents = screen.getByRole("region", { name: "Documents" });
+    const download = within(documents).getByRole("link", {
+      name: /open day programme\.pdf/i,
+    });
+    expect(download).toHaveAttribute("href", "/api/v1/news-files/T/A1/F1");
+    expect(download).toHaveAttribute("download", "Open day programme.pdf");
+    expect(download).toHaveTextContent("PDF, 244 KB");
     // Markup in a story is text.
     expect(screen.getByText(/<b>Not bold<\/b>/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /fees due/i })).toHaveAttribute(
