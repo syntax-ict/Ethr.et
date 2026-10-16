@@ -272,14 +272,33 @@
     RewriteCond %{DOCUMENT_ROOT}/$1__next.$2/$3/$4/$5/$6.txt -f
     RewriteRule ^(.*)__next\.([^./]+)\.([^./]+)\.([^./]+)\.([^./]+)\.([^./]+)\.txt$ /$1__next.$2/$3/$4/$5/$6.txt [L]
     #
+    # ── 1a. /news and /news/<ULID> on an organisation's own host → Laravel ─
+    #
+    # Added 2026-10-16 (organisation news pages). The same carve-out as group
+    # 2a gives /login: on every host that is not the apex, its www alias or
+    # the console, the news page and each article go to NewsPageController,
+    # which resolves the organisation from the host alone and serves the
+    # exported page with that organisation's head (title, canonical, link
+    # preview, NewsArticle). A host that names no organisation gets the file
+    # unchanged.
+    #
+    # Before group 1 on purpose: group 1 below takes /news/<id> and hands it
+    # the article shell as a file, which is right on the shared host (where
+    # ?org= names the organisation and the page draws itself from the API)
+    # and would skip the server's head here. The id must be a ULID, so the
+    # shell's own segment requests (/news/<id>/__next.…) never match.
+    RewriteCond %{HTTP_HOST} !^admin\.ethr\.et$ [NC]
+    RewriteCond %{HTTP_HOST} !^(www\.)?ethr\.et(:[0-9]+)?$ [NC]
+    RewriteRule ^news(/[0-9A-HJKMNP-TV-Z]{26})?/?$ index.php [L]
+    #
     # ── 1. Entity routes: /employees/<ULID> and the other three ──
     #
     # Only one shell per route exists — out/employees/__id__.html —
     # because ids are tenant data and there is nothing to enumerate
     # at build time. These rules hand that shell to every id, and
     # src/src/lib/hooks/useRouteId.ts reads the id back out of the
-    # URL. The four route prefixes are the four [id] segments in
-    # src/src/app; a fifth one needs a line here or it 404s.
+    # URL. The five route prefixes are the five [id] segments in
+    # src/src/app; a sixth one needs a line here or it 404s.
     #
     # Order matters. ^…/[^/]+$ also matches "…/ABC.txt", so the RSC
     # payload rule has to be reached first.
@@ -294,14 +313,14 @@
     # directory, `__id__` included, is never an id.
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{DOCUMENT_ROOT}/$1/$2 !-d
-    RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)/(__next\..*)$ /$1/__id__/$3 [L]
+    RewriteRule ^(employees|payroll|devices|admin/tenants|news)/([^/]+)/(__next\..*)$ /$1/__id__/$3 [L]
     #
     RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^(employees|payroll|devices|admin/tenants)/[^/]+\.txt$ /$1/__id__.txt [L]
+    RewriteRule ^(employees|payroll|devices|admin/tenants|news)/[^/]+\.txt$ /$1/__id__.txt [L]
     #
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{DOCUMENT_ROOT}/$1/$2.html !-f
-    RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)/?$ /$1/__id__.html [L]
+    RewriteRule ^(employees|payroll|devices|admin/tenants|news)/([^/]+)/?$ /$1/__id__.html [L]
     #
     # The optional trailing slash was added 2026-10-12. Without it
     # /devices/<id>/ — a bookmark, a pasted link — matched nothing and

@@ -228,6 +228,7 @@ Route::get('/organisation-assets/{publicId}/{kind}/{version}', OrganisationAsset
 // What the organisation chose to show the public on its sign-in page:
 // announcements and vacancies marked public, and upcoming holidays.
 Route::get('/auth/tenant-landing/feed', [LandingFeedController::class, 'index'])->middleware('throttle:api');
+Route::get('/auth/tenant-landing/news', [LandingFeedController::class, 'news'])->middleware('throttle:api');
 Route::get('/auth/tenant-landing/vacancies/{vacancy}', [LandingFeedController::class, 'vacancy'])->middleware('throttle:api');
 Route::get('/auth/tenant-landing/announcements/{announcement}', [LandingFeedController::class, 'announcement'])->middleware('throttle:api');
 
