@@ -25,6 +25,7 @@ import type {
 import {
   hasAbout,
   hasContact,
+  hasFaq,
   LINKS,
   localised,
   sectionOn,
@@ -82,6 +83,7 @@ export function visibleSections(
     announcements: (feed?.announcements ?? []).length > 0,
     vacancies: (feed?.vacancies ?? []).length > 0,
     holidays: (feed?.holidays ?? []).length > 0,
+    faq: hasFaq(landing),
     contact: hasContact(landing, (feed?.branches ?? []).length),
   };
   return sectionOrder(landing).filter(
@@ -101,19 +103,21 @@ const SECTION_IDS: Record<PortalSection, string> = {
   announcements: "news",
   vacancies: "careers",
   holidays: "holidays",
+  faq: "faq",
   contact: "contact",
 };
 
 /**
  * The organisation's navigation, from its visible sections. News leads to the
  * news page (every story, searchable) when the organisation has one, else to
- * the portal's own news section. Holidays are left to the footer: the header
- * keeps to the four destinations a visitor came for.
+ * the portal's own news section. Holidays and questions are left to the
+ * footer (`footer: true`): the header keeps to the four destinations a
+ * visitor came for.
  */
 export function usePortalNav(
   sections: PortalSection[],
   links: PortalLinks | null,
-  { includeHolidays = false }: { includeHolidays?: boolean } = {},
+  { footer = false }: { footer?: boolean } = {},
 ): PortalNavItem[] {
   const { t } = useT();
   if (!links) return [];
@@ -122,11 +126,12 @@ export function usePortalNav(
     announcements: t("landing.news_nav", "News"),
     vacancies: t("landing.nav_careers", "Careers"),
     holidays: t("landing.holidays", "Upcoming holidays"),
+    faq: t("landing.nav_faq", "FAQ"),
     contact: t("landing.nav_contact", "Contact"),
   };
   const items: PortalNavItem[] = [];
   for (const section of sections) {
-    if (section === "holidays" && !includeHolidays) continue;
+    if ((section === "holidays" || section === "faq") && !footer) continue;
     items.push({
       key: section,
       label: labels[section],
@@ -583,7 +588,7 @@ export function PortalChrome({
   children: ReactNode;
 }) {
   const nav = usePortalNav(sections, links);
-  const footerNav = usePortalNav(sections, links, { includeHolidays: true });
+  const footerNav = usePortalNav(sections, links, { footer: true });
   return (
     <div className="@container flex min-h-screen flex-col bg-background">
       <SkipToContent />

@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -58,14 +64,16 @@ const landing: TenantLandingSettings = {
     privacy: null,
     terms: null,
   },
+  faqs: [],
   sections: {
     about: true,
     announcements: false,
     vacancies: false,
     holidays: false,
+    faq: true,
     contact: true,
   },
-  order: ["about", "announcements", "vacancies", "holidays", "contact"],
+  order: ["about", "announcements", "vacancies", "holidays", "faq", "contact"],
   listed: false,
 };
 
@@ -206,10 +214,9 @@ describe("<LandingCard>", () => {
       landing: { ...landing, about: "We make pumps.", address: "Adama" },
     });
     await user.click(screen.getByRole("tab", { name: "Sections" }));
-    fireEvent.click(screen.getByRole("button", { name: "Move Contact up" }));
-    fireEvent.click(screen.getByRole("button", { name: "Move Contact up" }));
-    fireEvent.click(screen.getByRole("button", { name: "Move Contact up" }));
-    fireEvent.click(screen.getByRole("button", { name: "Move Contact up" }));
+    for (let i = 0; i < 5; i++) {
+      fireEvent.click(screen.getByRole("button", { name: "Move Contact up" }));
+    }
     fireEvent.click(
       screen.getByRole("switch", { name: "List this page in search engines" }),
     );
@@ -227,10 +234,100 @@ describe("<LandingCard>", () => {
     fireEvent.click(screen.getByRole("button", { name: /save sign-in page/i }));
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({
-      order: ["contact", "about", "announcements", "vacancies", "holidays"],
+      order: [
+        "contact",
+        "about",
+        "announcements",
+        "vacancies",
+        "holidays",
+        "faq",
+      ],
       sections: { ...landing.sections, about: false },
       listed: true,
     });
+  });
+
+  it("writes, reorders and removes questions, previews them, and sends only the filled ones", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.put("*/settings/landing", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...landing, ...body });
+      }),
+    );
+
+    renderCard();
+    await user.click(screen.getByRole("tab", { name: "Questions" }));
+    expect(screen.getByText("No questions yet.")).toBeInTheDocument();
+
+    for (let i = 0; i < 3; i++) {
+      await user.click(screen.getByRole("button", { name: "Add a question" }));
+    }
+    fireEvent.change(screen.getByLabelText("Question 1 (English)"), {
+      target: { value: "  When is payday?  " },
+    });
+    fireEvent.change(screen.getByLabelText("Answer 1 (English)"), {
+      target: { value: "The 28th." },
+    });
+    fireEvent.change(screen.getByLabelText("Question 2 (አማርኛ)"), {
+      target: { value: "የስራ ሰዓት?" },
+    });
+    fireEvent.change(screen.getByLabelText("Answer 2 (አማርኛ)"), {
+      target: { value: "ከ 2:30 እስከ 11:30።" },
+    });
+    // The second goes first; the third is left blank and is not sent.
+    fireEvent.click(screen.getByRole("button", { name: "Move Question 2 up" }));
+
+    await waitFor(() =>
+      expect(
+        within(preview()).getByText("Frequently asked questions"),
+      ).toBeInTheDocument(),
+    );
+    expect(within(preview()).getByText("When is payday?")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /save sign-in page/i }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({
+      faqs: [
+        {
+          question: null,
+          question_am: "የስራ ሰዓት?",
+          answer: null,
+          answer_am: "ከ 2:30 እስከ 11:30።",
+        },
+        {
+          question: "When is payday?",
+          question_am: null,
+          answer: "The 28th.",
+          answer_am: null,
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Question 1" }));
+    expect(screen.queryByDisplayValue("የስራ ሰዓት?")).toBeNull();
+    expect(screen.getByDisplayValue("When is payday?")).toBeInTheDocument();
+  });
+
+  it("stops adding at twelve questions", async () => {
+    const user = userEvent.setup();
+    renderCard({
+      landing: {
+        ...landing,
+        faqs: Array.from({ length: 12 }, (_, i) => ({
+          question: `Q${i}`,
+          question_am: null,
+          answer: "A",
+          answer_am: null,
+        })),
+      },
+    });
+    await user.click(screen.getByRole("tab", { name: "Questions" }));
+
+    expect(
+      screen.getByRole("button", { name: "Twelve questions is the most" }),
+    ).toBeDisabled();
   });
 
   it("shows the server's refusal under the field it names, nested links included", async () => {

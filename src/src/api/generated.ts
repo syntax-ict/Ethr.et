@@ -8867,8 +8867,9 @@ export interface components {
          *     `POST /settings/branding/assets/cover`; choosing it before a cover exists
          *     is refused in withValidator(). The network links are checked against the
          *     network's own host there too, with TenantLanding::linkUrl(), the same test
-         *     the public side applies before serving. Scramble does not read
-         *     withValidator(), so the contract stays a plain rule set.
+         *     the public side applies before serving. Each question needs a question
+         *     and an answer in at least one language, checked there as well. Scramble
+         *     does not read withValidator(), so the contract stays a plain rule set.
          */
         UpdateLandingRequest: {
             headline?: string | null;
@@ -8918,9 +8919,16 @@ export interface components {
                 announcements: boolean;
                 vacancies: boolean;
                 holidays: boolean;
+                faq: boolean;
                 contact: boolean;
             };
-            order?: ("about" | "announcements" | "vacancies" | "holidays" | "contact")[];
+            order?: ("about" | "announcements" | "vacancies" | "holidays" | "faq" | "contact")[];
+            faqs?: {
+                question: string | null;
+                question_am: string | null;
+                answer: string | null;
+                answer_am: string | null;
+            }[];
             listed?: boolean;
         };
         /** UpdateLeaveTypeRequest */
@@ -23483,6 +23491,12 @@ export interface operations {
                             links: {
                                 [key: string]: string | null;
                             };
+                            faqs: {
+                                question: string | null;
+                                question_am: string | null;
+                                answer: string | null;
+                                answer_am: string | null;
+                            }[];
                             sections: {
                                 [key: string]: boolean;
                             };
@@ -23782,6 +23796,12 @@ export interface operations {
                         links: {
                             [key: string]: string | null;
                         };
+                        faqs: {
+                            question: string | null;
+                            question_am: string | null;
+                            answer: string | null;
+                            answer_am: string | null;
+                        }[];
                         sections: {
                             [key: string]: boolean;
                         };
@@ -25446,6 +25466,12 @@ export interface operations {
                                 links: {
                                     [key: string]: string | null;
                                 };
+                                faqs: {
+                                    question: string | null;
+                                    question_am: string | null;
+                                    answer: string | null;
+                                    answer_am: string | null;
+                                }[];
                                 sections: {
                                     [key: string]: boolean;
                                 };

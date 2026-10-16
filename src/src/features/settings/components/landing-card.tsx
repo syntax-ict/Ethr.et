@@ -10,7 +10,9 @@ import {
   ExternalLink,
   Loader2,
   LogIn,
+  Plus,
   Save,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -69,6 +71,21 @@ const MESSAGE_MAX = 280;
 const ABOUT_MAX = 600;
 const ADDRESS_MAX = 200;
 const HOURS_MAX = 120;
+const FAQ_MAX = 12;
+const QUESTION_MAX = 160;
+const ANSWER_MAX = 1000;
+
+/** One question as edited, with a key that survives reordering. */
+interface FaqForm {
+  key: string;
+  question: string;
+  question_am: string;
+  answer: string;
+  answer_am: string;
+}
+
+let faqKeys = 0;
+const faqKey = () => `faq-${++faqKeys}`;
 
 type LinkKey = (typeof LINKS)[number];
 
@@ -95,6 +112,7 @@ interface LandingForm {
   longitude: string;
   show_branches: boolean;
   links: Record<LinkKey, string>;
+  faqs: FaqForm[];
   sections: Record<PortalSection, boolean>;
   order: PortalSection[];
   listed: boolean;
@@ -128,6 +146,13 @@ function fromSettings(landing: TenantLandingSettings): LandingForm {
     longitude: landing.longitude == null ? "" : String(landing.longitude),
     show_branches: Boolean(landing.show_branches),
     links,
+    faqs: (landing.faqs ?? []).map((faq) => ({
+      key: faqKey(),
+      question: text(faq.question),
+      question_am: text(faq.question_am),
+      answer: text(faq.answer),
+      answer_am: text(faq.answer_am),
+    })),
     sections,
     order: sectionOrder(landing),
     listed: Boolean(landing.listed),
@@ -163,6 +188,19 @@ function toUpdate(form: LandingForm): LandingUpdate {
     longitude: numberOrNull(form.longitude),
     show_branches: form.show_branches,
     links,
+    // A question left wholly blank is dropped rather than refused.
+    faqs: form.faqs
+      .filter((faq) =>
+        [faq.question, faq.question_am, faq.answer, faq.answer_am].some(
+          (v) => v.trim() !== "",
+        ),
+      )
+      .map((faq) => ({
+        question: trimmed(faq.question),
+        question_am: trimmed(faq.question_am),
+        answer: trimmed(faq.answer),
+        answer_am: trimmed(faq.answer_am),
+      })),
     sections: form.sections,
     order: form.order,
     listed: form.listed,
@@ -240,6 +278,7 @@ export function LandingCard({
     announcements: t("landing.news", "Latest news"),
     vacancies: t("landing.vacancies", "Open positions"),
     holidays: t("landing.holidays", "Upcoming holidays"),
+    faq: t("landing.faq", "Frequently asked questions"),
     contact: t("landing.contact", "Contact"),
   };
 
@@ -255,6 +294,57 @@ export function LandingCard({
       order.splice(to, 0, section);
       return { ...prev, order };
     });
+  }
+
+  function setFaq(
+    index: number,
+    key: keyof Omit<FaqForm, "key">,
+    value: string,
+  ) {
+    setForm((prev) => ({
+      ...prev,
+      faqs: prev.faqs.map((faq, i) =>
+        i === index ? { ...faq, [key]: value } : faq,
+      ),
+    }));
+  }
+
+  function moveFaq(index: number, by: -1 | 1) {
+    setForm((prev) => {
+      const faqs = [...prev.faqs];
+      const to = index + by;
+      if (to < 0 || to >= faqs.length) return prev;
+      const [faq] = faqs.splice(index, 1);
+      faqs.splice(to, 0, faq);
+      return { ...prev, faqs };
+    });
+  }
+
+  function addFaq() {
+    setForm((prev) =>
+      prev.faqs.length >= FAQ_MAX
+        ? prev
+        : {
+            ...prev,
+            faqs: [
+              ...prev.faqs,
+              {
+                key: faqKey(),
+                question: "",
+                question_am: "",
+                answer: "",
+                answer_am: "",
+              },
+            ],
+          },
+    );
+  }
+
+  function removeFaq(index: number) {
+    setForm((prev) => ({
+      ...prev,
+      faqs: prev.faqs.filter((_, i) => i !== index),
+    }));
   }
 
   function save() {
@@ -375,6 +465,9 @@ export function LandingCard({
             </TabsTrigger>
             <TabsTrigger value="links">
               {t("settings.landing_tab_links", "Links")}
+            </TabsTrigger>
+            <TabsTrigger value="faq">
+              {t("settings.landing_tab_faq", "Questions")}
             </TabsTrigger>
             <TabsTrigger value="sections">
               {t("settings.landing_tab_sections", "Sections")}
@@ -648,6 +741,158 @@ export function LandingCard({
                 </Field>
               ))}
             </div>
+          </TabsContent>
+
+          <TabsContent value="faq" className="mt-4 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {t(
+                "settings.landing_faq_help",
+                "Answer the questions people ask most, such as payday, working hours or how to apply. Each needs a question and an answer in English, Amharic or both.",
+              )}
+            </p>
+            {form.faqs.length === 0 ? (
+              <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                {t("settings.landing_faq_empty", "No questions yet.")}
+              </p>
+            ) : (
+              <ol className="space-y-4">
+                {form.faqs.map((faq, index) => {
+                  const n = index + 1;
+                  const name = t("settings.landing_faq_item", "Question :n", {
+                    n,
+                  });
+                  return (
+                    <li
+                      key={faq.key}
+                      className="space-y-3 rounded-lg border p-3"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span className="min-w-0 flex-1 text-sm font-medium">
+                          {name}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={index === 0}
+                          aria-label={t(
+                            "settings.landing_move_up",
+                            "Move :section up",
+                            { section: name },
+                          )}
+                          onClick={() => moveFaq(index, -1)}
+                        >
+                          <ArrowUp className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={index === form.faqs.length - 1}
+                          aria-label={t(
+                            "settings.landing_move_down",
+                            "Move :section down",
+                            { section: name },
+                          )}
+                          onClick={() => moveFaq(index, 1)}
+                        >
+                          <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          aria-label={t(
+                            "settings.landing_faq_remove",
+                            "Remove :item",
+                            { item: name },
+                          )}
+                          onClick={() => removeFaq(index)}
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Field
+                          id={`landing-faq-${n}-question`}
+                          label={`${t("settings.landing_faq_question", "Question")} ${n} (English)`}
+                          error={fieldErrors[`faqs.${index}.question`]}
+                          counter={`${faq.question.length}/${QUESTION_MAX}`}
+                        >
+                          <Input
+                            id={`landing-faq-${n}-question`}
+                            value={faq.question}
+                            maxLength={QUESTION_MAX}
+                            onChange={(e) =>
+                              setFaq(index, "question", e.target.value)
+                            }
+                          />
+                        </Field>
+                        <Field
+                          id={`landing-faq-${n}-question_am`}
+                          label={`${t("settings.landing_faq_question", "Question")} ${n} (አማርኛ)`}
+                          counter={`${faq.question_am.length}/${QUESTION_MAX}`}
+                        >
+                          <Input
+                            id={`landing-faq-${n}-question_am`}
+                            value={faq.question_am}
+                            maxLength={QUESTION_MAX}
+                            lang="am"
+                            onChange={(e) =>
+                              setFaq(index, "question_am", e.target.value)
+                            }
+                          />
+                        </Field>
+                        <Field
+                          id={`landing-faq-${n}-answer`}
+                          label={`${t("settings.landing_faq_answer", "Answer")} ${n} (English)`}
+                          error={fieldErrors[`faqs.${index}.answer`]}
+                          counter={`${faq.answer.length}/${ANSWER_MAX}`}
+                        >
+                          <Textarea
+                            id={`landing-faq-${n}-answer`}
+                            value={faq.answer}
+                            maxLength={ANSWER_MAX}
+                            rows={3}
+                            onChange={(e) =>
+                              setFaq(index, "answer", e.target.value)
+                            }
+                          />
+                        </Field>
+                        <Field
+                          id={`landing-faq-${n}-answer_am`}
+                          label={`${t("settings.landing_faq_answer", "Answer")} ${n} (አማርኛ)`}
+                          counter={`${faq.answer_am.length}/${ANSWER_MAX}`}
+                        >
+                          <Textarea
+                            id={`landing-faq-${n}-answer_am`}
+                            value={faq.answer_am}
+                            maxLength={ANSWER_MAX}
+                            rows={3}
+                            lang="am"
+                            onChange={(e) =>
+                              setFaq(index, "answer_am", e.target.value)
+                            }
+                          />
+                        </Field>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={form.faqs.length >= FAQ_MAX}
+              onClick={addFaq}
+            >
+              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+              {form.faqs.length >= FAQ_MAX
+                ? t("settings.landing_faq_full", "Twelve questions is the most")
+                : t("settings.landing_faq_add", "Add a question")}
+            </Button>
           </TabsContent>
 
           <TabsContent value="sections" className="mt-4 space-y-4">
