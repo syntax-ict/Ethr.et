@@ -280,3 +280,25 @@ describe("the Getting Started card", () => {
     expect(localStorage.getItem("ethr.setup-banner-open")).toBe("0");
   });
 });
+
+/**
+ * A shortcut to a page inside a group carries the group's name. Out of its
+ * group, "Records" or "Corrections" does not say of what (live check on QA
+ * Audit, 2026-10-16: the Recent row read only "Records").
+ */
+describe("Pinned and Recent shortcuts", () => {
+  it("name the group of a grouped destination", async () => {
+    localStorage.setItem("ethr.nav.favorites", JSON.stringify(["/attendance"]));
+    asCustomRole(["attendance.viewAll"]);
+    renderWith(<SidebarNav />);
+
+    const shortcuts = await screen.findAllByRole("link", {
+      name: /attendance\s*records/i,
+    });
+    expect(shortcuts[0]).toHaveAttribute("href", "/attendance");
+    expect(
+      screen.getByRole("button", { name: /unpin: attendance records/i }),
+    ).toBeInTheDocument();
+    localStorage.removeItem("ethr.nav.favorites");
+  });
+});
