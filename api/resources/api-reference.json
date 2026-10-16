@@ -922,6 +922,105 @@
                 }
             }
         },
+        "/announcements/{announcement}/cover": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "announcementCover.store",
+                "summary": "Cover announcements",
+                "tags": [
+                    "Notifications"
+                ],
+                "parameters": [
+                    {
+                        "name": "announcement",
+                        "in": "path",
+                        "required": true,
+                        "description": "The announcement public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UploadAnnouncementCoverRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`AnnouncementResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnnouncementResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "announcementCover.destroy",
+                "summary": "Cover announcements",
+                "tags": [
+                    "Notifications"
+                ],
+                "parameters": [
+                    {
+                        "name": "announcement",
+                        "in": "path",
+                        "required": true,
+                        "description": "The announcement public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`AnnouncementResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnnouncementResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/approvals/batch": {
             "post": {
                 "x-abilities": [
@@ -30212,6 +30311,32 @@
                     "featured": {
                         "type": "boolean"
                     },
+                    "cover": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "url": {
+                                "type": "string"
+                            },
+                            "srcset": {
+                                "type": "string"
+                            },
+                            "width": {
+                                "type": "integer"
+                            },
+                            "height": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "url",
+                            "srcset",
+                            "width",
+                            "height"
+                        ]
+                    },
                     "created_at": {
                         "type": [
                             "string",
@@ -30232,6 +30357,7 @@
                     "expires_at",
                     "show_on_landing",
                     "featured",
+                    "cover",
                     "created_at"
                 ],
                 "title": "AnnouncementResource"
@@ -39190,6 +39316,22 @@
                     }
                 },
                 "title": "UpdateTeamRequest"
+            },
+            "UploadAnnouncementCoverRequest": {
+                "type": "object",
+                "description": "A news story's cover photo, on the terms the organisation's own cover\nphoto is taken on (UploadBrandAssetRequest): raster only, the file's own\nbytes checked, 5 MB and 4096 px to bound the decode on shared hosting, and\nat least as wide as the widest copy a page asks for. What passes is\nre-encoded by FileStorageService::uploadNewsCover(), so only pixels are\nserved.",
+                "properties": {
+                    "image": {
+                        "type": "string",
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "description": "Maximum file size: 5120 kilobytes."
+                    }
+                },
+                "required": [
+                    "image"
+                ],
+                "title": "UploadAnnouncementCoverRequest"
             },
             "UserRole": {
                 "type": "string",

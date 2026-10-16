@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Admin\PlatformSettingsController;
 use App\Http\Controllers\Api\V1\Admin\SmsDeliveryController;
 use App\Http\Controllers\Api\V1\Analytics\AnalyticsController;
 use App\Http\Controllers\Api\V1\Announcement\AnnouncementController;
+use App\Http\Controllers\Api\V1\Announcement\AnnouncementCoverController;
 use App\Http\Controllers\Api\V1\ApiKey\ApiKeyController;
 use App\Http\Controllers\Api\V1\Approval\ApprovalController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceConflictController;
@@ -123,6 +124,7 @@ use App\Http\Controllers\Api\V1\Voice\ConcernController;
 use App\Http\Controllers\Api\V1\Voice\PulseController;
 use App\Http\Controllers\Api\V1\Voice\RecognitionController;
 use App\Http\Controllers\Api\V1\Webhook\WebhookController;
+use App\Http\Controllers\NewsCoverController;
 use App\Http\Controllers\OrganisationAssetController;
 use App\Http\Controllers\OrganisationLogoController;
 use App\Http\Middleware\BlockImpersonatedActions;
@@ -224,6 +226,11 @@ Route::get('/organisation-logos/{publicId}/{version}', OrganisationLogoControlle
 Route::get('/organisation-assets/{publicId}/{kind}/{version}', OrganisationAssetController::class)
     ->where(['publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'kind' => 'logo-dark|mark|cover|cover-1280|cover-640', 'version' => '[0-9a-f]{16}'])
     ->name('organisation.asset');
+
+// A news story's cover photo and its narrower copies, on the same terms.
+Route::get('/news-covers/{publicId}/{story}/{size}/{version}', NewsCoverController::class)
+    ->where(['publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'story' => '[0-9A-HJKMNP-TV-Z]{26}', 'size' => 'cover|cover-1280|cover-640', 'version' => '[0-9a-f]{16}'])
+    ->name('organisation.news-cover');
 
 // What the organisation chose to show the public on its sign-in page:
 // announcements and vacancies marked public, and upcoming holidays.
@@ -687,6 +694,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/announcements', [AnnouncementController::class, 'store']);
     Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update']);
     Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
+    Route::post('/announcements/{announcement}/cover', [AnnouncementCoverController::class, 'store'])->middleware('throttle:uploads');
+    Route::delete('/announcements/{announcement}/cover', [AnnouncementCoverController::class, 'destroy']);
 
     Route::get('/vacancies', [VacancyController::class, 'index']);
     Route::get('/vacancies/{vacancy}', [VacancyController::class, 'show']);

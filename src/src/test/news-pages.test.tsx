@@ -47,6 +47,14 @@ function organisation(slug: string, name: string): HostCtx {
   } as HostCtx;
 }
 
+const COVER = {
+  url: "/api/v1/news-covers/T/A1/cover/0123456789abcdef",
+  srcset:
+    "/api/v1/news-covers/T/A1/cover-640/0123456789abcdef 640w, /api/v1/news-covers/T/A1/cover/0123456789abcdef 1200w",
+  width: 1200,
+  height: 675,
+};
+
 const story = (
   id: string,
   title: string,
@@ -59,6 +67,7 @@ const story = (
   featured: false,
   priority: "normal",
   published_at: "2026-10-12T08:00:00Z",
+  cover: null as LandingNewsPage["data"][number]["cover"],
   ...extra,
 });
 
@@ -104,7 +113,11 @@ describe("<NewsListing>", () => {
         return HttpResponse.json(
           newsPage(
             [
-              story("A1", "Open day", { featured: true, category: "event" }),
+              story("A1", "Open day", {
+                featured: true,
+                category: "event",
+                cover: COVER,
+              }),
               story("A2", "Fees due"),
             ],
             {},
@@ -125,6 +138,16 @@ describe("<NewsListing>", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "News" }),
     ).toBeInTheDocument();
+    // A story with a cover shows it, sized and with its narrower copies; one
+    // without has no image at all.
+    const photo = lead.querySelector("img");
+    expect(photo).toHaveAttribute("src", COVER.url);
+    expect(photo).toHaveAttribute("srcset", COVER.srcset);
+    expect(photo).toHaveAttribute("alt", "");
+    expect(photo).toHaveAttribute("width", "1200");
+    expect(
+      screen.getByRole("link", { name: /fees due/i }).querySelector("img"),
+    ).toBeNull();
     // The category filter offers what the organisation published under.
     expect(
       screen.getByRole("button", { name: "Event", pressed: false }),
@@ -254,7 +277,7 @@ describe("<NewsArticle>", () => {
     server.use(
       http.get("*/auth/tenant-landing/announcements/A1", () =>
         HttpResponse.json({
-          ...story("A1", "Open day", { category: "event" }),
+          ...story("A1", "Open day", { category: "event", cover: COVER }),
           body: "Come and see the plant.\n\nDetails at https://acme.example/open-day. <b>Not bold</b>",
           related: [story("A2", "Fees due")],
         }),
@@ -268,6 +291,11 @@ describe("<NewsArticle>", () => {
     const link = screen.getByRole("link", { name: /acme\.example\/open-day/ });
     expect(link).toHaveAttribute("href", "https://acme.example/open-day");
     expect(link).toHaveAttribute("rel", "noopener noreferrer nofollow ugc");
+    const article = screen.getByRole("article");
+    expect(article.querySelector("figure img")).toHaveAttribute(
+      "src",
+      COVER.url,
+    );
     // Markup in a story is text.
     expect(screen.getByText(/<b>Not bold<\/b>/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /fees due/i })).toHaveAttribute(

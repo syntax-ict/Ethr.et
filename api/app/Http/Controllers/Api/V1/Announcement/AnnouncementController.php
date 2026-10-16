@@ -12,6 +12,7 @@ use App\Jobs\NotifyAnnouncementAudienceJob;
 use App\Models\Announcement;
 use App\Models\AuditLog;
 use App\Services\CurrentTenant;
+use App\Services\FileStorageService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -179,13 +180,17 @@ class AnnouncementController extends Controller
         }
     }
 
-    public function destroy(Announcement $announcement): JsonResponse
+    public function destroy(Announcement $announcement, FileStorageService $storage): JsonResponse
     {
         Gate::authorize('announcement.manage');
 
         AuditLog::record('announcement.deleted', $announcement);
 
+        $cover = $announcement->coverImage();
         $announcement->delete();
+        if ($cover !== null) {
+            $storage->deleteNewsCover($cover);
+        }
 
         return response()->json(null, 204);
     }

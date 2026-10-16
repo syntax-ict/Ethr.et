@@ -2,7 +2,7 @@
 
 import { useT } from "@/lib/i18n/useT";
 import { paragraphs, segments } from "../news-format";
-import { NewsMeta } from "./news-card";
+import { NewsCoverPicture, NewsMeta, type NewsCoverImage } from "./news-card";
 
 export interface ArticleContent {
   public_id: string;
@@ -12,11 +12,12 @@ export interface ArticleContent {
   featured?: boolean;
   priority: string;
   published_at: string | null;
+  cover?: NewsCoverImage | null;
 }
 
 /**
- * A story in full: its date, category and flags, its title, and its text as
- * paragraphs with its https links live. The public article page and the
+ * A story in full: its date, category and flags, its title, its cover photo
+ * when it has one, and its text as paragraphs with its https links live. The public article page and the
  * publisher's preview both draw this, so what an editor previews is exactly
  * what the public will read.
  *
@@ -40,6 +41,16 @@ export function ArticleView({ article }: { article: ArticleContent }) {
       <h1 className="mt-3 text-balance text-2xl font-bold leading-tight text-foreground @sm:text-3xl">
         {article.title}
       </h1>
+      {article.cover && (
+        <figure className="mt-6 max-w-3xl overflow-hidden rounded-xl border border-border bg-muted">
+          <NewsCoverPicture
+            cover={article.cover}
+            sizes="(min-width: 768px) 48rem, 100vw"
+            eager
+            className="h-auto"
+          />
+        </figure>
+      )}
       <div className="mt-6 max-w-prose space-y-4 text-base leading-relaxed text-foreground">
         {paragraphs(article.body).map((paragraph, i) => (
           <p key={i} className="whitespace-pre-line">

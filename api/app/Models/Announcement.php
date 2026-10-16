@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $expires_at
  * @property bool $show_on_landing
  * @property bool $featured
+ * @property array<string, mixed>|null $cover
  */
 class Announcement extends Model
 {
@@ -61,6 +62,62 @@ class Announcement extends Model
             'target_id' => 'integer',
             'show_on_landing' => 'boolean',
             'featured' => 'boolean',
+            'cover' => 'array',
+        ];
+    }
+
+    /**
+     * The story's stored cover photo, or null when it has none or the entry is
+     * not well formed. Read as `Tenant::brandAsset()` reads its own: a value
+     * edited by hand must not put a half entry on a public page.
+     *
+     * @return array{path: string, version: string, width: int, height: int, variants: array<int, string>}|null
+     */
+    public function coverImage(): ?array
+    {
+        $cover = $this->cover;
+
+        if (! is_array($cover)
+            || ! is_string($cover['path'] ?? null)
+            || ! is_string($cover['version'] ?? null)
+            || ! is_int($cover['width'] ?? null)
+            || ! is_int($cover['height'] ?? null)) {
+            return null;
+        }
+        $cover['variants'] = is_array($cover['variants'] ?? null) ? $cover['variants'] : [];
+
+        /** @var array{path: string, version: string, width: int, height: int, variants: array<int, string>} $cover */
+        return $cover;
+    }
+
+    /**
+     * The cover as a page draws it: the full image, a `srcset` over its
+     * narrower copies, and its size, so the space it takes is reserved before
+     * it loads. Relative, same-origin URLs, like the organisation's own cover.
+     *
+     * @return array{url: string, srcset: string, width: int, height: int}|null
+     */
+    public function coverPresented(string $tenantPublicId): ?array
+    {
+        $cover = $this->coverImage();
+        if ($cover === null) {
+            return null;
+        }
+
+        // The size is cast where it is returned below: Scramble types values
+        // read from the stored JSON as strings otherwise.
+        $url = fn (string $size): string => route('organisation.news-cover', [$tenantPublicId, $this->public_id, $size, $cover['version']], absolute: false);
+        $srcset = [];
+        foreach (array_keys($cover['variants']) as $width) {
+            $srcset[] = $url('cover-'.$width).' '.$width.'w';
+        }
+        $srcset[] = $url('cover').' '.$cover['width'].'w';
+
+        return [
+            'url' => $url('cover'),
+            'srcset' => implode(', ', $srcset),
+            'width' => (int) $cover['width'],
+            'height' => (int) $cover['height'],
         ];
     }
 

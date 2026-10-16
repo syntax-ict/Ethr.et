@@ -95,3 +95,28 @@ export function useDeleteAnnouncement() {
     await apiClient.delete(`/announcements/${publicId}`);
   });
 }
+
+/**
+ * Give a story a cover photo, replacing any before it. The server re-encodes
+ * it and serves it at an address that changes with every upload.
+ */
+export function useUploadAnnouncementCover() {
+  return useAnnouncementMutation(
+    async (vars: { publicId: string; file: File }): Promise<Announcement> => {
+      const body = new FormData();
+      body.append("image", vars.file);
+      return (
+        await apiClient.post(`/announcements/${vars.publicId}/cover`, body, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+      ).data;
+    },
+  );
+}
+
+export function useRemoveAnnouncementCover() {
+  return useAnnouncementMutation(
+    async (publicId: string): Promise<Announcement> =>
+      (await apiClient.delete(`/announcements/${publicId}/cover`)).data,
+  );
+}

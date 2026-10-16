@@ -3306,6 +3306,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/announcements/{announcement}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cover announcements */
+        post: operations["announcementCover.store"];
+        /** Cover announcements */
+        delete: operations["announcementCover.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notifications": {
         parameters: {
             query?: never;
@@ -6228,6 +6246,12 @@ export interface components {
             expires_at: string | null;
             show_on_landing: boolean;
             featured: boolean;
+            cover: {
+                url: string;
+                srcset: string;
+                width: number;
+                height: number;
+            } | null;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -9201,6 +9225,22 @@ export interface components {
             url?: string;
             events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
             is_active?: boolean;
+        };
+        /**
+         * UploadAnnouncementCoverRequest
+         * @description A news story's cover photo, on the terms the organisation's own cover
+         *     photo is taken on (UploadBrandAssetRequest): raster only, the file's own
+         *     bytes checked, 5 MB and 4096 px to bound the decode on shared hosting, and
+         *     at least as wide as the widest copy a page asks for. What passes is
+         *     re-encoded by FileStorageService::uploadNewsCover(), so only pixels are
+         *     served.
+         */
+        UploadAnnouncementCoverRequest: {
+            /**
+             * Format: binary
+             * @description Maximum file size: 5120 kilobytes.
+             */
+            image: string;
         };
         /**
          * UploadBrandAssetRequest
@@ -17232,6 +17272,12 @@ export interface operations {
                             featured: boolean;
                             priority: string;
                             published_at: string | null;
+                            cover: {
+                                url: string;
+                                srcset: string;
+                                width: number;
+                                height: number;
+                            } | null;
                         }[];
                         vacancies: {
                             public_id: string;
@@ -17294,6 +17340,12 @@ export interface operations {
                             featured: boolean;
                             priority: string;
                             published_at: string | null;
+                            cover: {
+                                url: string;
+                                srcset: string;
+                                width: number;
+                                height: number;
+                            } | null;
                         }[];
                         meta: {
                             current_page: number;
@@ -17367,6 +17419,12 @@ export interface operations {
                         featured: boolean;
                         priority: string;
                         published_at: string | null;
+                        cover: {
+                            url: string;
+                            srcset: string;
+                            width: number;
+                            height: number;
+                        } | null;
                         body: string;
                         related: {
                             public_id: string;
@@ -17376,6 +17434,12 @@ export interface operations {
                             featured: boolean;
                             priority: string;
                             published_at: string | null;
+                            cover: {
+                                url: string;
+                                srcset: string;
+                                width: number;
+                                height: number;
+                            } | null;
                         }[];
                     };
                 };
@@ -18277,6 +18341,63 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "announcementCover.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The announcement public id */
+                announcement: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadAnnouncementCoverRequest"];
+            };
+        };
+        responses: {
+            /** @description `AnnouncementResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "announcementCover.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The announcement public id */
+                announcement: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `AnnouncementResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementResource"];
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];

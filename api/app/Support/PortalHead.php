@@ -120,7 +120,8 @@ final class PortalHead
     /**
      * The head of one article (`/news/{id}`): its own title and opening
      * words, its canonical address, and a NewsArticle record. Only what the
-     * page shows: title, text, date and the organisation's name.
+     * page shows: title, text, date, cover photo and the organisation's name.
+     * A story with a cover is shared with its own photo as the preview image.
      */
     public static function article(Tenant $tenant, Announcement $article): string
     {
@@ -130,6 +131,7 @@ final class PortalHead
         $text = trim((string) preg_replace('/\s+/u', ' ', strip_tags($article->body)));
         $description = Str::limit($text, self::DESCRIPTION_MAX, '…');
         $published = Carbon::make($article->published_at);
+        $cover = $article->coverPresented($tenant->public_id);
 
         return self::page(
             $tenant,
@@ -143,6 +145,7 @@ final class PortalHead
                 '@type' => 'NewsArticle',
                 'headline' => Str::limit($article->title, 110, '…'),
                 'description' => $description === '' ? null : $description,
+                'image' => $cover === null ? null : FrontendUrl::to($cover['url']),
                 'datePublished' => $published?->toIso8601String(),
                 'dateModified' => Carbon::make($article->updated_at)?->toIso8601String() ?? $published?->toIso8601String(),
                 'url' => $url,
@@ -155,6 +158,12 @@ final class PortalHead
                 ], static fn ($v) => $v !== null),
             ], static fn ($v) => $v !== null)],
             published: $published,
+            image: $cover === null ? null : [
+                'url' => FrontendUrl::to($cover['url']),
+                'width' => $cover['width'],
+                'height' => $cover['height'],
+                'alt' => $article->title,
+            ],
         );
     }
 
@@ -180,6 +189,7 @@ final class PortalHead
      *
      * @param  array<string, mixed>  $landing
      * @param  list<array<string, mixed>>  $jsonLd
+     * @param  array{url: string, width: int, height: int, alt: string}|null  $image  the story's cover, else the organisation's preview
      */
     private static function page(
         Tenant $tenant,
@@ -190,9 +200,15 @@ final class PortalHead
         string $type,
         array $jsonLd,
         ?Carbon $published = null,
+        ?array $image = null,
     ): string {
         $brand = TenantBrand::present($tenant);
-        $image = FrontendUrl::to(route('organisation.preview', [$tenant->public_id, PortalPreviewImage::version($tenant)], absolute: false));
+        $image ??= [
+            'url' => FrontendUrl::to(route('organisation.preview', [$tenant->public_id, PortalPreviewImage::version($tenant)], absolute: false)),
+            'width' => PortalPreviewImage::WIDTH,
+            'height' => PortalPreviewImage::HEIGHT,
+            'alt' => $tenant->name,
+        ];
         $icon = $brand['mark_url'] === null ? null : FrontendUrl::to($brand['mark_url']);
         $colour = $brand['primary_color'] ?? '#0F4C75';
         $robots = $landing['listed'] ? 'index, follow' : 'noindex, nofollow';
@@ -221,10 +237,10 @@ final class PortalHead
             '<meta property="og:title" content="'.$e($title).'">',
             '<meta property="og:description" content="'.$e($description).'">',
             '<meta property="og:url" content="'.$e($url).'">',
-            '<meta property="og:image" content="'.$e($image).'">',
-            '<meta property="og:image:width" content="'.PortalPreviewImage::WIDTH.'">',
-            '<meta property="og:image:height" content="'.PortalPreviewImage::HEIGHT.'">',
-            '<meta property="og:image:alt" content="'.$e($tenant->name).'">',
+            '<meta property="og:image" content="'.$e($image['url']).'">',
+            '<meta property="og:image:width" content="'.$image['width'].'">',
+            '<meta property="og:image:height" content="'.$image['height'].'">',
+            '<meta property="og:image:alt" content="'.$e($image['alt']).'">',
             '<meta property="og:locale" content="en_US">',
             '<meta property="og:locale:alternate" content="am_ET">',
         );
@@ -236,7 +252,7 @@ final class PortalHead
             '<meta name="twitter:card" content="summary_large_image">',
             '<meta name="twitter:title" content="'.$e($title).'">',
             '<meta name="twitter:description" content="'.$e($description).'">',
-            '<meta name="twitter:image" content="'.$e($image).'">',
+            '<meta name="twitter:image" content="'.$e($image['url']).'">',
         );
         foreach ($jsonLd as $data) {
             $tags[] = self::jsonLd($data);
