@@ -19,8 +19,9 @@ use Illuminate\Validation\Validator;
  * `POST /settings/branding/assets/cover`; choosing it before a cover exists
  * is refused in withValidator(). The network links are checked against the
  * network's own host there too, with TenantLanding::linkUrl(), the same test
- * the public side applies before serving. Scramble does not read
- * withValidator(), so the contract stays a plain rule set.
+ * the public side applies before serving. Each question needs a question
+ * and an answer in at least one language, checked there as well. Scramble
+ * does not read withValidator(), so the contract stays a plain rule set.
  */
 class UpdateLandingRequest extends FormRequest
 {
@@ -67,9 +68,16 @@ class UpdateLandingRequest extends FormRequest
             'sections.announcements' => ['sometimes', 'boolean'],
             'sections.vacancies' => ['sometimes', 'boolean'],
             'sections.holidays' => ['sometimes', 'boolean'],
+            'sections.faq' => ['sometimes', 'boolean'],
             'sections.contact' => ['sometimes', 'boolean'],
-            'order' => ['sometimes', 'array', 'max:5'],
+            'order' => ['sometimes', 'array', 'max:6'],
             'order.*' => ['string', 'distinct', 'in:'.implode(',', TenantLanding::ORDER)],
+            'faqs' => ['sometimes', 'array', 'max:12'],
+            'faqs.*' => ['array:question,question_am,answer,answer_am'],
+            'faqs.*.question' => ['nullable', 'string', 'max:160'],
+            'faqs.*.question_am' => ['nullable', 'string', 'max:160'],
+            'faqs.*.answer' => ['nullable', 'string', 'max:1000'],
+            'faqs.*.answer_am' => ['nullable', 'string', 'max:1000'],
             'listed' => ['sometimes', 'boolean'],
         ];
     }
@@ -81,6 +89,19 @@ class UpdateLandingRequest extends FormRequest
                 && ! $validator->errors()->has('background')
                 && app(CurrentTenant::class)->get()->brandAsset('cover') === null) {
                 $validator->errors()->add('background', __('validation.landing_cover_missing'));
+            }
+
+            foreach ((array) $this->input('faqs', []) as $i => $faq) {
+                if (! is_array($faq)) {
+                    continue;
+                }
+                $filled = static fn (string $key): bool => is_string($faq[$key] ?? null) && trim($faq[$key]) !== '';
+                if (! $filled('question') && ! $filled('question_am')) {
+                    $validator->errors()->add("faqs.{$i}.question", __('validation.landing_faq_question'));
+                }
+                if (! $filled('answer') && ! $filled('answer_am')) {
+                    $validator->errors()->add("faqs.{$i}.answer", __('validation.landing_faq_answer'));
+                }
             }
 
             foreach (TenantLanding::LINK_HOSTS as $link => $hosts) {

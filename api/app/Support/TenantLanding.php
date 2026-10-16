@@ -30,12 +30,13 @@ final class TenantLanding
      * What the page shows beside the sign-in form, and whether each is on by
      * default. News and vacancies are on: each item still has to be marked
      * for the public by whoever wrote it. Holidays are off until chosen.
-     * About and contact are on, and draw nothing until something is written.
+     * About, questions and contact are on, and draw nothing until something
+     * is written.
      */
-    public const SECTIONS = ['about' => true, 'announcements' => true, 'vacancies' => true, 'holidays' => false, 'contact' => true];
+    public const SECTIONS = ['about' => true, 'announcements' => true, 'vacancies' => true, 'holidays' => false, 'faq' => true, 'contact' => true];
 
     /** The sections in the order the page shows them until an admin reorders. */
-    public const ORDER = ['about', 'announcements', 'vacancies', 'holidays', 'contact'];
+    public const ORDER = ['about', 'announcements', 'vacancies', 'holidays', 'faq', 'contact'];
 
     /** The sectors an organisation may say it is in; the page names each in both languages. */
     public const SECTORS = [
@@ -67,8 +68,15 @@ final class TenantLanding
 
     public const HOURS_MAX = 120;
 
+    /** How many questions the page answers, and how long each may be. */
+    public const FAQ_MAX = 12;
+
+    public const QUESTION_MAX = 160;
+
+    public const ANSWER_MAX = 1000;
+
     /**
-     * @return array{headline: string|null, headline_am: string|null, message: string|null, message_am: string|null, support_email: string|null, support_phone: string|null, background: string, about: string|null, about_am: string|null, founded_year: int|null, sector: string|null, staff_band: string|null, show_branch_count: bool, address: string|null, address_am: string|null, hours: string|null, hours_am: string|null, latitude: float|null, longitude: float|null, show_branches: bool, links: array<string, string|null>, sections: array<string, bool>, order: list<string>, listed: bool}
+     * @return array{headline: string|null, headline_am: string|null, message: string|null, message_am: string|null, support_email: string|null, support_phone: string|null, background: string, about: string|null, about_am: string|null, founded_year: int|null, sector: string|null, staff_band: string|null, show_branch_count: bool, address: string|null, address_am: string|null, hours: string|null, hours_am: string|null, latitude: float|null, longitude: float|null, show_branches: bool, links: array<string, string|null>, faqs: list<array{question: string|null, question_am: string|null, answer: string|null, answer_am: string|null}>, sections: array<string, bool>, order: list<string>, listed: bool}
      */
     public static function present(Tenant $tenant): array
     {
@@ -108,6 +116,7 @@ final class TenantLanding
             'longitude' => self::coordinate($longitude, $latitude, 180),
             'show_branches' => ($landing['show_branches'] ?? null) === true,
             'links' => self::links($landing['links'] ?? null),
+            'faqs' => self::faqs($landing['faqs'] ?? null),
             'sections' => self::sections($landing['sections'] ?? null),
             'order' => self::order($landing['order'] ?? null),
             'listed' => ($landing['listed'] ?? null) === true,
@@ -130,7 +139,8 @@ final class TenantLanding
 
     /**
      * The stored order with anything unknown dropped and anything missing
-     * appended in the default order, so every section has a place.
+     * appended in the default order, so every section has a place. Contact
+     * stays last if it was.
      *
      * @return list<string>
      */
@@ -142,6 +152,13 @@ final class TenantLanding
                 $order[] = $section;
             }
         }
+        // Contact stays last where the organisation put it last: a section
+        // added later (questions, 2026-10-16) goes above it, not below. It is
+        // taken off here and the default order, which ends with it, puts it
+        // back after anything missing.
+        if (count($order) > 1 && $order[count($order) - 1] === 'contact') {
+            array_pop($order);
+        }
         foreach (self::ORDER as $section) {
             if (! in_array($section, $order, true)) {
                 $order[] = $section;
@@ -149,6 +166,35 @@ final class TenantLanding
         }
 
         return $order;
+    }
+
+    /**
+     * The organisation's questions and answers, in its order. A pair is shown
+     * only when it has a question and an answer, each in at least one
+     * language; the page shows the viewer's language and falls back to the
+     * other, as it does for every text here.
+     *
+     * @return list<array{question: string|null, question_am: string|null, answer: string|null, answer_am: string|null}>
+     */
+    public static function faqs(mixed $stored): array
+    {
+        $faqs = [];
+        foreach (is_array($stored) ? $stored : [] as $item) {
+            if (! is_array($item) || count($faqs) >= self::FAQ_MAX) {
+                continue;
+            }
+            $faq = [
+                'question' => self::text($item['question'] ?? null, self::QUESTION_MAX),
+                'question_am' => self::text($item['question_am'] ?? null, self::QUESTION_MAX),
+                'answer' => self::text($item['answer'] ?? null, self::ANSWER_MAX),
+                'answer_am' => self::text($item['answer_am'] ?? null, self::ANSWER_MAX),
+            ];
+            if (($faq['question'] ?? $faq['question_am']) !== null && ($faq['answer'] ?? $faq['answer_am']) !== null) {
+                $faqs[] = $faq;
+            }
+        }
+
+        return $faqs;
     }
 
     /**
