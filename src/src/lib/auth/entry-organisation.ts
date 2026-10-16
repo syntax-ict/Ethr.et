@@ -10,7 +10,7 @@
  * never the page's own route names: `/login` is the generic sign-in.
  */
 const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/;
-const OWN_ROUTES = new Set(["login", "register", "setup"]);
+const OWN_ROUTES = new Set(["login", "register", "setup", "news"]);
 
 export function entryOrganisation(pathname: string | null): string | null {
   if (!pathname) return null;

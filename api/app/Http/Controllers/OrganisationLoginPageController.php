@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Models\Tenant;
+use App\Support\OrganisationHost;
 use App\Support\PortalPage;
-use App\Support\TenancyDomain;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * `/login` on an organisation's own host: acme.ethr.et, or its verified
@@ -39,41 +37,12 @@ final class OrganisationLoginPageController
             return response('Not Found', 404);
         }
 
-        $tenant = $this->tenantForHost($request->getHost());
+        $tenant = OrganisationHost::tenant($request->getHost());
 
         if ($tenant === null) {
-            return response((string) file_get_contents($page), 200)
-                ->header('Content-Type', 'text/html; charset=UTF-8')
-                ->header('Cache-Control', 'no-cache')
-                ->header('X-Robots-Tag', 'noindex, nofollow');
+            return PortalPage::plain($page);
         }
 
         return PortalPage::respond($tenant, $page);
-    }
-
-    private function tenantForHost(string $rawHost): ?Tenant
-    {
-        $root = TenancyDomain::root();
-        $host = Tenant::normaliseDomain($rawHost);
-        if ($root === null || $host === null || $host === $root || $host === 'www.'.$root) {
-            return null;
-        }
-
-        if (str_ends_with($host, '.'.$root)) {
-            $label = substr($host, 0, -strlen('.'.$root));
-            if ($label === '' || str_contains($label, '.') || in_array($label, Tenant::RESERVED_SUBDOMAINS, true)) {
-                return null;
-            }
-            $tenant = Cache::remember("tenant:{$label}", 300, fn () => Tenant::where('subdomain', $label)->first());
-        } else {
-            $found = Cache::remember(
-                "tenant-domain:{$host}",
-                300,
-                fn () => Tenant::where('custom_domain', $host)->whereNotNull('custom_domain_verified_at')->first() ?? false,
-            );
-            $tenant = $found instanceof Tenant ? $found : null;
-        }
-
-        return $tenant instanceof Tenant && $tenant->isActive() ? $tenant : null;
     }
 }

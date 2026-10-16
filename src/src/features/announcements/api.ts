@@ -37,6 +37,19 @@ export function useAllAnnouncements() {
   });
 }
 
+/**
+ * Every announcement in any state (draft, scheduled, published, archived),
+ * newest first: the publishing view, for whoever may manage announcements.
+ * The API refuses it to anyone else.
+ */
+export function useManagedAnnouncements(enabled: boolean) {
+  return useQuery<Announcement[]>({
+    queryKey: [...keys.all, "manage"],
+    queryFn: () => fetchAllPages<Announcement>("/announcements", { manage: 1 }),
+    enabled,
+  });
+}
+
 /** One page, for the dashboard widget, which shows only the top few. */
 export function useAnnouncements(params?: { page?: number }) {
   return useQuery<PaginatedResponse<Announcement>>({

@@ -58,6 +58,8 @@ const feed: LandingFeed = {
       public_id: "a1",
       title: "Plant reopens Monday",
       excerpt: "All shifts resume at 06:00.",
+      category: "notice",
+      featured: false,
       priority: "urgent",
       published_at: "2026-10-12T08:00:00Z",
     },
@@ -202,26 +204,27 @@ describe("<OrganisationPortal>", () => {
     expect(screen.getByText("the sign-in form")).toBeInTheDocument();
   });
 
-  it("opens an announcement in full", async () => {
+  // Since 2026-10-16 a story opens on its own page, which can be linked and
+  // shared, and the organisation travels with it on the shared host.
+  it("links each story to its own page and to all news, keeping the organisation", async () => {
     server.use(
       http.get("*/auth/tenant-landing/feed", () => HttpResponse.json(feed)),
-      http.get("*/auth/tenant-landing/announcements/a1", () =>
-        HttpResponse.json({
-          public_id: "a1",
-          title: "Plant reopens Monday",
-          body: "All shifts resume at 06:00. Gate B stays closed.",
-          priority: "urgent",
-          published_at: "2026-10-12T08:00:00Z",
-        }),
-      ),
     );
 
     renderNews();
-    fireEvent.click(
-      await screen.findByRole("button", { name: /plant reopens monday/i }),
-    );
 
-    expect(await screen.findByText(/gate b stays closed/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("link", { name: /plant reopens monday/i }),
+    ).toHaveAttribute("href", "/news/a1?org=acme");
+    expect(screen.getByRole("link", { name: /^all news$/i })).toHaveAttribute(
+      "href",
+      "/news?org=acme",
+    );
+    // The header carries the News link too.
+    expect(screen.getByRole("link", { name: /^news$/i })).toHaveAttribute(
+      "href",
+      "/news?org=acme",
+    );
   });
 });
 
