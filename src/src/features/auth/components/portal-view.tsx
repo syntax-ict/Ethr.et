@@ -2,6 +2,7 @@
 
 import { type ReactNode } from "react";
 import {
+  ArrowRight,
   Briefcase,
   Building2,
   CalendarDays,
@@ -25,21 +26,21 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrgMark } from "@/components/shared/org-mark";
 import { NewsCard } from "@/features/news/components/news-card";
-import { PortalFooter, PortalHeader, type PortalLinks } from "./portal-chrome";
+import {
+  PortalFooter,
+  PortalHeader,
+  SkipToContent,
+  usePortalNav,
+  visibleSections,
+  type PortalLinks,
+} from "./portal-chrome";
 import type {
   PortalSection,
   TenantBrand,
   TenantLanding,
 } from "@/lib/auth/use-auth-host-context";
 import { coverPosition, panelBackground } from "@/lib/auth/landing-background";
-import {
-  hasAbout,
-  hasContact,
-  localised,
-  mapsUrl,
-  sectionOn,
-  sectionOrder,
-} from "@/lib/auth/landing-text";
+import { localised, mapsUrl } from "@/lib/auth/landing-text";
 import type { LandingFeed } from "@/features/auth/landing-feed";
 import { SupportContacts } from "@/app/(auth)/auth-layout-client";
 import { VacancyMeta } from "./vacancy-dialog";
@@ -122,9 +123,47 @@ export function PortalView({
     },
   ];
 
+  const sections = visibleSections(landing, feed);
+  const nav = usePortalNav(sections, links);
+  const footerNav = usePortalNav(sections, links, { includeHolidays: true });
+  // Only to what is there: news once a story is published, contact once
+  // the organisation gave a way to reach it.
+  const heroLinks = links
+    ? [
+        ...(links.news && sections.includes("announcements")
+          ? [
+              {
+                key: "news",
+                href: links.news,
+                label: t("landing.hero_news", "Read the latest news"),
+              },
+            ]
+          : []),
+        ...(sections.includes("contact")
+          ? [
+              {
+                key: "contact",
+                href: links.section("contact"),
+                label: t("landing.hero_contact", "Contact us"),
+              },
+            ]
+          : []),
+      ]
+    : [];
+
   return (
-    <div className="@container flex min-h-screen flex-col bg-background">
-      <PortalHeader name={name} brand={brand} links={links} current="home" />
+    <div
+      id="top"
+      className="@container flex min-h-screen flex-col bg-background"
+    >
+      <SkipToContent />
+      <PortalHeader
+        name={name}
+        brand={brand}
+        links={links}
+        nav={nav}
+        current="home"
+      />
 
       <section
         className="relative overflow-hidden bg-primary"
@@ -172,7 +211,7 @@ export function PortalView({
               initialClassName="text-2xl"
             />
             {ownHeadline && (
-              <p className="mt-5 text-sm font-medium uppercase tracking-wider text-primary-foreground/70">
+              <p className="mt-5 text-base font-medium text-primary-foreground/80">
                 {name}
               </p>
             )}
@@ -191,6 +230,24 @@ export function PortalView({
                   "Your workspace for attendance, leave and pay.",
                 )}
             </p>
+
+            {heroLinks.length > 0 && (
+              <p className="mt-5 flex flex-wrap gap-x-6 gap-y-2">
+                {heroLinks.map((l) => (
+                  <a
+                    key={l.key}
+                    href={l.href}
+                    className="group inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-primary-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground"
+                  >
+                    {l.label}
+                    <ArrowRight
+                      className="h-4 w-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+                      aria-hidden="true"
+                    />
+                  </a>
+                ))}
+              </p>
+            )}
 
             <ul className="mt-8 hidden max-w-md space-y-3 @lg:block">
               {features.map(({ icon: Icon, label }) => (
@@ -222,17 +279,29 @@ export function PortalView({
         <div className="relative h-1 w-full bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.3)_0px,rgba(255,255,255,0.3)_8px,rgba(232,168,56,0.5)_8px,rgba(232,168,56,0.5)_16px,rgba(255,255,255,0.3)_16px,rgba(255,255,255,0.3)_24px,transparent_24px,transparent_32px)]" />
       </section>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 @sm:px-6">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="w-full flex-1 focus:outline-none"
+      >
         <PortalSections
           landing={landing}
           feed={feed}
           loading={feedLoading}
           links={links}
+          sections={sections}
+          name={name}
           onOpenVacancy={onOpenVacancy}
         />
       </main>
 
-      <PortalFooter name={name} landing={landing} />
+      <PortalFooter
+        name={name}
+        brand={brand}
+        landing={landing}
+        nav={footerNav}
+        links={links}
+      />
     </div>
   );
 }
@@ -246,12 +315,17 @@ function PortalSections({
   feed,
   loading,
   links,
+  sections,
+  name,
   onOpenVacancy,
 }: {
   landing: TenantLanding | null | undefined;
   feed: LandingFeed | null | undefined;
   loading: boolean;
   links: PortalLinks | null;
+  /** The visible sections, in order (`visibleSections`). */
+  sections: PortalSection[];
+  name: string | null;
   onOpenVacancy: (publicId: string) => void;
 }) {
   const { t, locale } = useT();
@@ -259,7 +333,7 @@ function PortalSections({
   if (loading && !feed) {
     // The same card grid the content lands in, so nothing jumps.
     return (
-      <div className="grid gap-4 py-12 @sm:grid-cols-2 @lg:grid-cols-3">
+      <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-14 @sm:grid-cols-2 @sm:px-6 @lg:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-36 rounded-xl" />
         ))}
@@ -272,22 +346,17 @@ function PortalSections({
   const holidays = feed?.holidays ?? [];
   const branches = feed?.branches ?? [];
   const branchCount = feed?.branch_count ?? null;
+  const lead = announcements[0]?.featured ? announcements[0] : null;
+  const name_ = name ?? "";
 
-  const present: Record<PortalSection, boolean> = {
-    about: hasAbout(landing, branchCount),
-    announcements: announcements.length > 0,
-    vacancies: vacancies.length > 0,
-    holidays: holidays.length > 0,
-    contact: hasContact(landing, branches.length),
-  };
-  const sections = sectionOrder(landing).filter(
-    (section) => sectionOn(landing, section) && present[section],
-  );
   if (sections.length === 0) return null;
 
   return (
-    <div className="space-y-14 py-12">
-      {sections.map((section) => {
+    <div>
+      {sections.map((section, index) => {
+        // Every other section sits on a quiet band, so the page reads as
+        // distinct parts without boxing each one in.
+        const band = index % 2 === 1;
         switch (section) {
           case "about":
             return (
@@ -295,6 +364,7 @@ function PortalSections({
                 key={section}
                 id="about"
                 icon={Info}
+                band={band}
                 title={t("landing.about", "About us")}
               >
                 <AboutSection landing={landing} branchCount={branchCount} />
@@ -306,25 +376,45 @@ function PortalSections({
                 key={section}
                 id="news"
                 icon={Megaphone}
+                band={band}
                 title={t("landing.news", "Latest news")}
+                description={t(
+                  "landing.news_desc",
+                  "News and announcements from :name.",
+                  { name: name_ },
+                )}
                 action={
                   links?.news ? (
                     <a
                       href={links.news}
-                      className="rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="group inline-flex items-center gap-1 rounded-sm text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {t("landing.all_news", "All news")}
+                      <ArrowRight
+                        className="h-4 w-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+                        aria-hidden="true"
+                      />
                     </a>
                   ) : null
                 }
               >
                 <div className="grid gap-4 @sm:grid-cols-2 @lg:grid-cols-3">
                   {announcements.map((a) => (
-                    <NewsCard
+                    <div
                       key={a.public_id}
-                      item={a}
-                      href={links ? links.article(a.public_id) : null}
-                    />
+                      className={cn(
+                        "flex min-w-0",
+                        a === lead &&
+                          "@sm:col-span-2 @lg:col-span-2 @lg:row-span-2",
+                        "[&>*]:flex-1",
+                      )}
+                    >
+                      <NewsCard
+                        item={a}
+                        size={a === lead ? "feature" : "card"}
+                        href={links ? links.article(a.public_id) : null}
+                      />
+                    </div>
                   ))}
                 </div>
               </PortalSectionFrame>
@@ -335,7 +425,12 @@ function PortalSections({
                 key={section}
                 id="careers"
                 icon={Briefcase}
+                band={band}
                 title={t("landing.vacancies", "Open positions")}
+                description={t(
+                  "landing.vacancies_desc",
+                  "Roles you can apply for now.",
+                )}
               >
                 <div className="grid gap-4 @sm:grid-cols-2 @lg:grid-cols-3">
                   {vacancies.map((v) => (
@@ -378,7 +473,12 @@ function PortalSections({
                 key={section}
                 id="holidays"
                 icon={CalendarHeart}
+                band={band}
                 title={t("landing.holidays", "Upcoming holidays")}
+                description={t(
+                  "landing.holidays_desc",
+                  "Days the organisation is closed.",
+                )}
               >
                 <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
                   {holidays.map((h) => (
@@ -397,7 +497,12 @@ function PortalSections({
                 key={section}
                 id="contact"
                 icon={MapPin}
+                band={band}
                 title={t("landing.contact", "Contact")}
+                description={t(
+                  "landing.contact_desc",
+                  "How to reach us, and where to find us.",
+                )}
               >
                 <ContactSection landing={landing} branches={branches} />
               </PortalSectionFrame>
@@ -408,30 +513,59 @@ function PortalSections({
   );
 }
 
+/**
+ * One section of the page: full width, on a quiet band when `band` is set,
+ * with its content in the page's column. The heading says what the section
+ * is and, when it helps, a line says what it is for.
+ */
 function PortalSectionFrame({
   id,
   icon: Icon,
   title,
+  description,
   action,
+  band = false,
   children,
 }: {
   id: string;
   icon: typeof Megaphone;
   title: string;
+  description?: string;
   /** A link beside the heading, such as "All news". */
   action?: ReactNode;
+  band?: boolean;
   children: ReactNode;
 }) {
+  const headingId = `${id}-heading`;
   return (
-    <section id={id} aria-label={title} className="scroll-mt-24">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
-          {title}
-        </h2>
-        {action}
+    <section
+      id={id}
+      aria-labelledby={headingId}
+      className={cn("scroll-mt-20", band && "bg-muted/50")}
+    >
+      <div className="mx-auto w-full max-w-6xl px-4 py-14 @sm:px-6 @lg:py-16">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+          <div className="min-w-0">
+            <h2
+              id={headingId}
+              className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground"
+            >
+              <Icon
+                className="h-6 w-6 shrink-0 text-primary"
+                aria-hidden="true"
+              />
+              {title}
+            </h2>
+            {description && (
+              <p className="mt-1.5 max-w-prose text-base text-muted-foreground">
+                {description}
+              </p>
+            )}
+          </div>
+          {action}
+        </div>
+        {children}
       </div>
-      {children}
     </section>
   );
 }

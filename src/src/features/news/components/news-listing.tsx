@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import {
   NEWS_CATEGORIES,
+  useLandingFeed,
   useLandingNews,
   type NewsCategory,
   type NewsQuery,
@@ -18,6 +19,7 @@ import {
 import {
   PortalChrome,
   portalLinks,
+  visibleSections,
 } from "@/features/auth/components/portal-chrome";
 import { NewsCard } from "./news-card";
 import { NewsState } from "./news-state";
@@ -88,6 +90,10 @@ export function NewsListing() {
 
   const news = useLandingNews(host.tenantRequest, query);
   const links = portalLinks(host.tenantLanding, host.carryOrganisation, false);
+  // The organisation's sections, for the header and footer menus: the same
+  // feed the portal reads, cached, so the menus match what the portal shows.
+  const feed = useLandingFeed(host.tenantRequest);
+  const sections = visibleSections(host.tenantLanding, feed.data);
   const filtered = query.q.trim() !== "" || query.category !== null;
 
   useEffect(() => {
@@ -125,6 +131,7 @@ export function NewsListing() {
       brand={host.tenantBrand}
       landing={host.tenantLanding}
       links={missing ? { ...links, news: null } : links}
+      sections={sections}
       current="news"
     >
       <div className="py-10 @lg:py-14">
