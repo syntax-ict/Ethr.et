@@ -97,7 +97,10 @@ describe("<AttendancePage> records", () => {
     );
     renderPage();
 
-    expect(await screen.findByText("2026-09-29")).toBeInTheDocument();
+    // The date cell renders in the viewer's calendar and language instead of
+    // raw ISO: this file pins the Gregorian calendar, and the test session's
+    // locale is English (setup.ts).
+    expect(await screen.findByText("September 29, 2026")).toBeInTheDocument();
     expect(screen.queryByText("No attendance records")).toBeNull();
   });
 

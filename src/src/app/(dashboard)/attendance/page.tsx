@@ -60,12 +60,15 @@ import { useCurrentPermissions } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { toast } from "sonner";
 import { apiErrorDetail } from "@/lib/api/error-message";
 
 export default function AttendancePage() {
   const { formatTime } = useDateFormatters();
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { formatDate } = useCalendar();
   const [page, setPage] = useState(1);
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -456,7 +459,9 @@ export default function AttendancePage() {
                   cells: [
                     ...(viewAll ? [record.employee?.name ?? "—"] : []),
                     <span key="date" className="font-medium">
-                      {record.date}
+                      {record.date
+                        ? formatDate(dateFromIso(record.date), locale)
+                        : "—"}
                     </span>,
                     <span
                       key="in"

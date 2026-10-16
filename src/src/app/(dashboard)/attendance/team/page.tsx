@@ -15,6 +15,8 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { useTeamAttendance } from "@/features/attendance/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { useT } from "@/lib/i18n/useT";
 
 function todayStr() {
@@ -28,8 +30,9 @@ function shiftDate(dateStr: string, days: number) {
 }
 
 export default function TeamAttendancePage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { formatTime } = useDateFormatters();
+  const { formatDate } = useCalendar();
   const [date, setDateState] = useState(todayStr);
   const [page, setPage] = useState(1);
 
@@ -143,7 +146,7 @@ export default function TeamAttendancePage() {
                         {r.employee?.name ?? "—"}
                       </span>,
                       <span key="d" className="text-muted-foreground">
-                        {r.date}
+                        {r.date ? formatDate(dateFromIso(r.date), locale) : "—"}
                       </span>,
                       <span
                         key="i"

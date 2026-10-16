@@ -3,6 +3,8 @@
 import { StatCard, type StatTone } from "@/components/dashboard/stat-card";
 import { useState } from "react";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import {
   Activity,
   Clock,
@@ -27,7 +29,8 @@ export default function AttendanceIntelligencePage() {
   // Punch times render in the tenant's timezone, not the browser's — see
   // BASELINE §12g.
   const { formatTime } = useDateFormatters();
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { formatDate } = useCalendar();
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
   const query = useAttendanceIntelligence(date);
@@ -293,7 +296,9 @@ export default function AttendanceIntelligencePage() {
                               {r.employee?.name ?? "—"}
                             </span>
                             <Badge variant="outline" className="text-[10px]">
-                              {r.date}
+                              {r.date
+                                ? formatDate(dateFromIso(r.date), locale)
+                                : "—"}
                             </Badge>
                           </div>
                         ))}

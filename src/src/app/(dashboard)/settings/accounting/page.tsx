@@ -37,6 +37,8 @@ import { useAllPayrollRuns } from "@/features/payroll/api";
 import { saveCsv } from "@/lib/utils/csv-export";
 import { formatETB } from "@/lib/utils/currency";
 import { useT } from "@/lib/i18n/useT";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import { localizedPeriodLabel } from "@/lib/calendar/period-label";
 import { toast } from "sonner";
 
 type AccountEdit = Partial<
@@ -195,7 +197,8 @@ function ChartOfAccountsSection() {
 }
 
 function JournalExportSection() {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { calendar } = useCalendar();
   const [selectedRun, setSelectedRun] = useState<string>("");
 
   const runsQuery = useAllPayrollRuns();
@@ -236,7 +239,14 @@ function JournalExportSection() {
                 <SelectContent>
                   {runs.map((run) => (
                     <SelectItem key={run.public_id} value={run.public_id}>
-                      {run.period_label} — {run.status}
+                      {localizedPeriodLabel(
+                        run.period_label,
+                        run.period_start,
+                        run.period_end,
+                        calendar,
+                        locale,
+                      )}{" "}
+                      &middot; {run.status}
                     </SelectItem>
                   ))}
                 </SelectContent>
