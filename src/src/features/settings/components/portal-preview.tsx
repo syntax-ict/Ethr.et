@@ -175,7 +175,7 @@ export function PortalPreview({
                 landing={landing}
                 feed={feed}
                 feedLoading={isLoading}
-                onOpenAnnouncement={() => {}}
+                links={null}
                 onOpenVacancy={() => {}}
               >
                 <SignInStandIn />

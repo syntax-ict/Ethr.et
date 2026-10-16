@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { useLandingFeed } from "@/features/auth/landing-feed";
 import { PortalView } from "./portal-view";
+import { portalLinks } from "./portal-chrome";
 import { VacancyDialog } from "./vacancy-dialog";
-import { AnnouncementDialog } from "./announcement-dialog";
 
 /**
  * The organisation portal at ethr.et/{slug}, the organisation's subdomain or
@@ -24,10 +24,13 @@ export function OrganisationPortal({
     tenantLanding,
     tenantContextLoading,
     tenantRequest,
+    carryOrganisation,
   } = useAuthHostContext();
   const { data: feed, isLoading } = useLandingFeed(tenantRequest);
-  const [announcementId, setAnnouncementId] = useState<string | null>(null);
   const [vacancyId, setVacancyId] = useState<string | null>(null);
+  // Stories open on their own pages (`/news/{id}`), which can be linked and
+  // shared, rather than in a dialog over the sign-in page.
+  const links = portalLinks(tenantLanding, carryOrganisation, true);
 
   // The square mark becomes the page's icon while the portal is open; the
   // links are put back when it closes, so ETHR's own pages keep theirs.
@@ -68,16 +71,11 @@ export function OrganisationPortal({
         feed={feed}
         feedLoading={isLoading && tenantRequest !== null}
         loading={tenantContextLoading}
-        onOpenAnnouncement={setAnnouncementId}
+        links={links}
         onOpenVacancy={setVacancyId}
       >
         {children}
       </PortalView>
-      <AnnouncementDialog
-        request={tenantRequest}
-        publicId={announcementId}
-        onClose={() => setAnnouncementId(null)}
-      />
       <VacancyDialog
         request={tenantRequest}
         publicId={vacancyId}

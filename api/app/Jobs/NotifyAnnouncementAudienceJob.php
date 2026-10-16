@@ -83,8 +83,22 @@ class NotifyAnnouncementAudienceJob implements ShouldQueue
         }
 
         $tenant = $announcement->tenant;
-        if ($tenant instanceof Tenant) {
-            $currentTenant->set($tenant);
+        if (! $tenant instanceof Tenant) {
+            return;
+        }
+        $currentTenant->set($tenant);
+
+        // Once per announcement. Publishing a draft, rescheduling and
+        // republishing each queue this job; only the first to run while it is
+        // published tells anyone. Claimed before sending, by a conditional
+        // update through the tenant scope just set, so two copies of the job
+        // running together cannot both win.
+        $claimed = Announcement::query()
+            ->whereKey($announcement->getKey())
+            ->whereNull('notified_at')
+            ->update(['notified_at' => now()]);
+        if ($claimed === 0) {
+            return;
         }
 
         $recipients = $this->resolveAudience($announcement);

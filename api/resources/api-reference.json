@@ -742,6 +742,9 @@
                             }
                         }
                     },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
@@ -30174,10 +30177,19 @@
                     "body": {
                         "type": "string"
                     },
+                    "category": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "priority": {
                         "type": "string"
                     },
                     "target_type": {
+                        "type": "string"
+                    },
+                    "status": {
                         "type": "string"
                     },
                     "published_at": {
@@ -30197,6 +30209,9 @@
                     "show_on_landing": {
                         "type": "boolean"
                     },
+                    "featured": {
+                        "type": "boolean"
+                    },
                     "created_at": {
                         "type": [
                             "string",
@@ -30209,11 +30224,14 @@
                     "public_id",
                     "title",
                     "body",
+                    "category",
                     "priority",
                     "target_type",
+                    "status",
                     "published_at",
                     "expires_at",
                     "show_on_landing",
+                    "featured",
                     "created_at"
                 ],
                 "title": "AnnouncementResource"
@@ -36202,8 +36220,28 @@
                             "null"
                         ]
                     },
+                    "category": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "news",
+                            "notice",
+                            "event",
+                            "deadline",
+                            null
+                        ]
+                    },
                     "publish_now": {
                         "type": "boolean"
+                    },
+                    "published_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
                     },
                     "expires_at": {
                         "type": [
@@ -36213,6 +36251,9 @@
                         "format": "date-time"
                     },
                     "show_on_landing": {
+                        "type": "boolean"
+                    },
+                    "featured": {
                         "type": "boolean"
                     }
                 },
@@ -38079,6 +38120,26 @@
                             "null"
                         ]
                     },
+                    "category": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "news",
+                            "notice",
+                            "event",
+                            "deadline",
+                            null
+                        ]
+                    },
+                    "published_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
                     "expires_at": {
                         "type": [
                             "string",
@@ -38087,6 +38148,9 @@
                         "format": "date-time"
                     },
                     "show_on_landing": {
+                        "type": "boolean"
+                    },
+                    "featured": {
                         "type": "boolean"
                     }
                 },

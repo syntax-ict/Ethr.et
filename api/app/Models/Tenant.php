@@ -62,7 +62,7 @@ class Tenant extends Model
         'analytics', 'announcements', 'approvals', 'attendance', 'billing',
         'contact', 'dashboard', 'devices', 'directory', 'employees', 'faq',
         'features', 'impersonate', 'kiosk', 'leave', 'login', 'logout',
-        'notifications', 'offline', 'og.png', 'organization', 'payroll',
+        'news', 'notifications', 'offline', 'og.png', 'organization', 'payroll',
         'pricing', 'privacy', 'profile', 'register', 'reports', 'settings',
         'setup', 'shifts', 'terms', 'vacancies', 'voice',
         'en', 'am', 'om', 'ti', 'so', 'sid',

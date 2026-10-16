@@ -263,7 +263,7 @@ it('sends an organisation entry URL to Laravel, and nothing a page or asset owns
 it('falls back to the entity shell only when no real page exists at that path', function () {
     $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
 
-    $shellRule = 'RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)/?$ /$1/__id__.html [L]';
+    $shellRule = 'RewriteRule ^(employees|payroll|devices|admin/tenants|news)/([^/]+)/?$ /$1/__id__.html [L]';
     $guard = 'RewriteCond %{DOCUMENT_ROOT}/$1/$2.html !-f';
 
     expect($directives)->toContain($shellRule);
@@ -407,9 +407,11 @@ it('promotes exactly the sentinel lines and no prose', function () {
     // 2026-10-15: group 2c, the portals' sitemap and link-preview images
     // (one condition and its rule), found 404 on the live host. 42 → 46 the
     // same day: group 2d, / on an organisation's subdomain redirected to
-    // /login by the server (three host conditions and its rule).
+    // /login by the server (three host conditions and its rule). 46 → 49 on
+    // 2026-10-16: group 1a, /news and its articles on an organisation's own
+    // host through Laravel (two host conditions and its rule).
     expect($sentinels)->toHaveCount(
-        46,
+        49,
         'the sentinel set changed. If that is intended, update this count and say why in the '
         .'commit message; if it is not, a directive has been lost or a prose line marked.'
     );
@@ -610,4 +612,31 @@ it('redirects / on an organisation subdomain to /login, and leaves the apex, www
     $spaFallback = ethrHtaccessIndexOf($directives, 'RewriteRule ^(.+?)/?$ /$1.html [L]');
     expect($adminDeny)->toBeLessThan($ruleIndex)
         ->and($ruleIndex)->toBeLessThan($spaFallback);
+});
+
+// 2026-10-16: an organisation's news page and its articles carry their own
+// head, so on its own host they go to Laravel like /login does. Group 1 below
+// would otherwise hand /news/<id> the article shell as a file first.
+it('sends /news and its articles on an organisation host to Laravel, before the entity shells', function () {
+    $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
+
+    $rule = 'RewriteRule ^news(/[0-9A-HJKMNP-TV-Z]{26})?/?$ index.php [L]';
+    expect($directives)->toContain($rule);
+    $ruleIndex = ethrHtaccessIndexOf($directives, $rule);
+
+    $apex = preg_quote((string) preg_replace('/^admin\.|:\d+$/', '', ETHR_TEST_ADMIN_HOST), '/');
+    expect(array_slice($directives, $ruleIndex - 2, 2))->toBe([
+        'RewriteCond %{HTTP_HOST} !^'.preg_quote(ETHR_TEST_ADMIN_HOST, '/').'$ [NC]',
+        'RewriteCond %{HTTP_HOST} !^(www\.)?'.$apex.'(:[0-9]+)?$ [NC]',
+    ]);
+
+    // Before group 1's article shell, which would answer first.
+    $shell = ethrHtaccessIndexOf($directives, 'RewriteRule ^(employees|payroll|devices|admin/tenants|news)/([^/]+)/?$ /$1/__id__.html [L]');
+    expect($ruleIndex)->toBeLessThan($shell);
+
+    // The pattern is the routes' own constraint.
+    $routes = (string) file_get_contents(base_path('routes/web.php'));
+    expect($routes)->toContain("Route::get('/news', [NewsPageController::class, 'index'])")
+        ->toContain("Route::get('/news/{publicId}', [NewsPageController::class, 'show'])")
+        ->toContain("->where('publicId', '[0-9A-HJKMNP-TV-Z]{26}')");
 });
