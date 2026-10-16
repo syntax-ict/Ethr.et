@@ -30,13 +30,17 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { usePayrollRuns, useProcessPayroll } from "@/features/payroll/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import { dateFromIso } from "@/lib/calendar/date-from-iso";
+import { localizedPeriodLabel } from "@/lib/calendar/period-label";
 import { toast } from "sonner";
 import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
 import { usePlanFeatures } from "@/features/auth/api";
 import { apiErrorDetail } from "@/lib/api/error-message";
 
 export default function PayrollPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { calendar, formatDate } = useCalendar();
   const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [periodStart, setPeriodStart] = useState("");
@@ -180,14 +184,26 @@ export default function PayrollPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2.5">
                           <span className="font-semibold text-foreground">
-                            {run.period_label}
+                            {localizedPeriodLabel(
+                              run.period_label,
+                              run.period_start,
+                              run.period_end,
+                              calendar,
+                              locale,
+                            )}
                           </span>
                           <StatusBadge status={run.status} />
                         </div>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {run.employee_count}{" "}
                           {t("common.employees", "employees")} &middot;{" "}
-                          {run.period_start} – {run.period_end}
+                          {run.period_start
+                            ? formatDate(dateFromIso(run.period_start), locale)
+                            : ""}{" "}
+                          –{" "}
+                          {run.period_end
+                            ? formatDate(dateFromIso(run.period_end), locale)
+                            : ""}
                         </p>
                       </div>
                       <div className="flex gap-6 sm:contents">

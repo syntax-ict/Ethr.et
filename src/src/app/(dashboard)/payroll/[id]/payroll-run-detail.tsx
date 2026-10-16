@@ -74,14 +74,27 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { usePlanFeatures } from "@/features/auth/api";
 import { apiErrorDetail } from "@/lib/api/error-message";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import { dateFromIso } from "@/lib/calendar/date-from-iso";
+import { localizedPeriodLabel } from "@/lib/calendar/period-label";
 
 export function PayrollRunDetail({ routeId }: { routeId: string }) {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { calendar, formatDate } = useCalendar();
   const id = useRouteId(routeId) ?? "";
   const { data: run, isLoading } = usePayrollRun(id);
+  const periodTitle = run
+    ? localizedPeriodLabel(
+        run.period_label,
+        run.period_start,
+        run.period_end,
+        calendar,
+        locale,
+      )
+    : undefined;
   // Ends the title bar's breadcrumb with this run; it had a separate "Back"
   // button instead.
-  useEntityTitle(run?.period_label);
+  useEntityTitle(periodTitle);
   // Each action is its own permission server-side (`PayrollRunPolicy`). The
   // page asked for the tenant-admin role instead, so a custom role granted
   // `payroll.approve` never saw the button.
@@ -324,12 +337,18 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              {run.period_label}
+              {periodTitle}
             </h1>
             <StatusBadge status={run.status} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {run.period_start} {t("payroll_detail_page.to")} {run.period_end}{" "}
+            {run.period_start
+              ? formatDate(dateFromIso(run.period_start), locale)
+              : ""}{" "}
+            {t("payroll_detail_page.to")}{" "}
+            {run.period_end
+              ? formatDate(dateFromIso(run.period_end), locale)
+              : ""}{" "}
             &middot; {run.employee_count}{" "}
             {t("payroll_detail_page.employees_lc")}
           </p>
