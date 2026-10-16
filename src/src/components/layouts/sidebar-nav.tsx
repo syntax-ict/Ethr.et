@@ -81,6 +81,12 @@ interface NavSection {
 interface SidebarNavProps {
   onNavigate?: () => void;
   collapsed?: boolean;
+  /**
+   * Row density. The mobile drawer passes "touch" for 44px rows (WCAG 2.5.8
+   * comfortable target size on a phone); the desktop sidebar keeps its
+   * tighter default.
+   */
+  size?: "default" | "touch";
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -126,7 +132,11 @@ function resolveActiveHref(sections: NavSection[], pathname: string): string {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
-export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
+export function SidebarNav({
+  onNavigate,
+  collapsed = false,
+  size = "default",
+}: SidebarNavProps) {
   const pathname = usePathname();
   const { can, isSupervisor, isTenantAdmin, isSuperAdmin } = usePermissions();
   const settingsLanding = useSettingsLanding();
@@ -733,6 +743,7 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
                 activeHref={activeHref}
                 onNavigate={onNavigate}
                 collapsed={collapsed}
+                size={size}
                 isPinnable={!collapsed}
                 pinned={isFavorite(entry.href)}
                 onTogglePin={() => toggleFavorite(entry.href)}
@@ -747,6 +758,7 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
                 onToggle={() => toggle(entry.id)}
                 onNavigate={onNavigate}
                 collapsed={collapsed}
+                size={size}
                 isFavorite={isFavorite}
                 onTogglePin={toggleFavorite}
               />
@@ -766,6 +778,7 @@ function NavLink({
   onNavigate,
   collapsed,
   indent = false,
+  size = "default",
   isPinnable = false,
   pinned = false,
   onTogglePin,
@@ -777,6 +790,7 @@ function NavLink({
   onNavigate?: () => void;
   collapsed: boolean;
   indent?: boolean;
+  size?: "default" | "touch";
   isPinnable?: boolean;
   pinned?: boolean;
   onTogglePin?: () => void;
@@ -808,7 +822,14 @@ function NavLink({
         className={cn(
           "relative flex flex-1 items-center rounded-md font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           collapsed ? "h-10 w-10 justify-center" : "gap-3",
-          !collapsed && (isSecondary ? "h-8 text-[13px]" : "h-9 text-sm"),
+          !collapsed &&
+            (size === "touch"
+              ? isSecondary
+                ? "h-10 text-sm"
+                : "h-11 text-sm"
+              : isSecondary
+                ? "h-8 text-[13px]"
+                : "h-9 text-sm"),
           indent && !collapsed ? "pl-10 pr-3" : !collapsed && "px-3",
           isActive
             ? isSecondary
@@ -958,6 +979,7 @@ function NavGroup({
   onToggle,
   onNavigate,
   collapsed,
+  size = "default",
   isFavorite,
   onTogglePin,
 }: {
@@ -967,6 +989,7 @@ function NavGroup({
   onToggle: () => void;
   onNavigate?: () => void;
   collapsed: boolean;
+  size?: "default" | "touch";
   isFavorite: (href: string) => boolean;
   onTogglePin: (href: string) => void;
 }) {
@@ -1032,7 +1055,8 @@ function NavGroup({
         onClick={onToggle}
         aria-expanded={isExpanded}
         className={cn(
-          "group relative flex h-9 w-full items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "group relative flex w-full items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          size === "touch" ? "h-11" : "h-9",
           hasActiveChild
             ? "text-sidebar-accent-foreground"
             : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
@@ -1073,6 +1097,7 @@ function NavGroup({
                 onNavigate={onNavigate}
                 collapsed={false}
                 indent
+                size={size}
                 isPinnable
                 pinned={isFavorite(child.href)}
                 onTogglePin={() => onTogglePin(child.href)}
@@ -1086,6 +1111,17 @@ function NavGroup({
 }
 
 // ── SetupBanner ─────────────────────────────────────────────────────────────
+
+const SETUP_BANNER_KEY = "ethr.setup-banner-open";
+
+function readSetupBannerOpen(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    return localStorage.getItem(SETUP_BANNER_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
 
 function SetupBanner({
   collapsed,
@@ -1102,6 +1138,21 @@ function SetupBanner({
   const isOnSetup = pathname === "/setup/guided";
   const progress =
     totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0;
+  // Open by default so a new tenant discovers it; the choice to tuck it away
+  // is remembered per browser, like the sidebar's own collapsed state. The
+  // row itself stays a link either way, so one tap still reaches setup and
+  // the count keeps reporting progress even when the detail is tucked.
+  const [detailOpen, setDetailOpen] = useState(readSetupBannerOpen);
+  const toggleDetail = useCallback(() => {
+    setDetailOpen((prev) => {
+      try {
+        localStorage.setItem(SETUP_BANNER_KEY, prev ? "0" : "1");
+      } catch {
+        // Private windows may refuse; the toggle still works for the session.
+      }
+      return !prev;
+    });
+  }, []);
 
   if (collapsed) {
     return (
@@ -1126,51 +1177,78 @@ function SetupBanner({
   }
 
   return (
-    <Link
-      href="/setup/guided"
-      aria-current={isOnSetup ? "page" : undefined}
+    <div
       className={cn(
-        "group mb-2 block rounded-lg border p-3 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "mb-2 rounded-lg border transition-colors duration-150",
         isOnSetup
           ? "border-brand-accent/40 bg-sidebar-accent"
-          : "border-sidebar-border bg-sidebar-accent/40 hover:bg-sidebar-accent/70",
+          : "border-sidebar-border bg-sidebar-accent/40",
       )}
     >
-      <div className="flex items-center gap-2.5">
-        <ListChecks
-          className="h-4 w-4 shrink-0 text-sidebar-foreground/70"
-          aria-hidden="true"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-semibold text-sidebar-foreground">
+      <div className="flex items-center">
+        <Link
+          href="/setup/guided"
+          aria-current={isOnSetup ? "page" : undefined}
+          className="group flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-2.5 transition-colors duration-150 hover:bg-sidebar-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <ListChecks
+            className="h-4 w-4 shrink-0 text-sidebar-foreground/70"
+            aria-hidden="true"
+          />
+          <p className="min-w-0 flex-1 truncate text-xs font-semibold text-sidebar-foreground">
             {t("sidebar.getting_started", "Getting Started")}
           </p>
-          <p className="truncate text-[11px] tabular-nums text-sidebar-foreground/70">
-            {t("sidebar.steps_completed", ":done of :total completed", {
-              done: completedCount,
-              total: totalSteps,
-            })}
-          </p>
-        </div>
-        <ChevronRight
-          className="h-4 w-4 shrink-0 text-sidebar-foreground/60 transition-transform group-hover:translate-x-0.5"
-          aria-hidden="true"
-        />
+          <span className="shrink-0 text-[11px] tabular-nums text-sidebar-foreground/70">
+            {completedCount}/{totalSteps}
+          </span>
+        </Link>
+        <button
+          type="button"
+          onClick={toggleDetail}
+          aria-expanded={detailOpen}
+          aria-label={t("sidebar.setup_toggle", "Setup progress")}
+          className="mr-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 transition-transform duration-200",
+              detailOpen && "rotate-90",
+            )}
+            aria-hidden="true"
+          />
+        </button>
       </div>
 
       <div
-        className="mt-2.5 h-1 overflow-hidden rounded-full bg-sidebar-border"
-        role="progressbar"
-        aria-label={t("sidebar.complete_setup", "Complete Setup")}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={progress}
+        className={cn(
+          "grid transition-[grid-template-rows] duration-200 ease-in-out",
+          detailOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
       >
-        <div
-          className="h-full rounded-full bg-brand-accent transition-[width] duration-500 ease-out"
-          style={{ width: `${Math.max(progress, 4)}%` }}
-        />
+        <div className="overflow-hidden">
+          <div className="px-2.5 pb-2.5">
+            <p className="truncate pb-1.5 text-[11px] tabular-nums text-sidebar-foreground/70">
+              {t("sidebar.steps_completed", ":done of :total completed", {
+                done: completedCount,
+                total: totalSteps,
+              })}
+            </p>
+            <div
+              className="h-1 overflow-hidden rounded-full bg-sidebar-border"
+              role="progressbar"
+              aria-label={t("sidebar.complete_setup", "Complete Setup")}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+            >
+              <div
+                className="h-full rounded-full bg-brand-accent transition-[width] duration-500 ease-out"
+                style={{ width: `${Math.max(progress, 4)}%` }}
+              />
+            </div>
+          </div>
+        </div>
       </div>
-    </Link>
+    </div>
   );
 }

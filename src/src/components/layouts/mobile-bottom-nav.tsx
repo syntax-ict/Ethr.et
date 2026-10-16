@@ -175,16 +175,21 @@ export function MobileBottomNav() {
         </button>
       </nav>
 
+      {/* The drawer rides the sidebar's own surface tokens, so mobile and
+          desktop navigation share one identity — on the content background
+          the rows' sidebar-foreground text was unreadable in light mode. The
+          "touch" density gives phone-sized rows. */}
       <Sheet
         open={moreOpen}
         onOpenChange={setMoreOpen}
         title={t("nav.more_navigation", "More navigation")}
+        className="border-sidebar-border bg-sidebar text-sidebar-foreground"
       >
-        <div className="flex h-16 items-center gap-2 border-b px-6">
-          <TenantLogoBadge />
+        <div className="flex h-14 shrink-0 items-center gap-2 border-b border-sidebar-border px-6">
+          <TenantLogoBadge surface="dark" />
         </div>
         <div className="py-2">
-          <SidebarNav onNavigate={() => setMoreOpen(false)} />
+          <SidebarNav size="touch" onNavigate={() => setMoreOpen(false)} />
         </div>
       </Sheet>
     </>

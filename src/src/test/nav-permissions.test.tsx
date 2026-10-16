@@ -232,3 +232,51 @@ describe("no duplicate labels", () => {
     expect(duplicates).toEqual([]);
   });
 });
+
+/**
+ * The Getting Started card: a single row (link + count) with the progress
+ * detail behind an accessible toggle, so new tenants keep the entry without
+ * the card holding ~90px of the nav hostage (sidebar audit, 2026-10-16).
+ */
+describe("the Getting Started card", () => {
+  function asFreshTenantAdmin() {
+    server.use(
+      http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          user: { public_id: "U1", name: "Admin", role: "tenant_admin" },
+          tenant: {
+            public_id: "T1",
+            name: "Demo",
+            timezone: "Africa/Addis_Ababa",
+          },
+          permissions: ["settings.manage"],
+        }),
+      ),
+      http.get("*/api/v1/onboarding/progress", () =>
+        HttpResponse.json({
+          completed_at: null,
+          current_step: 3,
+          completed_steps: [3],
+        }),
+      ),
+    );
+  }
+
+  it("keeps the row a link and the detail behind an aria-expanded toggle", async () => {
+    localStorage.removeItem("ethr.setup-banner-open");
+    asFreshTenantAdmin();
+    renderWith(<SidebarNav />);
+
+    const row = await screen.findByRole("link", { name: /getting started/i });
+    expect(row).toHaveAttribute("href", "/setup/guided");
+
+    const toggle = screen.getByRole("button", { name: /setup progress/i });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+    toggle.click();
+    await screen.findByRole("button", { name: /setup progress/i });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    // The choice is remembered per browser.
+    expect(localStorage.getItem("ethr.setup-banner-open")).toBe("0");
+  });
+});

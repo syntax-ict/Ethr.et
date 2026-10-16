@@ -8,7 +8,6 @@ import {
   Contrast,
   Globe,
   LogOut,
-  Menu,
   Monitor,
   Moon,
   Search,
@@ -27,10 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet } from "@/components/ui/sheet";
 import { InstallAppMenuItem } from "@/components/shared/install-app";
-import { SidebarNav } from "./sidebar-nav";
-import { useAppLayout } from "./layout-context";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { openCommandPalette } from "@/components/shared/command-palette";
 import { useCurrentUser, useLogout } from "@/features/auth/api";
@@ -76,7 +72,6 @@ function useCurrentPageLabel() {
 }
 
 export function AppHeader() {
-  const { mobileNavOpen, setMobileNavOpen } = useAppLayout();
   const { theme, setTheme } = useTheme();
   const { data: user } = useCurrentUser();
   const logout = useLogout();
@@ -105,17 +100,12 @@ export function AppHeader() {
   return (
     <>
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:px-6">
-        {/* Left: Mobile menu + mobile logo / Desktop breadcrumbs */}
+        {/* Left: mobile logo / Desktop breadcrumbs. The hamburger that lived
+            here was the second of two controls opening the same navigation —
+            the bottom bar's More is the documented, thumb-reachable one, and
+            two openers with two separate sheets meant duplicated state and a
+            duplicated control (sidebar audit, 2026-10-16). */}
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 shrink-0 lg:hidden"
-            onClick={() => setMobileNavOpen(true)}
-          >
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">{t("nav.open_menu", "Open menu")}</span>
-          </Button>
           {/* min-w-0 lets a long organisation name truncate instead of
               wrapping over the logo and pushing the icons aside (N34). */}
           <div className="flex min-w-0 items-center gap-2 lg:hidden">
@@ -356,20 +346,6 @@ export function AppHeader() {
           </DropdownMenu>
         </div>
       </header>
-
-      {/* Mobile navigation sheet */}
-      <Sheet
-        open={mobileNavOpen}
-        onOpenChange={setMobileNavOpen}
-        title={t("nav.main_navigation", "Main navigation")}
-      >
-        <div className="flex h-14 items-center gap-2 border-b px-6">
-          <TenantLogoBadge />
-        </div>
-        <div className="py-2">
-          <SidebarNav onNavigate={() => setMobileNavOpen(false)} />
-        </div>
-      </Sheet>
     </>
   );
 }
