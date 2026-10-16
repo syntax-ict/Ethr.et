@@ -10372,6 +10372,20 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "filter[branch_id]",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "filter[position_id]",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -10631,6 +10645,14 @@
                                                 },
                                                 {
                                                     "type": "string",
+                                                    "const": "name_am"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "employee_code"
+                                                },
+                                                {
+                                                    "type": "string",
                                                     "const": "email"
                                                 },
                                                 {
@@ -10639,15 +10661,11 @@
                                                 },
                                                 {
                                                     "type": "string",
-                                                    "const": "employee_code"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "national_id"
-                                                },
-                                                {
-                                                    "type": "string",
                                                     "const": "gender"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "date_of_birth"
                                                 },
                                                 {
                                                     "type": "string",
@@ -10655,19 +10673,31 @@
                                                 },
                                                 {
                                                     "type": "string",
-                                                    "const": "department_code"
+                                                    "const": "department"
                                                 },
                                                 {
                                                     "type": "string",
-                                                    "const": "branch_code"
+                                                    "const": "branch"
                                                 },
                                                 {
                                                     "type": "string",
-                                                    "const": "position_code"
+                                                    "const": "position"
                                                 },
                                                 {
                                                     "type": "string",
-                                                    "const": "salary_cents"
+                                                    "const": "salary"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "national_id"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "tin"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "badge_number"
                                                 },
                                                 {
                                                     "type": "string",
@@ -10676,16 +10706,63 @@
                                                 {
                                                     "type": "string",
                                                     "const": "nationality_status"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "marital_status"
                                                 }
                                             ],
-                                            "minItems": 13,
-                                            "maxItems": 13,
+                                            "minItems": 18,
+                                            "maxItems": 18,
                                             "additionalItems": false
                                         }
                                     },
                                     "required": [
                                         "template",
                                         "headers"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/next-code": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "employees"
+                ],
+                "operationId": "employee.nextCode",
+                "summary": "The employee code the next new employee will get when the form leaves\nit blank, from the organisation's `employee_number_format`. A preview:\nsomeone else adding at the same moment can take it first, and then the\nsave takes the one after",
+                "tags": [
+                    "Employees"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "employee_code": {
+                                            "type": "string"
+                                        },
+                                        "format": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "employee_code",
+                                        "format"
                                     ]
                                 }
                             }
@@ -25715,6 +25792,21 @@
                                                 "calendar"
                                             ]
                                         },
+                                        "employees": {
+                                            "type": "object",
+                                            "properties": {
+                                                "number_format": {
+                                                    "type": "string"
+                                                },
+                                                "next_code": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "number_format",
+                                                "next_code"
+                                            ]
+                                        },
                                         "sso": {
                                             "anyOf": [
                                                 {
@@ -25807,6 +25899,7 @@
                                         "payroll",
                                         "security",
                                         "display",
+                                        "employees",
                                         "sso"
                                     ]
                                 }
@@ -33523,6 +33616,13 @@
                                     "type": "string",
                                     "maxLength": 255
                                 },
+                                "name_am": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
                                 "email": {
                                     "type": [
                                         "string",
@@ -33536,6 +33636,7 @@
                                         "string",
                                         "null"
                                     ],
+                                    "pattern": "^\\+?[0-9 ()-]{6,20}$",
                                     "maxLength": 20
                                 },
                                 "employee_code": {
@@ -33552,6 +33653,21 @@
                                     ],
                                     "maxLength": 50
                                 },
+                                "tin": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 20
+                                },
+                                "badge_number": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "pattern": "^[A-Za-z0-9-]+$",
+                                    "maxLength": 32
+                                },
                                 "gender": {
                                     "type": [
                                         "string",
@@ -33563,6 +33679,13 @@
                                         null
                                     ]
                                 },
+                                "date_of_birth": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "format": "date-time"
+                                },
                                 "hire_date": {
                                     "type": "string",
                                     "format": "date-time"
@@ -33571,19 +33694,29 @@
                                     "type": [
                                         "string",
                                         "null"
-                                    ]
+                                    ],
+                                    "maxLength": 255
                                 },
                                 "branch_code": {
                                     "type": [
                                         "string",
                                         "null"
-                                    ]
+                                    ],
+                                    "maxLength": 255
                                 },
                                 "position_code": {
                                     "type": [
                                         "string",
                                         "null"
-                                    ]
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "salary": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "pattern": "^\\d{1,13}(\\.\\d{1,2})?$"
                                 },
                                 "salary_cents": {
                                     "type": [
@@ -33608,6 +33741,19 @@
                                         "ethiopian",
                                         "ethiopian_origin",
                                         "foreign",
+                                        null
+                                    ]
+                                },
+                                "marital_status": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "enum": [
+                                        "single",
+                                        "married",
+                                        "divorced",
+                                        "widowed",
                                         null
                                     ]
                                 }
@@ -34604,6 +34750,9 @@
                     "employee_count": {
                         "type": "integer"
                     },
+                    "skipped_no_salary": {
+                        "type": "integer"
+                    },
                     "gross_total_cents": {
                         "type": "integer"
                     },
@@ -34667,6 +34816,7 @@
                     "period_end",
                     "status",
                     "employee_count",
+                    "skipped_no_salary",
                     "gross_total_cents",
                     "net_total_cents",
                     "tax_total_cents",

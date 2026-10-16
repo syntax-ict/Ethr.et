@@ -20,6 +20,7 @@ class PayrollRunResource extends JsonResource
             'period_end' => $this->period_end?->format('Y-m-d'),
             'status' => $this->status,
             'employee_count' => $this->employee_count,
+            'skipped_no_salary' => (int) $this->skipped_no_salary,
             'gross_total_cents' => $this->gross_total_cents,
             'net_total_cents' => $this->net_total_cents,
             'tax_total_cents' => $this->tax_total_cents,

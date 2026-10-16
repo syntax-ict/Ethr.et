@@ -56,6 +56,7 @@ const SETTINGS = {
   },
   security: { mfa_policy: "required", session_timeout_minutes: 30 },
   display: { calendar: "gregorian" },
+  employees: { number_format: "EMP-{SEQ:4}", next_code: "EMP-0001" },
   sso: {
     is_enabled: true,
     provider: "saml",

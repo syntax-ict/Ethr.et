@@ -2219,6 +2219,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/next-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The employee code the next new employee will get when the form leaves
+         *     it blank, from the organisation's `employee_number_format`. A preview:
+         *     someone else adding at the same moment can take it first, and then the
+         *     save takes the one after
+         */
+        get: operations["employee.nextCode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/documents/expiring": {
         parameters: {
             query?: never;
@@ -7069,22 +7091,30 @@ export interface components {
             create_logins?: boolean;
             rows: {
                 name: string;
+                name_am?: string | null;
                 /** Format: email */
                 email?: string | null;
                 phone?: string | null;
                 employee_code?: string | null;
                 national_id?: string | null;
+                tin?: string | null;
+                badge_number?: string | null;
                 /** @enum {string|null} */
                 gender?: "male" | "female" | null;
+                /** Format: date-time */
+                date_of_birth?: string | null;
                 /** Format: date-time */
                 hire_date: string;
                 department_code?: string | null;
                 branch_code?: string | null;
                 position_code?: string | null;
+                salary?: string | null;
                 salary_cents?: number | null;
                 nationality?: string | null;
                 /** @enum {string|null} */
                 nationality_status?: "ethiopian" | "ethiopian_origin" | "foreign" | null;
+                /** @enum {string|null} */
+                marital_status?: "single" | "married" | "divorced" | "widowed" | null;
             }[];
         };
         /**
@@ -7390,6 +7420,7 @@ export interface components {
             period_end: string | null;
             status: string;
             employee_count: number;
+            skipped_no_salary: number;
             gross_total_cents: number;
             net_total_cents: number;
             tax_total_cents: number;
@@ -9028,6 +9059,7 @@ export interface components {
                 session_timeout_minutes?: number;
                 /** @enum {string} */
                 calendar?: "ethiopian" | "gregorian";
+                employee_number_format?: string;
             };
         };
         /** UpdateShiftRequest */
@@ -15007,6 +15039,8 @@ export interface operations {
                 search?: string;
                 "filter[status]"?: string;
                 "filter[department_id]"?: string;
+                "filter[branch_id]"?: string;
+                "filter[position_id]"?: string;
             };
             header?: never;
             path?: never;
@@ -15022,6 +15056,30 @@ export interface operations {
                     "application/json": {
                         csv: string;
                         count: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "employee.nextCode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        employee_code: string;
+                        format: string;
                     };
                 };
             };
@@ -15196,18 +15254,23 @@ export interface operations {
                         template: string;
                         headers: [
                             "name",
+                            "name_am",
+                            "employee_code",
                             "email",
                             "phone",
-                            "employee_code",
-                            "national_id",
                             "gender",
+                            "date_of_birth",
                             "hire_date",
-                            "department_code",
-                            "branch_code",
-                            "position_code",
-                            "salary_cents",
+                            "department",
+                            "branch",
+                            "position",
+                            "salary",
+                            "national_id",
+                            "tin",
+                            "badge_number",
                             "nationality",
-                            "nationality_status"
+                            "nationality_status",
+                            "marital_status"
                         ];
                     };
                 };
@@ -23245,6 +23308,10 @@ export interface operations {
                         display: {
                             /** @enum {string} */
                             calendar: "gregorian" | "ethiopian";
+                        };
+                        employees: {
+                            number_format: string;
+                            next_code: string;
                         };
                         sso: {
                             is_enabled: boolean;

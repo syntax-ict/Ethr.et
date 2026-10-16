@@ -87,6 +87,39 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("<PayrollRunDetail> skipped employees", () => {
+  // Production QA 2026-10-15 F1: a run that skipped employees for having no
+  // salary said nothing about them anywhere.
+  it("says how many employees were skipped for having no salary", async () => {
+    server.use(me("finance_admin", ["payroll.viewAll"]));
+    server.use(
+      http.get("*/api/v1/payroll/runs/RUN1", () =>
+        HttpResponse.json({ ...RUN, employee_count: 1, skipped_no_salary: 2 }),
+      ),
+    );
+    renderDetail();
+
+    expect(
+      await screen.findByText(
+        "2 employees were skipped because no salary is set for them",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("says nothing when nobody was skipped", async () => {
+    server.use(me("finance_admin", ["payroll.viewAll"]));
+    server.use(
+      http.get("*/api/v1/payroll/runs/RUN1", () =>
+        HttpResponse.json({ ...RUN, skipped_no_salary: 0 }),
+      ),
+    );
+    renderDetail();
+
+    await screen.findByText("Meskerem 2019");
+    expect(screen.queryByText(/skipped because no salary/)).toBeNull();
+  });
+});
+
 describe("<PayrollRunDetail> actions", () => {
   it("offers Approve to a role holding payroll.approve, whatever its tier", async () => {
     // PayrollRunPolicy checks `payroll.approve`; the page asked for the
