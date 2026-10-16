@@ -8,10 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { useRouteId } from "@/lib/hooks/useRouteId";
-import { useLandingAnnouncement } from "@/features/auth/landing-feed";
+import {
+  useLandingAnnouncement,
+  useLandingFeed,
+} from "@/features/auth/landing-feed";
 import {
   PortalChrome,
   portalLinks,
+  visibleSections,
 } from "@/features/auth/components/portal-chrome";
 import { ArticleView } from "./article-view";
 import { NewsCard } from "./news-card";
@@ -31,6 +35,10 @@ export function NewsArticle({ routeId }: { routeId: string }) {
   const id = useRouteId(routeId);
   const article = useLandingAnnouncement(host.tenantRequest, id);
   const links = portalLinks(host.tenantLanding, host.carryOrganisation, false);
+  // The organisation's sections, for the header and footer menus: the same
+  // feed the portal reads, cached, so the menus match what the portal shows.
+  const feed = useLandingFeed(host.tenantRequest);
+  const sections = visibleSections(host.tenantLanding, feed.data);
 
   const data = article.data;
   useEffect(() => {
@@ -56,6 +64,7 @@ export function NewsArticle({ routeId }: { routeId: string }) {
       brand={host.tenantBrand}
       landing={host.tenantLanding}
       links={links}
+      sections={sections}
       current="news"
     >
       <div className="py-10 @lg:py-14">
