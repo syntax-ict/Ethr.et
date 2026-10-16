@@ -88,6 +88,28 @@ it('renders an article head with its own title, words, canonical and NewsArticle
         ->toContain('<main id="news">');
 });
 
+it('shares an article with its own cover photo as the preview image', function () {
+    $tenant = newsTenant('acme', 'Acme Manufacturing', ['listed' => true]);
+    $article = publicArticle($tenant);
+    $article->forceFill(['cover' => [
+        'path' => "tenants/{$tenant->public_id}/news/{$article->public_id}-0123456789abcdef.jpg",
+        'version' => '0123456789abcdef',
+        'width' => 1600,
+        'height' => 900,
+        'variants' => [],
+    ]])->save();
+    $cover = "https://www.ethr.et/api/v1/news-covers/{$tenant->public_id}/{$article->public_id}/cover/0123456789abcdef";
+
+    $html = serveNewsPage("http://acme.ethr.et/news/{$article->public_id}", 'news/__id__.html')->assertOk()->getContent();
+
+    expect($html)
+        ->toContain('<meta property="og:image" content="'.$cover.'">')
+        ->toContain('<meta property="og:image:width" content="1600">')
+        ->toContain('<meta property="og:image:alt" content="Plant reopens Monday">')
+        ->toContain('<meta name="twitter:image" content="'.$cover.'">')
+        ->toContain('"image":"'.$cover.'"');
+});
+
 it('serves an unpublished, private or unknown article as a 404 kept out of search', function (string $kind) {
     $tenant = newsTenant('acme', 'Acme Manufacturing', ['listed' => true]);
     $article = match ($kind) {

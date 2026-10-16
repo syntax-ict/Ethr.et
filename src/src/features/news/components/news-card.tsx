@@ -10,7 +10,42 @@ type NewsSummary = Pick<
   LandingNewsItem,
   "public_id" | "title" | "excerpt" | "published_at" | "priority"
 > &
-  Partial<Pick<LandingNewsItem, "category" | "featured">>;
+  Partial<Pick<LandingNewsItem, "category" | "featured" | "cover">>;
+
+/** A story's cover photo as the API gives it: sized, with narrower copies. */
+export type NewsCoverImage = NonNullable<LandingNewsItem["cover"]>;
+
+/**
+ * A story's cover photo. Decorative (`alt=""`): the story's title is beside
+ * it, and the photo says nothing the title does not. Its width and height
+ * reserve the space before it loads, so the page does not jump.
+ */
+export function NewsCoverPicture({
+  cover,
+  sizes,
+  eager = false,
+  className,
+}: {
+  cover: NewsCoverImage;
+  sizes: string;
+  eager?: boolean;
+  className?: string;
+}) {
+  return (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={cover.url}
+      srcSet={cover.srcset || undefined}
+      sizes={cover.srcset ? sizes : undefined}
+      width={cover.width}
+      height={cover.height}
+      alt=""
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      className={cn("block w-full object-cover", className)}
+    />
+  );
+}
 
 /**
  * The date, category and flags above a story's title, shared by every place
@@ -61,7 +96,8 @@ export function NewsMeta({ item }: { item: NewsSummary }) {
  * settings preview, where nothing should navigate away.
  *
  * `size="feature"` is the news page's lead story: the same content, given
- * the width and a larger title.
+ * the width and a larger title. With a cover, a feature card wide enough
+ * (its own width, not the page's) sets the photo beside the words.
  */
 export function NewsCard({
   item,
@@ -74,40 +110,70 @@ export function NewsCard({
 }) {
   const { t } = useT();
   const feature = size === "feature";
+  const cover = item.cover ?? null;
   const className = cn(
-    "group flex min-w-0 flex-col rounded-xl border border-border bg-card text-left transition-colors",
-    feature ? "p-6 @lg:p-8" : "p-4",
+    "group @container/news flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-colors",
     href &&
       "hover:border-border-strong hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
   );
   const body = (
-    <>
-      <NewsMeta item={item} />
-      <span
-        className={cn(
-          "mt-2 font-semibold text-foreground",
-          feature ? "text-xl leading-snug @lg:text-2xl" : "text-sm",
-        )}
-      >
-        {item.title}
-      </span>
-      <span
-        className={cn(
-          "mt-1 whitespace-pre-line text-muted-foreground",
-          feature
-            ? "line-clamp-5 text-base leading-relaxed"
-            : "line-clamp-4 text-sm",
-        )}
-      >
-        {item.excerpt}
-      </span>
-      {href && (
-        <span className="mt-3 text-xs font-medium text-primary group-hover:underline">
-          {t("landing.read_more", "Read more")}
-          <span className="sr-only">: {item.title}</span>
+    <span
+      className={cn(
+        "flex min-w-0 flex-1 flex-col",
+        feature && cover && "@4xl/news:flex-row",
+      )}
+    >
+      {cover && (
+        <span
+          className={cn(
+            "block aspect-[16/9] shrink-0 overflow-hidden bg-muted",
+            feature && "@4xl/news:aspect-auto @4xl/news:w-1/2",
+          )}
+        >
+          <NewsCoverPicture
+            cover={cover}
+            sizes={
+              feature
+                ? "(min-width: 1024px) 36rem, 100vw"
+                : "(min-width: 1024px) 24rem, (min-width: 640px) 50vw, 100vw"
+            }
+            className="h-full transition-transform duration-300 group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+          />
         </span>
       )}
-    </>
+      <span
+        className={cn(
+          "flex min-w-0 flex-1 flex-col",
+          feature ? "p-6 @lg:p-8" : "p-4",
+        )}
+      >
+        <NewsMeta item={item} />
+        <span
+          className={cn(
+            "mt-2 font-semibold text-foreground",
+            feature ? "text-xl leading-snug @lg:text-2xl" : "text-sm",
+          )}
+        >
+          {item.title}
+        </span>
+        <span
+          className={cn(
+            "mt-1 whitespace-pre-line text-muted-foreground",
+            feature
+              ? "line-clamp-5 text-base leading-relaxed"
+              : "line-clamp-4 text-sm",
+          )}
+        >
+          {item.excerpt}
+        </span>
+        {href && (
+          <span className="mt-3 text-xs font-medium text-primary group-hover:underline">
+            {t("landing.read_more", "Read more")}
+            <span className="sr-only">: {item.title}</span>
+          </span>
+        )}
+      </span>
+    </span>
   );
 
   return href ? (

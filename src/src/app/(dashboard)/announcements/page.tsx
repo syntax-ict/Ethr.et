@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   ArchiveRestore,
   Eye,
   Globe,
+  ImageUp,
   Loader2,
   Megaphone,
   Pencil,
@@ -48,7 +49,9 @@ import {
   useCreateAnnouncement,
   useDeleteAnnouncement,
   useManagedAnnouncements,
+  useRemoveAnnouncementCover,
   useUpdateAnnouncement,
+  useUploadAnnouncementCover,
   type Announcement,
   type AnnouncementPriority,
   type CreateAnnouncementPayload,
@@ -59,6 +62,7 @@ import {
   type NewsCategory,
 } from "@/features/auth/landing-feed";
 import { ArticleView } from "@/features/news/components/article-view";
+import type { NewsCoverImage } from "@/features/news/components/news-card";
 import { apiErrorDetail } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -77,6 +81,12 @@ interface Form {
   publishing: Publishing;
   /** `datetime-local` value, in the browser's time. */
   publishAt: string;
+  /** A newly chosen cover photo, sent once the story is saved. */
+  coverFile: File | null;
+  /** A local preview of `coverFile`, revoked when it is replaced. */
+  coverPreview: string | null;
+  /** Take the story's current cover off when it is saved. */
+  removeCover: boolean;
 }
 
 const EMPTY_FORM: Form = {
@@ -88,7 +98,13 @@ const EMPTY_FORM: Form = {
   featured: false,
   publishing: "now",
   publishAt: "",
+  coverFile: null,
+  coverPreview: null,
+  removeCover: false,
 };
+
+const COVER_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const COVER_MAX_BYTES = 5 * 1024 * 1024;
 
 const priorityColors: Record<string, string> = {
   urgent: "bg-destructive-soft text-destructive-on-soft",
@@ -137,6 +153,17 @@ export default function AnnouncementsPage() {
   const createAnnouncement = useCreateAnnouncement();
   const updateAnnouncement = useUpdateAnnouncement();
   const deleteAnnouncement = useDeleteAnnouncement();
+  const uploadCover = useUploadAnnouncementCover();
+  const removeCover = useRemoveAnnouncementCover();
+  const coverInput = useRef<HTMLInputElement>(null);
+
+  // A chosen photo's preview lives until it is replaced or the form closes.
+  useEffect(() => {
+    const url = form.coverPreview;
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [form.coverPreview]);
 
   function openNew() {
     setEditing(null);
@@ -157,6 +184,9 @@ export default function AnnouncementsPage() {
       featured: a.featured,
       publishing: "keep",
       publishAt: toLocalInput(a.published_at),
+      coverFile: null,
+      coverPreview: null,
+      removeCover: false,
     });
     setDialogOpen(true);
   }
@@ -185,6 +215,70 @@ export default function AnnouncementsPage() {
         return { published_at: new Date(form.publishAt).toISOString() };
       default:
         return {};
+    }
+  }
+
+  /** The cover the story will have once saved, for the form and its preview. */
+  function formCover(): NewsCoverImage | null {
+    if (form.coverPreview) {
+      // A local file has no narrower copies; the size only reserves space.
+      return { url: form.coverPreview, srcset: "", width: 1600, height: 900 };
+    }
+    return form.removeCover ? null : (editing?.cover ?? null);
+  }
+
+  function chooseCover(file: File | undefined) {
+    if (!file) return;
+    if (!COVER_TYPES.includes(file.type)) {
+      toast.error(
+        t("settings.brand_image_type", "Choose a PNG, JPG or WebP image."),
+      );
+      return;
+    }
+    if (file.size > COVER_MAX_BYTES) {
+      toast.error(
+        t(
+          "settings.brand_image_too_large",
+          "The image must be 5 MB or smaller.",
+        ),
+      );
+      return;
+    }
+    setForm((p) => ({
+      ...p,
+      coverFile: file,
+      coverPreview: URL.createObjectURL(file),
+      removeCover: false,
+    }));
+  }
+
+  /**
+   * Send the cover change once the story exists. A refused photo leaves the
+   * story saved and the form open on it, with the photo still chosen, so
+   * trying again is one click.
+   */
+  async function saveCover(saved: Announcement): Promise<boolean> {
+    try {
+      if (form.coverFile) {
+        await uploadCover.mutateAsync({
+          publicId: saved.public_id,
+          file: form.coverFile,
+        });
+      } else if (form.removeCover && saved.cover) {
+        await removeCover.mutateAsync(saved.public_id);
+      }
+      return true;
+    } catch (error) {
+      toast.error(
+        apiErrorDetail(error) ??
+          t(
+            "announcements.cover_failed",
+            "The story was saved, but its cover photo could not be",
+          ),
+      );
+      setEditing(saved);
+      setForm((p) => ({ ...p, publishing: "keep" }));
+      return false;
     }
   }
 
@@ -218,7 +312,8 @@ export default function AnnouncementsPage() {
           payload: content as UpdateAnnouncementPayload,
         },
         {
-          onSuccess: () => {
+          onSuccess: async (saved) => {
+            if (!(await saveCover(saved))) return;
             toast.success(t("announcements.updated", "Announcement updated"));
             closeDialog();
           },
@@ -228,7 +323,8 @@ export default function AnnouncementsPage() {
       return;
     }
     createAnnouncement.mutate(content as CreateAnnouncementPayload, {
-      onSuccess: () => {
+      onSuccess: async (saved) => {
+        if (!(await saveCover(saved))) return;
         toast.success(
           form.publishing === "draft"
             ? t("announcements.saved_draft", "Saved as a draft")
@@ -278,7 +374,12 @@ export default function AnnouncementsPage() {
   }
 
   const announcements: Announcement[] = data ?? [];
-  const saving = createAnnouncement.isPending || updateAnnouncement.isPending;
+  const saving =
+    createAnnouncement.isPending ||
+    updateAnnouncement.isPending ||
+    uploadCover.isPending ||
+    removeCover.isPending;
+  const cover = formCover();
 
   const statusLabel = (a: Announcement): string => {
     switch (a.status as Status) {
@@ -578,6 +679,7 @@ export default function AnnouncementsPage() {
                         featured: preview.featured,
                         priority: preview.priority,
                         published_at: preview.published_at ?? null,
+                        cover: preview.cover,
                       }
                     : {
                         public_id: "preview",
@@ -590,6 +692,7 @@ export default function AnnouncementsPage() {
                         featured: preview.showOnLanding && preview.featured,
                         priority: preview.priority,
                         published_at: new Date().toISOString(),
+                        cover,
                       }
                 }
               />
@@ -656,6 +759,81 @@ export default function AnnouncementsPage() {
                   "Leave a blank line between paragraphs. Addresses that start with https:// become links.",
                 )}
               </p>
+            </div>
+            <div>
+              <p
+                id="announcement-cover-label"
+                className="text-sm font-medium text-foreground"
+              >
+                {t("announcements.cover", "Cover photo")}
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-border p-3">
+                <div className="flex aspect-[16/9] w-32 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
+                  {cover ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={cover.url}
+                      alt={t("announcements.cover", "Cover photo")}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <ImageUp
+                      className="h-5 w-5 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
+                <p
+                  id="announcement-cover-hint"
+                  className="min-w-[10rem] flex-1 basis-40 text-xs text-muted-foreground"
+                >
+                  {t(
+                    "announcements.cover_hint",
+                    "Shown above the story on your news page. A wide photo, at least 960 px wide and up to 5 MB.",
+                  )}
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    ref={coverInput}
+                    type="file"
+                    accept={COVER_TYPES.join(",")}
+                    className="sr-only"
+                    aria-labelledby="announcement-cover-label"
+                    aria-describedby="announcement-cover-hint"
+                    onChange={(e) => {
+                      chooseCover(e.target.files?.[0]);
+                      e.target.value = "";
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => coverInput.current?.click()}
+                  >
+                    {cover
+                      ? t("settings.logo_replace", "Replace")
+                      : t("settings.logo_choose", "Choose image")}
+                  </Button>
+                  {cover && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setForm((p) => ({
+                          ...p,
+                          coverFile: null,
+                          coverPreview: null,
+                          removeCover: true,
+                        }))
+                      }
+                    >
+                      {t("settings.logo_remove", "Remove")}
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>

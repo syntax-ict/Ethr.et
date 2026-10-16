@@ -322,6 +322,57 @@ describe("<AnnouncementsPage> publishing", () => {
     });
   });
 
+  it("uploads a chosen cover photo once the new story is saved, and previews it", async () => {
+    const created = vi.fn();
+    const uploaded = vi.fn();
+    // jsdom has no object URLs; the page only needs one for its preview.
+    const { createObjectURL, revokeObjectURL } = URL;
+    URL.createObjectURL = vi.fn(() => "blob:cover");
+    URL.revokeObjectURL = vi.fn();
+    server.use(
+      me(["announcement.manage"]),
+      http.get("*/api/v1/announcements", () => HttpResponse.json(page([]))),
+      http.post("*/api/v1/announcements", () => {
+        created();
+        return HttpResponse.json(
+          { ...ANNOUNCEMENT, public_id: "ANN3", cover: null },
+          { status: 201 },
+        );
+      }),
+      http.post("*/api/v1/announcements/ANN3/cover", () => {
+        uploaded();
+        return HttpResponse.json({ ...ANNOUNCEMENT, public_id: "ANN3" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithQuery(<AnnouncementsPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: /New Announcement/ }),
+    );
+    await user.type(screen.getByRole("textbox", { name: "Title" }), "Open day");
+    await user.type(
+      screen.getByRole("textbox", { name: "Content" }),
+      "Visit us.",
+    );
+    await user.upload(
+      screen.getByLabelText("Cover photo", { selector: "input" }),
+      new File(["photo"], "opening.jpg", { type: "image/jpeg" }),
+    );
+    expect(screen.getByRole("img", { name: "Cover photo" })).toHaveAttribute(
+      "src",
+      "blob:cover",
+    );
+    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Publish$/ }));
+
+    await waitFor(() => expect(uploaded).toHaveBeenCalledTimes(1));
+    expect(created).toHaveBeenCalledTimes(1);
+    URL.createObjectURL = createObjectURL;
+    URL.revokeObjectURL = revokeObjectURL;
+  });
+
   it("keeps an announcement for one department off the website", async () => {
     server.use(
       me(["announcement.manage"]),

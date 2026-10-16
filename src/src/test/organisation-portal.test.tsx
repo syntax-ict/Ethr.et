@@ -62,6 +62,7 @@ const feed: LandingFeed = {
       featured: false,
       priority: "urgent",
       published_at: "2026-10-12T08:00:00Z",
+      cover: null,
     },
   ],
   vacancies: [

@@ -62,6 +62,27 @@ starts with `https://` becomes a link that opens in a new tab with
 `rel="noopener noreferrer nofollow ugc"`. Markup is stripped by the server and
 rendered as text by the page, so nothing in a story can run or style the page.
 
+### Cover photos
+
+A story may carry one cover photo, chosen in the story form (Cover photo →
+Choose image) and sent once the story is saved. It shows on the story's card,
+across the top of its article page, and as the image a shared link previews
+with (`og:image`). Without one, cards are text and the link preview is the
+organisation's own.
+
+| | |
+|---|---|
+| Accepted | PNG, JPG or WebP, at least 960 px wide, at most 4096 px and 5 MB. SVG is refused |
+| Stored | Re-encoded as JPEG: at most 1920 px, plus 1280 and 640 px copies for `srcset`. EXIF and anything appended to the file are dropped |
+| Served | `GET /api/v1/news-covers/{organisation}/{story}/{size}/{version}`, cached for a year. A new photo is a new address |
+| Removed | Replacing or removing the photo, or deleting the story, deletes the files, so the old address answers 404 |
+| Audit log | `announcement.cover_updated`, `announcement.cover_removed` |
+
+The address alone decides the file: no story is looked up, so a draft's photo
+can be fetched by whoever has its address. Only the publishing desk shows that
+address, and it carries a 64-bit content hash beside two ULIDs. Do not use a
+cover for anything that must stay private until publication.
+
 ## Search engines
 
 Listing is the organisation's choice (Settings → Sign-in page → listing, off by
@@ -78,3 +99,8 @@ The release that introduced these pages needs `migrate` (one migration:
 `optimize`, through the maintenance endpoint as `docs/deployment/PLESK-GO-LIVE.md`
 describes. Rolling back is a revert on `main`; the migration's `down()` drops the
 three columns, and nothing else depends on them.
+
+Cover photos came in a later release with one more migration (`cover` on
+`announcements`, nullable JSON), so that release needs `migrate` as well. Its
+`down()` drops the column; the photo files stay under
+`storage/app/private/tenants/{organisation}/news/` until deleted by hand.

@@ -181,19 +181,8 @@ class FileStorageService
                 break;
             case 'cover':
                 $image = $this->replaceWithScaled($image, self::COVER_MAX_DIMENSION);
-                $content = $this->encodeJpeg($image, 85);
+                [$content, $encodedVariants] = $this->encodeCover($image);
                 $extension = 'jpg';
-                foreach (self::COVER_VARIANT_WIDTHS as $width) {
-                    if ($width >= imagesx($image)) {
-                        continue;
-                    }
-                    $narrower = imagescale($image, $width, -1);
-                    if ($narrower === false) {
-                        continue;
-                    }
-                    $encodedVariants[$width] = $this->encodeJpeg($narrower, 82);
-                    imagedestroy($narrower);
-                }
                 break;
             default:
                 imagedestroy($image);
@@ -225,6 +214,92 @@ class FileStorageService
             'height' => $height,
             'variants' => $variants,
         ];
+    }
+
+    /**
+     * Store a news story's cover photo, encoded exactly as the organisation's
+     * own cover is (a JPEG at most 1920 px, with 1280 and 640 px copies), under
+     * the story's public id and a content hash. NewsCoverController serves it
+     * from that path alone, so a new upload is a new URL.
+     *
+     * @return array{path: string, version: string, width: int, height: int, variants: array<int, string>}
+     */
+    public function uploadNewsCover(UploadedFile $file, string $storyPublicId): array
+    {
+        $image = $this->replaceWithScaled($this->decodeImage($file, 'image'), self::COVER_MAX_DIMENSION);
+        [$content, $encodedVariants] = $this->encodeCover($image);
+        $width = imagesx($image);
+        $height = imagesy($image);
+        imagedestroy($image);
+
+        $version = substr(hash('sha256', $content), 0, 16);
+        $path = self::newsCoverPath($this->currentTenant->publicId(), $storyPublicId, $version);
+        Storage::disk($this->disk)->put($path, $content);
+
+        $variants = [];
+        foreach ($encodedVariants as $variantWidth => $bytes) {
+            $variantPath = self::newsCoverPath($this->currentTenant->publicId(), $storyPublicId, $version, $variantWidth);
+            Storage::disk($this->disk)->put($variantPath, $bytes);
+            $variants[$variantWidth] = $variantPath;
+        }
+
+        return [
+            'path' => $path,
+            'version' => $version,
+            'width' => $width,
+            'height' => $height,
+            'variants' => $variants,
+        ];
+    }
+
+    /**
+     * Remove a story's cover and its narrower copies, best effort: an orphaned
+     * file is storage waste, not a failed request. Called when a cover is
+     * replaced or removed and when its story is deleted, so a deleted story's
+     * photo stops being served.
+     *
+     * @param  array{path: string, variants: array<int, string>}  $cover
+     */
+    public function deleteNewsCover(array $cover): void
+    {
+        $this->delete($cover['path']);
+        foreach ($cover['variants'] as $path) {
+            $this->delete($path);
+        }
+    }
+
+    /**
+     * Where a story's cover, or one of its narrower copies, is stored. One
+     * definition for the upload and for NewsCoverController, which reads the
+     * file by this path and nothing else.
+     */
+    public static function newsCoverPath(string $tenantPublicId, string $storyPublicId, string $version, ?int $width = null): string
+    {
+        return "tenants/{$tenantPublicId}/news/{$storyPublicId}-{$version}".($width === null ? '' : "-{$width}").'.jpg';
+    }
+
+    /**
+     * A cover photo as JPEG, plus a copy at each of the narrower widths in
+     * {@see COVER_VARIANT_WIDTHS} that is smaller than the photo itself.
+     *
+     * @return array{0: string, 1: array<int, string>}
+     */
+    private function encodeCover(\GdImage $image): array
+    {
+        $variants = [];
+        foreach (self::COVER_VARIANT_WIDTHS as $width) {
+            if ($width >= imagesx($image)) {
+                continue;
+            }
+            $narrower = imagescale($image, $width, -1);
+            if ($narrower === false) {
+                continue;
+            }
+            $variants[$width] = $this->encodeJpeg($narrower, 82);
+            imagedestroy($narrower);
+        }
+
+        return [$this->encodeJpeg($image, 85), $variants];
     }
 
     /**
