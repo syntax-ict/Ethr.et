@@ -217,6 +217,7 @@ return [
     'landing_link_host' => 'This link must be on :hosts.',
     'landing_faq_question' => 'Write the question in English or Amharic.',
     'landing_faq_answer' => 'Write the answer in English or Amharic.',
+    'landing_service_title' => 'Give the service a name in English or Amharic.',
 
     // App\Http\Requests\Admin\UpdateTenantDomainRequest: a host ETHR already owns.
     'custom_domain_reserved' => 'A custom domain must be the organisation\'s own domain, not one under :root.',

@@ -26,6 +26,7 @@ import {
   hasAbout,
   hasContact,
   hasFaq,
+  hasServices,
   LINKS,
   localised,
   sectionOn,
@@ -80,6 +81,7 @@ export function visibleSections(
 ): PortalSection[] {
   const present: Record<PortalSection, boolean> = {
     about: hasAbout(landing, feed?.branch_count ?? null),
+    services: hasServices(landing),
     announcements: (feed?.announcements ?? []).length > 0,
     vacancies: (feed?.vacancies ?? []).length > 0,
     holidays: (feed?.holidays ?? []).length > 0,
@@ -100,6 +102,7 @@ export interface PortalNavItem {
 /** The section anchors, as the portal's own section ids. */
 const SECTION_IDS: Record<PortalSection, string> = {
   about: "about",
+  services: "services",
   announcements: "news",
   vacancies: "careers",
   holidays: "holidays",
@@ -111,8 +114,8 @@ const SECTION_IDS: Record<PortalSection, string> = {
  * The organisation's navigation, from its visible sections. News leads to the
  * news page (every story, searchable) when the organisation has one, else to
  * the portal's own news section. Holidays and questions are left to the
- * footer (`footer: true`): the header keeps to the four destinations a
- * visitor came for.
+ * footer (`footer: true`): the header keeps to the destinations a visitor
+ * came for (about, services, news, careers, contact).
  */
 export function usePortalNav(
   sections: PortalSection[],
@@ -123,6 +126,7 @@ export function usePortalNav(
   if (!links) return [];
   const labels: Record<PortalSection, string> = {
     about: t("landing.nav_about", "About"),
+    services: t("landing.nav_services", "Services"),
     announcements: t("landing.news_nav", "News"),
     vacancies: t("landing.nav_careers", "Careers"),
     holidays: t("landing.holidays", "Upcoming holidays"),

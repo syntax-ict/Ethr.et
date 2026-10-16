@@ -23,8 +23,8 @@ Answers are plain text: a blank line starts a paragraph and an `https://`
 address becomes a link, as in a news story. Nothing an organisation writes
 can become markup.
 
-The footer lists it as **FAQ**; the header keeps to About, News, Careers and
-Contact.
+The footer lists it as **FAQ**; the header keeps to About, Services, News,
+Careers and Contact.
 
 ## Rules the server applies
 
@@ -32,7 +32,7 @@ Contact.
 |---|---|
 | Save (`PUT /settings/landing`) | `faqs` replaces the whole list; a save that omits it keeps the stored list. Each item takes only `question`, `question_am`, `answer`, `answer_am`, and needs a question and an answer in at least one language |
 | Serve (`TenantLanding::faqs`) | Only complete pairs leave, at most 12, each text trimmed to its limit, whatever the stored row holds |
-| Order | `faq` sits before `contact`. An organisation whose saved order ends with Contact keeps Contact last; otherwise the new section joins the end |
+| Order | `faq` sits after `holidays` and before `contact`. An organisation that saved its order before the section existed gets it right after the nearest earlier section, holidays included (see [`ORGANISATION-SERVICES.md`](ORGANISATION-SERVICES.md)) |
 
 Changes are recorded in the audit log as `settings.landing_updated`, with
 the before and after values.

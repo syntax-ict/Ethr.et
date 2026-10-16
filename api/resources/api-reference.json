@@ -25794,6 +25794,44 @@
                                                         ]
                                                     }
                                                 },
+                                                "services": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "title": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "title_am": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "description": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "description_am": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "title",
+                                                            "title_am",
+                                                            "description",
+                                                            "description_am"
+                                                        ]
+                                                    }
+                                                },
                                                 "sections": {
                                                     "type": "object",
                                                     "additionalProperties": {
@@ -25833,6 +25871,7 @@
                                                 "show_branches",
                                                 "links",
                                                 "faqs",
+                                                "services",
                                                 "sections",
                                                 "order",
                                                 "listed"
