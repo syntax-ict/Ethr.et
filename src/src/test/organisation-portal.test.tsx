@@ -1,5 +1,6 @@
 import { afterEach, describe, it, expect } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -522,6 +523,83 @@ describe("<OrganisationPortal> content", () => {
     expect(await screen.findByText("አክሜ በአዳማ ፓምፖችን ይሠራል።")).toBeInTheDocument();
     // No Amharic message was written: the English one stands in.
     expect(screen.getByText("Check in when you arrive.")).toBeInTheDocument();
+  });
+});
+
+describe("<OrganisationPortal> questions", () => {
+  afterEach(() => {
+    localStorage.removeItem("locale");
+    window.dispatchEvent(new Event("locale-changed"));
+  });
+
+  const withFaqs = {
+    ...contentLanding,
+    faqs: [
+      {
+        question: "When is payday?",
+        question_am: "ደመወዝ መቼ ነው?",
+        answer: "The 28th.\n\nSee https://acme.et/pay for the calendar.",
+        answer_am: null,
+      },
+      {
+        question: "Where do I park?",
+        question_am: null,
+        answer: "Behind gate 2.",
+        answer_am: null,
+      },
+    ],
+  };
+
+  it("answers the organisation's questions, each opening to its answer, linked from the footer only", async () => {
+    const user = userEvent.setup();
+    renderContent(withFaqs);
+
+    const section = await screen.findByRole("region", {
+      name: "Frequently asked questions",
+    });
+    // Appended after the organisation's own order, which predates the section.
+    const ids = Array.from(document.querySelectorAll("main section")).map(
+      (s) => s.id,
+    );
+    expect(ids.at(-1)).toBe("faq");
+
+    const question = within(section).getByText("When is payday?");
+    const details = question.closest("details");
+    expect(details).not.toHaveAttribute("open");
+    await user.click(question);
+    expect(details).toHaveAttribute("open");
+    expect(
+      within(section).getByRole("link", { name: /acme\.et\/pay/ }),
+    ).toHaveAttribute("rel", "noopener noreferrer nofollow ugc");
+
+    // The footer lists it; the header keeps to its four destinations.
+    expect(
+      within(screen.getByRole("contentinfo")).getByRole("link", {
+        name: "FAQ",
+      }),
+    ).toHaveAttribute("href", "#faq");
+    expect(
+      within(screen.getByRole("banner")).queryByRole("link", { name: "FAQ" }),
+    ).toBeNull();
+  });
+
+  it("asks in Amharic where it can, and in English where it cannot", async () => {
+    localStorage.setItem("locale", "am");
+    window.dispatchEvent(new Event("locale-changed"));
+    renderContent(withFaqs);
+
+    expect(await screen.findByText("ደመወዝ መቼ ነው?")).toBeInTheDocument();
+    expect(screen.getByText("Where do I park?")).toBeInTheDocument();
+  });
+
+  it("draws no section when switched off", async () => {
+    renderContent({
+      ...withFaqs,
+      sections: { ...withFaqs.sections, faq: false },
+    });
+    await screen.findByText("Founded 1998");
+
+    expect(document.querySelector("#faq")).toBeNull();
   });
 });
 

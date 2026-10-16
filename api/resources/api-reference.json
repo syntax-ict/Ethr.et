@@ -25756,6 +25756,44 @@
                                                         ]
                                                     }
                                                 },
+                                                "faqs": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "question": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "question_am": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "answer": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "answer_am": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "question",
+                                                            "question_am",
+                                                            "answer",
+                                                            "answer_am"
+                                                        ]
+                                                    }
+                                                },
                                                 "sections": {
                                                     "type": "object",
                                                     "additionalProperties": {
@@ -25794,6 +25832,7 @@
                                                 "longitude",
                                                 "show_branches",
                                                 "links",
+                                                "faqs",
                                                 "sections",
                                                 "order",
                                                 "listed"

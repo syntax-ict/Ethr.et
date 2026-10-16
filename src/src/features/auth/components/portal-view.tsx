@@ -7,6 +7,8 @@ import {
   Building2,
   CalendarDays,
   CalendarHeart,
+  ChevronDown,
+  CircleHelp,
   Clock,
   Clock3,
   Factory,
@@ -40,7 +42,8 @@ import type {
   TenantLanding,
 } from "@/lib/auth/use-auth-host-context";
 import { coverPosition, panelBackground } from "@/lib/auth/landing-background";
-import { localised, mapsUrl } from "@/lib/auth/landing-text";
+import { localised, localisedFaqs, mapsUrl } from "@/lib/auth/landing-text";
+import { paragraphs, segments } from "@/features/news/news-format";
 import type { LandingFeed } from "@/features/auth/landing-feed";
 import { SupportContacts } from "@/app/(auth)/auth-layout-client";
 import { VacancyMeta } from "./vacancy-dialog";
@@ -125,7 +128,7 @@ export function PortalView({
 
   const sections = visibleSections(landing, feed);
   const nav = usePortalNav(sections, links);
-  const footerNav = usePortalNav(sections, links, { includeHolidays: true });
+  const footerNav = usePortalNav(sections, links, { footer: true });
   // Only to what is there: news once a story is published, contact once
   // the organisation gave a way to reach it.
   const heroLinks = links
@@ -491,6 +494,18 @@ function PortalSections({
                 </ul>
               </PortalSectionFrame>
             );
+          case "faq":
+            return (
+              <PortalSectionFrame
+                key={section}
+                id="faq"
+                icon={CircleHelp}
+                band={band}
+                title={t("landing.faq", "Frequently asked questions")}
+              >
+                <FaqSection landing={landing} />
+              </PortalSectionFrame>
+            );
           case "contact":
             return (
               <PortalSectionFrame
@@ -567,6 +582,62 @@ function PortalSectionFrame({
         {children}
       </div>
     </section>
+  );
+}
+
+/**
+ * The organisation's questions, each opening to its answer. Native
+ * disclosure (`details`), so it works by keyboard and screen reader and with
+ * no script at all. Answers are text: paragraphs from blank lines, https
+ * addresses as links, as a news story reads.
+ */
+function FaqSection({
+  landing,
+}: {
+  landing: TenantLanding | null | undefined;
+}) {
+  const { t, locale } = useT();
+  const faqs = localisedFaqs(landing, locale);
+
+  return (
+    <div className="max-w-3xl divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+      {faqs.map((faq, i) => (
+        <details key={i} className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left text-base font-medium text-foreground transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <span className="min-w-0">{faq.question}</span>
+            <ChevronDown
+              className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none"
+              aria-hidden="true"
+            />
+          </summary>
+          <div className="space-y-3 px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
+            {paragraphs(faq.answer).map((paragraph, j) => (
+              <p key={j} className="whitespace-pre-line">
+                {segments(paragraph).map((segment, k) =>
+                  segment.kind === "link" ? (
+                    <a
+                      key={k}
+                      href={segment.href}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow ugc"
+                      className="break-words text-primary underline underline-offset-4 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {segment.href}
+                      <span className="sr-only">
+                        {" "}
+                        {t("news.opens_new_tab", "(opens in a new tab)")}
+                      </span>
+                    </a>
+                  ) : (
+                    <span key={k}>{segment.text}</span>
+                  ),
+                )}
+              </p>
+            ))}
+          </div>
+        </details>
+      ))}
+    </div>
   );
 }
 
