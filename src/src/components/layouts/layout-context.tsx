@@ -15,8 +15,6 @@ interface AppLayoutContextValue {
   collapsed: boolean;
   setCollapsed: (value: boolean) => void;
   toggleCollapsed: () => void;
-  mobileNavOpen: boolean;
-  setMobileNavOpen: (value: boolean) => void;
 }
 
 const AppLayoutContext = createContext<AppLayoutContextValue | null>(null);
@@ -32,7 +30,6 @@ function readStoredCollapsed(): boolean {
 
 export function AppLayoutProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsedState] = useState(readStoredCollapsed);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const setCollapsed = useCallback((value: boolean) => {
     setCollapsedState(value);
@@ -64,10 +61,8 @@ export function AppLayoutProvider({ children }: { children: React.ReactNode }) {
       collapsed,
       setCollapsed,
       toggleCollapsed,
-      mobileNavOpen,
-      setMobileNavOpen,
     }),
-    [collapsed, setCollapsed, toggleCollapsed, mobileNavOpen],
+    [collapsed, setCollapsed, toggleCollapsed],
   );
 
   return (

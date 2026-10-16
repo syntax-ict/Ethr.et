@@ -3960,6 +3960,7 @@
   "sidebar.expand": "Expand sidebar",
   "sidebar.getting_started": "Getting Started",
   "sidebar.setup_progress": ":done of :total completed",
+  "sidebar.setup_toggle": "Setup progress",
   "sidebar.steps_completed": ":done of :total completed",
   "site_content.contact_email": "Contact email",
   "site_content.contact_phone": "Contact phone",
