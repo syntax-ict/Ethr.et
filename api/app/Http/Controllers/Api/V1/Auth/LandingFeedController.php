@@ -81,7 +81,7 @@ class LandingFeedController extends Controller
             ? self::newsOrder(Announcement::query()->publiclyListed())
                 ->limit(self::ANNOUNCEMENTS)
                 ->get()
-                ->map(fn (Announcement $a): array => self::newsSummary($a))
+                ->map(fn (Announcement $a): array => self::newsSummary($a, (string) $currentTenant->publicId()))
                 ->all()
             : [];
 
@@ -165,7 +165,7 @@ class LandingFeedController extends Controller
         $page = self::newsOrder($query)->paginate(self::NEWS_PER_PAGE);
 
         return response()->json([
-            'data' => collect($page->items())->map(fn (Announcement $a): array => self::newsSummary($a))->all(),
+            'data' => collect($page->items())->map(fn (Announcement $a): array => self::newsSummary($a, (string) $currentTenant->publicId()))->all(),
             'meta' => [
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
@@ -208,11 +208,11 @@ class LandingFeedController extends Controller
         )
             ->limit(self::RELATED)
             ->get()
-            ->map(fn (Announcement $a): array => self::newsSummary($a))
+            ->map(fn (Announcement $a): array => self::newsSummary($a, (string) $currentTenant->publicId()))
             ->all();
 
         return response()->json([
-            ...self::newsSummary($model),
+            ...self::newsSummary($model, $tenant->public_id),
             'body' => self::excerpt($model->body, 10000),
             'related' => $related,
         ]);
@@ -234,9 +234,9 @@ class LandingFeedController extends Controller
     }
 
     /**
-     * @return array{public_id: string, title: string, excerpt: string, category: string|null, featured: bool, priority: string, published_at: string|null}
+     * @return array{public_id: string, title: string, excerpt: string, category: string|null, featured: bool, priority: string, published_at: string|null, cover: array{url: string, srcset: string, width: int, height: int}|null}
      */
-    private static function newsSummary(Announcement $a): array
+    private static function newsSummary(Announcement $a, string $tenantPublicId): array
     {
         return [
             'public_id' => $a->public_id,
@@ -246,6 +246,7 @@ class LandingFeedController extends Controller
             'featured' => (bool) $a->featured,
             'priority' => $a->priority,
             'published_at' => Carbon::make($a->published_at)?->toIso8601String(),
+            'cover' => $a->coverPresented($tenantPublicId),
         ];
     }
 
