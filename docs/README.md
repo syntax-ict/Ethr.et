@@ -1,6 +1,6 @@
 # ETHR Documentation
 
-Index for 35 top-level documents plus `phases/`, `audit/`, `migration/`, `deployment/`, `operations/` and `archive/`. *(It said 39 until 2026-10-01, when five superseded migration documents moved to [`archive/migration/`](archive/migration/README.md).)* There was no index before Phase 1, and `README.md` mapped eight of them.
+Index for 36 top-level documents plus `phases/`, `audit/`, `migration/`, `deployment/`, `operations/` and `archive/`. *(It said 39 until 2026-10-01, when five superseded migration documents moved to [`archive/migration/`](archive/migration/README.md).)* There was no index before Phase 1, and `README.md` mapped eight of them.
 
 **Start here:** root [`CLAUDE.md`](../CLAUDE.md) for the environment traps · [`CLAUDE.md`](CLAUDE.md) for the conventions · [`audit/BASELINE.md`](audit/BASELINE.md) for what is measured versus merely documented.
 
@@ -67,6 +67,7 @@ Three standing caveats:
 | [`ONBOARDING_V2.md`](ONBOARDING_V2.md) | Tenant onboarding and the guided setup wizard |
 | [`INDUSTRY_TEMPLATES.md`](INDUSTRY_TEMPLATES.md) | Per-sector organization templates |
 | [`DEVICE_INTEGRATION.md`](DEVICE_INTEGRATION.md) | Biometric and attendance devices |
+| [`BRIDGE-DESIGN.md`](BRIDGE-DESIGN.md) | **ETHR Bridge design** (Wave 3 #10): outbound-only LAN agent carrying the device command queue and events for Hikvision/Suprema, with capture mode for O1. Design only — the build waits on the hardware test |
 | [`IDENTITY_RESOLUTION.md`](IDENTITY_RESOLUTION.md) | Matching people across sources |
 | [`MIGRATION.md`](MIGRATION.md) | **Workforce** data migration — the product feature, not hosting |
 | [`WEBHOOKS.md`](WEBHOOKS.md) | **For tenant developers.** The nine events actually sent, the payload, verifying `X-ETHR-Signature`, retries and auto-disable, and why the URL must be public |
