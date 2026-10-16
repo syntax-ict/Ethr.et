@@ -139,3 +139,96 @@ describe("the Settings entry for HR", () => {
     ).toHaveAttribute("href", "/settings/leave-types");
   });
 });
+
+/**
+ * Each persona sees exactly one attendance entry. Holders of
+ * attendance.viewAll administer everyone's records from Operations >
+ * Attendance > Records; everyone else has My Work > My Attendance. Before
+ * 2026-10-16 an administrator saw both a "My Work" row and an Operations
+ * group, each labelled "Attendance", and had to learn which was which.
+ */
+describe("one attendance entry per persona", () => {
+  it("gives an administrator Records inside the group, and no My Work row", async () => {
+    asCustomRole(["attendance.viewAll"]);
+    renderWith(<SidebarNav />);
+
+    // pathname is /attendance/overtime, so the group arrives expanded.
+    expect(
+      await screen.findByRole("link", { name: /^records$/i }),
+    ).toHaveAttribute("href", "/attendance");
+    expect(
+      screen.queryByRole("link", { name: /my attendance/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("gives an employee My Attendance, and no administration group", async () => {
+    asCustomRole(["attendance.checkIn"]);
+    renderWith(<SidebarNav />);
+
+    expect(
+      await screen.findByRole("link", { name: /my attendance/i }),
+    ).toHaveAttribute("href", "/attendance");
+    expect(
+      screen.queryByRole("button", { name: /^attendance$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /^records$/i }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * No two visible top-level entries may share a label, for any persona: a
+ * duplicated word forces the user to open both to learn the difference.
+ * Run for the widest menu (a tenant admin holding every gated ability), where
+ * a collision is most likely to appear.
+ */
+describe("no duplicate labels", () => {
+  it("renders every top-level entry under a unique name for a full admin", async () => {
+    server.use(
+      http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          user: { public_id: "U1", name: "Admin", role: "tenant_admin" },
+          tenant: {
+            public_id: "T1",
+            name: "Demo",
+            timezone: "Africa/Addis_Ababa",
+          },
+          permissions: [
+            "attendance.viewAll",
+            "attendance.viewTeam",
+            "attendance.viewConflicts",
+            "employee.create",
+            "org.create",
+            "shift.create",
+            "device.viewAny",
+            "payroll.viewAll",
+            "report.generate",
+            "settings.manage",
+          ],
+        }),
+      ),
+    );
+    renderWith(<SidebarNav />);
+    await screen.findByRole("link", { name: /^records$/i });
+
+    // Top-level rows are links and group headers directly in the nav; the
+    // expanded group's children are indented links and excluded by their
+    // padding class.
+    const nav = screen.getByRole("navigation");
+    const topLevel = Array.from(
+      nav.querySelectorAll<HTMLElement>("a, button"),
+    ).filter(
+      (el) =>
+        !el.className.includes("pl-10") &&
+        el.textContent &&
+        el.textContent.trim().length > 0 &&
+        !el.getAttribute("aria-label")?.startsWith("Pin") &&
+        !el.getAttribute("aria-label")?.startsWith("Unpin"),
+    );
+    const labels = topLevel.map((el) => el.textContent!.trim());
+    const duplicates = labels.filter((l, i) => labels.indexOf(l) !== i);
+
+    expect(duplicates).toEqual([]);
+  });
+});

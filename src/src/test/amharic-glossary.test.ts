@@ -37,3 +37,15 @@ describe("Amharic glossary consistency", () => {
     );
   });
 });
+
+describe("approvals never borrow the leave word", () => {
+  // "ፈቃዶች" is the plural of Leave's "ፈቃድ"; with Approvals beside Leave in
+  // the navigation the two read as "Leave / Leaves". Approvals keeps its own
+  // word (ማጽደቂያዎች). roles_page.permissions legitimately uses ፈቃዶች for
+  // "permissions" and is not a navigation label.
+  it("keeps distinct words for the Leave and Approvals labels", () => {
+    expect(AM["nav.approvals"]).not.toBe(AM["nav.leave"]);
+    expect(AM["nav.approvals"]).not.toBe("ፈቃዶች");
+    expect(AM["route.approvals.label"]).not.toBe("ፈቃዶች");
+  });
+});

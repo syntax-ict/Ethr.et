@@ -78,3 +78,32 @@ describe("MobileBottomNav", () => {
     expect(screen.getByRole("button", { name: /close/i })).toBeInTheDocument();
   });
 });
+
+describe("MobileBottomNav for approvers", () => {
+  it("swaps Payslips for Approvals with the pending count", async () => {
+    server.use(
+      http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          user: { public_id: "U1", name: "Lead", role: "supervisor" },
+          tenant: {
+            public_id: "T1",
+            name: "Demo",
+            timezone: "Africa/Addis_Ababa",
+          },
+          permissions: ["attendance.viewTeam"],
+        }),
+      ),
+      http.get("*/api/v1/dashboard/manager", () =>
+        HttpResponse.json({ pending_approvals: { total: 4 } }),
+      ),
+    );
+    renderWithProviders();
+
+    expect(
+      await screen.findByRole("link", { name: /approvals \(4\)/i }),
+    ).toHaveAttribute("href", "/approvals");
+    expect(
+      screen.queryByRole("link", { name: /payslips/i }),
+    ).not.toBeInTheDocument();
+  });
+});
