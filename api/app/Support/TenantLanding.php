@@ -153,15 +153,16 @@ final class TenantLanding
             }
         }
         // Contact stays last where the organisation put it last: a section
-        // added later (questions, 2026-10-16) goes above it, not below.
-        $contactLast = count($order) > 1 && $order[count($order) - 1] === 'contact';
+        // added later (questions, 2026-10-16) goes above it, not below. It is
+        // taken off here and the default order, which ends with it, puts it
+        // back after anything missing.
+        if (count($order) > 1 && $order[count($order) - 1] === 'contact') {
+            array_pop($order);
+        }
         foreach (self::ORDER as $section) {
             if (! in_array($section, $order, true)) {
                 $order[] = $section;
             }
-        }
-        if ($contactLast) {
-            $order = [...array_values(array_diff($order, ['contact'])), 'contact'];
         }
 
         return $order;
