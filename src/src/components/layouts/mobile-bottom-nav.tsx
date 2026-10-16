@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Building2,
   CalendarDays,
+  CheckSquare,
   Clock,
   Landmark,
   Layers,
@@ -18,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useManagerDashboard } from "@/features/dashboard/api";
 import { useOnboardingStatus } from "@/features/onboarding/useOnboardingStatus";
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarNav } from "./sidebar-nav";
@@ -32,10 +34,16 @@ import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { t } = useT();
-  const { isTenantAdmin, isSuperAdmin } = usePermissions();
+  const { isTenantAdmin, isSuperAdmin, isSupervisor } = usePermissions();
   // See sidebar-nav: a super admin clears the tenant-admin level check but has
   // no tenant, so onboarding progress does not exist for them.
   const onboarding = useOnboardingStatus(isTenantAdmin && !isSuperAdmin);
+  // Same guard as the sidebar's badge: only approvers fetch the queue, and
+  // never a super admin, who clears the level check with no tenant to count.
+  const { data: managerData } = useManagerDashboard(
+    isSupervisor && !isSuperAdmin,
+  );
+  const approvalCount = managerData?.pending_approvals?.total ?? 0;
   const [moreOpen, setMoreOpen] = useState(false);
 
   const showSetupDot =
@@ -83,11 +91,22 @@ export function MobileBottomNav() {
           icon: Clock,
         },
         { label: t("nav.leave", "Leave"), href: "/leave", icon: CalendarDays },
-        {
-          label: t("nav.payslips", "Payslips"),
-          href: "/payroll/payslips",
-          icon: Receipt,
-        },
+        // Approvers get the pending queue where employees get payslips: on a
+        // phone the time-sensitive tab earns the slot, a payslip is archival
+        // and keeps its place in the More sheet. Everyone else keeps the
+        // CLAUDE.md tab set exactly.
+        isSupervisor
+          ? {
+              label: t("nav.approvals", "Approvals"),
+              href: "/approvals",
+              icon: CheckSquare,
+              badge: approvalCount,
+            }
+          : {
+              label: t("nav.payslips", "Payslips"),
+              href: "/payroll/payslips",
+              icon: Receipt,
+            },
       ];
 
   return (
@@ -103,11 +122,14 @@ export function MobileBottomNav() {
           const isActive =
             pathname === tab.href || pathname.startsWith(`${tab.href}/`);
           const Icon = tab.icon;
+          const badge = "badge" in tab ? tab.badge : undefined;
+          const hasBadge = badge != null && badge > 0;
           return (
             <Link
               key={tab.href}
               href={tab.href}
               aria-current={isActive ? "page" : undefined}
+              aria-label={hasBadge ? `${tab.label} (${badge})` : undefined}
               className={cn(
                 "flex h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium focus-visible:outline-none",
                 isActive ? "text-interactive-primary" : "text-muted-foreground",
@@ -117,11 +139,19 @@ export function MobileBottomNav() {
                   use for their own bottom bars; colour alone was a thin cue. */}
               <span
                 className={cn(
-                  "flex h-7 w-14 items-center justify-center rounded-full transition-colors",
+                  "relative flex h-7 w-14 items-center justify-center rounded-full transition-colors",
                   isActive && "bg-primary-soft",
                 )}
               >
                 <Icon className="h-5 w-5" aria-hidden="true" />
+                {hasBadge && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-0.5 right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-status-error px-1 text-[10px] font-semibold tabular-nums leading-none text-text-inverse"
+                  >
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                )}
               </span>
               {tab.label}
             </Link>

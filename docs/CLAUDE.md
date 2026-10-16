@@ -407,6 +407,10 @@ Bottom:
 Items show notification count badges where applicable (Approvals, Attendance anomalies).
 
 Mobile: bottom tab bar (Home, Attendance, Leave, Payslips, More) — not sidebar.
+*(Amended 2026-10-16: approvers see **Approvals**, with its pending count, in
+place of Payslips — on a phone the time-sensitive tab earns the slot, and a
+payslip is archival and stays in the More sheet. Everyone else keeps this set
+exactly.)*
 
 ---
 

@@ -250,14 +250,15 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
         entries: [
           {
             kind: "leaf",
-            // /attendance lists everyone's records for whoever may see them
-            // all; calling it "My Attendance" there misnamed the page.
-            label: can.viewAllAttendance
-              ? t("nav.attendance", "Attendance")
-              : t("nav.my_attendance", "My Attendance"),
+            // Strictly the person's own record. Holders of attendance.viewAll
+            // administer everyone's from Operations > Attendance > Records
+            // instead: showing them this row too put two entries labelled
+            // "Attendance" in one sidebar, and each persona should see
+            // exactly one attendance entry.
+            label: t("nav.my_attendance", "My Attendance"),
             href: "/attendance",
             icon: Clock,
-            show: true,
+            show: !can.viewAllAttendance,
           },
           // Approvals carries a live pending-count badge, so it sits directly
           // under the daily check-in: actionable, time-sensitive work belongs
@@ -353,6 +354,15 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
             // for a role level alone (audit N78).
             show: isSupervisor || can.viewTeam || can.viewAllAttendance,
             children: [
+              {
+                kind: "leaf",
+                // The whole organisation's records (/attendance). Lives here,
+                // not in My Work: see the note on the My Attendance leaf.
+                label: t("nav.attendance_records", "Records"),
+                href: "/attendance",
+                icon: ListChecks,
+                show: can.viewAllAttendance,
+              },
               {
                 kind: "leaf",
                 label: t("nav.team_attendance", "Team Attendance"),
