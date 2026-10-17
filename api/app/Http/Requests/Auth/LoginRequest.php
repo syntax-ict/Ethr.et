@@ -34,9 +34,8 @@ class LoginRequest extends FormRequest
             'identifier' => ['required_without:email', 'nullable', 'string'],
             'email' => ['required_without:identifier', 'nullable', 'string'],
             'password' => ['required', 'string'],
-            // Tenant identifier may be supplied here as a fallback when the
-            // request isn't already on a tenant subdomain or carrying X-Tenant.
-            // The ResolveTenant middleware reads this field too.
+            // Read by the ResolveTenant middleware when the request is not on a
+            // tenant subdomain, ahead of any X-Tenant header.
             'tenant' => ['nullable', 'string'],
         ];
     }

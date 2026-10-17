@@ -110,15 +110,21 @@ Request
   Is the host the platform host (admin.{APP_DOMAIN})?
   |    yes → no tenant, and no further selector is consulted. Stop.
   |
-  Subdomain            {tenant}.ethr.et — the only selector honoured in production
+  Custom domain        a verified hr.acme.com — on that host the only answer
+  |
+  Subdomain            {tenant}.ethr.et, wherever subdomains are served
   |    reserved or absent → next
   |
-  X-Tenant header      local/testing ONLY; refused outright elsewhere
+  `tenant` form field  sign-in, sign-in code, register and password endpoints
+  |                    only — lets a client with no subdomain (mobile app, apex)
+  |                    name its organisation. Selects which tenant to
+  |                    authenticate against; it grants nothing — credentials and
+  |                    EnsureUserBelongsToTenant decide. Ahead of the header
+  |                    since 2026-10-17: the header carries the organisation
+  |                    the browser last signed in to, the field the one typed.
   |
-  `tenant` form field  login/register/password endpoints only — lets a client
-  |                    with no subdomain (mobile app, apex) name its organisation.
-  |                    Selects which tenant to authenticate against; it grants
-  |                    nothing — credentials and EnsureUserBelongsToTenant decide.
+  X-Tenant header      the apex, its www alias and single-host installs (any
+  |                    host in local/testing); ignored on every other host
   |
   Tenant lookup (cached 5 min) → not found: 404 tenant-not-found
   |                            → inactive:  403 tenant-inactive

@@ -63,7 +63,7 @@ describe("<BrandImageUpload>", () => {
     expect(toast.success).toHaveBeenCalledWith("Image uploaded");
   });
 
-  it("refuses a file that is not an image, or is over 5 MB, before asking the server", () => {
+  it("refuses a file that is not an image, or is over 5 MB, before asking the server", async () => {
     const post = vi.spyOn(apiClient, "post");
     withClient(
       <BrandImageUpload
@@ -91,8 +91,11 @@ describe("<BrandImageUpload>", () => {
     fireEvent.change(screen.getByLabelText("Dark-background logo file"), {
       target: { files: [big] },
     });
-    expect(toast.error).toHaveBeenCalledWith(
-      "The image must be 5 MB or smaller.",
+    // The size check follows the in-browser shrink, which is asynchronous.
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "The image must be 5 MB or smaller.",
+      ),
     );
     expect(post).not.toHaveBeenCalled();
   });

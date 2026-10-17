@@ -11,6 +11,7 @@ use App\Models\Branch;
 use App\Models\Employee;
 use App\Services\Attendance\ConflictResolver;
 use App\Services\Attendance\QrCodeService;
+use App\Support\PhotoConsent;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
@@ -104,6 +105,8 @@ test('mobile check-in with selfie has confidence 95', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
     $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    // The selfie is taken with the employee's consent (Proclamation 1321/2024).
+    PhotoConsent::give($user);
     test()->actingAs($user);
 
     // Clients send the captured selfie inline; the server stores it and derives

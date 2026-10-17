@@ -65,15 +65,25 @@ const landing: TenantLandingSettings = {
     terms: null,
   },
   faqs: [],
+  services: [],
   sections: {
     about: true,
+    services: true,
     announcements: false,
     vacancies: false,
     holidays: false,
     faq: true,
     contact: true,
   },
-  order: ["about", "announcements", "vacancies", "holidays", "faq", "contact"],
+  order: [
+    "about",
+    "services",
+    "announcements",
+    "vacancies",
+    "holidays",
+    "faq",
+    "contact",
+  ],
   listed: false,
 };
 
@@ -214,7 +224,7 @@ describe("<LandingCard>", () => {
       landing: { ...landing, about: "We make pumps.", address: "Adama" },
     });
     await user.click(screen.getByRole("tab", { name: "Sections" }));
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       fireEvent.click(screen.getByRole("button", { name: "Move Contact up" }));
     }
     fireEvent.click(
@@ -237,6 +247,7 @@ describe("<LandingCard>", () => {
       order: [
         "contact",
         "about",
+        "services",
         "announcements",
         "vacancies",
         "holidays",
@@ -308,6 +319,50 @@ describe("<LandingCard>", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove Question 1" }));
     expect(screen.queryByDisplayValue("የስራ ሰዓት?")).toBeNull();
     expect(screen.getByDisplayValue("When is payday?")).toBeInTheDocument();
+  });
+
+  it("writes the services offered, previews them as cards, and sends them named", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.put("*/settings/landing", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...landing, ...body });
+      }),
+    );
+
+    renderCard();
+    await user.click(screen.getByRole("tab", { name: "Services" }));
+    expect(screen.getByText("No services yet.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add a service" }));
+    await user.click(screen.getByRole("button", { name: "Add a service" }));
+    fireEvent.change(screen.getByLabelText("Service 1 (English)"), {
+      target: { value: "Pump repair" },
+    });
+    fireEvent.change(screen.getByLabelText("Description 1 (English)"), {
+      target: { value: "On site within 48 hours." },
+    });
+
+    await waitFor(() =>
+      expect(within(preview()).getByText("Our services")).toBeInTheDocument(),
+    );
+    expect(
+      within(preview()).getByRole("heading", { level: 3, name: "Pump repair" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /save sign-in page/i }));
+    await waitFor(() => expect(body).not.toBeNull());
+    // The second, left blank, is not sent.
+    expect(body).toMatchObject({
+      services: [
+        {
+          title: "Pump repair",
+          title_am: null,
+          description: "On site within 48 hours.",
+          description_am: null,
+        },
+      ],
+    });
   });
 
   it("stops adding at twelve questions", async () => {

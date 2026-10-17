@@ -10,6 +10,7 @@ import {
   Building2,
   CalendarDays,
   CalendarRange,
+  Camera,
   CheckSquare,
   ChevronRight,
   Clock,
@@ -370,7 +371,11 @@ export function SidebarNav({
             // Each child carries the ability its screen's API checks, so the
             // group opens for a custom role holding any of them rather than
             // for a role level alone (audit N78).
-            show: isSupervisor || can.viewTeam || can.viewAllAttendance,
+            show:
+              isSupervisor ||
+              can.viewTeam ||
+              can.viewAllAttendance ||
+              can.viewAttendancePhotos,
             children: [
               {
                 kind: "leaf",
@@ -415,6 +420,15 @@ export function SidebarNav({
                 href: "/attendance/overtime",
                 icon: TrendingUp,
                 show: can.viewAllAttendance,
+              },
+              {
+                kind: "leaf",
+                // Selfies under the retention policy: HR and department
+                // managers review and hold them before deletion.
+                label: t("nav.attendance_photos", "Photos"),
+                href: "/attendance/photos",
+                icon: Camera,
+                show: can.viewAttendancePhotos,
               },
             ],
           },
