@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
+ * @property array<string, mixed>|null $calculation_log
  * @property-read Employee|null $employee
  */
 class PayrollEntry extends Model

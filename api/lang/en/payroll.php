@@ -6,6 +6,7 @@ return [
     'not_completed' => 'Payroll run has not been completed yet.',
     'cannot_void' => 'Only a completed or approved payroll run can be voided.',
     'cannot_reprocess' => 'Only a voided payroll run can be reprocessed.',
+    'balances_changed' => 'Loan or cost-sharing balances changed after this run was calculated. Void the run and reprocess the period.',
     'fiscal_year_start_month' => 'Fiscal Year Start Month',
     'tax_bracket_must_start_at_zero' => 'The first tax bracket must start at 0.',
     'tax_bracket_only_last_open_ended' => 'Only the final tax bracket may be open-ended.',
