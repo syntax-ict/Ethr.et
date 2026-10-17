@@ -6,6 +6,7 @@ namespace App\Http\Requests\Attendance;
 
 use App\Models\AttendanceSetting;
 use App\Rules\Base64Image;
+use App\Support\PhotoConsent;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -40,7 +41,17 @@ class MobileCheckInRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v): void {
-            if ($v->errors()->has('photo') || filled($this->input('photo'))) {
+            if ($v->errors()->has('photo')) {
+                return;
+            }
+
+            // A selfie is a facial image, sensitive under Proclamation
+            // 1321/2024: none is taken from someone who has not agreed.
+            if (filled($this->input('photo'))) {
+                if (! PhotoConsent::given($this->user())) {
+                    $v->errors()->add('photo', __('attendance.photo_consent_required'));
+                }
+
                 return;
             }
 

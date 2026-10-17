@@ -21,6 +21,7 @@ return [
         'action' => 'Open corrections',
     ],
     'photo_required' => 'Take a selfie to check in. Your organisation requires a photo when you check in on your phone.',
+    'photo_consent_required' => 'Agree to the attendance photo notice before taking a selfie. You can do it from the check-in screen or your profile.',
     'auto_check_in_not_allowed' => 'Automatic check-in is not turned on for you.',
     'auto_check_in_outside' => 'Automatic check-in needs you to be inside your branch area.',
     'device_clock_invalid' => 'The device reported a time that is unreadable or in the future. Check the device clock.',
