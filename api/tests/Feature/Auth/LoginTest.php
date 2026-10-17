@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\Permission;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\UploadLimit;
 
 describe('POST /api/v1/auth/login', function () {
     it('authenticates with valid credentials', function () {
@@ -186,6 +187,14 @@ describe('GET /api/v1/auth/me', function () {
         $this->getJson('/api/v1/auth/me')
             ->assertOk()
             ->assertJsonPath('user.employee_public_id', $employee->public_id);
+    });
+
+    it('reports the largest upload the server accepts, so forms can refuse an oversize file first', function () {
+        actingAsUser(['role' => UserRole::EMPLOYEE]);
+
+        $this->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('upload_limit_bytes', UploadLimit::bytes());
     });
 
     it('rejects unauthenticated requests', function () {

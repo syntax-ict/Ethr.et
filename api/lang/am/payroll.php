@@ -6,6 +6,7 @@ return [
     'not_completed' => 'የደመወዝ አሂድ ገና አልተጠናቀቀም።',
     'cannot_void' => 'የተጠናቀቀ ወይም የጸደቀ የደመወዝ አሂድ ብቻ ሊሰረዝ ይችላል።',
     'cannot_reprocess' => 'የተሰረዘ የደመወዝ አሂድ ብቻ እንደገና ሊሰራ ይችላል።',
+    'balances_changed' => 'ይህ አሂድ ከተሰላ በኋላ የብድር ወይም የወጪ መጋራት ቀሪ ሂሳብ ተቀይሯል። አሂዱን ሰርዘው ጊዜውን እንደገና ያስሉ።',
     'fiscal_year_start_month' => 'የበጀት ዓመት መጀመሪያ ወር',
     'tax_bracket_must_start_at_zero' => 'የመጀመሪያው የግብር ደረጃ ከ0 መጀመር አለበት።',
     'tax_bracket_only_last_open_ended' => 'የመጨረሻው የግብር ደረጃ ብቻ ጣሪያ የሌለው ሊሆን ይችላል።',

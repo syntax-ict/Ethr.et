@@ -28,6 +28,7 @@ const CAN_ABILITIES = {
   resolveAttendanceConflicts: "attendance.resolveConflicts",
   viewAllAttendance: "attendance.viewAll",
   manageAttendance: "attendance.manage",
+  viewAttendancePhotos: "attendance.viewPhotos",
   reviewCorrections: "correction.viewPending",
   approveCorrections: "correction.approve",
   viewAllCorrections: "correction.viewAll",

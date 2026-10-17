@@ -12,13 +12,12 @@ use App\Models\Employee;
 use App\Models\EmployeeBankDetail;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Gate;
 
 class BankDetailController extends Controller
 {
     public function index(Employee $employee): AnonymousResourceCollection
     {
-        Gate::authorize('employee.viewFinancial');
+        $this->authorize('viewFinancial', $employee);
 
         return BankDetailResource::collection(
             $employee->bankDetails()->get()
@@ -27,7 +26,7 @@ class BankDetailController extends Controller
 
     public function store(StoreBankDetailRequest $request, Employee $employee): JsonResponse
     {
-        Gate::authorize('employee.updateFinancial');
+        $this->authorize('updateFinancial', $employee);
 
         $data = $request->validated();
 
@@ -46,7 +45,7 @@ class BankDetailController extends Controller
 
     public function update(StoreBankDetailRequest $request, Employee $employee, EmployeeBankDetail $bankDetail): BankDetailResource
     {
-        Gate::authorize('employee.updateFinancial');
+        $this->authorize('updateFinancial', $employee);
 
         $data = $request->validated();
 
@@ -63,7 +62,7 @@ class BankDetailController extends Controller
 
     public function destroy(Employee $employee, EmployeeBankDetail $bankDetail): JsonResponse
     {
-        Gate::authorize('employee.updateFinancial');
+        $this->authorize('updateFinancial', $employee);
 
         $bankDetail->delete();
 

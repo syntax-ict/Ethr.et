@@ -83,4 +83,24 @@ final class CostSharingService
             'completed_at' => $newOutstanding === 0 ? now() : $obligation->completed_at,
         ]);
     }
+
+    /**
+     * Give back what a voided, approved run withheld. An obligation that run
+     * closed is reopened; one suspended or cancelled since keeps its status and
+     * only gets its balance back.
+     */
+    public function restoreDeduction(EmployeeCostSharing $obligation, int $deductionCents): void
+    {
+        if ($deductionCents <= 0) {
+            return;
+        }
+
+        $reopen = $obligation->status === CostSharingStatus::COMPLETED;
+
+        $obligation->update([
+            'outstanding_cents' => $obligation->outstanding_cents + $deductionCents,
+            'status' => $reopen ? CostSharingStatus::ACTIVE : $obligation->status,
+            'completed_at' => $reopen ? null : $obligation->completed_at,
+        ]);
+    }
 }

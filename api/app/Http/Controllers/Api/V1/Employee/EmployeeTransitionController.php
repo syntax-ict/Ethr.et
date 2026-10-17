@@ -13,7 +13,6 @@ use App\Models\Employee;
 use App\Services\EmployeeTransitionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Gate;
 
 class EmployeeTransitionController extends Controller
 {
@@ -21,7 +20,7 @@ class EmployeeTransitionController extends Controller
 
     public function store(TransitionEmployeeRequest $request, Employee $employee): JsonResponse
     {
-        Gate::authorize('employee.transition');
+        $this->authorize('transition', $employee);
 
         $toStatus = EmployeeStatus::from($request->validated('to_status'));
 
@@ -49,7 +48,7 @@ class EmployeeTransitionController extends Controller
 
     public function index(Employee $employee): AnonymousResourceCollection
     {
-        Gate::authorize('employee.view');
+        $this->authorize('view', $employee);
 
         return EmployeeTransitionResource::collection(
             $employee->transitions()->with('approvedBy')->get()

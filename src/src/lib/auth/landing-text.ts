@@ -11,6 +11,7 @@ import type {
 
 export const PORTAL_SECTIONS: readonly PortalSection[] = [
   "about",
+  "services",
   "announcements",
   "vacancies",
   "holidays",
@@ -21,6 +22,7 @@ export const PORTAL_SECTIONS: readonly PortalSection[] = [
 /** Holidays are off until chosen; the rest draw nothing until written. */
 const SECTION_DEFAULTS: Record<PortalSection, boolean> = {
   about: true,
+  services: true,
   announcements: true,
   vacancies: true,
   holidays: false,
@@ -97,7 +99,12 @@ export function sectionOn(
   return typeof stored === "boolean" ? stored : SECTION_DEFAULTS[section];
 }
 
-/** The stored order with anything missing appended in the default order; contact stays last if it was. */
+/**
+ * The stored order with anything unknown dropped, and every section it lacks
+ * placed right after the nearest section that comes before it in the default
+ * order (at the end when none does), as the server orders it: a section added
+ * after an organisation chose its order lands where the default puts it.
+ */
 export function sectionOrder(
   landing: { order?: readonly string[] | null } | null | undefined,
 ): PortalSection[] {
@@ -107,15 +114,19 @@ export function sectionOrder(
       order.push(section);
     }
   }
-  // Contact stays last where the organisation put it last: a section added
-  // later (questions) goes above it, as the server orders it.
-  const contactLast = order.length > 1 && order.at(-1) === "contact";
-  for (const section of PORTAL_SECTIONS) {
-    if (!order.includes(section)) order.push(section);
-  }
-  return contactLast
-    ? [...order.filter((s) => s !== "contact"), "contact"]
-    : order;
+  PORTAL_SECTIONS.forEach((section, index) => {
+    if (order.includes(section)) return;
+    let at = order.length;
+    for (let before = index - 1; before >= 0; before--) {
+      const found = order.indexOf(PORTAL_SECTIONS[before]);
+      if (found >= 0) {
+        at = found + 1;
+        break;
+      }
+    }
+    order.splice(at, 0, section);
+  });
+  return order;
 }
 
 /** A link to the place on a map, in the viewer's own maps application. */
@@ -156,6 +167,28 @@ export function localisedFaqs(
       answer: pick(faq.answer, faq.answer_am),
     }))
     .filter((faq) => faq.question !== "" && faq.answer !== "");
+}
+
+/** The organisation's services in the viewer's language, falling back as every text does. */
+export function localisedServices(
+  landing: TenantLanding | null | undefined,
+  locale: string,
+): Array<{ title: string; description: string }> {
+  const pick = (en: string | null, am: string | null) =>
+    locale === "am" ? am || en || "" : en || am || "";
+  return (landing?.services ?? [])
+    .map((s) => ({
+      title: pick(s.title, s.title_am),
+      description: pick(s.description, s.description_am),
+    }))
+    .filter((s) => s.title !== "");
+}
+
+/** Whether the services section has anything to draw. */
+export function hasServices(
+  landing: TenantLanding | null | undefined,
+): boolean {
+  return localisedServices(landing, "en").length > 0;
 }
 
 /** Whether the questions section has anything to draw. */

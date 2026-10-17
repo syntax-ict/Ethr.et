@@ -31,6 +31,12 @@ Schedule::command('devices:sync')->everyFiveMinutes()->withoutOverlapping();
 // and it is idempotent, so a late run closes the same records the same way.
 Schedule::command('attendance:auto-checkout')->everyFiveMinutes()->name('attendance-auto-checkout')->withoutOverlapping();
 
+// Attendance selfie retention: delete photos whose 48-hour review ended, then
+// announce the ones past the organisation's retention period. Hourly, so a
+// deletion lands within an hour of the review's end; idempotent, so a late or
+// repeated run deletes and announces nothing twice.
+Schedule::command('attendance:photo-retention')->hourly()->name('attendance-photo-retention')->withoutOverlapping();
+
 // Re-check verified custom domains every Monday, 03:00 UTC (06:00 EAT). Reports
 // a domain whose TXT token or CNAME no longer checks out; never revokes one.
 Schedule::command('tenancy:recheck-custom-domains')

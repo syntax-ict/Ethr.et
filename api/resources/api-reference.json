@@ -1021,6 +1021,201 @@
                 }
             }
         },
+        "/announcements/{announcement}/files": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "announcementFile.store",
+                "summary": "Create file",
+                "tags": [
+                    "Notifications"
+                ],
+                "parameters": [
+                    {
+                        "name": "announcement",
+                        "in": "path",
+                        "required": true,
+                        "description": "The announcement public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UploadAnnouncementFileRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`AnnouncementResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnnouncementResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/announcements/{announcement}/files/{file}": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "announcementFile.download",
+                "summary": "Download one document, on the terms the story itself is read on\n(`AnnouncementController::show()`): published, unexpired and addressed\nto the reader, or any state for whoever manages announcements. Anything\nelse is the same 404 as a story that does not exist",
+                "tags": [
+                    "Notifications"
+                ],
+                "parameters": [
+                    {
+                        "name": "announcement",
+                        "in": "path",
+                        "required": true,
+                        "description": "The announcement public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "file",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/pdf": {
+                                "schema": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Cache-Control": {
+                                "schema": {
+                                    "type": "string",
+                                    "const": "private, no-store"
+                                }
+                            },
+                            "X-Content-Type-Options": {
+                                "schema": {
+                                    "type": "string",
+                                    "const": "nosniff"
+                                }
+                            },
+                            "Content-Security-Policy": {
+                                "schema": {
+                                    "type": "string",
+                                    "const": "default-src 'none'; sandbox"
+                                }
+                            },
+                            "Cross-Origin-Resource-Policy": {
+                                "schema": {
+                                    "type": "string",
+                                    "const": "same-site"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "delete": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "announcementFile.destroy",
+                "summary": "Delete file",
+                "tags": [
+                    "Notifications"
+                ],
+                "parameters": [
+                    {
+                        "name": "announcement",
+                        "in": "path",
+                        "required": true,
+                        "description": "The announcement public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "file",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`AnnouncementResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnnouncementResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/approvals/batch": {
             "post": {
                 "x-abilities": [
@@ -4625,6 +4820,9 @@
                                                 "photo_required": {
                                                     "type": "boolean"
                                                 },
+                                                "photo_consent": {
+                                                    "type": "boolean"
+                                                },
                                                 "accuracy_threshold_meters": {
                                                     "type": "integer"
                                                 },
@@ -4659,6 +4857,7 @@
                                                 "web_enabled",
                                                 "geofence_required",
                                                 "photo_required",
+                                                "photo_consent",
                                                 "accuracy_threshold_meters",
                                                 "offline_sync_enabled",
                                                 "geofence"
@@ -4914,6 +5113,325 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/photos": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendancePhoto.index",
+                "summary": "Records that still hold a selfie, newest first. `status=review` narrows\nto those whose review is open, `status=held` to those on hold",
+                "tags": [
+                    "Attendance"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `AttendancePhotoResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/AttendancePhotoResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/photos/{attendanceRecord}/hold": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendancePhoto.hold",
+                "summary": "Keeps a record's selfies past the retention period, for an unresolved complaint",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "attendanceRecord",
+                        "in": "path",
+                        "required": true,
+                        "description": "The attendance record public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/HoldAttendancePhotoRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`AttendancePhotoResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttendancePhotoResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendancePhoto.release",
+                "summary": "Releases a hold. The review starts again on the next run, so the photos\nare announced once more before any deletion",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "attendanceRecord",
+                        "in": "path",
+                        "required": true,
+                        "description": "The attendance record public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`AttendancePhotoResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttendancePhotoResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/photos/{attendanceRecord}/{which}": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendancePhoto.show",
+                "summary": "One selfie, as the image itself. `which` is `check-in` or `check-out`",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "attendanceRecord",
+                        "in": "path",
+                        "required": true,
+                        "description": "The attendance record public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "which",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "image/jpeg": {
+                                "schema": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Cache-Control": {
+                                "schema": {
+                                    "type": "string",
+                                    "const": "private, no-store"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -6120,13 +6638,17 @@
                                                     "type": "null"
                                                 }
                                             ]
+                                        },
+                                        "upload_limit_bytes": {
+                                            "type": "integer"
                                         }
                                     },
                                     "required": [
                                         "user",
                                         "permissions",
                                         "plan_features",
-                                        "tenant"
+                                        "tenant",
+                                        "upload_limit_bytes"
                                     ]
                                 }
                             }
@@ -10201,7 +10723,7 @@
                     "employees"
                 ],
                 "operationId": "employeeContract.expiring",
-                "summary": "Tenant-wide watchlist of active contracts ending within N days —\nmirrors EmployeeDocumentController::expiring()",
+                "summary": "Watchlist of active contracts ending within N days, limited to the\nemployees the requester's org scope reaches — mirrors\nEmployeeDocumentController::expiring()",
                 "tags": [
                     "Employees"
                 ],
@@ -10361,7 +10883,7 @@
                     "employees"
                 ],
                 "operationId": "employeeDocument.expiring",
-                "description": "Tenant-wide rather than per-employee: the point is for HR to catch a work\npermit or contract before it lapses, which means seeing every employee's at\nonce. Already-expired documents are included — a permit that lapsed last\nweek is more urgent than one lapsing next week, not less.",
+                "description": "Across employees rather than per-employee: the point is for HR to catch a\nwork permit or contract before it lapses, which means seeing every\nemployee's at once. Limited to the employees the requester's org scope\nreaches, so a department-scoped role sees its own department's documents.\nAlready-expired documents are included — a permit that lapsed last week is\nmore urgent than one lapsing next week, not less.",
                 "summary": "Documents expiring within a window (PHASE_02 S12: \"documents expiring\n     * within 30 days (for notification/dashboard)\")",
                 "tags": [
                     "Employees"
@@ -25867,6 +26389,44 @@
                                                         ]
                                                     }
                                                 },
+                                                "services": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "title": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "title_am": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "description": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "description_am": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "title",
+                                                            "title_am",
+                                                            "description",
+                                                            "description_am"
+                                                        ]
+                                                    }
+                                                },
                                                 "sections": {
                                                     "type": "object",
                                                     "additionalProperties": {
@@ -25906,6 +26466,7 @@
                                                 "show_branches",
                                                 "links",
                                                 "faqs",
+                                                "services",
                                                 "sections",
                                                 "order",
                                                 "listed"
@@ -30449,6 +31010,35 @@
                             "height"
                         ]
                     },
+                    "attachments": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "size": {
+                                    "type": "integer"
+                                },
+                                "url": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "name",
+                                "size",
+                                "url"
+                            ]
+                        }
+                    },
                     "created_at": {
                         "type": [
                             "string",
@@ -30470,6 +31060,7 @@
                     "show_on_landing",
                     "featured",
                     "cover",
+                    "attachments",
                     "created_at"
                 ],
                 "title": "AnnouncementResource"
@@ -31184,6 +31775,113 @@
                 ],
                 "title": "AttendanceIntegrityFlagResource"
             },
+            "AttendancePhotoResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "check_in": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "check_out": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "employee": {
+                        "type": "object",
+                        "properties": {
+                            "public_id": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "employee_code": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "public_id",
+                            "name",
+                            "employee_code"
+                        ]
+                    },
+                    "has_check_in_photo": {
+                        "type": "boolean"
+                    },
+                    "has_check_out_photo": {
+                        "type": "boolean"
+                    },
+                    "keep_until": {
+                        "type": "string"
+                    },
+                    "review_started_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "delete_after": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "held": {
+                        "type": "boolean"
+                    },
+                    "held_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "hold_reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "held_by": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "date",
+                    "check_in",
+                    "check_out",
+                    "employee",
+                    "has_check_in_photo",
+                    "has_check_out_photo",
+                    "keep_until",
+                    "review_started_at",
+                    "delete_after",
+                    "held",
+                    "held_at",
+                    "hold_reason",
+                    "held_by"
+                ],
+                "title": "AttendancePhotoResource"
+            },
             "AttendancePunchResource": {
                 "type": "object",
                 "properties": {
@@ -31566,6 +32264,9 @@
                     "geofence_auto_checkin_enabled": {
                         "type": "boolean"
                     },
+                    "photo_retention_days": {
+                        "type": "integer"
+                    },
                     "updated_at": {
                         "type": [
                             "string",
@@ -31593,6 +32294,7 @@
                     "auto_checkout_enabled",
                     "auto_checkout_after_minutes",
                     "geofence_auto_checkin_enabled",
+                    "photo_retention_days",
                     "updated_at"
                 ],
                 "title": "AttendanceSettingResource"
@@ -33774,6 +34476,20 @@
                     "created_at"
                 ],
                 "title": "GradeSalaryStepResource"
+            },
+            "HoldAttendancePhotoRequest": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "reason"
+                ],
+                "title": "HoldAttendancePhotoRequest"
             },
             "HolidayResource": {
                 "type": "object",
@@ -38496,6 +39212,11 @@
                     },
                     "geofence_auto_checkin_enabled": {
                         "type": "boolean"
+                    },
+                    "photo_retention_days": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 90
                     }
                 },
                 "title": "UpdateAttendanceSettingRequest"
@@ -39459,6 +40180,22 @@
                     "image"
                 ],
                 "title": "UploadAnnouncementCoverRequest"
+            },
+            "UploadAnnouncementFileRequest": {
+                "type": "object",
+                "description": "A document for a news story: a PDF, checked by its own bytes (`%PDF`), at\nmost 5 MB, the size a circular or a form needs on shared hosting's quota.\nA story takes at most Announcement::ATTACHMENTS_MAX, refused in\nwithValidator(), which Scramble does not read.",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "description": "Maximum file size: 5120 kilobytes."
+                    }
+                },
+                "required": [
+                    "file"
+                ],
+                "title": "UploadAnnouncementFileRequest"
             },
             "UserRole": {
                 "type": "string",
