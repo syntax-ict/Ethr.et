@@ -10,6 +10,7 @@ import {
   usePhotoConsent,
   useWithdrawPhotoConsent,
 } from "@/features/profile/api";
+import { useCalendar } from "@/lib/calendar/calendar-context";
 import { useT } from "@/lib/i18n/useT";
 
 /**
@@ -18,6 +19,8 @@ import { useT } from "@/lib/i18n/useT";
  */
 export function PhotoConsentCard() {
   const { t, locale } = useT();
+  // The date in the employee's own calendar, as every other date in the app.
+  const { formatDate } = useCalendar();
   const consent = usePhotoConsent();
   const give = useGivePhotoConsent();
   const withdraw = useWithdrawPhotoConsent();
@@ -55,9 +58,7 @@ export function PhotoConsentCard() {
         <p className="text-sm text-foreground">
           {given && consent.data?.given_at
             ? t("profile.photo_consent_status_given", "You agreed on :date.", {
-                date: new Date(consent.data.given_at).toLocaleDateString(
-                  locale === "am" ? "am-ET" : "en-GB",
-                ),
+                date: formatDate(new Date(consent.data.given_at), locale),
               })
             : t(
                 "profile.photo_consent_status_none",

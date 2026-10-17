@@ -24,6 +24,7 @@ vi.mock("sonner", () => ({
 
 import MobilePunchPage from "@/app/(dashboard)/attendance/mobile/page";
 import { PhotoConsentCard } from "@/features/profile/components/photo-consent-card";
+import { CalendarProvider } from "@/lib/calendar/calendar-context";
 
 /**
  * Consent to the attendance selfie (Proclamation 1321/2024 treats a facial
@@ -198,7 +199,11 @@ describe("attendance photo consent", () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithQuery(<PhotoConsentCard />);
+    renderWithQuery(
+      <CalendarProvider>
+        <PhotoConsentCard />
+      </CalendarProvider>,
+    );
 
     expect(await screen.findByText(/You have not agreed/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "I agree" }));
