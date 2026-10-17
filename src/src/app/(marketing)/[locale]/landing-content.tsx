@@ -461,12 +461,12 @@ export function LandingContent() {
                 {t("marketing.trust.overline", "Enterprise Security")}
               </p>
               <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                {t("marketing.trust.title", "Your Data, Your Servers")}
+                {t("marketing.trust.title", "Your Data, Stored in Ethiopia")}
               </h2>
               <p className="mt-4 text-lg text-muted-foreground">
                 {t(
                   "marketing.trust.subtitle",
-                  "ETHR runs on your infrastructure in Ethiopia. No data leaves the country. Full compliance with Ethiopian data protection law.",
+                  "ETHR keeps your organisation's data on servers in Ethiopia, on Ethio Telecom hosting or your own, as the Personal Data Protection Proclamation No. 1321/2024 requires. Your organisation stays in control of its data; ETHR supplies the safeguards below.",
                 )}
               </p>
             </div>
