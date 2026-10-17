@@ -54,6 +54,7 @@ function shift(
       web_enabled: true,
       geofence_required: false,
       photo_required: overrides.photo ?? false,
+      photo_consent: false,
       accuracy_threshold_meters: 100,
       offline_sync_enabled: true,
       geofence: overrides.geofence === undefined ? BRANCH : overrides.geofence,

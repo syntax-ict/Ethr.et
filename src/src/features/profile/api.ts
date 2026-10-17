@@ -207,3 +207,38 @@ export function useWithdrawProfileUpdate() {
     onSuccess: invalidate,
   });
 }
+
+/** The employee's consent to the attendance selfie (PhotoConsent on the server). */
+export type PhotoConsentState =
+  operations["photoConsent.show"]["responses"][200]["content"]["application/json"];
+
+const PHOTO_CONSENT_KEY = ["profile", "photo-consent"] as const;
+
+export function usePhotoConsent() {
+  return useQuery<PhotoConsentState>({
+    queryKey: PHOTO_CONSENT_KEY,
+    queryFn: async () => (await apiClient.get("/profile/photo-consent")).data,
+  });
+}
+
+function usePhotoConsentMutation(method: "post" | "delete") {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (): Promise<PhotoConsentState> =>
+      (await apiClient[method]("/profile/photo-consent")).data,
+    onSuccess: (state) => {
+      queryClient.setQueryData(PHOTO_CONSENT_KEY, state);
+      // The punch screen reads the same answer from my-shift.
+      queryClient.invalidateQueries({ queryKey: ["attendance", "my-shift"] });
+    },
+  });
+}
+
+export function useGivePhotoConsent() {
+  return usePhotoConsentMutation("post");
+}
+
+export function useWithdrawPhotoConsent() {
+  return usePhotoConsentMutation("delete");
+}

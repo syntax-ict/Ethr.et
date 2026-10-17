@@ -34,6 +34,7 @@ class AttendanceSetting extends Model
         'auto_checkout_enabled',
         'auto_checkout_after_minutes',
         'geofence_auto_checkin_enabled',
+        'photo_retention_days',
     ];
 
     protected function casts(): array
@@ -57,6 +58,7 @@ class AttendanceSetting extends Model
             'auto_checkout_enabled' => 'boolean',
             'auto_checkout_after_minutes' => 'integer',
             'geofence_auto_checkin_enabled' => 'boolean',
+            'photo_retention_days' => 'integer',
         ];
     }
 
@@ -81,6 +83,7 @@ class AttendanceSetting extends Model
             'auto_checkout_enabled' => false,
             'auto_checkout_after_minutes' => 120,
             'geofence_auto_checkin_enabled' => false,
+            'photo_retention_days' => 7,
         ];
     }
 

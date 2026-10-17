@@ -6,6 +6,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useRemoveLogo, useUploadLogo } from "@/features/settings/api";
 import { toastError } from "@/lib/errors";
+import { useUploadLimit } from "@/features/auth/api";
+import {
+  overServerLimit,
+  SERVER_LIMIT_FALLBACK,
+  SERVER_LIMIT_KEY,
+  shrinkImage,
+  sizeLabel,
+} from "@/lib/uploads/upload-limit";
 import { useT } from "@/lib/i18n/useT";
 
 const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
@@ -30,16 +38,33 @@ export function LogoUpload({
   const upload = useUploadLogo();
   const remove = useRemoveLogo();
   const busy = upload.isPending || remove.isPending;
+  const serverLimit = useUploadLimit();
 
-  function choose(file: File | undefined) {
-    if (!file) return;
-    if (!ACCEPTED.includes(file.type)) {
+  async function choose(chosen: File | undefined) {
+    if (!chosen) return;
+    if (!ACCEPTED.includes(chosen.type)) {
       toast.error(t("settings.logo_type", "Choose a PNG, JPG or WebP image."));
       return;
     }
+    // The server keeps the logo at 512 px as PNG; shrinking first keeps a
+    // large original under the upload limit.
+    const file = await shrinkImage(chosen, {
+      maxEdge: 1024,
+      type: "image/png",
+    });
     if (file.size > MAX_BYTES) {
       toast.error(
         t("settings.logo_too_large", "The image must be 1 MB or smaller."),
+      );
+      return;
+    }
+    const limit = overServerLimit(file, MAX_BYTES, serverLimit);
+    if (limit !== null) {
+      toast.error(
+        t(SERVER_LIMIT_KEY, SERVER_LIMIT_FALLBACK, {
+          size: sizeLabel(file.size),
+          max: sizeLabel(limit),
+        }),
       );
       return;
     }
@@ -93,7 +118,7 @@ export function LogoUpload({
             className="sr-only"
             aria-label={t("settings.logo_file", "Logo image file")}
             onChange={(e) => {
-              choose(e.target.files?.[0]);
+              void choose(e.target.files?.[0]);
               e.target.value = "";
             }}
           />
