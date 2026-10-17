@@ -26,17 +26,20 @@ use Symfony\Component\HttpFoundation\Response;
  *      (`hr.acme.com`), once verified. Checked first: on that host it is the
  *      only answer.
  *   1. Subdomain — acme.ethr.et, wherever the host can serve it.
- *   2. X-Tenant header — on the APEX (ethr.et / www.ethr.et), in every
+ *   2. Tenant slug in form body — the sign-in, sign-in code, registration and
+ *      password endpoints only, so a user arriving at the apex can say which
+ *      organisation they belong to. Safe in production: it selects *which*
+ *      tenant to authenticate against, it does not grant access — credentials
+ *      and EnsureUserBelongsToTenant still decide that. Read BEFORE the header
+ *      since 2026-10-17: the browser sends the organisation it last signed in
+ *      to as X-Tenant, so a person typing another one had their password
+ *      checked against the stored organisation and refused.
+ *   3. X-Tenant header — on the APEX (ethr.et / www.ethr.et), in every
  *      environment since 2026-10-06, because the production host cannot serve
  *      wildcard subdomains (M3) and ethr.et/{slug} is how an organisation is
  *      reached instead. Ignored on a tenant subdomain, a custom domain, the
  *      platform host and any host this deployment does not own. See
  *      resolveFromHeader() for why that is safe.
- *   3. Tenant slug in form body — login/register/password endpoints only, so a
- *      user arriving at the apex can say which organisation they belong to.
- *      Safe in production: it selects *which* tenant to authenticate against,
- *      it does not grant access — credentials and EnsureUserBelongsToTenant
- *      still decide that.
  *
  * If none of the above identify a tenant, the request proceeds without a
  * tenant context. Routes that need a tenant must rely on the global scope
@@ -69,8 +72,8 @@ class ResolveTenant
 
         $tenant = $this->resolveFromCustomDomain($request)
             ?? $this->resolveFromSubdomain($request)
-            ?? $this->resolveFromHeader($request)
             ?? $this->resolveFromFormField($request)
+            ?? $this->resolveFromHeader($request)
             ?? $this->resolveSingleInstall();
 
         if ($tenant !== null) {
@@ -234,6 +237,11 @@ class ResolveTenant
      * Allow login/register endpoints to specify the tenant in the request body
      * (for shared-URL flows like a marketing site or mobile app). Only honored
      * on a small allow-list of public auth endpoints.
+     *
+     * It wins over X-Tenant there because it is what the person just typed,
+     * while the header is what this browser stored at its last sign-in. That
+     * widens nothing: a request could already select a tenant by the body
+     * alone by omitting the header, and the host selectors still win over both.
      */
     private function resolveFromFormField(Request $request): Tenant|Response|null
     {
@@ -306,6 +314,8 @@ class ResolveTenant
             $request->is('api/v1/auth/login')
             || $request->is('api/v1/auth/register')
             || $request->is('api/v1/auth/mfa/verify')
+            || $request->is('api/v1/auth/otp/request')
+            || $request->is('api/v1/auth/otp/verify')
             || $request->is('api/v1/auth/password/forgot')
             || $request->is('api/v1/auth/password/reset')
         );
