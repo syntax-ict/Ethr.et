@@ -11,13 +11,12 @@ use App\Models\Employee;
 use App\Models\EmployeeEducation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Gate;
 
 class EducationController extends Controller
 {
     public function index(Employee $employee): AnonymousResourceCollection
     {
-        Gate::authorize('employee.view');
+        $this->authorize('view', $employee);
 
         return EducationResource::collection(
             $employee->education()->orderByDesc('end_date')->get()
@@ -26,7 +25,7 @@ class EducationController extends Controller
 
     public function store(StoreEducationRequest $request, Employee $employee): JsonResponse
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $education = $employee->education()->create($request->validated());
 
@@ -37,7 +36,7 @@ class EducationController extends Controller
 
     public function update(StoreEducationRequest $request, Employee $employee, EmployeeEducation $education): EducationResource
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $education->update($request->validated());
 
@@ -46,7 +45,7 @@ class EducationController extends Controller
 
     public function destroy(Employee $employee, EmployeeEducation $education): JsonResponse
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $education->delete();
 

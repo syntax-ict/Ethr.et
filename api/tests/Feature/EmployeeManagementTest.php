@@ -520,9 +520,12 @@ describe('employee lifecycle transitions', function () {
 describe('employee emergency contacts', function () {
     it('lists emergency contacts', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
 
-        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        // A direct report: a supervisor reads their own team's records, not
+        // everyone's (EmployeeRecordScopeTest).
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisor->id]);
         $employee->emergencyContacts()->createMany([
             ['tenant_id' => $tenant->id, 'name' => 'Contact 1', 'relationship' => 'spouse', 'phone' => '+251911111111', 'priority' => 1],
             ['tenant_id' => $tenant->id, 'name' => 'Contact 2', 'relationship' => 'parent', 'phone' => '+251922222222', 'priority' => 2],
@@ -665,9 +668,12 @@ describe('employee bank details', function () {
 describe('employee education', function () {
     it('lists education records', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
 
-        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        // A direct report: a supervisor reads their own team's records, not
+        // everyone's (EmployeeRecordScopeTest).
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisor->id]);
         $employee->education()->create([
             'tenant_id' => $tenant->id,
             'institution' => 'Addis Ababa University',

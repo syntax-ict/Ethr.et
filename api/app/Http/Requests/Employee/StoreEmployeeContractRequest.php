@@ -13,7 +13,7 @@ class StoreEmployeeContractRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // Gate::authorize('employee.update') runs in the controller.
+        return true; // $this->authorize('update', $employee) runs in the controller.
     }
 
     /** @return array<string, mixed> */
