@@ -12,7 +12,7 @@ with one holder is a single point of failure, and the review below exists to fin
 | Domain registrar / DNS zone for the apex domain | Registrar account | _owner_, _second_ | Custom domains, subdomain wildcard, mail records | Registrar's own procedure |
 | GitHub organisation admin | GitHub | _owner_, _second_ | Rulesets, environments, secrets, merging | Add the second admin before you need them |
 | GitHub `production` environment secrets (`ETHR_CRON_TOKEN`, `ETHR_CRON_BASE_URL`) | GitHub → Settings → Environments | _org admins_ | The scheduled caller (cron.yml) | Rotate with the host `CRON_TOKEN` and the second caller, together |
-| Second cron caller account | The URL-fetch service chosen 2026-10-12 | _owner_, _second_ | Background work during quiet hours | Same token as above |
+| Second cron caller account | The URL-fetch service chosen 2026-10-12 (cron-job.org) | _owner_, _second_ | Background work during quiet hours, **and the uptime monitor** (job *ETHR uptime (health)*, since 2026-10-16), whose alerts go to this account's email address | Same token as above. The monitor needs no token; check its email address stays a person who reads it |
 | Host `.env` — `APP_KEY` | Host file `ethr/api/.env` + an offline copy (where: _fill_) | _owner_, _second_ | **Every encrypted column and every backup.** Never rotated | Never. Losing it loses the data |
 | Host `.env` — database credentials | Host `.env`; Plesk → Databases | _owner_, _second_ | The whole application | Plesk → Databases → user; then `clear`/`optimize` |
 | Host `.env` — mail account (`MAIL_USERNAME`/`MAIL_PASSWORD`, `MAIL_PEER_FINGERPRINT`) | Host `.env`; the provider's mail panel | _owner_, _second_ | Every email (resets, activation, notifications) | Provider's mail panel |

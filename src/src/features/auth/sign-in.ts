@@ -22,10 +22,20 @@ export interface LoginResult {
   mfa_required?: boolean;
 }
 
+/**
+ * The sign-in calls name the organisation in the body and, through `tenant`,
+ * in `X-Tenant` as well, so the two cannot disagree. Left to the interceptor,
+ * the header carried the organisation this browser last signed in to, and the
+ * server read it first (2026-10-17).
+ */
 export async function login(
   payload: Schemas["LoginRequest"],
 ): Promise<LoginResult> {
-  return (await apiClient.post<LoginResult>("/auth/login", payload)).data;
+  return (
+    await apiClient.post<LoginResult>("/auth/login", payload, {
+      tenant: payload.tenant ?? "",
+    })
+  ).data;
 }
 
 export async function verifyMfa(
@@ -39,7 +49,9 @@ export async function requestOtp(
   payload: Schemas["RequestOtpRequest"],
 ): Promise<{ message: string }> {
   return (
-    await apiClient.post<{ message: string }>("/auth/otp/request", payload)
+    await apiClient.post<{ message: string }>("/auth/otp/request", payload, {
+      tenant: payload.tenant ?? "",
+    })
   ).data;
 }
 
@@ -47,7 +59,11 @@ export async function requestOtp(
 export async function verifyOtp(
   payload: Schemas["VerifyOtpRequest"],
 ): Promise<LoginResult> {
-  return (await apiClient.post<LoginResult>("/auth/otp/verify", payload)).data;
+  return (
+    await apiClient.post<LoginResult>("/auth/otp/verify", payload, {
+      tenant: payload.tenant ?? "",
+    })
+  ).data;
 }
 
 export async function registerTenant(
@@ -69,6 +85,7 @@ export async function checkSubdomain(subdomain: string): Promise<boolean> {
 export async function initiateSso(tenant: string): Promise<string> {
   const { data } = await apiClient.get<{ redirect_url: string }>(
     `/sso/saml/${encodeURIComponent(tenant)}/initiate`,
+    { tenant },
   );
   return data.redirect_url;
 }

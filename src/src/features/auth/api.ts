@@ -14,6 +14,8 @@ interface MeResponse {
    * 403; this lets the screen say so first (audit N66).
    */
   plan_features?: string[] | null;
+  /** The largest upload the server accepts, in bytes (PHP's own limits). */
+  upload_limit_bytes?: number;
   tenant: {
     public_id: string;
     name: string;
@@ -51,6 +53,21 @@ export function useCurrentUser() {
     ...meQueryOptions,
     select: (data: MeResponse) => data.user,
   });
+}
+
+/**
+ * The largest file the server really accepts, or null until known. Forms
+ * refuse a file over it before uploading (`@/lib/uploads/upload-limit`).
+ */
+export function useUploadLimit(): number | null {
+  const { data } = useQuery({
+    ...meQueryOptions,
+    select: (me: MeResponse) =>
+      typeof me.upload_limit_bytes === "number" && me.upload_limit_bytes > 0
+        ? me.upload_limit_bytes
+        : null,
+  });
+  return data ?? null;
 }
 
 export function useCurrentTenant() {

@@ -12,6 +12,7 @@ import {
   Smartphone,
   Activity,
   TrendingUp,
+  Camera,
   FilePenLine,
   UsersRound,
   FileSpreadsheet,
@@ -221,6 +222,11 @@ export default function AttendancePage() {
           {can.viewAllAttendance && (
             <SubNav href="/attendance/overtime" icon={TrendingUp}>
               {t("attendance.overtime", "Overtime")}
+            </SubNav>
+          )}
+          {can.viewAttendancePhotos && (
+            <SubNav href="/attendance/photos" icon={Camera}>
+              {t("nav.attendance_photos", "Photos")}
             </SubNav>
           )}
         </SubNavGroup>

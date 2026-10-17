@@ -69,6 +69,15 @@ import {
 import { ArticleView } from "@/features/news/components/article-view";
 import type { NewsCoverImage } from "@/features/news/components/news-card";
 import { fileSize } from "@/features/news/news-format";
+import { useUploadLimit } from "@/features/auth/api";
+import {
+  overServerLimit,
+  SERVER_LIMIT_FALLBACK,
+  SERVER_LIMIT_KEY,
+  shrinkImage,
+  sizeLabel,
+} from "@/lib/uploads/upload-limit";
+
 import { apiErrorDetail } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -173,6 +182,20 @@ export default function AnnouncementsPage() {
   const removeFile = useRemoveAnnouncementFile();
   const fileInput = useRef<HTMLInputElement>(null);
   const coverInput = useRef<HTMLInputElement>(null);
+  const serverLimit = useUploadLimit();
+
+  /** A file over the server's limit, said plainly before it is sent. */
+  function refuseOverServer(file: File, formMax: number): boolean {
+    const limit = overServerLimit(file, formMax, serverLimit);
+    if (limit === null) return false;
+    toast.error(
+      t(SERVER_LIMIT_KEY, SERVER_LIMIT_FALLBACK, {
+        size: sizeLabel(file.size),
+        max: sizeLabel(limit),
+      }),
+    );
+    return true;
+  }
 
   // A chosen photo's preview lives until it is replaced or the form closes.
   useEffect(() => {
@@ -282,6 +305,7 @@ export default function AnnouncementsPage() {
       );
       return;
     }
+    if (refuseOverServer(file, FILE_MAX_BYTES)) return;
     setForm((p) => ({ ...p, newFiles: [...p.newFiles, file] }));
   }
 
@@ -296,14 +320,20 @@ export default function AnnouncementsPage() {
     );
   }
 
-  function chooseCover(file: File | undefined) {
-    if (!file) return;
-    if (!COVER_TYPES.includes(file.type)) {
+  async function chooseCover(chosen: File | undefined) {
+    if (!chosen) return;
+    if (!COVER_TYPES.includes(chosen.type)) {
       toast.error(
         t("settings.brand_image_type", "Choose a PNG, JPG or WebP image."),
       );
       return;
     }
+    // Shrunk in the browser first: a phone photo is several MB, and the
+    // server re-encodes to 1920 px anyway.
+    const file = await shrinkImage(chosen, {
+      maxEdge: 1920,
+      type: "image/jpeg",
+    });
     if (file.size > COVER_MAX_BYTES) {
       toast.error(
         t(
@@ -313,6 +343,7 @@ export default function AnnouncementsPage() {
       );
       return;
     }
+    if (refuseOverServer(file, COVER_MAX_BYTES)) return;
     setForm((p) => ({
       ...p,
       coverFile: file,
@@ -939,7 +970,7 @@ export default function AnnouncementsPage() {
                     aria-labelledby="announcement-cover-label"
                     aria-describedby="announcement-cover-hint"
                     onChange={(e) => {
-                      chooseCover(e.target.files?.[0]);
+                      void chooseCover(e.target.files?.[0]);
                       e.target.value = "";
                     }}
                   />

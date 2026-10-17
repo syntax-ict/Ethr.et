@@ -498,10 +498,17 @@ Idempotency: Idempotency-Key: {uuid} (on all write endpoints)
 >
 > 1. a **custom domain** assigned to one tenant, once **verified** (since 2026-10-08);
 > 2. the **subdomain**;
-> 3. **`X-Tenant`**, honoured on the apex, its `www` alias, and single-host installs only.
+> 3. the organisation in the **form body**, on the sign-in, sign-in code, register and
+>    password endpoints;
+> 4. **`X-Tenant`**, honoured on the apex, its `www` alias, and single-host installs only.
 >    It is never honoured on a tenant host, the platform host, or a host this deployment
->    does not own;
-> 4. the organisation in the **form body**, on login, register and password endpoints.
+>    does not own.
+>
+> *(3 and 4 swapped on 2026-10-17.)* The browser sends the organisation it last signed in to
+> as `X-Tenant`, so with the header first a person typing another organisation had their
+> password checked against the stored one and refused. The form body is what they just
+> typed. The client also sends the typed organisation as `X-Tenant` on those calls, through
+> the `tenant` request option in `src/src/api/client.ts`, so the two agree.
 >
 > `EnsureUserBelongsToTenant` is what stops a token reading another tenant, whichever selector
 > answered: a member naming someone else's organisation gets 403 `tenant-mismatch`.

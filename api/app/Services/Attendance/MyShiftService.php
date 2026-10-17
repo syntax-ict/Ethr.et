@@ -14,6 +14,7 @@ use App\Models\LeaveRequest;
 use App\Models\Shift;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\PhotoConsent;
 use App\Support\TenantTime;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -105,6 +106,7 @@ final class MyShiftService
                 'web_enabled' => $policy->isMethodEnabled('web'),
                 'geofence_required' => (bool) $policy->geofence_required,
                 'photo_required' => (bool) $policy->mobile_photo_required,
+                'photo_consent' => PhotoConsent::given($user),
                 'accuracy_threshold_meters' => (int) $policy->mobile_accuracy_threshold_meters,
                 'offline_sync_enabled' => (bool) $policy->offline_sync_enabled,
                 'geofence' => $geofence,

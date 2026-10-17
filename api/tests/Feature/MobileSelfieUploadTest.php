@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Services\FileStorageService;
+use App\Support\PhotoConsent;
 use Illuminate\Support\Facades\Storage;
 
 test('mobile check-in stores the selfie and records its object key', function () {
@@ -14,6 +15,8 @@ test('mobile check-in stores the selfie and records its object key', function ()
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
     $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    // The selfie is taken with the employee's consent (Proclamation 1321/2024).
+    PhotoConsent::give($user);
     test()->actingAs($user);
 
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/mobile/check-in", [
@@ -40,6 +43,8 @@ test('a check-out selfie is kept without overwriting the check-in one', function
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
     $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    // The selfie is taken with the employee's consent (Proclamation 1321/2024).
+    PhotoConsent::give($user);
     test()->actingAs($user);
 
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/mobile/check-in", [
@@ -77,6 +82,8 @@ test('mobile check-in rejects a non-image payload', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
     $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    // The selfie is taken with the employee's consent (Proclamation 1321/2024).
+    PhotoConsent::give($user);
     test()->actingAs($user);
 
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/mobile/check-in", [
@@ -95,6 +102,8 @@ test('mobile check-in rejects an unsupported image type', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
     $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    // The selfie is taken with the employee's consent (Proclamation 1321/2024).
+    PhotoConsent::give($user);
     test()->actingAs($user);
 
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/mobile/check-in", [

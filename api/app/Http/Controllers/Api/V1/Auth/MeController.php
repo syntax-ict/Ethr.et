@@ -11,6 +11,7 @@ use App\Models\Employee;
 use App\Services\CurrentTenant;
 use App\Services\FileStorageService;
 use App\Services\PlanFeatureService;
+use App\Support\UploadLimit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -53,6 +54,7 @@ class MeController extends Controller
             'tenant' => $currentTenant->resolved()
                 ? new TenantResource($currentTenant->get())
                 : null,
+            'upload_limit_bytes' => UploadLimit::bytes(),
         ]);
     }
 }

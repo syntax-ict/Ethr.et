@@ -28,6 +28,7 @@ import {
   type LandingCover,
 } from "@/lib/auth/landing-background";
 import { usePathname } from "next/navigation";
+import { entryOrganisation } from "@/lib/auth/entry-organisation";
 import { OrganisationPortal } from "@/features/auth/components/organisation-portal";
 import { FormSlot } from "./form-slot";
 
@@ -54,7 +55,6 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
     tenantLanding,
     tenantDefaultLocale,
     tenantContextLoading,
-    onLanding,
   } = useAuthHostContext();
   const organisation = context === "tenant";
   // The portal treatment belongs to the organisation's front door alone: its
@@ -66,7 +66,14 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
   // they take neither the portal nor the two-panel sign-in layout.
   const news =
     pathname === "/news" || (pathname?.startsWith("/news/") ?? false);
-  const portal = !news && organisation && (onLanding || pathname === "/login");
+  // The front door is decided by the path, not by `onLanding`: that is also
+  // true on a page whose query names the organisation (`?org=`, a reset
+  // link's `?tenant=`), so those pages swapped to the portal when the context
+  // arrived, which mounted the form again and emptied what had been typed
+  // (Playwright run 38951069888 on PR #286).
+  const frontDoor =
+    pathname === "/login" || entryOrganisation(pathname) !== null;
+  const portal = !news && organisation && frontDoor;
 
   // The colours go on the document so every control on the page - the
   // button, focus rings, links - takes them, as they do once signed in.

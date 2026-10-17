@@ -52,7 +52,13 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // address signs in on the apex — where nothing but this header names it.
   // On a tenant host or the platform host the server ignores or refuses it,
   // so it is simply not sent there.
-  const tenant = tenantHeaderValue();
+  //
+  // A sign-in call names the organisation the person typed (`tenant` on the
+  // request), and that wins over the stored one. The stored slug changes only
+  // after a successful sign-in, so a browser that had signed in to one
+  // organisation sent it with every attempt at another, and the server
+  // checked the password against the wrong organisation (2026-10-17).
+  const tenant = tenantHeaderValue(config.tenant);
   if (tenant && config.headers) {
     config.headers["X-Tenant"] = tenant;
   }
@@ -64,14 +70,18 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
  * The `X-Tenant` value this page sends, or null where the hostname names the
  * organisation itself. Exported so a punch queued offline can carry it: the
  * service worker sends the queue with no page, and so no localStorage.
+ *
+ * `typed` is the organisation a sign-in form was given. Passed, it replaces
+ * the stored one, and an empty value sends none.
  */
-export function tenantHeaderValue(): string | null {
+export function tenantHeaderValue(typed?: string): string | null {
   if (typeof window === "undefined") return null;
   const context = hostContext(
     window.location.host,
     process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null,
   );
   if (context !== "public" && context !== "unknown") return null;
+  if (typed !== undefined) return typed.trim().toLowerCase() || null;
   try {
     return localStorage.getItem("tenant");
   } catch {
@@ -200,6 +210,11 @@ declare module "axios" {
   interface AxiosRequestConfig {
     /** Hand a 401 to the caller instead of refreshing the session. */
     skipAuthRefresh?: boolean;
+    /**
+     * The organisation a sign-in call names, sent as `X-Tenant` in place of
+     * the stored one; "" sends none. Ignored where the host names it.
+     */
+    tenant?: string;
   }
 }
 

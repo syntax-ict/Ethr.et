@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\Attendance\AttendanceCorrectionController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceImportController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntegrityController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntelligenceController;
+use App\Http\Controllers\Api\V1\Attendance\AttendancePhotoController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceSettingController;
 use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
 use App\Http\Controllers\Api\V1\Attendance\KioskAttendanceController;
@@ -99,6 +100,7 @@ use App\Http\Controllers\Api\V1\Payroll\PayrollRuleController;
 use App\Http\Controllers\Api\V1\Payroll\PensionRuleController;
 use App\Http\Controllers\Api\V1\Payroll\TaxBracketController;
 use App\Http\Controllers\Api\V1\PlanController;
+use App\Http\Controllers\Api\V1\Profile\PhotoConsentController;
 use App\Http\Controllers\Api\V1\Profile\ProfileController;
 use App\Http\Controllers\Api\V1\Profile\ProfileEmergencyContactController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePhotoController;
@@ -388,6 +390,13 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/settings', [AttendanceSettingController::class, 'show']);
         Route::put('/settings', [AttendanceSettingController::class, 'update']);
 
+        Route::prefix('photos')->group(function () {
+            Route::get('/', [AttendancePhotoController::class, 'index']);
+            Route::get('/{attendanceRecord}/{which}', [AttendancePhotoController::class, 'show'])->whereIn('which', ['check-in', 'check-out']);
+            Route::post('/{attendanceRecord}/hold', [AttendancePhotoController::class, 'hold']);
+            Route::delete('/{attendanceRecord}/hold', [AttendancePhotoController::class, 'release']);
+        });
+
         Route::prefix('corrections')->group(function () {
             Route::get('/', [AttendanceCorrectionController::class, 'index']);
             Route::get('/pending', [AttendanceCorrectionController::class, 'pending']);
@@ -666,6 +675,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
     Route::put('/profile/preferences', [ProfilePreferencesController::class, 'update']);
+    Route::get('/profile/photo-consent', [PhotoConsentController::class, 'show']);
+    Route::post('/profile/photo-consent', [PhotoConsentController::class, 'store']);
+    Route::delete('/profile/photo-consent', [PhotoConsentController::class, 'destroy']);
 
     // The photo is its own endpoint because PHP populates $_FILES on POST only —
     // a `photo` field on the PUT above could never have arrived.
