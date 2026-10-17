@@ -43,7 +43,9 @@ final class DecidableApprovals
     /**
      * Profile-update requests are reviewed by HR (`employee.update`), not by
      * the submitter's supervisor, so they are not narrowed by org scope; a
-     * reviewer without that permission simply has none.
+     * reviewer without that permission simply has none. Nor does it list a
+     * change about the reviewer or filed by them, which
+     * `ProfileUpdateRequestService::refusal()` refuses.
      *
      * @return Builder<ProfileUpdateRequest>
      */
@@ -51,7 +53,19 @@ final class DecidableApprovals
     {
         $query = ProfileUpdateRequest::query()->where('status', ProfileUpdateStatus::PENDING);
 
-        return $user->hasPermission('employee.update') ? $query : $query->whereRaw('1 = 0');
+        if (! $user->hasPermission('employee.update')) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->employee_id !== null) {
+            $query->where('employee_id', '!=', $user->employee_id);
+        }
+
+        // `requested_by != ?` alone would also drop rows with no recorded
+        // filer, because NULL compares unknown rather than unequal.
+        return $query->where(fn (Builder $q) => $q
+            ->whereNull('requested_by')
+            ->orWhere('requested_by', '!=', $user->id));
     }
 
     /** @return array{leave: int, correction: int, profile_update: int, total: int} */
