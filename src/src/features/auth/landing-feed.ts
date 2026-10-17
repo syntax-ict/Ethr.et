@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { operations } from "@/api/generated";
 import type { TenantRequest } from "@/lib/auth/use-auth-host-context";
@@ -11,6 +11,19 @@ export type LandingVacancy =
   operations["landingFeed.vacancy"]["responses"][200]["content"]["application/json"];
 export type LandingAnnouncement =
   operations["landingFeed.announcement"]["responses"][200]["content"]["application/json"];
+/** `GET /auth/tenant-landing/news`: one page of the organisation's news. */
+export type LandingNewsPage =
+  operations["landingFeed.news"]["responses"][200]["content"]["application/json"];
+export type LandingNewsItem = LandingNewsPage["data"][number];
+export type NewsCategory = NonNullable<
+  NonNullable<operations["landingFeed.news"]["parameters"]["query"]>["category"]
+>;
+export const NEWS_CATEGORIES: readonly NewsCategory[] = [
+  "news",
+  "notice",
+  "event",
+  "deadline",
+];
 
 /**
  * A public request to the organisation the sign-in page is for, asked the
@@ -44,6 +57,41 @@ export function useLandingFeed(request: TenantRequest | null) {
     enabled: request !== null,
     retry: false,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export interface NewsQuery {
+  q: string;
+  category: NewsCategory | null;
+  page: number;
+}
+
+/**
+ * One page of the organisation's public news, as the reader filtered it.
+ * The previous page stays on screen while the next loads, so paging and
+ * filtering do not flash an empty grid.
+ */
+export function useLandingNews(
+  request: TenantRequest | null,
+  query: NewsQuery,
+) {
+  const params = new URLSearchParams();
+  if (query.q.trim()) params.set("q", query.q.trim());
+  if (query.category) params.set("category", query.category);
+  if (query.page > 1) params.set("page", String(query.page));
+  const qs = params.toString();
+
+  return useQuery<LandingNewsPage>({
+    queryKey: ["auth", "landing-news", requestKey(request), qs],
+    queryFn: () =>
+      getPublic<LandingNewsPage>(
+        request!,
+        `/auth/tenant-landing/news${qs ? `?${qs}` : ""}`,
+      ),
+    enabled: request !== null,
+    retry: false,
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
   });
 }
 

@@ -10,6 +10,7 @@ import {
   Building2,
   CalendarDays,
   CalendarRange,
+  Camera,
   CheckSquare,
   ChevronRight,
   Clock,
@@ -59,6 +60,12 @@ interface NavLeaf {
   icon: React.ComponentType<{ className?: string }>;
   show: boolean;
   badge?: number;
+  /**
+   * The group a child leaf belongs to, set only when the leaf is shown
+   * outside its group (Pinned, Recent). Inside the group the heading already
+   * says it; on its own, "Records" or "Corrections" does not say of what.
+   */
+  context?: string;
 }
 
 interface NavParent {
@@ -99,7 +106,9 @@ function findLeafByHref(sections: NavSection[], href: string): NavLeaf | null {
       }
       if (entry.kind === "parent") {
         for (const child of entry.children) {
-          if (child.href === href && child.show) return child;
+          if (child.href === href && child.show) {
+            return { ...child, context: entry.label };
+          }
         }
       }
     }
@@ -362,7 +371,11 @@ export function SidebarNav({
             // Each child carries the ability its screen's API checks, so the
             // group opens for a custom role holding any of them rather than
             // for a role level alone (audit N78).
-            show: isSupervisor || can.viewTeam || can.viewAllAttendance,
+            show:
+              isSupervisor ||
+              can.viewTeam ||
+              can.viewAllAttendance ||
+              can.viewAttendancePhotos,
             children: [
               {
                 kind: "leaf",
@@ -407,6 +420,15 @@ export function SidebarNav({
                 href: "/attendance/overtime",
                 icon: TrendingUp,
                 show: can.viewAllAttendance,
+              },
+              {
+                kind: "leaf",
+                // Selfies under the retention policy: HR and department
+                // managers review and hold them before deletion.
+                label: t("nav.attendance_photos", "Photos"),
+                href: "/attendance/photos",
+                icon: Camera,
+                show: can.viewAttendancePhotos,
               },
             ],
           },
@@ -802,6 +824,7 @@ function NavLink({
   const Icon = item.icon;
   const isSecondary = variant === "pinned" || variant === "recent";
   const hasBadge = item.badge != null && item.badge > 0;
+  const fullLabel = item.context ? `${item.context} ${item.label}` : item.label;
 
   // Collapsed rows render the icon alone — the label span is dropped — so the
   // link has no text content and needs an explicit accessible name. It
@@ -866,9 +889,24 @@ function NavLink({
             )}
           />
         )}
-        {!collapsed && (
-          <span className="min-w-0 flex-1 truncate">{item.label}</span>
-        )}
+        {!collapsed &&
+          (item.context ? (
+            // The group comes first and muted, so the item still reads as the
+            // destination; the chevron is an icon, not text, so the visible
+            // name stays "Attendance Records" for search and assistive tech.
+            <span className="flex min-w-0 flex-1 items-center gap-1">
+              <span className="max-w-[45%] shrink-0 truncate text-sidebar-foreground/60">
+                {item.context}
+              </span>
+              <ChevronRight
+                className="h-3 w-3 shrink-0 text-sidebar-foreground/40"
+                aria-hidden="true"
+              />
+              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+            </span>
+          ) : (
+            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+          ))}
         {!collapsed && hasBadge && (
           <span
             className={cn(
@@ -897,7 +935,7 @@ function NavLink({
           }}
           className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/60 opacity-0 transition-all duration-150 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground/60 group-hover/pin:opacity-100"
           title={t("nav.unpin", "Unpin")}
-          aria-label={`${t("nav.unpin", "Unpin")}: ${item.label}`}
+          aria-label={`${t("nav.unpin", "Unpin")}: ${fullLabel}`}
         >
           <Star className="h-3 w-3" />
         </button>
@@ -928,7 +966,7 @@ function NavLink({
               : favoritesAtLimit
                 ? t("nav.favorites_full", "Favorites full (max 5)")
                 : t("nav.pin_favorites", "Pin to favorites")
-          }: ${item.label}`}
+          }: ${fullLabel}`}
           aria-pressed={pinned}
         >
           <Star
@@ -949,7 +987,7 @@ function NavLink({
             }}
             className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/60 opacity-0 transition-all duration-150 hover:text-brand-accent group-hover/pin:opacity-100"
             title={t("nav.pin_favorites", "Pin to favorites")}
-            aria-label={`${t("nav.pin_favorites", "Pin to favorites")}: ${item.label}`}
+            aria-label={`${t("nav.pin_favorites", "Pin to favorites")}: ${fullLabel}`}
           >
             <Star className="h-3 w-3" />
           </button>

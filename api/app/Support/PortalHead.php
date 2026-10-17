@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Models\Announcement;
 use App\Models\Tenant;
 use App\Models\Vacancy;
 use App\Services\PortalPreviewImage;
@@ -97,15 +98,183 @@ final class PortalHead
     }
 
     /**
+     * The head of the organisation's news page (`/news`): its title and a
+     * line saying what the page is, at its canonical address.
+     */
+    public static function news(Tenant $tenant): string
+    {
+        $landing = TenantLanding::present($tenant);
+        $name = $tenant->name;
+
+        return self::page(
+            $tenant,
+            $landing,
+            title: "News · {$name}",
+            description: "News and announcements from {$name}.",
+            url: self::newsUrl($tenant),
+            type: 'website',
+            jsonLd: [],
+        );
+    }
+
+    /**
+     * The head of one article (`/news/{id}`): its own title and opening
+     * words, its canonical address, and a NewsArticle record. Only what the
+     * page shows: title, text, date, cover photo and the organisation's name.
+     * A story with a cover is shared with its own photo as the preview image.
+     */
+    public static function article(Tenant $tenant, Announcement $article): string
+    {
+        $landing = TenantLanding::present($tenant);
+        $brand = TenantBrand::present($tenant);
+        $url = self::newsUrl($tenant, $article->public_id);
+        $text = trim((string) preg_replace('/\s+/u', ' ', strip_tags($article->body)));
+        $description = Str::limit($text, self::DESCRIPTION_MAX, '…');
+        $published = Carbon::make($article->published_at);
+        $cover = $article->coverPresented($tenant->public_id);
+
+        return self::page(
+            $tenant,
+            $landing,
+            title: Str::limit($article->title, 90, '…').' · '.$tenant->name,
+            description: $description === '' ? "News from {$tenant->name}." : $description,
+            url: $url,
+            type: 'article',
+            jsonLd: [array_filter([
+                '@context' => 'https://schema.org',
+                '@type' => 'NewsArticle',
+                'headline' => Str::limit($article->title, 110, '…'),
+                'description' => $description === '' ? null : $description,
+                'image' => $cover === null ? null : FrontendUrl::to($cover['url']),
+                'datePublished' => $published?->toIso8601String(),
+                'dateModified' => Carbon::make($article->updated_at)?->toIso8601String() ?? $published?->toIso8601String(),
+                'url' => $url,
+                'mainEntityOfPage' => $url,
+                'publisher' => array_filter([
+                    '@type' => 'Organization',
+                    'name' => $tenant->name,
+                    'url' => FrontendUrl::at($tenant, 'login'),
+                    'logo' => is_string($brand['logo_url'] ?? null) ? ['@type' => 'ImageObject', 'url' => self::absolute($brand['logo_url'])] : null,
+                ], static fn ($v) => $v !== null),
+            ], static fn ($v) => $v !== null)],
+            published: $published,
+            image: $cover === null ? null : [
+                'url' => FrontendUrl::to($cover['url']),
+                'width' => $cover['width'],
+                'height' => $cover['height'],
+                'alt' => $article->title,
+            ],
+        );
+    }
+
+    /**
+     * The address of the organisation's news page, or of one article: on its
+     * own host when it has one, else on the shared host with `?org=` naming
+     * it, which is how the shared host's pages know whose they are.
+     */
+    public static function newsUrl(Tenant $tenant, ?string $publicId = null): string
+    {
+        $path = 'news'.($publicId === null ? '' : '/'.$publicId);
+        $origin = FrontendUrl::canonicalOrigin($tenant);
+
+        return $origin !== null
+            ? $origin.'/'.$path
+            : FrontendUrl::to($path).'?org='.rawurlencode($tenant->subdomain);
+    }
+
+    /**
+     * The tags every news page shares: title, description, robots, canonical
+     * and language alternates, colour and icon, Open Graph and Twitter card
+     * with the organisation's preview image.
+     *
+     * @param  array<string, mixed>  $landing
+     * @param  list<array<string, mixed>>  $jsonLd
+     * @param  array{url: string, width: int, height: int, alt: string}|null  $image  the story's cover, else the organisation's preview
+     */
+    private static function page(
+        Tenant $tenant,
+        array $landing,
+        string $title,
+        string $description,
+        string $url,
+        string $type,
+        array $jsonLd,
+        ?Carbon $published = null,
+        ?array $image = null,
+    ): string {
+        $brand = TenantBrand::present($tenant);
+        $image ??= [
+            'url' => FrontendUrl::to(route('organisation.preview', [$tenant->public_id, PortalPreviewImage::version($tenant)], absolute: false)),
+            'width' => PortalPreviewImage::WIDTH,
+            'height' => PortalPreviewImage::HEIGHT,
+            'alt' => $tenant->name,
+        ];
+        $icon = $brand['mark_url'] === null ? null : FrontendUrl::to($brand['mark_url']);
+        $colour = $brand['primary_color'] ?? '#0F4C75';
+        $robots = $landing['listed'] ? 'index, follow' : 'noindex, nofollow';
+        $joiner = str_contains($url, '?') ? '&' : '?';
+
+        $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        $tags = [
+            '<title>'.$e($title).'</title>',
+            '<meta name="description" content="'.$e($description).'">',
+            '<meta name="robots" content="'.$robots.'">',
+            '<link rel="canonical" href="'.$e($url).'">',
+            '<link rel="alternate" hreflang="en" href="'.$e($url.$joiner.'lang=en').'">',
+            '<link rel="alternate" hreflang="am" href="'.$e($url.$joiner.'lang=am').'">',
+            '<link rel="alternate" hreflang="x-default" href="'.$e($url).'">',
+            '<meta name="theme-color" content="'.$e($colour).'">',
+        ];
+        if ($icon !== null) {
+            $tags[] = '<link rel="icon" href="'.$e($icon).'">';
+            $tags[] = '<link rel="apple-touch-icon" href="'.$e($icon).'">';
+        }
+        array_push(
+            $tags,
+            '<meta property="og:type" content="'.$type.'">',
+            '<meta property="og:site_name" content="'.$e($tenant->name).'">',
+            '<meta property="og:title" content="'.$e($title).'">',
+            '<meta property="og:description" content="'.$e($description).'">',
+            '<meta property="og:url" content="'.$e($url).'">',
+            '<meta property="og:image" content="'.$e($image['url']).'">',
+            '<meta property="og:image:width" content="'.$image['width'].'">',
+            '<meta property="og:image:height" content="'.$image['height'].'">',
+            '<meta property="og:image:alt" content="'.$e($image['alt']).'">',
+            '<meta property="og:locale" content="en_US">',
+            '<meta property="og:locale:alternate" content="am_ET">',
+        );
+        if ($published !== null) {
+            $tags[] = '<meta property="article:published_time" content="'.$e($published->toIso8601String()).'">';
+        }
+        array_push(
+            $tags,
+            '<meta name="twitter:card" content="summary_large_image">',
+            '<meta name="twitter:title" content="'.$e($title).'">',
+            '<meta name="twitter:description" content="'.$e($description).'">',
+            '<meta name="twitter:image" content="'.$e($image['url']).'">',
+        );
+        foreach ($jsonLd as $data) {
+            $tags[] = self::jsonLd($data);
+        }
+
+        return implode("\n", $tags);
+    }
+
+    /**
      * The rendered head put into the exported page: the page's own title,
-     * description, theme colours and (with a mark) icons give way, and the
-     * rest is added before `</head>`. A page with no head is returned as it
-     * is, so a broken export still serves.
+     * description, robots, theme colours and (with a mark) icons give way,
+     * and the rest is added before `</head>`. A page with no head is returned
+     * as it is, so a broken export still serves.
      */
     public static function inject(string $html, string $head, bool $ownIcon): string
     {
         $html = (string) preg_replace('#<title>.*?</title>#s', '', $html, 1);
         $html = (string) preg_replace('#<meta name="description"[^>]*>#', '', $html, 1);
+        // The export's own robots line (the news pages ship `noindex` for the
+        // shared host, where no organisation is known) gives way to the
+        // organisation's listing choice, which the head states.
+        $html = (string) preg_replace('#<meta name="robots"[^>]*>#', '', $html);
         $html = (string) preg_replace('#<meta name="theme-color"[^>]*>#', '', $html);
         if ($ownIcon) {
             $html = (string) preg_replace('#<link rel="(?:icon|apple-touch-icon)"[^>]*>#', '', $html);

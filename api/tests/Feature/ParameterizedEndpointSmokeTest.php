@@ -133,12 +133,20 @@ test('parameterized GET api/v1 endpoints never 5xx with valid bound records', fu
         // public_id. Any string resolves — an unknown key is a well-formed 404,
         // which is a valid non-5xx outcome for this smoke sweep.
         'key' => 'smoke-import-key',
+        // Which punch's selfie: `check-in` or `check-out` (AttendancePhotoController::show).
+        'which' => 'check-in',
         // An organisation logo's content hash. The seeded tenant has no
         // uploaded logo, so a well-formed hash is a 404 — a valid outcome.
         'version' => '0123456789abcdef',
         // Which of the organisation's brand images: one the public asset route
         // and the settings upload route both accept.
         'kind' => 'mark',
+        // A news story's cover: the story, and which of its sizes. The seeded
+        // announcement has no cover, so the request is a well-formed 404.
+        'story' => $announcement->public_id,
+        'size' => 'cover-640',
+        // A story document's id: a well-formed ULID that names no file, so 404.
+        'file' => '01JZZZZZZZZZZZZZZZZZZZZZZZ',
         'slot' => 'primary',
         // A statutory schedule of a payroll run: one of StatutorySchedules::SCHEDULES.
         'schedule' => 'income-tax',

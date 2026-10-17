@@ -10,7 +10,9 @@ import {
   ExternalLink,
   Loader2,
   LogIn,
+  Plus,
   Save,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -69,6 +71,45 @@ const MESSAGE_MAX = 280;
 const ABOUT_MAX = 600;
 const ADDRESS_MAX = 200;
 const HOURS_MAX = 120;
+const FAQ_MAX = 12;
+const QUESTION_MAX = 160;
+const ANSWER_MAX = 1000;
+
+const SERVICES_MAX = 8;
+const SERVICE_TITLE_MAX = 80;
+const SERVICE_TEXT_MAX = 400;
+
+/**
+ * One item of a bilingual list (a question, a service) as edited: its texts
+ * by key, each with an `_am` twin, and a key that survives reordering.
+ */
+type ListItem = { key: string } & Record<string, string>;
+
+let listKeys = 0;
+const listKey = () => `item-${++listKeys}`;
+
+/** A list as sent: blanks trimmed to null, items left wholly empty dropped. */
+function listUpdate<K extends string>(
+  items: ListItem[],
+  keys: readonly K[],
+): Array<Record<K, string | null>> {
+  return items
+    .filter((item) => keys.some((k) => (item[k] ?? "").trim() !== ""))
+    .map(
+      (item) =>
+        Object.fromEntries(
+          keys.map((k) => [k, trimmed(item[k] ?? "")]),
+        ) as Record<K, string | null>,
+    );
+}
+
+const FAQ_KEYS = ["question", "question_am", "answer", "answer_am"] as const;
+const SERVICE_KEYS = [
+  "title",
+  "title_am",
+  "description",
+  "description_am",
+] as const;
 
 type LinkKey = (typeof LINKS)[number];
 
@@ -95,6 +136,8 @@ interface LandingForm {
   longitude: string;
   show_branches: boolean;
   links: Record<LinkKey, string>;
+  faqs: ListItem[];
+  services: ListItem[];
   sections: Record<PortalSection, boolean>;
   order: PortalSection[];
   listed: boolean;
@@ -128,6 +171,20 @@ function fromSettings(landing: TenantLandingSettings): LandingForm {
     longitude: landing.longitude == null ? "" : String(landing.longitude),
     show_branches: Boolean(landing.show_branches),
     links,
+    faqs: (landing.faqs ?? []).map((faq) => ({
+      key: listKey(),
+      question: text(faq.question),
+      question_am: text(faq.question_am),
+      answer: text(faq.answer),
+      answer_am: text(faq.answer_am),
+    })),
+    services: (landing.services ?? []).map((service) => ({
+      key: listKey(),
+      title: text(service.title),
+      title_am: text(service.title_am),
+      description: text(service.description),
+      description_am: text(service.description_am),
+    })),
     sections,
     order: sectionOrder(landing),
     listed: Boolean(landing.listed),
@@ -163,6 +220,8 @@ function toUpdate(form: LandingForm): LandingUpdate {
     longitude: numberOrNull(form.longitude),
     show_branches: form.show_branches,
     links,
+    faqs: listUpdate(form.faqs, FAQ_KEYS),
+    services: listUpdate(form.services, SERVICE_KEYS),
     sections: form.sections,
     order: form.order,
     listed: form.listed,
@@ -240,6 +299,8 @@ export function LandingCard({
     announcements: t("landing.news", "Latest news"),
     vacancies: t("landing.vacancies", "Open positions"),
     holidays: t("landing.holidays", "Upcoming holidays"),
+    faq: t("landing.faq", "Frequently asked questions"),
+    services: t("landing.services", "Our services"),
     contact: t("landing.contact", "Contact"),
   };
 
@@ -375,6 +436,12 @@ export function LandingCard({
             </TabsTrigger>
             <TabsTrigger value="links">
               {t("settings.landing_tab_links", "Links")}
+            </TabsTrigger>
+            <TabsTrigger value="services">
+              {t("settings.landing_tab_services", "Services")}
+            </TabsTrigger>
+            <TabsTrigger value="faq">
+              {t("settings.landing_tab_faq", "Questions")}
             </TabsTrigger>
             <TabsTrigger value="sections">
               {t("settings.landing_tab_sections", "Sections")}
@@ -650,6 +717,80 @@ export function LandingCard({
             </div>
           </TabsContent>
 
+          <TabsContent value="services" className="mt-4 space-y-4">
+            <BilingualList
+              id="landing-service"
+              errorKey="services"
+              items={form.services}
+              onChange={(services) => set("services", services)}
+              max={SERVICES_MAX}
+              fields={[
+                {
+                  key: "title",
+                  label: t("settings.landing_service_title", "Service"),
+                  max: SERVICE_TITLE_MAX,
+                },
+                {
+                  key: "description",
+                  label: t("settings.landing_service_text", "Description"),
+                  max: SERVICE_TEXT_MAX,
+                  multiline: true,
+                },
+              ]}
+              itemName={(n) =>
+                t("settings.landing_service_item", "Service :n", { n })
+              }
+              help={t(
+                "settings.landing_services_help",
+                "What your organisation offers the public, such as its products, services or programmes. Each needs a name in English, Amharic or both; a description is optional.",
+              )}
+              empty={t("settings.landing_services_empty", "No services yet.")}
+              add={t("settings.landing_services_add", "Add a service")}
+              full={t(
+                "settings.landing_services_full",
+                "Eight services is the most",
+              )}
+              errors={fieldErrors}
+            />
+          </TabsContent>
+
+          <TabsContent value="faq" className="mt-4 space-y-4">
+            <BilingualList
+              id="landing-faq"
+              errorKey="faqs"
+              items={form.faqs}
+              onChange={(faqs) => set("faqs", faqs)}
+              max={FAQ_MAX}
+              fields={[
+                {
+                  key: "question",
+                  label: t("settings.landing_faq_question", "Question"),
+                  max: QUESTION_MAX,
+                },
+                {
+                  key: "answer",
+                  label: t("settings.landing_faq_answer", "Answer"),
+                  max: ANSWER_MAX,
+                  multiline: true,
+                },
+              ]}
+              itemName={(n) =>
+                t("settings.landing_faq_item", "Question :n", { n })
+              }
+              help={t(
+                "settings.landing_faq_help",
+                "Answer the questions people ask most, such as payday, working hours or how to apply. Each needs a question and an answer in English, Amharic or both.",
+              )}
+              empty={t("settings.landing_faq_empty", "No questions yet.")}
+              add={t("settings.landing_faq_add", "Add a question")}
+              full={t(
+                "settings.landing_faq_full",
+                "Twelve questions is the most",
+              )}
+              errors={fieldErrors}
+            />
+          </TabsContent>
+
           <TabsContent value="sections" className="mt-4 space-y-4">
             <ul className="divide-y divide-border rounded-lg border">
               {form.order.map((section, index) => (
@@ -824,6 +965,183 @@ const LINK_PLACEHOLDERS: Record<LinkKey, string> = {
   privacy: "https://example.et/privacy",
   terms: "https://example.et/terms",
 };
+
+/**
+ * A short bilingual list the organisation writes (its questions, its
+ * services): each item's fields in English and Amharic, reordered with up and
+ * down, removed, and added up to `max`. The server's refusal for an item's
+ * field shows under its English input.
+ */
+function BilingualList({
+  id,
+  errorKey,
+  items,
+  onChange,
+  max,
+  fields,
+  itemName,
+  help,
+  empty,
+  add,
+  full,
+  errors,
+}: {
+  id: string;
+  errorKey: string;
+  items: ListItem[];
+  onChange: (items: ListItem[]) => void;
+  max: number;
+  fields: Array<{
+    key: string;
+    label: string;
+    max: number;
+    multiline?: boolean;
+  }>;
+  itemName: (n: number) => string;
+  help: string;
+  empty: string;
+  add: string;
+  full: string;
+  errors: Record<string, string>;
+}) {
+  const { t } = useT();
+
+  const update = (index: number, key: string, value: string) =>
+    onChange(
+      items.map((item, i) => (i === index ? { ...item, [key]: value } : item)),
+    );
+  const move = (index: number, by: -1 | 1) => {
+    const to = index + by;
+    if (to < 0 || to >= items.length) return;
+    const next = [...items];
+    const [item] = next.splice(index, 1);
+    next.splice(to, 0, item);
+    onChange(next);
+  };
+  const blank = (): ListItem => {
+    const item: ListItem = { key: listKey() };
+    for (const field of fields) {
+      item[field.key] = "";
+      item[`${field.key}_am`] = "";
+    }
+    return item;
+  };
+
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">{help}</p>
+      {items.length === 0 ? (
+        <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+          {empty}
+        </p>
+      ) : (
+        <ol className="space-y-4">
+          {items.map((item, index) => {
+            const n = index + 1;
+            const name = itemName(n);
+            return (
+              <li key={item.key} className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center gap-1">
+                  <span className="min-w-0 flex-1 text-sm font-medium">
+                    {name}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={index === 0}
+                    aria-label={t(
+                      "settings.landing_move_up",
+                      "Move :section up",
+                      {
+                        section: name,
+                      },
+                    )}
+                    onClick={() => move(index, -1)}
+                  >
+                    <ArrowUp className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={index === items.length - 1}
+                    aria-label={t(
+                      "settings.landing_move_down",
+                      "Move :section down",
+                      { section: name },
+                    )}
+                    onClick={() => move(index, 1)}
+                  >
+                    <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={t(
+                      "settings.landing_item_remove",
+                      "Remove :item",
+                      {
+                        item: name,
+                      },
+                    )}
+                    onClick={() =>
+                      onChange(items.filter((_, i) => i !== index))
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {fields.flatMap((field) =>
+                    (["", "_am"] as const).map((suffix) => {
+                      const key = `${field.key}${suffix}`;
+                      const inputId = `${id}-${n}-${key}`;
+                      const Control = field.multiline ? Textarea : Input;
+                      return (
+                        <Field
+                          key={key}
+                          id={inputId}
+                          label={`${field.label} ${n} (${suffix ? "አማርኛ" : "English"})`}
+                          error={
+                            suffix
+                              ? undefined
+                              : errors[`${errorKey}.${index}.${field.key}`]
+                          }
+                          counter={`${(item[key] ?? "").length}/${field.max}`}
+                        >
+                          <Control
+                            id={inputId}
+                            value={item[key] ?? ""}
+                            maxLength={field.max}
+                            rows={field.multiline ? 3 : undefined}
+                            lang={suffix ? "am" : undefined}
+                            onChange={(e) => update(index, key, e.target.value)}
+                          />
+                        </Field>
+                      );
+                    }),
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={items.length >= max}
+        onClick={() => onChange([...items, blank()])}
+      >
+        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+        {items.length >= max ? full : add}
+      </Button>
+    </>
+  );
+}
 
 function SwitchRow({
   id,

@@ -1,5 +1,6 @@
 import { afterEach, describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -58,8 +59,11 @@ const feed: LandingFeed = {
       public_id: "a1",
       title: "Plant reopens Monday",
       excerpt: "All shifts resume at 06:00.",
+      category: "notice",
+      featured: false,
       priority: "urgent",
       published_at: "2026-10-12T08:00:00Z",
+      cover: null,
     },
   ],
   vacancies: [
@@ -172,10 +176,15 @@ describe("<OrganisationPortal>", () => {
       await screen.findByRole("heading", { name: "Welcome to Acme" }),
     ).toBeInTheDocument();
     expect(screen.getByText("the sign-in form")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute(
+    // The header's Sign In jumps to the form on the page; the footer offers
+    // the same, worded for the public.
+    expect(screen.getByRole("link", { name: /^sign in$/i })).toHaveAttribute(
       "href",
       "#sign-in",
     );
+    expect(
+      screen.getByRole("link", { name: /employee sign in/i }),
+    ).toHaveAttribute("href", "#sign-in");
     expect(screen.getByText(/powered by ethr/i)).toBeInTheDocument();
   });
 
@@ -202,26 +211,28 @@ describe("<OrganisationPortal>", () => {
     expect(screen.getByText("the sign-in form")).toBeInTheDocument();
   });
 
-  it("opens an announcement in full", async () => {
+  // Since 2026-10-16 a story opens on its own page, which can be linked and
+  // shared, and the organisation travels with it on the shared host.
+  it("links each story to its own page and to all news, keeping the organisation", async () => {
     server.use(
       http.get("*/auth/tenant-landing/feed", () => HttpResponse.json(feed)),
-      http.get("*/auth/tenant-landing/announcements/a1", () =>
-        HttpResponse.json({
-          public_id: "a1",
-          title: "Plant reopens Monday",
-          body: "All shifts resume at 06:00. Gate B stays closed.",
-          priority: "urgent",
-          published_at: "2026-10-12T08:00:00Z",
-        }),
-      ),
     );
 
     renderNews();
-    fireEvent.click(
-      await screen.findByRole("button", { name: /plant reopens monday/i }),
-    );
 
-    expect(await screen.findByText(/gate b stays closed/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("link", { name: /plant reopens monday/i }),
+    ).toHaveAttribute("href", "/news/a1?org=acme");
+    expect(screen.getByRole("link", { name: /^all news$/i })).toHaveAttribute(
+      "href",
+      "/news?org=acme",
+    );
+    // The header and the footer carry the News link too.
+    const newsLinks = screen.getAllByRole("link", { name: /^news$/i });
+    expect(newsLinks.length).toBeGreaterThanOrEqual(2);
+    for (const link of newsLinks) {
+      expect(link).toHaveAttribute("href", "/news?org=acme");
+    }
   });
 });
 
@@ -432,17 +443,22 @@ describe("<OrganisationPortal> content", () => {
   it("draws the about and contact sections, in the organisation's order", async () => {
     renderContent();
 
+    // The footer echoes the about text, so wait for a fact only the about
+    // section shows.
+    expect(await screen.findByText("Founded 1998")).toBeInTheDocument();
     expect(
-      await screen.findByText("Acme makes pumps in Adama."),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Founded 1998")).toBeInTheDocument();
+      screen.getAllByText("Acme makes pumps in Adama.").length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText("Manufacturing")).toBeInTheDocument();
     expect(screen.getByText("201-500 employees")).toBeInTheDocument();
     expect(screen.getByText("3 branches")).toBeInTheDocument();
     expect(
       screen.getAllByText("Industrial zone, Adama").length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText("Mon to Sat, 08:00 to 17:00")).toBeInTheDocument();
+    // In the contact section and again in the footer.
+    expect(
+      screen.getAllByText("Mon to Sat, 08:00 to 17:00").length,
+    ).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("Adama plant")).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: "Open in Maps" })[0],
@@ -510,11 +526,205 @@ describe("<OrganisationPortal> content", () => {
   });
 });
 
+describe("<OrganisationPortal> services", () => {
+  it("shows the services as cards, linked from the header after About", async () => {
+    renderContent({
+      ...contentLanding,
+      order: ["about", "contact"],
+      services: [
+        {
+          title: "Pump repair",
+          title_am: "የፓምፕ ጥገና",
+          description: "On site within 48 hours.",
+          description_am: null,
+        },
+        {
+          title: "Training",
+          title_am: null,
+          description: null,
+          description_am: null,
+        },
+      ],
+    });
+
+    const section = await screen.findByRole("region", { name: "Our services" });
+    expect(
+      within(section).getByRole("heading", { level: 3, name: "Pump repair" }),
+    ).toBeInTheDocument();
+    expect(
+      within(section).getByText("On site within 48 hours."),
+    ).toBeInTheDocument();
+    expect(
+      within(section).getByRole("heading", { level: 3, name: "Training" }),
+    ).toBeInTheDocument();
+
+    // Placed after About, where the default puts it, though the saved order
+    // predates the section.
+    const ids = Array.from(document.querySelectorAll("main section")).map(
+      (s) => s.id,
+    );
+    expect(ids.slice(0, 2)).toEqual(["about", "services"]);
+    expect(
+      within(screen.getByRole("banner")).getByRole("link", {
+        name: "Services",
+      }),
+    ).toHaveAttribute("href", "#services");
+  });
+});
+
+describe("<OrganisationPortal> questions", () => {
+  afterEach(() => {
+    localStorage.removeItem("locale");
+    window.dispatchEvent(new Event("locale-changed"));
+  });
+
+  const withFaqs = {
+    ...contentLanding,
+    faqs: [
+      {
+        question: "When is payday?",
+        question_am: "ደመወዝ መቼ ነው?",
+        answer: "The 28th.\n\nSee https://acme.et/pay for the calendar.",
+        answer_am: null,
+      },
+      {
+        question: "Where do I park?",
+        question_am: null,
+        answer: "Behind gate 2.",
+        answer_am: null,
+      },
+    ],
+  };
+
+  it("answers the organisation's questions, each opening to its answer, linked from the footer only", async () => {
+    const user = userEvent.setup();
+    renderContent(withFaqs);
+
+    const section = await screen.findByRole("region", {
+      name: "Frequently asked questions",
+    });
+    // Appended after the organisation's own order, which predates the section.
+    const ids = Array.from(document.querySelectorAll("main section")).map(
+      (s) => s.id,
+    );
+    expect(ids.at(-1)).toBe("faq");
+
+    const question = within(section).getByText("When is payday?");
+    const details = question.closest("details");
+    expect(details).not.toHaveAttribute("open");
+    await user.click(question);
+    expect(details).toHaveAttribute("open");
+    expect(
+      within(section).getByRole("link", { name: /acme\.et\/pay/ }),
+    ).toHaveAttribute("rel", "noopener noreferrer nofollow ugc");
+
+    // The footer lists it; the header keeps to its four destinations.
+    expect(
+      within(screen.getByRole("contentinfo")).getByRole("link", {
+        name: "FAQ",
+      }),
+    ).toHaveAttribute("href", "#faq");
+    expect(
+      within(screen.getByRole("banner")).queryByRole("link", { name: "FAQ" }),
+    ).toBeNull();
+  });
+
+  it("asks in Amharic where it can, and in English where it cannot", async () => {
+    localStorage.setItem("locale", "am");
+    window.dispatchEvent(new Event("locale-changed"));
+    renderContent(withFaqs);
+
+    expect(await screen.findByText("ደመወዝ መቼ ነው?")).toBeInTheDocument();
+    expect(screen.getByText("Where do I park?")).toBeInTheDocument();
+  });
+
+  it("draws no section when switched off", async () => {
+    renderContent({
+      ...withFaqs,
+      sections: { ...withFaqs.sections, faq: false },
+    });
+    await screen.findByText("Founded 1998");
+
+    expect(document.querySelector("#faq")).toBeNull();
+  });
+});
+
 describe("<OrganisationPortal> branch count", () => {
   // Found on the live portal, 2026-10-15: one place read "1 branches".
   it("says one branch in the singular", async () => {
     renderContent(contentLanding, { branch_count: 1 });
     expect(await screen.findByText("1 branch")).toBeInTheDocument();
     expect(screen.queryByText("1 branches")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The page's frame (2026-10-16): a skip link, the organisation's sections in
+ * the header and in a phone menu, and a footer with its identity, its pages
+ * and how to reach it. Every link leads to something that is there.
+ */
+describe("<OrganisationPortal> frame", () => {
+  it("skips to the content, and lists the sections in the header", async () => {
+    renderContent();
+
+    await screen.findByText("Founded 1998");
+    expect(
+      screen.getByRole("link", { name: /skip to content/i }),
+    ).toHaveAttribute("href", "#main");
+    const header = screen.getAllByRole("navigation", {
+      name: /organisation pages/i,
+    })[0];
+    const labels = within(header)
+      .getAllByRole("link")
+      .map((a) => a.textContent);
+    // In the organisation's order: contact, about, news, careers.
+    expect(labels).toEqual(["Contact", "About", "News", "Careers"]);
+  });
+
+  it("opens the same sections in a menu on a phone", async () => {
+    renderContent();
+    await screen.findByText("Founded 1998");
+
+    fireEvent.click(screen.getByRole("button", { name: /open the menu/i }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("link", { name: "About" })).toHaveAttribute(
+      "href",
+      "#about",
+    );
+    expect(
+      within(dialog).getByRole("link", { name: /sign in/i }),
+    ).toHaveAttribute("href", "#sign-in");
+  });
+
+  it("draws the footer's pages and contact columns from the organisation's data", async () => {
+    renderContent();
+    await screen.findByText("Founded 1998");
+
+    const footer = screen.getByRole("contentinfo");
+    expect(
+      within(footer).getByRole("heading", { name: "Pages" }),
+    ).toBeInTheDocument();
+    expect(
+      within(footer).getByRole("heading", { name: "Contact" }),
+    ).toBeInTheDocument();
+    expect(
+      within(footer).getByRole("link", { name: /telegram/i }),
+    ).toHaveAttribute("href", "https://t.me/acme");
+    expect(
+      within(footer).getByRole("link", { name: "Privacy" }),
+    ).toHaveAttribute("href", "https://acme.et/privacy");
+  });
+
+  it("offers no news link anywhere when nothing is published", async () => {
+    renderContent(contentLanding, { announcements: [] });
+    await screen.findByText("Founded 1998");
+
+    expect(
+      screen.queryByRole("link", { name: /^news$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /read the latest news/i }),
+    ).not.toBeInTheDocument();
   });
 });

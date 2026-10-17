@@ -1,22 +1,25 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
+  ArrowRight,
   Briefcase,
   Building2,
   CalendarDays,
   CalendarHeart,
+  ChevronDown,
+  CircleHelp,
   Clock,
   Clock3,
   Factory,
   Info,
   Landmark,
+  LayoutGrid,
   Mail,
   MapPin,
   Megaphone,
   Phone,
   Receipt,
-  ShieldCheck,
   Users,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -24,8 +27,16 @@ import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LanguageSwitcher } from "@/components/shared/language-switcher";
 import { OrgMark } from "@/components/shared/org-mark";
+import { NewsCard } from "@/features/news/components/news-card";
+import {
+  PortalFooter,
+  PortalHeader,
+  SkipToContent,
+  usePortalNav,
+  visibleSections,
+  type PortalLinks,
+} from "./portal-chrome";
 import type {
   PortalSection,
   TenantBrand,
@@ -33,21 +44,17 @@ import type {
 } from "@/lib/auth/use-auth-host-context";
 import { coverPosition, panelBackground } from "@/lib/auth/landing-background";
 import {
-  hasAbout,
-  hasContact,
-  LINKS,
   localised,
+  localisedFaqs,
+  localisedServices,
   mapsUrl,
-  sectionOn,
-  sectionOrder,
 } from "@/lib/auth/landing-text";
+import { paragraphs, segments } from "@/features/news/news-format";
 import type { LandingFeed } from "@/features/auth/landing-feed";
 import { SupportContacts } from "@/app/(auth)/auth-layout-client";
 import { VacancyMeta } from "./vacancy-dialog";
-import { formatDate, formatDateOnly } from "@/lib/utils/date";
+import { formatDateOnly } from "@/lib/utils/date";
 import { toEthiopian, formatEthiopian } from "@/lib/calendar/ethiopian";
-
-const TIME_ZONE = "Africa/Addis_Ababa";
 
 export interface PortalViewProps {
   name: string | null;
@@ -58,7 +65,11 @@ export interface PortalViewProps {
   feedLoading: boolean;
   /** The context itself still loading: the headline is held back. */
   loading?: boolean;
-  onOpenAnnouncement: (publicId: string) => void;
+  /**
+   * Where the page's links lead (news page, articles). Null in the settings
+   * preview, where the same page draws but nothing navigates away.
+   */
+  links: PortalLinks | null;
   onOpenVacancy: (publicId: string) => void;
   /** The shared sign-in form, placed in the hero card. */
   children: ReactNode;
@@ -86,23 +97,13 @@ export function PortalView({
   feed,
   feedLoading,
   loading = false,
-  onOpenAnnouncement,
+  links,
   onOpenVacancy,
   children,
 }: PortalViewProps) {
   const { t, locale } = useT();
   const { resolvedTheme } = useTheme();
   const highContrast = resolvedTheme === "high-contrast";
-
-  // The header compacts once the page scrolls, so it gives the content room
-  // while keeping the way back to the form one click away.
-  const [compact, setCompact] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setCompact(window.scrollY > 24);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const headline = localised(landing, "headline", locale);
   const message = localised(landing, "message", locale);
@@ -131,33 +132,47 @@ export function PortalView({
     },
   ];
 
+  const sections = visibleSections(landing, feed);
+  const nav = usePortalNav(sections, links);
+  const footerNav = usePortalNav(sections, links, { footer: true });
+  // Only to what is there: news once a story is published, contact once
+  // the organisation gave a way to reach it.
+  const heroLinks = links
+    ? [
+        ...(links.news && sections.includes("announcements")
+          ? [
+              {
+                key: "news",
+                href: links.news,
+                label: t("landing.hero_news", "Read the latest news"),
+              },
+            ]
+          : []),
+        ...(sections.includes("contact")
+          ? [
+              {
+                key: "contact",
+                href: links.section("contact"),
+                label: t("landing.hero_contact", "Contact us"),
+              },
+            ]
+          : []),
+      ]
+    : [];
+
   return (
-    <div className="@container flex min-h-screen flex-col bg-background">
-      <header
-        className={cn(
-          "sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur transition-[padding] duration-200 motion-reduce:transition-none",
-          compact ? "py-2" : "py-3.5",
-        )}
-      >
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 @sm:px-6">
-          <OrgMark
-            name={name}
-            logoUrl={brand?.logo_url}
-            darkLogoUrl={brand?.logo_dark_url}
-            className="h-9 w-9 shrink-0"
-            initialClassName="text-sm"
-          />
-          <p className="min-w-0 truncate text-sm font-semibold text-foreground">
-            {name ?? ""}
-          </p>
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            <LanguageSwitcher />
-            <Button size="sm" asChild>
-              <a href="#sign-in">{t("auth.sign_in", "Sign In")}</a>
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div
+      id="top"
+      className="@container flex min-h-screen flex-col bg-background"
+    >
+      <SkipToContent />
+      <PortalHeader
+        name={name}
+        brand={brand}
+        links={links}
+        nav={nav}
+        current="home"
+      />
 
       <section
         className="relative overflow-hidden bg-primary"
@@ -205,7 +220,7 @@ export function PortalView({
               initialClassName="text-2xl"
             />
             {ownHeadline && (
-              <p className="mt-5 text-sm font-medium uppercase tracking-wider text-primary-foreground/70">
+              <p className="mt-5 text-base font-medium text-primary-foreground/80">
                 {name}
               </p>
             )}
@@ -224,6 +239,24 @@ export function PortalView({
                   "Your workspace for attendance, leave and pay.",
                 )}
             </p>
+
+            {heroLinks.length > 0 && (
+              <p className="mt-5 flex flex-wrap gap-x-6 gap-y-2">
+                {heroLinks.map((l) => (
+                  <a
+                    key={l.key}
+                    href={l.href}
+                    className="group inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-primary-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground"
+                  >
+                    {l.label}
+                    <ArrowRight
+                      className="h-4 w-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+                      aria-hidden="true"
+                    />
+                  </a>
+                ))}
+              </p>
+            )}
 
             <ul className="mt-8 hidden max-w-md space-y-3 @lg:block">
               {features.map(({ icon: Icon, label }) => (
@@ -255,17 +288,29 @@ export function PortalView({
         <div className="relative h-1 w-full bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.3)_0px,rgba(255,255,255,0.3)_8px,rgba(232,168,56,0.5)_8px,rgba(232,168,56,0.5)_16px,rgba(255,255,255,0.3)_16px,rgba(255,255,255,0.3)_24px,transparent_24px,transparent_32px)]" />
       </section>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 @sm:px-6">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="w-full flex-1 focus:outline-none"
+      >
         <PortalSections
           landing={landing}
           feed={feed}
           loading={feedLoading}
-          onOpenAnnouncement={onOpenAnnouncement}
+          links={links}
+          sections={sections}
+          name={name}
           onOpenVacancy={onOpenVacancy}
         />
       </main>
 
-      <PortalFooter name={name} landing={landing} />
+      <PortalFooter
+        name={name}
+        brand={brand}
+        landing={landing}
+        nav={footerNav}
+        links={links}
+      />
     </div>
   );
 }
@@ -278,13 +323,18 @@ function PortalSections({
   landing,
   feed,
   loading,
-  onOpenAnnouncement,
+  links,
+  sections,
+  name,
   onOpenVacancy,
 }: {
   landing: TenantLanding | null | undefined;
   feed: LandingFeed | null | undefined;
   loading: boolean;
-  onOpenAnnouncement: (publicId: string) => void;
+  links: PortalLinks | null;
+  /** The visible sections, in order (`visibleSections`). */
+  sections: PortalSection[];
+  name: string | null;
   onOpenVacancy: (publicId: string) => void;
 }) {
   const { t, locale } = useT();
@@ -292,7 +342,7 @@ function PortalSections({
   if (loading && !feed) {
     // The same card grid the content lands in, so nothing jumps.
     return (
-      <div className="grid gap-4 py-12 @sm:grid-cols-2 @lg:grid-cols-3">
+      <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-14 @sm:grid-cols-2 @sm:px-6 @lg:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-36 rounded-xl" />
         ))}
@@ -305,22 +355,17 @@ function PortalSections({
   const holidays = feed?.holidays ?? [];
   const branches = feed?.branches ?? [];
   const branchCount = feed?.branch_count ?? null;
+  const lead = announcements[0]?.featured ? announcements[0] : null;
+  const name_ = name ?? "";
 
-  const present: Record<PortalSection, boolean> = {
-    about: hasAbout(landing, branchCount),
-    announcements: announcements.length > 0,
-    vacancies: vacancies.length > 0,
-    holidays: holidays.length > 0,
-    contact: hasContact(landing, branches.length),
-  };
-  const sections = sectionOrder(landing).filter(
-    (section) => sectionOn(landing, section) && present[section],
-  );
   if (sections.length === 0) return null;
 
   return (
-    <div className="space-y-14 py-12">
-      {sections.map((section) => {
+    <div>
+      {sections.map((section, index) => {
+        // Every other section sits on a quiet band, so the page reads as
+        // distinct parts without boxing each one in.
+        const band = index % 2 === 1;
         switch (section) {
           case "about":
             return (
@@ -328,6 +373,7 @@ function PortalSections({
                 key={section}
                 id="about"
                 icon={Info}
+                band={band}
                 title={t("landing.about", "About us")}
               >
                 <AboutSection landing={landing} branchCount={branchCount} />
@@ -339,47 +385,45 @@ function PortalSections({
                 key={section}
                 id="news"
                 icon={Megaphone}
+                band={band}
                 title={t("landing.news", "Latest news")}
+                description={t(
+                  "landing.news_desc",
+                  "News and announcements from :name.",
+                  { name: name_ },
+                )}
+                action={
+                  links?.news ? (
+                    <a
+                      href={links.news}
+                      className="group inline-flex items-center gap-1 rounded-sm text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {t("landing.all_news", "All news")}
+                      <ArrowRight
+                        className="h-4 w-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+                        aria-hidden="true"
+                      />
+                    </a>
+                  ) : null
+                }
               >
                 <div className="grid gap-4 @sm:grid-cols-2 @lg:grid-cols-3">
                   {announcements.map((a) => (
-                    <button
+                    <div
                       key={a.public_id}
-                      type="button"
-                      onClick={() => onOpenAnnouncement(a.public_id)}
-                      className="group flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-border-strong hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className={cn(
+                        "flex min-w-0",
+                        a === lead &&
+                          "@sm:col-span-2 @lg:col-span-2 @lg:row-span-2",
+                        "[&>*]:flex-1",
+                      )}
                     >
-                      <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {a.published_at && (
-                          <time dateTime={a.published_at}>
-                            {formatDate(a.published_at, TIME_ZONE)}
-                          </time>
-                        )}
-                        {(a.priority === "urgent" || a.priority === "high") && (
-                          <span
-                            className={cn(
-                              "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
-                              a.priority === "urgent"
-                                ? "bg-destructive-soft text-destructive-on-soft"
-                                : "bg-warning-soft text-warning-on-soft",
-                            )}
-                          >
-                            {a.priority === "urgent"
-                              ? t("landing.urgent", "Urgent")
-                              : t("landing.important", "Important")}
-                          </span>
-                        )}
-                      </span>
-                      <span className="mt-2 text-sm font-semibold text-foreground">
-                        {a.title}
-                      </span>
-                      <span className="mt-1 line-clamp-4 whitespace-pre-line text-sm text-muted-foreground">
-                        {a.excerpt}
-                      </span>
-                      <span className="mt-3 text-xs font-medium text-primary group-hover:underline">
-                        {t("landing.read_more", "Read more")}
-                      </span>
-                    </button>
+                      <NewsCard
+                        item={a}
+                        size={a === lead ? "feature" : "card"}
+                        href={links ? links.article(a.public_id) : null}
+                      />
+                    </div>
                   ))}
                 </div>
               </PortalSectionFrame>
@@ -390,7 +434,12 @@ function PortalSections({
                 key={section}
                 id="careers"
                 icon={Briefcase}
+                band={band}
                 title={t("landing.vacancies", "Open positions")}
+                description={t(
+                  "landing.vacancies_desc",
+                  "Roles you can apply for now.",
+                )}
               >
                 <div className="grid gap-4 @sm:grid-cols-2 @lg:grid-cols-3">
                   {vacancies.map((v) => (
@@ -433,7 +482,12 @@ function PortalSections({
                 key={section}
                 id="holidays"
                 icon={CalendarHeart}
+                band={band}
                 title={t("landing.holidays", "Upcoming holidays")}
+                description={t(
+                  "landing.holidays_desc",
+                  "Days the organisation is closed.",
+                )}
               >
                 <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
                   {holidays.map((h) => (
@@ -446,13 +500,42 @@ function PortalSections({
                 </ul>
               </PortalSectionFrame>
             );
+          case "services":
+            return (
+              <PortalSectionFrame
+                key={section}
+                id="services"
+                icon={LayoutGrid}
+                band={band}
+                title={t("landing.services", "Our services")}
+              >
+                <ServicesSection landing={landing} />
+              </PortalSectionFrame>
+            );
+          case "faq":
+            return (
+              <PortalSectionFrame
+                key={section}
+                id="faq"
+                icon={CircleHelp}
+                band={band}
+                title={t("landing.faq", "Frequently asked questions")}
+              >
+                <FaqSection landing={landing} />
+              </PortalSectionFrame>
+            );
           case "contact":
             return (
               <PortalSectionFrame
                 key={section}
                 id="contact"
                 icon={MapPin}
+                band={band}
                 title={t("landing.contact", "Contact")}
+                description={t(
+                  "landing.contact_desc",
+                  "How to reach us, and where to find us.",
+                )}
               >
                 <ContactSection landing={landing} branches={branches} />
               </PortalSectionFrame>
@@ -463,25 +546,146 @@ function PortalSections({
   );
 }
 
+/**
+ * One section of the page: full width, on a quiet band when `band` is set,
+ * with its content in the page's column. The heading says what the section
+ * is and, when it helps, a line says what it is for.
+ */
 function PortalSectionFrame({
   id,
   icon: Icon,
   title,
+  description,
+  action,
+  band = false,
   children,
 }: {
   id: string;
   icon: typeof Megaphone;
   title: string;
+  description?: string;
+  /** A link beside the heading, such as "All news". */
+  action?: ReactNode;
+  band?: boolean;
   children: ReactNode;
 }) {
+  const headingId = `${id}-heading`;
   return (
-    <section id={id} aria-label={title} className="scroll-mt-24">
-      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-        <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
-        {title}
-      </h2>
-      {children}
+    <section
+      id={id}
+      aria-labelledby={headingId}
+      className={cn("scroll-mt-20", band && "bg-muted/50")}
+    >
+      <div className="mx-auto w-full max-w-6xl px-4 py-14 @sm:px-6 @lg:py-16">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+          <div className="min-w-0">
+            <h2
+              id={headingId}
+              className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground"
+            >
+              <Icon
+                className="h-6 w-6 shrink-0 text-primary"
+                aria-hidden="true"
+              />
+              {title}
+            </h2>
+            {description && (
+              <p className="mt-1.5 max-w-prose text-base text-muted-foreground">
+                {description}
+              </p>
+            )}
+          </div>
+          {action}
+        </div>
+        {children}
+      </div>
     </section>
+  );
+}
+
+/** What the organisation offers, as cards: each name, and its words if any. */
+function ServicesSection({
+  landing,
+}: {
+  landing: TenantLanding | null | undefined;
+}) {
+  const { locale } = useT();
+  const services = localisedServices(landing, locale);
+
+  return (
+    <ul className="grid gap-4 @sm:grid-cols-2 @lg:grid-cols-3">
+      {services.map((service, i) => (
+        <li
+          key={i}
+          className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-5"
+        >
+          <h3 className="text-base font-semibold text-foreground">
+            {service.title}
+          </h3>
+          {service.description && (
+            <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+              {service.description}
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The organisation's questions, each opening to its answer. Native
+ * disclosure (`details`), so it works by keyboard and screen reader and with
+ * no script at all. Answers are text: paragraphs from blank lines, https
+ * addresses as links, as a news story reads.
+ */
+function FaqSection({
+  landing,
+}: {
+  landing: TenantLanding | null | undefined;
+}) {
+  const { t, locale } = useT();
+  const faqs = localisedFaqs(landing, locale);
+
+  return (
+    <div className="max-w-3xl divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+      {faqs.map((faq, i) => (
+        <details key={i} className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left text-base font-medium text-foreground transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <span className="min-w-0">{faq.question}</span>
+            <ChevronDown
+              className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none"
+              aria-hidden="true"
+            />
+          </summary>
+          <div className="space-y-3 px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
+            {paragraphs(faq.answer).map((paragraph, j) => (
+              <p key={j} className="whitespace-pre-line">
+                {segments(paragraph).map((segment, k) =>
+                  segment.kind === "link" ? (
+                    <a
+                      key={k}
+                      href={segment.href}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow ugc"
+                      className="break-words text-primary underline underline-offset-4 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {segment.href}
+                      <span className="sr-only">
+                        {" "}
+                        {t("news.opens_new_tab", "(opens in a new tab)")}
+                      </span>
+                    </a>
+                  ) : (
+                    <span key={k}>{segment.text}</span>
+                  ),
+                )}
+              </p>
+            ))}
+          </div>
+        </details>
+      ))}
+    </div>
   );
 }
 
@@ -680,106 +884,6 @@ function ContactSection({
         </div>
       )}
     </div>
-  );
-}
-
-const LINK_LABELS: Record<(typeof LINKS)[number], string> = {
-  website: "Website",
-  linkedin: "LinkedIn",
-  facebook: "Facebook",
-  x: "X",
-  telegram: "Telegram",
-  youtube: "YouTube",
-  privacy: "Privacy",
-  terms: "Terms",
-};
-
-/**
- * The footer: the organisation's links (its own site and networks, each
- * server-checked to be https on the network's own host), its privacy and
- * terms or ETHR's when it set none, the support email, the year and the
- * ETHR mark.
- */
-function PortalFooter({
-  name,
-  landing,
-}: {
-  name: string | null;
-  landing: TenantLanding | null | undefined;
-}) {
-  const { t, locale } = useT();
-  const links = landing?.links ?? {};
-  const social = (
-    ["website", "linkedin", "facebook", "x", "telegram", "youtube"] as const
-  ).filter((key) => Boolean(links[key]));
-  const policies = [
-    {
-      key: "privacy" as const,
-      href: links.privacy || `/${locale}/privacy`,
-      label: t("landing.privacy", LINK_LABELS.privacy),
-    },
-    {
-      key: "terms" as const,
-      href: links.terms || `/${locale}/terms`,
-      label: t("landing.terms", LINK_LABELS.terms),
-    },
-  ];
-  const link =
-    "rounded-sm underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
-  return (
-    <footer className="border-t border-border">
-      <div className="mx-auto w-full max-w-6xl space-y-3 px-4 py-6 text-xs text-muted-foreground @sm:px-6">
-        {social.length > 0 && (
-          <nav
-            aria-label={t("landing.links", "Links")}
-            className="flex flex-wrap gap-x-5 gap-y-1"
-          >
-            {social.map((key) => (
-              <a
-                key={key}
-                href={links[key] ?? undefined}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(link, "font-medium text-foreground")}
-              >
-                {key === "website"
-                  ? t("landing.website", LINK_LABELS.website)
-                  : LINK_LABELS[key]}
-              </a>
-            ))}
-          </nav>
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-          <p>
-            © {new Date().getFullYear()} {name ?? "ETHR"}
-          </p>
-          <span className="flex flex-wrap gap-x-4 gap-y-1">
-            {policies.map((p) => (
-              <a
-                key={p.key}
-                href={p.href}
-                className={link}
-                {...(links[p.key]
-                  ? { target: "_blank", rel: "noopener noreferrer" }
-                  : {})}
-              >
-                {p.label}
-              </a>
-            ))}
-          </span>
-          {landing?.support_email && (
-            <a className={link} href={`mailto:${landing.support_email}`}>
-              {landing.support_email}
-            </a>
-          )}
-          <p className="inline-flex items-center gap-1.5">
-            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-            {t("auth.powered_by", "Powered by ETHR")}
-          </p>
-        </div>
-      </div>
-    </footer>
   );
 }
 

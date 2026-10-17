@@ -462,6 +462,81 @@ export function useReviewIntegrityFlag() {
   );
 }
 
+// ── Selfie review ────────────────────────────────────────────────────────────
+// Attendance selfies are kept for the organisation's retention period, then
+// HR and the department manager have 48 hours to hold any a complaint needs
+// before the photo files are deleted (docs/operations/ATTENDANCE-PHOTO-RETENTION.md).
+
+export type AttendancePhoto = components["schemas"]["AttendancePhotoResource"];
+export type AttendancePhotoStatus = "all" | "review" | "held";
+
+const photoKeys = ["attendance", "photos"] as const;
+
+export function useAttendancePhotos(params: {
+  status: AttendancePhotoStatus;
+  page: number;
+}) {
+  return useQuery<PaginatedResponse<AttendancePhoto>>({
+    queryKey: [...photoKeys, "list", params],
+    queryFn: async () =>
+      (
+        await apiClient.get("/attendance/photos", {
+          params: { status: params.status, page: params.page },
+        })
+      ).data,
+  });
+}
+
+/**
+ * One selfie as an object URL, fetched only when someone opens it: each view
+ * is audited on the server, so it is never prefetched and never cached.
+ */
+export function useAttendancePhotoImage(
+  publicId: string | null,
+  which: "check-in" | "check-out",
+) {
+  return useQuery<string>({
+    queryKey: [...photoKeys, "image", publicId, which],
+    enabled: publicId !== null,
+    gcTime: 0,
+    staleTime: Infinity,
+    queryFn: async () => {
+      const response = await apiClient.get<Blob>(
+        `/attendance/photos/${publicId}/${which}`,
+        { responseType: "blob" },
+      );
+      return URL.createObjectURL(response.data);
+    },
+  });
+}
+
+export function useHoldAttendancePhoto() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: {
+      publicId: string;
+      reason: string;
+    }): Promise<AttendancePhoto> =>
+      (
+        await apiClient.post(`/attendance/photos/${vars.publicId}/hold`, {
+          reason: vars.reason,
+        })
+      ).data,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: [...photoKeys, "list"] }),
+  });
+}
+
+export function useReleaseAttendancePhoto() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (publicId: string): Promise<AttendancePhoto> =>
+      (await apiClient.delete(`/attendance/photos/${publicId}/hold`)).data,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: [...photoKeys, "list"] }),
+  });
+}
+
 // ── CSV import ────────────────────────────────────────────────────────────────
 
 /** A POST, so a mutation: the template is fetched on demand, not on mount. */

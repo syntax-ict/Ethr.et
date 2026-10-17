@@ -90,6 +90,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'attendance.viewAll', 'module' => 'attendance', 'action' => 'viewAll', 'description' => 'View all attendance records'],
             ['name' => 'attendance.view', 'module' => 'attendance', 'action' => 'view', 'description' => 'View attendance records'],
             ['name' => 'attendance.manage', 'module' => 'attendance', 'action' => 'manage', 'description' => 'Manage attendance settings and imports'],
+            ['name' => 'attendance.viewPhotos', 'module' => 'attendance', 'action' => 'viewPhotos', 'description' => 'View and hold attendance selfies within scope'],
             ['name' => 'attendance.viewConflicts', 'module' => 'attendance', 'action' => 'viewConflicts', 'description' => 'View attendance conflicts for HR review'],
             ['name' => 'attendance.resolveConflicts', 'module' => 'attendance', 'action' => 'resolveConflicts', 'description' => 'Resolve attendance conflicts'],
 
@@ -241,6 +242,11 @@ class PermissionSeeder extends Seeder
             'dashboard.regional',
         ];
 
+        // Attendance selfies are biometric data (Proclamation 1321/2024, Art.
+        // 2(5)): HR across the organisation and a department manager for their
+        // own department, not supervisors and not finance.
+        $photoReviewer = ['attendance.viewPhotos'];
+
         // Level 70 is two roles with different jobs (audit N95, owner decision
         // delegated 2026-10-08). Until then both held every ability below and
         // in $finance, so a Finance Admin could hire, transition and change an
@@ -322,10 +328,10 @@ class PermissionSeeder extends Seeder
         return [
             'employee' => $everyone,
             'supervisor' => array_merge($everyone, $supervisor),
-            'dept_admin' => array_merge($everyone, $supervisor),
+            'dept_admin' => array_merge($everyone, $supervisor, $photoReviewer),
             'finance_admin' => array_merge($everyone, $supervisor, $director, $financeAdmin),
-            'hr_admin' => array_merge($everyone, $supervisor, $director, $hrAdmin),
-            'tenant_admin' => array_merge($everyone, $supervisor, $director, $hrAdmin, $financeAdmin, $tenantAdmin),
+            'hr_admin' => array_merge($everyone, $supervisor, $director, $hrAdmin, $photoReviewer),
+            'tenant_admin' => array_merge($everyone, $supervisor, $director, $hrAdmin, $financeAdmin, $tenantAdmin, $photoReviewer),
         ];
     }
 }

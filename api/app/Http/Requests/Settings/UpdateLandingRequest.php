@@ -19,8 +19,10 @@ use Illuminate\Validation\Validator;
  * `POST /settings/branding/assets/cover`; choosing it before a cover exists
  * is refused in withValidator(). The network links are checked against the
  * network's own host there too, with TenantLanding::linkUrl(), the same test
- * the public side applies before serving. Scramble does not read
- * withValidator(), so the contract stays a plain rule set.
+ * the public side applies before serving. Each question needs a question
+ * and an answer in at least one language, and each service a title,
+ * checked there as well. Scramble
+ * does not read withValidator(), so the contract stays a plain rule set.
  */
 class UpdateLandingRequest extends FormRequest
 {
@@ -64,12 +66,26 @@ class UpdateLandingRequest extends FormRequest
             'links.terms' => ['nullable', 'string', 'url:https', 'max:500'],
             'sections' => ['sometimes', 'array:'.implode(',', array_keys(TenantLanding::SECTIONS))],
             'sections.about' => ['sometimes', 'boolean'],
+            'sections.services' => ['sometimes', 'boolean'],
             'sections.announcements' => ['sometimes', 'boolean'],
             'sections.vacancies' => ['sometimes', 'boolean'],
             'sections.holidays' => ['sometimes', 'boolean'],
+            'sections.faq' => ['sometimes', 'boolean'],
             'sections.contact' => ['sometimes', 'boolean'],
-            'order' => ['sometimes', 'array', 'max:5'],
+            'order' => ['sometimes', 'array', 'max:7'],
             'order.*' => ['string', 'distinct', 'in:'.implode(',', TenantLanding::ORDER)],
+            'faqs' => ['sometimes', 'array', 'max:12'],
+            'faqs.*' => ['array:question,question_am,answer,answer_am'],
+            'faqs.*.question' => ['nullable', 'string', 'max:160'],
+            'faqs.*.question_am' => ['nullable', 'string', 'max:160'],
+            'faqs.*.answer' => ['nullable', 'string', 'max:1000'],
+            'faqs.*.answer_am' => ['nullable', 'string', 'max:1000'],
+            'services' => ['sometimes', 'array', 'max:8'],
+            'services.*' => ['array:title,title_am,description,description_am'],
+            'services.*.title' => ['nullable', 'string', 'max:80'],
+            'services.*.title_am' => ['nullable', 'string', 'max:80'],
+            'services.*.description' => ['nullable', 'string', 'max:400'],
+            'services.*.description_am' => ['nullable', 'string', 'max:400'],
             'listed' => ['sometimes', 'boolean'],
         ];
     }
@@ -81,6 +97,29 @@ class UpdateLandingRequest extends FormRequest
                 && ! $validator->errors()->has('background')
                 && app(CurrentTenant::class)->get()->brandAsset('cover') === null) {
                 $validator->errors()->add('background', __('validation.landing_cover_missing'));
+            }
+
+            foreach ((array) $this->input('faqs', []) as $i => $faq) {
+                if (! is_array($faq)) {
+                    continue;
+                }
+                $filled = static fn (string $key): bool => is_string($faq[$key] ?? null) && trim($faq[$key]) !== '';
+                if (! $filled('question') && ! $filled('question_am')) {
+                    $validator->errors()->add("faqs.{$i}.question", __('validation.landing_faq_question'));
+                }
+                if (! $filled('answer') && ! $filled('answer_am')) {
+                    $validator->errors()->add("faqs.{$i}.answer", __('validation.landing_faq_answer'));
+                }
+            }
+
+            foreach ((array) $this->input('services', []) as $i => $service) {
+                if (! is_array($service)) {
+                    continue;
+                }
+                $named = static fn (string $key): bool => is_string($service[$key] ?? null) && trim($service[$key]) !== '';
+                if (! $named('title') && ! $named('title_am')) {
+                    $validator->errors()->add("services.{$i}.title", __('validation.landing_service_title'));
+                }
             }
 
             foreach (TenantLanding::LINK_HOSTS as $link => $hosts) {
