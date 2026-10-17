@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\Admin\SmsDeliveryController;
 use App\Http\Controllers\Api\V1\Analytics\AnalyticsController;
 use App\Http\Controllers\Api\V1\Announcement\AnnouncementController;
 use App\Http\Controllers\Api\V1\Announcement\AnnouncementCoverController;
+use App\Http\Controllers\Api\V1\Announcement\AnnouncementFileController;
 use App\Http\Controllers\Api\V1\ApiKey\ApiKeyController;
 use App\Http\Controllers\Api\V1\Approval\ApprovalController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceConflictController;
@@ -125,6 +126,7 @@ use App\Http\Controllers\Api\V1\Voice\PulseController;
 use App\Http\Controllers\Api\V1\Voice\RecognitionController;
 use App\Http\Controllers\Api\V1\Webhook\WebhookController;
 use App\Http\Controllers\NewsCoverController;
+use App\Http\Controllers\NewsFileController;
 use App\Http\Controllers\OrganisationAssetController;
 use App\Http\Controllers\OrganisationLogoController;
 use App\Http\Middleware\BlockImpersonatedActions;
@@ -231,6 +233,12 @@ Route::get('/organisation-assets/{publicId}/{kind}/{version}', OrganisationAsset
 Route::get('/news-covers/{publicId}/{story}/{size}/{version}', NewsCoverController::class)
     ->where(['publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'story' => '[0-9A-HJKMNP-TV-Z]{26}', 'size' => 'cover|cover-1280|cover-640', 'version' => '[0-9a-f]{16}'])
     ->name('organisation.news-cover');
+
+// A document attached to a news story, while the story is public.
+Route::get('/news-files/{publicId}/{story}/{file}', NewsFileController::class)
+    ->where(['publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'story' => '[0-9A-HJKMNP-TV-Z]{26}', 'file' => '[0-9A-HJKMNP-TV-Z]{26}'])
+    ->middleware('throttle:api')
+    ->name('organisation.news-file');
 
 // What the organisation chose to show the public on its sign-in page:
 // announcements and vacancies marked public, and upcoming holidays.
@@ -696,6 +704,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
     Route::post('/announcements/{announcement}/cover', [AnnouncementCoverController::class, 'store'])->middleware('throttle:uploads');
     Route::delete('/announcements/{announcement}/cover', [AnnouncementCoverController::class, 'destroy']);
+    Route::post('/announcements/{announcement}/files', [AnnouncementFileController::class, 'store'])->middleware('throttle:uploads');
+    Route::get('/announcements/{announcement}/files/{file}', [AnnouncementFileController::class, 'download'])->where('file', '[0-9A-HJKMNP-TV-Z]{26}');
+    Route::delete('/announcements/{announcement}/files/{file}', [AnnouncementFileController::class, 'destroy'])->where('file', '[0-9A-HJKMNP-TV-Z]{26}');
 
     Route::get('/vacancies', [VacancyController::class, 'index']);
     Route::get('/vacancies/{vacancy}', [VacancyController::class, 'show']);

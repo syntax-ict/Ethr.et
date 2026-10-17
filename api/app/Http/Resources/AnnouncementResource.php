@@ -27,6 +27,7 @@ class AnnouncementResource extends JsonResource
             'show_on_landing' => (bool) $this->show_on_landing,
             'featured' => (bool) $this->featured,
             'cover' => $this->resource->coverPresented((string) app(CurrentTenant::class)->publicId()),
+            'attachments' => $this->resource->attachmentsPresented(),
             'created_at' => $this->created_at,
         ];
     }
