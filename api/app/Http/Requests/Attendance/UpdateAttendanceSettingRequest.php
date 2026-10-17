@@ -35,6 +35,7 @@ class UpdateAttendanceSettingRequest extends FormRequest
             'auto_checkout_enabled' => ['sometimes', 'boolean'],
             'auto_checkout_after_minutes' => ['sometimes', 'integer', 'min:15', 'max:720'],
             'geofence_auto_checkin_enabled' => ['sometimes', 'boolean'],
+            'photo_retention_days' => ['sometimes', 'integer', 'min:1', 'max:90'],
         ];
     }
 }
