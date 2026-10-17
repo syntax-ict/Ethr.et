@@ -18,4 +18,6 @@ return [
     'import_field_email' => 'email',
     'import_field_badge_number' => 'badge number',
     'number_format_invalid' => 'Use one {SEQ:n} token, n from 1 to 8, with letters, digits, - _ . or / around it. For example EMP-{SEQ:4}.',
+    'invalid_transition' => 'Cannot change status from :from to :to.',
+    'bulk_update_failed' => 'This employee could not be updated. Try again, or change them from their profile.',
 ];
