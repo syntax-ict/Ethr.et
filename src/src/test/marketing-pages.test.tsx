@@ -176,6 +176,33 @@ describe("Landing page", () => {
     expect(section).not.toHaveTextContent(/Excel|multi-level|delegat/i);
   });
 
+  it("says where data is stored, and claims no compliance on the customer's behalf", () => {
+    withQuery(<LandingContent />);
+
+    // Proclamation 1321/2024, Art. 22: personal data collected in Ethiopia is
+    // stored on servers in Ethiopia. ETHR's hosting does that (www.ethr.et
+    // resolves to Ethio Telecom, Addis Ababa, measured 2026-10-17), so the page
+    // says it. It does not say "full compliance": registration with the
+    // Authority (Art. 33) and a lawful basis are the employer's duties as data
+    // controller, and nothing measures that every byte stays in the country.
+    expect(
+      screen.getByText("Your Data, Stored in Ethiopia"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Personal Data Protection Proclamation No\. 1321\/2024/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/full compliance/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No data leaves/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Your Data, Your Servers"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Every action is logged/i),
+    ).not.toBeInTheDocument();
+    // No device is verified on real hardware yet.
+    expect(screen.queryByText(/Biometric devices/i)).not.toBeInTheDocument();
+  });
+
   it("states no figure it cannot substantiate", () => {
     withQuery(<LandingContent />);
 
