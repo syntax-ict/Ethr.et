@@ -30,13 +30,13 @@ final class TenantLanding
      * What the page shows beside the sign-in form, and whether each is on by
      * default. News and vacancies are on: each item still has to be marked
      * for the public by whoever wrote it. Holidays are off until chosen.
-     * About, questions and contact are on, and draw nothing until something
-     * is written.
+     * About, services, questions and contact are on, and draw nothing until
+     * something is written.
      */
-    public const SECTIONS = ['about' => true, 'announcements' => true, 'vacancies' => true, 'holidays' => false, 'faq' => true, 'contact' => true];
+    public const SECTIONS = ['about' => true, 'services' => true, 'announcements' => true, 'vacancies' => true, 'holidays' => false, 'faq' => true, 'contact' => true];
 
     /** The sections in the order the page shows them until an admin reorders. */
-    public const ORDER = ['about', 'announcements', 'vacancies', 'holidays', 'faq', 'contact'];
+    public const ORDER = ['about', 'services', 'announcements', 'vacancies', 'holidays', 'faq', 'contact'];
 
     /** The sectors an organisation may say it is in; the page names each in both languages. */
     public const SECTORS = [
@@ -75,8 +75,15 @@ final class TenantLanding
 
     public const ANSWER_MAX = 1000;
 
+    /** How many services the page lists, and how long each may be. */
+    public const SERVICES_MAX = 8;
+
+    public const SERVICE_TITLE_MAX = 80;
+
+    public const SERVICE_TEXT_MAX = 400;
+
     /**
-     * @return array{headline: string|null, headline_am: string|null, message: string|null, message_am: string|null, support_email: string|null, support_phone: string|null, background: string, about: string|null, about_am: string|null, founded_year: int|null, sector: string|null, staff_band: string|null, show_branch_count: bool, address: string|null, address_am: string|null, hours: string|null, hours_am: string|null, latitude: float|null, longitude: float|null, show_branches: bool, links: array<string, string|null>, faqs: list<array{question: string|null, question_am: string|null, answer: string|null, answer_am: string|null}>, sections: array<string, bool>, order: list<string>, listed: bool}
+     * @return array{headline: string|null, headline_am: string|null, message: string|null, message_am: string|null, support_email: string|null, support_phone: string|null, background: string, about: string|null, about_am: string|null, founded_year: int|null, sector: string|null, staff_band: string|null, show_branch_count: bool, address: string|null, address_am: string|null, hours: string|null, hours_am: string|null, latitude: float|null, longitude: float|null, show_branches: bool, links: array<string, string|null>, faqs: list<array{question: string|null, question_am: string|null, answer: string|null, answer_am: string|null}>, services: list<array{title: string|null, title_am: string|null, description: string|null, description_am: string|null}>, sections: array<string, bool>, order: list<string>, listed: bool}
      */
     public static function present(Tenant $tenant): array
     {
@@ -117,6 +124,7 @@ final class TenantLanding
             'show_branches' => ($landing['show_branches'] ?? null) === true,
             'links' => self::links($landing['links'] ?? null),
             'faqs' => self::faqs($landing['faqs'] ?? null),
+            'services' => self::services($landing['services'] ?? null),
             'sections' => self::sections($landing['sections'] ?? null),
             'order' => self::order($landing['order'] ?? null),
             'listed' => ($landing['listed'] ?? null) === true,
@@ -138,9 +146,11 @@ final class TenantLanding
     }
 
     /**
-     * The stored order with anything unknown dropped and anything missing
-     * appended in the default order, so every section has a place. Contact
-     * stays last if it was.
+     * The stored order with anything unknown dropped, and every section it
+     * lacks placed right after the nearest section that comes before it in
+     * the default order (at the end when none does). A section added after
+     * an organisation chose its order (services, questions) lands where the
+     * default would put it relative to the rest, not below Contact.
      *
      * @return list<string>
      */
@@ -152,17 +162,19 @@ final class TenantLanding
                 $order[] = $section;
             }
         }
-        // Contact stays last where the organisation put it last: a section
-        // added later (questions, 2026-10-16) goes above it, not below. It is
-        // taken off here and the default order, which ends with it, puts it
-        // back after anything missing.
-        if (count($order) > 1 && $order[count($order) - 1] === 'contact') {
-            array_pop($order);
-        }
-        foreach (self::ORDER as $section) {
-            if (! in_array($section, $order, true)) {
-                $order[] = $section;
+        foreach (self::ORDER as $index => $section) {
+            if (in_array($section, $order, true)) {
+                continue;
             }
+            $at = count($order);
+            for ($before = $index - 1; $before >= 0; $before--) {
+                $found = array_search(self::ORDER[$before], $order, true);
+                if (is_int($found)) {
+                    $at = $found + 1;
+                    break;
+                }
+            }
+            array_splice($order, $at, 0, [$section]);
         }
 
         return $order;
@@ -195,6 +207,33 @@ final class TenantLanding
         }
 
         return $faqs;
+    }
+
+    /**
+     * What the organisation offers, in its order: a title in at least one
+     * language, and optionally a few words about it.
+     *
+     * @return list<array{title: string|null, title_am: string|null, description: string|null, description_am: string|null}>
+     */
+    public static function services(mixed $stored): array
+    {
+        $services = [];
+        foreach (is_array($stored) ? $stored : [] as $item) {
+            if (! is_array($item) || count($services) >= self::SERVICES_MAX) {
+                continue;
+            }
+            $service = [
+                'title' => self::text($item['title'] ?? null, self::SERVICE_TITLE_MAX),
+                'title_am' => self::text($item['title_am'] ?? null, self::SERVICE_TITLE_MAX),
+                'description' => self::text($item['description'] ?? null, self::SERVICE_TEXT_MAX),
+                'description_am' => self::text($item['description_am'] ?? null, self::SERVICE_TEXT_MAX),
+            ];
+            if (($service['title'] ?? $service['title_am']) !== null) {
+                $services[] = $service;
+            }
+        }
+
+        return $services;
     }
 
     /**
