@@ -6319,13 +6319,17 @@
                                                     "type": "null"
                                                 }
                                             ]
+                                        },
+                                        "upload_limit_bytes": {
+                                            "type": "integer"
                                         }
                                     },
                                     "required": [
                                         "user",
                                         "permissions",
                                         "plan_features",
-                                        "tenant"
+                                        "tenant",
+                                        "upload_limit_bytes"
                                     ]
                                 }
                             }

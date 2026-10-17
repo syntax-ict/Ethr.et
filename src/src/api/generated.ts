@@ -12330,6 +12330,7 @@ export interface operations {
                         };
                         plan_features: unknown[] | null;
                         tenant: components["schemas"]["TenantResource"] | null;
+                        upload_limit_bytes: number;
                     };
                 };
             };
