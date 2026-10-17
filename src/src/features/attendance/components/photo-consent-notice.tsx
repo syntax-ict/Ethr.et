@@ -36,15 +36,15 @@ export function PhotoConsentPoints() {
     ),
     t(
       "attendance.photo_consent.who",
-      "Who sees it: your organisation's HR and the managers who review your attendance.",
+      "Who sees it: your organisation's HR and your department manager, nobody else. Every view is recorded.",
     ),
     t(
       "attendance.photo_consent.where",
-      "Where it is kept: with your attendance record, on servers in Ethiopia.",
+      "Where it is kept: with your attendance record, on servers in Ethiopia, for the time your organisation sets (7 days unless changed). Then the photo is deleted and your attendance times stay.",
     ),
     t(
       "attendance.photo_consent.withdraw",
-      "Your choice: withdraw at any time under Profile, Preferences. Photos already taken stay with their records; ask HR to erase them.",
+      "Your choice: withdraw at any time under Profile, Preferences. Photos already taken are deleted at the end of the retention period; ask HR to erase them sooner.",
     ),
     t(
       "attendance.photo_consent.instead",
