@@ -19,6 +19,7 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
 vi.mock("@/features/auth/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   useCurrentTenant: () => ({ data: { timezone: "Africa/Addis_Ababa" } }),
+  useCurrentPermissions: () => ({ data: [] }),
 }));
 
 vi.mock("sonner", () => ({
@@ -67,6 +68,7 @@ function renderPage() {
 beforeEach(() => {
   localStorage.setItem("locale", "en");
   can.manageAttendance = false;
+  can.viewAttendancePhotos = true;
 });
 
 describe("Attendance photos page", () => {
@@ -155,5 +157,29 @@ describe("Attendance photos page", () => {
     expect(
       await screen.findByRole("button", { name: /Release hold/ }),
     ).toBeInTheDocument();
+  });
+
+  it("tells someone without the ability whose page this is, and asks nothing", async () => {
+    // Found live on 2026-10-17: an employee opening the URL was told to
+    // check their connection, because the list request was refused with 403.
+    can.viewAttendancePhotos = false;
+    let requested = false;
+    server.use(
+      http.get("*/attendance/photos", () => {
+        requested = true;
+        return list([]);
+      }),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByText(
+        "Attendance photos are for HR and department managers",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/check your connection/i),
+    ).not.toBeInTheDocument();
+    expect(requested).toBe(false);
   });
 });
