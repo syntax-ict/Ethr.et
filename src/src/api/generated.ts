@@ -7849,7 +7849,7 @@ export interface components {
             email?: string | null;
             /**
              * @description Read by the ResolveTenant middleware when the request is not on a
-             *     tenant subdomain and carries no X-Tenant header.
+             *     tenant subdomain, ahead of any X-Tenant header.
              */
             tenant?: string | null;
         };
