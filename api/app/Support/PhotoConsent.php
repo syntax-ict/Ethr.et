@@ -25,10 +25,12 @@ use Illuminate\Support\Carbon;
  * audit-log entry (immutable), which is the record that outlives a change of
  * mind. VERSION names the notice the employee agreed to: a materially changed
  * notice gets a new version, and consent to an older one no longer counts.
+ * `2026-10-17.2`: the retention policy narrowed who sees a selfie (HR and the
+ * department manager) and limited how long it is kept, so the notice changed.
  */
 final class PhotoConsent
 {
-    public const VERSION = '2026-10-17';
+    public const VERSION = '2026-10-17.2';
 
     private const KEY = 'attendance_photo_consent';
 
