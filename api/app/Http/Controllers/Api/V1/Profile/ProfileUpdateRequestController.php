@@ -104,6 +104,11 @@ class ProfileUpdateRequestController extends Controller
             ], 422);
         }
 
+        $refusal = $this->service->refusal($profileUpdate, $request->user());
+        if ($refusal !== null) {
+            return $refusal->toResponse();
+        }
+
         $notes = $request->validated()['notes'] ?? null;
 
         $profileUpdate = $request->validated()['action'] === 'approve'

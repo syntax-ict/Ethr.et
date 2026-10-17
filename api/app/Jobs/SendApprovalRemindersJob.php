@@ -15,6 +15,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\ApprovalReminderNotification;
 use App\Services\CurrentTenant;
+use App\Services\Profile\ProfileUpdateRequestService;
 use Carbon\CarbonImmutable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -146,8 +147,16 @@ class SendApprovalRemindersJob implements ShouldQueue
             ->get()
             ->filter(fn (User $u) => $u->hasPermission('employee.update'));
 
+        $decisions = app(ProfileUpdateRequestService::class);
+
         foreach ($pending as $request) {
             foreach ($reviewers as $reviewer) {
+                // Not a change the reviewer may decide, so not one the queue
+                // lists for them: the reminder counts what the queue shows.
+                if ($decisions->refusal($request, $reviewer) !== null) {
+                    continue;
+                }
+
                 $waiting[$reviewer->id][] = CarbonImmutable::instance($request->created_at);
             }
         }

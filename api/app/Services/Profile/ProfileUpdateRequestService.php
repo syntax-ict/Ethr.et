@@ -12,6 +12,7 @@ use App\Models\ProfileUpdateRequest;
 use App\Models\User;
 use App\Notifications\ProfileUpdateApprovedNotification;
 use App\Notifications\ProfileUpdateRequestedNotification;
+use App\Support\ApprovalRefusal;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -82,6 +83,32 @@ class ProfileUpdateRequestService
         }
 
         return $staged;
+    }
+
+    /**
+     * Why this reviewer may not decide this request, or null when they may.
+     *
+     * A profile change is decided by someone other than the person it is about
+     * and the person who filed it. Reviewing is `employee.update`, which every
+     * HR admin holds, so without this an HR admin could put their own bank
+     * account or TIN through the queue and approve it themselves (capability
+     * audit 2026-10-17). Unlike leave and corrections, rejecting is refused
+     * too: the employee's own way out is withdraw(), and a reviewer who rejects
+     * a change they filed on someone else's record has decided it alone.
+     * `DecidableApprovals::profileUpdates()` leaves out the same requests, so
+     * the queue never offers what this refuses.
+     */
+    public function refusal(ProfileUpdateRequest $request, User $reviewer): ?ApprovalRefusal
+    {
+        if ($reviewer->employee_id !== null && $reviewer->employee_id === $request->employee_id) {
+            return ApprovalRefusal::selfApproval(__('employee.cannot_review_own_profile'));
+        }
+
+        if ($request->requested_by !== null && $request->requested_by === $reviewer->id) {
+            return ApprovalRefusal::selfApproval(__('employee.cannot_review_filed_profile'));
+        }
+
+        return null;
     }
 
     /**
@@ -238,9 +265,14 @@ class ProfileUpdateRequestService
      */
     private function notifyReviewers(Employee $employee, Collection $staged): void
     {
+        // Every row in one staging shares its employee and filer, so the first
+        // answers for all: nobody is asked to review what they may not decide.
+        $first = $staged->first();
+
         $reviewers = User::where('tenant_id', $employee->tenant_id)
             ->get()
-            ->filter(fn (User $u) => $u->hasPermission('employee.update'));
+            ->filter(fn (User $u) => $u->hasPermission('employee.update'))
+            ->filter(fn (User $u) => $first === null || $this->refusal($first, $u) === null);
 
         if ($reviewers->isEmpty()) {
             return;
