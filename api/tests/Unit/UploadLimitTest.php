@@ -32,3 +32,12 @@ it('is the smaller of the upload and post limits, leaving room for the form', fu
 
     expect(UploadLimit::bytes())->toBe($expected)->toBeGreaterThan(0);
 });
+
+it('says a size the way the frontend does', function (int $bytes, string $label) {
+    expect(UploadLimit::label($bytes))->toBe($label);
+})->with([
+    [2 * 1024 * 1024, '2 MB'],
+    [(int) (2.5 * 1024 * 1024), '2.5 MB'],
+    [512 * 1024, '512 KB'],
+    [10, '1 KB'],
+]);

@@ -23,12 +23,14 @@ use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\VerifyMaintenanceToken;
 use App\Http\Middleware\VerifyUploadedFiles;
 use App\Services\Auth\SessionCookie;
+use App\Support\UploadLimit;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Route;
@@ -218,6 +220,14 @@ return Application::configure(basePath: dirname(__DIR__))
                 ? 'The requested resource was not found.'
                 : ($e->getMessage() ?: 'An error occurred.');
 
+            // An upload over PHP's post_max_size is refused by global
+            // middleware, before SetLocale runs: name the real limit, in the
+            // caller's language, instead of Laravel's untranslated sentence.
+            if ($e instanceof PostTooLargeException) {
+                app()->setLocale(SetLocale::fromRequest($request));
+                $detail = __('validation.post_too_large', ['max' => UploadLimit::label(UploadLimit::bytes())]);
+            }
+
             return response()->json([
                 'type' => 'https://ethr.et/errors/http',
                 'title' => match ($status) {
@@ -226,6 +236,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     404 => 'Not Found',
                     405 => 'Method Not Allowed',
                     409 => 'Conflict',
+                    413 => 'Payload Too Large',
                     422 => 'Validation Error',
                     429 => 'Too Many Requests',
                     default => 'Error',

@@ -1999,6 +1999,7 @@
   "employees_import_page.error_rows_skipped_hint": "ስህተት ያላቸው ረድፎች በማስመጣት ጊዜ ይዘለላሉ። ከታች ያሉትን ችግሮች ያስተካክሉ ወይም ትክክለኛ ረድፎችን ብቻ ለማስመጣት ይቀጥሉ።",
   "employees_import_page.errors": "ስህተቶች",
   "employees_import_page.errors_label": "ስህተቶች",
+  "employees_import_page.file_too_large": "ፋይሉ 5 MB ወይም ከዚያ ያነሰ መሆን አለበት።",
   "employees_import_page.format_hint": "CSV ቅርጸት · ከፍተኛ 5 ሜባ · የራስጌ ረድፍ ያስፈልጋል",
   "employees_import_page.import_another_file": "ሌላ ፋይል አስመጣ",
   "employees_import_page.import_complete": "ማስመጣት ተጠናቅቋል",

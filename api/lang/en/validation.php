@@ -161,6 +161,7 @@ return [
     'string' => 'The :attribute field must be a string.',
     'timezone' => 'The :attribute field must be a valid timezone.',
     'unique' => 'The :attribute has already been taken.',
+    'post_too_large' => 'This upload is larger than the server accepts. The largest file it accepts is :max.',
     'uploaded' => 'The :attribute could not be uploaded. It may be larger than the server accepts.',
     'uppercase' => 'The :attribute field must be uppercase.',
     'url' => 'The :attribute field must be a valid URL.',

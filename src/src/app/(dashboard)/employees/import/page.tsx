@@ -35,6 +35,14 @@ import {
 } from "@/features/employees/api";
 import { saveCsv } from "@/lib/utils/csv-export";
 import { useT } from "@/lib/i18n/useT";
+import { apiErrorDetail } from "@/lib/api/error-message";
+import { useUploadLimit } from "@/features/auth/api";
+import {
+  overServerLimit,
+  SERVER_LIMIT_FALLBACK,
+  SERVER_LIMIT_KEY,
+  sizeLabel,
+} from "@/lib/uploads/upload-limit";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -79,6 +87,9 @@ const COLUMNS: Array<{ key: string; required?: boolean }> = [
   { key: "marital_status" },
 ];
 
+/** `ImportPreviewRequest`: `max:5120` (KB). */
+const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
+
 /** Unique per file; the random tail keeps two files in one millisecond apart. */
 function newImportKey(): string {
   return `import_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -86,6 +97,7 @@ function newImportKey(): string {
 
 export default function EmployeeImportPage() {
   const { t } = useT();
+  const serverLimit = useUploadLimit();
   const router = useRouter();
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -161,6 +173,27 @@ export default function EmployeeImportPage() {
       toast.error(t("employees_import_page.select_csv"));
       return;
     }
+    // ImportPreviewRequest's own limit, then the server's real one (PHP's
+    // upload limit, 2 MB in production, measured 2026-10-17).
+    if (f.size > IMPORT_MAX_BYTES) {
+      toast.error(
+        t(
+          "employees_import_page.file_too_large",
+          "The file must be 5 MB or smaller.",
+        ),
+      );
+      return;
+    }
+    const limit = overServerLimit(f, IMPORT_MAX_BYTES, serverLimit);
+    if (limit !== null) {
+      toast.error(
+        t(SERVER_LIMIT_KEY, SERVER_LIMIT_FALLBACK, {
+          size: sizeLabel(f.size),
+          max: sizeLabel(limit),
+        }),
+      );
+      return;
+    }
     setFile(f);
     previewMutation.mutate(f, {
       onSuccess: (data) => {
@@ -168,7 +201,12 @@ export default function EmployeeImportPage() {
         setImportKey(newImportKey());
         setStep("preview");
       },
-      onError: () => toast.error(t("employees_import_page.parse_failed")),
+      // The server's own reason when it gives one (a refused upload says the
+      // file is too large); "could not read" only when it does not.
+      onError: (err) =>
+        toast.error(
+          apiErrorDetail(err) ?? t("employees_import_page.parse_failed"),
+        ),
     });
   }
 

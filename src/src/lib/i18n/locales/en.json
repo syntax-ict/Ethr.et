@@ -1999,6 +1999,7 @@
   "employees_import_page.error_rows_skipped_hint": "Rows with errors will be skipped during import. Fix the issues below or proceed to import only valid rows.",
   "employees_import_page.errors": "errors",
   "employees_import_page.errors_label": "Errors",
+  "employees_import_page.file_too_large": "The file must be 5 MB or smaller.",
   "employees_import_page.format_hint": "CSV format · max 5 MB · header row required",
   "employees_import_page.import_another_file": "Import another file",
   "employees_import_page.import_complete": "Import Complete",
