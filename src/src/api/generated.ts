@@ -4568,6 +4568,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/photo-consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Photo consent profile */
+        get: operations["photoConsent.show"];
+        put?: never;
+        /** Photo consent profile */
+        post: operations["photoConsent.store"];
+        /** Photo consent profile */
+        delete: operations["photoConsent.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/impersonation/exit": {
         parameters: {
             query?: never;
@@ -18230,6 +18249,7 @@ export interface operations {
                             web_enabled: boolean;
                             geofence_required: boolean;
                             photo_required: boolean;
+                            photo_consent: boolean;
                             accuracy_threshold_meters: number;
                             offline_sync_enabled: boolean;
                             geofence: {
@@ -22064,6 +22084,84 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "photoConsent.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        given: string;
+                        version: string | null;
+                        given_at: string | null;
+                        /** @constant */
+                        current_version: "2026-10-17";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "photoConsent.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        given: string;
+                        version: string | null;
+                        given_at: string | null;
+                        /** @constant */
+                        current_version: "2026-10-17";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "photoConsent.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        given: string;
+                        version: string | null;
+                        given_at: string | null;
+                        /** @constant */
+                        current_version: "2026-10-17";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
         };
     };
     "adminTenant.exitImpersonation": {

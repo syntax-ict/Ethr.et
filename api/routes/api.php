@@ -99,6 +99,7 @@ use App\Http\Controllers\Api\V1\Payroll\PayrollRuleController;
 use App\Http\Controllers\Api\V1\Payroll\PensionRuleController;
 use App\Http\Controllers\Api\V1\Payroll\TaxBracketController;
 use App\Http\Controllers\Api\V1\PlanController;
+use App\Http\Controllers\Api\V1\Profile\PhotoConsentController;
 use App\Http\Controllers\Api\V1\Profile\ProfileController;
 use App\Http\Controllers\Api\V1\Profile\ProfileEmergencyContactController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePhotoController;
@@ -666,6 +667,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
     Route::put('/profile/preferences', [ProfilePreferencesController::class, 'update']);
+    Route::get('/profile/photo-consent', [PhotoConsentController::class, 'show']);
+    Route::post('/profile/photo-consent', [PhotoConsentController::class, 'store']);
+    Route::delete('/profile/photo-consent', [PhotoConsentController::class, 'destroy']);
 
     // The photo is its own endpoint because PHP populates $_FILES on POST only —
     // a `photo` field on the PUT above could never have arrived.

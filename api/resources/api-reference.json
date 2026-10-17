@@ -4820,6 +4820,9 @@
                                                 "photo_required": {
                                                     "type": "boolean"
                                                 },
+                                                "photo_consent": {
+                                                    "type": "boolean"
+                                                },
                                                 "accuracy_threshold_meters": {
                                                     "type": "integer"
                                                 },
@@ -4854,6 +4857,7 @@
                                                 "web_enabled",
                                                 "geofence_required",
                                                 "photo_required",
+                                                "photo_consent",
                                                 "accuracy_threshold_meters",
                                                 "offline_sync_enabled",
                                                 "geofence"
