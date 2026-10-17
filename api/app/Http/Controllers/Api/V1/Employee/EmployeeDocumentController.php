@@ -39,10 +39,12 @@ class EmployeeDocumentController extends Controller
      * Documents expiring within a window (PHASE_02 S12: "documents expiring
      * within 30 days (for notification/dashboard)").
      *
-     * Tenant-wide rather than per-employee: the point is for HR to catch a work
-     * permit or contract before it lapses, which means seeing every employee's at
-     * once. Already-expired documents are included — a permit that lapsed last
-     * week is more urgent than one lapsing next week, not less.
+     * Across employees rather than per-employee: the point is for HR to catch a
+     * work permit or contract before it lapses, which means seeing every
+     * employee's at once. Limited to the employees the requester's org scope
+     * reaches, so a department-scoped role sees its own department's documents.
+     * Already-expired documents are included — a permit that lapsed last week is
+     * more urgent than one lapsing next week, not less.
      */
     public function expiring(Request $request): AnonymousResourceCollection
     {
@@ -53,6 +55,7 @@ class EmployeeDocumentController extends Controller
         $documents = EmployeeDocument::query()
             ->whereNotNull('expiry_date')
             ->whereDate('expiry_date', '<=', now()->addDays($days))
+            ->whereHas('employee', fn ($q) => $request->user()->scopeAccessibleEmployees($q))
             ->with('employee:id,public_id,name')
             ->orderBy('expiry_date')
             ->paginate(min((int) $request->query('per_page', 25), 100));

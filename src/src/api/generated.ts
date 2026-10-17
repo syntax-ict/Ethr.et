@@ -2251,10 +2251,12 @@ export interface paths {
         /**
          * Documents expiring within a window (PHASE_02 S12: "documents expiring
          *          * within 30 days (for notification/dashboard)")
-         * @description Tenant-wide rather than per-employee: the point is for HR to catch a work
-         *     permit or contract before it lapses, which means seeing every employee's at
-         *     once. Already-expired documents are included — a permit that lapsed last
-         *     week is more urgent than one lapsing next week, not less.
+         * @description Across employees rather than per-employee: the point is for HR to catch a
+         *     work permit or contract before it lapses, which means seeing every
+         *     employee's at once. Limited to the employees the requester's org scope
+         *     reaches, so a department-scoped role sees its own department's documents.
+         *     Already-expired documents are included — a permit that lapsed last week is
+         *     more urgent than one lapsing next week, not less.
          */
         get: operations["employeeDocument.expiring"];
         put?: never;
@@ -2273,8 +2275,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Tenant-wide watchlist of active contracts ending within N days —
-         *     mirrors EmployeeDocumentController::expiring()
+         * Watchlist of active contracts ending within N days, limited to the
+         *     employees the requester's org scope reaches — mirrors
+         *     EmployeeDocumentController::expiring()
          */
         get: operations["employeeContract.expiring"];
         put?: never;
