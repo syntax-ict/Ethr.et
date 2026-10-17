@@ -10650,7 +10650,7 @@
                     "employees"
                 ],
                 "operationId": "employeeContract.expiring",
-                "summary": "Tenant-wide watchlist of active contracts ending within N days —\nmirrors EmployeeDocumentController::expiring()",
+                "summary": "Watchlist of active contracts ending within N days, limited to the\nemployees the requester's org scope reaches — mirrors\nEmployeeDocumentController::expiring()",
                 "tags": [
                     "Employees"
                 ],
@@ -10810,7 +10810,7 @@
                     "employees"
                 ],
                 "operationId": "employeeDocument.expiring",
-                "description": "Tenant-wide rather than per-employee: the point is for HR to catch a work\npermit or contract before it lapses, which means seeing every employee's at\nonce. Already-expired documents are included — a permit that lapsed last\nweek is more urgent than one lapsing next week, not less.",
+                "description": "Across employees rather than per-employee: the point is for HR to catch a\nwork permit or contract before it lapses, which means seeing every\nemployee's at once. Limited to the employees the requester's org scope\nreaches, so a department-scoped role sees its own department's documents.\nAlready-expired documents are included — a permit that lapsed last week is\nmore urgent than one lapsing next week, not less.",
                 "summary": "Documents expiring within a window (PHASE_02 S12: \"documents expiring\n     * within 30 days (for notification/dashboard)\")",
                 "tags": [
                     "Employees"

@@ -67,8 +67,9 @@ class EmployeeContractController extends Controller
     }
 
     /**
-     * Tenant-wide watchlist of active contracts ending within N days —
-     * mirrors EmployeeDocumentController::expiring().
+     * Watchlist of active contracts ending within N days, limited to the
+     * employees the requester's org scope reaches — mirrors
+     * EmployeeDocumentController::expiring().
      */
     public function expiring(Request $request): AnonymousResourceCollection
     {
@@ -80,6 +81,7 @@ class EmployeeContractController extends Controller
             ->where('status', ContractStatus::ACTIVE)
             ->whereNotNull('end_date')
             ->whereDate('end_date', '<=', now()->addDays($days))
+            ->whereHas('employee', fn ($q) => $request->user()->scopeAccessibleEmployees($q))
             ->with('employee:id,public_id,name')
             ->orderBy('end_date')
             ->paginate(min((int) $request->query('per_page', 25), 100));
