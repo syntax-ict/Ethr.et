@@ -9,6 +9,7 @@ import {
   CalendarDays,
   ChevronRight,
 } from "lucide-react";
+import { PhotoConsentCard } from "@/features/profile/components/photo-consent-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -207,6 +208,8 @@ function Preferences({ profile }: { profile: ProfileResponse }) {
           </CardContent>
         </Card>
       )}
+
+      <PhotoConsentCard />
 
       <Card>
         <CardHeader>
