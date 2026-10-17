@@ -1499,6 +1499,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Support\\TenantLanding' => __DIR__ . '/../..' . '/app/Support/TenantLanding.php',
         'App\\Support\\TenantSecurityPolicy' => __DIR__ . '/../..' . '/app/Support/TenantSecurityPolicy.php',
         'App\\Support\\TenantTime' => __DIR__ . '/../..' . '/app/Support/TenantTime.php',
+        'App\\Support\\UploadLimit' => __DIR__ . '/../..' . '/app/Support/UploadLimit.php',
         'App\\Support\\VoiceLabels' => __DIR__ . '/../..' . '/app/Support/VoiceLabels.php',
         'App\\Support\\WebhookEvents' => __DIR__ . '/../..' . '/app/Support/WebhookEvents.php',
         'App\\Support\\WebhookTargets' => __DIR__ . '/../..' . '/app/Support/WebhookTargets.php',

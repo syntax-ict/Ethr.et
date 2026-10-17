@@ -166,7 +166,7 @@ return [
     'string' => 'የ:attribute መስክ ጽሑፍ መሆን አለበት።',
     'timezone' => 'የ:attribute መስክ ትክክለኛ የሰዓት ክልል መሆን አለበት።',
     'unique' => ':attribute አስቀድሞ ተይዟል።',
-    'uploaded' => ':attribute መስቀል አልተቻለም።',
+    'uploaded' => ':attribute መስቀል አልተቻለም። ሰርቨሩ ከሚቀበለው በላይ ትልቅ ሊሆን ይችላል።',
     'uppercase' => 'የ:attribute መስክ በትልልቅ ፊደላት መሆን አለበት።',
     'url' => 'የ:attribute መስክ ትክክለኛ URL መሆን አለበት።',
     'ulid' => 'የ:attribute መስክ ትክክለኛ ULID መሆን አለበት።',
