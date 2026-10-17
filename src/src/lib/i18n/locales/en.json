@@ -957,6 +957,8 @@
   "attendance_photos.hold_title": "Hold for a complaint",
   "attendance_photos.image_failed": "This photo could not be loaded.",
   "attendance_photos.kept_until": "Kept until :when",
+  "attendance_photos.no_access_desc": "Your own attendance is under My Attendance. Ask HR if you need a photo reviewed.",
+  "attendance_photos.no_access_title": "Attendance photos are for HR and department managers",
   "attendance_photos.on_hold": "On hold",
   "attendance_photos.photo_alt": "Attendance selfie of :name",
   "attendance_photos.reason": "Reason",

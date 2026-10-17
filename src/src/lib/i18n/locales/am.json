@@ -957,6 +957,8 @@
   "attendance_photos.hold_title": "ለቅሬታ ማቆየት",
   "attendance_photos.image_failed": "ይህን ፎቶ መጫን አልተቻለም።",
   "attendance_photos.kept_until": "እስከ :when ይቆያል",
+  "attendance_photos.no_access_desc": "የራስዎ መገኘት በእኔ መገኘት ስር ይገኛል። ፎቶ እንዲገመገም ከፈለጉ የሰው ሀብት ክፍልን ይጠይቁ።",
+  "attendance_photos.no_access_title": "የመገኘት ፎቶዎች ለሰው ሀብትና ለክፍል ኃላፊዎች ብቻ ናቸው",
   "attendance_photos.on_hold": "የተያዘ",
   "attendance_photos.photo_alt": "የ:name የመገኘት ፎቶ",
   "attendance_photos.reason": "ምክንያት",

@@ -472,12 +472,16 @@ export type AttendancePhotoStatus = "all" | "review" | "held";
 
 const photoKeys = ["attendance", "photos"] as const;
 
-export function useAttendancePhotos(params: {
-  status: AttendancePhotoStatus;
-  page: number;
-}) {
+export function useAttendancePhotos(
+  params: {
+    status: AttendancePhotoStatus;
+    page: number;
+  },
+  enabled = true,
+) {
   return useQuery<PaginatedResponse<AttendancePhoto>>({
     queryKey: [...photoKeys, "list", params],
+    enabled,
     queryFn: async () =>
       (
         await apiClient.get("/attendance/photos", {
