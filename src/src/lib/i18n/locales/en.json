@@ -4232,6 +4232,7 @@
   "time.just_now": "just now",
   "time.min_short": "m",
   "time.week_short": "w",
+  "upload.too_large_server": "This file is :size. The largest file you can upload here is :max.",
   "users_page.delete": "Remove user",
   "users_page.delete_desc": "This revokes their access. Employee records are not deleted.",
   "users_page.deleted": "User removed",
