@@ -139,7 +139,7 @@ final class PayrollBalanceService
             ->get();
 
         foreach ($entries as $entry) {
-            $log = $entry->calculation_log ?? [];
+            $log = $this->log($entry);
             if (($log[self::LOG_KEY] ?? null) !== self::MOVE_ON_APPROVAL) {
                 continue;
             }
@@ -159,6 +159,23 @@ final class PayrollBalanceService
         }
 
         return $planned;
+    }
+
+    /**
+     * The entry's calculation_log as an array, or an empty one.
+     *
+     * Read through getAttribute() rather than a `@property` on PayrollEntry:
+     * Scramble reads model docblocks, and declaring the column's type there
+     * republishes `calculation_log` in the client contract and the API
+     * reference (api-types-check.sh), which this class has no business doing.
+     *
+     * @return array<mixed>
+     */
+    private function log(PayrollEntry $entry): array
+    {
+        $log = $entry->getAttribute('calculation_log');
+
+        return is_array($log) ? $log : [];
     }
 
     /**
