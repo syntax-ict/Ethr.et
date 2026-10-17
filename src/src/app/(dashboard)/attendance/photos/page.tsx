@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useCurrentPermissions } from "@/features/auth/api";
 import { apiErrorDetail } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +66,10 @@ function useInitialStatus(): AttendancePhotoStatus {
 export default function AttendancePhotosPage() {
   const { t } = useT();
   const { can } = usePermissions();
+  // Undefined until /auth/me answers: no list, and no "no access", before then.
+  const { data: permissions } = useCurrentPermissions();
+  const permissionsKnown = permissions !== undefined;
+  const allowed = can.viewAttendancePhotos;
   const initialStatus = useInitialStatus();
   const [status, setStatus] = useState<AttendancePhotoStatus | null>(null);
   const [page, setPage] = useState(1);
@@ -75,10 +80,11 @@ export default function AttendancePhotosPage() {
   const [holding, setHolding] = useState<AttendancePhoto | null>(null);
 
   const current = status ?? initialStatus;
-  const { data, isLoading, isError, refetch } = useAttendancePhotos({
-    status: current,
-    page,
-  });
+  // Only for those who hold the ability: anyone else would only be refused.
+  const { data, isLoading, isError, refetch } = useAttendancePhotos(
+    { status: current, page },
+    allowed,
+  );
   const photos = data?.data ?? [];
 
   const statuses: Array<{ value: AttendancePhotoStatus; label: string }> = [
@@ -99,39 +105,53 @@ export default function AttendancePhotosPage() {
         )}
       </p>
 
-      <div
-        role="radiogroup"
-        aria-label={t("attendance_photos.status_filter", "Show")}
-        className="inline-flex rounded-lg border bg-muted/40 p-0.5"
-      >
-        {statuses.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            role="radio"
-            aria-checked={current === o.value}
-            onClick={() => {
-              setStatus(o.value);
-              setPage(1);
-            }}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              current === o.value
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
+      {allowed && (
+        <div
+          role="radiogroup"
+          aria-label={t("attendance_photos.status_filter", "Show")}
+          className="inline-flex rounded-lg border bg-muted/40 p-0.5"
+        >
+          {statuses.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={current === o.value}
+              onClick={() => {
+                setStatus(o.value);
+                setPage(1);
+              }}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                current === o.value
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {isLoading ? (
+      {!permissionsKnown || (allowed && isLoading) ? (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
+      ) : !allowed ? (
+        <EmptyState
+          icon={Lock}
+          title={t(
+            "attendance_photos.no_access_title",
+            "Attendance photos are for HR and department managers",
+          )}
+          description={t(
+            "attendance_photos.no_access_desc",
+            "Your own attendance is under My Attendance. Ask HR if you need a photo reviewed.",
+          )}
+        />
       ) : isError ? (
         <EmptyState
           icon={Camera}
