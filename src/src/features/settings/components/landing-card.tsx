@@ -75,17 +75,41 @@ const FAQ_MAX = 12;
 const QUESTION_MAX = 160;
 const ANSWER_MAX = 1000;
 
-/** One question as edited, with a key that survives reordering. */
-interface FaqForm {
-  key: string;
-  question: string;
-  question_am: string;
-  answer: string;
-  answer_am: string;
+const SERVICES_MAX = 8;
+const SERVICE_TITLE_MAX = 80;
+const SERVICE_TEXT_MAX = 400;
+
+/**
+ * One item of a bilingual list (a question, a service) as edited: its texts
+ * by key, each with an `_am` twin, and a key that survives reordering.
+ */
+type ListItem = { key: string } & Record<string, string>;
+
+let listKeys = 0;
+const listKey = () => `item-${++listKeys}`;
+
+/** A list as sent: blanks trimmed to null, items left wholly empty dropped. */
+function listUpdate<K extends string>(
+  items: ListItem[],
+  keys: readonly K[],
+): Array<Record<K, string | null>> {
+  return items
+    .filter((item) => keys.some((k) => (item[k] ?? "").trim() !== ""))
+    .map(
+      (item) =>
+        Object.fromEntries(
+          keys.map((k) => [k, trimmed(item[k] ?? "")]),
+        ) as Record<K, string | null>,
+    );
 }
 
-let faqKeys = 0;
-const faqKey = () => `faq-${++faqKeys}`;
+const FAQ_KEYS = ["question", "question_am", "answer", "answer_am"] as const;
+const SERVICE_KEYS = [
+  "title",
+  "title_am",
+  "description",
+  "description_am",
+] as const;
 
 type LinkKey = (typeof LINKS)[number];
 
@@ -112,7 +136,8 @@ interface LandingForm {
   longitude: string;
   show_branches: boolean;
   links: Record<LinkKey, string>;
-  faqs: FaqForm[];
+  faqs: ListItem[];
+  services: ListItem[];
   sections: Record<PortalSection, boolean>;
   order: PortalSection[];
   listed: boolean;
@@ -147,11 +172,18 @@ function fromSettings(landing: TenantLandingSettings): LandingForm {
     show_branches: Boolean(landing.show_branches),
     links,
     faqs: (landing.faqs ?? []).map((faq) => ({
-      key: faqKey(),
+      key: listKey(),
       question: text(faq.question),
       question_am: text(faq.question_am),
       answer: text(faq.answer),
       answer_am: text(faq.answer_am),
+    })),
+    services: (landing.services ?? []).map((service) => ({
+      key: listKey(),
+      title: text(service.title),
+      title_am: text(service.title_am),
+      description: text(service.description),
+      description_am: text(service.description_am),
     })),
     sections,
     order: sectionOrder(landing),
@@ -188,19 +220,8 @@ function toUpdate(form: LandingForm): LandingUpdate {
     longitude: numberOrNull(form.longitude),
     show_branches: form.show_branches,
     links,
-    // A question left wholly blank is dropped rather than refused.
-    faqs: form.faqs
-      .filter((faq) =>
-        [faq.question, faq.question_am, faq.answer, faq.answer_am].some(
-          (v) => v.trim() !== "",
-        ),
-      )
-      .map((faq) => ({
-        question: trimmed(faq.question),
-        question_am: trimmed(faq.question_am),
-        answer: trimmed(faq.answer),
-        answer_am: trimmed(faq.answer_am),
-      })),
+    faqs: listUpdate(form.faqs, FAQ_KEYS),
+    services: listUpdate(form.services, SERVICE_KEYS),
     sections: form.sections,
     order: form.order,
     listed: form.listed,
@@ -279,6 +300,7 @@ export function LandingCard({
     vacancies: t("landing.vacancies", "Open positions"),
     holidays: t("landing.holidays", "Upcoming holidays"),
     faq: t("landing.faq", "Frequently asked questions"),
+    services: t("landing.services", "Our services"),
     contact: t("landing.contact", "Contact"),
   };
 
@@ -294,57 +316,6 @@ export function LandingCard({
       order.splice(to, 0, section);
       return { ...prev, order };
     });
-  }
-
-  function setFaq(
-    index: number,
-    key: keyof Omit<FaqForm, "key">,
-    value: string,
-  ) {
-    setForm((prev) => ({
-      ...prev,
-      faqs: prev.faqs.map((faq, i) =>
-        i === index ? { ...faq, [key]: value } : faq,
-      ),
-    }));
-  }
-
-  function moveFaq(index: number, by: -1 | 1) {
-    setForm((prev) => {
-      const faqs = [...prev.faqs];
-      const to = index + by;
-      if (to < 0 || to >= faqs.length) return prev;
-      const [faq] = faqs.splice(index, 1);
-      faqs.splice(to, 0, faq);
-      return { ...prev, faqs };
-    });
-  }
-
-  function addFaq() {
-    setForm((prev) =>
-      prev.faqs.length >= FAQ_MAX
-        ? prev
-        : {
-            ...prev,
-            faqs: [
-              ...prev.faqs,
-              {
-                key: faqKey(),
-                question: "",
-                question_am: "",
-                answer: "",
-                answer_am: "",
-              },
-            ],
-          },
-    );
-  }
-
-  function removeFaq(index: number) {
-    setForm((prev) => ({
-      ...prev,
-      faqs: prev.faqs.filter((_, i) => i !== index),
-    }));
   }
 
   function save() {
@@ -465,6 +436,9 @@ export function LandingCard({
             </TabsTrigger>
             <TabsTrigger value="links">
               {t("settings.landing_tab_links", "Links")}
+            </TabsTrigger>
+            <TabsTrigger value="services">
+              {t("settings.landing_tab_services", "Services")}
             </TabsTrigger>
             <TabsTrigger value="faq">
               {t("settings.landing_tab_faq", "Questions")}
@@ -743,156 +717,78 @@ export function LandingCard({
             </div>
           </TabsContent>
 
+          <TabsContent value="services" className="mt-4 space-y-4">
+            <BilingualList
+              id="landing-service"
+              errorKey="services"
+              items={form.services}
+              onChange={(services) => set("services", services)}
+              max={SERVICES_MAX}
+              fields={[
+                {
+                  key: "title",
+                  label: t("settings.landing_service_title", "Service"),
+                  max: SERVICE_TITLE_MAX,
+                },
+                {
+                  key: "description",
+                  label: t("settings.landing_service_text", "Description"),
+                  max: SERVICE_TEXT_MAX,
+                  multiline: true,
+                },
+              ]}
+              itemName={(n) =>
+                t("settings.landing_service_item", "Service :n", { n })
+              }
+              help={t(
+                "settings.landing_services_help",
+                "What your organisation offers the public, such as its products, services or programmes. Each needs a name in English, Amharic or both; a description is optional.",
+              )}
+              empty={t("settings.landing_services_empty", "No services yet.")}
+              add={t("settings.landing_services_add", "Add a service")}
+              full={t(
+                "settings.landing_services_full",
+                "Eight services is the most",
+              )}
+              errors={fieldErrors}
+            />
+          </TabsContent>
+
           <TabsContent value="faq" className="mt-4 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {t(
+            <BilingualList
+              id="landing-faq"
+              errorKey="faqs"
+              items={form.faqs}
+              onChange={(faqs) => set("faqs", faqs)}
+              max={FAQ_MAX}
+              fields={[
+                {
+                  key: "question",
+                  label: t("settings.landing_faq_question", "Question"),
+                  max: QUESTION_MAX,
+                },
+                {
+                  key: "answer",
+                  label: t("settings.landing_faq_answer", "Answer"),
+                  max: ANSWER_MAX,
+                  multiline: true,
+                },
+              ]}
+              itemName={(n) =>
+                t("settings.landing_faq_item", "Question :n", { n })
+              }
+              help={t(
                 "settings.landing_faq_help",
                 "Answer the questions people ask most, such as payday, working hours or how to apply. Each needs a question and an answer in English, Amharic or both.",
               )}
-            </p>
-            {form.faqs.length === 0 ? (
-              <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                {t("settings.landing_faq_empty", "No questions yet.")}
-              </p>
-            ) : (
-              <ol className="space-y-4">
-                {form.faqs.map((faq, index) => {
-                  const n = index + 1;
-                  const name = t("settings.landing_faq_item", "Question :n", {
-                    n,
-                  });
-                  return (
-                    <li
-                      key={faq.key}
-                      className="space-y-3 rounded-lg border p-3"
-                    >
-                      <div className="flex items-center gap-1">
-                        <span className="min-w-0 flex-1 text-sm font-medium">
-                          {name}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled={index === 0}
-                          aria-label={t(
-                            "settings.landing_move_up",
-                            "Move :section up",
-                            { section: name },
-                          )}
-                          onClick={() => moveFaq(index, -1)}
-                        >
-                          <ArrowUp className="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled={index === form.faqs.length - 1}
-                          aria-label={t(
-                            "settings.landing_move_down",
-                            "Move :section down",
-                            { section: name },
-                          )}
-                          onClick={() => moveFaq(index, 1)}
-                        >
-                          <ArrowDown className="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          aria-label={t(
-                            "settings.landing_faq_remove",
-                            "Remove :item",
-                            { item: name },
-                          )}
-                          onClick={() => removeFaq(index)}
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                      </div>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <Field
-                          id={`landing-faq-${n}-question`}
-                          label={`${t("settings.landing_faq_question", "Question")} ${n} (English)`}
-                          error={fieldErrors[`faqs.${index}.question`]}
-                          counter={`${faq.question.length}/${QUESTION_MAX}`}
-                        >
-                          <Input
-                            id={`landing-faq-${n}-question`}
-                            value={faq.question}
-                            maxLength={QUESTION_MAX}
-                            onChange={(e) =>
-                              setFaq(index, "question", e.target.value)
-                            }
-                          />
-                        </Field>
-                        <Field
-                          id={`landing-faq-${n}-question_am`}
-                          label={`${t("settings.landing_faq_question", "Question")} ${n} (አማርኛ)`}
-                          counter={`${faq.question_am.length}/${QUESTION_MAX}`}
-                        >
-                          <Input
-                            id={`landing-faq-${n}-question_am`}
-                            value={faq.question_am}
-                            maxLength={QUESTION_MAX}
-                            lang="am"
-                            onChange={(e) =>
-                              setFaq(index, "question_am", e.target.value)
-                            }
-                          />
-                        </Field>
-                        <Field
-                          id={`landing-faq-${n}-answer`}
-                          label={`${t("settings.landing_faq_answer", "Answer")} ${n} (English)`}
-                          error={fieldErrors[`faqs.${index}.answer`]}
-                          counter={`${faq.answer.length}/${ANSWER_MAX}`}
-                        >
-                          <Textarea
-                            id={`landing-faq-${n}-answer`}
-                            value={faq.answer}
-                            maxLength={ANSWER_MAX}
-                            rows={3}
-                            onChange={(e) =>
-                              setFaq(index, "answer", e.target.value)
-                            }
-                          />
-                        </Field>
-                        <Field
-                          id={`landing-faq-${n}-answer_am`}
-                          label={`${t("settings.landing_faq_answer", "Answer")} ${n} (አማርኛ)`}
-                          counter={`${faq.answer_am.length}/${ANSWER_MAX}`}
-                        >
-                          <Textarea
-                            id={`landing-faq-${n}-answer_am`}
-                            value={faq.answer_am}
-                            maxLength={ANSWER_MAX}
-                            rows={3}
-                            lang="am"
-                            onChange={(e) =>
-                              setFaq(index, "answer_am", e.target.value)
-                            }
-                          />
-                        </Field>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={form.faqs.length >= FAQ_MAX}
-              onClick={addFaq}
-            >
-              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-              {form.faqs.length >= FAQ_MAX
-                ? t("settings.landing_faq_full", "Twelve questions is the most")
-                : t("settings.landing_faq_add", "Add a question")}
-            </Button>
+              empty={t("settings.landing_faq_empty", "No questions yet.")}
+              add={t("settings.landing_faq_add", "Add a question")}
+              full={t(
+                "settings.landing_faq_full",
+                "Twelve questions is the most",
+              )}
+              errors={fieldErrors}
+            />
           </TabsContent>
 
           <TabsContent value="sections" className="mt-4 space-y-4">
@@ -1069,6 +965,183 @@ const LINK_PLACEHOLDERS: Record<LinkKey, string> = {
   privacy: "https://example.et/privacy",
   terms: "https://example.et/terms",
 };
+
+/**
+ * A short bilingual list the organisation writes (its questions, its
+ * services): each item's fields in English and Amharic, reordered with up and
+ * down, removed, and added up to `max`. The server's refusal for an item's
+ * field shows under its English input.
+ */
+function BilingualList({
+  id,
+  errorKey,
+  items,
+  onChange,
+  max,
+  fields,
+  itemName,
+  help,
+  empty,
+  add,
+  full,
+  errors,
+}: {
+  id: string;
+  errorKey: string;
+  items: ListItem[];
+  onChange: (items: ListItem[]) => void;
+  max: number;
+  fields: Array<{
+    key: string;
+    label: string;
+    max: number;
+    multiline?: boolean;
+  }>;
+  itemName: (n: number) => string;
+  help: string;
+  empty: string;
+  add: string;
+  full: string;
+  errors: Record<string, string>;
+}) {
+  const { t } = useT();
+
+  const update = (index: number, key: string, value: string) =>
+    onChange(
+      items.map((item, i) => (i === index ? { ...item, [key]: value } : item)),
+    );
+  const move = (index: number, by: -1 | 1) => {
+    const to = index + by;
+    if (to < 0 || to >= items.length) return;
+    const next = [...items];
+    const [item] = next.splice(index, 1);
+    next.splice(to, 0, item);
+    onChange(next);
+  };
+  const blank = (): ListItem => {
+    const item: ListItem = { key: listKey() };
+    for (const field of fields) {
+      item[field.key] = "";
+      item[`${field.key}_am`] = "";
+    }
+    return item;
+  };
+
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">{help}</p>
+      {items.length === 0 ? (
+        <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+          {empty}
+        </p>
+      ) : (
+        <ol className="space-y-4">
+          {items.map((item, index) => {
+            const n = index + 1;
+            const name = itemName(n);
+            return (
+              <li key={item.key} className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center gap-1">
+                  <span className="min-w-0 flex-1 text-sm font-medium">
+                    {name}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={index === 0}
+                    aria-label={t(
+                      "settings.landing_move_up",
+                      "Move :section up",
+                      {
+                        section: name,
+                      },
+                    )}
+                    onClick={() => move(index, -1)}
+                  >
+                    <ArrowUp className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={index === items.length - 1}
+                    aria-label={t(
+                      "settings.landing_move_down",
+                      "Move :section down",
+                      { section: name },
+                    )}
+                    onClick={() => move(index, 1)}
+                  >
+                    <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={t(
+                      "settings.landing_item_remove",
+                      "Remove :item",
+                      {
+                        item: name,
+                      },
+                    )}
+                    onClick={() =>
+                      onChange(items.filter((_, i) => i !== index))
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {fields.flatMap((field) =>
+                    (["", "_am"] as const).map((suffix) => {
+                      const key = `${field.key}${suffix}`;
+                      const inputId = `${id}-${n}-${key}`;
+                      const Control = field.multiline ? Textarea : Input;
+                      return (
+                        <Field
+                          key={key}
+                          id={inputId}
+                          label={`${field.label} ${n} (${suffix ? "አማርኛ" : "English"})`}
+                          error={
+                            suffix
+                              ? undefined
+                              : errors[`${errorKey}.${index}.${field.key}`]
+                          }
+                          counter={`${(item[key] ?? "").length}/${field.max}`}
+                        >
+                          <Control
+                            id={inputId}
+                            value={item[key] ?? ""}
+                            maxLength={field.max}
+                            rows={field.multiline ? 3 : undefined}
+                            lang={suffix ? "am" : undefined}
+                            onChange={(e) => update(index, key, e.target.value)}
+                          />
+                        </Field>
+                      );
+                    }),
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={items.length >= max}
+        onClick={() => onChange([...items, blank()])}
+      >
+        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+        {items.length >= max ? full : add}
+      </Button>
+    </>
+  );
+}
 
 function SwitchRow({
   id,
