@@ -3,6 +3,7 @@ import { apiClient } from "@/api/client";
 import type { components } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 import { fetchAllPages } from "@/api/fetch-all-pages";
+import { saveBlob } from "@/lib/utils/csv-export";
 
 // Shapes come from the generated contract. The hand-written ones they replace
 // had drifted: a `status` field the resource never returns (which emptied the
@@ -119,4 +120,46 @@ export function useRemoveAnnouncementCover() {
     async (publicId: string): Promise<Announcement> =>
       (await apiClient.delete(`/announcements/${publicId}/cover`)).data,
   );
+}
+
+/** Attach a PDF to a story; the response lists every document it carries. */
+export function useUploadAnnouncementFile() {
+  return useAnnouncementMutation(
+    async (vars: { publicId: string; file: File }): Promise<Announcement> => {
+      const body = new FormData();
+      body.append("file", vars.file);
+      return (
+        await apiClient.post(`/announcements/${vars.publicId}/files`, body, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+      ).data;
+    },
+  );
+}
+
+export function useRemoveAnnouncementFile() {
+  return useAnnouncementMutation(
+    async (vars: { publicId: string; fileId: string }): Promise<Announcement> =>
+      (
+        await apiClient.delete(
+          `/announcements/${vars.publicId}/files/${vars.fileId}`,
+        )
+      ).data,
+  );
+}
+
+/**
+ * Download one of a story's documents in the app. Through the API client, as
+ * receipts are: on the shared host the organisation travels in `X-Tenant`,
+ * which a plain link cannot send.
+ */
+export async function downloadAnnouncementFile(
+  publicId: string,
+  file: { id: string; name: string },
+): Promise<void> {
+  const { data } = await apiClient.get<Blob>(
+    `/announcements/${publicId}/files/${file.id}`,
+    { responseType: "blob" },
+  );
+  saveBlob(file.name, data);
 }

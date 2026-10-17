@@ -1021,6 +1021,201 @@
                 }
             }
         },
+        "/announcements/{announcement}/files": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "announcementFile.store",
+                "summary": "Create file",
+                "tags": [
+                    "Notifications"
+                ],
+                "parameters": [
+                    {
+                        "name": "announcement",
+                        "in": "path",
+                        "required": true,
+                        "description": "The announcement public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UploadAnnouncementFileRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`AnnouncementResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnnouncementResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/announcements/{announcement}/files/{file}": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "announcementFile.download",
+                "summary": "Download one document, on the terms the story itself is read on\n(`AnnouncementController::show()`): published, unexpired and addressed\nto the reader, or any state for whoever manages announcements. Anything\nelse is the same 404 as a story that does not exist",
+                "tags": [
+                    "Notifications"
+                ],
+                "parameters": [
+                    {
+                        "name": "announcement",
+                        "in": "path",
+                        "required": true,
+                        "description": "The announcement public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "file",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/pdf": {
+                                "schema": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Cache-Control": {
+                                "schema": {
+                                    "type": "string",
+                                    "const": "private, no-store"
+                                }
+                            },
+                            "X-Content-Type-Options": {
+                                "schema": {
+                                    "type": "string",
+                                    "const": "nosniff"
+                                }
+                            },
+                            "Content-Security-Policy": {
+                                "schema": {
+                                    "type": "string",
+                                    "const": "default-src 'none'; sandbox"
+                                }
+                            },
+                            "Cross-Origin-Resource-Policy": {
+                                "schema": {
+                                    "type": "string",
+                                    "const": "same-site"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "delete": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "announcementFile.destroy",
+                "summary": "Delete file",
+                "tags": [
+                    "Notifications"
+                ],
+                "parameters": [
+                    {
+                        "name": "announcement",
+                        "in": "path",
+                        "required": true,
+                        "description": "The announcement public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "file",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`AnnouncementResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnnouncementResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/approvals/batch": {
             "post": {
                 "x-abilities": [
@@ -30376,6 +30571,35 @@
                             "height"
                         ]
                     },
+                    "attachments": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "size": {
+                                    "type": "integer"
+                                },
+                                "url": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "name",
+                                "size",
+                                "url"
+                            ]
+                        }
+                    },
                     "created_at": {
                         "type": [
                             "string",
@@ -30397,6 +30621,7 @@
                     "show_on_landing",
                     "featured",
                     "cover",
+                    "attachments",
                     "created_at"
                 ],
                 "title": "AnnouncementResource"
@@ -39371,6 +39596,22 @@
                     "image"
                 ],
                 "title": "UploadAnnouncementCoverRequest"
+            },
+            "UploadAnnouncementFileRequest": {
+                "type": "object",
+                "description": "A document for a news story: a PDF, checked by its own bytes (`%PDF`), at\nmost 5 MB, the size a circular or a form needs on shared hosting's quota.\nA story takes at most Announcement::ATTACHMENTS_MAX, refused in\nwithValidator(), which Scramble does not read.",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "description": "Maximum file size: 5120 kilobytes."
+                    }
+                },
+                "required": [
+                    "file"
+                ],
+                "title": "UploadAnnouncementFileRequest"
             },
             "UserRole": {
                 "type": "string",

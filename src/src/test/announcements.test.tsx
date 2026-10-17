@@ -373,6 +373,85 @@ describe("<AnnouncementsPage> publishing", () => {
     URL.revokeObjectURL = revokeObjectURL;
   });
 
+  it("attaches chosen PDFs once the new story is saved, and refuses anything else", async () => {
+    const uploaded = vi.fn();
+    server.use(
+      me(["announcement.manage"]),
+      http.get("*/api/v1/announcements", () => HttpResponse.json(page([]))),
+      http.post("*/api/v1/announcements", () =>
+        HttpResponse.json(
+          { ...ANNOUNCEMENT, public_id: "ANN3", cover: null, attachments: [] },
+          { status: 201 },
+        ),
+      ),
+      http.post("*/api/v1/announcements/ANN3/files", () => {
+        uploaded();
+        return HttpResponse.json({ ...ANNOUNCEMENT, public_id: "ANN3" });
+      }),
+    );
+    const user = userEvent.setup({ applyAccept: false });
+    renderWithQuery(<AnnouncementsPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: /New Announcement/ }),
+    );
+    await user.type(screen.getByRole("textbox", { name: "Title" }), "Circular");
+    await user.type(
+      screen.getByRole("textbox", { name: "Content" }),
+      "Read the attached.",
+    );
+    const input = screen.getByLabelText("Documents", { selector: "input" });
+    await user.upload(
+      input,
+      new File(["x"], "photo.png", { type: "image/png" }),
+    );
+    expect(toast.error).toHaveBeenCalledWith("Choose a PDF document.");
+    await user.upload(
+      input,
+      new File(["%PDF-1.4"], "Leave circular.pdf", { type: "application/pdf" }),
+    );
+    await user.upload(
+      input,
+      new File(["%PDF-1.4"], "Form.pdf", { type: "application/pdf" }),
+    );
+    expect(screen.getByText("Leave circular.pdf")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Remove: Form.pdf" }));
+    expect(screen.queryByText("Form.pdf")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /^Publish$/ }));
+
+    await waitFor(() => expect(uploaded).toHaveBeenCalledTimes(1));
+  });
+
+  it("lists a story's documents for readers to download", async () => {
+    server.use(
+      me([]),
+      http.get("*/api/v1/announcements", () =>
+        HttpResponse.json(
+          page([
+            {
+              ...ANNOUNCEMENT,
+              attachments: [
+                {
+                  id: "F1",
+                  name: "Holiday rota.pdf",
+                  size: 2_400_000,
+                  url: null,
+                },
+              ],
+            },
+          ]),
+        ),
+      ),
+    );
+    renderWithQuery(<AnnouncementsPage />);
+
+    const button = await screen.findByRole("button", {
+      name: /holiday rota\.pdf/i,
+    });
+    expect(button).toHaveTextContent("2.3 MB");
+  });
+
   it("keeps an announcement for one department off the website", async () => {
     server.use(
       me(["announcement.manage"]),
