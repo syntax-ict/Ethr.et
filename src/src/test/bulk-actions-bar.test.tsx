@@ -4,7 +4,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
+import { toast } from "sonner";
 import { BulkActionsBar } from "@/features/employees/components/bulk-actions-bar";
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+}));
 
 function paginated<T>(rows: T[]) {
   return {
@@ -93,7 +98,14 @@ describe("<BulkActionsBar>", () => {
     server.use(
       http.post("*/api/v1/employees/bulk-update", async ({ request }) => {
         requestBody = await request.json();
-        return HttpResponse.json({ updated: 2 });
+        return HttpResponse.json({
+          updated: 2,
+          failed: 0,
+          results: [
+            { employee_id: "emp-1", outcome: "updated", error: null },
+            { employee_id: "emp-2", outcome: "updated", error: null },
+          ],
+        });
       }),
     );
     const { onComplete } = renderBar();
@@ -108,5 +120,40 @@ describe("<BulkActionsBar>", () => {
       employee_ids: ["emp-1", "emp-2"],
       status: "retired",
     });
+    expect(toast.success).toHaveBeenCalledWith("Updated 2 employees");
+  });
+
+  it("warns, with the reason, when the backend refuses some employees' transition", async () => {
+    vi.mocked(toast.success).mockClear();
+    server.use(
+      http.post("*/api/v1/employees/bulk-update", () =>
+        HttpResponse.json({
+          updated: 1,
+          failed: 1,
+          results: [
+            { employee_id: "emp-1", outcome: "updated", error: null },
+            {
+              employee_id: "emp-2",
+              outcome: "failed",
+              error: "Cannot change status from terminated to confirmed.",
+            },
+          ],
+        }),
+      ),
+    );
+    const { onComplete } = renderBar();
+
+    fireEvent.click(screen.getByRole("button", { name: /change status/i }));
+    expect(screen.getByText(/keeps their current one/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(await screen.findByRole("option", { name: "Confirmed" }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm$/i }));
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    expect(toast.warning).toHaveBeenCalledWith(
+      "Updated 1 employees. 1 could not be changed.",
+      { description: "Cannot change status from terminated to confirmed." },
+    );
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });

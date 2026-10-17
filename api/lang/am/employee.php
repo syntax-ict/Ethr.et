@@ -19,4 +19,6 @@ return [
     'import_field_email' => 'ኢሜይል',
     'import_field_badge_number' => 'የባጅ ቁጥር',
     'number_format_invalid' => 'አንድ {SEQ:n} ምልክት ይጠቀሙ (n ከ1 እስከ 8)፣ ዙሪያውን ፊደላት፣ ቁጥሮች፣ - _ . ወይም / ብቻ። ለምሳሌ EMP-{SEQ:4}።',
+    'invalid_transition' => 'ሁኔታን ከ:from ወደ :to መቀየር አይቻልም።',
+    'bulk_update_failed' => 'ይህን ሰራተኛ ማዘመን አልተቻለም። እንደገና ይሞክሩ፣ ወይም ከመገለጫው ይቀይሩ።',
 ];

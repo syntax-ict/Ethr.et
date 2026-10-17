@@ -10076,7 +10076,8 @@
                     "employees"
                 ],
                 "operationId": "employeeBulk.bulkUpdate",
-                "summary": "Bulk update employees",
+                "description": "The selection is all or nothing: an id outside the requester's org scope\nrefuses the whole request with 422 before anything is written, with the\nmessage an id that exists nowhere gets. The changes are per employee: a\nstatus change goes through the same transition rules as\n`POST /employees/{employee}/transition`, and `results` reports each id as\n`updated`, `unchanged` (already in that status) or `failed`, with the\nreason. One refused transition does not stop the others.",
+                "summary": "Move employees to a department or branch, or change their status",
                 "tags": [
                     "Employees"
                 ],
@@ -10100,10 +10101,82 @@
                                     "properties": {
                                         "updated": {
                                             "type": "integer"
+                                        },
+                                        "failed": {
+                                            "type": "integer"
+                                        },
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "outcome": {
+                                                                "type": "string",
+                                                                "const": "updated"
+                                                            },
+                                                            "error": {
+                                                                "type": "null"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_id",
+                                                            "outcome",
+                                                            "error"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "outcome": {
+                                                                "type": "string",
+                                                                "const": "failed"
+                                                            },
+                                                            "error": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_id",
+                                                            "outcome",
+                                                            "error"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "outcome": {
+                                                                "type": "string",
+                                                                "const": "unchanged"
+                                                            },
+                                                            "error": {
+                                                                "type": "null"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_id",
+                                                            "outcome",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                ]
+                                            }
                                         }
                                     },
                                     "required": [
-                                        "updated"
+                                        "updated",
+                                        "failed",
+                                        "results"
                                     ]
                                 }
                             }
@@ -31801,6 +31874,20 @@
                                 "type": "null"
                             }
                         ]
+                    },
+                    "effective_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 1000
                     }
                 },
                 "required": [

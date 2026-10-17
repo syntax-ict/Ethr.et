@@ -2321,7 +2321,16 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk update employees */
+        /**
+         * Move employees to a department or branch, or change their status
+         * @description The selection is all or nothing: an id outside the requester's org scope
+         *     refuses the whole request with 422 before anything is written, with the
+         *     message an id that exists nowhere gets. The changes are per employee: a
+         *     status change goes through the same transition rules as
+         *     `POST /employees/{employee}/transition`, and `results` reports each id as
+         *     `updated`, `unchanged` (already in that status) or `failed`, with the
+         *     reason. One refused transition does not stop the others.
+         */
         post: operations["employeeBulk.bulkUpdate"];
         delete?: never;
         options?: never;
@@ -6570,6 +6579,9 @@ export interface components {
             department_id?: string | null;
             branch_id?: string | null;
             status?: components["schemas"]["EmployeeStatus"] | null;
+            /** Format: date-time */
+            effective_date?: string | null;
+            reason?: string | null;
         };
         /** CancelLoanRequest */
         CancelLoanRequest: {
@@ -15314,6 +15326,23 @@ export interface operations {
                 content: {
                     "application/json": {
                         updated: number;
+                        failed: number;
+                        results: ({
+                            employee_id: string;
+                            /** @constant */
+                            outcome: "updated";
+                            error: null;
+                        } | {
+                            employee_id: string;
+                            /** @constant */
+                            outcome: "failed";
+                            error: string;
+                        } | {
+                            employee_id: string;
+                            /** @constant */
+                            outcome: "unchanged";
+                            error: null;
+                        })[];
                     };
                 };
             };
