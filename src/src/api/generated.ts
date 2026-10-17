@@ -7369,9 +7369,8 @@ export interface components {
             email?: string | null;
             password: string;
             /**
-             * @description Tenant identifier may be supplied here as a fallback when the
-             *     request isn't already on a tenant subdomain or carrying X-Tenant.
-             *     The ResolveTenant middleware reads this field too.
+             * @description Read by the ResolveTenant middleware when the request is not on a
+             *     tenant subdomain, ahead of any X-Tenant header.
              */
             tenant?: string | null;
         };
