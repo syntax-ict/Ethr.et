@@ -21,6 +21,14 @@ class BulkUpdateRequest extends FormRequest
         withValidator as validateRelationTenancy;
     }
 
+    /**
+     * Each employee is now its own transaction with a transition, audit rows
+     * and an event, about six queries where it used to be one UPDATE. Capped
+     * so a selection stays well inside production's 30-second limit and never
+     * times out halfway, leaving the caller unable to tell what changed.
+     */
+    public const MAX_EMPLOYEES = 200;
+
     public function authorize(): bool
     {
         return true;
@@ -30,7 +38,7 @@ class BulkUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'employee_ids' => ['required', 'array', 'min:1'],
+            'employee_ids' => ['required', 'array', 'min:1', 'max:'.self::MAX_EMPLOYEES],
             'employee_ids.*' => ['required', 'string', 'exists:employees,public_id'],
             'department_id' => ['nullable', 'exists:departments,public_id'],
             'branch_id' => ['nullable', 'exists:branches,public_id'],

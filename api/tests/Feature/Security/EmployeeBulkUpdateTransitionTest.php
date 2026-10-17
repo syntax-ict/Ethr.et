@@ -328,3 +328,17 @@ test('the single transition endpoint still refuses an illegal transition and rec
     expect($current->fresh()->termination_date?->toDateString())->toBe('2026-10-20');
     Event::assertDispatchedTimes(EmployeeTransitioned::class, 1);
 });
+
+test('a bulk update takes at most 200 employees, so it cannot time out halfway', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $ids = Employee::factory()->count(201)->create(['tenant_id' => $tenant->id])->pluck('public_id')->all();
+
+    $this->postJson('/api/v1/employees/bulk-update', [
+        'employee_ids' => $ids,
+        'status' => EmployeeStatus::SUSPENDED->value,
+    ])->assertUnprocessable()->assertJsonValidationErrors(['employee_ids']);
+
+    expect(Employee::query()->where('status', EmployeeStatus::SUSPENDED->value)->count())->toBe(0);
+});
