@@ -15,9 +15,12 @@ use Illuminate\Support\Facades\Storage;
 describe('employee documents', function () {
     it('lists documents for an employee', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
 
-        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        // A direct report: a supervisor reads their own team's records, not
+        // everyone's (EmployeeRecordScopeTest).
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisor->id]);
         $employee->documents()->create([
             'tenant_id' => $tenant->id,
             'type' => 'contract',
@@ -37,9 +40,12 @@ describe('employee documents', function () {
 
     it('filters documents by type', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
 
-        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        // A direct report: a supervisor reads their own team's records, not
+        // everyone's (EmployeeRecordScopeTest).
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisor->id]);
         $employee->documents()->createMany([
             ['tenant_id' => $tenant->id, 'type' => 'contract', 'title' => 'Contract', 'file_path' => 'a.pdf', 'file_size' => 100],
             ['tenant_id' => $tenant->id, 'type' => 'academic', 'title' => 'Degree', 'file_path' => 'b.pdf', 'file_size' => 200],
@@ -130,9 +136,12 @@ describe('employee documents', function () {
 
     it('shows expiry status', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
 
-        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        // A direct report: a supervisor reads their own team's records, not
+        // everyone's (EmployeeRecordScopeTest).
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisor->id]);
         $employee->documents()->create([
             'tenant_id' => $tenant->id,
             'type' => 'certificate',
@@ -521,9 +530,11 @@ describe('bulk update status validation', function () {
     it('accepts a valid status', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        // Confirmed, not hired: hired to suspended is not a transition the
+        // status machine allows, and bulk update now applies it.
         $emp = Employee::factory()->create([
             'tenant_id' => $tenant->id,
-            'status' => EmployeeStatus::HIRED,
+            'status' => EmployeeStatus::CONFIRMED,
         ]);
 
         $this->postJson('/api/v1/employees/bulk-update', [

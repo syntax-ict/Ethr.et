@@ -2309,10 +2309,12 @@ export interface paths {
         /**
          * Documents expiring within a window (PHASE_02 S12: "documents expiring
          *          * within 30 days (for notification/dashboard)")
-         * @description Tenant-wide rather than per-employee: the point is for HR to catch a work
-         *     permit or contract before it lapses, which means seeing every employee's at
-         *     once. Already-expired documents are included — a permit that lapsed last
-         *     week is more urgent than one lapsing next week, not less.
+         * @description Across employees rather than per-employee: the point is for HR to catch a
+         *     work permit or contract before it lapses, which means seeing every
+         *     employee's at once. Limited to the employees the requester's org scope
+         *     reaches, so a department-scoped role sees its own department's documents.
+         *     Already-expired documents are included — a permit that lapsed last week is
+         *     more urgent than one lapsing next week, not less.
          */
         get: operations["employeeDocument.expiring"];
         put?: never;
@@ -2331,8 +2333,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Tenant-wide watchlist of active contracts ending within N days —
-         *     mirrors EmployeeDocumentController::expiring()
+         * Watchlist of active contracts ending within N days, limited to the
+         *     employees the requester's org scope reaches — mirrors
+         *     EmployeeDocumentController::expiring()
          */
         get: operations["employeeContract.expiring"];
         put?: never;
@@ -2379,7 +2382,16 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk update employees */
+        /**
+         * Move employees to a department or branch, or change their status
+         * @description The selection is all or nothing: an id outside the requester's org scope
+         *     refuses the whole request with 422 before anything is written, with the
+         *     message an id that exists nowhere gets. The changes are per employee: a
+         *     status change goes through the same transition rules as
+         *     `POST /employees/{employee}/transition`, and `results` reports each id as
+         *     `updated`, `unchanged` (already in that status) or `failed`, with the
+         *     reason. One refused transition does not stop the others.
+         */
         post: operations["employeeBulk.bulkUpdate"];
         delete?: never;
         options?: never;
@@ -6715,6 +6727,9 @@ export interface components {
             department_id?: string | null;
             branch_id?: string | null;
             status?: components["schemas"]["EmployeeStatus"] | null;
+            /** Format: date-time */
+            effective_date?: string | null;
+            reason?: string | null;
         };
         /** CancelLoanRequest */
         CancelLoanRequest: {
@@ -15617,6 +15632,23 @@ export interface operations {
                 content: {
                     "application/json": {
                         updated: number;
+                        failed: number;
+                        results: ({
+                            employee_id: string;
+                            /** @constant */
+                            outcome: "updated";
+                            error: null;
+                        } | {
+                            employee_id: string;
+                            /** @constant */
+                            outcome: "failed";
+                            error: string;
+                        } | {
+                            employee_id: string;
+                            /** @constant */
+                            outcome: "unchanged";
+                            error: null;
+                        })[];
                     };
                 };
             };

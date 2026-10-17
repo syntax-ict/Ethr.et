@@ -809,7 +809,9 @@ this convention and don't need to be migrated on sight.
     POST   /import/preview      Parse + validate
     POST   /import/commit       Create employees (idempotent)
     GET    /import/status/{key} Import progress
-    POST   /bulk-update         Batch department/branch/status update
+    POST   /bulk-update         Batch department/branch move or status transition;
+                                caller's org scope applied, status per employee
+                                through the transition rules, results per id
     GET    /export              CSV with current filters
 
   /attendance/
