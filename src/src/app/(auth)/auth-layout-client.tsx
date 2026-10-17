@@ -29,6 +29,7 @@ import {
 } from "@/lib/auth/landing-background";
 import { usePathname } from "next/navigation";
 import { OrganisationPortal } from "@/features/auth/components/organisation-portal";
+import { FormSlot } from "./form-slot";
 
 const taglineKeys = [
   "layout_multi_tenant",
@@ -116,8 +117,13 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
+  // The same page's form in either layout: on the front door the layout
+  // changes when the organisation's context arrives, and the slot keeps what
+  // was typed across it.
+  const form = <FormSlot page={pathname ?? ""}>{children}</FormSlot>;
+
   if (portal) {
-    return <OrganisationPortal>{children}</OrganisationPortal>;
+    return <OrganisationPortal>{form}</OrganisationPortal>;
   }
 
   return (
@@ -209,7 +215,7 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex flex-1 items-center justify-center px-4 py-8">
-          <div className="w-full max-w-lg">{children}</div>
+          <div className="w-full max-w-lg">{form}</div>
         </div>
       </div>
     </div>
