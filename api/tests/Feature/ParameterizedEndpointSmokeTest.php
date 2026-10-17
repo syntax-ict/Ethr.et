@@ -143,6 +143,8 @@ test('parameterized GET api/v1 endpoints never 5xx with valid bound records', fu
         // announcement has no cover, so the request is a well-formed 404.
         'story' => $announcement->public_id,
         'size' => 'cover-640',
+        // A story document's id: a well-formed ULID that names no file, so 404.
+        'file' => '01JZZZZZZZZZZZZZZZZZZZZZZZ',
         'slot' => 'primary',
         // A statutory schedule of a payroll run: one of StatutorySchedules::SCHEDULES.
         'schedule' => 'income-tax',

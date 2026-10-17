@@ -67,8 +67,9 @@ it('returns the host-resolved tenant display info', function () {
                         'telegram' => null, 'youtube' => null, 'privacy' => null, 'terms' => null,
                     ],
                     'faqs' => [],
-                    'sections' => ['about' => true, 'announcements' => true, 'vacancies' => true, 'holidays' => false, 'faq' => true, 'contact' => true],
-                    'order' => ['about', 'announcements', 'vacancies', 'holidays', 'faq', 'contact'],
+                    'services' => [],
+                    'sections' => ['about' => true, 'services' => true, 'announcements' => true, 'vacancies' => true, 'holidays' => false, 'faq' => true, 'contact' => true],
+                    'order' => ['about', 'services', 'announcements', 'vacancies', 'holidays', 'faq', 'contact'],
                     'listed' => false,
                 ],
                 // Which ways in to offer: SSO only once configured.

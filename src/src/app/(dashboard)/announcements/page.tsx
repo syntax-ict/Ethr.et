@@ -5,6 +5,7 @@ import {
   Archive,
   ArchiveRestore,
   Eye,
+  FileText,
   Globe,
   ImageUp,
   Loader2,
@@ -15,6 +16,7 @@ import {
   Star,
   Trash2,
   Undo2,
+  X,
 } from "lucide-react";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
@@ -47,11 +49,14 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   useAllAnnouncements,
   useCreateAnnouncement,
+  downloadAnnouncementFile,
   useDeleteAnnouncement,
   useManagedAnnouncements,
   useRemoveAnnouncementCover,
+  useRemoveAnnouncementFile,
   useUpdateAnnouncement,
   useUploadAnnouncementCover,
+  useUploadAnnouncementFile,
   type Announcement,
   type AnnouncementPriority,
   type CreateAnnouncementPayload,
@@ -63,6 +68,7 @@ import {
 } from "@/features/auth/landing-feed";
 import { ArticleView } from "@/features/news/components/article-view";
 import type { NewsCoverImage } from "@/features/news/components/news-card";
+import { fileSize } from "@/features/news/news-format";
 import { apiErrorDetail } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -87,6 +93,10 @@ interface Form {
   coverPreview: string | null;
   /** Take the story's current cover off when it is saved. */
   removeCover: boolean;
+  /** PDFs chosen to attach, sent once the story is saved. */
+  newFiles: File[];
+  /** Ids of documents to take off when the story is saved. */
+  removedFiles: string[];
 }
 
 const EMPTY_FORM: Form = {
@@ -101,10 +111,14 @@ const EMPTY_FORM: Form = {
   coverFile: null,
   coverPreview: null,
   removeCover: false,
+  newFiles: [],
+  removedFiles: [],
 };
 
 const COVER_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const COVER_MAX_BYTES = 5 * 1024 * 1024;
+const FILES_MAX = 3;
+const FILE_MAX_BYTES = 5 * 1024 * 1024;
 
 const priorityColors: Record<string, string> = {
   urgent: "bg-destructive-soft text-destructive-on-soft",
@@ -155,6 +169,9 @@ export default function AnnouncementsPage() {
   const deleteAnnouncement = useDeleteAnnouncement();
   const uploadCover = useUploadAnnouncementCover();
   const removeCover = useRemoveAnnouncementCover();
+  const uploadFile = useUploadAnnouncementFile();
+  const removeFile = useRemoveAnnouncementFile();
+  const fileInput = useRef<HTMLInputElement>(null);
   const coverInput = useRef<HTMLInputElement>(null);
 
   // A chosen photo's preview lives until it is replaced or the form closes.
@@ -187,6 +204,8 @@ export default function AnnouncementsPage() {
       coverFile: null,
       coverPreview: null,
       removeCover: false,
+      newFiles: [],
+      removedFiles: [],
     });
     setDialogOpen(true);
   }
@@ -227,6 +246,56 @@ export default function AnnouncementsPage() {
     return form.removeCover ? null : (editing?.cover ?? null);
   }
 
+  /** The documents the story will carry once saved, for the form and preview. */
+  function formFiles(): Array<{
+    id: string;
+    name: string;
+    size: number;
+    url: null;
+    pending: boolean;
+  }> {
+    const kept = (editing?.attachments ?? [])
+      .filter((f) => !form.removedFiles.includes(f.id))
+      .map((f) => ({ ...f, url: null, pending: false }));
+    const added = form.newFiles.map((f, i) => ({
+      id: `new-${i}`,
+      name: f.name,
+      size: f.size,
+      url: null,
+      pending: true,
+    }));
+    return [...kept, ...added];
+  }
+
+  function chooseFile(file: File | undefined) {
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      toast.error(t("announcements.file_type", "Choose a PDF document."));
+      return;
+    }
+    if (file.size > FILE_MAX_BYTES) {
+      toast.error(
+        t(
+          "announcements.file_too_large",
+          "A document must be 5 MB or smaller.",
+        ),
+      );
+      return;
+    }
+    setForm((p) => ({ ...p, newFiles: [...p.newFiles, file] }));
+  }
+
+  function dropFile(file: { id: string; pending: boolean }) {
+    setForm((p) =>
+      file.pending
+        ? {
+            ...p,
+            newFiles: p.newFiles.filter((_, i) => `new-${i}` !== file.id),
+          }
+        : { ...p, removedFiles: [...p.removedFiles, file.id] },
+    );
+  }
+
   function chooseCover(file: File | undefined) {
     if (!file) return;
     if (!COVER_TYPES.includes(file.type)) {
@@ -253,31 +322,58 @@ export default function AnnouncementsPage() {
   }
 
   /**
-   * Send the cover change once the story exists. A refused photo leaves the
-   * story saved and the form open on it, with the photo still chosen, so
-   * trying again is one click.
+   * Send the cover and document changes once the story exists. A refused
+   * photo or document leaves the story saved and the form open on it, with
+   * whatever was not sent still chosen, so trying again is one click.
    */
-  async function saveCover(saved: Announcement): Promise<boolean> {
+  async function saveExtras(saved: Announcement): Promise<boolean> {
+    let latest = saved;
+    let coverDone = !form.coverFile && !form.removeCover;
+    const removing = [...form.removedFiles];
+    const pending = [...form.newFiles];
     try {
       if (form.coverFile) {
-        await uploadCover.mutateAsync({
+        latest = await uploadCover.mutateAsync({
           publicId: saved.public_id,
           file: form.coverFile,
         });
       } else if (form.removeCover && saved.cover) {
-        await removeCover.mutateAsync(saved.public_id);
+        latest = await removeCover.mutateAsync(saved.public_id);
+      }
+      coverDone = true;
+      while (removing.length > 0) {
+        latest = await removeFile.mutateAsync({
+          publicId: saved.public_id,
+          fileId: removing[0],
+        });
+        removing.shift();
+      }
+      while (pending.length > 0) {
+        latest = await uploadFile.mutateAsync({
+          publicId: saved.public_id,
+          file: pending[0],
+        });
+        pending.shift();
       }
       return true;
     } catch (error) {
+      setEditing(latest);
+      setForm((p) => ({
+        ...p,
+        ...(coverDone
+          ? { coverFile: null, coverPreview: null, removeCover: false }
+          : {}),
+        removedFiles: removing,
+        newFiles: pending,
+        publishing: "keep",
+      }));
       toast.error(
         apiErrorDetail(error) ??
           t(
-            "announcements.cover_failed",
-            "The story was saved, but its cover photo could not be",
+            "announcements.extras_failed",
+            "The story was saved, but a photo or document could not be",
           ),
       );
-      setEditing(saved);
-      setForm((p) => ({ ...p, publishing: "keep" }));
       return false;
     }
   }
@@ -313,7 +409,7 @@ export default function AnnouncementsPage() {
         },
         {
           onSuccess: async (saved) => {
-            if (!(await saveCover(saved))) return;
+            if (!(await saveExtras(saved))) return;
             toast.success(t("announcements.updated", "Announcement updated"));
             closeDialog();
           },
@@ -324,7 +420,7 @@ export default function AnnouncementsPage() {
     }
     createAnnouncement.mutate(content as CreateAnnouncementPayload, {
       onSuccess: async (saved) => {
-        if (!(await saveCover(saved))) return;
+        if (!(await saveExtras(saved))) return;
         toast.success(
           form.publishing === "draft"
             ? t("announcements.saved_draft", "Saved as a draft")
@@ -378,8 +474,11 @@ export default function AnnouncementsPage() {
     createAnnouncement.isPending ||
     updateAnnouncement.isPending ||
     uploadCover.isPending ||
-    removeCover.isPending;
+    removeCover.isPending ||
+    uploadFile.isPending ||
+    removeFile.isPending;
   const cover = formCover();
+  const files = formFiles();
 
   const statusLabel = (a: Announcement): string => {
     switch (a.status as Status) {
@@ -497,6 +596,40 @@ export default function AnnouncementsPage() {
                         <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                           {a.body}
                         </p>
+                        {(a.attachments ?? []).length > 0 && (
+                          <ul className="mt-2 flex flex-wrap gap-2">
+                            {(a.attachments ?? []).map((f) => (
+                              <li key={f.id}>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    downloadAnnouncementFile(
+                                      a.public_id,
+                                      f,
+                                    ).catch(() =>
+                                      toast.error(
+                                        t(
+                                          "announcements.download_failed",
+                                          "The document could not be downloaded",
+                                        ),
+                                      ),
+                                    )
+                                  }
+                                  className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                  <FileText
+                                    className="h-3.5 w-3.5 shrink-0 text-primary"
+                                    aria-hidden="true"
+                                  />
+                                  <span className="truncate">{f.name}</span>
+                                  <span className="shrink-0 text-muted-foreground">
+                                    {fileSize(f.size)}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                         <p className="mt-2 text-xs text-muted-foreground">
                           {a.published_at
                             ? formatDate(a.published_at)
@@ -680,6 +813,10 @@ export default function AnnouncementsPage() {
                         priority: preview.priority,
                         published_at: preview.published_at ?? null,
                         cover: preview.cover,
+                        attachments: (preview.attachments ?? []).map((f) => ({
+                          ...f,
+                          url: null,
+                        })),
                       }
                     : {
                         public_id: "preview",
@@ -693,6 +830,7 @@ export default function AnnouncementsPage() {
                         priority: preview.priority,
                         published_at: new Date().toISOString(),
                         cover,
+                        attachments: files,
                       }
                 }
               />
@@ -834,6 +972,74 @@ export default function AnnouncementsPage() {
                   )}
                 </div>
               </div>
+            </div>
+            <div>
+              <p
+                id="announcement-files-label"
+                className="text-sm font-medium text-foreground"
+              >
+                {t("announcements.files", "Documents")}
+              </p>
+              <p
+                id="announcement-files-hint"
+                className="text-xs text-muted-foreground"
+              >
+                {t(
+                  "announcements.files_hint",
+                  "Up to three PDFs, 5 MB each, such as a circular or a form. Readers download them with the story.",
+                )}
+              </p>
+              {files.length > 0 && (
+                <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
+                  {files.map((f) => (
+                    <li
+                      key={f.id}
+                      className="flex items-center gap-2 px-3 py-2 text-sm"
+                    >
+                      <FileText
+                        className="h-4 w-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {fileSize(f.size)}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`${t("settings.logo_remove", "Remove")}: ${f.name}`}
+                        onClick={() => dropFile(f)}
+                      >
+                        <X className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <input
+                ref={fileInput}
+                type="file"
+                accept="application/pdf"
+                className="sr-only"
+                aria-labelledby="announcement-files-label"
+                aria-describedby="announcement-files-hint"
+                onChange={(e) => {
+                  chooseFile(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                disabled={files.length >= FILES_MAX}
+                onClick={() => fileInput.current?.click()}
+              >
+                <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("announcements.add_file", "Add a PDF")}
+              </Button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>

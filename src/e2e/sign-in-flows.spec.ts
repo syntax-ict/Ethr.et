@@ -91,10 +91,17 @@ test.describe("Sign-in flows", () => {
     await expect(
       page.getByRole("heading", { name: "Set a new password" }),
     ).toBeVisible();
+    // Typed only once the page has settled: on 2026-10-16 CI filled the first
+    // field while the organisation's context was still arriving, the
+    // re-render cleared it, and the form refused "Use at least 8 characters"
+    // instead of reaching the server this test is about.
+    await page.waitForLoadState("networkidle");
 
     const password = "Correct-Horse-Battery-9";
     await page.getByLabel("New password").fill(password);
     await page.getByLabel("Confirm password").fill(password);
+    await expect(page.getByLabel("New password")).toHaveValue(password);
+    await expect(page.getByLabel("Confirm password")).toHaveValue(password);
     await page.getByRole("button", { name: "Reset password" }).click();
 
     // The server's own refusal, not a CSRF 419: until 2026-10-09 this page

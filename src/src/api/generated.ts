@@ -3324,6 +3324,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/announcements/{announcement}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create file */
+        post: operations["announcementFile.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/announcements/{announcement}/files/{file}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download one document, on the terms the story itself is read on
+         *     (`AnnouncementController::show()`): published, unexpired and addressed
+         *     to the reader, or any state for whoever manages announcements. Anything
+         *     else is the same 404 as a story that does not exist
+         */
+        get: operations["announcementFile.download"];
+        put?: never;
+        post?: never;
+        /** Delete file */
+        delete: operations["announcementFile.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notifications": {
         parameters: {
             query?: never;
@@ -6252,6 +6292,12 @@ export interface components {
                 width: number;
                 height: number;
             } | null;
+            attachments: {
+                id: string;
+                name: string;
+                size: number;
+                url: string | null;
+            }[];
             /** Format: date-time */
             created_at: string | null;
         };
@@ -8868,7 +8914,8 @@ export interface components {
          *     is refused in withValidator(). The network links are checked against the
          *     network's own host there too, with TenantLanding::linkUrl(), the same test
          *     the public side applies before serving. Each question needs a question
-         *     and an answer in at least one language, checked there as well. Scramble
+         *     and an answer in at least one language, and each service a title,
+         *     checked there as well. Scramble
          *     does not read withValidator(), so the contract stays a plain rule set.
          */
         UpdateLandingRequest: {
@@ -8916,18 +8963,25 @@ export interface components {
             };
             sections?: {
                 about: boolean;
+                services: boolean;
                 announcements: boolean;
                 vacancies: boolean;
                 holidays: boolean;
                 faq: boolean;
                 contact: boolean;
             };
-            order?: ("about" | "announcements" | "vacancies" | "holidays" | "faq" | "contact")[];
+            order?: ("about" | "services" | "announcements" | "vacancies" | "holidays" | "faq" | "contact")[];
             faqs?: {
                 question: string | null;
                 question_am: string | null;
                 answer: string | null;
                 answer_am: string | null;
+            }[];
+            services?: {
+                title: string | null;
+                title_am: string | null;
+                description: string | null;
+                description_am: string | null;
             }[];
             listed?: boolean;
         };
@@ -9249,6 +9303,20 @@ export interface components {
              * @description Maximum file size: 5120 kilobytes.
              */
             image: string;
+        };
+        /**
+         * UploadAnnouncementFileRequest
+         * @description A document for a news story: a PDF, checked by its own bytes (`%PDF`), at
+         *     most 5 MB, the size a circular or a form needs on shared hosting's quota.
+         *     A story takes at most Announcement::ATTACHMENTS_MAX, refused in
+         *     withValidator(), which Scramble does not read.
+         */
+        UploadAnnouncementFileRequest: {
+            /**
+             * Format: binary
+             * @description Maximum file size: 5120 kilobytes.
+             */
+            file: string;
         };
         /**
          * UploadBrandAssetRequest
@@ -17434,6 +17502,12 @@ export interface operations {
                             height: number;
                         } | null;
                         body: string;
+                        attachments: {
+                            id: string;
+                            name: string;
+                            size: number;
+                            url: string | null;
+                        }[];
                         related: {
                             public_id: string;
                             title: string;
@@ -18393,6 +18467,95 @@ export interface operations {
             path: {
                 /** @description The announcement public id */
                 announcement: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `AnnouncementResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "announcementFile.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The announcement public id */
+                announcement: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadAnnouncementFileRequest"];
+            };
+        };
+        responses: {
+            /** @description `AnnouncementResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "announcementFile.download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The announcement public id */
+                announcement: string;
+                file: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    "Content-Length"?: string;
+                    "Cache-Control"?: "private, no-store";
+                    "X-Content-Type-Options"?: "nosniff";
+                    "Content-Security-Policy"?: "default-src 'none'; sandbox";
+                    "Cross-Origin-Resource-Policy"?: "same-site";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string | null;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "announcementFile.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The announcement public id */
+                announcement: string;
+                file: string;
             };
             cookie?: never;
         };
@@ -23497,6 +23660,12 @@ export interface operations {
                                 answer: string | null;
                                 answer_am: string | null;
                             }[];
+                            services: {
+                                title: string | null;
+                                title_am: string | null;
+                                description: string | null;
+                                description_am: string | null;
+                            }[];
                             sections: {
                                 [key: string]: boolean;
                             };
@@ -23801,6 +23970,12 @@ export interface operations {
                             question_am: string | null;
                             answer: string | null;
                             answer_am: string | null;
+                        }[];
+                        services: {
+                            title: string | null;
+                            title_am: string | null;
+                            description: string | null;
+                            description_am: string | null;
                         }[];
                         sections: {
                             [key: string]: boolean;
@@ -25471,6 +25646,12 @@ export interface operations {
                                     question_am: string | null;
                                     answer: string | null;
                                     answer_am: string | null;
+                                }[];
+                                services: {
+                                    title: string | null;
+                                    title_am: string | null;
+                                    description: string | null;
+                                    description_am: string | null;
                                 }[];
                                 sections: {
                                     [key: string]: boolean;

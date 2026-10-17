@@ -214,6 +214,7 @@ class LandingFeedController extends Controller
         return response()->json([
             ...self::newsSummary($model, $tenant->public_id),
             'body' => self::excerpt($model->body, 10000),
+            'attachments' => $model->attachmentsPresented($tenant->public_id),
             'related' => $related,
         ]);
     }

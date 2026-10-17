@@ -269,6 +269,33 @@ class FileStorageService
     }
 
     /**
+     * Store a document attached to a news story, as uploaded: a PDF whose
+     * content the request has already checked. Kept under the story's public
+     * id with a fresh ULID, so a name cannot collide and is never a path. The
+     * name it was uploaded under is kept for the download, cleaned of path
+     * parts and control characters and ending in `.pdf`.
+     *
+     * @return array{id: string, name: string, size: int, path: string}
+     */
+    public function storeNewsFile(UploadedFile $file, string $storyPublicId): array
+    {
+        $id = (string) Str::ulid();
+        $content = $file->getContent();
+        $path = "{$this->tenantPrefix()}/news/{$storyPublicId}-files/{$id}.pdf";
+        Storage::disk($this->disk)->put($path, $content);
+
+        $name = (string) preg_replace('/[\x00-\x1F\x7F\/\\\\]+/u', ' ', basename($file->getClientOriginalName()));
+        $name = trim(mb_substr((string) preg_replace('/\.pdf$/i', '', trim($name)), 0, 120));
+
+        return [
+            'id' => $id,
+            'name' => ($name === '' ? 'document' : $name).'.pdf',
+            'size' => strlen($content),
+            'path' => $path,
+        ];
+    }
+
+    /**
      * Where a story's cover, or one of its narrower copies, is stored. One
      * definition for the upload and for NewsCoverController, which reads the
      * file by this path and nothing else.
