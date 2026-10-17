@@ -148,6 +148,34 @@ describe("Landing page", () => {
     expect(screen.getByText(/fails closed/i)).toBeInTheDocument();
   });
 
+  it("pairs each capability with its value, claiming only what is built", () => {
+    withQuery(<LandingContent />);
+
+    const section = screen.getByRole("region", {
+      name: "What ETHR does for your organisation",
+    });
+    const rows = section.querySelectorAll("li");
+    expect(rows).toHaveLength(5);
+    for (const value of [
+      "Establishes reliable workforce data",
+      "Reduces repetitive administration",
+      "Reduces routine HR requests",
+      "Supports better management decisions",
+    ]) {
+      expect(section).toHaveTextContent(value);
+    }
+    expect(section).toHaveTextContent("Proclamation 1395/2025");
+
+    // The 2026-10-17 capability audit found no performance reviews, goals,
+    // training or certifications in the code, and no device verified on real
+    // hardware. The page names none of them until they exist.
+    expect(section).not.toHaveTextContent(
+      /performance review|appraisal|training|certif|goals|OKR/i,
+    );
+    expect(section).not.toHaveTextContent(/Hikvision|ZKTeco|Suprema/i);
+    expect(section).not.toHaveTextContent(/Excel|multi-level|delegat/i);
+  });
+
   it("states no figure it cannot substantiate", () => {
     withQuery(<LandingContent />);
 

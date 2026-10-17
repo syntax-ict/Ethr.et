@@ -18,6 +18,9 @@ import {
   Briefcase,
   Shield,
   CheckCircle2,
+  Users,
+  Smartphone,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductFlow } from "@/components/marketing/product-flow";
@@ -40,6 +43,22 @@ const featureKeys = [
   "offline",
   "multi_tenant",
   "bilingual",
+] as const;
+
+/**
+ * What ETHR does, each capability beside the work it takes off an HR team.
+ * Every sentence here was checked against the code on 2026-10-17 (the
+ * capability audit): the five are what an organisation can use today, worded
+ * to claim no more. Performance reviews and training are not built, so the
+ * fifth row is analytics alone; device brands are not named because none is
+ * verified on real hardware yet. `marketing-pages.test.tsx` pins both.
+ */
+const capabilities = [
+  { key: "records", Icon: Users },
+  { key: "time", Icon: Clock },
+  { key: "payroll", Icon: Wallet },
+  { key: "self_service", Icon: Smartphone },
+  { key: "analytics", Icon: BarChart3 },
 ] as const;
 
 const industryData = [
@@ -293,8 +312,75 @@ export function LandingContent() {
         </div>
       </section>
 
+      {/* Capabilities and the value of each */}
+      <section
+        aria-labelledby="capabilities-heading"
+        className="border-y border-border/50 bg-muted/20 py-20 sm:py-24"
+      >
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-sm font-semibold uppercase tracking-wider text-primary">
+              {t("marketing.capabilities.overline", "Capabilities")}
+            </p>
+            <h2
+              id="capabilities-heading"
+              className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
+            >
+              {t(
+                "marketing.capabilities.title",
+                "What ETHR does for your organisation",
+              )}
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              {t(
+                "marketing.capabilities.subtitle",
+                "Five capabilities, each paired with the work it takes off your HR team.",
+              )}
+            </p>
+          </div>
+          <ol className="mt-12 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            {capabilities.map(({ key, Icon }) => (
+              <li
+                key={key}
+                className="grid gap-3 p-5 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-center sm:gap-8 sm:p-6"
+              >
+                <div className="flex min-w-0 gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold text-foreground">
+                      {t(`marketing.capabilities.${key}`)}
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      {t(`marketing.capabilities.${key}_desc`)}
+                    </p>
+                  </div>
+                </div>
+                <p className="flex items-start gap-2 text-sm font-medium text-foreground sm:justify-self-stretch">
+                  <CheckCircle2
+                    className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    <span className="sr-only">
+                      {t(
+                        "marketing.capabilities.value_label",
+                        "Business value",
+                      )}
+                      :{" "}
+                    </span>
+                    {t(`marketing.capabilities.${key}_value`)}
+                  </span>
+                </p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
       {/* How it works */}
-      <section className="border-y border-border/50 bg-muted/20 py-20 sm:py-24">
+      <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary">
@@ -326,7 +412,7 @@ export function LandingContent() {
       </section>
 
       {/* Industries */}
-      <section className="py-20 sm:py-24">
+      <section className="border-y border-border/50 bg-muted/20 py-20 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary">
@@ -367,7 +453,7 @@ export function LandingContent() {
       </section>
 
       {/* Trust / Security */}
-      <section className="border-y border-border/50 bg-muted/20 py-20 sm:py-24">
+      <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
