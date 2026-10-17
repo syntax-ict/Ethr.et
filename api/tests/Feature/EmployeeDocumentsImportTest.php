@@ -530,9 +530,11 @@ describe('bulk update status validation', function () {
     it('accepts a valid status', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        // Confirmed, not hired: hired to suspended is not a transition the
+        // status machine allows, and bulk update now applies it.
         $emp = Employee::factory()->create([
             'tenant_id' => $tenant->id,
-            'status' => EmployeeStatus::HIRED,
+            'status' => EmployeeStatus::CONFIRMED,
         ]);
 
         $this->postJson('/api/v1/employees/bulk-update', [

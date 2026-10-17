@@ -100,14 +100,24 @@ export interface BulkUpdateEmployeesInput {
   department_id?: string;
   branch_id?: string;
   status?: string;
+  effective_date?: string;
+  reason?: string;
 }
+
+/**
+ * `updated` counts the employees changed. A status change is checked per
+ * employee against the transition rules, so `results` says, for each id,
+ * whether it was updated, already in that status, or refused and why.
+ */
+export type BulkUpdateEmployeesResult =
+  operations["employeeBulk.bulkUpdate"]["responses"][200]["content"]["application/json"];
 
 export function useBulkUpdateEmployees() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (input: BulkUpdateEmployeesInput) => {
-      const { data } = await apiClient.post<{ updated: number }>(
+      const { data } = await apiClient.post<BulkUpdateEmployeesResult>(
         "/employees/bulk-update",
         input,
       );

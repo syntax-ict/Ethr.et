@@ -9,8 +9,10 @@ use App\Http\Requests\Employee\Concerns\ValidatesRelationTenancy;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
+use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
 
 class BulkUpdateRequest extends FormRequest
@@ -18,6 +20,14 @@ class BulkUpdateRequest extends FormRequest
     use ValidatesRelationTenancy {
         withValidator as validateRelationTenancy;
     }
+
+    /**
+     * Each employee is now its own transaction with a transition, audit rows
+     * and an event, about six queries where it used to be one UPDATE. Capped
+     * so a selection stays well inside production's 30-second limit and never
+     * times out halfway, leaving the caller unable to tell what changed.
+     */
+    public const MAX_EMPLOYEES = 200;
 
     public function authorize(): bool
     {
@@ -28,7 +38,7 @@ class BulkUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'employee_ids' => ['required', 'array', 'min:1'],
+            'employee_ids' => ['required', 'array', 'min:1', 'max:'.self::MAX_EMPLOYEES],
             'employee_ids.*' => ['required', 'string', 'exists:employees,public_id'],
             'department_id' => ['nullable', 'exists:departments,public_id'],
             'branch_id' => ['nullable', 'exists:branches,public_id'],
@@ -39,6 +49,8 @@ class BulkUpdateRequest extends FormRequest
             // 500ing the employee endpoint and any list containing them. The API
             // is also the only way to correct it, so the record was bricked.
             'status' => ['nullable', 'string', Rule::enum(EmployeeStatus::class)],
+            'effective_date' => ['nullable', 'date'],
+            'reason' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
@@ -81,13 +93,54 @@ class BulkUpdateRequest extends FormRequest
                     continue;
                 }
 
-                // The message the unscoped `exists` rule gives a public_id that
-                // exists nowhere, so the response cannot confirm that it exists
-                // in another tenant.
-                $validator->errors()->add($key, __('validation.exists', [
-                    'attribute' => $validator->getDisplayableAttribute($key),
-                ]));
+                $validator->errors()->add($key, $this->missingEmployeeMessage($validator, $key));
             }
         });
+    }
+
+    /**
+     * Refuse the whole request when any employee named is outside the
+     * requester's org scope, before anything is written.
+     *
+     * Runs from the controller, after its permission check, so a caller with
+     * no permission still gets 403 rather than a 422 naming ids. Each refused
+     * id gets the message an id that exists nowhere gets, so a scoped manager
+     * cannot use the response to learn that someone outside their scope exists.
+     *
+     * @param  list<string>  $reachable  the public ids the requester may change
+     *
+     * @throws ValidationException
+     */
+    public function refuseEmployeesOutOfReach(array $reachable): void
+    {
+        $validator = $this->getValidatorInstance();
+        $messages = [];
+
+        foreach ((array) $this->validated('employee_ids') as $index => $publicId) {
+            if (in_array($publicId, $reachable, true)) {
+                continue;
+            }
+
+            $key = "employee_ids.{$index}";
+            $messages[$key] = $this->missingEmployeeMessage($validator, $key);
+        }
+
+        if ($messages !== []) {
+            throw ValidationException::withMessages($messages);
+        }
+    }
+
+    /**
+     * The message the unscoped `exists` rule gives a public_id that exists
+     * nowhere, so the response cannot confirm that it exists in another
+     * tenant, or outside the requester's scope.
+     */
+    private function missingEmployeeMessage(ValidatorContract $validator, string $key): string
+    {
+        // The contract has no getDisplayableAttribute(); the framework's
+        // validator, which is what a FormRequest builds, does.
+        $attribute = $validator instanceof Validator ? $validator->getDisplayableAttribute($key) : $key;
+
+        return __('validation.exists', ['attribute' => $attribute]);
     }
 }

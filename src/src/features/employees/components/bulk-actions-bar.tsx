@@ -25,10 +25,9 @@ import { useT } from "@/lib/i18n/useT";
 
 type BulkField = "department_id" | "branch_id" | "status";
 
-// Mirrors App\Enums\EmployeeStatus. Bulk update writes the raw enum value
-// (unlike the single-employee transition endpoint, it does not enforce
-// canTransitionTo) so every case is offered here, matching what the backend
-// actually accepts.
+// Mirrors App\Enums\EmployeeStatus. Every case is offered because a selection
+// can mix statuses: the backend applies the transition rules per employee and
+// reports the ones it refused, so the choice is checked there, not here.
 const STATUS_OPTIONS = [
   "hired",
   "probation",
@@ -72,11 +71,26 @@ export function BulkActionsBar({
       { employee_ids: selectedIds, [field]: value },
       {
         onSuccess: (data) => {
-          toast.success(
-            t("employees.bulk.updated", "Updated :count employees", {
-              count: data.updated,
-            }),
-          );
+          const refused = data.results.filter((r) => r.outcome === "failed");
+          if (refused.length > 0) {
+            const reasons = [
+              ...new Set(refused.map((r) => r.error).filter(Boolean)),
+            ];
+            toast.warning(
+              t(
+                "employees.bulk.partial",
+                "Updated :updated employees. :failed could not be changed.",
+                { updated: data.updated, failed: refused.length },
+              ),
+              { description: reasons.join(" ") },
+            );
+          } else {
+            toast.success(
+              t("employees.bulk.updated", "Updated :count employees", {
+                count: data.updated,
+              }),
+            );
+          }
           closeDialog();
           onComplete();
         },
@@ -140,6 +154,11 @@ export function BulkActionsBar({
                 "This will update :count selected employees.",
                 { count: selectedIds.length },
               )}
+              {field === "status" &&
+                ` ${t(
+                  "employees.bulk.status_rules",
+                  "Anyone who cannot move to the chosen status keeps their current one.",
+                )}`}
             </DialogDescription>
           </DialogHeader>
 
