@@ -122,7 +122,7 @@ class PayrollController extends Controller
         return new PayrollRunResource($payrollRun);
     }
 
-    public function approve(ApprovePayrollRunRequest $request, PayrollRun $payrollRun, RunRegisterService $registerService): JsonResponse
+    public function approve(ApprovePayrollRunRequest $request, PayrollRun $payrollRun, RunRegisterService $registerService, PayrollEngine $engine): JsonResponse
     {
         $this->authorize('approve', $payrollRun);
 
@@ -149,12 +149,10 @@ class PayrollController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
-        $user = $request->user();
-        $payrollRun->update([
-            'status' => 'approved',
-            'approved_by' => $user->id,
-            'approved_at' => now(),
-        ]);
+        // Approval is where loan and cost-sharing balances move. The engine
+        // re-checks the status under a lock and refuses, as a 422, a run whose
+        // balances changed after it was calculated (PayrollRunRefused).
+        $payrollRun = $engine->approve($payrollRun, $request->user()->id);
 
         AuditLog::record('payroll.approved', $payrollRun);
         PayrollApproved::dispatch($payrollRun);

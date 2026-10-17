@@ -22,7 +22,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
-import { useCurrentTenant } from "@/features/auth/api";
+import { useCurrentTenant, useUploadLimit } from "@/features/auth/api";
+import {
+  overServerLimit,
+  SERVER_LIMIT_FALLBACK,
+  SERVER_LIMIT_KEY,
+  shrinkImage,
+  sizeLabel,
+} from "@/lib/uploads/upload-limit";
 import {
   useMyProfile,
   useRemoveProfilePhoto,
@@ -306,18 +313,35 @@ function PhotoControl({
   const upload = useUploadProfilePhoto();
   const remove = useRemoveProfilePhoto();
   const busy = upload.isPending || remove.isPending;
+  const serverLimit = useUploadLimit();
+  const { t: tWith } = useT();
 
-  async function onPick(file: File | undefined) {
-    if (!file) return;
+  async function onPick(chosen: File | undefined) {
+    if (!chosen) return;
 
-    if (!ACCEPTED_PHOTO_TYPES.includes(file.type)) {
+    if (!ACCEPTED_PHOTO_TYPES.includes(chosen.type)) {
       toast.error(
         t("profile.photo_type_error", "Choose a JPG, PNG or WebP image."),
       );
       return;
     }
+    // Shrunk in the browser first: the server keeps the photo at 1600 px.
+    const file = await shrinkImage(chosen, {
+      maxEdge: 1600,
+      type: "image/jpeg",
+    });
     if (file.size > MAX_PHOTO_BYTES) {
       toast.error(t("profile.photo_size_error", "Photos must be under 5 MB."));
+      return;
+    }
+    const limit = overServerLimit(file, MAX_PHOTO_BYTES, serverLimit);
+    if (limit !== null) {
+      toast.error(
+        tWith(SERVER_LIMIT_KEY, SERVER_LIMIT_FALLBACK, {
+          size: sizeLabel(file.size),
+          max: sizeLabel(limit),
+        }),
+      );
       return;
     }
 

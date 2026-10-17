@@ -12,16 +12,19 @@ processing, is the basis ETHR collects for every organisation. Added
 - **On the phone:** the first time they tap *Take a selfie*, a notice opens
   before the camera does. It says what is taken (one photo per mobile check-in
   or check-out), why (to confirm it is them, nothing else), who sees it (HR and
-  the managers who review their attendance), where it is kept (with the
-  attendance record, on servers in Ethiopia), how to withdraw, and what to do
+  their department manager, every view recorded), where and how long it is
+  kept (with the attendance record, on servers in Ethiopia, for the
+  organisation's retention period), how to withdraw, and what to do
   instead (kiosk or QR code, where offered). *I agree* records consent and
   opens the camera; *Not now* opens nothing.
 - **In the profile:** Profile, Preferences, *Attendance photo* shows whether
   they agreed and when, the same notice, and a button to agree or withdraw.
 
-Withdrawing stops new selfies from then on. Photos already taken stay with
-their attendance records; erasing them is a request to the organisation
-(Art. 28), which an administrator handles.
+Withdrawing stops new selfies from then on. Photos already taken are deleted
+at the end of the retention period
+([`ATTENDANCE-PHOTO-RETENTION.md`](ATTENDANCE-PHOTO-RETENTION.md)); erasing
+them sooner is a request to the organisation (Art. 28), which an
+administrator handles.
 
 ## What the server enforces
 
@@ -48,7 +51,9 @@ the evidence that outlives a change of mind.
 `PhotoConsent::VERSION` names the notice. When the notice changes materially
 (a new purpose, a new audience, a different place of storage), raise the
 version: consent to the older notice stops counting and everyone is asked
-again.
+again. That happened once, the same day the feature shipped: `2026-10-17.2`
+came with the retention policy, which narrowed the audience to HR and the
+department manager and limited how long a selfie is kept.
 
 ## What ETHR does not decide
 

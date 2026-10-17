@@ -22,7 +22,7 @@ class EmployeeDocumentController extends Controller
 
     public function index(Request $request, Employee $employee): AnonymousResourceCollection
     {
-        Gate::authorize('employee.view');
+        $this->authorize('view', $employee);
 
         $query = $employee->documents();
 
@@ -65,7 +65,7 @@ class EmployeeDocumentController extends Controller
 
     public function store(StoreDocumentRequest $request, Employee $employee): JsonResponse
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $uploaded = $this->fileService->upload(
             $request->file('file'),
@@ -94,7 +94,7 @@ class EmployeeDocumentController extends Controller
 
     public function show(Employee $employee, EmployeeDocument $document): JsonResponse
     {
-        Gate::authorize('employee.view');
+        $this->authorize('view', $employee);
 
         $url = $this->fileService->temporaryUrl($document->file_path, 15);
 
@@ -106,7 +106,7 @@ class EmployeeDocumentController extends Controller
 
     public function destroy(Employee $employee, EmployeeDocument $document): JsonResponse
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         // Soft delete only — the underlying file is kept in case the document
         // is later referenced in a legal/payroll dispute. Physical cleanup

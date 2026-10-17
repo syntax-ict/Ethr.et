@@ -313,6 +313,34 @@ export default function AttendanceSettingsPage() {
                   />
                 </SettingRow>
                 <div>
+                  <Label htmlFor="photo-retention-days" className="text-sm">
+                    {t(
+                      "attendance.settings_page.photo_retention_days",
+                      "Keep attendance selfies for (days)",
+                    )}
+                  </Label>
+                  <Input
+                    id="photo-retention-days"
+                    type="number"
+                    value={form.photo_retention_days}
+                    onChange={(e) =>
+                      setField(
+                        "photo_retention_days",
+                        parseInt(e.target.value) || 7,
+                      )
+                    }
+                    min={1}
+                    max={90}
+                    className="mt-1 w-32"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t(
+                      "attendance.settings_page.photo_retention_days_desc",
+                      "After this, HR and the department manager are told and have 48 hours to hold a photo for a complaint. Then the photo is deleted and the attendance record is kept.",
+                    )}
+                  </p>
+                </div>
+                <div>
                   <Label htmlFor="gps-accuracy-threshold" className="text-sm">
                     {t("attendance.settings_page.gps_accuracy_threshold")}
                   </Label>

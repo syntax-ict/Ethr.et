@@ -1694,18 +1694,6 @@ parameters:
 			path: app/Services/Payroll/BankExportService.php
 
 		-
-			message: '#^Method App\\Services\\Payroll\\LoanService\:\:getActiveLoans\(\) return type with generic class Illuminate\\Database\\Eloquent\\Collection does not specify its types\: TKey, TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Services/Payroll/LoanService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$monthly_deduction_cents\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Payroll/PayrollEngine.php
-
-		-
 			message: '#^Offset ''fiscal_year_start…'' on array\{\}\|string on left side of \?\? does not exist\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
@@ -1714,12 +1702,6 @@ parameters:
 		-
 			message: '#^Offset ''pagumen_proration…'' on array\{\}\|string on left side of \?\? does not exist\.$#'
 			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Services/Payroll/PayrollEngine.php
-
-		-
-			message: '#^Parameter \#1 \$loan of method App\\Services\\Payroll\\LoanService\:\:applyDeduction\(\) expects App\\Models\\EmployeeLoan, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
 			count: 1
 			path: app/Services/Payroll/PayrollEngine.php
 

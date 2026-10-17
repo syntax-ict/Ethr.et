@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Exceptions\AttendanceRefused;
 use App\Exceptions\DeviceRequestFailed;
+use App\Exceptions\PayrollRunRefused;
 use App\Http\Controllers\Api\V1\Device\AdmsController;
 use App\Http\Controllers\Api\V1\Maintenance\MaintenanceController;
 use App\Http\Middleware\AcceptIdempotencyKeyHeader;
@@ -249,6 +250,28 @@ return Application::configure(basePath: dirname(__DIR__))
                 'status' => 422,
                 'detail' => $e->getMessage(),
             ], 422);
+        });
+
+        // A payroll approval or void the engine refused under its lock: the
+        // run moved on, or the balances it was calculated from did. The
+        // employees are named by public id so the screen can say whose loan
+        // or cost-sharing balance to check before reprocessing.
+        $exceptions->render(function (PayrollRunRefused $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            $problem = [
+                'type' => $e->type,
+                'title' => $e->title,
+                'status' => 422,
+                'detail' => $e->getMessage(),
+            ];
+            if ($e->employees !== []) {
+                $problem['employees'] = $e->employees;
+            }
+
+            return response()->json($problem, 422, ['Content-Type' => 'application/problem+json']);
         });
 
         // A device the request depends on could not be read: unreachable,

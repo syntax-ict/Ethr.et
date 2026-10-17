@@ -27,6 +27,13 @@ import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { Controller } from "react-hook-form";
 import { useT } from "@/lib/i18n/useT";
+import { useUploadLimit } from "@/features/auth/api";
+import {
+  overServerLimit,
+  SERVER_LIMIT_FALLBACK,
+  SERVER_LIMIT_KEY,
+  sizeLabel,
+} from "@/lib/uploads/upload-limit";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
@@ -85,6 +92,7 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const serverLimit = useUploadLimit();
 
   const {
     register,
@@ -125,6 +133,13 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
         "employee.documents.file_too_large",
         "The file must be 10 MB or smaller",
       );
+    }
+    const limit = overServerLimit(candidate, MAX_FILE_BYTES, serverLimit);
+    if (limit !== null) {
+      return t(SERVER_LIMIT_KEY, SERVER_LIMIT_FALLBACK, {
+        size: sizeLabel(candidate.size),
+        max: sizeLabel(limit),
+      });
     }
     return null;
   }

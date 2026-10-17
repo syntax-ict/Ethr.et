@@ -39,6 +39,7 @@ import {
 import { requestAttendanceSync } from "@/lib/hooks/useServiceWorker";
 import { tenantHeaderValue } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
+import { captureSelfie } from "@/lib/uploads/selfie";
 import { apiErrorDetail } from "@/lib/api/error-message";
 import {
   autoCheckInDecision,
@@ -198,11 +199,9 @@ export default function MobilePunchPage() {
   function snapPhoto() {
     const video = videoRef.current;
     if (!video) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
-    setPhoto(canvas.toDataURL("image/jpeg", 0.7));
+    // At most 1.5 MB (attendance photo policy), stepping quality and size
+    // down until it fits; also what a queued offline punch carries.
+    setPhoto(captureSelfie(video));
     stopCamera();
   }
 

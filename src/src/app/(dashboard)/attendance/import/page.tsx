@@ -27,12 +27,21 @@ import {
   type ImportPreview,
 } from "@/features/attendance/api";
 import { useT } from "@/lib/i18n/useT";
+import { useUploadLimit } from "@/features/auth/api";
+import {
+  overServerLimit,
+  SERVER_LIMIT_FALLBACK,
+  SERVER_LIMIT_KEY,
+  sizeLabel,
+} from "@/lib/uploads/upload-limit";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { saveCsv } from "@/lib/utils/csv-export";
 import { apiErrorDetail } from "@/lib/api/error-message";
 
 type Step = "upload" | "preview" | "importing" | "done";
+
+const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
 
 export default function AttendanceImportPage() {
   const { t } = useT();
@@ -54,6 +63,7 @@ export default function AttendanceImportPage() {
   const previewImport = usePreviewImport();
   const commit = useCommitImport();
   const template = useImportTemplate();
+  const serverLimit = useUploadLimit();
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -61,8 +71,18 @@ export default function AttendanceImportPage() {
         toast.error(t("attendance.import_page.upload_csv_or_txt"));
         return;
       }
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > IMPORT_MAX_BYTES) {
         toast.error(t("attendance.import_page.file_too_large"));
+        return;
+      }
+      const limit = overServerLimit(file, IMPORT_MAX_BYTES, serverLimit);
+      if (limit !== null) {
+        toast.error(
+          t(SERVER_LIMIT_KEY, SERVER_LIMIT_FALLBACK, {
+            size: sizeLabel(file.size),
+            max: sizeLabel(limit),
+          }),
+        );
         return;
       }
 
@@ -88,7 +108,7 @@ export default function AttendanceImportPage() {
         setUploading(false);
       }
     },
-    [previewImport, t],
+    [previewImport, serverLimit, t],
   );
 
   function handleDrop(e: React.DragEvent) {

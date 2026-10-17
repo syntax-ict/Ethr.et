@@ -24,7 +24,7 @@ class EmployeeContractController extends Controller
 
     public function index(Employee $employee): AnonymousResourceCollection
     {
-        Gate::authorize('employee.view');
+        $this->authorize('view', $employee);
 
         $contracts = $employee->contracts()
             ->with('renewedFrom')
@@ -37,7 +37,7 @@ class EmployeeContractController extends Controller
 
     public function store(StoreEmployeeContractRequest $request, Employee $employee): JsonResponse
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $contract = $this->contracts->create($employee, $request->validated(), $request->user()?->id);
 
@@ -48,7 +48,7 @@ class EmployeeContractController extends Controller
 
     public function renew(RenewEmployeeContractRequest $request, Employee $employee, EmployeeContract $contract): JsonResponse
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $successor = $this->contracts->renew($contract, $request->validated(), $request->user()?->id);
 
@@ -59,7 +59,7 @@ class EmployeeContractController extends Controller
 
     public function end(EndEmployeeContractRequest $request, Employee $employee, EmployeeContract $contract): EmployeeContractResource
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $updated = $this->contracts->end($contract, $request->validated());
 
