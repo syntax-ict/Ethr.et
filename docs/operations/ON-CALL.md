@@ -72,6 +72,7 @@ Who holds which credential is in [`CUSTODY.md`](CUSTODY.md) — names and places
 
 | Question | Document |
 |---|---|
+| Personal data may have been exposed | [`DATA-BREACH-RESPONSE.md`](DATA-BREACH-RESPONSE.md): the first hour, the 72-hour clock, who notifies whom |
 | Every command and the full schedule | [`COMMANDS-AND-SCHEDULE.md`](COMMANDS-AND-SCHEDULE.md) |
 | Queue and scheduler monitoring in depth | [`QUEUE-MONITORING.md`](QUEUE-MONITORING.md) |
 | The health endpoint, field by field | [`health-check.md`](../deployment/shared-hosting/health-check.md) |
