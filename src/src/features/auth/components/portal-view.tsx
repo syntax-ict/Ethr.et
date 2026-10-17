@@ -14,6 +14,7 @@ import {
   Factory,
   Info,
   Landmark,
+  LayoutGrid,
   Mail,
   MapPin,
   Megaphone,
@@ -42,7 +43,12 @@ import type {
   TenantLanding,
 } from "@/lib/auth/use-auth-host-context";
 import { coverPosition, panelBackground } from "@/lib/auth/landing-background";
-import { localised, localisedFaqs, mapsUrl } from "@/lib/auth/landing-text";
+import {
+  localised,
+  localisedFaqs,
+  localisedServices,
+  mapsUrl,
+} from "@/lib/auth/landing-text";
 import { paragraphs, segments } from "@/features/news/news-format";
 import type { LandingFeed } from "@/features/auth/landing-feed";
 import { SupportContacts } from "@/app/(auth)/auth-layout-client";
@@ -494,6 +500,18 @@ function PortalSections({
                 </ul>
               </PortalSectionFrame>
             );
+          case "services":
+            return (
+              <PortalSectionFrame
+                key={section}
+                id="services"
+                icon={LayoutGrid}
+                band={band}
+                title={t("landing.services", "Our services")}
+              >
+                <ServicesSection landing={landing} />
+              </PortalSectionFrame>
+            );
           case "faq":
             return (
               <PortalSectionFrame
@@ -582,6 +600,36 @@ function PortalSectionFrame({
         {children}
       </div>
     </section>
+  );
+}
+
+/** What the organisation offers, as cards: each name, and its words if any. */
+function ServicesSection({
+  landing,
+}: {
+  landing: TenantLanding | null | undefined;
+}) {
+  const { locale } = useT();
+  const services = localisedServices(landing, locale);
+
+  return (
+    <ul className="grid gap-4 @sm:grid-cols-2 @lg:grid-cols-3">
+      {services.map((service, i) => (
+        <li
+          key={i}
+          className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-5"
+        >
+          <h3 className="text-base font-semibold text-foreground">
+            {service.title}
+          </h3>
+          {service.description && (
+            <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+              {service.description}
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 

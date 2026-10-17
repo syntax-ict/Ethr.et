@@ -22,6 +22,12 @@ export function newsDate(iso: string, locale: string): string {
   return y && m && d ? formatEthiopian(toEthiopian(y, m, d), "am") : parts;
 }
 
+/** A document's size as people read it: "240 KB", "1.2 MB". */
+export function fileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 /**
  * A story's text as paragraphs and links, from plain text. The server sends
  * text only (markup is stripped before it leaves); this splits it on blank

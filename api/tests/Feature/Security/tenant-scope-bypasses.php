@@ -11,6 +11,13 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-16, story documents: **168 across 65 files**.
+ * `Http/Controllers/NewsFileController` serves a document attached to a public
+ * news story. A download link cannot send `X-Tenant`, so the organisation is
+ * named in the address; the story lookup drops the scope and states
+ * `tenant_id` from that organisation on the same chain, with
+ * `publiclyListed()`, and refuses a host that resolved a different one.)
+ *
  * (2026-10-14, statutory rules: **167 across 64 files**. Pension rates became
  * dated rows (`pension_rules`) with the same platform/organisation split as
  * `tax_brackets`: `Services/Payroll/PensionCalculator` reads the organisation's
@@ -154,6 +161,11 @@ return [
     // organisation's own in Settings → Payroll (2026-10-14).
     'Http/Controllers/Api/V1/Payroll/PensionRuleController.php' => 1,
     'Http/Controllers/Api/V1/Payroll/TaxBracketController.php' => 1,
+    // A public story's document (2026-10-16): the organisation is named in the
+    // download address, and the lookup states its `tenant_id` and
+    // `publiclyListed()` on the same chain. Refused when the host resolved a
+    // different organisation.
+    'Http/Controllers/NewsFileController.php' => 1,
     // AuthenticateApiKey (2026-10-09): the key lookup is pre-authentication and
     // keyed on the presented secret, as ScimAuth's is; the creator lookup
     // states `tenant_id` from the key it belongs to.

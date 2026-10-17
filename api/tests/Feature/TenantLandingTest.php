@@ -181,7 +181,7 @@ it('saves the portal content and serves it, filtered, before sign-in', function 
         'listed' => true,
     ])->assertOk()
         ->assertJsonPath('about', 'Acme makes pumps in Adama since 1998.')
-        ->assertJsonPath('order', ['contact', 'about', 'announcements', 'vacancies', 'holidays', 'faq'])
+        ->assertJsonPath('order', ['contact', 'about', 'services', 'announcements', 'vacancies', 'holidays', 'faq'])
         ->assertJsonPath('links.linkedin', 'https://www.linkedin.com/company/acme')
         ->assertJsonPath('links.facebook', null)
         ->assertJsonPath('listed', true);
@@ -245,7 +245,7 @@ it('serves nothing from a hand-edited portal row that skipped the rules', functi
         ->assertJsonPath('tenant.landing.links.website', null)
         ->assertJsonPath('tenant.landing.links.x', null)
         ->assertJsonPath('tenant.landing.links.telegram', 'https://t.me/acme')
-        ->assertJsonPath('tenant.landing.order', ['contact', 'about', 'announcements', 'vacancies', 'holidays', 'faq'])
+        ->assertJsonPath('tenant.landing.order', ['contact', 'about', 'services', 'announcements', 'vacancies', 'holidays', 'faq'])
         ->assertJsonPath('tenant.landing.listed', false);
 });
 
@@ -264,7 +264,7 @@ it('saves questions and answers in order, and shows them before sign-in', functi
         ->assertJsonPath('faqs.0.question', 'When is payday?')
         ->assertJsonPath('faqs.0.answer', "The 28th of each month.\n\nEarlier when it falls on a holiday.")
         ->assertJsonPath('sections.faq', true)
-        ->assertJsonPath('order.4', 'faq');
+        ->assertJsonPath('order.5', 'faq');
 
     app('auth')->forgetGuards();
 
@@ -327,12 +327,69 @@ it('shows only complete, bounded pairs from what is stored, however it got there
         ->and(array_keys($faqs[0]))->toBe(['question', 'question_am', 'answer', 'answer_am']);
 });
 
-it('puts the questions above contact for an organisation that ordered contact last before they existed', function () {
+it('places a section an organisation has not ordered yet after the one before it', function () {
     expect(TenantLanding::order(['about', 'announcements', 'vacancies', 'holidays', 'contact']))
-        ->toBe(['about', 'announcements', 'vacancies', 'holidays', 'faq', 'contact'])
-        // Contact first stays first; what is missing goes to the end.
+        ->toBe(['about', 'services', 'announcements', 'vacancies', 'holidays', 'faq', 'contact'])
         ->and(TenantLanding::order(['contact', 'about']))
-        ->toBe(['contact', 'about', 'announcements', 'vacancies', 'holidays', 'faq'])
+        ->toBe(['contact', 'about', 'services', 'announcements', 'vacancies', 'holidays', 'faq'])
+        ->and(TenantLanding::order(['contact', 'faq', 'about']))
+        ->toBe(['contact', 'faq', 'about', 'services', 'announcements', 'vacancies', 'holidays'])
         ->and(TenantLanding::order(null))
         ->toBe(TenantLanding::ORDER);
+});
+
+it('saves the services offered, in order, and shows them before sign-in', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->putJson(landingUrl($tenant, '/settings/landing'), [
+        'background' => 'brand',
+        'services' => [
+            ['title' => 'Pump repair', 'title_am' => 'የፓምፕ ጥገና', 'description' => 'On site within 48 hours.', 'description_am' => null],
+            ['title' => null, 'title_am' => 'ስልጠና', 'description' => null, 'description_am' => null],
+        ],
+    ])->assertOk()
+        ->assertJsonCount(2, 'services')
+        ->assertJsonPath('services.0.title', 'Pump repair')
+        ->assertJsonPath('services.1.description', null)
+        ->assertJsonPath('sections.services', true)
+        ->assertJsonPath('order.1', 'services');
+
+    app('auth')->forgetGuards();
+
+    test()->getJson(landingUrl($tenant, '/auth/tenant-context'))
+        ->assertOk()
+        ->assertJsonPath('tenant.landing.services.1.title_am', 'ስልጠና');
+});
+
+it('refuses a service without a name, a stray key, and more than eight', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $url = landingUrl($tenant, '/settings/landing');
+
+    test()->putJson($url, ['background' => 'brand', 'services' => [['title' => ' ', 'description' => 'Something.']]])
+        ->assertUnprocessable()->assertJsonValidationErrors('services.0.title');
+    test()->putJson($url, ['background' => 'brand', 'services' => [['title' => 'A', 'icon' => 'x']]])
+        ->assertUnprocessable()->assertJsonValidationErrors('services.0');
+    test()->putJson($url, ['background' => 'brand', 'services' => array_fill(0, 9, ['title' => 'A'])])
+        ->assertUnprocessable()->assertJsonValidationErrors('services');
+    test()->putJson($url, ['background' => 'brand', 'services' => [['title' => 'A', 'description' => str_repeat('d', 401)]]])
+        ->assertUnprocessable()->assertJsonValidationErrors('services.0.description');
+});
+
+it('serves only named, bounded services from what is stored', function () {
+    $tenant = createTenant();
+    $tenant->update(['landing' => ['services' => [
+        ['description' => 'No name.'],
+        'not a service',
+        ['title' => str_repeat('t', 200), 'description' => str_repeat('d', 900), 'icon' => '<script>'],
+        ...array_fill(0, 12, ['title' => 'S']),
+    ]]]);
+
+    $services = TenantLanding::present($tenant->refresh())['services'];
+
+    expect($services)->toHaveCount(8)
+        ->and(mb_strlen((string) $services[0]['title']))->toBe(80)
+        ->and(mb_strlen((string) $services[0]['description']))->toBe(400)
+        ->and(array_keys($services[0]))->toBe(['title', 'title_am', 'description', 'description_am']);
 });
