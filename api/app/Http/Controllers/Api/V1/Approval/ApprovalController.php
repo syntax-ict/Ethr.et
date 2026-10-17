@@ -286,6 +286,11 @@ class ApprovalController extends Controller
             return ['status' => 'error', 'detail' => 'Not found or not pending'];
         }
 
+        $refusal = $this->profileUpdates->refusal($profileUpdate, $user);
+        if ($refusal !== null) {
+            return ['status' => 'error', 'detail' => $refusal->detail];
+        }
+
         if ($action['action'] === 'approve') {
             $this->profileUpdates->approve($profileUpdate, $user, $action['reason'] ?? null);
 
