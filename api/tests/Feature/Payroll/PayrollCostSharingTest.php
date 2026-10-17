@@ -117,7 +117,11 @@ test('running payroll draws the balance down', function () {
 
     $employee = employeeWithCostSharing($tenant->id);
 
-    runCostSharingPayroll($tenant->id, $user->id);
+    $entry = runCostSharingPayroll($tenant->id, $user->id);
+
+    // The balance moves when the run is approved, not while it is calculated.
+    expect(EmployeeCostSharing::where('employee_id', $employee->id)->firstOrFail()->outstanding_cents)->toBe(5000000);
+    app(PayrollEngine::class)->approve($entry->payrollRun, $user->id);
 
     $obligation = EmployeeCostSharing::where('employee_id', $employee->id)->firstOrFail();
     expect($obligation->outstanding_cents)->toBe(4920000);
@@ -134,6 +138,8 @@ test('the final instalment withholds only what is owed and closes the obligation
     $entry = runCostSharingPayroll($tenant->id, $user->id);
 
     expect($entry->other_deductions_cents)->toBe(12050);
+
+    app(PayrollEngine::class)->approve($entry->payrollRun, $user->id);
 
     $obligation = EmployeeCostSharing::where('employee_id', $employee->id)->firstOrFail();
     expect($obligation->outstanding_cents)->toBe(0);

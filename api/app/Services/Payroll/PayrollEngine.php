@@ -6,7 +6,9 @@ namespace App\Services\Payroll;
 
 use App\Enums\EmployeeStatus;
 use App\Enums\LeaveStatus;
+use App\Exceptions\PayrollRunRefused;
 use App\Models\AttendanceRecord;
+use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -18,6 +20,7 @@ use App\Services\Calendar\EthiopianCalendar;
 use App\Services\Holiday\HolidayService;
 use App\Services\Leave\LeaveDayCalculator;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 final class PayrollEngine
 {
@@ -38,6 +41,7 @@ final class PayrollEngine
         private readonly LeaveDayCalculator $leaveDayCalculator,
         private readonly EthiopianCalendar $calendar,
         private readonly ShiftMatcher $shiftMatcher,
+        private readonly PayrollBalanceService $balances,
     ) {}
 
     /**
@@ -113,6 +117,12 @@ final class PayrollEngine
      * The slow half — chunked over every active employee, computing tax,
      * pension, overtime, loans, allowances and cost-sharing per row. This is
      * what ProcessPayrollJob runs.
+     *
+     * One transaction for the whole run. A worker that dies part-way used to
+     * leave some entries written under a run ProcessPayrollJob::failed() then
+     * marked `failed`; now it leaves none, and the run can be submitted again.
+     * Calculating moves no balance at all (PayrollBalanceService does that on
+     * approval), so a failure has nothing else to undo.
      */
     public function runEntries(PayrollRun $run): PayrollRun
     {
@@ -144,76 +154,137 @@ final class PayrollEngine
 
         $pagume = $this->calendar->pagumeDaysInRange($periodStart, $periodEnd);
 
-        $totalGross = 0;
-        $totalNet = 0;
-        $totalTax = 0;
-        $count = 0;
-        $skippedNoSalary = 0;
+        DB::transaction(function () use (
+            $run, $tenantId, $periodStart, $periodEnd,
+            $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis,
+        ): void {
+            $totalGross = 0;
+            $totalNet = 0;
+            $totalTax = 0;
+            $count = 0;
+            $skippedNoSalary = 0;
 
-        Employee::query()
-            ->withoutGlobalScope('tenant')
-            ->where('tenant_id', $tenantId)
-            ->whereIn('status', [
-                EmployeeStatus::HIRED,
-                EmployeeStatus::PROBATION,
-                EmployeeStatus::CONFIRMED,
-            ])
-            // For the contract fallback in processEmployee(): an employee whose
-            // salary_cents is unset may still have a contract that states one,
-            // and until 2026-10-15 that employee silently vanished from the run
-            // (production QA, F1). Loaded here so the fallback costs no query
-            // per employee.
-            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
-            ->chunkById(100, function ($employees) use (
-                $run, $periodStart, $periodEnd,
-                $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis,
-                &$totalGross, &$totalNet, &$totalTax, &$count, &$skippedNoSalary,
-            ) {
-                foreach ($employees as $employee) {
-                    $entry = $this->processEmployee(
-                        $employee,
-                        $run,
-                        $periodStart,
-                        $periodEnd,
-                        $pagumenStrategy,
-                        $pagume,
-                        $fiscalYearStartMonth,
-                        $pensionRule,
-                        $taxBasis,
-                    );
-                    if ($entry) {
-                        $totalGross += $entry->gross_cents;
-                        $totalNet += $entry->net_cents;
-                        $totalTax += $entry->income_tax_cents;
-                        $count++;
-                    } else {
-                        $skippedNoSalary++;
+            Employee::query()
+                ->withoutGlobalScope('tenant')
+                ->where('tenant_id', $tenantId)
+                ->whereIn('status', [
+                    EmployeeStatus::HIRED,
+                    EmployeeStatus::PROBATION,
+                    EmployeeStatus::CONFIRMED,
+                ])
+                // For the contract fallback in processEmployee(): an employee whose
+                // salary_cents is unset may still have a contract that states one,
+                // and until 2026-10-15 that employee silently vanished from the run
+                // (production QA, F1). Loaded here so the fallback costs no query
+                // per employee.
+                ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
+                ->chunkById(100, function ($employees) use (
+                    $run, $periodStart, $periodEnd,
+                    $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis,
+                    &$totalGross, &$totalNet, &$totalTax, &$count, &$skippedNoSalary,
+                ) {
+                    foreach ($employees as $employee) {
+                        $entry = $this->processEmployee(
+                            $employee,
+                            $run,
+                            $periodStart,
+                            $periodEnd,
+                            $pagumenStrategy,
+                            $pagume,
+                            $fiscalYearStartMonth,
+                            $pensionRule,
+                            $taxBasis,
+                        );
+                        if ($entry) {
+                            $totalGross += $entry->gross_cents;
+                            $totalNet += $entry->net_cents;
+                            $totalTax += $entry->income_tax_cents;
+                            $count++;
+                        } else {
+                            $skippedNoSalary++;
+                        }
                     }
-                }
-            });
+                });
 
-        $run->update([
-            'status' => 'completed',
-            'employee_count' => $count,
-            'skipped_no_salary' => $skippedNoSalary,
-            'gross_total_cents' => $totalGross,
-            'net_total_cents' => $totalNet,
-            'tax_total_cents' => $totalTax,
-        ]);
+            $run->update([
+                'status' => 'completed',
+                'employee_count' => $count,
+                'skipped_no_salary' => $skippedNoSalary,
+                'gross_total_cents' => $totalGross,
+                'net_total_cents' => $totalNet,
+                'tax_total_cents' => $totalTax,
+            ]);
+        });
 
         return $run->refresh();
     }
 
+    /**
+     * Approve a completed run, and only now draw its loan and cost-sharing
+     * balances down by what its payslips deducted.
+     *
+     * The run is re-read under a lock, so two approvals racing past the
+     * controller's status check apply the balances once, not twice. The
+     * balance movements and the status change commit together or not at all.
+     */
+    public function approve(PayrollRun $run, int $approvedBy): PayrollRun
+    {
+        return DB::transaction(function () use ($run, $approvedBy): PayrollRun {
+            $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== 'completed') {
+                throw PayrollRunRefused::notCompleted();
+            }
+
+            $movements = $this->balances->apply($locked);
+
+            $locked->update([
+                'status' => 'approved',
+                'approved_by' => $approvedBy,
+                'approved_at' => now(),
+            ]);
+
+            if ($movements !== []) {
+                AuditLog::record('payroll.balances_applied', $locked, ['movements' => $movements]);
+            }
+
+            return $locked;
+        });
+    }
+
+    /**
+     * Void a completed or approved run.
+     *
+     * A completed run never moved a balance, so voiding it gives nothing
+     * back. An approved run did, and voiding it reverses exactly those
+     * movements in the same transaction as the status change: until
+     * 2026-10-17 a void restored nothing and the reprocess that follows
+     * deducted again.
+     */
     public function void(PayrollRun $run, int $voidedBy, string $reason): PayrollRun
     {
-        $run->update([
-            'status' => 'voided',
-            'voided_at' => now(),
-            'voided_by' => $voidedBy,
-            'void_reason' => $reason,
-        ]);
+        return DB::transaction(function () use ($run, $voidedBy, $reason): PayrollRun {
+            $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
 
-        return $run->fresh();
+            if (! in_array($locked->status, ['completed', 'approved'], true)) {
+                throw PayrollRunRefused::cannotVoid();
+            }
+
+            $movements = $locked->status === 'approved' ? $this->balances->reverse($locked) : [];
+
+            $locked->update([
+                'status' => 'voided',
+                'voided_at' => now(),
+                'voided_by' => $voidedBy,
+                'void_reason' => $reason,
+            ]);
+
+            if ($movements !== []) {
+                AuditLog::record('payroll.balances_reversed', $locked, ['movements' => $movements]);
+            }
+
+            return $locked->fresh();
+        });
     }
 
     public function reprocess(PayrollRun $voidedRun, int $processedBy, ?string $idempotencyKey = null): PayrollProcessResult
@@ -303,8 +374,13 @@ final class PayrollEngine
         }
 
         $log = [
-            'version' => '1.2',
+            'version' => '1.3',
             'calculated_at' => now()->toIso8601String(),
+            // Since 1.3: the loan and cost-sharing deductions below are what
+            // the payslip withholds, and PayrollBalanceService draws the
+            // balances down by exactly those figures when the run is approved.
+            // Nothing in this method moves a balance.
+            PayrollBalanceService::LOG_KEY => PayrollBalanceService::MOVE_ON_APPROVAL,
             'inputs' => [
                 'employee_id' => $employee->public_id,
                 'basic_salary_cents' => $basicSalary,
@@ -479,16 +555,31 @@ final class PayrollEngine
             'rule' => $pensionRule->toLog(),
         ];
 
-        $loanDeduction = $this->loanService->calculateMonthlyDeduction($employee);
+        // Each loan is charged its instalment or what it still owes, whichever
+        // is less, and itemised so approval can draw each balance down by
+        // exactly what this payslip withheld.
+        $loanDeduction = 0;
+        $loanLines = [];
+        foreach ($this->loanService->getActiveLoans($employee) as $loan) {
+            $deduction = $this->loanService->deductionFor($loan);
+            if ($deduction <= 0) {
+                continue;
+            }
 
-        $activeLoans = $this->loanService->getActiveLoans($employee);
-        foreach ($activeLoans as $loan) {
-            $this->loanService->applyDeduction($loan, $loan->monthly_deduction_cents);
+            $loanDeduction += $deduction;
+            $loanLines[] = [
+                'loan_id' => $loan->public_id,
+                'monthly_deduction_cents' => $loan->monthly_deduction_cents,
+                'remaining_before_cents' => $loan->remaining_cents,
+                'deduction_cents' => $deduction,
+                'remaining_after_cents' => $loan->remaining_cents - $deduction,
+            ];
         }
 
         $log['steps'][] = [
             'step' => 'loan_deductions',
             'loan_deduction_cents' => $loanDeduction,
+            'loans' => $loanLines,
         ];
 
         // Cost sharing is a percentage of prorated gross, so it is computed after
@@ -500,17 +591,17 @@ final class PayrollEngine
         $costSharingDeduction = $this->costSharingService->calculateDeduction($costSharing, $grossSalary);
         $costSharingOutstandingBefore = $costSharing?->outstanding_cents;
 
-        if ($costSharing !== null && $costSharingDeduction > 0) {
-            $this->costSharingService->applyDeduction($costSharing, $costSharingDeduction);
-        }
-
         $log['steps'][] = [
             'step' => 'cost_sharing',
+            'obligation_id' => $costSharing?->public_id,
             'gross_cents' => $grossSalary,
             'rate_percent' => $costSharing?->deduction_rate_percent,
             'cost_sharing_cents' => $costSharingDeduction,
             'outstanding_before_cents' => $costSharingOutstandingBefore,
-            'outstanding_after_cents' => $costSharing?->outstanding_cents,
+            // What approving this run leaves owing; the row itself moves only then.
+            'outstanding_after_cents' => $costSharingOutstandingBefore !== null
+                ? $costSharingOutstandingBefore - $costSharingDeduction
+                : null,
         ];
 
         $totalDeductions = $incomeTax + $pension['employee_cents'] + $loanDeduction + $costSharingDeduction;

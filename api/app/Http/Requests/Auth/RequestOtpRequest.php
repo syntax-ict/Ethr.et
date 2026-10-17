@@ -22,7 +22,7 @@ class RequestOtpRequest extends FormRequest
             'phone' => ['required_without:email', 'prohibits:email', 'nullable', 'string', 'max:20'],
             'email' => ['required_without:phone', 'nullable', 'string', 'email', 'max:255'],
             // Read by the ResolveTenant middleware when the request is not on a
-            // tenant subdomain and carries no X-Tenant header.
+            // tenant subdomain, ahead of any X-Tenant header.
             'tenant' => ['nullable', 'string'],
         ];
     }

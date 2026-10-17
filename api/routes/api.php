@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\Attendance\AttendanceCorrectionController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceImportController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntegrityController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntelligenceController;
+use App\Http\Controllers\Api\V1\Attendance\AttendancePhotoController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceSettingController;
 use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
 use App\Http\Controllers\Api\V1\Attendance\KioskAttendanceController;
@@ -388,6 +389,13 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
 
         Route::get('/settings', [AttendanceSettingController::class, 'show']);
         Route::put('/settings', [AttendanceSettingController::class, 'update']);
+
+        Route::prefix('photos')->group(function () {
+            Route::get('/', [AttendancePhotoController::class, 'index']);
+            Route::get('/{attendanceRecord}/{which}', [AttendancePhotoController::class, 'show'])->whereIn('which', ['check-in', 'check-out']);
+            Route::post('/{attendanceRecord}/hold', [AttendancePhotoController::class, 'hold']);
+            Route::delete('/{attendanceRecord}/hold', [AttendancePhotoController::class, 'release']);
+        });
 
         Route::prefix('corrections')->group(function () {
             Route::get('/', [AttendanceCorrectionController::class, 'index']);

@@ -139,6 +139,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Integrity",
     description: "Review punches that could not be trusted on their face",
   },
+  "/attendance/photos": {
+    section: "Operations",
+    parent: { label: "Attendance", href: "/attendance" },
+    label: "Photos",
+    description: "Review attendance selfies before they are deleted",
+  },
   "/attendance/overtime": {
     section: "Operations",
     parent: { label: "Attendance", href: "/attendance" },
