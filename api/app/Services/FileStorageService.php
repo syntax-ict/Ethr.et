@@ -32,6 +32,13 @@ class FileStorageService
     /** Byte budget for an attendance selfie — smaller, it is captured on mobile data. */
     public const SELFIE_MAX_BYTES = 204_800;
 
+    /**
+     * The largest selfie a phone may send, decoded: 1.5 MB (attendance photo
+     * policy). The phone shrinks to this before upload; the server stores
+     * SELFIE_MAX_BYTES either way.
+     */
+    public const SELFIE_UPLOAD_MAX_BYTES = 1_572_864;
+
     /** Longest edge for a selfie; enough for face verification, cheap to sync. */
     public const SELFIE_MAX_DIMENSION = 1080;
 
@@ -266,6 +273,33 @@ class FileStorageService
         foreach ($cover['variants'] as $path) {
             $this->delete($path);
         }
+    }
+
+    /**
+     * Store a document attached to a news story, as uploaded: a PDF whose
+     * content the request has already checked. Kept under the story's public
+     * id with a fresh ULID, so a name cannot collide and is never a path. The
+     * name it was uploaded under is kept for the download, cleaned of path
+     * parts and control characters and ending in `.pdf`.
+     *
+     * @return array{id: string, name: string, size: int, path: string}
+     */
+    public function storeNewsFile(UploadedFile $file, string $storyPublicId): array
+    {
+        $id = (string) Str::ulid();
+        $content = $file->getContent();
+        $path = "{$this->tenantPrefix()}/news/{$storyPublicId}-files/{$id}.pdf";
+        Storage::disk($this->disk)->put($path, $content);
+
+        $name = (string) preg_replace('/[\x00-\x1F\x7F\/\\\\]+/u', ' ', basename($file->getClientOriginalName()));
+        $name = trim(mb_substr((string) preg_replace('/\.pdf$/i', '', trim($name)), 0, 120));
+
+        return [
+            'id' => $id,
+            'name' => ($name === '' ? 'document' : $name).'.pdf',
+            'size' => strlen($content),
+            'path' => $path,
+        ];
     }
 
     /**

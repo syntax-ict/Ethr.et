@@ -532,6 +532,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Records that still hold a selfie, newest first. `status=review` narrows
+         *     to those whose review is open, `status=held` to those on hold
+         */
+        get: operations["attendancePhoto.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/photos/{attendanceRecord}/{which}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One selfie, as the image itself. `which` is `check-in` or `check-out` */
+        get: operations["attendancePhoto.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/photos/{attendanceRecord}/hold": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Keeps a record's selfies past the retention period, for an unresolved complaint */
+        post: operations["attendancePhoto.hold"];
+        /**
+         * Releases a hold. The review starts again on the next run, so the photos
+         *     are announced once more before any deletion
+         */
+        delete: operations["attendancePhoto.release"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/corrections": {
         parameters: {
             query?: never;
@@ -2251,10 +2309,12 @@ export interface paths {
         /**
          * Documents expiring within a window (PHASE_02 S12: "documents expiring
          *          * within 30 days (for notification/dashboard)")
-         * @description Tenant-wide rather than per-employee: the point is for HR to catch a work
-         *     permit or contract before it lapses, which means seeing every employee's at
-         *     once. Already-expired documents are included — a permit that lapsed last
-         *     week is more urgent than one lapsing next week, not less.
+         * @description Across employees rather than per-employee: the point is for HR to catch a
+         *     work permit or contract before it lapses, which means seeing every
+         *     employee's at once. Limited to the employees the requester's org scope
+         *     reaches, so a department-scoped role sees its own department's documents.
+         *     Already-expired documents are included — a permit that lapsed last week is
+         *     more urgent than one lapsing next week, not less.
          */
         get: operations["employeeDocument.expiring"];
         put?: never;
@@ -2273,8 +2333,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Tenant-wide watchlist of active contracts ending within N days —
-         *     mirrors EmployeeDocumentController::expiring()
+         * Watchlist of active contracts ending within N days, limited to the
+         *     employees the requester's org scope reaches — mirrors
+         *     EmployeeDocumentController::expiring()
          */
         get: operations["employeeContract.expiring"];
         put?: never;
@@ -2321,7 +2382,16 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk update employees */
+        /**
+         * Move employees to a department or branch, or change their status
+         * @description The selection is all or nothing: an id outside the requester's org scope
+         *     refuses the whole request with 422 before anything is written, with the
+         *     message an id that exists nowhere gets. The changes are per employee: a
+         *     status change goes through the same transition rules as
+         *     `POST /employees/{employee}/transition`, and `results` reports each id as
+         *     `updated`, `unchanged` (already in that status) or `failed`, with the
+         *     reason. One refused transition does not stop the others.
+         */
         post: operations["employeeBulk.bulkUpdate"];
         delete?: never;
         options?: never;
@@ -3319,6 +3389,46 @@ export interface paths {
         post: operations["announcementCover.store"];
         /** Cover announcements */
         delete: operations["announcementCover.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/announcements/{announcement}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create file */
+        post: operations["announcementFile.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/announcements/{announcement}/files/{file}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download one document, on the terms the story itself is read on
+         *     (`AnnouncementController::show()`): published, unexpired and addressed
+         *     to the reader, or any state for whoever manages announcements. Anything
+         *     else is the same 404 as a story that does not exist
+         */
+        get: operations["announcementFile.download"];
+        put?: never;
+        post?: never;
+        /** Delete file */
+        delete: operations["announcementFile.destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4523,6 +4633,25 @@ export interface paths {
         /** Create personnel action */
         post: operations["personnelAction.store"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/photo-consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Photo consent profile */
+        get: operations["photoConsent.show"];
+        put?: never;
+        /** Photo consent profile */
+        post: operations["photoConsent.store"];
+        /** Photo consent profile */
+        delete: operations["photoConsent.destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -6252,6 +6381,12 @@ export interface components {
                 width: number;
                 height: number;
             } | null;
+            attachments: {
+                id: string;
+                name: string;
+                size: number;
+                url: string | null;
+            }[];
             /** Format: date-time */
             created_at: string | null;
         };
@@ -6421,6 +6556,27 @@ export interface components {
                 longitude: number | null;
             } | null;
         };
+        /** AttendancePhotoResource */
+        AttendancePhotoResource: {
+            public_id: string;
+            date: string | null;
+            check_in: string | null;
+            check_out: string | null;
+            employee: {
+                public_id: string;
+                name: string;
+                employee_code: string | null;
+            };
+            has_check_in_photo: boolean;
+            has_check_out_photo: boolean;
+            keep_until: string;
+            review_started_at: string | null;
+            delete_after: string | null;
+            held: boolean;
+            held_at: string | null;
+            hold_reason: string | null;
+            held_by: string | null;
+        };
         /** AttendancePunchResource */
         AttendancePunchResource: {
             public_id: string;
@@ -6504,6 +6660,7 @@ export interface components {
             auto_checkout_enabled: boolean;
             auto_checkout_after_minutes: number;
             geofence_auto_checkin_enabled: boolean;
+            photo_retention_days: number;
             updated_at: string | null;
         };
         /** AuditLogResource */
@@ -6570,6 +6727,9 @@ export interface components {
             department_id?: string | null;
             branch_id?: string | null;
             status?: components["schemas"]["EmployeeStatus"] | null;
+            /** Format: date-time */
+            effective_date?: string | null;
+            reason?: string | null;
         };
         /** CancelLoanRequest */
         CancelLoanRequest: {
@@ -7100,6 +7260,10 @@ export interface components {
             /** Format: date-time */
             created_at: string | null;
         };
+        /** HoldAttendancePhotoRequest */
+        HoldAttendancePhotoRequest: {
+            reason: string;
+        };
         /** HolidayResource */
         HolidayResource: {
             public_id: string;
@@ -7323,9 +7487,8 @@ export interface components {
             email?: string | null;
             password: string;
             /**
-             * @description Tenant identifier may be supplied here as a fallback when the
-             *     request isn't already on a tenant subdomain or carrying X-Tenant.
-             *     The ResolveTenant middleware reads this field too.
+             * @description Read by the ResolveTenant middleware when the request is not on a
+             *     tenant subdomain, ahead of any X-Tenant header.
              */
             tenant?: string | null;
         };
@@ -7803,7 +7966,7 @@ export interface components {
             email?: string | null;
             /**
              * @description Read by the ResolveTenant middleware when the request is not on a
-             *     tenant subdomain and carries no X-Tenant header.
+             *     tenant subdomain, ahead of any X-Tenant header.
              */
             tenant?: string | null;
         };
@@ -8690,6 +8853,7 @@ export interface components {
             auto_checkout_enabled?: boolean;
             auto_checkout_after_minutes?: number;
             geofence_auto_checkin_enabled?: boolean;
+            photo_retention_days?: number;
         };
         /** UpdateBranchRequest */
         UpdateBranchRequest: {
@@ -8868,7 +9032,8 @@ export interface components {
          *     is refused in withValidator(). The network links are checked against the
          *     network's own host there too, with TenantLanding::linkUrl(), the same test
          *     the public side applies before serving. Each question needs a question
-         *     and an answer in at least one language, checked there as well. Scramble
+         *     and an answer in at least one language, and each service a title,
+         *     checked there as well. Scramble
          *     does not read withValidator(), so the contract stays a plain rule set.
          */
         UpdateLandingRequest: {
@@ -8916,18 +9081,25 @@ export interface components {
             };
             sections?: {
                 about: boolean;
+                services: boolean;
                 announcements: boolean;
                 vacancies: boolean;
                 holidays: boolean;
                 faq: boolean;
                 contact: boolean;
             };
-            order?: ("about" | "announcements" | "vacancies" | "holidays" | "faq" | "contact")[];
+            order?: ("about" | "services" | "announcements" | "vacancies" | "holidays" | "faq" | "contact")[];
             faqs?: {
                 question: string | null;
                 question_am: string | null;
                 answer: string | null;
                 answer_am: string | null;
+            }[];
+            services?: {
+                title: string | null;
+                title_am: string | null;
+                description: string | null;
+                description_am: string | null;
             }[];
             listed?: boolean;
         };
@@ -9249,6 +9421,20 @@ export interface components {
              * @description Maximum file size: 5120 kilobytes.
              */
             image: string;
+        };
+        /**
+         * UploadAnnouncementFileRequest
+         * @description A document for a news story: a PDF, checked by its own bytes (`%PDF`), at
+         *     most 5 MB, the size a circular or a form needs on shared hosting's quota.
+         *     A story takes at most Announcement::ATTACHMENTS_MAX, refused in
+         *     withValidator(), which Scramble does not read.
+         */
+        UploadAnnouncementFileRequest: {
+            /**
+             * Format: binary
+             * @description Maximum file size: 5120 kilobytes.
+             */
+            file: string;
         };
         /**
          * UploadBrandAssetRequest
@@ -10981,6 +11167,137 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "attendancePhoto.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AttendancePhotoResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AttendancePhotoResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendancePhoto.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attendance record public id */
+                attendanceRecord: string;
+                which: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string | null;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "attendancePhoto.hold": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attendance record public id */
+                attendanceRecord: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HoldAttendancePhotoRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendancePhotoResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePhotoResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendancePhoto.release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attendance record public id */
+                attendanceRecord: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `AttendancePhotoResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePhotoResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "attendanceCorrection.index": {
         parameters: {
             query?: {
@@ -12243,6 +12560,7 @@ export interface operations {
                         };
                         plan_features: unknown[] | null;
                         tenant: components["schemas"]["TenantResource"] | null;
+                        upload_limit_bytes: number;
                     };
                 };
             };
@@ -15314,6 +15632,23 @@ export interface operations {
                 content: {
                     "application/json": {
                         updated: number;
+                        failed: number;
+                        results: ({
+                            employee_id: string;
+                            /** @constant */
+                            outcome: "updated";
+                            error: null;
+                        } | {
+                            employee_id: string;
+                            /** @constant */
+                            outcome: "failed";
+                            error: string;
+                        } | {
+                            employee_id: string;
+                            /** @constant */
+                            outcome: "unchanged";
+                            error: null;
+                        })[];
                     };
                 };
             };
@@ -17434,6 +17769,12 @@ export interface operations {
                             height: number;
                         } | null;
                         body: string;
+                        attachments: {
+                            id: string;
+                            name: string;
+                            size: number;
+                            url: string | null;
+                        }[];
                         related: {
                             public_id: string;
                             title: string;
@@ -18156,6 +18497,7 @@ export interface operations {
                             web_enabled: boolean;
                             geofence_required: boolean;
                             photo_required: boolean;
+                            photo_consent: boolean;
                             accuracy_threshold_meters: number;
                             offline_sync_enabled: boolean;
                             geofence: {
@@ -18393,6 +18735,95 @@ export interface operations {
             path: {
                 /** @description The announcement public id */
                 announcement: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `AnnouncementResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "announcementFile.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The announcement public id */
+                announcement: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadAnnouncementFileRequest"];
+            };
+        };
+        responses: {
+            /** @description `AnnouncementResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "announcementFile.download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The announcement public id */
+                announcement: string;
+                file: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    "Content-Length"?: string;
+                    "Cache-Control"?: "private, no-store";
+                    "X-Content-Type-Options"?: "nosniff";
+                    "Content-Security-Policy"?: "default-src 'none'; sandbox";
+                    "Cross-Origin-Resource-Policy"?: "same-site";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string | null;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "announcementFile.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The announcement public id */
+                announcement: string;
+                file: string;
             };
             cookie?: never;
         };
@@ -21903,6 +22334,84 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "photoConsent.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        given: string;
+                        version: string | null;
+                        given_at: string | null;
+                        /** @constant */
+                        current_version: "2026-10-17.2";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "photoConsent.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        given: string;
+                        version: string | null;
+                        given_at: string | null;
+                        /** @constant */
+                        current_version: "2026-10-17.2";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "photoConsent.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        given: string;
+                        version: string | null;
+                        given_at: string | null;
+                        /** @constant */
+                        current_version: "2026-10-17.2";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
     "adminTenant.exitImpersonation": {
         parameters: {
             query?: never;
@@ -23497,6 +24006,12 @@ export interface operations {
                                 answer: string | null;
                                 answer_am: string | null;
                             }[];
+                            services: {
+                                title: string | null;
+                                title_am: string | null;
+                                description: string | null;
+                                description_am: string | null;
+                            }[];
                             sections: {
                                 [key: string]: boolean;
                             };
@@ -23801,6 +24316,12 @@ export interface operations {
                             question_am: string | null;
                             answer: string | null;
                             answer_am: string | null;
+                        }[];
+                        services: {
+                            title: string | null;
+                            title_am: string | null;
+                            description: string | null;
+                            description_am: string | null;
                         }[];
                         sections: {
                             [key: string]: boolean;
@@ -25471,6 +25992,12 @@ export interface operations {
                                     question_am: string | null;
                                     answer: string | null;
                                     answer_am: string | null;
+                                }[];
+                                services: {
+                                    title: string | null;
+                                    title_am: string | null;
+                                    description: string | null;
+                                    description_am: string | null;
                                 }[];
                                 sections: {
                                     [key: string]: boolean;

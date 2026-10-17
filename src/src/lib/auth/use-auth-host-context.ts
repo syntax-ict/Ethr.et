@@ -28,7 +28,21 @@ export interface TenantBrand {
 
 /** The sections of the portal below the hero, in their default order. */
 export type PortalSection =
-  "about" | "announcements" | "vacancies" | "holidays" | "faq" | "contact";
+  | "about"
+  | "services"
+  | "announcements"
+  | "vacancies"
+  | "holidays"
+  | "faq"
+  | "contact";
+
+/** One of the organisation's services: a name, and a few words if it chose. */
+export interface TenantLandingService {
+  title: string | null;
+  title_am: string | null;
+  description: string | null;
+  description_am: string | null;
+}
 
 /** One of the organisation's questions, each half in either language. */
 export interface TenantLandingFaq {
@@ -79,6 +93,7 @@ export interface TenantLanding {
   show_branches?: boolean;
   links?: Partial<TenantLandingLinks> | null;
   faqs?: TenantLandingFaq[] | null;
+  services?: TenantLandingService[] | null;
   sections?: Partial<Record<PortalSection, boolean>> | null;
   order?: PortalSection[] | null;
   listed?: boolean;

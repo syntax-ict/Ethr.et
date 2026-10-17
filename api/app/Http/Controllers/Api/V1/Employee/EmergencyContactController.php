@@ -12,13 +12,12 @@ use App\Models\EmployeeEmergencyContact;
 use App\Support\EthiopianPhone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Gate;
 
 class EmergencyContactController extends Controller
 {
     public function index(Employee $employee): AnonymousResourceCollection
     {
-        Gate::authorize('employee.view');
+        $this->authorize('view', $employee);
 
         return EmergencyContactResource::collection(
             $employee->emergencyContacts()->orderBy('priority')->get()
@@ -27,7 +26,7 @@ class EmergencyContactController extends Controller
 
     public function store(StoreEmergencyContactRequest $request, Employee $employee): JsonResponse
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $data = $request->validated();
         $data['phone'] = EthiopianPhone::canonicalOrRaw($data['phone']);
@@ -40,7 +39,7 @@ class EmergencyContactController extends Controller
 
     public function update(StoreEmergencyContactRequest $request, Employee $employee, EmployeeEmergencyContact $emergencyContact): EmergencyContactResource
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $data = $request->validated();
         $data['phone'] = EthiopianPhone::canonicalOrRaw($data['phone']);
@@ -51,7 +50,7 @@ class EmergencyContactController extends Controller
 
     public function destroy(Employee $employee, EmployeeEmergencyContact $emergencyContact): JsonResponse
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $emergencyContact->delete();
 

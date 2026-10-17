@@ -526,6 +526,52 @@ describe("<OrganisationPortal> content", () => {
   });
 });
 
+describe("<OrganisationPortal> services", () => {
+  it("shows the services as cards, linked from the header after About", async () => {
+    renderContent({
+      ...contentLanding,
+      order: ["about", "contact"],
+      services: [
+        {
+          title: "Pump repair",
+          title_am: "የፓምፕ ጥገና",
+          description: "On site within 48 hours.",
+          description_am: null,
+        },
+        {
+          title: "Training",
+          title_am: null,
+          description: null,
+          description_am: null,
+        },
+      ],
+    });
+
+    const section = await screen.findByRole("region", { name: "Our services" });
+    expect(
+      within(section).getByRole("heading", { level: 3, name: "Pump repair" }),
+    ).toBeInTheDocument();
+    expect(
+      within(section).getByText("On site within 48 hours."),
+    ).toBeInTheDocument();
+    expect(
+      within(section).getByRole("heading", { level: 3, name: "Training" }),
+    ).toBeInTheDocument();
+
+    // Placed after About, where the default puts it, though the saved order
+    // predates the section.
+    const ids = Array.from(document.querySelectorAll("main section")).map(
+      (s) => s.id,
+    );
+    expect(ids.slice(0, 2)).toEqual(["about", "services"]);
+    expect(
+      within(screen.getByRole("banner")).getByRole("link", {
+        name: "Services",
+      }),
+    ).toHaveAttribute("href", "#services");
+  });
+});
+
 describe("<OrganisationPortal> questions", () => {
   afterEach(() => {
     localStorage.removeItem("locale");

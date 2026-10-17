@@ -24,7 +24,7 @@ class EmployeeContractController extends Controller
 
     public function index(Employee $employee): AnonymousResourceCollection
     {
-        Gate::authorize('employee.view');
+        $this->authorize('view', $employee);
 
         $contracts = $employee->contracts()
             ->with('renewedFrom')
@@ -37,7 +37,7 @@ class EmployeeContractController extends Controller
 
     public function store(StoreEmployeeContractRequest $request, Employee $employee): JsonResponse
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $contract = $this->contracts->create($employee, $request->validated(), $request->user()?->id);
 
@@ -48,7 +48,7 @@ class EmployeeContractController extends Controller
 
     public function renew(RenewEmployeeContractRequest $request, Employee $employee, EmployeeContract $contract): JsonResponse
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $successor = $this->contracts->renew($contract, $request->validated(), $request->user()?->id);
 
@@ -59,7 +59,7 @@ class EmployeeContractController extends Controller
 
     public function end(EndEmployeeContractRequest $request, Employee $employee, EmployeeContract $contract): EmployeeContractResource
     {
-        Gate::authorize('employee.update');
+        $this->authorize('update', $employee);
 
         $updated = $this->contracts->end($contract, $request->validated());
 
@@ -67,8 +67,9 @@ class EmployeeContractController extends Controller
     }
 
     /**
-     * Tenant-wide watchlist of active contracts ending within N days —
-     * mirrors EmployeeDocumentController::expiring().
+     * Watchlist of active contracts ending within N days, limited to the
+     * employees the requester's org scope reaches — mirrors
+     * EmployeeDocumentController::expiring().
      */
     public function expiring(Request $request): AnonymousResourceCollection
     {
@@ -80,6 +81,7 @@ class EmployeeContractController extends Controller
             ->where('status', ContractStatus::ACTIVE)
             ->whereNotNull('end_date')
             ->whereDate('end_date', '<=', now()->addDays($days))
+            ->whereHas('employee', fn ($q) => $request->user()->scopeAccessibleEmployees($q))
             ->with('employee:id,public_id,name')
             ->orderBy('end_date')
             ->paginate(min((int) $request->query('per_page', 25), 100));

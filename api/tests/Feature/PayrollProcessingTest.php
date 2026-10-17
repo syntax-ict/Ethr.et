@@ -108,8 +108,12 @@ test('payroll deducts active loan', function () {
 
     expect($entry->other_deductions_cents)->toBe(20000);
 
-    $loan->refresh();
-    expect($loan->remaining_cents)->toBe(220000);
+    // Calculating withholds it on the payslip; the balance moves on approval
+    // (PayrollBalanceMovementTest has the rest of that life cycle).
+    expect($loan->fresh()->remaining_cents)->toBe(240000);
+
+    $engine->approve($run, $user->id);
+    expect($loan->fresh()->remaining_cents)->toBe(220000);
 });
 
 test('payroll skips employees with zero salary', function () {

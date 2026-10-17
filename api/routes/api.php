@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\Admin\SmsDeliveryController;
 use App\Http\Controllers\Api\V1\Analytics\AnalyticsController;
 use App\Http\Controllers\Api\V1\Announcement\AnnouncementController;
 use App\Http\Controllers\Api\V1\Announcement\AnnouncementCoverController;
+use App\Http\Controllers\Api\V1\Announcement\AnnouncementFileController;
 use App\Http\Controllers\Api\V1\ApiKey\ApiKeyController;
 use App\Http\Controllers\Api\V1\Approval\ApprovalController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceConflictController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\Api\V1\Attendance\AttendanceCorrectionController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceImportController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntegrityController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntelligenceController;
+use App\Http\Controllers\Api\V1\Attendance\AttendancePhotoController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceSettingController;
 use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
 use App\Http\Controllers\Api\V1\Attendance\KioskAttendanceController;
@@ -98,6 +100,7 @@ use App\Http\Controllers\Api\V1\Payroll\PayrollRuleController;
 use App\Http\Controllers\Api\V1\Payroll\PensionRuleController;
 use App\Http\Controllers\Api\V1\Payroll\TaxBracketController;
 use App\Http\Controllers\Api\V1\PlanController;
+use App\Http\Controllers\Api\V1\Profile\PhotoConsentController;
 use App\Http\Controllers\Api\V1\Profile\ProfileController;
 use App\Http\Controllers\Api\V1\Profile\ProfileEmergencyContactController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePhotoController;
@@ -125,6 +128,7 @@ use App\Http\Controllers\Api\V1\Voice\PulseController;
 use App\Http\Controllers\Api\V1\Voice\RecognitionController;
 use App\Http\Controllers\Api\V1\Webhook\WebhookController;
 use App\Http\Controllers\NewsCoverController;
+use App\Http\Controllers\NewsFileController;
 use App\Http\Controllers\OrganisationAssetController;
 use App\Http\Controllers\OrganisationLogoController;
 use App\Http\Middleware\BlockImpersonatedActions;
@@ -231,6 +235,12 @@ Route::get('/organisation-assets/{publicId}/{kind}/{version}', OrganisationAsset
 Route::get('/news-covers/{publicId}/{story}/{size}/{version}', NewsCoverController::class)
     ->where(['publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'story' => '[0-9A-HJKMNP-TV-Z]{26}', 'size' => 'cover|cover-1280|cover-640', 'version' => '[0-9a-f]{16}'])
     ->name('organisation.news-cover');
+
+// A document attached to a news story, while the story is public.
+Route::get('/news-files/{publicId}/{story}/{file}', NewsFileController::class)
+    ->where(['publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'story' => '[0-9A-HJKMNP-TV-Z]{26}', 'file' => '[0-9A-HJKMNP-TV-Z]{26}'])
+    ->middleware('throttle:api')
+    ->name('organisation.news-file');
 
 // What the organisation chose to show the public on its sign-in page:
 // announcements and vacancies marked public, and upcoming holidays.
@@ -379,6 +389,13 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
 
         Route::get('/settings', [AttendanceSettingController::class, 'show']);
         Route::put('/settings', [AttendanceSettingController::class, 'update']);
+
+        Route::prefix('photos')->group(function () {
+            Route::get('/', [AttendancePhotoController::class, 'index']);
+            Route::get('/{attendanceRecord}/{which}', [AttendancePhotoController::class, 'show'])->whereIn('which', ['check-in', 'check-out']);
+            Route::post('/{attendanceRecord}/hold', [AttendancePhotoController::class, 'hold']);
+            Route::delete('/{attendanceRecord}/hold', [AttendancePhotoController::class, 'release']);
+        });
 
         Route::prefix('corrections')->group(function () {
             Route::get('/', [AttendanceCorrectionController::class, 'index']);
@@ -658,6 +675,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
     Route::put('/profile/preferences', [ProfilePreferencesController::class, 'update']);
+    Route::get('/profile/photo-consent', [PhotoConsentController::class, 'show']);
+    Route::post('/profile/photo-consent', [PhotoConsentController::class, 'store']);
+    Route::delete('/profile/photo-consent', [PhotoConsentController::class, 'destroy']);
 
     // The photo is its own endpoint because PHP populates $_FILES on POST only —
     // a `photo` field on the PUT above could never have arrived.
@@ -696,6 +716,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
     Route::post('/announcements/{announcement}/cover', [AnnouncementCoverController::class, 'store'])->middleware('throttle:uploads');
     Route::delete('/announcements/{announcement}/cover', [AnnouncementCoverController::class, 'destroy']);
+    Route::post('/announcements/{announcement}/files', [AnnouncementFileController::class, 'store'])->middleware('throttle:uploads');
+    Route::get('/announcements/{announcement}/files/{file}', [AnnouncementFileController::class, 'download'])->where('file', '[0-9A-HJKMNP-TV-Z]{26}');
+    Route::delete('/announcements/{announcement}/files/{file}', [AnnouncementFileController::class, 'destroy'])->where('file', '[0-9A-HJKMNP-TV-Z]{26}');
 
     Route::get('/vacancies', [VacancyController::class, 'index']);
     Route::get('/vacancies/{vacancy}', [VacancyController::class, 'show']);

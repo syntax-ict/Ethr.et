@@ -25,7 +25,11 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMobilePunch, useMyShift } from "@/features/attendance/api";
 import { useCurrentUser } from "@/features/auth/api";
-import { useUpdatePreferences } from "@/features/profile/api";
+import {
+  useGivePhotoConsent,
+  useUpdatePreferences,
+} from "@/features/profile/api";
+import { PhotoConsentDialog } from "@/features/attendance/components/photo-consent-notice";
 import { useOfflineSync } from "@/lib/hooks/useOfflineSync";
 import { enqueueOfflineRecord } from "@/lib/offline-queue";
 import {
@@ -35,6 +39,7 @@ import {
 import { requestAttendanceSync } from "@/lib/hooks/useServiceWorker";
 import { tenantHeaderValue } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
+import { captureSelfie } from "@/lib/uploads/selfie";
 import { apiErrorDetail } from "@/lib/api/error-message";
 import {
   autoCheckInDecision,
@@ -80,6 +85,8 @@ export default function MobilePunchPage() {
   const { isOnline, pendingCount, syncing, syncNow } = useOfflineSync();
   const punch = useMobilePunch();
   const updatePrefs = useUpdatePreferences();
+  const giveConsent = useGivePhotoConsent();
+  const [consentOpen, setConsentOpen] = useState(false);
 
   const [now, setNow] = useState(() => new Date());
   const [position, setPosition] = useState<Position | null>(null);
@@ -154,6 +161,35 @@ export default function MobilePunchPage() {
     }
   }
 
+  // The camera opens only for an employee who agreed to the photo notice;
+  // the server refuses a selfie from anyone else (PhotoConsent).
+  const photoConsent = Boolean(shift?.policy.photo_consent);
+
+  function takeSelfie() {
+    if (photoConsent) {
+      void startCamera();
+      return;
+    }
+    setConsentOpen(true);
+  }
+
+  function agreeToPhoto() {
+    giveConsent.mutate(undefined, {
+      onSuccess: () => {
+        setConsentOpen(false);
+        void startCamera();
+      },
+      onError: (err: unknown) =>
+        toast.error(
+          apiErrorDetail(err) ??
+            t(
+              "attendance.photo_consent.save_failed",
+              "Your answer could not be saved. Connect to the internet and try again.",
+            ),
+        ),
+    });
+  }
+
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
@@ -163,11 +199,9 @@ export default function MobilePunchPage() {
   function snapPhoto() {
     const video = videoRef.current;
     if (!video) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
-    setPhoto(canvas.toDataURL("image/jpeg", 0.7));
+    // At most 1.5 MB (attendance photo policy), stepping quality and size
+    // down until it fits; also what a queued offline punch carries.
+    setPhoto(captureSelfie(video));
     stopCamera();
   }
 
@@ -639,11 +673,7 @@ export default function MobilePunchPage() {
                 {t("attendance.mobile_page.capture")}
               </Button>
             ) : (
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={startCamera}
-              >
+              <Button variant="outline" className="flex-1" onClick={takeSelfie}>
                 {photo
                   ? t("attendance.mobile_page.retake")
                   : t("attendance.punch.take_selfie", "Take a selfie")}
@@ -652,6 +682,13 @@ export default function MobilePunchPage() {
           </div>
         </section>
       )}
+
+      <PhotoConsentDialog
+        open={consentOpen}
+        onOpenChange={setConsentOpen}
+        onAgree={agreeToPhoto}
+        agreeing={giveConsent.isPending}
+      />
 
       {/* The assistant: the employee's own switches. */}
       {shift &&

@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property bool $show_on_landing
  * @property bool $featured
  * @property array<string, mixed>|null $cover
+ * @property array<int, mixed>|null $attachments
  */
 class Announcement extends Model
 {
@@ -36,6 +37,9 @@ class Announcement extends Model
      * for every organisation.
      */
     public const CATEGORIES = ['news', 'notice', 'event', 'deadline'];
+
+    /** How many documents a story may carry. */
+    public const ATTACHMENTS_MAX = 3;
 
     protected $fillable = [
         'tenant_id',
@@ -63,6 +67,7 @@ class Announcement extends Model
             'show_on_landing' => 'boolean',
             'featured' => 'boolean',
             'cover' => 'array',
+            'attachments' => 'array',
         ];
     }
 
@@ -88,6 +93,70 @@ class Announcement extends Model
 
         /** @var array{path: string, version: string, width: int, height: int, variants: array<int, string>} $cover */
         return $cover;
+    }
+
+    /**
+     * The story's documents, in the order they were attached, each only when
+     * its entry is well formed. Read as `coverImage()` reads the cover.
+     *
+     * @return list<array{id: string, name: string, size: int, path: string}>
+     */
+    public function attachedFiles(): array
+    {
+        $files = [];
+        foreach (is_array($this->attachments) ? $this->attachments : [] as $file) {
+            if (is_array($file)
+                && is_string($file['id'] ?? null)
+                && is_string($file['name'] ?? null)
+                && is_int($file['size'] ?? null)
+                && is_string($file['path'] ?? null)) {
+                $files[] = ['id' => $file['id'], 'name' => $file['name'], 'size' => $file['size'], 'path' => $file['path']];
+            }
+        }
+
+        return $files;
+    }
+
+    /**
+     * One of the story's documents by its id, or null.
+     *
+     * @return array{id: string, name: string, size: int, path: string}|null
+     */
+    public function attachedFile(string $id): ?array
+    {
+        foreach ($this->attachedFiles() as $file) {
+            if ($file['id'] === $id) {
+                return $file;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The documents as a page lists them: id, name and size, and, when the
+     * organisation's public id is given, the public address each downloads
+     * from (only a public story's documents answer there).
+     *
+     * @return list<array{id: string, name: string, size: int, url: string|null}>
+     */
+    public function attachmentsPresented(?string $tenantPublicId = null): array
+    {
+        // The size is cast where it is returned below: Scramble types values
+        // read from the stored JSON as strings otherwise.
+        $files = [];
+        foreach ($this->attachedFiles() as $file) {
+            $files[] = [
+                'id' => $file['id'],
+                'name' => $file['name'],
+                'size' => (int) $file['size'],
+                'url' => $tenantPublicId === null
+                    ? null
+                    : route('organisation.news-file', [$tenantPublicId, $this->public_id, $file['id']], absolute: false),
+            ];
+        }
+
+        return $files;
     }
 
     /**
