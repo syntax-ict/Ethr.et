@@ -37,6 +37,18 @@ final class UploadLimit
      * A php.ini size ("2M", "512K", "1G", "8388608") in bytes; null for
      * unlimited ("0" or "-1") or unreadable.
      */
+    /** A size as people read it: "2 MB", "512 KB". Matches sizeLabel() in the frontend. */
+    public static function label(int $bytes): string
+    {
+        if ($bytes >= 1024 * 1024) {
+            $mb = $bytes / (1024 * 1024);
+
+            return ($bytes % (1024 * 1024) === 0 ? (string) (int) $mb : number_format($mb, 1)).' MB';
+        }
+
+        return max(1, (int) round($bytes / 1024)).' KB';
+    }
+
     public static function parse(string $value): ?int
     {
         $value = trim($value);
