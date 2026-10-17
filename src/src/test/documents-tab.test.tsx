@@ -272,3 +272,41 @@ describe("DocumentsTab upload", () => {
     expect(called).toBe(false);
   });
 });
+
+describe("DocumentsTab upload, against the server's own limit", () => {
+  it("refuses a file the form allows but the server does not, naming both sizes", async () => {
+    // Production measured 2026-10-17: PHP's stock 2 MB upload limit, under the
+    // form's 10 MB. A 3 MB scan passed the form and failed on the server with
+    // nothing to say why.
+    emptyList();
+    server.use(
+      http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          user: { public_id: "U1", role: "hr_admin" },
+          tenant: null,
+          permissions: [],
+          upload_limit_bytes: 2 * 1024 * 1024,
+        }),
+      ),
+    );
+    const post = vi.spyOn(apiClient, "post");
+
+    const user = userEvent.setup();
+    renderTab();
+
+    await user.click(await screen.findByRole("button", { name: /Upload/i }));
+    await user.type(await screen.findByLabelText("Title"), "Passport scan");
+
+    const scan = new File(["x"], "scan.pdf", { type: "application/pdf" });
+    Object.defineProperty(scan, "size", { value: 3 * 1024 * 1024 });
+    await user.upload(screen.getByLabelText("File"), scan);
+
+    expect(
+      await screen.findByText(
+        "This file is 3 MB. The largest file you can upload here is 2 MB.",
+      ),
+    ).toBeInTheDocument();
+    expect(post).not.toHaveBeenCalled();
+    post.mockRestore();
+  });
+});

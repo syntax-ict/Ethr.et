@@ -532,6 +532,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Records that still hold a selfie, newest first. `status=review` narrows
+         *     to those whose review is open, `status=held` to those on hold
+         */
+        get: operations["attendancePhoto.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/photos/{attendanceRecord}/{which}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One selfie, as the image itself. `which` is `check-in` or `check-out` */
+        get: operations["attendancePhoto.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/photos/{attendanceRecord}/hold": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Keeps a record's selfies past the retention period, for an unresolved complaint */
+        post: operations["attendancePhoto.hold"];
+        /**
+         * Releases a hold. The review starts again on the next run, so the photos
+         *     are announced once more before any deletion
+         */
+        delete: operations["attendancePhoto.release"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/corrections": {
         parameters: {
             query?: never;
@@ -4568,6 +4626,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/photo-consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Photo consent profile */
+        get: operations["photoConsent.show"];
+        put?: never;
+        /** Photo consent profile */
+        post: operations["photoConsent.store"];
+        /** Photo consent profile */
+        delete: operations["photoConsent.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/impersonation/exit": {
         parameters: {
             query?: never;
@@ -6467,6 +6544,27 @@ export interface components {
                 longitude: number | null;
             } | null;
         };
+        /** AttendancePhotoResource */
+        AttendancePhotoResource: {
+            public_id: string;
+            date: string | null;
+            check_in: string | null;
+            check_out: string | null;
+            employee: {
+                public_id: string;
+                name: string;
+                employee_code: string | null;
+            };
+            has_check_in_photo: boolean;
+            has_check_out_photo: boolean;
+            keep_until: string;
+            review_started_at: string | null;
+            delete_after: string | null;
+            held: boolean;
+            held_at: string | null;
+            hold_reason: string | null;
+            held_by: string | null;
+        };
         /** AttendancePunchResource */
         AttendancePunchResource: {
             public_id: string;
@@ -6550,6 +6648,7 @@ export interface components {
             auto_checkout_enabled: boolean;
             auto_checkout_after_minutes: number;
             geofence_auto_checkin_enabled: boolean;
+            photo_retention_days: number;
             updated_at: string | null;
         };
         /** AuditLogResource */
@@ -7145,6 +7244,10 @@ export interface components {
             salary_cents: number;
             /** Format: date-time */
             created_at: string | null;
+        };
+        /** HoldAttendancePhotoRequest */
+        HoldAttendancePhotoRequest: {
+            reason: string;
         };
         /** HolidayResource */
         HolidayResource: {
@@ -8735,6 +8838,7 @@ export interface components {
             auto_checkout_enabled?: boolean;
             auto_checkout_after_minutes?: number;
             geofence_auto_checkin_enabled?: boolean;
+            photo_retention_days?: number;
         };
         /** UpdateBranchRequest */
         UpdateBranchRequest: {
@@ -11048,6 +11152,137 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "attendancePhoto.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AttendancePhotoResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AttendancePhotoResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendancePhoto.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attendance record public id */
+                attendanceRecord: string;
+                which: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string | null;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "attendancePhoto.hold": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attendance record public id */
+                attendanceRecord: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HoldAttendancePhotoRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendancePhotoResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePhotoResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendancePhoto.release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attendance record public id */
+                attendanceRecord: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `AttendancePhotoResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePhotoResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "attendanceCorrection.index": {
         parameters: {
             query?: {
@@ -12310,6 +12545,7 @@ export interface operations {
                         };
                         plan_features: unknown[] | null;
                         tenant: components["schemas"]["TenantResource"] | null;
+                        upload_limit_bytes: number;
                     };
                 };
             };
@@ -18229,6 +18465,7 @@ export interface operations {
                             web_enabled: boolean;
                             geofence_required: boolean;
                             photo_required: boolean;
+                            photo_consent: boolean;
                             accuracy_threshold_meters: number;
                             offline_sync_enabled: boolean;
                             geofence: {
@@ -22063,6 +22300,84 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "photoConsent.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        given: string;
+                        version: string | null;
+                        given_at: string | null;
+                        /** @constant */
+                        current_version: "2026-10-17.2";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "photoConsent.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        given: string;
+                        version: string | null;
+                        given_at: string | null;
+                        /** @constant */
+                        current_version: "2026-10-17.2";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "photoConsent.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        given: string;
+                        version: string | null;
+                        given_at: string | null;
+                        /** @constant */
+                        current_version: "2026-10-17.2";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
         };
     };
     "adminTenant.exitImpersonation": {

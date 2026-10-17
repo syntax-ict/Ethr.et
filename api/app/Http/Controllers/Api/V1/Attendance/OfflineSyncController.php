@@ -12,6 +12,7 @@ use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\OfflineGrant;
 use App\Services\FileStorageService;
+use App\Support\PhotoConsent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -112,7 +113,10 @@ class OfflineSyncController extends Controller
                     idempotencyKey: $record['idempotency_key'],
                     latitude: $record['latitude'] ?? null,
                     longitude: $record['longitude'] ?? null,
-                    photoPath: isset($record['photo']) && $record['photo'] !== ''
+                    // The selfie is kept only for an employee who has agreed to it
+                    // (PhotoConsent). The punch is kept either way; one without
+                    // its photo is flagged when the photo is required.
+                    photoPath: isset($record['photo']) && $record['photo'] !== '' && PhotoConsent::given($employee->user)
                         ? $this->storage->uploadDataUrlImage($record['photo'], 'selfies')['path']
                         : null,
                     offlineToken: OfflineGrant::fingerprint($record['offline_token']),

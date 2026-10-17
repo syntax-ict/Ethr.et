@@ -59,7 +59,7 @@ describe("<LogoUpload>", () => {
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
   });
 
-  it("refuses an SVG or an oversized image before sending anything", () => {
+  it("refuses an SVG or an oversized image before sending anything", async () => {
     const post = vi.spyOn(apiClient, "post");
     renderUpload(null);
 
@@ -70,8 +70,9 @@ describe("<LogoUpload>", () => {
       }),
     );
 
+    // The size check follows the in-browser shrink, which is asynchronous.
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(2));
     expect(post).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledTimes(2);
   });
 
   it("shows the uploaded logo and removes it", async () => {

@@ -38,6 +38,15 @@ mandatory gate below reads `PASS`.**
 >    the override. Every release now ships `httpdocs/.user.ini` with these values
 >    (`scripts/shared-hosting/user.ini`), and `.htaccess` denies it with `[F,L]`. **It is
 >    still unverified on the host.** The M2 re-run in step 4 is what proves the limits took.
+>    **2026-10-17: measured live, and they did not take.** `.user.ini` is on the host and
+>    phpinfo names `user_ini.filename=.user.ini`, yet the panel still shows 2M / 8M / 128M / 30,
+>    and a 9 MB POST to a nonexistent `/api/v1` route is answered 413 *The POST data is too
+>    large* while 7 MB reaches the 404. The provider locks these values. **Ask Ethio Telecom
+>    to set them, or to grant the PHP-settings permission.** Until then the code copes
+>    (`App\Support\UploadLimit`, reported as `upload_limit_bytes` on `GET /auth/me`): photos
+>    are shrunk in the browser before upload, and every form with its own limit refuses a
+>    file over the server's real one with both sizes named. A PDF or document over 2 MB
+>    still cannot be uploaded until the provider changes the limit.
 > 3. **Plesk → Databases → user `ethr` → Access control:** **Allow remote connections from
 >    `172.28.20.26`** only. *(Corrected 2026-10-06. This said "Allow local connections only".
 >    The database is on its own server, `<DB_HOST>`, so "local" admits only that machine.

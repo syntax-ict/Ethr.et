@@ -23,6 +23,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $check_out
  * @property Carbon|null $date
  * @property array<string, mixed>|null $metadata
+ * @property Carbon|null $photo_review_started_at
+ * @property Carbon|null $photo_held_at
+ * @property Carbon|null $photos_deleted_at
  */
 class AttendanceRecord extends Model
 {
@@ -47,6 +50,11 @@ class AttendanceRecord extends Model
         'offline_token',
         'idempotency_key',
         'metadata',
+        'photo_review_started_at',
+        'photo_held_at',
+        'photo_held_by',
+        'photo_hold_reason',
+        'photos_deleted_at',
     ];
 
     protected $hidden = [
@@ -55,6 +63,7 @@ class AttendanceRecord extends Model
         'employee_id',
         'shift_id',
         'device_id',
+        'photo_held_by',
     ];
 
     protected function casts(): array
@@ -70,7 +79,36 @@ class AttendanceRecord extends Model
             'longitude' => 'decimal:7',
             'geofence_verified' => 'boolean',
             'metadata' => 'array',
+            'photo_review_started_at' => 'datetime',
+            'photo_held_at' => 'datetime',
+            'photos_deleted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The stored selfie files: the check-in's in `photo_path`, the check-out's
+     * beside it in metadata. Keyed by which punch took them.
+     *
+     * @return array<'check_in'|'check_out', string>
+     */
+    public function photoPaths(): array
+    {
+        $paths = [];
+        if (is_string($this->photo_path) && $this->photo_path !== '') {
+            $paths['check_in'] = $this->photo_path;
+        }
+        $checkout = $this->metadata['checkout_photo_path'] ?? null;
+        if (is_string($checkout) && $checkout !== '') {
+            $paths['check_out'] = $checkout;
+        }
+
+        return $paths;
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function photoHolder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'photo_held_by');
     }
 
     /** @return BelongsTo<Employee, $this> */
