@@ -14,16 +14,20 @@ class SetLocale
 
     public function handle(Request $request, Closure $next): Response
     {
-        $locale = $request->header('Accept-Language', 'en');
-
-        $locale = substr($locale, 0, 2);
-
-        if (! in_array($locale, self::SUPPORTED, true)) {
-            $locale = 'en';
-        }
-
-        app()->setLocale($locale);
+        app()->setLocale(self::fromRequest($request));
 
         return $next($request);
+    }
+
+    /**
+     * The supported locale the request asks for, `en` otherwise. Also read by
+     * the exception renderer for errors thrown before this middleware runs
+     * (an upload over post_max_size is refused by global middleware).
+     */
+    public static function fromRequest(Request $request): string
+    {
+        $locale = substr((string) $request->header('Accept-Language', 'en'), 0, 2);
+
+        return in_array($locale, self::SUPPORTED, true) ? $locale : 'en';
     }
 }
