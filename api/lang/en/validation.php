@@ -218,6 +218,7 @@ return [
     'landing_faq_question' => 'Write the question in English or Amharic.',
     'landing_faq_answer' => 'Write the answer in English or Amharic.',
     'landing_service_title' => 'Give the service a name in English or Amharic.',
+    'announcement_files_max' => 'A story can carry at most :max documents.',
 
     // App\Http\Requests\Admin\UpdateTenantDomainRequest: a host ETHR already owns.
     'custom_domain_reserved' => 'A custom domain must be the organisation\'s own domain, not one under :root.',

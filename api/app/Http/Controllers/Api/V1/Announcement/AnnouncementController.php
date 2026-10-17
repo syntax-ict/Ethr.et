@@ -187,9 +187,13 @@ class AnnouncementController extends Controller
         AuditLog::record('announcement.deleted', $announcement);
 
         $cover = $announcement->coverImage();
+        $files = $announcement->attachedFiles();
         $announcement->delete();
         if ($cover !== null) {
             $storage->deleteNewsCover($cover);
+        }
+        foreach ($files as $file) {
+            $storage->delete($file['path']);
         }
 
         return response()->json(null, 204);

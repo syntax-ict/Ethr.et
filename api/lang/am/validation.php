@@ -192,6 +192,7 @@ return [
     'landing_faq_question' => 'ጥያቄውን በእንግሊዝኛ ወይም በአማርኛ ይጻፉ።',
     'landing_faq_answer' => 'መልሱን በእንግሊዝኛ ወይም በአማርኛ ይጻፉ።',
     'landing_service_title' => 'ለአገልግሎቱ በእንግሊዝኛ ወይም በአማርኛ ስም ይስጡ።',
+    'announcement_files_max' => 'አንድ ታሪክ ቢበዛ :max ሰነዶች ብቻ ሊይዝ ይችላል።',
     'custom_domain_reserved' => 'የራስ ዶሜይን የድርጅቱ የራሱ ዶሜይን መሆን አለበት እንጂ በ:root ስር ያለ መሆን የለበትም።',
     'custom_domain_not_in_plan' => 'የዚህ ድርጅት ዕቅድ የራስ ዶሜይንን አያካትትም።',
     'custom_domain_txt_missing' => ':value ዋጋ ያለው የ:name TXT መዝገብ አልተገኘም።',
