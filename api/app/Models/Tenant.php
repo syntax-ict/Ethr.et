@@ -136,18 +136,26 @@ class Tenant extends Model
     public const SHOWCASE_CACHE_TTL = 600;
 
     /**
-     * Organisations ETHR may name on its public site: active customers that
-     * agreed to be named, and that the platform has not hidden. Not trials,
-     * which have not chosen ETHR yet.
+     * Organisations ETHR may name on its public site: operational ones (active,
+     * or in a free trial that has not ended; owner decision 2026-10-18) that
+     * agreed to be named, and that the platform has not hidden. An expired
+     * trial, a suspension or a cancellation takes the name down.
      *
      * @param  Builder<Tenant>  $query
      * @return Builder<Tenant>
      */
     public function scopeShowcased(Builder $query): Builder
     {
-        return $query->where('status', TenantStatus::ACTIVE)
+        return $query->operational()
             ->whereNotNull('showcase_consented_at')
             ->whereNull('showcase_hidden_at');
+    }
+
+    /** The row-level twin of scopeOperational(): active, or a trial that has not ended. */
+    public function isOperational(): bool
+    {
+        return $this->status === TenantStatus::ACTIVE
+            || ($this->status === TenantStatus::TRIAL && ($this->trial_ends_at === null || Carbon::parse($this->trial_ends_at)->gte(now())));
     }
 
     /**
