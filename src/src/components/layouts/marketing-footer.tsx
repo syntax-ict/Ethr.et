@@ -71,9 +71,6 @@ export function MarketingFooter() {
 
   return (
     <footer className="border-t border-border/50 bg-muted/20">
-      {/* Tibeb pattern — subtle Ethiopian geometric motif */}
-      <div className="h-1 w-full bg-[repeating-linear-gradient(90deg,var(--interactive-primary)_0px,var(--interactive-primary)_8px,var(--brand-accent)_8px,var(--brand-accent)_16px,var(--interactive-primary)_16px,var(--interactive-primary)_24px,transparent_24px,transparent_32px)]" />
-
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
           {/* Brand column */}
