@@ -118,6 +118,8 @@ use App\Http\Controllers\Api\V1\Settings\TenantLogoController;
 use App\Http\Controllers\Api\V1\Shift\ShiftAssignmentController;
 use App\Http\Controllers\Api\V1\Shift\ShiftController;
 use App\Http\Controllers\Api\V1\Shift\ShiftRotationController;
+use App\Http\Controllers\Api\V1\Showcase\ShowcaseConsentController;
+use App\Http\Controllers\Api\V1\Showcase\TrustedByController;
 use App\Http\Controllers\Api\V1\SiteContentController;
 use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use App\Http\Controllers\Api\V1\TemplateController;
@@ -181,6 +183,8 @@ Route::get('/plans', [PlanController::class, 'index'])->middleware('throttle:pub
 // 404s whenever a tenant is resolved — the marketing pages are served from
 // tenant subdomains too. See SiteContentResource for what is published.
 Route::get('/site-content', [SiteContentController::class, 'index'])->middleware('throttle:public-catalogue');
+// Organisations that agreed to be named on the public site (TrustedByController).
+Route::get('/trusted-by', [TrustedByController::class, 'index'])->middleware('throttle:public-catalogue');
 Route::get('/templates', [TemplateController::class, 'index'])->middleware('throttle:public-catalogue');
 Route::get('/templates/{slug}', [TemplateController::class, 'show'])->middleware('throttle:public-catalogue');
 Route::post('/contact', ContactController::class)->middleware('throttle:auth');
@@ -813,6 +817,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::get('/tenants', [AdminTenantController::class, 'index']);
             Route::get('/tenants/{publicId}', [AdminTenantController::class, 'show']);
             Route::put('/tenants/{publicId}/status', [AdminTenantController::class, 'updateStatus']);
+            Route::put('/tenants/{publicId}/showcase', [AdminTenantController::class, 'updateShowcase']);
             Route::put('/tenants/{publicId}/domain', [AdminTenantController::class, 'updateDomain']);
             Route::post('/tenants/{publicId}/domain/verify', [AdminTenantController::class, 'verifyDomain']);
             Route::put('/tenants/{publicId}/address-mode', [AdminTenantController::class, 'updateAddressMode']);
@@ -891,6 +896,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         ->where('kind', 'logo_dark|mark|cover');
     Route::put('/settings/branding/assets/cover/focal', [TenantBrandAssetController::class, 'focal']);
     Route::put('/settings/landing', [SettingsController::class, 'updateLanding']);
+    Route::get('/settings/showcase', [ShowcaseConsentController::class, 'show']);
+    Route::put('/settings/showcase', [ShowcaseConsentController::class, 'update']);
     Route::put('/settings/sso', [SettingsController::class, 'updateSso']);
     Route::post('/settings/scim-token', [SettingsController::class, 'generateScimToken']);
     Route::get('/settings/notification-templates', [NotificationTemplateController::class, 'index']);

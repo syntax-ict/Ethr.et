@@ -24,6 +24,8 @@ use Illuminate\Support\Facades\Cache;
  * @property string|null $custom_domain_token
  * @property Carbon|null $custom_domain_verified_at
  * @property TenantAddressMode|null $address_mode
+ * @property Carbon|null $showcase_consented_at
+ * @property Carbon|null $showcase_hidden_at
  */
 class Tenant extends Model
 {
@@ -120,7 +122,32 @@ class Tenant extends Model
             'trial_ends_at' => 'datetime',
             'custom_domain_verified_at' => 'datetime',
             'address_mode' => TenantAddressMode::class,
+            'showcase_consented_at' => 'datetime',
+            'showcase_hidden_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The cache key of the public "Trusted by" list. Cleared by every write
+     * that can change it; the TTL bounds a status change made elsewhere.
+     */
+    public const SHOWCASE_CACHE_KEY = 'public.trusted-by';
+
+    public const SHOWCASE_CACHE_TTL = 600;
+
+    /**
+     * Organisations ETHR may name on its public site: active customers that
+     * agreed to be named, and that the platform has not hidden. Not trials,
+     * which have not chosen ETHR yet.
+     *
+     * @param  Builder<Tenant>  $query
+     * @return Builder<Tenant>
+     */
+    public function scopeShowcased(Builder $query): Builder
+    {
+        return $query->where('status', TenantStatus::ACTIVE)
+            ->whereNotNull('showcase_consented_at')
+            ->whereNull('showcase_hidden_at');
     }
 
     /**

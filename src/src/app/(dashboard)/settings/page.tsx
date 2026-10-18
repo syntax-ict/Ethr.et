@@ -35,6 +35,7 @@ import { AddressCard } from "@/features/settings/components/address-card";
 import { OrganizationCard } from "@/features/settings/components/organization-card";
 import { BrandingCard } from "@/features/settings/components/branding-card";
 import { LandingCard } from "@/features/settings/components/landing-card";
+import { ShowcaseCard } from "@/features/settings/components/showcase-card";
 import { EmployeeNumberCard } from "@/features/employees/components/employee-number-card";
 import {
   useSettings,
@@ -312,6 +313,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                 accent_color: data.branding.theme.accent_color ?? null,
               }}
             />
+            <ShowcaseCard />
           </div>
         </TabsContent>
 

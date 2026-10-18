@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductFlow } from "@/components/marketing/product-flow";
+import { TrustedBy } from "@/components/marketing/trusted-by";
 import { useT } from "@/lib/i18n/useT";
 import { useLocaleHref } from "@/lib/i18n/route-locale";
 import { pickLocalised, useSiteContent } from "@/features/marketing/api";
@@ -270,6 +271,9 @@ export function LandingContent() {
           </div>
         </section>
       )}
+
+      {/* Organisations that agreed to be named; drawn only when there are any. */}
+      <TrustedBy />
 
       {/* Features */}
       <section className="py-20 sm:py-24">

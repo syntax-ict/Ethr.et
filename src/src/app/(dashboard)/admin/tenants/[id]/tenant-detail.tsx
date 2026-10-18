@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -49,6 +50,7 @@ import {
   useUpdateTenantAddressMode,
   useAdminTenant,
   useUpdateTenantStatus,
+  useUpdateTenantShowcase,
   useExtendTrial,
   useMarkTenantInvoicePaid,
   useImpersonateTenant,
@@ -148,6 +150,7 @@ function TenantDetail({ id }: { id: string }) {
   // trail but a separate "Back" button).
   useEntityTitle(tenant?.name);
   const updateStatus = useUpdateTenantStatus();
+  const updateShowcase = useUpdateTenantShowcase();
   const extendTrial = useExtendTrial();
   const markInvoicePaid = useMarkTenantInvoicePaid(id);
   const impersonate = useImpersonateTenant();
@@ -656,6 +659,59 @@ function TenantDetail({ id }: { id: string }) {
               label={t("admin_tenants_page.subdomain")}
               value={
                 <code className="font-mono text-xs">{tenant.subdomain}</code>
+              }
+            />
+            <Row
+              label={t(
+                "admin_tenant_detail_page.showcase",
+                "On the ETHR website",
+              )}
+              value={
+                <span className="inline-flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    {!tenant.showcase_consented_at
+                      ? t(
+                          "admin_tenant_detail_page.showcase_not_agreed",
+                          "Has not agreed to be named",
+                        )
+                      : tenant.showcase_hidden
+                        ? t(
+                            "admin_tenant_detail_page.showcase_hidden",
+                            "Agreed, hidden by the platform",
+                          )
+                        : tenant.status !== "active"
+                          ? t(
+                              "admin_tenant_detail_page.showcase_inactive",
+                              "Agreed, shown once active",
+                            )
+                          : t(
+                              "admin_tenant_detail_page.showcase_shown",
+                              "Shown under Trusted by",
+                            )}
+                  </span>
+                  <Switch
+                    checked={!tenant.showcase_hidden}
+                    disabled={writesBlocked || updateShowcase.isPending}
+                    aria-label={t(
+                      "admin_tenant_detail_page.showcase_toggle",
+                      "Allow on the ETHR website",
+                    )}
+                    onCheckedChange={(allowed) =>
+                      updateShowcase.mutate(
+                        { publicId: tenant.public_id, hidden: !allowed },
+                        {
+                          onError: () =>
+                            toast.error(
+                              t(
+                                "admin_tenant_detail_page.showcase_failed",
+                                "The change could not be saved.",
+                              ),
+                            ),
+                        },
+                      )
+                    }
+                  />
+                </span>
               }
             />
             <Row

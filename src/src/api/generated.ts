@@ -4746,6 +4746,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/tenants/{publicId}/showcase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Hide an organisation from ETHR's public "Trusted by" list, or stop
+         *     hiding it. Its own consent is untouched: hiding is the platform's veto,
+         *     for a test organisation or anything else that should not be named
+         */
+        put: operations["adminTenant.updateShowcase"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/tenants/{publicId}/domain": {
         parameters: {
             query?: never;
@@ -5826,6 +5847,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/showcase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Showcase settings */
+        get: operations["showcaseConsent.show"];
+        /** Showcase settings */
+        put: operations["showcaseConsent.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/site-content": {
         parameters: {
             query?: never;
@@ -5977,6 +6016,23 @@ export interface paths {
         post: operations["tenantLogo.store"];
         /** Logo branding */
         delete: operations["tenantLogo.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trusted-by": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The organisations ETHR may name on its public site */
+        get: operations["trustedBy.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -6359,6 +6415,8 @@ export interface components {
             trial_ends_at: string | null;
             /** Format: date-time */
             created_at: string | null;
+            showcase_consented_at: string | null;
+            showcase_hidden: boolean;
         };
         /** AnnouncementResource */
         AnnouncementResource: {
@@ -8788,6 +8846,13 @@ export interface components {
             /** Format: date-time */
             effective_date: string;
         };
+        /** TrustedOrganisationResource */
+        TrustedOrganisationResource: {
+            public_id: string;
+            name: string;
+            logo_url: string | null;
+            url: string;
+        };
         /** UpdateAccessRequest */
         UpdateAccessRequest: {
             login_identifiers: ("email" | "phone" | "employee_code" | "username")[];
@@ -9318,6 +9383,10 @@ export interface components {
             is_default?: boolean;
             is_active?: boolean;
         };
+        /** UpdateShowcaseConsentRequest */
+        UpdateShowcaseConsentRequest: {
+            listed: boolean;
+        };
         /** UpdateSmsSettingsRequest */
         UpdateSmsSettingsRequest: {
             enabled?: boolean;
@@ -9382,6 +9451,10 @@ export interface components {
          */
         UpdateTenantDomainRequest: {
             custom_domain: string | null;
+        };
+        /** UpdateTenantShowcaseRequest */
+        UpdateTenantShowcaseRequest: {
+            hidden: boolean;
         };
         /** UpdateTenantStatusRequest */
         UpdateTenantStatusRequest: {
@@ -22562,6 +22635,8 @@ export interface operations {
                         created_at: string | null;
                         /** Format: date-time */
                         updated_at: string | null;
+                        showcase_consented_at: string | null;
+                        showcase_hidden: boolean;
                         usage: {
                             employees: string;
                             devices: number;
@@ -22615,6 +22690,38 @@ export interface operations {
                     "application/json": {
                         public_id: string;
                         status: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.updateShowcase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTenantShowcaseRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        showcase_consented_at: string | null;
+                        showcase_hidden: boolean;
                     };
                 };
             };
@@ -25398,6 +25505,65 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "showcaseConsent.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        listed: boolean;
+                        consented_at: string | null;
+                        shown: string;
+                        hidden_by_platform: boolean;
+                        active: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "showcaseConsent.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateShowcaseConsentRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        listed: boolean;
+                        consented_at: string | null;
+                        shown: string;
+                        hidden_by_platform: boolean;
+                        active: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "siteContent.index": {
         parameters: {
             query?: never;
@@ -26068,6 +26234,27 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "trustedBy.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TrustedOrganisationResource"][];
+                    };
+                };
+            };
         };
     };
     "trustedDevice.index": {
