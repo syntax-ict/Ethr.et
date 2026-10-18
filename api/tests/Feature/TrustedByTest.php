@@ -28,14 +28,19 @@ function showcaseTenant(array $attributes = []): Tenant
     ]);
 }
 
-it('names only active organisations that agreed and are not hidden', function () {
+it('names only operational organisations that agreed and are not hidden', function () {
     $listed = showcaseTenant(['name' => 'Listed PLC']);
     $listed->forceFill(['showcase_consented_at' => now()->subDay()])->save();
 
     showcaseTenant(['name' => 'Never Agreed PLC']);
 
-    $trial = showcaseTenant(['name' => 'Trial PLC', 'status' => TenantStatus::TRIAL]);
+    // A free trial that has not ended is named (owner decision 2026-10-18);
+    // one that has ended is not.
+    $trial = showcaseTenant(['name' => 'Trial PLC', 'status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->addDays(10)]);
     $trial->forceFill(['showcase_consented_at' => now()])->save();
+
+    $expired = showcaseTenant(['name' => 'Expired Trial PLC', 'status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->subDay()]);
+    $expired->forceFill(['showcase_consented_at' => now()])->save();
 
     $hidden = showcaseTenant(['name' => 'Hidden PLC']);
     $hidden->forceFill(['showcase_consented_at' => now(), 'showcase_hidden_at' => now()])->save();
@@ -45,7 +50,7 @@ it('names only active organisations that agreed and are not hidden', function ()
 
     $response = $this->getJson('/api/v1/trusted-by')->assertOk();
 
-    expect($response->json('data.*.name'))->toBe(['Listed PLC'])
+    expect($response->json('data.*.name'))->toBe(['Listed PLC', 'Trial PLC'])
         ->and(array_keys($response->json('data.0')))->toEqualCanonicalizing(['public_id', 'name', 'logo_url', 'url']);
 });
 

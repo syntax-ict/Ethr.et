@@ -15,7 +15,7 @@ date). An organisation appears only when **all three** hold
 | Condition | Who decides | Where |
 |---|---|---|
 | It agreed to be named | The organisation's administrator (`settings.manage`) | Settings → Branding → *ETHR website*. Off by default; the time and who agreed are stored (`showcase_consented_at`, `showcase_consented_by`) and audited (`settings.showcase_consented` / `_withdrawn`) |
-| It is an active customer | The subscription | `status = active`. Trials, suspended and cancelled organisations are never named |
+| It is operational | Its subscription | Active, or in a free trial that has not ended (`Tenant::scopeOperational`; owner decision 2026-10-18). An expired trial, a suspension or a cancellation takes the name down |
 | The platform has not hidden it | A platform admin (`admin.manage`) | Console → the tenant → *On the ETHR website*. A veto for test organisations or anything else that should not be named; the organisation's own consent is untouched. Audited (`admin.tenant.showcase_hidden` / `_unhidden`) |
 
 With nobody to name, the section is not drawn at all.

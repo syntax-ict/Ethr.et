@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
  *
  * Every name here is a claim, held to the same rule as the testimonial: an
  * organisation appears only after its administrator agreed to be named, while
- * it is an active customer, and unless the platform hid it
+ * it is active or in a free trial that has not ended, and unless the platform
+ * hid it
  * (`Tenant::scopeShowcased`). With nobody to name, the section is not drawn
  * at all, rather than a heading over an empty row.
  */

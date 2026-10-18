@@ -90,7 +90,7 @@ export function ShowcaseCard() {
                   : !data.active
                     ? t(
                         "settings.showcase.not_active",
-                        "It is shown once your subscription is active.",
+                        "It is shown while your trial or subscription is active.",
                       )
                     : t(
                         "settings.showcase.hidden",

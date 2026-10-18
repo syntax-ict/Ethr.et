@@ -18,7 +18,8 @@ class TrustedByController extends Controller
     public function index(): JsonResponse
     {
         // Public and unauthenticated, like /site-content, and for the same
-        // reason not behind EnsurePlatformContext. Only active customers that
+        // reason not behind EnsurePlatformContext. Only operational
+        // organisations (active, or in a free trial that has not ended) that
         // agreed to be named and that the platform has not hidden
         // (Tenant::scopeShowcased), in the order they agreed, at most 48.
         // The rows are cached rather than the array, so the generated contract

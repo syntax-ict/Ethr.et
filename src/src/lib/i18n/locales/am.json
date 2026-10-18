@@ -3882,7 +3882,7 @@
   "settings.showcase.failed": "ምርጫዎ ሊቀመጥ አልቻለም።",
   "settings.showcase.hidden": "ETHR በአሁኑ ጊዜ እያሳየው አይደለም።",
   "settings.showcase.label": "ድርጅታችንን በETHR ድረ-ገጽ ላይ አሳይ",
-  "settings.showcase.not_active": "የደንበኝነት ምዝገባዎ ንቁ ሲሆን ይታያል።",
+  "settings.showcase.not_active": "የሙከራ ጊዜዎ ወይም የደንበኝነት ምዝገባዎ ንቁ እስከሆነ ድረስ ይታያል።",
   "settings.showcase.shown": "አሁን እየታየ ነው።",
   "settings.showcase.since": "በ:date ተስማምተዋል።",
   "settings.showcase.title": "የETHR ድረ-ገጽ",
