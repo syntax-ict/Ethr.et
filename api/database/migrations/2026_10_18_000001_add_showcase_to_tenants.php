@@ -19,7 +19,10 @@ return new class extends Migration
     {
         Schema::table('tenants', function (Blueprint $table) {
             $table->timestamp('showcase_consented_at')->nullable();
-            $table->foreignId('showcase_consented_by')->nullable()->constrained('users')->nullOnDelete();
+            // No foreign key: users already references tenants, and a key back
+            // would make the two a cycle, which the backup restore cannot order
+            // (it loads tables parents first). The audit log names who agreed.
+            $table->unsignedBigInteger('showcase_consented_by')->nullable();
             $table->timestamp('showcase_hidden_at')->nullable();
         });
     }
@@ -27,8 +30,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('tenants', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('showcase_consented_by');
-            $table->dropColumn(['showcase_consented_at', 'showcase_hidden_at']);
+            $table->dropColumn(['showcase_consented_at', 'showcase_consented_by', 'showcase_hidden_at']);
         });
     }
 };
