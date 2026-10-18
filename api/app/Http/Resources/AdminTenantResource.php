@@ -24,6 +24,8 @@ class AdminTenantResource extends JsonResource
             'employee_count' => (int) $this->employees_count,
             'trial_ends_at' => $this->trial_ends_at,
             'created_at' => $this->created_at,
+            'showcase_consented_at' => $this->showcase_consented_at?->toIso8601String(),
+            'showcase_hidden' => $this->showcase_hidden_at !== null,
         ];
     }
 }
