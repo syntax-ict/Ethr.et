@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Showcase;
 
-use App\Enums\TenantStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateShowcaseConsentRequest;
 use App\Models\AuditLog;
@@ -59,7 +58,8 @@ class ShowcaseConsentController extends Controller
      */
     private function state(Tenant $tenant): array
     {
-        $active = $tenant->status === TenantStatus::ACTIVE;
+        // Active, or a free trial that has not ended (Tenant::isOperational).
+        $active = $tenant->isOperational();
         $hidden = $tenant->showcase_hidden_at !== null;
         $listed = $tenant->showcase_consented_at !== null;
 

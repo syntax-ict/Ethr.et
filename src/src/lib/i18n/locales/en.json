@@ -3882,7 +3882,7 @@
   "settings.showcase.failed": "Your choice could not be saved.",
   "settings.showcase.hidden": "ETHR is not showing it at the moment.",
   "settings.showcase.label": "Show our organisation on the ETHR website",
-  "settings.showcase.not_active": "It is shown once your subscription is active.",
+  "settings.showcase.not_active": "It is shown while your trial or subscription is active.",
   "settings.showcase.shown": "It is shown now.",
   "settings.showcase.since": "Agreed on :date.",
   "settings.showcase.title": "ETHR website",

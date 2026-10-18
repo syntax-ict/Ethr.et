@@ -679,7 +679,12 @@ function TenantDetail({ id }: { id: string }) {
                             "admin_tenant_detail_page.showcase_hidden",
                             "Agreed, hidden by the platform",
                           )
-                        : tenant.status !== "active"
+                        : !(
+                              tenant.status === "active" ||
+                              (tenant.status === "trial" &&
+                                (!tenant.trial_ends_at ||
+                                  new Date(tenant.trial_ends_at) >= new Date()))
+                            )
                           ? t(
                               "admin_tenant_detail_page.showcase_inactive",
                               "Agreed, shown once active",
