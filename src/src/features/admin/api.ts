@@ -31,6 +31,10 @@ export interface AdminTenant {
   employee_count: number;
   trial_ends_at: string | null;
   created_at: string;
+  /** When the organisation agreed to be named on ETHR's website; null if not. */
+  showcase_consented_at: string | null;
+  /** The platform's veto on naming it there. */
+  showcase_hidden: boolean;
 }
 
 /**
@@ -192,6 +196,27 @@ export function useMarkTenantInvoicePaid(tenantPublicId: string) {
     mutationFn: async (invoicePublicId: string) => {
       const { data } = await apiClient.put(
         `/admin/tenants/${tenantPublicId}/invoices/${invoicePublicId}/mark-paid`,
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "tenants"] }),
+  });
+}
+
+/** Hide an organisation from the public "Trusted by" list, or show it again. */
+export function useUpdateTenantShowcase() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      hidden,
+    }: {
+      publicId: string;
+      hidden: boolean;
+    }) => {
+      const { data } = await apiClient.put(
+        `/admin/tenants/${publicId}/showcase`,
+        { hidden },
       );
       return data;
     },

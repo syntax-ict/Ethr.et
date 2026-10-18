@@ -26774,6 +26774,63 @@
                 }
             }
         },
+        "/settings/showcase": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "showcaseConsent.show",
+                "summary": "Showcase settings",
+                "tags": [
+                    "Showcase Consent"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "listed": {
+                                            "type": "boolean"
+                                        },
+                                        "consented_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "shown": {
+                                            "type": "string"
+                                        },
+                                        "hidden_by_platform": {
+                                            "type": "boolean"
+                                        },
+                                        "active": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "listed",
+                                        "consented_at",
+                                        "shown",
+                                        "hidden_by_platform",
+                                        "active"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/shift-rotations": {
             "get": {
                 "x-abilities": [

@@ -14,6 +14,7 @@ use App\Http\Requests\Admin\ExtendTrialRequest;
 use App\Http\Requests\Admin\ImpersonateTenantRequest;
 use App\Http\Requests\Admin\UpdateTenantAddressModeRequest;
 use App\Http\Requests\Admin\UpdateTenantDomainRequest;
+use App\Http\Requests\Admin\UpdateTenantShowcaseRequest;
 use App\Http\Requests\Admin\UpdateTenantStatusRequest;
 use App\Http\Resources\AdminTenantResource;
 use App\Jobs\BackupTenantJob;
@@ -35,6 +36,7 @@ use App\Support\FrontendUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
@@ -135,6 +137,8 @@ class AdminTenantController extends Controller
             'trial_ends_at' => $tenant->trial_ends_at,
             'created_at' => $tenant->created_at,
             'updated_at' => $tenant->updated_at,
+            'showcase_consented_at' => $tenant->showcase_consented_at?->toIso8601String(),
+            'showcase_hidden' => $tenant->showcase_hidden_at !== null,
             'usage' => [
                 'employees' => $tenant->employees_count,
                 'devices' => $deviceCount,
@@ -165,9 +169,36 @@ class AdminTenantController extends Controller
             'new_status' => $request->input('status'),
         ]);
 
+        // Only active customers are named on the public site.
+        Cache::forget(Tenant::SHOWCASE_CACHE_KEY);
+
         return response()->json([
             'public_id' => $tenant->public_id,
             'status' => $tenant->status->value,
+        ]);
+    }
+
+    /**
+     * Hide an organisation from ETHR's public "Trusted by" list, or stop
+     * hiding it. Its own consent is untouched: hiding is the platform's veto,
+     * for a test organisation or anything else that should not be named.
+     */
+    public function updateShowcase(UpdateTenantShowcaseRequest $request, string $publicId): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::query()->where('public_id', $publicId)->firstOrFail();
+        $hidden = $request->boolean('hidden');
+
+        $tenant->forceFill(['showcase_hidden_at' => $hidden ? ($tenant->showcase_hidden_at ?? now()) : null])->save();
+
+        AuditLog::record($hidden ? 'admin.tenant.showcase_hidden' : 'admin.tenant.showcase_unhidden', $tenant);
+        Cache::forget(Tenant::SHOWCASE_CACHE_KEY);
+
+        return response()->json([
+            'public_id' => $tenant->public_id,
+            'showcase_consented_at' => $tenant->showcase_consented_at?->toIso8601String(),
+            'showcase_hidden' => $tenant->showcase_hidden_at !== null,
         ]);
     }
 

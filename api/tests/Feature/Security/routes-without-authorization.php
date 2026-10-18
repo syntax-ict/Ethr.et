@@ -99,6 +99,7 @@ return [
         'App\Http\Controllers\Api\V1\Device\AdmsController@upload' => 'Pre-authentication ZKTeco ADMS device: AdmsDeviceResolver selects by serial and authenticates by the device IP allowlist, fail-closed.',
         'App\Http\Controllers\Api\V1\PlanController@index' => 'Deliberately public pricing.',
         'App\Http\Controllers\Api\V1\SiteContentController@index' => 'Deliberately public marketing copy.',
+        'App\Http\Controllers\Api\V1\Showcase\TrustedByController@index' => 'Deliberately public: name, logo and public page of organisations that consented to be named, active and not hidden (Tenant::scopeShowcased).',
         'App\Http\Controllers\Api\V1\TemplateController@index' => 'Deliberately public template catalogue.',
         'App\Http\Controllers\Api\V1\TemplateController@show' => 'Deliberately public template catalogue.',
         'App\Http\Controllers\Api\V1\ContactController@__invoke' => 'Deliberately public contact form, throttle:auth.',

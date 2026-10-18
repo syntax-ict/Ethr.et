@@ -107,6 +107,34 @@ export function useSiteContent(): SiteContent {
   return data ?? EMPTY_SITE_CONTENT;
 }
 
+export type TrustedOrganisation =
+  components["schemas"]["TrustedOrganisationResource"];
+
+/**
+ * The organisations ETHR may name on its public site: active customers that
+ * agreed to be named and that the platform has not hidden. Empty until the
+ * fetch resolves, and the section that renders them disappears while it is.
+ */
+export function useTrustedBy(): TrustedOrganisation[] {
+  const { data } = useQuery<TrustedOrganisation[]>({
+    queryKey: ["trusted-by"],
+    // A plain public GET, like site-content: no axios on the landing page.
+    queryFn: async () => {
+      const response = await fetch("/api/v1/trusted-by", {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(`trusted-by answered ${response.status}`);
+      }
+      const body = (await response.json()) as { data: TrustedOrganisation[] };
+      return body.data;
+    },
+    staleTime: 60_000,
+  });
+
+  return data ?? [];
+}
+
 /**
  * Picks the reader's language, falling back to English rather than to nothing.
  *

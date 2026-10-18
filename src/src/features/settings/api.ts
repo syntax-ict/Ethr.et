@@ -273,3 +273,29 @@ export function useVerifyAddress() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.all }),
   });
 }
+
+/**
+ * Whether the organisation agrees to be named on ETHR's public site
+ * ("Trusted by"). `shown` is whether it actually is: also needs an active
+ * subscription and the platform not to have hidden it.
+ */
+export type ShowcaseConsent =
+  operations["showcaseConsent.show"]["responses"][200]["content"]["application/json"];
+
+const showcaseKey = ["settings", "showcase"] as const;
+
+export function useShowcaseConsent() {
+  return useQuery<ShowcaseConsent>({
+    queryKey: showcaseKey,
+    queryFn: async () => (await apiClient.get("/settings/showcase")).data,
+  });
+}
+
+export function useUpdateShowcaseConsent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (listed: boolean): Promise<ShowcaseConsent> =>
+      (await apiClient.put("/settings/showcase", { listed })).data,
+    onSuccess: (data) => queryClient.setQueryData(showcaseKey, data),
+  });
+}
