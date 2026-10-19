@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  Building2,
   Check,
   Contrast,
   Globe,
+  Keyboard,
   LogOut,
   Monitor,
   Moon,
@@ -29,7 +31,17 @@ import {
 import { InstallAppMenuItem } from "@/components/shared/install-app";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { openCommandPalette } from "@/components/shared/command-palette";
-import { useCurrentUser, useLogout } from "@/features/auth/api";
+import {
+  useCurrentTenant,
+  useCurrentUser,
+  useLogout,
+} from "@/features/auth/api";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { openKeyboardShortcuts } from "@/components/shared/keyboard-shortcuts";
 import { useUpdatePreferences } from "@/features/profile/api";
 import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +86,7 @@ function useCurrentPageLabel() {
 export function AppHeader() {
   const { theme, setTheme } = useTheme();
   const { data: user } = useCurrentUser();
+  const { data: tenant } = useCurrentTenant();
   const logout = useLogout();
   const updatePreferences = useUpdatePreferences();
   const pageLabel = useCurrentPageLabel();
@@ -95,7 +108,9 @@ export function AppHeader() {
   const { t, locale } = useT();
   const displayName =
     user?.name?.split(" ")[0] ?? user?.email?.split("@")[0] ?? "User";
-  const roleName = user?.role?.replace(/_/g, " ") ?? "";
+  const roleName = user?.role
+    ? t(`role.${user.role}`, user.role.replace(/_/g, " "))
+    : "";
 
   return (
     <>
@@ -158,65 +173,32 @@ export function AppHeader() {
             <span className="sr-only">{t("common.search", "Search")}</span>
           </Button>
 
-          {/* Theme switcher. Hidden on phones, where the theme follows the
-              phone's own setting: eight controls in 375px cut the
-              organisation's name to one letter (QA 2026-10-13). */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden h-9 w-9 sm:inline-flex"
-              >
-                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                <span className="sr-only">
-                  {t("theme.toggle", "Toggle theme")}
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-                {t("theme.label", "Theme")}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {THEME_OPTIONS.map((opt) => {
-                const Icon = opt.icon;
-                return (
-                  <DropdownMenuItem
-                    key={opt.value}
-                    onClick={() => setTheme(opt.value)}
-                    className="cursor-pointer gap-2"
-                  >
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="flex-1 text-sm">
-                      {t(
-                        opt.labelKey,
-                        opt.value === "high-contrast"
-                          ? "High Contrast"
-                          : opt.value.charAt(0).toUpperCase() +
-                              opt.value.slice(1),
-                      )}
-                    </span>
-                    {theme === opt.value && (
-                      <Check className="h-3.5 w-3.5 text-primary" />
-                    )}
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* The header keeps what people reach for daily: language,
+              calendar, notifications and their account. The theme is set once
+              and lives in the account menu, where phones can reach it too
+              (2026-10-19). */}
 
           {/* Language switcher */}
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9">
-                <Globe className="h-4 w-4" />
-                <span className="sr-only">
-                  {t("language.change", "Change language")}
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-9 gap-1.5 px-2 text-xs font-semibold uppercase"
+                  >
+                    <Globe className="h-4 w-4" aria-hidden />
+                    <span className="hidden sm:inline" aria-hidden>
+                      {locale}
+                    </span>
+                    <span className="sr-only">
+                      {t("language.change", "Change language")}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>{t("language.label", "Language")}</TooltipContent>
+            </Tooltip>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                 {t("language.label", "Language")}
@@ -250,13 +232,26 @@ export function AppHeader() {
           </DropdownMenu>
 
           {/* Calendar system toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            onClick={toggleCalendar}
-            title={
-              calendar === "ethiopian"
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                onClick={toggleCalendar}
+              >
+                <span className="text-xs font-bold leading-none" aria-hidden>
+                  {calendar === "ethiopian"
+                    ? t("calendar.ec", "EC")
+                    : t("calendar.gc", "GC")}
+                </span>
+                <span className="sr-only">
+                  {t("calendar.toggle", "Toggle calendar system")}
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {calendar === "ethiopian"
                 ? t(
                     "calendar.ethiopian_active",
                     "Ethiopian calendar. Click for Gregorian.",
@@ -264,18 +259,9 @@ export function AppHeader() {
                 : t(
                     "calendar.gregorian_active",
                     "Gregorian calendar. Click for Ethiopian.",
-                  )
-            }
-          >
-            <span className="text-xs font-bold leading-none">
-              {calendar === "ethiopian"
-                ? t("calendar.ec", "EC")
-                : t("calendar.gc", "GC")}
-            </span>
-            <span className="sr-only">
-              {t("calendar.toggle", "Toggle calendar system")}
-            </span>
-          </Button>
+                  )}
+            </TooltipContent>
+          </Tooltip>
 
           {/* Notifications */}
           <NotificationBell />
@@ -286,19 +272,31 @@ export function AppHeader() {
           {/* Account menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-9 gap-2 rounded-lg px-2">
+              <Button
+                variant="ghost"
+                className="h-9 gap-2 rounded-lg px-1.5 sm:pr-2.5"
+              >
                 <EmployeeAvatar
                   name={user?.name ?? displayName}
                   photoThumbUrl={user?.photo_thumb_url}
                   className="h-7 w-7"
                   fallbackClassName="bg-primary-soft text-xs font-semibold text-primary-on-soft"
                 />
-                <span className="hidden text-sm font-medium sm:inline-block">
-                  {displayName}
+                <span className="hidden min-w-0 flex-col items-start text-left leading-tight sm:flex">
+                  <span className="max-w-[9rem] truncate text-sm font-medium">
+                    {displayName}
+                  </span>
+                  <span className="hidden max-w-[9rem] truncate text-[11px] text-muted-foreground xl:block">
+                    {roleName}
+                  </span>
+                </span>
+                {/* After the visible name, so the spoken name contains it. */}
+                <span className="sr-only">
+                  {t("header.account_menu", "Account menu")}
                 </span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex items-center gap-3">
                   <EmployeeAvatar
@@ -314,14 +312,17 @@ export function AppHeader() {
                     <p className="truncate text-xs text-muted-foreground">
                       {user?.email}
                     </p>
-                    <Badge
-                      variant="outline"
-                      className="mt-1 text-[10px] capitalize"
-                    >
+                    <Badge variant="outline" className="mt-1 text-[10px]">
                       {roleName}
                     </Badge>
                   </div>
                 </div>
+                {tenant?.name && (
+                  <p className="mt-2 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                    <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <span className="truncate">{tenant.name}</span>
+                  </p>
+                )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
@@ -346,6 +347,46 @@ export function AppHeader() {
                 </Link>
               </DropdownMenuItem>
               <InstallAppMenuItem />
+              <DropdownMenuItem
+                className="cursor-pointer gap-2"
+                onClick={openKeyboardShortcuts}
+              >
+                <Keyboard className="h-4 w-4 text-muted-foreground" />
+                <span className="flex-1">
+                  {t("shortcuts.title", "Keyboard shortcuts")}
+                </span>
+                <kbd className="rounded border border-border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+                  ?
+                </kbd>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                {t("theme.label", "Theme")}
+              </DropdownMenuLabel>
+              {THEME_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                return (
+                  <DropdownMenuItem
+                    key={opt.value}
+                    onClick={() => setTheme(opt.value)}
+                    className="cursor-pointer gap-2"
+                  >
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1 text-sm">
+                      {t(
+                        opt.labelKey,
+                        opt.value === "high-contrast"
+                          ? "High Contrast"
+                          : opt.value.charAt(0).toUpperCase() +
+                              opt.value.slice(1),
+                      )}
+                    </span>
+                    {theme === opt.value && (
+                      <Check className="h-3.5 w-3.5 text-primary" />
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer gap-2 text-destructive focus:text-destructive"
