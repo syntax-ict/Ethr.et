@@ -85,6 +85,8 @@ export interface AdminTenantDetail extends Omit<AdminTenant, "employee_count"> {
     paid_at: string | null;
   }>;
   audit_log: Array<{ action: string; created_at: string }>;
+  /** When the organisation was deleted; null while it exists. */
+  deleted_at: string | null;
 }
 
 export function useAdminTenants(params?: {
@@ -333,6 +335,53 @@ export async function exitImpersonation(): Promise<ExitImpersonationResult> {
 
 /** Same resource as the tenant audit log — never numeric ids (convention 4). */
 export type AdminAuditLog = components["schemas"]["AuditLogResource"];
+
+/**
+ * Delete an organisation. The server keeps every record and only closes it:
+ * the organisation stops resolving, its sessions end, and `useRestoreTenant`
+ * brings it back. It must be cancelled first, and the call carries the address
+ * typed out, a current authenticator code and the reason, all checked again
+ * on the server.
+ */
+export function useDeleteTenant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      confirm,
+      code,
+      reason,
+    }: {
+      publicId: string;
+      confirm: string;
+      code: string;
+      reason: string;
+    }) => {
+      // POST, not DELETE: the code and reason travel in a body, which some
+      // proxies drop from a DELETE, and never in the URL.
+      const { data } = await apiClient.post(
+        `/admin/tenants/${publicId}/delete`,
+        { confirm, code, reason },
+      );
+      return data as { public_id: string; deleted_at: string | null };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "tenants"] }),
+  });
+}
+
+/** Undo a deletion. The organisation comes back cancelled, as it was. */
+export function useRestoreTenant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (publicId: string) => {
+      const { data } = await apiClient.post(
+        `/admin/tenants/${publicId}/restore`,
+      );
+      return data as { public_id: string; status: string };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "tenants"] }),
+  });
+}
 
 export function useTenantBackup() {
   return useMutation({

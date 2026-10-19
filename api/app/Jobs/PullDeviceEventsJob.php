@@ -60,9 +60,10 @@ class PullDeviceEventsJob implements ShouldQueue
         // device is tenant-owned, so its tenant is the one these punches
         // belong to. CurrentTenant is a scoped binding, flushed between jobs.
         $tenant = Tenant::query()->find($this->device->tenant_id);
-        if ($tenant !== null) {
-            app(CurrentTenant::class)->set($tenant);
+        if ($tenant === null) {
+            return; // the organisation was deleted after this was queued
         }
+        app(CurrentTenant::class)->set($tenant);
 
         $startedAt = now();
         $syncLog = DeviceSyncLog::create([

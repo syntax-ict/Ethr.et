@@ -10,6 +10,7 @@ use App\Enums\TenantAddressMode;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\DeleteTenantRequest;
 use App\Http\Requests\Admin\ExtendTrialRequest;
 use App\Http\Requests\Admin\ImpersonateTenantRequest;
 use App\Http\Requests\Admin\UpdateTenantAddressModeRequest;
@@ -37,6 +38,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
@@ -67,8 +69,17 @@ class AdminTenantController extends Controller
             });
         }
 
-        if ($request->has('filter.status')) {
-            $query->where('status', $request->input('filter.status'));
+        // `withoutGlobalScopes()` above drops the soft-delete scope too, so a
+        // deleted organisation is excluded here by hand, and listed only when
+        // the console asks for the deleted ones.
+        $status = $request->input('filter.status');
+        if ($status === 'deleted') {
+            $query->whereNotNull('deleted_at');
+        } else {
+            $query->whereNull('deleted_at');
+            if ($status !== null) {
+                $query->where('status', $status);
+            }
         }
 
         $sort = $request->input('sort', '-created_at');
@@ -139,6 +150,7 @@ class AdminTenantController extends Controller
             'updated_at' => $tenant->updated_at,
             'showcase_consented_at' => $tenant->showcase_consented_at?->toIso8601String(),
             'showcase_hidden' => $tenant->showcase_hidden_at !== null,
+            'deleted_at' => $tenant->deleted_at?->toIso8601String(),
             'usage' => [
                 'employees' => $tenant->employees_count,
                 'devices' => $deviceCount,
@@ -159,6 +171,7 @@ class AdminTenantController extends Controller
 
         $tenant = Tenant::withoutGlobalScopes()
             ->where('public_id', $publicId)
+            ->whereNull('deleted_at')
             ->firstOrFail();
 
         $oldStatus = $tenant->status->value;
@@ -375,6 +388,7 @@ class AdminTenantController extends Controller
 
         $tenant = Tenant::withoutGlobalScopes()
             ->where('public_id', $publicId)
+            ->whereNull('deleted_at')
             ->firstOrFail();
 
         $newEnd = ($tenant->trial_ends_at ?? now())->addDays($request->integer('days'));
@@ -444,6 +458,7 @@ class AdminTenantController extends Controller
 
         $tenant = Tenant::withoutGlobalScopes()
             ->where('public_id', $publicId)
+            ->whereNull('deleted_at')
             ->firstOrFail();
 
         $adminUser = User::withoutGlobalScopes()
@@ -681,6 +696,121 @@ class AdminTenantController extends Controller
         return response()->json([
             'message' => 'Backup job queued. You will be notified when the export is ready.',
             'tenant_id' => $tenant->public_id,
+        ]);
+    }
+
+    /**
+     * Delete an organisation, as a reversible closure.
+     *
+     * The row is soft-deleted, nothing more: every employee, payroll and
+     * attendance record stays, because payroll and attendance are
+     * NeverDelete and the audit log is append-only, and a hard delete would
+     * cascade through every tenant table and bypass both. What changes is
+     * reach: ResolveTenant and every public organisation page stop finding
+     * it, its address stays reserved so nobody can take it over, and every
+     * signed-in session of its people ends here rather than at their next
+     * request. `restore()` undoes it.
+     *
+     * Only a cancelled organisation can be deleted, so it is always the
+     * second of two deliberate steps. The address typed out and a current
+     * authenticator code are asked for at the moment of deletion, because a
+     * platform session left open is otherwise all it would take.
+     */
+    public function destroy(DeleteTenantRequest $request, string $publicId, MfaService $mfaService): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $actor = $request->user();
+
+        $tenant = Tenant::query()
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+
+        if ($tenant->status !== TenantStatus::CANCELLED) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/tenant-not-cancelled',
+                'title' => 'Not Cancelled',
+                'status' => 409,
+                'detail' => __('general.tenant_delete_requires_cancelled'),
+            ], 409)->header('Content-Type', 'application/problem+json');
+        }
+
+        if (trim((string) $request->validated('confirm')) !== $tenant->subdomain) {
+            throw ValidationException::withMessages([
+                'confirm' => [__('general.tenant_delete_confirm_mismatch')],
+            ]);
+        }
+
+        if (! $actor->mfa_enabled) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/mfa-required',
+                'title' => 'MFA Required',
+                'status' => 409,
+                'detail' => __('auth.mfa_required'),
+            ], 409)->header('Content-Type', 'application/problem+json');
+        }
+
+        if (! $mfaService->verify($actor->mfa_secret, $request->validated('code'))) {
+            AuditLog::record('admin.tenant.delete_mfa_failed', $tenant);
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-mfa-code',
+                'title' => 'Invalid Code',
+                'status' => 422,
+                'detail' => __('auth.mfa_invalid'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        // The query builder, not the User model: with no tenant resolved the
+        // model's scope matches nobody. The tenant is stated on the subquery.
+        $sessionsEnded = DB::table('personal_access_tokens')
+            ->where('tokenable_type', (new User)->getMorphClass())
+            ->whereIn('tokenable_id', DB::table('users')->where('tenant_id', $tenant->id)->select('id'))
+            ->delete();
+
+        $tenant->delete();
+
+        AuditLog::record('admin.tenant.deleted', $tenant, [
+            'name' => $tenant->name,
+            'subdomain' => $tenant->subdomain,
+            'reason' => (string) $request->validated('reason'),
+            'sessions_ended' => $sessionsEnded,
+            'deleted_by' => $actor->public_id,
+        ]);
+
+        Cache::forget(Tenant::SHOWCASE_CACHE_KEY);
+
+        return response()->json([
+            'public_id' => $tenant->public_id,
+            'deleted_at' => $tenant->deleted_at?->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Bring a deleted organisation back, as it was. It stays cancelled: its
+     * people can sign in again only once it is reactivated, which is a
+     * separate decision.
+     */
+    public function restore(Request $request, string $publicId): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::onlyTrashed()
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+
+        $tenant->restore();
+
+        AuditLog::record('admin.tenant.restored', $tenant, [
+            'restored_by' => $request->user()->public_id,
+        ]);
+
+        Cache::forget(Tenant::SHOWCASE_CACHE_KEY);
+
+        return response()->json([
+            'public_id' => $tenant->public_id,
+            'status' => $tenant->status->value,
+            'deleted_at' => null,
         ]);
     }
 

@@ -18,6 +18,8 @@ import {
   AlertTriangle,
   HardDrive,
   Receipt,
+  RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +59,7 @@ import {
   useUpdateTenantDomain,
   useVerifyTenantDomain,
   useTenantBackup,
+  useRestoreTenant,
   verifiedDomain,
   type AdminTenant,
 } from "@/features/admin/api";
@@ -69,6 +72,7 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
+import { DeleteTenantDialog } from "./delete-tenant-dialog";
 
 /** The shared host an organisation on the shared address is reached through. */
 const SHARED_HOST = new URL(SITE_URL).host;
@@ -158,6 +162,34 @@ function TenantDetail({ id }: { id: string }) {
   const updateDomain = useUpdateTenantDomain();
   const verifyDomain = useVerifyTenantDomain();
   const updateAddressMode = useUpdateTenantAddressMode();
+  const restore = useRestoreTenant();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
+
+  function confirmRestore() {
+    if (!tenant) return;
+    restore.mutate(tenant.public_id, {
+      onSuccess: () =>
+        toast.success(
+          t(
+            "admin_tenant_detail_page.restore_done",
+            ":name was restored. It is still cancelled.",
+            { name: tenant.name },
+          ),
+        ),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t(
+              "admin_tenant_detail_page.restore_failed",
+              "Couldn't restore this organisation",
+            ),
+          ),
+        ),
+      onSettled: () => setRestoreOpen(false),
+    });
+  }
 
   // Clock pinned at mount so the render stays pure (see trialDaysLeft below).
   const [mountedAt] = useState(() => Date.now());
@@ -435,6 +467,7 @@ function TenantDetail({ id }: { id: string }) {
   const isActive = tenant.status === "active";
   const isSuspended = tenant.status === "suspended";
   const isCancelled = tenant.status === "cancelled";
+  const isDeleted = Boolean(tenant.deleted_at);
 
   // `Date.now()` read straight in the render body made the render impure — the
   // same input could produce a different output, which is what
@@ -464,7 +497,13 @@ function TenantDetail({ id }: { id: string }) {
               {addressFor(tenant)}
             </p>
           </div>
-          <StatusBadge status={tenant.status} />
+          {isDeleted ? (
+            <Badge variant="destructive">
+              {t("admin_tenant_detail_page.deleted", "Deleted")}
+            </Badge>
+          ) : (
+            <StatusBadge status={tenant.status} />
+          )}
         </div>
 
         {/* Trial expiring soon banner */}
@@ -547,69 +586,99 @@ function TenantDetail({ id }: { id: string }) {
                 </p>
               </div>
             )}
+            {isDeleted && (
+              <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                <Trash2 className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <p className="text-sm text-foreground">
+                  {t(
+                    "admin_tenant_detail_page.deleted_notice",
+                    "Deleted on :date. No one can sign in and its address does not open. Its records are kept, and restoring brings it back as it was.",
+                    { date: formatDateTime(tenant.deleted_at!) },
+                  )}
+                </p>
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {/* Status actions */}
-              {!isActive && !isCancelled && (
+              {isDeleted && (
                 <Button
                   variant="outline"
-                  onClick={() => setPendingStatus("active")}
-                  disabled={writesBlocked || updateStatus.isPending}
+                  onClick={() => setRestoreOpen(true)}
+                  disabled={writesBlocked || restore.isPending}
                 >
-                  <Play className="mr-2 h-4 w-4 text-status-success" />{" "}
-                  {t("admin_tenant_detail_page.activate")}
+                  {restore.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RotateCcw className="mr-2 h-4 w-4 text-status-success" />
+                  )}
+                  {t("admin_tenant_detail_page.restore", "Restore")}
                 </Button>
               )}
-              {!isSuspended && !isCancelled && (
-                <Button
-                  variant="outline"
-                  onClick={() => setPendingStatus("suspended")}
-                  disabled={writesBlocked || updateStatus.isPending}
-                >
-                  <Pause className="mr-2 h-4 w-4 text-status-warning" />{" "}
-                  {t("admin_tenant_detail_page.suspend")}
-                </Button>
+              {!isDeleted && (
+                <>
+                  {/* Status actions */}
+                  {!isActive && !isCancelled && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setPendingStatus("active")}
+                      disabled={writesBlocked || updateStatus.isPending}
+                    >
+                      <Play className="mr-2 h-4 w-4 text-status-success" />{" "}
+                      {t("admin_tenant_detail_page.activate")}
+                    </Button>
+                  )}
+                  {!isSuspended && !isCancelled && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setPendingStatus("suspended")}
+                      disabled={writesBlocked || updateStatus.isPending}
+                    >
+                      <Pause className="mr-2 h-4 w-4 text-status-warning" />{" "}
+                      {t("admin_tenant_detail_page.suspend")}
+                    </Button>
+                  )}
+                  {!isCancelled && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setPendingStatus("cancelled")}
+                      disabled={writesBlocked || updateStatus.isPending}
+                    >
+                      <XCircle className="mr-2 h-4 w-4 text-destructive" />{" "}
+                      {t("admin_tenant_detail_page.cancel")}
+                    </Button>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    onClick={() => setExtendOpen(true)}
+                    disabled={writesBlocked}
+                  >
+                    <CalendarPlus className="mr-2 h-4 w-4 text-status-info" />{" "}
+                    {t("admin_tenant_detail_page.extend_trial")}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={openDomainDialog}
+                    disabled={writesBlocked}
+                  >
+                    <Globe className="mr-2 h-4 w-4 text-status-info" />{" "}
+                    {t("admin_tenant_detail_page.custom_domain")}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => setMfaDialogOpen(true)}
+                    disabled={writesBlocked || impersonate.isPending}
+                  >
+                    {impersonate.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <KeySquare className="mr-2 h-4 w-4 text-primary" />
+                    )}
+                    {t("admin_tenant_detail_page.impersonate_admin")}
+                  </Button>
+                </>
               )}
-              {!isCancelled && (
-                <Button
-                  variant="outline"
-                  onClick={() => setPendingStatus("cancelled")}
-                  disabled={writesBlocked || updateStatus.isPending}
-                >
-                  <XCircle className="mr-2 h-4 w-4 text-destructive" />{" "}
-                  {t("admin_tenant_detail_page.cancel")}
-                </Button>
-              )}
-
-              <Button
-                variant="outline"
-                onClick={() => setExtendOpen(true)}
-                disabled={writesBlocked}
-              >
-                <CalendarPlus className="mr-2 h-4 w-4 text-status-info" />{" "}
-                {t("admin_tenant_detail_page.extend_trial")}
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={openDomainDialog}
-                disabled={writesBlocked}
-              >
-                <Globe className="mr-2 h-4 w-4 text-status-info" />{" "}
-                {t("admin_tenant_detail_page.custom_domain")}
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => setMfaDialogOpen(true)}
-                disabled={writesBlocked || impersonate.isPending}
-              >
-                {impersonate.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <KeySquare className="mr-2 h-4 w-4 text-primary" />
-                )}
-                {t("admin_tenant_detail_page.impersonate_admin")}
-              </Button>
 
               <Button
                 variant="outline"
@@ -623,9 +692,26 @@ function TenantDetail({ id }: { id: string }) {
                 )}
                 {t("admin_tenant_detail_page.backup_data")}
               </Button>
+
+              {/* Deleting is offered only once the organisation is cancelled,
+                  so it is always the second of two deliberate steps. */}
+              {isCancelled && !isDeleted && (
+                <Button
+                  variant="outline"
+                  className="border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                  disabled={writesBlocked}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {t(
+                    "admin_tenant_detail_page.delete_organisation",
+                    "Delete organisation",
+                  )}
+                </Button>
+              )}
             </div>
 
-            {isCancelled && (
+            {isCancelled && !isDeleted && (
               <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                 <p className="text-sm text-foreground">
@@ -1147,6 +1233,34 @@ function TenantDetail({ id }: { id: string }) {
           )}
           loading={updateAddressMode.isPending}
           onConfirm={confirmModeChange}
+        />
+
+        <DeleteTenantDialog
+          tenant={tenant}
+          address={addressFor(tenant)}
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+        />
+
+        {/* Restore confirmation */}
+        <ConfirmDialog
+          open={restoreOpen}
+          onOpenChange={(open) => {
+            if (!open && !restore.isPending) setRestoreOpen(false);
+          }}
+          title={t(
+            "admin_tenant_detail_page.confirm_restore_title",
+            "Restore :name?",
+            { name: tenant.name },
+          )}
+          description={t(
+            "admin_tenant_detail_page.confirm_restore",
+            "The organisation comes back exactly as it was before it was deleted: cancelled, with its records and its address.",
+          )}
+          confirmLabel={t("admin_tenant_detail_page.restore", "Restore")}
+          cancelLabel={t("admin_tenant_detail_page.keep_as_is", "Keep as is")}
+          loading={restore.isPending}
+          onConfirm={confirmRestore}
         />
 
         {/* Backup confirmation */}
