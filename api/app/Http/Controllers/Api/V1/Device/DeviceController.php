@@ -17,6 +17,7 @@ use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Device;
 use App\Models\DeviceSyncLog;
+use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
 use App\Services\Device\DevicePunchRecorder;
@@ -478,6 +479,20 @@ class DeviceController extends Controller
      *    token-less candidate is accepted only from an allowlisted source IP.
      */
     private function resolveWebhookDevice(Request $request, string $adapterType): ?Device
+    {
+        $device = $this->findWebhookDevice($request, $adapterType);
+
+        // A deleted organisation's device authenticates nobody: its punches
+        // have no organisation to belong to. Tenant::query() carries the
+        // soft-delete scope, so a deleted tenant is simply not found.
+        if ($device !== null && ! Tenant::query()->whereKey($device->tenant_id)->exists()) {
+            return null;
+        }
+
+        return $device;
+    }
+
+    private function findWebhookDevice(Request $request, string $adapterType): ?Device
     {
         $token = $request->query('token') ?? $request->header('X-Webhook-Token');
 

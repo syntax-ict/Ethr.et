@@ -132,7 +132,11 @@ class HandleOverdueInvoicesJob implements ShouldQueue
                         $invoice->update(['status' => 'past_due']);
                     }
 
-                    if ($invoice->tenant && $invoice->tenant->status !== TenantStatus::SUSPENDED) {
+                    // Only an organisation still in business is suspended. A
+                    // cancelled one is past suspension: rewriting it to
+                    // `suspended` reopened it to the console's Activate and
+                    // made a closed account look like a dunning case.
+                    if ($invoice->tenant && in_array($invoice->tenant->status, [TenantStatus::ACTIVE, TenantStatus::TRIAL], true)) {
                         $invoice->tenant->update(['status' => TenantStatus::SUSPENDED]);
                         Log::warning('Tenant suspended for non-payment', [
                             'tenant_id' => $invoice->tenant_id,

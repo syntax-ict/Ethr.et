@@ -115,6 +115,9 @@ export default function AdminTenantsPage() {
               <SelectItem value="cancelled">
                 {t("admin_console_page.cancelled", "Cancelled")}
               </SelectItem>
+              <SelectItem value="deleted">
+                {t("admin_tenants_page.deleted", "Deleted")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>

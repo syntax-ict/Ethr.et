@@ -13,7 +13,8 @@ final class PlatformAnalyticsService
 {
     public function revenue(): array
     {
-        $tenants = Tenant::withoutGlobalScopes()->get();
+        // A deleted organisation is no longer a customer of any kind.
+        $tenants = Tenant::withoutGlobalScopes()->whereNull('deleted_at')->get();
 
         $totalTenants = $tenants->count();
         $activeTenants = $tenants->where('status', TenantStatus::ACTIVE)->count();

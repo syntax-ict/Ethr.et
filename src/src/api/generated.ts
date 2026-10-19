@@ -4895,6 +4895,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/tenants/{publicId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete an organisation, as a reversible closure
+         * @description The row is soft-deleted, nothing more: every employee, payroll and
+         *     attendance record stays, because payroll and attendance are
+         *     NeverDelete and the audit log is append-only, and a hard delete would
+         *     cascade through every tenant table and bypass both. What changes is
+         *     reach: ResolveTenant and every public organisation page stop finding
+         *     it, its address stays reserved so nobody can take it over, and every
+         *     signed-in session of its people ends here rather than at their next
+         *     request. `restore()` undoes it.
+         *
+         *     Only a cancelled organisation can be deleted, so it is always the
+         *     second of two deliberate steps. The address typed out and a current
+         *     authenticator code are asked for at the moment of deletion, because a
+         *     platform session left open is otherwise all it would take.
+         */
+        post: operations["adminTenant.destroy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bring a deleted organisation back, as it was. It stays cancelled: its
+         *     people can sign in again only once it is reactivated, which is a
+         *     separate decision
+         */
+        post: operations["adminTenant.restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/tenants/{publicId}/invoices/{invoicePublicId}/mark-paid": {
         parameters: {
             query?: never;
@@ -6884,6 +6937,18 @@ export interface components {
         DecideRetirementCaseRequest: {
             decision: components["schemas"]["RetirementDecision"];
             decision_notes?: string | null;
+        };
+        /**
+         * DeleteTenantRequest
+         * @description Deleting an organisation asks for three things at once: its address typed
+         *     out, a current authenticator code, and the reason. The typed address is
+         *     compared with the tenant in the controller, which is the only place that
+         *     knows which tenant the route names.
+         */
+        DeleteTenantRequest: {
+            confirm: string;
+            code: string;
+            reason: string;
         };
         /** DepartmentResource */
         DepartmentResource: {
@@ -22544,6 +22609,11 @@ export interface operations {
         parameters: {
             query?: {
                 search?: string;
+                /**
+                 * @description `withoutGlobalScopes()` above drops the soft-delete scope too, so a
+                 *      deleted organisation is excluded here by hand, and listed only when
+                 *      the console asks for the deleted ones.
+                 */
                 "filter[status]"?: string;
                 sort?: string;
                 per_page?: number;
@@ -22637,6 +22707,7 @@ export interface operations {
                         updated_at: string | null;
                         showcase_consented_at: string | null;
                         showcase_hidden: boolean;
+                        deleted_at: string | null;
                         usage: {
                             employees: string;
                             devices: number;
@@ -22961,6 +23032,90 @@ export interface operations {
                         /** @constant */
                         message: "Backup job queued. You will be notified when the export is ready.";
                         tenant_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenant.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteTenantRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        deleted_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/mfa-required";
+                        /** @constant */
+                        title: "MFA Required";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "Multi-factor authentication is required.";
+                    } | {
+                        /** @constant */
+                        type: "https://ethr.et/errors/tenant-not-cancelled";
+                        /** @constant */
+                        title: "Not Cancelled";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "Cancel this organisation before deleting it.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        status: string;
+                        deleted_at: null;
                     };
                 };
             };

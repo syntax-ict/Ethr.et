@@ -135,10 +135,13 @@ class AdmsController extends Controller
             return null;
         }
 
+        // A deleted organisation's device is unknown here: its punches have
+        // no organisation to belong to.
         $tenant = Tenant::query()->find($device->tenant_id);
-        if ($tenant !== null) {
-            app(CurrentTenant::class)->set($tenant);
+        if ($tenant === null) {
+            return null;
         }
+        app(CurrentTenant::class)->set($tenant);
 
         $device->forceFill(['last_sync_at' => now(), 'status' => 'online'])->save();
 

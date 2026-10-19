@@ -462,15 +462,23 @@ class Tenant extends Model
         // suspending a tenant (fraud, abuse, non-payment) leaves that tenant fully
         // functional for up to 5 more minutes — the opposite of what "suspend"
         // promises. Bust both the old and new subdomain in case it changed.
-        static::saved(function (self $tenant): void {
-            Cache::forget("tenant:{$tenant->getOriginal('subdomain')}");
-            Cache::forget("tenant:{$tenant->subdomain}");
-            // ResolveTenant caches custom-domain lookups the same way, and a
-            // domain moved or removed must stop resolving at once.
-            foreach (array_filter([$tenant->getOriginal('custom_domain'), $tenant->custom_domain]) as $domain) {
-                Cache::forget('tenant-domain:'.$domain);
-            }
-        });
+        static::saved(fn (self $tenant) => $tenant->forgetResolverCache());
+
+        // A soft delete writes `deleted_at` without a save event, so it busts
+        // the same caches itself: a deleted organisation must stop resolving
+        // at once, not five minutes later. A restore saves, and is covered.
+        static::deleted(fn (self $tenant) => $tenant->forgetResolverCache());
+    }
+
+    private function forgetResolverCache(): void
+    {
+        Cache::forget("tenant:{$this->getOriginal('subdomain')}");
+        Cache::forget("tenant:{$this->subdomain}");
+        // ResolveTenant caches custom-domain lookups the same way, and a
+        // domain moved or removed must stop resolving at once.
+        foreach (array_filter([$this->getOriginal('custom_domain'), $this->custom_domain]) as $domain) {
+            Cache::forget('tenant-domain:'.$domain);
+        }
     }
 
     /**
