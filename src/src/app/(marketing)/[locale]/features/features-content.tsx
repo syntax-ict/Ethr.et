@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
 import { useLocaleHref } from "@/lib/i18n/route-locale";
+import { SolutionLinks } from "@/components/marketing/solution-links";
 
 const attendanceFeatures = [
   { icon: Fingerprint, key: "biometric" },
@@ -166,6 +167,7 @@ export function FeaturesContent() {
               );
             })}
           </div>
+          <SolutionLinks />
         </div>
       </section>
 

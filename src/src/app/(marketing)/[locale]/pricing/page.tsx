@@ -10,9 +10,9 @@ export async function generateMetadata({
   const { locale } = await params;
 
   return marketingMetadata(locale, "/pricing", "pricing", {
-    title: "Pricing",
+    title: "Pricing for HR and Payroll Software in Ethiopia",
     description:
-      "Simple, transparent pricing for ETHR. Start free, upgrade when you grow.",
+      "Simple, transparent pricing for ETHR, the HR and payroll software built for Ethiopian organizations. Start with a free trial and upgrade when you grow.",
   });
 }
 

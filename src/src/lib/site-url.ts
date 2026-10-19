@@ -23,7 +23,14 @@ export const SITE_URL: string = (
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://ethr.et"
 ).replace(/\/$/, "");
 
-/** The public marketing routes, and the only ones a crawler should index. */
+/**
+ * The public marketing routes, and the only ones a crawler should index.
+ *
+ * The last four are the search-intent pages (2026-10-19): one per thing people
+ * actually search for, rendered by `SolutionPage` from `SOLUTIONS`. They have
+ * no unprefixed redirectors, so they share nothing with the organisation-slug
+ * namespace at `ethr.et/{slug}`.
+ */
 export const PUBLIC_ROUTES = [
   "/",
   "/features",
@@ -32,7 +39,21 @@ export const PUBLIC_ROUTES = [
   "/contact",
   "/privacy",
   "/terms",
+  "/payroll-software",
+  "/attendance-system",
+  "/leave-management",
+  "/ethiopian-calendar-hr",
 ] as const;
+
+/**
+ * The language a reader whose language is neither listed one is sent to.
+ *
+ * English, because a reader who matches neither Amharic nor English is far
+ * likelier to read English. Until 2026-10-19 `x-default` named the unprefixed
+ * redirector instead, and every redirector but `/` says `noindex`: Google was
+ * told the fallback for every page was a page it may not index.
+ */
+export const X_DEFAULT_LOCALE = "en";
 
 /**
  * `canonical` plus the `hreflang` set for one public page, in one locale.
@@ -40,16 +61,15 @@ export const PUBLIC_ROUTES = [
  * Every public page now exists twice — `/am/pricing` and `/en/pricing` — and
  * two URLs carrying the same content is precisely what a search engine treats
  * as duplication unless they declare each other. `languages` emits the
- * `<link rel="alternate" hreflang>` pair, and `x-default` points at the
- * unprefixed URL, which is the redirector that negotiates per visitor. That is
- * exactly what `x-default` is specified for: the page to send a reader to when
- * none of the listed languages is a better match than the site's own choice.
+ * `<link rel="alternate" hreflang>` pair, and `x-default` names the English
+ * page (`X_DEFAULT_LOCALE`): an indexable page with content, which is what a
+ * search engine needs the fallback to be.
  *
  * Paths are relative; Next resolves them against `metadataBase`.
  *
- * `locale` is `null` for the unprefixed redirectors, whose canonical is
- * themselves — they are the x-default, so pointing their canonical at one of
- * the two languages would tell a crawler that `/` *is* the Amharic page.
+ * `locale` is `null` for the unprefixed redirectors, whose canonical stays
+ * themselves: they say `noindex, follow`, hold no content, and pointing their
+ * canonical at one language would tell a crawler that `/` *is* that page.
  */
 export function alternatesFor(path: string, locale: string | null) {
   return {
@@ -58,7 +78,7 @@ export function alternatesFor(path: string, locale: string | null) {
       ...Object.fromEntries(
         AVAILABLE_LOCALES.map((code) => [code, localeHref(code, path)]),
       ),
-      "x-default": path,
+      "x-default": localeHref(X_DEFAULT_LOCALE, path),
     },
   };
 }

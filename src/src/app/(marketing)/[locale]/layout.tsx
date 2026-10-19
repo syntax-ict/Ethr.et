@@ -48,14 +48,14 @@ export async function generateMetadata({
       default: serverTranslate(
         locale,
         "marketing.meta.site.title",
-        "ETHR | Ethiopian Workforce Operating System",
+        "ETHR | HR and Payroll Software for Ethiopia",
       ),
       template: "%s | ETHR",
     },
     description: serverTranslate(
       locale,
       "marketing.meta.site.description",
-      "Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations.",
+      "HR, payroll, attendance and leave software for Ethiopian organizations, with Ethiopian income tax, pension and the Ethiopian calendar built in.",
     ),
   };
 }

@@ -15,8 +15,10 @@ import { alternatesFor, PUBLIC_ROUTES } from "@/lib/site-url";
 import { publicSubset } from "@/lib/i18n/public-keys";
 import { JsonLd } from "@/components/marketing/json-ld";
 import {
+  breadcrumbJsonLd,
   faqJsonLd,
   organizationJsonLd,
+  softwareApplicationJsonLd,
   websiteJsonLd,
 } from "@/components/marketing/structured-data";
 import { FAQ_ITEMS } from "@/app/(marketing)/[locale]/faq/faq-items";
@@ -106,13 +108,15 @@ describe("locale-prefixed URLs", () => {
 
   it("declares every language of a page, plus an x-default", () => {
     // Two URLs carrying the same content are treated as duplicates unless they
-    // name each other; x-default is the unprefixed URL that negotiates.
+    // name each other. x-default is the English page: until 2026-10-19 it was
+    // the unprefixed redirector, which says noindex, so the fallback Google was
+    // given for every page was one it may not index.
     expect(alternatesFor("/pricing", "en")).toEqual({
       canonical: "/en/pricing",
       languages: {
         en: "/en/pricing",
         am: "/am/pricing",
-        "x-default": "/pricing",
+        "x-default": "/en/pricing",
       },
     });
   });
@@ -146,6 +150,28 @@ describe("sitemap", () => {
     }
   });
 
+  it("names the English page as every entry's x-default", () => {
+    for (const entry of entries) {
+      const languages = entry.alternates?.languages ?? {};
+      expect(new URL(languages["x-default"]!).pathname).toBe(
+        new URL(languages.en!).pathname,
+      );
+    }
+  });
+
+  it("lists the search-intent pages", () => {
+    const paths = entries.map((e) => new URL(e.url).pathname);
+    for (const path of [
+      "/payroll-software",
+      "/attendance-system",
+      "/leave-management",
+      "/ethiopian-calendar-hr",
+    ]) {
+      expect(paths).toContain(`/en${path}`);
+      expect(paths).toContain(`/am${path}`);
+    }
+  });
+
   it("does not list the unprefixed URLs as pages of their own", () => {
     // They hold a redirect and no content; each is already named as an
     // x-default by the two entries it points at.
@@ -157,16 +183,16 @@ describe("sitemap", () => {
 describe("page metadata", () => {
   it("renders the title and description in the page's own language", () => {
     const am = marketingMetadata("am", "/pricing", "pricing", {
-      title: "Pricing",
+      title: "Pricing for HR and Payroll Software in Ethiopia",
       description: "Simple, transparent pricing for ETHR.",
     });
     const en = marketingMetadata("en", "/pricing", "pricing", {
-      title: "Pricing",
+      title: "Pricing for HR and Payroll Software in Ethiopia",
       description: "Simple, transparent pricing for ETHR.",
     });
 
-    expect(am.title).toBe("ዋጋ");
-    expect(en.title).toBe("Pricing");
+    expect(String(am.title)).toMatch(/[ሀ-፿]/);
+    expect(en.title).toBe("Pricing for HR and Payroll Software in Ethiopia");
     expect(am.description).not.toBe(en.description);
     expect(String(am.description)).toMatch(/[ሀ-፿]/);
   });
@@ -175,11 +201,11 @@ describe("page metadata", () => {
     // Its title already starts with the product name; the template would make
     // it "ETHR — … | ETHR".
     const home = marketingMetadata("en", "/", "home", {
-      title: "ETHR | Ethiopian Workforce Operating System",
+      title: "HR, Payroll and Attendance Software for Ethiopia | ETHR",
       description: "…",
     });
     expect(home.title).toEqual({
-      absolute: "ETHR | Ethiopian Workforce Operating System",
+      absolute: "HR, Payroll and Attendance Software for Ethiopia | ETHR",
     });
   });
 
@@ -405,6 +431,32 @@ describe("structured data", () => {
 
     // And the site node points at the locale it describes, not at the apex.
     expect(websiteJsonLd("am").url).toBe("https://ethr.et/am");
+
+    // The software node states no price and no rating either: both would be
+    // claims, and Google shows them in the result.
+    const app = softwareApplicationJsonLd("en") as Record<string, unknown>;
+    expect(app.offers).toBeUndefined();
+    expect(app.aggregateRating).toBeUndefined();
+  });
+
+  it("names the site ETHR, apart from the fund that shares the name", () => {
+    // Google reads WebSite.name as the site name shown above a result.
+    expect(websiteJsonLd("en").name).toBe("ETHR");
+    expect(organizationJsonLd("en").alternateName).toContain("ETHR Ethiopia");
+  });
+
+  it("gives a search-intent page a two-step breadcrumb in its language", () => {
+    const crumbs = breadcrumbJsonLd(
+      "am",
+      "/payroll-software",
+      "payroll_software",
+      "Payroll Software for Ethiopia",
+    );
+    expect(crumbs.itemListElement.map((c) => c.item)).toEqual([
+      "https://ethr.et/am",
+      "https://ethr.et/am/payroll-software",
+    ]);
+    expect(crumbs.itemListElement[1]!.name).toMatch(/[ሀ-፿]/);
   });
 
   it("cannot be closed early by the data it carries", () => {
@@ -431,6 +483,22 @@ describe("robots", () => {
     expect(Array.isArray(sitemaps) ? sitemaps : [sitemaps]).toEqual([
       expect.stringMatching(/\/sitemap\.xml$/),
       expect.stringMatching(/\/sitemap-organisations\.xml$/),
+    ]);
+  });
+
+  it("lets crawlers fetch /login, which is an organisation's public portal", () => {
+    // robots.txt is shared by every host. On an organisation's own host /login
+    // is the page PortalHead marks index and the organisations sitemap lists;
+    // the apex /login says noindex itself, which a crawler must fetch to read.
+    const rules = robots().rules;
+    const rule = Array.isArray(rules) ? rules[0]! : rules;
+    expect(rule.disallow).toEqual([
+      "/api/",
+      "/dashboard",
+      "/admin",
+      "/register",
+      "/forgot-password",
+      "/reset-password",
     ]);
   });
 });
