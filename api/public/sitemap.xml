@@ -4,98 +4,154 @@
 <loc>https://www.ethr.et/en</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en" />
 <priority>1</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/am</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en" />
 <priority>1</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/en/features</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/features" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/features" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/features" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/features" />
 <priority>0.8</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/am/features</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/features" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/features" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/features" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/features" />
 <priority>0.8</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/en/pricing</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/pricing" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/pricing" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/pricing" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/pricing" />
 <priority>0.8</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/am/pricing</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/pricing" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/pricing" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/pricing" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/pricing" />
 <priority>0.8</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/en/faq</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/faq" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/faq" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/faq" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/faq" />
 <priority>0.8</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/am/faq</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/faq" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/faq" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/faq" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/faq" />
 <priority>0.8</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/en/contact</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/contact" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/contact" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/contact" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/contact" />
 <priority>0.8</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/am/contact</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/contact" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/contact" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/contact" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/contact" />
 <priority>0.8</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/en/privacy</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/privacy" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/privacy" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/privacy" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/privacy" />
 <priority>0.8</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/am/privacy</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/privacy" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/privacy" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/privacy" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/privacy" />
 <priority>0.8</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/en/terms</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/terms" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/terms" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/terms" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/terms" />
 <priority>0.8</priority>
 </url>
 <url>
 <loc>https://www.ethr.et/am/terms</loc>
 <xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/terms" />
 <xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/terms" />
-<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/terms" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/terms" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://www.ethr.et/en/payroll-software</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/payroll-software" />
+<xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/payroll-software" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/payroll-software" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://www.ethr.et/am/payroll-software</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/payroll-software" />
+<xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/payroll-software" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/payroll-software" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://www.ethr.et/en/attendance-system</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/attendance-system" />
+<xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/attendance-system" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/attendance-system" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://www.ethr.et/am/attendance-system</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/attendance-system" />
+<xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/attendance-system" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/attendance-system" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://www.ethr.et/en/leave-management</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/leave-management" />
+<xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/leave-management" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/leave-management" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://www.ethr.et/am/leave-management</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/leave-management" />
+<xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/leave-management" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/leave-management" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://www.ethr.et/en/ethiopian-calendar-hr</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/ethiopian-calendar-hr" />
+<xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/ethiopian-calendar-hr" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/ethiopian-calendar-hr" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://www.ethr.et/am/ethiopian-calendar-hr</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://www.ethr.et/en/ethiopian-calendar-hr" />
+<xhtml:link rel="alternate" hreflang="am" href="https://www.ethr.et/am/ethiopian-calendar-hr" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://www.ethr.et/en/ethiopian-calendar-hr" />
 <priority>0.8</priority>
 </url>
 </urlset>

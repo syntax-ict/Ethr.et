@@ -1,0 +1,8 @@
+:HL["/_next/static/chunks/0idi3csoibjnk.css","style"]
+:HL["/_next/static/chunks/1htu39r96alvj.css","style"]
+:HL["/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+4:[["children",{"s":"__PAGE__","h":160}]]
+3:[["children",{"s":"attendance-system","h":64,"c":"$Q4"}]]
+2:[["children",{"s":{"n":"locale","t":"d","k":"en","s":["admin","analytics","announcements","approvals","attendance","billing","contact","dashboard","devices","directory","employees","faq","features","impersonate","kiosk","leave","login","news","notifications","offline","og.png","organization","payroll","pricing","privacy","profile","register","reports","settings","setup","shifts","terms","vacancies","voice"]},"h":65584,"c":"$Q3"}]]
+1:[["children",{"s":"(marketing)","h":131184,"c":"$Q2"}]]
+0:{"b":"o4VM2iwOT5mdp-NoaJp9m","t":{"t":{"s":"","h":131152,"c":"$Q1"}}}
