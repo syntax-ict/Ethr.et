@@ -149,7 +149,9 @@ export function AppSidebar() {
   const paletteShortcut = useShortcutLabel("K");
   const collapseShortcut = useShortcutLabel("B");
 
-  const roleName = user?.role?.replace(/_/g, " ") ?? "";
+  const roleName = user?.role
+    ? t(`role.${user.role}`, user.role.replace(/_/g, " "))
+    : "";
   const tenantName = tenant?.name ?? "ETHR";
   const tenantInitial = tenantName.charAt(0).toUpperCase();
 

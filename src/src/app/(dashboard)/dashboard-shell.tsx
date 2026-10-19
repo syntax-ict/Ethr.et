@@ -9,6 +9,7 @@ import { MobileBottomNav } from "@/components/layouts/mobile-bottom-nav";
 import { OfflineBanner } from "@/components/shared/offline-banner";
 import { AuthGuard } from "@/components/shared/auth-guard";
 import { CommandPalette } from "@/components/shared/command-palette";
+import { KeyboardShortcuts } from "@/components/shared/keyboard-shortcuts";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { TenantBrandingProvider } from "@/features/branding/TenantBrandingProvider";
 import { ReverbProvider } from "@/components/providers/reverb-provider";
@@ -41,6 +42,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             {t("a11y.skip_to_content", "Skip to main content")}
           </a>
           <CommandPalette />
+          <KeyboardShortcuts />
           <PunchReminders />
           <ImpersonationBanner />
           <OfflineBanner />

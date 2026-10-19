@@ -31,13 +31,23 @@ test.describe('Theme switching', () => {
     await page.addInitScript(() => localStorage.setItem('locale', 'en'));
   });
 
+  // The theme lives in the account menu since 2026-10-19 (it was a header
+  // icon of its own, hidden on phones). Opening that menu is the first step.
+  const openThemeChoices = async (page: import('@playwright/test').Page) => {
+    await page.getByRole('button', { name: /account menu/i }).click();
+  };
+
   test('the theme control is present and reachable', async ({ page }) => {
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
 
     // Unconditional: a missing control is a failure, not a skip.
-    const toggle = page.getByRole('button', { name: /toggle theme/i });
-    await expect(toggle).toBeVisible();
+    await openThemeChoices(page);
+    for (const theme of THEMES) {
+      await expect(
+        page.getByRole('menuitem', { name: theme.label }),
+      ).toBeVisible();
+    }
   });
 
   for (const theme of THEMES) {
@@ -47,7 +57,7 @@ test.describe('Theme switching', () => {
       await page.goto('/dashboard');
       await page.waitForLoadState('networkidle');
 
-      await page.getByRole('button', { name: /toggle theme/i }).click();
+      await openThemeChoices(page);
       await page.getByRole('menuitem', { name: theme.label }).click();
 
       // next-themes is configured with `attribute="class"`, so the class list

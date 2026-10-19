@@ -7,6 +7,7 @@ import { server } from "./msw/server";
 import { CalendarProvider, useCalendar } from "@/lib/calendar/calendar-context";
 import { AppHeader } from "@/components/layouts/app-header";
 import { AppLayoutProvider } from "@/components/layouts/layout-context";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
@@ -36,7 +37,10 @@ function renderHeader() {
     <QueryClientProvider client={client}>
       <CalendarProvider>
         <AppLayoutProvider>
-          <AppHeader />
+          {/* As app/providers.tsx wraps every page. */}
+          <TooltipProvider>
+            <AppHeader />
+          </TooltipProvider>
         </AppLayoutProvider>
         <Shown />
       </CalendarProvider>
@@ -80,7 +84,9 @@ describe("<AppHeader> calendar toggle", () => {
     const user = userEvent.setup();
     renderHeader();
 
-    await user.click(await screen.findByTitle(/click for Gregorian/i));
+    await user.click(
+      await screen.findByRole("button", { name: /toggle calendar system/i }),
+    );
 
     expect(screen.getByLabelText("calendar in use")).toHaveTextContent(
       "gregorian",
