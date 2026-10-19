@@ -110,6 +110,7 @@ use App\Http\Controllers\Api\V1\Report\ReportController;
 use App\Http\Controllers\Api\V1\Role\CustomRoleController;
 use App\Http\Controllers\Api\V1\Scim\ScimGroupController;
 use App\Http\Controllers\Api\V1\Scim\ScimUserController;
+use App\Http\Controllers\Api\V1\Search\GlobalSearchController;
 use App\Http\Controllers\Api\V1\Settings\AuditLogController;
 use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
@@ -711,6 +712,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
 
     // Directory
     Route::get('/directory', [DirectoryController::class, 'index']);
+
+    // Global search (the header's search box)
+    Route::get('/search', GlobalSearchController::class);
 
     // Announcements
     Route::get('/announcements', [AnnouncementController::class, 'index']);

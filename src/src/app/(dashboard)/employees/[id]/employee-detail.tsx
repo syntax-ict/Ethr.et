@@ -42,6 +42,7 @@ import { LifecycleTab } from "@/features/employees/components/lifecycle-tab";
 import { InfoRow } from "@/features/employees/components/info-row";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
+import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { KioskPinCard } from "@/features/employees/components/kiosk-pin-card";
@@ -52,7 +53,24 @@ import { useEmployeeOptions } from "@/features/attendance/api";
 import { costCentersApi, teamsApi } from "@/features/organization/api";
 import { RelationPicker } from "@/features/employees/components/relation-picker";
 
+const EMPLOYEE_TABS = [
+  "info",
+  "employment",
+  "documents",
+  "bank",
+  "emergency",
+  "education",
+  "lifecycle",
+  "contracts",
+  "history",
+  "discipline",
+  "retirement",
+  "attendance",
+] as const;
+
 export function EmployeeDetail({ routeId }: { routeId: string }) {
+  // `?tab=attendance` is how search opens this record on its attendance.
+  const [tab, setTab] = useQueryTab(EMPLOYEE_TABS, "info");
   const id = useRouteId(routeId) ?? "";
   const { t } = useT();
   const { data: employee, isLoading } = useEmployee(id);
@@ -173,7 +191,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
         </div>
       </div>
 
-      <Tabs defaultValue="info" className="w-full">
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
         <TabsList variant="underline">
           <TabsTrigger value="info">
             {t("employee.detail.tab.info", "Information")}
