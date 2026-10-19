@@ -1171,7 +1171,7 @@
   "auth.step_admin": "Admin Account",
   "auth.step_organization": "Organization",
   "auth.step_security": "Security",
-  "auth.story_attendance_desc": "Check-in, biometric, mobile",
+  "auth.story_attendance_desc": "Phone, QR code, kiosk and web",
   "auth.story_attendance_title": "Attendance",
   "auth.story_employee_desc": "One record, from hire to exit",
   "auth.story_employee_title": "Employee profile",

@@ -1171,7 +1171,7 @@
   "auth.step_admin": "የአስተዳዳሪ መለያ",
   "auth.step_organization": "ድርጅት",
   "auth.step_security": "ደህንነት",
-  "auth.story_attendance_desc": "በመግቢያ፣ ባዮሜትሪክ፣ በሞባይል",
+  "auth.story_attendance_desc": "በስልክ፣ በQR ኮድ፣ በኪዮስክና በድር",
   "auth.story_attendance_title": "ተገኝነት",
   "auth.story_employee_desc": "ከቅጥር እስከ መልቀቅ አንድ መዝገብ",
   "auth.story_employee_title": "የሰራተኛ መገለጫ",
