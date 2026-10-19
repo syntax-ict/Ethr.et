@@ -99,7 +99,12 @@ export function AppHeader() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:px-6">
+      {/* Three columns on desktop: the search sits in a centred column of its
+          own, whatever the page title beside it measures. The actions column
+          is never narrower than its contents, so a long name or another
+          language cannot push the icons over the search; the title column
+          gives way first. Below lg it stays a row: logo, then the icons. */}
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,32rem)_minmax(max-content,1fr)] lg:gap-4 lg:px-6 xl:gap-6">
         {/* Left: mobile logo / Desktop breadcrumbs. The hamburger that lived
             here was the second of two controls opening the same navigation —
             the bottom bar's More is the documented, thumb-reachable one, and
@@ -118,29 +123,36 @@ export function AppHeader() {
           </span>
         </div>
 
-        {/* Center: Search trigger (desktop only) */}
+        {/* Center: the global search (desktop). It opens the palette, which
+            searches people, attendance, leave, departments and pages at once. */}
         <button
           type="button"
           onClick={openCommandPalette}
-          className="mx-4 hidden h-8 w-48 items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex xl:w-64"
+          aria-haspopup="dialog"
+          aria-keyshortcuts="Control+K Meta+K /"
+          className="group hidden h-9 w-full items-center gap-2.5 rounded-lg border border-border bg-muted/40 px-3 text-sm text-muted-foreground shadow-sm transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground focus-visible:border-interactive-primary focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 lg:flex"
         >
-          <Search className="h-3.5 w-3.5 shrink-0" />
-          <span className="flex-1 text-left">
-            {t("common.search", "Search")}...
+          <Search className="h-4 w-4 shrink-0 transition-colors group-hover:text-foreground" />
+          <span className="min-w-0 flex-1 truncate text-left">
+            {t(
+              "header.search_placeholder",
+              "Search people, attendance, leave and pages",
+            )}
           </span>
-          <kbd className="hidden rounded border border-border/60 bg-background px-1.5 py-0.5 font-mono text-[10px] leading-none text-muted-foreground sm:inline-block">
+          <kbd className="pointer-events-none hidden shrink-0 rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none text-muted-foreground xl:inline-block">
             {paletteShortcut}
           </kbd>
         </button>
 
         {/* Right: Actions */}
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5 lg:justify-self-end">
           {/* Mobile search trigger (the full search box is desktop-only) */}
           <Button
             variant="ghost"
             size="icon"
             className="h-9 w-9 lg:hidden"
             onClick={openCommandPalette}
+            aria-haspopup="dialog"
           >
             <Search className="h-4 w-4" />
             <span className="sr-only">{t("common.search", "Search")}</span>

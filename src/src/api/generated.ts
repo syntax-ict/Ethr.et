@@ -2795,6 +2795,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search v1 */
+        get: operations["search.globalSearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/scim/v2/Users": {
         parameters: {
             query?: never;
@@ -16903,6 +16920,57 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "search.globalSearch": {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        query: string;
+                        employees: {
+                            id: string;
+                            name: string;
+                            employee_code: string | null;
+                            department: string | null;
+                            position: string | null;
+                        }[];
+                        attendance: {
+                            id: string;
+                            name: string;
+                            employee_code: string | null;
+                        }[];
+                        leave: {
+                            id: string;
+                            employee_name: string | null;
+                            leave_type: string | null;
+                            start_date: string | null;
+                            end_date: string | null;
+                            status: string;
+                            own: boolean;
+                        }[];
+                        departments: {
+                            id: string;
+                            name: string;
+                            code: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "scimUser.index": {

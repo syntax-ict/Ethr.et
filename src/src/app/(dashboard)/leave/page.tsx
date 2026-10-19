@@ -55,6 +55,7 @@ import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
 import { apiErrorDetail } from "@/lib/api/error-message";
 
@@ -70,6 +71,11 @@ export default function LeavePage() {
   const { t } = useT();
   const [dialogOpen, setDialogOpen] = useState(false);
   const { isSupervisor } = usePermissions();
+  // `?tab=team` is how search opens a colleague's request.
+  const [tab, setTab] = useQueryTab(
+    isSupervisor ? (["my-leave", "team"] as const) : (["my-leave"] as const),
+    "my-leave",
+  );
   const { data: leaveTypes } = useRequestableLeaveTypes();
 
   const [leaveForm, setLeaveForm] = useState({
@@ -111,7 +117,7 @@ export default function LeavePage() {
         }
       />
 
-      <Tabs defaultValue="my-leave">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="my-leave">{t("leave_page.my_leave")}</TabsTrigger>
           {isSupervisor && (

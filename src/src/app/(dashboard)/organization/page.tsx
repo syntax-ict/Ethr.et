@@ -60,10 +60,24 @@ import { ReportingChart } from "@/features/organization/components/reporting-cha
 import { GradeSalaryStepsDialog } from "@/features/organization/components/grade-salary-steps-dialog";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
+import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+
+const ORG_TABS = [
+  "structure",
+  "reporting",
+  "branches",
+  "departments",
+  "teams",
+  "positions",
+  "grades",
+  "cost-centers",
+] as const;
 
 export default function OrganizationPage() {
   const { t } = useT();
+  // `?tab=departments` is how search opens a department.
+  const [tab, setTab] = useQueryTab(ORG_TABS, "structure");
   return (
     <RoleGate anyPermission={["manageOrg"]}>
       <div className="space-y-6">
@@ -75,7 +89,7 @@ export default function OrganizationPage() {
           )}
         />
 
-        <Tabs defaultValue="structure">
+        <Tabs value={tab} onValueChange={setTab}>
           <TabsList variant="underline">
             <TabsTrigger value="structure">
               <Network className="mr-1.5 h-3.5 w-3.5" />{" "}
