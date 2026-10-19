@@ -824,6 +824,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::post('/tenants/{publicId}/extend-trial', [AdminTenantController::class, 'extendTrial']);
             Route::post('/tenants/{publicId}/impersonate', [AdminTenantController::class, 'impersonate']);
             Route::post('/tenants/{publicId}/backup', [AdminTenantController::class, 'backup']);
+            Route::post('/tenants/{publicId}/delete', [AdminTenantController::class, 'destroy']);
+            Route::post('/tenants/{publicId}/restore', [AdminTenantController::class, 'restore']);
             Route::put('/tenants/{publicId}/invoices/{invoicePublicId}/mark-paid', [AdminTenantController::class, 'markInvoicePaid']);
             Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
             Route::get('/health', [AdminDashboardController::class, 'health']);

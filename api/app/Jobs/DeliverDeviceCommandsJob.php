@@ -42,9 +42,10 @@ class DeliverDeviceCommandsJob implements ShouldQueue
         // Same reason as PullDeviceEventsJob: a worker resolves no tenant, and
         // the device is tenant-owned, so its tenant is the one to act as.
         $tenant = Tenant::query()->find($this->device->tenant_id);
-        if ($tenant !== null) {
-            app(CurrentTenant::class)->set($tenant);
+        if ($tenant === null) {
+            return; // the organisation was deleted after this was queued
         }
+        app(CurrentTenant::class)->set($tenant);
 
         $queue->deliver($this->device);
     }

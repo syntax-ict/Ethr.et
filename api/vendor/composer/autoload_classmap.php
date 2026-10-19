@@ -260,6 +260,7 @@ return array(
     'App\\Http\\Middleware\\VerifyMaintenanceToken' => $baseDir . '/app/Http/Middleware/VerifyMaintenanceToken.php',
     'App\\Http\\Middleware\\VerifyUploadedFiles' => $baseDir . '/app/Http/Middleware/VerifyUploadedFiles.php',
     'App\\Http\\Requests\\Accounting\\UpdateChartOfAccountsRequest' => $baseDir . '/app/Http/Requests/Accounting/UpdateChartOfAccountsRequest.php',
+    'App\\Http\\Requests\\Admin\\DeleteTenantRequest' => $baseDir . '/app/Http/Requests/Admin/DeleteTenantRequest.php',
     'App\\Http\\Requests\\Admin\\ExtendTrialRequest' => $baseDir . '/app/Http/Requests/Admin/ExtendTrialRequest.php',
     'App\\Http\\Requests\\Admin\\ImpersonateTenantRequest' => $baseDir . '/app/Http/Requests/Admin/ImpersonateTenantRequest.php',
     'App\\Http\\Requests\\Admin\\SaveSmsGatewayRequest' => $baseDir . '/app/Http/Requests/Admin/SaveSmsGatewayRequest.php',

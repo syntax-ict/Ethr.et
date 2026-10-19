@@ -943,6 +943,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Http\\Middleware\\VerifyMaintenanceToken' => __DIR__ . '/../..' . '/app/Http/Middleware/VerifyMaintenanceToken.php',
         'App\\Http\\Middleware\\VerifyUploadedFiles' => __DIR__ . '/../..' . '/app/Http/Middleware/VerifyUploadedFiles.php',
         'App\\Http\\Requests\\Accounting\\UpdateChartOfAccountsRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Accounting/UpdateChartOfAccountsRequest.php',
+        'App\\Http\\Requests\\Admin\\DeleteTenantRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/DeleteTenantRequest.php',
         'App\\Http\\Requests\\Admin\\ExtendTrialRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/ExtendTrialRequest.php',
         'App\\Http\\Requests\\Admin\\ImpersonateTenantRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/ImpersonateTenantRequest.php',
         'App\\Http\\Requests\\Admin\\SaveSmsGatewayRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/SaveSmsGatewayRequest.php',
