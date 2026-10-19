@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useT } from "@/lib/i18n/useT";
 import { useLocaleHref } from "@/lib/i18n/route-locale";
 import { pickLocalised, useSiteContent } from "@/features/marketing/api";
+import { SOLUTIONS } from "@/components/marketing/solutions";
 
 export function MarketingFooter() {
   const { t, locale } = useT();
@@ -55,6 +56,16 @@ export function MarketingFooter() {
           href: href("/contact"),
         },
       ],
+    },
+    {
+      /* The search-intent pages (2026-10-19). Linked from every public page,
+         because a page nothing links to is one a crawler rarely finds. */
+      titleKey: "marketing.footer.solutions",
+      fallback: "Solutions",
+      links: SOLUTIONS.map((solution) => ({
+        label: t(`marketing.solutions.${solution.id}.link`),
+        href: href(solution.path),
+      })),
     },
     {
       titleKey: "marketing.footer.legal",

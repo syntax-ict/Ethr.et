@@ -30,26 +30,26 @@ export const metadata: Metadata = {
     default: serverTranslate(
       DEFAULT_LOCALE,
       "marketing.meta.site.title",
-      "ETHR | Ethiopian Workforce Operating System",
+      "ETHR | HR and Payroll Software for Ethiopia",
     ),
     template: "%s | ETHR",
   },
   description: serverTranslate(
     DEFAULT_LOCALE,
     "marketing.meta.site.description",
-    "Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations.",
+    "HR, payroll, attendance and leave software for Ethiopian organizations, with Ethiopian income tax, pension and the Ethiopian calendar built in.",
   ),
   openGraph: {
     type: "website",
     title: serverTranslate(
       DEFAULT_LOCALE,
       "marketing.meta.site.title",
-      "ETHR | Ethiopian Workforce Operating System",
+      "ETHR | HR and Payroll Software for Ethiopia",
     ),
     description: serverTranslate(
       DEFAULT_LOCALE,
       "marketing.meta.site.description",
-      "Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations.",
+      "HR, payroll, attendance and leave software for Ethiopian organizations, with Ethiopian income tax, pension and the Ethiopian calendar built in.",
     ),
     images: [
       {

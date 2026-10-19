@@ -40,7 +40,11 @@ export default function robots(): MetadataRoute.Robots {
           "/api/",
           "/dashboard",
           "/admin",
-          "/login",
+          // Not "/login" (2026-10-19). On an organisation's own host /login is
+          // its public portal page, the one PortalHead marks `index` and
+          // sitemap-organisations.xml lists, and this file is shared by every
+          // host. The apex /login carries `noindex` itself, which a crawler can
+          // only read if it is allowed to fetch the page.
           "/register",
           "/forgot-password",
           "/reset-password",

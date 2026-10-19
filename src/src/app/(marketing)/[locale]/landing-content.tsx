@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ProductFlow } from "@/components/marketing/product-flow";
 import { TrustedBy } from "@/components/marketing/trusted-by";
+import { SolutionLinks } from "@/components/marketing/solution-links";
 import { useT } from "@/lib/i18n/useT";
 import { useLocaleHref } from "@/lib/i18n/route-locale";
 import { pickLocalised, useSiteContent } from "@/features/marketing/api";
@@ -380,6 +381,7 @@ export function LandingContent() {
               </li>
             ))}
           </ol>
+          <SolutionLinks />
         </div>
       </section>
 

@@ -12,7 +12,7 @@ export async function generateMetadata({
   const { locale } = await params;
 
   return marketingMetadata(locale, "/faq", "faq", {
-    title: "FAQ",
+    title: "FAQ: HR and Payroll Software in Ethiopia",
     description:
       "Answers to common questions about ETHR: the trial, Ethiopian payroll and calendar, offline support, security and hosting.",
   });

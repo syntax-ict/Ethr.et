@@ -10,9 +10,9 @@ export async function generateMetadata({
   const { locale } = await params;
 
   return marketingMetadata(locale, "/features", "features", {
-    title: "Features",
+    title: "Features: Payroll, Attendance and Leave for Ethiopia",
     description:
-      "Explore ETHR features: attendance, payroll, leave, offline-first, bilingual and more.",
+      "Payroll with Ethiopian income tax and pension, attendance by phone, QR code and kiosk, leave balances, the Ethiopian calendar, offline use and Amharic.",
   });
 }
 

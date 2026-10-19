@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { AVAILABLE_LOCALES, localeHref } from "@/lib/i18n/config";
-import { PUBLIC_ROUTES, SITE_URL } from "@/lib/site-url";
+import { PUBLIC_ROUTES, SITE_URL, X_DEFAULT_LOCALE } from "@/lib/site-url";
 
 /**
  * The seven public pages, once per available language.
@@ -14,11 +14,11 @@ import { PUBLIC_ROUTES, SITE_URL } from "@/lib/site-url";
  * the specified form, not redundancy: a crawler that finds `/en/pricing` has to
  * be able to see from that one entry that `/am/pricing` is the same page in
  * another language, or it treats the two as duplicates and picks one. The
- * `x-default` is the unprefixed URL, which negotiates per visitor.
+ * `x-default` is the English page (`X_DEFAULT_LOCALE`), as `alternatesFor`
+ * declares in each page's head.
  *
  * The unprefixed URLs are not listed as entries of their own: they hold no
- * content, only a redirect, and every one of them is already named here as an
- * `x-default`.
+ * content, only a redirect, and say `noindex`.
  *
  * No `lastModified`. Next would let us stamp `new Date()`, but that is the
  * build time, not the time the page changed: every deploy would tell crawlers
@@ -58,7 +58,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
               absolute(localeHref(code, route)),
             ]),
           ),
-          "x-default": absolute(route),
+          "x-default": absolute(localeHref(X_DEFAULT_LOCALE, route)),
         },
       },
     })),

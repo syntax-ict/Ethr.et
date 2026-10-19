@@ -26,11 +26,10 @@ export function websiteJsonLd(locale: string) {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: serverTranslate(
-      locale,
-      "marketing.meta.site.title",
-      "ETHR | Ethiopian Workforce Operating System",
-    ),
+    // The site's name, not its title: Google reads `WebSite.name` as the name
+    // to show above a result, and a title with a tagline is not one.
+    name: "ETHR",
+    alternateName: ["ETHR HR", "ETHR Ethiopia"],
     url: `${SITE_URL}${localeHref(locale, "/")}`,
     inLanguage: locale,
     // No `potentialAction`/SearchAction: the public site has no search.
@@ -42,11 +41,16 @@ export function organizationJsonLd(locale: string) {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "ETHR",
+    // Build-time facts, not operator content: the names people search for, to
+    // tell ETHR apart from the "ETHR" exchange-traded fund that fills results
+    // for the bare name, and the market it serves (2026-10-19).
+    alternateName: ["ETHR HR", "ETHR Ethiopia"],
+    areaServed: { "@type": "Country", name: "Ethiopia" },
     url: SITE_URL,
     description: serverTranslate(
       locale,
       "marketing.meta.site.description",
-      "Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations.",
+      "HR, payroll, attendance and leave software for Ethiopian organizations, with Ethiopian income tax, pension and the Ethiopian calendar built in.",
     ),
   };
 }
@@ -71,5 +75,69 @@ export function faqJsonLd(locale: string) {
         text: serverTranslate(locale, `marketing.faq_page.${item}_a`),
       },
     })),
+  };
+}
+
+/**
+ * ETHR as a product: what it is, where it runs, which market it serves.
+ *
+ * No `offers` and no `aggregateRating`, for the reasons the file header gives:
+ * prices are already ordinary page content, and a rating needs reviewers.
+ * Google shows no rich result for an application without them; this node
+ * still tells it what the site is, which the bare brand name cannot.
+ */
+export function softwareApplicationJsonLd(locale: string) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "ETHR",
+    applicationCategory: "BusinessApplication",
+    applicationSubCategory: "Human resources and payroll",
+    operatingSystem: "Web, Android, iOS",
+    inLanguage: locale,
+    url: `${SITE_URL}${localeHref(locale, "/")}`,
+    description: serverTranslate(
+      locale,
+      "marketing.meta.site.description",
+      "HR, payroll, attendance and leave software for Ethiopian organizations, with Ethiopian income tax, pension and the Ethiopian calendar built in.",
+    ),
+    areaServed: { "@type": "Country", name: "Ethiopia" },
+  };
+}
+
+/**
+ * Home, then the page: the trail a search result shows under the title. The
+ * page's name is its translated title, the same string `marketingMetadata`
+ * puts in the head.
+ */
+export function breadcrumbJsonLd(
+  locale: string,
+  path: string,
+  page: string,
+  fallbackTitle: string,
+) {
+  const name = serverTranslate(
+    locale,
+    `marketing.meta.${page}.title`,
+    fallbackTitle,
+  );
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "ETHR",
+        item: `${SITE_URL}${localeHref(locale, "/")}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name,
+        item: `${SITE_URL}${localeHref(locale, path)}`,
+      },
+    ],
   };
 }
