@@ -65,7 +65,7 @@ it('keeps what a save does not mention, section toggles included', function () {
     $landing = $tenant->fresh()->landing;
     expect($landing['headline'])->toBe('New headline')
         ->and($landing['support_email'])->toBe('hr@acme.et')
-        ->and($landing['sections'])->toBe(['announcements' => false, 'vacancies' => true, 'holidays' => true]);
+        ->and($landing['sections'])->toEqual(['announcements' => false, 'vacancies' => true, 'holidays' => true]);
 });
 
 it('merges section toggles per key', function () {
@@ -82,7 +82,7 @@ it('merges section toggles per key', function () {
     ])->assertOk();
 
     expect($tenant->fresh()->landing['sections'])
-        ->toBe(['announcements' => false, 'holidays' => true, 'vacancies' => false]);
+        ->toEqual(['announcements' => false, 'holidays' => true, 'vacancies' => false]);
 });
 
 it('refuses what must not reach a public page', function (array $body, string $field) {

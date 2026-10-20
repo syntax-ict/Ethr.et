@@ -294,7 +294,7 @@ test('each employee changed gets its own audit entry with before and after', fun
         ->sole();
 
     expect($entry->tenant_id)->toBe($tenant->id)
-        ->and($entry->payload['before'])->toBe(['department_id' => $from->public_id, 'status' => 'confirmed'])
+        ->and($entry->payload['before'])->toEqual(['department_id' => $from->public_id, 'status' => 'confirmed'])
         ->and($entry->payload['after'])->toBe(['department_id' => $to->public_id, 'status' => 'terminated']);
 
     $secondEntry = AuditLog::where('action', 'employee.bulk_updated')

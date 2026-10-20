@@ -203,6 +203,12 @@ jobs:
     #     a user without SUPER, so production is in one of the two states
     #     that allow it; this flag is the less invasive of them.
     # Runs as the non-root `ethr` user, like the MariaDB job.
+    #
+    # Its first run found the one behaviour that differs: MySQL stores a JSON
+    # column as binary JSON and returns object keys in its own order, where
+    # MariaDB stores text and returns them as written. Five assertions had
+    # compared key order; none of the code relied on it. Never read meaning
+    # into the order of keys in a JSON column.
     steps:
       - uses: actions/checkout@v7
 
