@@ -79,6 +79,7 @@ import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { cn } from "@/lib/utils";
+import { UnmatchedBadgesCard } from "@/features/devices/components/unmatched-badges-card";
 
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
@@ -262,6 +263,8 @@ export default function DevicesPage() {
             </div>
           }
         />
+
+        <UnmatchedBadgesCard />
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Input

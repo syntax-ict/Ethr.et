@@ -95,6 +95,28 @@ captured payloads against these rules before any customer depends on them.
 employee match per person and a summary (matched / probable / ambiguous / new).
 Read-only; confirming the matches happens in the [migration workspace](MIGRATION.md).
 
+## Unrecognised badges (2026-10-20)
+
+A punch whose badge matches no employee, or matches more than one, is **held,
+not dropped**. This applies on every path: pull, the vendor webhooks and
+ADMS. It is stored in `unmatched_device_punches` with the idempotency key it
+would have been recorded under, so a re-pull or a redelivered webhook adds
+nothing.
+
+Devices → **Unrecognised badges** lists the held badges by device:
+
+- **Assign** links the badge to an employee (verified) and replays every held
+  punch through the normal device path, so the employee's next punches
+  resolve at once. A punch the engine refuses (an unreadable or future time)
+  is marked `refused`, with the reason.
+- **Dismiss** drops the held punches of a badge that is no one's.
+
+Listing needs `device.viewAny`; assigning and dismissing need
+`attendance.manage`. Both are audited (`device.badge_assigned`,
+`device.badge_dismissed`). Before this, every device path logged the badge
+and discarded the punch, so a day was lost for good once the badge was
+finally mapped.
+
 ## Attendance-history import (backfill)
 
 `POST /api/v1/devices/{device}/import-history` with `{ window }`:

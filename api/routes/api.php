@@ -57,6 +57,7 @@ use App\Http\Controllers\Api\V1\Dashboard\ExecutiveDashboardController;
 use App\Http\Controllers\Api\V1\Device\DeviceCommandController;
 use App\Http\Controllers\Api\V1\Device\DeviceController;
 use App\Http\Controllers\Api\V1\Device\DeviceEnrollmentController;
+use App\Http\Controllers\Api\V1\Device\UnmatchedPunchController;
 use App\Http\Controllers\Api\V1\Directory\DirectoryController;
 use App\Http\Controllers\Api\V1\Employee\BankDetailController;
 use App\Http\Controllers\Api\V1\Employee\DisciplinaryCaseController;
@@ -541,6 +542,10 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Devices
     Route::prefix('devices')->group(function () {
         Route::get('/dashboard', [DeviceController::class, 'dashboard']);
+        // Badges no employee matched, with their held punches (UnmatchedPunches).
+        Route::get('/unmatched-punches', [UnmatchedPunchController::class, 'index']);
+        Route::post('/unmatched-punches/assign', [UnmatchedPunchController::class, 'assign']);
+        Route::post('/unmatched-punches/dismiss', [UnmatchedPunchController::class, 'dismiss']);
         Route::post('/sync-all', [DeviceController::class, 'syncAll']);
         Route::get('/{device}/status', [DeviceController::class, 'status']);
         Route::post('/{device}/pull', [DeviceController::class, 'pull']);

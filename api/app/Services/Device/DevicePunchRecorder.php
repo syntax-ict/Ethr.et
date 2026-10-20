@@ -30,6 +30,7 @@ final class DevicePunchRecorder
     public function __construct(
         private readonly AttendanceEngine $engine,
         private readonly IdentityResolver $resolver,
+        private readonly UnmatchedPunches $unmatched,
     ) {}
 
     /**
@@ -111,13 +112,17 @@ final class DevicePunchRecorder
         }
 
         $employee = $this->employee($device, $badge);
+        $key = "webhook:{$vendor}:{$device->id}:{$badge}:{$timestamp}";
 
         if (! $employee) {
+            // Held, not dropped: replayed once someone says whose badge it is.
+            $this->unmatched->hold($device, $badge, $type, $key, (string) $timestamp);
+
             return false;
         }
 
         try {
-            $this->record($device, $employee, $type, "webhook:{$vendor}:{$device->id}:{$badge}:{$timestamp}", $timestamp);
+            $this->record($device, $employee, $type, $key, $timestamp);
 
             return true;
         } catch (\Throwable) {

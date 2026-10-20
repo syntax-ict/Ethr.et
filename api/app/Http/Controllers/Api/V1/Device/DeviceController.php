@@ -22,6 +22,7 @@ use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
 use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\HikvisionEvent;
+use App\Services\Device\UnmatchedPunches;
 use App\Services\Device\ZktecoAdapter;
 use App\Services\PlanLimitService;
 use Illuminate\Http\JsonResponse;
@@ -389,6 +390,9 @@ class DeviceController extends Controller
         $employee = $this->punches->employee($device, $badge);
 
         if (! $employee) {
+            // Held, not dropped: replayed once someone says whose badge it is.
+            app(UnmatchedPunches::class)->hold($device, $badge, HikvisionEvent::direction($event), "webhook:hik:{$device->id}:{$badge}:{$timestamp}", (string) $timestamp);
+
             return response()->json(['status' => 'employee_not_found'], 200);
         }
 

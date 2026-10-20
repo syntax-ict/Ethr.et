@@ -374,3 +374,69 @@ export function useEnrolEmployeeOnDevices() {
         .data,
   );
 }
+
+// ── Unrecognised badges (UnmatchedPunchController) ─────────────────────────
+
+export interface UnmatchedBadge {
+  device_public_id: string;
+  device_name: string;
+  badge: string;
+  punches: number;
+  first_seen: string;
+  last_seen: string;
+}
+
+const UNMATCHED_KEY = ["devices", "unmatched-punches"];
+
+export function useUnmatchedBadges() {
+  return useQuery<UnmatchedBadge[]>({
+    queryKey: UNMATCHED_KEY,
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: UnmatchedBadge[] }>(
+        "/devices/unmatched-punches",
+      );
+      return data.data;
+    },
+  });
+}
+
+export function useAssignUnmatchedBadge() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      device_public_id: string;
+      badge: string;
+      employee_public_id: string;
+    }) => {
+      const { data } = await apiClient.post<{
+        replayed: number;
+        refused: number;
+      }>("/devices/unmatched-punches/assign", payload);
+      return data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: UNMATCHED_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["attendance"] });
+    },
+  });
+}
+
+export function useDismissUnmatchedBadge() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      device_public_id: string;
+      badge: string;
+    }) => {
+      const { data } = await apiClient.post<{ dismissed: number }>(
+        "/devices/unmatched-punches/dismiss",
+        payload,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: UNMATCHED_KEY }),
+  });
+}
