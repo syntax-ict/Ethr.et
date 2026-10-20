@@ -28,6 +28,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class EmployeeController extends Controller
@@ -143,6 +144,11 @@ class EmployeeController extends Controller
         $planLimits->assertCanAdd(app(CurrentTenant::class)->get(), 'employees');
 
         $data = $request->validated();
+
+        // Setting a salary or TIN is pay data, as on update.
+        if (($data['salary_cents'] ?? null) !== null || ($data['tin'] ?? null) !== null) {
+            Gate::authorize('employee.updateFinancial');
+        }
 
         // Login-provisioning inputs are not Employee attributes — pull them out
         // before mass-assigning the model.
@@ -271,6 +277,17 @@ class EmployeeController extends Controller
         $this->authorize('update', $employee);
 
         $data = $request->validated();
+
+        // Salary and TIN are pay data: changing either needs
+        // employee.updateFinancial, which employee.update alone never implied
+        // (blueprint D4). A form that resends the unchanged value is not a
+        // change, so it is not refused.
+        $changesPay = (array_key_exists('salary_cents', $data) && (int) $data['salary_cents'] !== (int) $employee->salary_cents)
+            || (array_key_exists('tin', $data) && (string) $data['tin'] !== (string) $employee->tin);
+        if ($changesPay) {
+            $this->authorize('updateFinancial', $employee);
+        }
+
         $data = $this->resolveRelationIds($data);
 
         if (isset($data['phone'])) {

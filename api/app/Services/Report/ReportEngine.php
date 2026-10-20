@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Report;
 
+use App\Enums\OrgScope;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\LeaveBalance;
 use App\Models\PayrollEntry;
+use App\Models\User;
 use App\Support\Csv;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -49,6 +51,17 @@ final class ReportEngine
     }
 
     /**
+     * Whether `$viewer` may run a report on `$source` at all. The payroll
+     * source is every payslip figure, so it needs what the payroll screens
+     * need.
+     */
+    public function permits(User $viewer, string $source): bool
+    {
+        return $viewer->hasPermission('report.generate')
+            && ($source !== 'payroll' || $viewer->hasPermission('payroll.viewAll'));
+    }
+
+    /**
      * Rows are the source's column map. `summary` is empty when ungrouped, else
      * per-group row counts and, when any `*_cents` column is present, per-group
      * sums. Stated for the API contract, which cannot follow maps built by key.
@@ -56,9 +69,16 @@ final class ReportEngine
      * `truncated` is true when the source had more rows than ROW_LIMIT and only
      * the newest were returned.
      *
+     * Rows are limited to what `$viewer` may see, exactly as the screens limit
+     * them: their organisation scope, no `salary_cents` without
+     * employee.viewFinancial, and no payroll rows without payroll.viewAll.
+     * Until 2026-10-20 the engine read the whole tenant for anyone holding
+     * report.generate, so an HR Admin, deliberately denied payroll.viewAll
+     * (audit N95), could pull every payslip figure here (blueprint D6).
+     *
      * @scramble-return array{source: string, total: int, truncated: bool, data: list<array<string, mixed>>, summary: array{grouped_by?: string, groups?: array<string, int>, group_sums?: array<string, array<string, int>>}}
      */
-    public function generate(int $tenantId, array $config): array
+    public function generate(int $tenantId, array $config, User $viewer): array
     {
         $source = $config['source'] ?? 'employees';
         $columns = $config['columns'] ?? [];
@@ -69,10 +89,10 @@ final class ReportEngine
         $this->truncated = false;
 
         $data = match ($source) {
-            'employees' => $this->queryEmployees($tenantId, $filters),
-            'attendance' => $this->queryAttendance($tenantId, $filters),
-            'leave' => $this->queryLeave($tenantId, $filters),
-            'payroll' => $this->queryPayroll($tenantId, $filters),
+            'employees' => $this->queryEmployees($tenantId, $filters, $viewer),
+            'attendance' => $this->queryAttendance($tenantId, $filters, $viewer),
+            'leave' => $this->queryLeave($tenantId, $filters, $viewer),
+            'payroll' => $this->permits($viewer, 'payroll') ? $this->queryPayroll($tenantId, $filters, $viewer) : [],
             default => [],
         };
 
@@ -153,7 +173,7 @@ final class ReportEngine
         return implode("\r\n", $lines);
     }
 
-    private function queryEmployees(int $tenantId, array $filters): array
+    private function queryEmployees(int $tenantId, array $filters, User $viewer): array
     {
         $query = Employee::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
@@ -168,8 +188,10 @@ final class ReportEngine
         if (! empty($filters['department_id'])) {
             $query->where('department_id', $filters['department_id']);
         }
+        $viewer->scopeAccessibleEmployees($query);
+        $showPay = $viewer->hasPermission('employee.viewFinancial');
 
-        return $query->get()->map(fn ($e) => [
+        return $query->get()->map(fn ($e) => array_filter([
             'name' => $e->name,
             'email' => $e->email,
             'phone' => $e->phone,
@@ -182,14 +204,15 @@ final class ReportEngine
             'branch' => $e->branch?->name ?? '',
             // `positions.title`, not `name` — this column was empty in every export.
             'position' => $e->position?->title ?? '',
-        ])->toArray();
+        ], fn (string $field) => $showPay || $field !== 'salary_cents', ARRAY_FILTER_USE_KEY))->toArray();
     }
 
-    private function queryAttendance(int $tenantId, array $filters): array
+    private function queryAttendance(int $tenantId, array $filters, User $viewer): array
     {
         $query = AttendanceRecord::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
             ->with('employee:id,name');
+        $this->limitToReach($query, $tenantId, $viewer);
 
         if (! empty($filters['from'])) {
             $query->whereDate('date', '>=', $filters['from']);
@@ -214,11 +237,12 @@ final class ReportEngine
         ])->toArray();
     }
 
-    private function queryLeave(int $tenantId, array $filters): array
+    private function queryLeave(int $tenantId, array $filters, User $viewer): array
     {
         $query = LeaveBalance::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
             ->with(['employee:id,name', 'leaveType:id,name']);
+        $this->limitToReach($query, $tenantId, $viewer);
 
         $year = $filters['year'] ?? Carbon::now()->year;
         $query->where('year', $year);
@@ -233,11 +257,12 @@ final class ReportEngine
         ])->toArray();
     }
 
-    private function queryPayroll(int $tenantId, array $filters): array
+    private function queryPayroll(int $tenantId, array $filters, User $viewer): array
     {
         $query = PayrollEntry::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
             ->with(['employee:id,name', 'payrollRun:id,period_label']);
+        $this->limitToReach($query, $tenantId, $viewer);
 
         $rows = $this->limited($query->orderByDesc('payroll_run_id')->orderByDesc('id'));
 
@@ -250,6 +275,27 @@ final class ReportEngine
             'employee_pension_cents' => $e->employee_pension_cents,
             'net_cents' => $e->net_cents,
         ])->toArray();
+    }
+
+    /**
+     * Keep only rows about employees `$viewer` can reach, by the same rule
+     * as every employee screen (ScopesEmployeeAccess). An organisation-wide
+     * viewer adds no predicate.
+     *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  Builder<TModel>  $query
+     */
+    private function limitToReach(Builder $query, int $tenantId, User $viewer): void
+    {
+        if ($viewer->orgScope() === OrgScope::ALL) {
+            return;
+        }
+
+        $query->whereIn(
+            'employee_id',
+            $viewer->scopeAccessibleEmployees(Employee::query()->where('tenant_id', $tenantId))->select('id'),
+        );
     }
 
     /**

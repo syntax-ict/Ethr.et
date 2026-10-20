@@ -25,6 +25,7 @@ class RetirementCaseController extends Controller
     public function index(Employee $employee): AnonymousResourceCollection
     {
         Gate::authorize('viewAny', RetirementCase::class);
+        $this->reach($employee);
 
         $cases = $employee->retirementCases()
             ->with(['initiatedBy.employee', 'decidedBy.employee'])
@@ -37,6 +38,7 @@ class RetirementCaseController extends Controller
     public function store(StoreRetirementCaseRequest $request, Employee $employee): JsonResponse
     {
         Gate::authorize('manage', RetirementCase::class);
+        $this->reach($employee);
 
         $case = $this->cases->initiate($employee, $request->validated(), $request->user()?->id);
 
@@ -48,6 +50,7 @@ class RetirementCaseController extends Controller
     public function addNote(AddRetirementNoteRequest $request, Employee $employee, RetirementCase $retirementCase): RetirementCaseResource
     {
         Gate::authorize('manage', RetirementCase::class);
+        $this->reach($employee, $retirementCase);
 
         $case = $this->cases->addNote($retirementCase, $request->validated('note'), $request->user());
 
@@ -57,6 +60,7 @@ class RetirementCaseController extends Controller
     public function decide(DecideRetirementCaseRequest $request, Employee $employee, RetirementCase $retirementCase): RetirementCaseResource
     {
         Gate::authorize('manage', RetirementCase::class);
+        $this->reach($employee, $retirementCase);
 
         $case = $this->cases->decide($retirementCase, $request->validated(), $request->user()?->id);
         $case->load(['initiatedBy.employee', 'decidedBy.employee']);
@@ -67,6 +71,7 @@ class RetirementCaseController extends Controller
     public function finalize(FinalizeRetirementCaseRequest $request, Employee $employee, RetirementCase $retirementCase): RetirementCaseResource
     {
         Gate::authorize('manage', RetirementCase::class);
+        $this->reach($employee, $retirementCase);
 
         $case = $this->cases->finalize($retirementCase, $request->validated('effective_date'), $request->user()?->id);
         $case->load(['initiatedBy.employee', 'decidedBy.employee']);
@@ -77,10 +82,25 @@ class RetirementCaseController extends Controller
     public function cancel(CancelRetirementCaseRequest $request, Employee $employee, RetirementCase $retirementCase): RetirementCaseResource
     {
         Gate::authorize('manage', RetirementCase::class);
+        $this->reach($employee, $retirementCase);
 
         $case = $this->cases->cancel($retirementCase, $request->validated('notes'));
         $case->load(['initiatedBy.employee', 'decidedBy.employee']);
 
         return new RetirementCaseResource($case);
+    }
+
+    /**
+     * Cases are read and acted on one employee at a time, so the caller must
+     * reach that employee, as on every employee screen, and the case must be
+     * that employee's. Until 2026-10-20 the class-level permission was the
+     * only check (blueprint D5).
+     */
+    private function reach(Employee $employee, ?RetirementCase $case = null): void
+    {
+        $user = request()->user();
+
+        abort_unless($user !== null && $user->canAccessEmployee($employee), 404);
+        abort_unless($case === null || (int) $case->employee_id === (int) $employee->id, 404);
     }
 }

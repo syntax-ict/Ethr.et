@@ -80,6 +80,7 @@ import { buildCsv, saveCsv } from "@/lib/utils/csv-export";
 import { formatETB } from "@/lib/utils/currency";
 import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
 import { usePlanFeatures } from "@/features/auth/api";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { ReportFilterValue } from "@/features/reports/components/report-filter-value";
 
 const prebuilt: Array<{
@@ -190,9 +191,19 @@ function BuilderTab() {
   const [filters, setFilters] = useState<FilterRow[]>([]);
   const [saveOpen, setSaveOpen] = useState(false);
 
-  const sources: Partial<ReportSources> = sourcesData?.sources ?? {};
+  const { hasPermission } = usePermissions();
+  // The server refuses the payroll source without payroll.viewAll and drops
+  // salary without employee.viewFinancial, so neither is offered here.
+  const sources: Partial<ReportSources> = Object.fromEntries(
+    Object.entries(sourcesData?.sources ?? {}).filter(
+      ([key]) => key !== "payroll" || hasPermission("payroll.viewAll"),
+    ),
+  );
   const sourceMeta = sources[config.source];
-  const availableFields = sourceMeta?.fields ?? [];
+  const availableFields: string[] = (sourceMeta?.fields ?? []).filter(
+    (field: string) =>
+      field !== "salary_cents" || hasPermission("employee.viewFinancial"),
+  );
   // Filters are not columns: only these keys reach the query.
   const filterFields = REPORT_FILTERS[config.source];
   const selectedColumns = config.columns ?? [];
