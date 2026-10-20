@@ -26,6 +26,8 @@
  * tenant timezone is configurable and other zones do; an offset would be wrong
  * twice a year for them and would need changing if Ethiopia ever adopted one.
  */
+import { formatEthiopian, toEthiopian } from "@/lib/calendar/ethiopian";
+
 export const DEFAULT_TIMEZONE = "Africa/Addis_Ababa";
 
 /**
@@ -158,6 +160,8 @@ export function timeAgo(
   dateStr: string,
   timeZone: string = DEFAULT_TIMEZONE,
   t: Translate = untranslated,
+  /** Renders the date shown past thirty days. `useDateFormatters` passes its calendar-aware one. */
+  formatOld: (dateStr: string) => string = (d) => formatDate(d, timeZone),
 ): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const diffMin = Math.floor(diffMs / 60000);
@@ -170,5 +174,83 @@ export function timeAgo(
   if (diffDay < 7) return `${diffDay}${t("time.day_short", "d")} ${ago}`;
   if (diffDay < 30)
     return `${Math.floor(diffDay / 7)}${t("time.week_short", "w")} ${ago}`;
+  return formatOld(dateStr);
+}
+
+/** Which calendar a date is written in. Mirrors `CalendarSystem` without importing React context here. */
+export type DisplayCalendar = "ethiopian" | "gregorian";
+
+/**
+ * The year, month and day a value falls on, read in the zone that applies.
+ *
+ * A bare date has no time of day and is read as written (UTC), exactly as
+ * `formatDate` does; an instant is read in the tenant's zone. Returns null for
+ * a value that is not a date, so callers can fall back to the old rendering
+ * rather than throw.
+ */
+export function calendarDayParts(
+  dateStr: string,
+  timeZone: string = DEFAULT_TIMEZONE,
+): { year: number; month: number; day: number } | null {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    timeZone: isDateOnly(dateStr) ? "UTC" : resolveTimeZone(timeZone),
+  }).formatToParts(date);
+  const pick = (type: string) =>
+    Number(parts.find((p) => p.type === type)?.value);
+  return { year: pick("year"), month: pick("month"), day: pick("day") };
+}
+
+/**
+ * A date in the reader's calendar and language.
+ *
+ * Until 2026-10-20 every `useDateFormatters()` caller (42 files) printed an
+ * English Gregorian date whatever the person had chosen, while the 21 files on
+ * `useCalendar().formatDate` honoured it, so one screen could show both
+ * calendars side by side (FRONTEND_REDESIGN_PLAN.md, problem 3). Gregorian
+ * in English keeps the old `formatDate` output exactly; Gregorian in Amharic
+ * uses Amharic month names; Ethiopian uses the app's own month names, as the
+ * calendar screens already do.
+ */
+export function formatCalendarDate(
+  dateStr: string,
+  timeZone: string,
+  calendar: DisplayCalendar,
+  locale: string,
+): string {
+  const day = calendarDayParts(dateStr, timeZone);
+  if (!day) return formatDate(dateStr, timeZone);
+  if (calendar === "ethiopian") {
+    return formatEthiopian(toEthiopian(day.year, day.month, day.day), locale);
+  }
+  if (locale === "am") {
+    return new Date(
+      Date.UTC(day.year, day.month - 1, day.day),
+    ).toLocaleDateString("am-ET", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }
   return formatDate(dateStr, timeZone);
+}
+
+/** `formatCalendarDate` with the time of day in the tenant's zone, 24-hour. */
+export function formatCalendarDateTime(
+  dateStr: string,
+  timeZone: string,
+  calendar: DisplayCalendar,
+  locale: string,
+): string {
+  if (calendar === "gregorian" && locale !== "am") {
+    return formatDateTime(dateStr, timeZone);
+  }
+  if (!calendarDayParts(dateStr, timeZone))
+    return formatDateTime(dateStr, timeZone);
+  return `${formatCalendarDate(dateStr, timeZone, calendar, locale)}, ${formatTime(dateStr, timeZone)}`;
 }
