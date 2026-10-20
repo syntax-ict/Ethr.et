@@ -24,6 +24,7 @@ class PersonnelActionController extends Controller
     public function index(Employee $employee): AnonymousResourceCollection
     {
         Gate::authorize('viewAny', PersonnelAction::class);
+        $this->reach($employee);
 
         $actions = $employee->personnelActions()
             ->with('recordedBy.employee')
@@ -37,6 +38,7 @@ class PersonnelActionController extends Controller
     public function store(StorePersonnelActionRequest $request, Employee $employee): JsonResponse
     {
         Gate::authorize('create', PersonnelAction::class);
+        $this->reach($employee);
 
         $action = $this->actions->record(
             $employee,
@@ -49,5 +51,18 @@ class PersonnelActionController extends Controller
         return (new PersonnelActionResource($action))
             ->response()
             ->setStatusCode(201);
+    }
+
+    /**
+     * An employee's history is read and written one employee at a time, so
+     * the caller must reach that employee, as on every employee screen. Until
+     * 2026-10-20 the class-level permission, which supervisors hold, was the
+     * only check, so any employee's history was readable (blueprint D5).
+     */
+    private function reach(Employee $employee): void
+    {
+        $user = request()->user();
+
+        abort_unless($user !== null && $user->canAccessEmployee($employee), 404);
     }
 }

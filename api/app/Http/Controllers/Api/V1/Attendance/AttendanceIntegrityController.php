@@ -14,6 +14,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\User;
 use App\Notifications\AttendancePunchRejectedNotification;
+use App\Services\Payroll\PayrollPeriodLock;
 use App\Traits\SendsNotifications;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -95,6 +96,12 @@ class AttendanceIntegrityController extends Controller
 
         $decision = (string) $request->validated('decision');
         $note = $request->validated('note');
+
+        // Rejecting voids the punch, which a reprocess of a paid day would then
+        // drop (PayrollPeriodLock).
+        if ($decision === 'reject' && $model->record !== null) {
+            app(PayrollPeriodLock::class)->assertOpen($model->record->employee_id, $model->record->date);
+        }
 
         $model->update([
             'status' => $decision === 'accept' ? 'accepted' : 'rejected',

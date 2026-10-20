@@ -268,12 +268,17 @@ describe('permissions and isolation', function () {
 
     it('lets a supervisor view cases but not initiate one', function () {
         $tenant = createTenant();
-        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $lead = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $lead->id]);
+        $outsider = Employee::factory()->create(['tenant_id' => $tenant->id]);
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
         initiateRetirement($employee);
+        initiateRetirement($outsider);
 
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $lead->id], $tenant);
         $this->getJson(retirementCasesUrl($employee))->assertOk()->assertJsonCount(1);
+        // Only their own reports' cases (blueprint D5, 2026-10-20).
+        $this->getJson(retirementCasesUrl($outsider))->assertNotFound();
 
         $this->postJson(retirementCasesUrl($employee), ['retirement_type' => 'mandatory'])
             ->assertForbidden();

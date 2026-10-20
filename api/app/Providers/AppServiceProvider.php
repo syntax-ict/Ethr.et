@@ -9,12 +9,14 @@ use App\Contracts\SmsSender;
 use App\Events\AttendanceRecorded;
 use App\Events\DeviceOffline;
 use App\Events\DeviceSyncFailed;
+use App\Events\EmployeeTransitioned;
 use App\Events\PayrollApproved;
 use App\Events\PayrollProcessed;
 use App\Events\PayrollRunFailed;
 use App\Events\TenantCreated;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\EnforceSessionIdleTimeout;
+use App\Listeners\CloseLeaverLogin;
 use App\Listeners\InvalidateDashboardCache;
 use App\Listeners\NotifyDeviceOffline;
 use App\Listeners\NotifyDeviceSyncFailed;
@@ -182,6 +184,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(PayrollProcessed::class, [InvalidateDashboardCache::class, 'handlePayroll']);
         Event::listen(PayrollProcessed::class, NotifyPayrollProcessed::class);
         Event::listen(PayrollApproved::class, NotifyPayslipsReleased::class);
+        Event::listen(EmployeeTransitioned::class, CloseLeaverLogin::class);
 
         // Devices that take commands follow the people of their branch: a new
         // hire is added, a rename or new badge is sent, a leaver is removed

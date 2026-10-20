@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -13,14 +13,19 @@ vi.mock("sonner", () => ({
 }));
 
 // The page is wrapped in <RoleGate anyPermission={["viewReports"]}>; grant access directly.
+// Every ability is held unless a test denies it.
+const denied = new Set<string>();
 vi.mock("@/lib/hooks/usePermissions", () => ({
   usePermissions: () => ({
     isAtLeast: () => true,
     hasRole: () => true,
+    hasPermission: (permission: string) => !denied.has(permission),
     can: { viewReports: true },
     role: "hr_admin",
   }),
 }));
+
+beforeEach(() => denied.clear());
 
 /** `ReportEngine::SOURCES`, as `GET /reports/sources` returns it. */
 const SOURCES = {
@@ -190,5 +195,27 @@ describe("Reports builder — filters", () => {
     expect(
       screen.getByText("This data source cannot be filtered."),
     ).toBeInTheDocument();
+  });
+});
+
+// Blueprint assessment D6, 2026-10-20: the server refuses the payroll source
+// without payroll.viewAll and drops salary without employee.viewFinancial, so
+// the builder does not offer either.
+describe("Reports builder — pay data", () => {
+  it("offers neither the payroll source nor salary to a caller without them", async () => {
+    denied.add("payroll.viewAll");
+    denied.add("employee.viewFinancial");
+    serve(() => {});
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText("10 available fields", { exact: false });
+    await user.click(
+      await screen.findByRole("combobox", { name: "Data Source" }),
+    );
+    expect(
+      screen.queryByRole("option", { name: "Payroll" }),
+    ).not.toBeInTheDocument();
   });
 });

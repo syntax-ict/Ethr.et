@@ -53,9 +53,15 @@ class AttendanceCorrectionPolicy
             && $this->reaches($user, $correction->employee);
     }
 
+    /**
+     * The preview states the employee's hourly rate, which is their salary
+     * over 176 hours, so it needs what reading a salary needs. Until
+     * 2026-10-20 every supervisor could derive their reports' pay here.
+     */
     public function previewImpact(User $user, AttendanceCorrection $correction): bool
     {
         return $user->hasPermission('correction.viewPending')
+            && $user->hasPermission('employee.viewFinancial')
             && $this->reaches($user, $correction->employee);
     }
 

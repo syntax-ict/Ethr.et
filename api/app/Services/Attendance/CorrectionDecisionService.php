@@ -9,6 +9,7 @@ use App\Models\AttendanceCorrection;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\AttendanceCorrectionApprovedNotification;
+use App\Services\Payroll\PayrollPeriodLock;
 use App\Support\ApprovalRefusal;
 use App\Support\AttendanceWebhookPayload;
 use App\Traits\DispatchesWebhooks;
@@ -25,7 +26,10 @@ class CorrectionDecisionService
 {
     use DispatchesWebhooks, SendsNotifications;
 
-    public function __construct(private readonly AttendanceEngine $engine) {}
+    public function __construct(
+        private readonly AttendanceEngine $engine,
+        private readonly PayrollPeriodLock $periodLock,
+    ) {}
 
     /**
      * The state checks that follow authorisation, or null when the decision may go ahead.
@@ -52,6 +56,12 @@ class CorrectionDecisionService
         // and are decided as before.
         if ($approving && self::filedBy($correction) === $by->public_id) {
             return ApprovalRefusal::selfApproval(__('correction.cannot_approve_filed'));
+        }
+
+        // A day already paid in an approved run is not rewritten (PayrollPeriodLock).
+        $record = $correction->attendanceRecord;
+        if ($approving && $record !== null) {
+            return $this->periodLock->refusal($record->employee_id, $record->date);
         }
 
         return null;

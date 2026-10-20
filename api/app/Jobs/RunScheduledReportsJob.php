@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Models\SavedReport;
 use App\Models\ScheduledReport;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Notifications\ScheduledReportFailedNotification;
 use App\Notifications\ScheduledReportNotification;
 use App\Services\CurrentTenant;
@@ -21,6 +22,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -116,8 +118,20 @@ class RunScheduledReportsJob implements ShouldQueue
         $rawConfig = $saved->getAttribute('config');
         $config = is_array($rawConfig) ? $rawConfig : [];
 
-        $result = $engine->generate($tenant->id, $config);
+        // A schedule reports what the person who saved the report may see,
+        // and nothing once they can no longer see it. Until 2026-10-20 it ran
+        // with no viewer at all and read the whole organisation (blueprint D6).
+        $creator = $saved->creator;
+        $source = is_string($config['source'] ?? null) ? $config['source'] : 'employees';
+        if (! $creator instanceof User || $creator->status !== 'active' || ! $engine->permits($creator, $source)) {
+            throw new RuntimeException('The person who saved this report can no longer run it.');
+        }
+
+        $result = $engine->generate($tenant->id, $config, $creator);
         $rows = $result['data'] ?? [];
+        $carriesPay = $source === 'payroll'
+            || ($rows !== [] && array_key_exists('salary_cents', $rows[0]));
+        $withheld = 0;
         $rowCount = count($rows);
         $csv = $engine->toCsv($rows);
         $filename = Str::slug($saved->name).'-'.now()->format('Y-m-d').'.csv';
@@ -127,6 +141,14 @@ class RunScheduledReportsJob implements ShouldQueue
 
         foreach ($recipients as $email) {
             if (! is_string($email) || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+
+            // Pay figures go only to people in the organisation who could
+            // read them on screen; a free-text address gets nothing.
+            if ($carriesPay && ! $this->mayReceivePay($email, $source)) {
+                $withheld++;
+
                 continue;
             }
 
@@ -150,8 +172,24 @@ class RunScheduledReportsJob implements ShouldQueue
         Log::info('Scheduled report delivered', [
             'scheduled_report' => $schedule->public_id,
             'recipients' => count($recipients),
+            'withheld' => $withheld,
             'rows' => $rowCount,
         ]);
+    }
+
+    /**
+     * Whether `$email` belongs to an active user of the current organisation
+     * who holds the permission the report's pay figures need.
+     */
+    private function mayReceivePay(string $email, string $source): bool
+    {
+        $ability = $source === 'payroll' ? 'payroll.viewAll' : 'employee.viewFinancial';
+
+        return User::query()
+            ->where('email', $email)
+            ->where('status', 'active')
+            ->get()
+            ->contains(fn (User $user) => $user->hasPermission($ability));
     }
 
     /**
