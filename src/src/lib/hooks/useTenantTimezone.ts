@@ -3,11 +3,12 @@
 import { useCallback, useMemo } from "react";
 import { useCurrentTenant } from "@/features/auth/api";
 import { useT } from "@/lib/i18n/useT";
+import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
 import {
   DEFAULT_TIMEZONE,
   resolveTimeZone,
-  formatDate,
-  formatDateTime,
+  formatCalendarDate,
+  formatCalendarDateTime,
   formatTime,
   timeAgo,
 } from "@/lib/utils/date";
@@ -34,34 +35,44 @@ export function useTenantTimezone(): string {
 }
 
 /**
- * The date formatters, bound to the tenant's timezone.
+ * The date formatters, bound to the tenant's timezone and the reader's
+ * calendar and language.
  *
  * Components call these instead of importing the raw helpers, so a screen
  * cannot forget to pass the zone. The raw helpers stay pure and default to
  * `Africa/Addis_Ababa`, so a call site that has not been migrated is still
  * correct for the common case rather than falling back to the browser.
+ *
+ * Dates follow the Ethiopian or Gregorian choice from `CalendarProvider`
+ * (FRONTEND_REDESIGN_PLAN.md, Phase 2). Outside a provider they stay
+ * Gregorian, as they always were.
  */
 export function useDateFormatters() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const timeZone = useTenantTimezone();
+  const calendar = useOptionalCalendar()?.calendar ?? "gregorian";
+
+  const formatDate = useCallback(
+    (dateStr: string) =>
+      formatCalendarDate(dateStr, timeZone, calendar, locale),
+    [timeZone, calendar, locale],
+  );
 
   return {
     timeZone,
-    formatDate: useCallback(
-      (dateStr: string) => formatDate(dateStr, timeZone),
-      [timeZone],
-    ),
+    formatDate,
     formatDateTime: useCallback(
-      (dateStr: string) => formatDateTime(dateStr, timeZone),
-      [timeZone],
+      (dateStr: string) =>
+        formatCalendarDateTime(dateStr, timeZone, calendar, locale),
+      [timeZone, calendar, locale],
     ),
     formatTime: useCallback(
       (dateStr: string) => formatTime(dateStr, timeZone),
       [timeZone],
     ),
     timeAgo: useCallback(
-      (dateStr: string) => timeAgo(dateStr, timeZone, t),
-      [timeZone, t],
+      (dateStr: string) => timeAgo(dateStr, timeZone, t, formatDate),
+      [timeZone, t, formatDate],
     ),
   };
 }
