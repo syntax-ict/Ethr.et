@@ -114,16 +114,19 @@ palette class reappears under `src/`.
 
 ### Type Scale
 
-| Name | Size | Weight | Line Height | Usage |
-|---|---|---|---|---|
-| display-lg | 30px | 700 | 1.2 | Marketing hero |
-| display | 24px | 600 | 1.25 | Page titles |
-| heading | 20px | 600 | 1.3 | Section headers |
-| subheading | 16px | 600 | 1.4 | Card headers |
-| body | 14px | 400 | 1.5 | Default body text |
-| body-medium | 14px | 500 | 1.5 | Labels, emphasis |
-| small | 12px | 400 | 1.5 | Captions, timestamps |
-| mono | 13px | 400 | 1.4 | Codes, amounts |
+Defined as tokens in `src/src/styles/globals.css` (`@theme`) since 2026-10-20. Until then this table described a scale nothing implemented, and pages chose their own sizes. Each utility sets size, line height and weight together.
+
+| Utility | Size / line height | Weight | Usage |
+|---|---|---|---|
+| `text-display` | 30 / 36px | 600 | Marketing hero only |
+| `text-title` | 22 / 28px | 600 | The page `h1` |
+| `text-heading` | 17 / 24px | 600 | Card and section titles |
+| `text-body` | 14 / 20px | 400 | Default operational text |
+| `text-label` | 13 / 18px | 500 | Form labels, table headers |
+| `text-caption` | 12 / 16px | 400 | Metadata. **The floor: no readable text under 12px** |
+| `text-numeric` | 14 / 20px | 400 | Amounts, codes, times; pair with `font-mono tabular-nums` |
+
+No weight above 600 is used. `design-ratchets.test.ts` holds `text-[10px]` and `text-[11px]` at a falling ceiling. `--leading-amharic` (1.7) is defined for the Amharic rules below.
 
 ### Amharic Typography Rules
 
@@ -139,10 +142,21 @@ palette class reappears under `src/`.
 
 ## Spacing
 
-Base unit: 4px
+Base unit: 4px, Tailwind's default scale. On top of it, four rhythm tokens and three sizes are defined in `globals.css` since 2026-10-20:
 
-| Token | Value | Usage |
+| Utility | Value | Usage |
 |---|---|---|
+| `p-page` | 24px, 16px under 640px | Page padding |
+| `space-y-section` | 32px | Between sections of a page |
+| `gap-stack` | 16px | Between stacked components |
+| `gap-inline` | 8px | Between inline items, icon gaps |
+| `h-row-compact` | 36px | Table rows on operational pages |
+| `h-row-comfortable` | 48px | Rows on marketing, auth and the kiosk |
+| `min-h-touch` | 44px | Anything tapped on a phone |
+
+**Density** is set once on a page container, never per component: `data-density="compact"` (the default: 36px rows, 32px controls, 8px gaps) or `data-density="comfortable"` (48px rows, 44px controls, 16px gaps). Components read `--density-row`, `--density-control` and `--density-gap`.
+
+---|---|---|
 | space-1 | 4px | Tight padding (badge, tag) |
 | space-2 | 8px | Inline spacing, icon gaps |
 | space-3 | 12px | Input padding, small gaps |
