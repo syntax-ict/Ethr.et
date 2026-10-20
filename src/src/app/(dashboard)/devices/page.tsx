@@ -150,14 +150,16 @@ export default function DevicesPage() {
         toast.success(t("devices_page.deleted"));
         setDeleteDevice(null);
       },
-      onError: () => toast.error(t("devices_page.delete_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("devices_page.delete_failed"))),
     });
   }
 
   function pull(id: string) {
     pullMutation.mutate(id, {
       onSuccess: () => toast.success(t("devices_page.pull_initiated")),
-      onError: () => toast.error(t("devices_page.pull_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("devices_page.pull_failed"))),
     });
   }
 
@@ -176,7 +178,8 @@ export default function DevicesPage() {
         toast.success(
           `${t("devices_page.sync_dispatched_prefix")} ${d.dispatched} ${t("devices_page.device_s")}`,
         ),
-      onError: () => toast.error(t("devices_page.bulk_sync_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("devices_page.bulk_sync_failed"))),
     });
   }
 
@@ -189,7 +192,8 @@ export default function DevicesPage() {
           toast.error(`${t("devices_page.device_is")} ${status}`);
         }
       },
-      onError: () => toast.error(t("devices_page.test_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("devices_page.test_failed"))),
     });
   }
 

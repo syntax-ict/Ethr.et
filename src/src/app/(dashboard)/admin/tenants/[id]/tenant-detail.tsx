@@ -273,7 +273,10 @@ function TenantDetail({ id }: { id: string }) {
     backup.mutate(tenant.public_id, {
       onSuccess: () =>
         toast.success(t("admin_tenant_detail_page.backup_queued")),
-      onError: () => toast.error(t("admin_tenant_detail_page.backup_failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("admin_tenant_detail_page.backup_failed")),
+        ),
       onSettled: () => setBackupOpen(false),
     });
   }
@@ -293,8 +296,13 @@ function TenantDetail({ id }: { id: string }) {
           );
           setPendingStatus(null);
         },
-        onError: () => {
-          toast.error(t("admin_tenant_detail_page.status_update_failed"));
+        onError: (err) => {
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("admin_tenant_detail_page.status_update_failed"),
+            ),
+          );
           setPendingStatus(null);
         },
       },
@@ -313,7 +321,10 @@ function TenantDetail({ id }: { id: string }) {
           );
           setExtendOpen(false);
         },
-        onError: () => toast.error(t("admin_tenant_detail_page.extend_failed")),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(err, t("admin_tenant_detail_page.extend_failed")),
+          ),
       },
     );
   }
@@ -791,11 +802,14 @@ function TenantDetail({ id }: { id: string }) {
                       updateShowcase.mutate(
                         { publicId: tenant.public_id, hidden: !allowed },
                         {
-                          onError: () =>
+                          onError: (err) =>
                             toast.error(
-                              t(
-                                "admin_tenant_detail_page.showcase_failed",
-                                "The change could not be saved.",
+                              apiErrorMessage(
+                                err,
+                                t(
+                                  "admin_tenant_detail_page.showcase_failed",
+                                  "The change could not be saved.",
+                                ),
                               ),
                             ),
                         },

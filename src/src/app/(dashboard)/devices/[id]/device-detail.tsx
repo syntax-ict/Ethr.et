@@ -131,7 +131,8 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   function pull() {
     pullMutation.mutate(id, {
       onSuccess: () => toast.success(t("devices_page.pull_initiated")),
-      onError: () => toast.error(t("devices_page.pull_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("devices_page.pull_failed"))),
     });
   }
 
@@ -142,7 +143,8 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
           toast.success(t("devices_page.online_responding"));
         else toast.error(`${t("devices_page.device_is")} ${status}`);
       },
-      onError: () => toast.error(t("devices_page.test_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("devices_page.test_failed"))),
     });
   }
 
@@ -155,7 +157,10 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   function regenerateToken() {
     regenTokenMutation.mutate(id, {
       onSuccess: () => toast.success(t("device_detail_page.token_regenerated")),
-      onError: () => toast.error(t("device_detail_page.regenerate_failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("device_detail_page.regenerate_failed")),
+        ),
     });
   }
 
@@ -165,7 +170,8 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
         toast.success(t("devices_page.deleted"));
         window.location.href = "/devices";
       },
-      onError: () => toast.error(t("devices_page.delete_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("devices_page.delete_failed"))),
     });
   }
 

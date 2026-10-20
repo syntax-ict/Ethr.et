@@ -64,7 +64,7 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { toast } from "sonner";
-import { apiErrorDetail } from "@/lib/api/error-message";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 
 export default function AttendancePage() {
   const { formatTime } = useDateFormatters();
@@ -131,8 +131,13 @@ export default function AttendancePage() {
       {
         onSuccess: () =>
           toast.success(t("attendance.checked_in", "Checked in successfully")),
-        onError: () =>
-          toast.error(t("attendance.check_in_failed", "Failed to check in")),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("attendance.check_in_failed", "Failed to check in"),
+            ),
+          ),
       },
     );
   }
@@ -145,8 +150,13 @@ export default function AttendancePage() {
           toast.success(
             t("attendance.checked_out", "Checked out successfully"),
           ),
-        onError: () =>
-          toast.error(t("attendance.check_out_failed", "Failed to check out")),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("attendance.check_out_failed", "Failed to check out"),
+            ),
+          ),
       },
     );
   }

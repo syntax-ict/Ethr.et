@@ -22,6 +22,7 @@ import {
 import { branchesApi, departmentsApi } from "@/features/organization/api";
 import { useBulkUpdateEmployees } from "@/features/employees/api";
 import { useT } from "@/lib/i18n/useT";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 type BulkField = "department_id" | "branch_id" | "status";
 
@@ -94,8 +95,13 @@ export function BulkActionsBar({
           closeDialog();
           onComplete();
         },
-        onError: () =>
-          toast.error(t("employees.bulk.failed", "Bulk update failed")),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("employees.bulk.failed", "Bulk update failed"),
+            ),
+          ),
       },
     );
   }

@@ -40,6 +40,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { localizedPeriodLabel } from "@/lib/calendar/period-label";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 type AccountEdit = Partial<
   Pick<ChartOfAccountsEntry, "account_code" | "account_name">
@@ -96,7 +97,10 @@ function ChartOfAccountsSection() {
           setEdits({});
           toast.success(t("accounting_page.chart_saved"));
         },
-        onError: () => toast.error(t("accounting_page.chart_save_failed")),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(err, t("accounting_page.chart_save_failed")),
+          ),
       },
     );
   }

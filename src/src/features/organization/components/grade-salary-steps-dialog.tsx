@@ -31,6 +31,7 @@ import {
 } from "@/features/organization/api";
 import { Award } from "lucide-react";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 interface StepValues {
   step: string;
@@ -116,7 +117,10 @@ export function GradeSalaryStepsDialog({
   function handleDelete(s: GradeSalaryStep) {
     deleteStep.mutate(s.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
-      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("org.delete_failed", "Delete failed")),
+        ),
     });
   }
 

@@ -63,6 +63,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const ORG_TABS = [
   "structure",
@@ -257,7 +258,10 @@ function BranchesTab() {
       return;
     deleteMut.mutate(b.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
-      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("org.delete_failed", "Delete failed")),
+        ),
     });
   }
 
@@ -557,7 +561,10 @@ function DepartmentsTab() {
       return;
     deleteMut.mutate(d.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
-      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("org.delete_failed", "Delete failed")),
+        ),
     });
   }
 
@@ -806,7 +813,10 @@ function TeamsTab() {
       return;
     deleteMut.mutate(tm.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
-      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("org.delete_failed", "Delete failed")),
+        ),
     });
   }
 
@@ -1005,7 +1015,10 @@ function PositionsTab() {
       return;
     deleteMut.mutate(p.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
-      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("org.delete_failed", "Delete failed")),
+        ),
     });
   }
 
@@ -1204,7 +1217,10 @@ function GradesTab() {
       return;
     deleteMut.mutate(g.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
-      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("org.delete_failed", "Delete failed")),
+        ),
     });
   }
 
@@ -1414,7 +1430,10 @@ function CostCentersTab() {
       return;
     deleteMut.mutate(c.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
-      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("org.delete_failed", "Delete failed")),
+        ),
     });
   }
 

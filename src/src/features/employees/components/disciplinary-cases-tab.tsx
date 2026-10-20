@@ -47,6 +47,7 @@ import {
   type DisciplinarySanctionType,
 } from "@/features/employees/api";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const CATEGORIES: DisciplinaryCategory[] = [
   "misconduct",
@@ -221,9 +222,12 @@ function CaseCard({
       { caseId: c.public_id, input: { note } },
       {
         onSuccess: () => setNoteText(""),
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            t("employee.discipline.note_failed", "Could not add note"),
+            apiErrorMessage(
+              err,
+              t("employee.discipline.note_failed", "Could not add note"),
+            ),
           ),
       },
     );
@@ -235,9 +239,12 @@ function CaseCard({
       {
         onSuccess: () =>
           toast.success(t("employee.discipline.closed", "Case closed")),
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            t("employee.discipline.close_failed", "Could not close case"),
+            apiErrorMessage(
+              err,
+              t("employee.discipline.close_failed", "Could not close case"),
+            ),
           ),
       },
     );
@@ -1012,9 +1019,15 @@ function ResolveAppealDialog({
           setNotes("");
           onOpenChange(false);
         },
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            t("employee.discipline.resolve_failed", "Could not resolve appeal"),
+            apiErrorMessage(
+              err,
+              t(
+                "employee.discipline.resolve_failed",
+                "Could not resolve appeal",
+              ),
+            ),
           ),
       },
     );

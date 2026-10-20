@@ -54,6 +54,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
 import { usePlanFeatures } from "@/features/auth/api";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const ABILITIES = [
   "read",
@@ -149,7 +150,8 @@ export default function ApiKeysPage() {
         toast.success(t("api_keys_page.key_revoked"));
         setRevoking(null);
       },
-      onError: () => toast.error(t("common.action_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("common.action_failed"))),
     });
   }
 

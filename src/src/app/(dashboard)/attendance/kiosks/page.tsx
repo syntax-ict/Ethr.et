@@ -56,6 +56,7 @@ import {
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 export default function KioskSessionsPage() {
   const { t } = useT();
@@ -102,7 +103,10 @@ export default function KioskSessionsPage() {
           }
           toast.success(t("attendance.kiosks_page.registered"));
         },
-        onError: () => toast.error(t("attendance.kiosks_page.register_failed")),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(err, t("attendance.kiosks_page.register_failed")),
+          ),
       },
     );
   }
@@ -117,11 +121,14 @@ export default function KioskSessionsPage() {
               ? t("attendance.kiosks_page.activated")
               : t("attendance.kiosks_page.deactivated"),
           ),
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            active
-              ? t("attendance.kiosks_page.activate_failed")
-              : t("attendance.kiosks_page.deactivate_failed"),
+            apiErrorMessage(
+              err,
+              active
+                ? t("attendance.kiosks_page.activate_failed")
+                : t("attendance.kiosks_page.deactivate_failed"),
+            ),
           ),
       },
     );
@@ -133,14 +140,20 @@ export default function KioskSessionsPage() {
         if (data.token) setShowToken(data.token);
         toast.success(t("attendance.kiosks_page.token_regenerated"));
       },
-      onError: () => toast.error(t("attendance.kiosks_page.regenerate_failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("attendance.kiosks_page.regenerate_failed")),
+        ),
     });
   }
 
   function handleDelete(publicId: string) {
     remove.mutate(publicId, {
       onSuccess: () => toast.success(t("attendance.kiosks_page.deleted")),
-      onError: () => toast.error(t("attendance.kiosks_page.delete_failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("attendance.kiosks_page.delete_failed")),
+        ),
     });
   }
 

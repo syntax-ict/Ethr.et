@@ -12,6 +12,7 @@ import {
 } from "@/features/profile/api";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { useT } from "@/lib/i18n/useT";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 /**
  * The employee's own answer to the attendance photo notice: read the notice,
@@ -41,8 +42,13 @@ export function PhotoConsentCard() {
                 "Withdrawn. No new attendance photo will be taken.",
               ),
         ),
-      onError: () =>
-        toast.error(t("common.action_failed", "That didn't work. Try again.")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t("common.action_failed", "That didn't work. Try again."),
+          ),
+        ),
     });
   }
 

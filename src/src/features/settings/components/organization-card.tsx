@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 /**
  * Organization profile — name, type, timezone, default language.
@@ -102,11 +103,14 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
           toast.success(
             t("settings.organization_saved", "Organization updated"),
           ),
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            t(
-              "settings.organization_save_failed",
-              "Failed to update organization",
+            apiErrorMessage(
+              err,
+              t(
+                "settings.organization_save_failed",
+                "Failed to update organization",
+              ),
             ),
           ),
       },

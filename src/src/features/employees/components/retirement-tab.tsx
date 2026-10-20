@@ -43,6 +43,7 @@ import {
   type RetirementType,
 } from "@/features/employees/api";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const RETIREMENT_TYPES: RetirementType[] = ["mandatory", "voluntary", "early"];
 
@@ -182,9 +183,12 @@ function CaseCard({
       { caseId: c.public_id, input: { note } },
       {
         onSuccess: () => setNoteText(""),
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            t("employee.retirement.note_failed", "Could not add note"),
+            apiErrorMessage(
+              err,
+              t("employee.retirement.note_failed", "Could not add note"),
+            ),
           ),
       },
     );

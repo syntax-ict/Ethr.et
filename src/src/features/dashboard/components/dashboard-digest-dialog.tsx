@@ -33,6 +33,7 @@ import {
   useDeleteDashboardDigest,
   type DigestFrequency,
 } from "@/features/dashboard/executive-api";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 /**
  * Phase 6.6 — schedule/list/cancel a recurring email KPI summary of the
@@ -85,9 +86,12 @@ export function DashboardDigestDialog({
           toast.success(t("digest_dialog.scheduled", "Digest scheduled"));
           setRecipients([]);
         },
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            t("digest_dialog.schedule_failed", "Could not schedule digest"),
+            apiErrorMessage(
+              err,
+              t("digest_dialog.schedule_failed", "Could not schedule digest"),
+            ),
           ),
       },
     );

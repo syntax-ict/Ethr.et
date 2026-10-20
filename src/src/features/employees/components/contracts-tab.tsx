@@ -42,6 +42,7 @@ import {
   type EmployeeContract,
 } from "@/features/employees/api";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const CONTRACT_TYPES: ContractType[] = [
   "probation",
@@ -147,9 +148,12 @@ function ContractCard({
       {
         onSuccess: () =>
           toast.success(t("employee.contracts.ended", "Contract ended")),
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            t("employee.contracts.end_failed", "Could not end contract"),
+            apiErrorMessage(
+              err,
+              t("employee.contracts.end_failed", "Could not end contract"),
+            ),
           ),
       },
     );

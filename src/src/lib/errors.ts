@@ -1,6 +1,7 @@
 import type { AxiosError } from "axios";
 import { toast } from "sonner";
 import type { ApiError } from "@/api/client";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 /**
  * axios's own `isAxiosError`, restated so this module imports no axios code.
@@ -69,9 +70,9 @@ export function toastError(
     return;
   }
 
-  if (isAxiosError<ApiError>(error) && error.response?.data?.detail) {
-    toast.error(error.response.data.detail);
-    return;
-  }
-  toast.error(fallback);
+  // One rule for every failure message in the app: the field's reason, else the
+  // problem's detail, else the fallback. This read `detail` alone, so a 422 here
+  // said "The given data was invalid." where `apiErrorMessage` names the field
+  // (FRONTEND_REDESIGN_PLAN.md, Phase 2: one error extractor).
+  toast.error(apiErrorMessage(error, fallback));
 }

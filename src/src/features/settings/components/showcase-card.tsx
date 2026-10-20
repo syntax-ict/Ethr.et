@@ -12,6 +12,7 @@ import {
   useShowcaseConsent,
   useUpdateShowcaseConsent,
 } from "@/features/settings/api";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 /**
  * Whether ETHR may name this organisation on its public site, under "Trusted
@@ -38,9 +39,12 @@ export function ShowcaseCard() {
                 "Your organisation will no longer appear on the ETHR website.",
               ),
         ),
-      onError: () =>
+      onError: (err) =>
         toast.error(
-          t("settings.showcase.failed", "Your choice could not be saved."),
+          apiErrorMessage(
+            err,
+            t("settings.showcase.failed", "Your choice could not be saved."),
+          ),
         ),
     });
   }

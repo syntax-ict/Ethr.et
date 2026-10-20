@@ -37,7 +37,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { saveCsv } from "@/lib/utils/csv-export";
-import { apiErrorDetail } from "@/lib/api/error-message";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 
 type Step = "upload" | "preview" | "importing" | "done";
 
@@ -128,8 +128,13 @@ export default function AttendanceImportPage() {
     template.mutate(undefined, {
       onSuccess: (data) =>
         saveCsv("attendance_import_template.csv", data.template),
-      onError: () =>
-        toast.error(t("attendance.import_page.template_download_failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t("attendance.import_page.template_download_failed"),
+          ),
+        ),
     });
   }
 

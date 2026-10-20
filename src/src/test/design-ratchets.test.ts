@@ -15,6 +15,9 @@ import { join, relative } from "node:path";
  * 2. Native `confirm()`. It cannot be translated, styled or keyboard-tested,
  *    and six of today's calls are literal English. `ConfirmDialog` (and the
  *    `useConfirm` hook the plan introduces) is the replacement.
+ * 3. An `onError` that takes no argument. It can only show a canned message,
+ *    so a 403, a 409 or a field's reason never reaches the person. Pass the
+ *    error to `apiErrorMessage(err, fallback)` instead. 79 on 2026-10-20, 0 after.
  */
 
 const SRC = join(process.cwd(), "src");
@@ -28,10 +31,12 @@ const SUB_12PX = /\btext-\[1[01]px\]/g;
 const NATIVE_CONFIRM = /(?:\bwindow\.|(?<![\w.$]))confirm\(/;
 const COMMENT_LINE = /^\s*(?:\/\/|\*|\/\*)/;
 const DECLARATION = /\bfunction\s+confirm\s*\(/;
+const DISCARDED_ERROR = /\bonError:\s*\(\s*\)\s*=>/g;
 
 const CEILINGS = {
   sub12pxText: 99,
   nativeConfirm: 0,
+  discardedErrors: 0,
 };
 
 function walk(dir: string): string[] {
@@ -90,5 +95,15 @@ describe("design ratchets", () => {
       total,
       `Native confirm() grew past the ceiling of ${CEILINGS.nativeConfirm}. Use ConfirmDialog, which is translated and keyboard-operable. Files:\n${byFile.join("\n")}`,
     ).toBeLessThanOrEqual(CEILINGS.nativeConfirm);
+  });
+
+  it(`has no more than ${CEILINGS.discardedErrors} onError handlers that drop the error`, () => {
+    const { total, byFile } = tally(
+      (line) => (line.match(DISCARDED_ERROR) ?? []).length,
+    );
+    expect(
+      total,
+      `An onError that takes no argument cannot show the server's reason. Use (err) => toast.error(apiErrorMessage(err, fallback)). Files:\n${byFile.join("\n")}`,
+    ).toBeLessThanOrEqual(CEILINGS.discardedErrors);
   });
 });

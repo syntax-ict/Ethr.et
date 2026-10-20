@@ -40,7 +40,7 @@ import { requestAttendanceSync } from "@/lib/hooks/useServiceWorker";
 import { tenantHeaderValue } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { captureSelfie } from "@/lib/uploads/selfie";
-import { apiErrorDetail } from "@/lib/api/error-message";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import {
   autoCheckInDecision,
   geofenceState,
@@ -701,11 +701,14 @@ export default function MobilePunchPage() {
             saving={updatePrefs.isPending}
             onChange={(change) =>
               updatePrefs.mutate(change, {
-                onError: () =>
+                onError: (err) =>
                   toast.error(
-                    t(
-                      "attendance.punch.save_failed",
-                      "Couldn't save that. Try again.",
+                    apiErrorMessage(
+                      err,
+                      t(
+                        "attendance.punch.save_failed",
+                        "Couldn't save that. Try again.",
+                      ),
                     ),
                   ),
               })

@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import { apiErrorDetail } from "@/lib/api/error-message";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -626,8 +626,13 @@ function TrackByCode() {
   function open() {
     track.mutate(code.trim(), {
       onSuccess: setConcern,
-      onError: () =>
-        toast.error(t("voice.code_not_found", "No concern matches that code")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t("voice.code_not_found", "No concern matches that code"),
+          ),
+        ),
     });
   }
 
