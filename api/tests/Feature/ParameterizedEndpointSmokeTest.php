@@ -147,6 +147,8 @@ test('parameterized GET api/v1 endpoints never 5xx with valid bound records', fu
         'size' => 'cover-640',
         // A story document's id: a well-formed ULID that names no file, so 404.
         'file' => '01JZZZZZZZZZZZZZZZZZZZZZZZ',
+        // A data export's id: well-formed, names no export, so 404.
+        'export' => '01JZZZZZZZZZZZZZZZZZZZZZZZ',
         'slot' => 'primary',
         // A statutory schedule of a payroll run: one of StatutorySchedules::SCHEDULES.
         'schedule' => 'income-tax',

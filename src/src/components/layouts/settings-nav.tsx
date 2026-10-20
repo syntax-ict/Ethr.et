@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Archive,
   SlidersHorizontal,
   Clock,
   Timer,
@@ -179,6 +180,12 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
           label: t("nav.audit_log", "Audit Log"),
           href: "/settings/audit-logs",
           icon: ScrollText,
+          show: can.manageSettings,
+        },
+        {
+          label: t("nav.data_export", "Data export"),
+          href: "/settings/data-export",
+          icon: Archive,
           show: can.manageSettings,
         },
       ],
