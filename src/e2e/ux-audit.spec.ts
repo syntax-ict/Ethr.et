@@ -225,6 +225,54 @@ const PHASES: Record<string, Route[]> = {
       role: "admin",
     },
   ],
+  // Added 2026-10-20 (docs/FRONTEND_REDESIGN_PLAN.md, Phase 1): the routes the
+  // sweep had never visited. Public and auth pages run as `admin` like phase 1;
+  // the reset, SSO-return and impersonation pages need a token in the URL and
+  // stay out, as does any route that writes on load.
+  "9": [
+    {
+      path: "/attendance/conflicts",
+      name: "attendance-conflicts",
+      role: "admin",
+    },
+    {
+      path: "/attendance/integrity",
+      name: "attendance-integrity",
+      role: "admin",
+    },
+    { path: "/attendance/photos", name: "attendance-photos", role: "admin" },
+    { path: "/payroll/cost-sharing", name: "cost-sharing", role: "admin" },
+    {
+      path: "/settings/api-keys/reference",
+      name: "api-keys-reference",
+      role: "admin",
+    },
+    { path: "/vacancies", name: "vacancies", role: "employee" },
+    { path: "/voice", name: "voice", role: "employee" },
+    { path: "/voice/insights", name: "voice-insights", role: "admin" },
+    { path: "/admin/plans", name: "admin-plans", role: "superadmin" },
+    { path: "/admin/sms", name: "admin-sms", role: "superadmin" },
+    { path: "/login/find", name: "login-find", role: "admin" },
+    { path: "/login/forgot", name: "login-forgot", role: "admin" },
+    { path: "/login/otp", name: "login-otp", role: "admin" },
+    { path: "/news", name: "news", role: "admin" },
+    { path: "/offline", name: "offline", role: "admin" },
+    { path: "/kiosk", name: "kiosk", role: "admin" },
+    { path: "/en/privacy", name: "privacy", role: "admin" },
+    { path: "/en/terms", name: "terms", role: "admin" },
+    { path: "/en/payroll-software", name: "solution-payroll", role: "admin" },
+    {
+      path: "/en/attendance-system",
+      name: "solution-attendance",
+      role: "admin",
+    },
+    { path: "/en/leave-management", name: "solution-leave", role: "admin" },
+    {
+      path: "/en/ethiopian-calendar-hr",
+      name: "solution-calendar",
+      role: "admin",
+    },
+  ],
 };
 
 const VIEWPORTS = [
