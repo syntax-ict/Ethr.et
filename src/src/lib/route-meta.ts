@@ -288,6 +288,18 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Roles & Permissions",
     description: "Manage custom roles and permission assignments",
   },
+  "/settings/users": {
+    section: "Admin",
+    parent: { label: "Settings", href: "/settings" },
+    label: "Users & Access",
+    description: "Invite people and manage their access",
+  },
+  "/settings/scim": {
+    section: "Admin",
+    parent: { label: "Settings", href: "/settings" },
+    label: "SCIM Provisioning",
+    description: "Automatic user provisioning from your identity provider",
+  },
   "/settings/api-keys": {
     section: "Admin",
     parent: { label: "Settings", href: "/settings" },
