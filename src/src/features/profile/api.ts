@@ -242,3 +242,29 @@ export function useGivePhotoConsent() {
 export function useWithdrawPhotoConsent() {
   return usePhotoConsentMutation("delete");
 }
+
+// ── Own documents (read-only) ───────────────────────────────────────────────
+
+// The list is `EmployeeDocumentResource` rows; the contract cannot see
+// through `->resolve()`, so the row type comes from the schema itself.
+export type MyDocument = components["schemas"]["EmployeeDocumentResource"];
+
+export function useMyDocuments() {
+  return useQuery<MyDocument[]>({
+    queryKey: ["profile", "documents"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: MyDocument[] }>(
+        "/profile/documents",
+      );
+      return data.data;
+    },
+  });
+}
+
+/** A short-lived link to one of the caller's own documents (audited). */
+export async function fetchMyDocumentLink(publicId: string): Promise<string> {
+  const { data } = await apiClient.get<{ download_url: string }>(
+    `/profile/documents/${publicId}`,
+  );
+  return data.download_url;
+}

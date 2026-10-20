@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { User, IdCard, Clock, ShieldCheck, Settings2 } from "lucide-react";
+import {
+  User,
+  IdCard,
+  Clock,
+  FileText,
+  ShieldCheck,
+  Settings2,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { useMyProfile } from "@/features/profile/api";
@@ -34,6 +41,12 @@ const TABS = [
     icon: Clock,
     key: "profile.tab.requests",
     label: "Change requests",
+  },
+  {
+    href: "/profile/documents",
+    icon: FileText,
+    key: "profile.tab.documents",
+    label: "Documents",
   },
   {
     href: "/profile/security",

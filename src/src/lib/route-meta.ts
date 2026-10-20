@@ -396,6 +396,11 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Change requests",
     description: "Changes to name, birth date, TIN and bank details",
   },
+  "/profile/documents": {
+    parent: { label: "My Profile", href: "/profile" },
+    label: "Documents",
+    description: "Your contract, certificates and other documents on file",
+  },
   "/profile/security": {
     parent: { label: "My Profile", href: "/profile" },
     label: "Security",

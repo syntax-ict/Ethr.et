@@ -6306,6 +6306,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List documents */
+        get: operations["profileDocument.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/documents/{document}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get document */
+        get: operations["profileDocument.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile-update-requests": {
         parameters: {
             query?: never;
@@ -27247,6 +27281,54 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "profileDocument.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "profileDocument.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        download_url: string;
+                        document: components["schemas"]["EmployeeDocumentResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "profileUpdateRequest.index": {
