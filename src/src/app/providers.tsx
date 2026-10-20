@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState, type ReactNode } from "react";
-import { Toaster } from "sonner";
+import { AppToaster } from "@/components/shared/app-toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useServiceWorker } from "@/lib/hooks/useServiceWorker";
 import { listenForInstallPrompt } from "@/lib/hooks/useInstallPrompt";
@@ -80,7 +80,7 @@ export function Providers({ children }: { children: ReactNode }) {
           <ServiceWorkerRegistrar />
           <HtmlLangSync />
           {children}
-          <Toaster richColors position="top-right" />
+          <AppToaster />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
