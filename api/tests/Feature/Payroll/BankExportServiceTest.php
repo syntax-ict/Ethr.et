@@ -100,7 +100,7 @@ describe('the bank export the run page downloads', function () {
     it('pays into the account marked primary, not the first on record', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
-        $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id]);
+        $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'status' => 'approved']);
         $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
         EmployeeBankDetail::create([

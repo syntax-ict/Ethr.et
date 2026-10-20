@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Payroll;
 
+use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
 use App\Enums\LeaveStatus;
 use App\Exceptions\PayrollRunRefused;
@@ -717,6 +718,9 @@ final class PayrollEngine
             $employee->branch_id,
         );
 
+        // A voided record is the loser of a merged duplicate: ConflictResolver
+        // sets its status and leaves its punches in place, so without the
+        // status predicate one shift's overtime was paid twice.
         $records = AttendanceRecord::query()
             ->withoutGlobalScope('tenant')
             ->where('employee_id', $employee->id)
@@ -724,6 +728,7 @@ final class PayrollEngine
             ->whereDate('date', '<=', $periodEnd->format('Y-m-d'))
             ->whereNotNull('check_in')
             ->whereNotNull('check_out')
+            ->where('status', '!=', AttendanceStatus::VOIDED)
             ->with('shift')
             ->get();
 

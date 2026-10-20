@@ -415,10 +415,14 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 {t("payroll_detail_page.export_register")}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportBankFile}>
-                <Landmark className="mr-2 h-4 w-4" />
-                {t("payroll_detail_page.export_bank")}
-              </DropdownMenuItem>
+              {/* A bank file is an instruction to pay, so the server builds
+                  one only for an approved run. */}
+              {run.status === "approved" && (
+                <DropdownMenuItem onClick={exportBankFile}>
+                  <Landmark className="mr-2 h-4 w-4" />
+                  {t("payroll_detail_page.export_bank")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={exportJournal}>
                 <BookOpen className="mr-2 h-4 w-4" />
                 {t("payroll_detail_page.export_journal")}
