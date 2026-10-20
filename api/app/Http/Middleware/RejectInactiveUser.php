@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Models\PersonalAccessToken;
+use App\Support\LeaverAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,6 +24,12 @@ final class RejectInactiveUser
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
+
+        // A leaver whose leaving date has now arrived is closed here, on the
+        // first request after it (LeaverAccess).
+        if ($user !== null && $user->status === 'active' && $user->employee_id !== null && LeaverAccess::hasLeft($user->employee)) {
+            LeaverAccess::close($user);
+        }
 
         if ($user !== null && $user->status !== 'active') {
             // A bearer token is revoked; under session-cookie auth there is

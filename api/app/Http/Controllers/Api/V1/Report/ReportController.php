@@ -37,9 +37,10 @@ class ReportController extends Controller
     public function generate(GenerateReportRequest $request): JsonResponse
     {
         Gate::authorize('report.generate');
+        $this->authorizeSource($request);
 
         $tenantId = app(CurrentTenant::class)->get()->id;
-        $result = $this->engine->generate($tenantId, $request->validated());
+        $result = $this->engine->generate($tenantId, $request->validated(), $request->user());
 
         return response()->json($result);
     }
@@ -47,15 +48,28 @@ class ReportController extends Controller
     public function export(GenerateReportRequest $request): Response
     {
         Gate::authorize('report.generate');
+        $this->authorizeSource($request);
 
         $tenantId = app(CurrentTenant::class)->get()->id;
         $format = $request->validated('format', 'csv');
-        $result = $this->engine->generate($tenantId, $request->validated());
+        $result = $this->engine->generate($tenantId, $request->validated(), $request->user());
         $filename = 'report-'.now()->format('Y-m-d-His');
 
         return $format === 'pdf'
             ? $this->exportPdf($result['data'], $filename)
             : $this->exportCsv($result['data'], $filename);
+    }
+
+    /**
+     * The payroll source is every payslip figure, so it needs payroll.viewAll
+     * as the payroll screens do. Refused here as well as filtered in the
+     * engine so the caller is told, not handed an empty report.
+     */
+    private function authorizeSource(GenerateReportRequest $request): void
+    {
+        if ($request->validated('source') === 'payroll') {
+            Gate::authorize('payroll.viewAll');
+        }
     }
 
     /** @param array<int, array<string, mixed>> $rows */

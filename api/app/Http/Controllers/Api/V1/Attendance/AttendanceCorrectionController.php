@@ -16,6 +16,7 @@ use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\AttendanceCorrectionRequestedNotification;
 use App\Services\Attendance\CorrectionDecisionService;
+use App\Services\Payroll\PayrollPeriodLock;
 use App\Traits\SendsNotifications;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -49,6 +50,7 @@ class AttendanceCorrectionController extends Controller
         $record = AttendanceRecord::where('public_id', $request->validated('attendance_record_public_id'))->firstOrFail();
 
         Gate::authorize('file', [AttendanceCorrection::class, $record]);
+        app(PayrollPeriodLock::class)->assertOpen($record->employee_id, $record->date);
 
         // The correction belongs to the employee whose punches it changes. It
         // used to take the filer's own employee id first, so HR filing on
@@ -209,6 +211,9 @@ class AttendanceCorrectionController extends Controller
         $diffMinutes = (int) ($proposedMinutes - $originalMinutes);
         $impactCents = (int) ($minuteRateCents * $diffMinutes);
         $hourlyRateCents = (int) ($minuteRateCents * 60);
+        // Until 2026-10-20 this answered `true` for every correction.
+        $inOpenPeriod = $record === null
+            || ! app(PayrollPeriodLock::class)->isClosed($record->employee_id, $record->date);
 
         return response()->json([
             'original_hours' => round($originalMinutes / 60, 2),
@@ -216,7 +221,7 @@ class AttendanceCorrectionController extends Controller
             'difference_minutes' => $diffMinutes,
             'estimated_impact_cents' => $impactCents,
             'hourly_rate_cents' => $hourlyRateCents,
-            'in_open_payroll_period' => true,
+            'in_open_payroll_period' => (bool) $inOpenPeriod,
             'currency' => 'ETB',
         ]);
     }

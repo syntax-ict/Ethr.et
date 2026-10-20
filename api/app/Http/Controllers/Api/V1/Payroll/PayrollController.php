@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Payroll;
 
 use App\Events\PayrollApproved;
 use App\Events\PayrollProcessed;
+use App\Exceptions\PayrollRunRefused;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payroll\ApprovePayrollRunRequest;
 use App\Http\Requests\Payroll\ProcessPayrollRequest;
@@ -18,6 +19,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
+use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\Payroll\BankExportService;
 use App\Services\Payroll\PayrollEngine;
@@ -149,12 +151,23 @@ class PayrollController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
+        // Maker-checker: the person who processed a run does not also release
+        // it while anyone else in the organisation can. An organisation whose
+        // only approver is that person is not left unable to pay its staff;
+        // the approval goes through and the audit row says it was their own.
+        $approver = $request->user();
+        $selfApproved = $payrollRun->processed_by !== null
+            && (int) $payrollRun->processed_by === (int) $approver->id;
+        if ($selfApproved && $this->anotherApproverExists($approver)) {
+            throw PayrollRunRefused::selfApproval();
+        }
+
         // Approval is where loan and cost-sharing balances move. The engine
         // re-checks the status under a lock and refuses, as a 422, a run whose
         // balances changed after it was calculated (PayrollRunRefused).
-        $payrollRun = $engine->approve($payrollRun, $request->user()->id);
+        $payrollRun = $engine->approve($payrollRun, $approver->id);
 
-        AuditLog::record('payroll.approved', $payrollRun);
+        AuditLog::record('payroll.approved', $payrollRun, $selfApproved ? ['self_approved' => true] : []);
         PayrollApproved::dispatch($payrollRun);
         $this->webhook($payrollRun->tenant_id, 'payroll.approved', [
             'public_id' => $payrollRun->public_id,
@@ -296,6 +309,7 @@ class PayrollController extends Controller
     public function downloadBankExport(PayrollRun $payrollRun, BankExportService $bankExportService): Response
     {
         $this->authorize('view', $payrollRun);
+        $this->ensureApprovedForPayment($payrollRun);
 
         $csv = $bankExportService->generateCsv($payrollRun);
         $filename = "bank-export-{$payrollRun->public_id}.csv";
@@ -393,6 +407,7 @@ class PayrollController extends Controller
     public function bankExport(PayrollRun $payrollRun, BankExportService $bankExportService): JsonResponse
     {
         $this->authorize('view', $payrollRun);
+        $this->ensureApprovedForPayment($payrollRun);
 
         $entries = PayrollEntry::query()
             ->where('payroll_run_id', $payrollRun->id)
@@ -420,5 +435,33 @@ class PayrollController extends Controller
             'total_amount_cents' => (int) $rows->sum('net_amount_cents'),
             'rows' => $rows,
         ]);
+    }
+
+    /**
+     * A bank file is an instruction to pay. Until 2026-10-20 both exports
+     * checked only `view`, so the file could be built for a draft or voided
+     * run and uploaded before anyone approved it (blueprint assessment D2).
+     * Thrown rather than returned so the response shapes Scramble publishes
+     * stay as they are; bootstrap/app.php renders it as a 422.
+     */
+    private function ensureApprovedForPayment(PayrollRun $payrollRun): void
+    {
+        if ($payrollRun->status !== 'approved') {
+            throw PayrollRunRefused::notApprovedForPayment();
+        }
+    }
+
+    /**
+     * Whether someone other than `$user` could approve this tenant's payroll:
+     * an active user holding `payroll.approve`, resolved the way
+     * hasPermission() resolves it, so a custom role counts.
+     */
+    private function anotherApproverExists(User $user): bool
+    {
+        return User::query()
+            ->where('status', 'active')
+            ->whereKeyNot($user->getKey())
+            ->get()
+            ->contains(fn (User $other) => $other->hasPermission('payroll.approve'));
     }
 }

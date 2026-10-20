@@ -322,7 +322,7 @@ test('a correction filed by one person can be approved by another', function () 
         ->assertJsonPath('status', 'approved');
 });
 
-test('supervisor can preview payroll impact of a pending correction', function () {
+test('HR can preview payroll impact of a pending correction', function () {
     $tenant = createTenant();
     [, $employee] = intelligenceCorrectionSupervisorWithReport($tenant, ['salary_cents' => 1_760_000]);
     $record = AttendanceRecord::factory()->create([
@@ -340,6 +340,10 @@ test('supervisor can preview payroll impact of a pending correction', function (
         'proposed_check_out' => Carbon::today()->setTime(17, 0),
         'status' => CorrectionStatus::PENDING,
     ]);
+
+    // HR, not the supervisor: the preview states the hourly rate, which is
+    // the salary over 176 hours (employee.viewFinancial, 2026-10-20).
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
     $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$correction->public_id}/payroll-impact");
 

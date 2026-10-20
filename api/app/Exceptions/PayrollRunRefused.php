@@ -38,6 +38,16 @@ class PayrollRunRefused extends RuntimeException
         return new self('https://ethr.et/errors/invalid-state', 'Invalid State', __('payroll.cannot_void'));
     }
 
+    public static function notApprovedForPayment(): self
+    {
+        return new self('https://ethr.et/errors/invalid-state', 'Invalid State', __('payroll.bank_export_not_approved'));
+    }
+
+    public static function selfApproval(): self
+    {
+        return new self('https://ethr.et/errors/payroll-self-approval', 'Second approver required', __('payroll.self_approval'));
+    }
+
     /** @param  list<string>  $employees */
     public static function balancesChanged(array $employees): self
     {

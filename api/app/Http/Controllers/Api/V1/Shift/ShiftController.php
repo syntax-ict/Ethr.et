@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Shift;
 
 use App\Enums\EmployeeStatus;
+use App\Enums\OrgScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Shift\AssignShiftRequest;
 use App\Http\Requests\Shift\StoreShiftRequest;
@@ -275,6 +276,19 @@ class ShiftController extends Controller
 
         $query = ShiftAssignment::query()
             ->with(ShiftAssignment::resourceRelations());
+
+        // Every role holds shift.viewAny, so a named employee's assignment is
+        // listed only to callers who reach that employee, as on every employee
+        // screen. Department and branch assignments name no one and stay
+        // visible. Until 2026-10-20 any employee could list everyone's
+        // (blueprint D7).
+        $user = $request->user();
+        if ($user->orgScope() !== OrgScope::ALL) {
+            $query->where(function ($q) use ($user) {
+                $q->where('assignable_type', '!=', Employee::class)
+                    ->orWhereIn('assignable_id', $user->scopeAccessibleEmployees(Employee::query())->select('id'));
+            });
+        }
 
         if ($request->filled('filter.date_from')) {
             $query->where(function ($q) use ($request) {

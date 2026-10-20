@@ -150,9 +150,26 @@ describe("<PayrollRunDetail> actions", () => {
 });
 
 describe("<PayrollRunDetail> exports", () => {
+  it("offers no bank transfer file before the run is approved", async () => {
+    server.use(me("finance_admin", ["payroll.viewAll"]));
+    const user = userEvent.setup();
+    renderDetail();
+
+    await user.click(await screen.findByRole("button", { name: /Export/ }));
+    expect(
+      await screen.findByRole("menuitem", { name: /Payroll Register/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: /Bank Transfer/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("writes the bank transfer file with each amount in one column", async () => {
     server.use(
       me("finance_admin", ["payroll.viewAll"]),
+      http.get("*/api/v1/payroll/runs/RUN1", () =>
+        HttpResponse.json({ ...RUN, status: "approved" }),
+      ),
       http.get("*/api/v1/payroll/runs/RUN1/export/bank", () =>
         HttpResponse.json({
           period: "Meskerem 2019",

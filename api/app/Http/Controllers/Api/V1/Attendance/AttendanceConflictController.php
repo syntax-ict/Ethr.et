@@ -12,6 +12,7 @@ use App\Http\Requests\Attendance\ResolveConflictRequest;
 use App\Http\Resources\AttendanceConflictResource;
 use App\Models\AttendanceConflict;
 use App\Models\AuditLog;
+use App\Services\Payroll\PayrollPeriodLock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -80,6 +81,12 @@ class AttendanceConflictController extends Controller
 
         $resolution = ConflictResolutionStatus::from($request->validated('resolution'));
         $user = $request->user();
+
+        // Voiding either record of a paid day would change what a reprocess pays.
+        $subject = $conflict->recordA ?? $conflict->recordB;
+        if ($subject !== null && in_array($resolution, [ConflictResolutionStatus::KEEP_A, ConflictResolutionStatus::KEEP_B], true)) {
+            app(PayrollPeriodLock::class)->assertOpen($subject->employee_id, $subject->date);
+        }
 
         $conflict->update([
             'resolution' => $resolution,
