@@ -27,4 +27,22 @@ return [
     'device_action' => 'View device status',
 
     // Billing
+    // In-app notifications, rendered in the recipient's language when sent
+    // (User::preferredLocale). Each carries a `url` the notification opens.
+    'inapp' => [
+        'approval_reminder' => 'You have :count approvals waiting. The oldest has waited :hours hours.',
+        'attendance_anomaly' => 'Attendance anomaly for :name: :type',
+        'correction_approved' => 'Your attendance correction for :date was approved.',
+        'correction_rejected' => 'Your attendance correction for :date was rejected.',
+        'correction_requested' => ':name asked for an attendance correction.',
+        'device_offline' => 'Device ":name" has gone offline.',
+        'leave_approved' => 'Your leave request was approved.',
+        'leave_rejected' => 'Your leave request was rejected.',
+        'leave_requested' => ':name asked for leave.',
+        'missing_check_in' => ':name did not check in on :date.',
+        'missing_check_out' => ':name did not check out on :date.',
+        'payroll_processed' => 'Payroll for :period has been calculated.',
+        'payslip_available' => 'Your payslip for :period is ready.',
+        'trial_expiring' => 'Your trial ends in :days day. Choose a plan to keep using ETHR.|Your trial ends in :days days. Choose a plan to keep using ETHR.',
+    ],
 ];

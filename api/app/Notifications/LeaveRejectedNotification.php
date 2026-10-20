@@ -43,7 +43,8 @@ class LeaveRejectedNotification extends Notification
             'start_date' => $this->leaveRequest->start_date->format('Y-m-d'),
             'end_date' => $this->leaveRequest->end_date->format('Y-m-d'),
             'reason' => $this->leaveRequest->rejected_reason,
-            'message' => 'Your leave request has been rejected',
+            'message' => __('notification.inapp.leave_rejected'),
+            'url' => '/leave',
         ];
     }
 

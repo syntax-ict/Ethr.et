@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +16,7 @@ import {
   useMarkAsRead,
   useMarkAllAsRead,
   notificationText,
+  notificationLink,
   type Notification,
 } from "../api";
 import { cn } from "@/lib/utils";
@@ -27,6 +29,7 @@ export function NotificationBell() {
   const { data: unread } = useUnreadCount();
   const { data: notifData } = useNotifications({ page: 1 });
   const markRead = useMarkAsRead();
+  const router = useRouter();
   const markAllRead = useMarkAllAsRead();
 
   const notifications = (notifData?.data ?? []).slice(0, 5);
@@ -83,6 +86,8 @@ export function NotificationBell() {
                 )}
                 onClick={() => {
                   if (!n.read_at) markRead.mutate(n.id);
+                  const link = notificationLink(n);
+                  if (link) router.push(link);
                 }}
               >
                 <div
@@ -98,7 +103,8 @@ export function NotificationBell() {
                       !n.read_at && "font-medium",
                     )}
                   >
-                    {notificationText(n) ?? "New notification"}
+                    {notificationText(n) ??
+                      t("common.new_notification", "New notification")}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {timeAgo(n.created_at)}

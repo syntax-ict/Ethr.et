@@ -34,6 +34,7 @@ class AnnouncementNotification extends Notification
             'title' => $this->announcement->title,
             'priority' => $this->announcement->priority,
             'message' => $this->announcement->title,
+            'url' => '/announcements',
         ];
     }
 }

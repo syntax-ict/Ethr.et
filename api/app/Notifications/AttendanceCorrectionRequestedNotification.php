@@ -43,7 +43,8 @@ class AttendanceCorrectionRequestedNotification extends Notification
             'correction_id' => $this->correction->public_id,
             'employee_name' => $this->correction->employee?->name,
             'date' => $date?->format('Y-m-d'),
-            'message' => 'Attendance correction request pending your review',
+            'message' => __('notification.inapp.correction_requested', ['name' => (string) $this->correction->employee?->name]),
+            'url' => '/approvals',
         ];
     }
 }

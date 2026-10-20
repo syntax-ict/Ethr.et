@@ -59,6 +59,7 @@ class PayrollRunFailedNotification extends Notification
                 'period' => (string) $this->payrollRun->period_label,
                 'reason' => $this->reason,
             ]),
+            'url' => '/payroll/'.$this->payrollRun->public_id,
         ];
     }
 

@@ -27,4 +27,22 @@ return [
     'device_action' => 'የመሣሪያ ሁኔታ ይመልከቱ',
 
     // Billing
+    // In-app notifications, rendered in the recipient's language when sent
+    // (User::preferredLocale). Each carries a `url` the notification opens.
+    'inapp' => [
+        'approval_reminder' => ':count የሚጠብቁ ማጽደቂያዎች አሉዎት። በጣም የቆየው :hours ሰዓት ጠብቋል።',
+        'attendance_anomaly' => 'የ:name የመገኘት ያልተለመደ ሁኔታ፦ :type',
+        'correction_approved' => 'የ:date የመገኘት ማስተካከያ ጥያቄዎ ጸድቋል።',
+        'correction_rejected' => 'የ:date የመገኘት ማስተካከያ ጥያቄዎ ውድቅ ተደርጓል።',
+        'correction_requested' => ':name የመገኘት ማስተካከያ ጠይቀዋል።',
+        'device_offline' => '":name" መሣሪያ ከመስመር ውጭ ሆኗል።',
+        'leave_approved' => 'የፈቃድ ጥያቄዎ ጸድቋል።',
+        'leave_rejected' => 'የፈቃድ ጥያቄዎ ውድቅ ተደርጓል።',
+        'leave_requested' => ':name ፈቃድ ጠይቀዋል።',
+        'missing_check_in' => ':name በ:date አልገቡም።',
+        'missing_check_out' => ':name በ:date አልወጡም።',
+        'payroll_processed' => 'የ:period ደመወዝ ተሰልቷል።',
+        'payslip_available' => 'የ:period የደመወዝ ወረቀትዎ ዝግጁ ነው።',
+        'trial_expiring' => 'የሙከራ ጊዜዎ በ:days ቀን ውስጥ ያበቃል። ETHRን መጠቀም ለመቀጠል ዕቅድ ይምረጡ።',
+    ],
 ];

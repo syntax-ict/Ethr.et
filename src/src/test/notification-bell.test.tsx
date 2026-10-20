@@ -4,6 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+}));
+
 // Mock the API hooks
 vi.mock("@/features/notifications/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/notifications/api")>()),
