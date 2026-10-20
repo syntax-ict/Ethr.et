@@ -87,10 +87,11 @@ describe("search-intent pages", () => {
 
   it("claims no device brand and no biometric hardware", () => {
     // The capability audit (2026-10-17): ETHR names no terminal vendor and does
-    // not sell fingerprint or face hardware. A page written to rank is where
-    // that claim would be most tempting, so it is pinned here.
+    // not sell fingerprint or face hardware. Pinned over every public marketing
+    // string, not only the solution pages: the landing hero said "Fingerprint"
+    // for a week before the 2026-10-20 audit caught it.
     const copy = Object.entries({ ...EN })
-      .filter(([k]) => k.startsWith("marketing.solutions."))
+      .filter(([k]) => k.startsWith("marketing."))
       .map(([, v]) => v)
       .join(" ");
     expect(copy).not.toMatch(/zkteco|hikvision|suprema|biometric|fingerprint/i);
