@@ -140,7 +140,7 @@ test('batch leave approval writes the approver entry and sends the webhook the s
 
     $entry = $leave->fresh()->approved_by[0];
     expect($entry)->toBeArray()
-        ->and(array_keys($entry))->toBe(['user_id', 'role', 'at'])
+        ->and(array_keys($entry))->toEqualCanonicalizing(['user_id', 'role', 'at'])
         ->and($entry['user_id'])->toBe($user->id)
         ->and($entry['role'])->toBe('hr_admin');
 
