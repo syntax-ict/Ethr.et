@@ -7578,6 +7578,8 @@ export interface components {
             accrual_type: string;
             carry_forward: boolean;
             max_carry_days: number | null;
+            seniority_every_years: number | null;
+            seniority_extra_days: number | null;
             requires_approval: boolean;
             requires_attachment: boolean;
             min_notice_days: number;
@@ -8625,6 +8627,8 @@ export interface components {
             accrual_type: components["schemas"]["AccrualType"];
             carry_forward?: boolean | null;
             max_carry_days?: number | null;
+            seniority_every_years?: number | null;
+            seniority_extra_days?: number | null;
             requires_approval?: boolean | null;
             requires_attachment?: boolean | null;
             min_notice_days?: number | null;
@@ -9259,6 +9263,8 @@ export interface components {
             accrual_type?: components["schemas"]["AccrualType"];
             carry_forward?: boolean;
             max_carry_days?: number | null;
+            seniority_every_years?: number | null;
+            seniority_extra_days?: number | null;
             requires_approval?: boolean;
             requires_attachment?: boolean;
             min_notice_days?: number;

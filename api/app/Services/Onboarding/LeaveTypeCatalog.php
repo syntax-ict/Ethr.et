@@ -27,6 +27,9 @@ final class LeaveTypeCatalog
             'accrual_type' => 'monthly',
             'carry_forward' => true,
             'max_carry_days' => 16,
+            // Art. 77(1): one more working day for every additional two years.
+            'seniority_every_years' => 2,
+            'seniority_extra_days' => 1,
             'is_paid' => true,
             'min_notice_days' => 7,
             'sort_order' => 10,
@@ -157,6 +160,8 @@ final class LeaveTypeCatalog
             'name_am' => null,
             'carry_forward' => false,
             'max_carry_days' => null,
+            'seniority_every_years' => null,
+            'seniority_extra_days' => null,
             'requires_approval' => true,
             'requires_attachment' => false,
             'min_notice_days' => 0,
