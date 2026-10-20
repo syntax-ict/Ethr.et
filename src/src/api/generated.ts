@@ -19155,6 +19155,7 @@ export interface operations {
                             "payroll_processed",
                             "announcement",
                             "approval_reminder",
+                            "expiry_reminder",
                             "profile_update",
                             "employee_voice"
                         ];
@@ -19213,6 +19214,7 @@ export interface operations {
                             "payroll_processed",
                             "announcement",
                             "approval_reminder",
+                            "expiry_reminder",
                             "profile_update",
                             "employee_voice"
                         ];
