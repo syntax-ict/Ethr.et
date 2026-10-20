@@ -35,6 +35,7 @@ breaks silently on a different domain.
 |---|---|---|
 | **Web server** | XAMPP Apache 2.4.58, port **8081**, its own config | Plesk Apache behind nginx, port 443 |
 | **PHP** | `mod_cgi` + `Action` → `php-cgi` (`cgi-fcgi`) | **`fpm-fcgi`** — measured on the host |
+| **Compression** | `mod_brotli` on HTML, CSS, JS, JSON and SVG (since 2026-10-20) | nginx answers with `Content-Encoding: br` — measured on www.ethr.et, HTML and JS chunks alike |
 | **Document root** | `.local-production/app/api/public/` | `ethr/api/public` — set on purpose since 2026-10-06 (Laravel Toolkit). **Exactly that value: `ethr` or `ethr/api` would serve `.env`** |
 | **App root** | `.local-production/app/` — the release, deployed over it | `<APP_ROOT>` — `~/ethr/`, Plesk Git's deploy path; the document root is its `api/public` |
 | **Database** | MariaDB 10.4.32, `ethr_local_prod` / `ethr_localprod` | `<DB_NAME>` / `<DB_USER>`, version **unverified (G0-I)** |
@@ -220,6 +221,11 @@ over-read:
 - **`fpm-fcgi` behaviour** — this is CGI, one process per request. Request-level
   behaviour is exercised; process-lifecycle behaviour is not.
 - **M6** — a restore rehearsal here is not a rehearsal on the host.
+- **Compression** — Apache's `mod_brotli` here, nginx on the host. Same encoding, a
+  different implementation: byte counts are comparable, compression levels are not
+  measured. Until 2026-10-20 the rehearsal sent everything uncompressed and the first
+  authenticated Lighthouse run measured that rather than the product
+  (`BASELINE.md` §24); `verify.sh` now checks a chunk for `Content-Encoding: br`.
 
 ## Related
 

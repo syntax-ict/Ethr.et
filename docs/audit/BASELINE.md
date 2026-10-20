@@ -3936,3 +3936,94 @@ case:
 `CUTOVER-CHECKLIST.md` is unchanged by anything in this section and
 `./scripts/gates.sh evidence` still lists all eleven host gates as outstanding. What this
 section buys is narrower and real: **the procedure runs, and five defects in it are gone.**
+
+## 24. Authenticated pages — first baseline, **measured 2026-10-20**
+
+§18 measured what an anonymous visitor reaches and said so. Until today **no page a
+signed-in person works in had ever been measured**. `docs/FRONTEND_REDESIGN_PLAN.md`
+makes this baseline a precondition of Phase 2, so the figures below exist to be
+compared against, not to pass anything.
+
+**How.** `scripts/lighthouse-authenticated.sh` against the local-production
+rehearsal (`up.sh`, static export on Apache, demo tenant seeded with
+`DemoTenantSeeder`, admin account). Playwright's global setup signs in and saves
+the browser state; `src/scripts/lhci-prime.cjs` restores its cookies and
+`localStorage` before every run, because the app's language lives in
+`localStorage` and a cookie alone measures the Amharic default. Lighthouse's own
+storage reset stays on: it clears the HTTP cache and service workers but not
+cookies or `localStorage`, so each run is a **cold load of a signed-in page**. Three
+runs per URL, medians, simulated throttling. Every run's final URL was checked to
+be the page asked for, not `/login`.
+
+### Desktop preset
+
+| route | perf | a11y | bp | FCP | LCP | TBT | CLS | transfer |
+|---|---|---|---|---|---|---|---|---|
+| `/dashboard` | 70 | 100 | 100 | 496 ms | 1,677 ms | 310 ms | 0.160 | 880 KB |
+| `/employees` | 82 | 100 | 100 | 481 ms | 1,414 ms | 285 ms | 0.012 | 921 KB |
+| `/attendance` | 89 | 100 | 100 | 487 ms | 1,387 ms | 144 ms | 0.009 | 912 KB |
+| `/leave` | 90 | 98 | 100 | 497 ms | 1,410 ms | 163 ms | 0.041 | 864 KB |
+| `/payroll` | 86 | 100 | 100 | 479 ms | 1,660 ms | 196 ms | 0.009 | 883 KB |
+| `/settings` | 71 | 100 | 96 | 475 ms | 2,375 ms | 312 ms | 0.009 | 980 KB |
+
+### Mobile (Lighthouse default, no preset)
+
+| route | perf | FCP | LCP | TBT | CLS | transfer |
+|---|---|---|---|---|---|---|
+| `/dashboard` | 35 | 1,995 ms | 6,849 ms | 1,809 ms | 0.187 | 839 KB |
+| `/employees` | 45 | 1,080 ms | 6,587 ms | 1,315 ms | 0.110 | 865 KB |
+| `/attendance` | 49 | 1,076 ms | 6,467 ms | 1,255 ms | 0 | 870 KB |
+| `/leave` | 35 | 1,998 ms | 6,620 ms | 1,015 ms | 0.264 | 823 KB |
+| `/payroll` | 45 | 1,077 ms | 7,464 ms | 1,225 ms | 0 | 838 KB |
+| `/settings` | 40 | 1,994 ms | 7,891 ms | 1,728 ms | 0 | 873 KB |
+
+JavaScript is **528 to 567 KB compressed on every route**, in about 62 scripts; the
+largest single chunk is 133 KB. The weight barely varies by page, which is the
+signature of shared code rather than per-route code.
+
+### What these figures do and do not say
+
+- **The JS weight and TBT are product facts.** They do not depend on the server.
+  Mobile TBT of 1.0 to 1.8 s on every page is the headline: the main thread is busy
+  for longer than `docs/CLAUDE.md`'s whole 1.5 s dashboard budget.
+- **CLS is a product fact too.** `/leave` 0.264 and `/dashboard` 0.187 on mobile are
+  above Lighthouse's 0.25 and 0.1 thresholds respectively; the dashboard's comes from
+  cards that load after the frame.
+- **LCP is pessimistic, and by how much is not known.** On every route the LCP element
+  is text, mostly text that arrives with data, and its time is about 90% render
+  delay. The rehearsal runs PHP as CGI, one process per request (§23d), and the
+  dashboard's ten API calls took a median of **2.8 s** each. A read-only ping from the
+  same machine, five tries each, answered in 0.6 to 2.6 s here and **0.5 to 0.8 s on
+  www.ethr.et**, network included. So production's API is faster, and LCP there should
+  be lower; this baseline cannot say by how much, and nothing here measures production
+  authenticated pages.
+- **Against `docs/CLAUDE.md` → Performance Targets**, the 1.5 s dashboard load fails on
+  mobile by any reading of these numbers, and on desktop LCP is 1.7 s.
+
+### A correction made before recording: the rehearsal was not compressing
+
+The first full run reported **2.4 MB** of transfer per page and mobile LCP of
+**14.5 to 16.8 s**. The cause was the harness, not the product: `up.sh` loaded no
+compression module, so every chunk went out raw, while production's nginx answers
+HTML and JS alike with `Content-Encoding: br` (measured the same day). `up.sh` now
+loads `mod_brotli`, and `verify.sh` checks a chunk for `br` (52 checks, 0 failed).
+The figures above are from the compressed rehearsal. Both report sets are kept
+outside the repository, with the uncompressed one labelled as such.
+
+An earlier attempt was wrong in the other direction: with `disableStorageReset` the
+session survived but so did the HTTP cache, and the "cold" dashboard weighed 17 KB.
+Hence the note on storage reset above.
+
+### Where the evidence is
+
+Full Lighthouse reports and the screenshot baseline are in `F:\ethr-baselines\2026-10-20\`
+on the owner's machine. The plan forbids adding baselines to the repository in this
+phase, and a storage location has not been agreed. Re-running is one command once the
+rehearsal is up:
+
+```bash
+PW_CHANNEL=chrome scripts/lighthouse-authenticated.sh
+```
+
+`PW_CHANNEL=chrome` uses the installed Chrome where Playwright's own browser is not
+downloaded. Phase 5 compares against this table; budgets are added only then.

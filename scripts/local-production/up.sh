@@ -349,6 +349,18 @@ LoadModule alias_module modules/mod_alias.so
 LoadModule cgi_module modules/mod_cgi.so
 LoadModule actions_module modules/mod_actions.so
 
+# Compression. Production sits behind Plesk's nginx, which answers every text
+# response with Content-Encoding: br (measured 2026-10-20 on www.ethr.et: the
+# HTML and the JS chunks alike). Without this the rehearsal sent 2.4 MB of
+# uncompressed script per signed-in page, and the first authenticated
+# Lighthouse baseline measured the harness rather than the product: mobile
+# LCP 14.8 s against a production download about a third of that size
+# (BASELINE.md section 24). Brotli, as on the host; mod_filter is what
+# AddOutputFilterByType needs. Images are already compressed and are left out.
+LoadModule filter_module modules/mod_filter.so
+LoadModule brotli_module modules/mod_brotli.so
+AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/javascript application/javascript application/json application/manifest+json image/svg+xml
+
 # PHP via mod_cgi + Action, NOT mod_php and NOT mod_proxy_fcgi. Three measurements
 # on 2026-09-27 produced that choice, and the trail is worth keeping because each
 # failure looked like something else:

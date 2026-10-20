@@ -214,6 +214,19 @@ else
     printf '  \033[31mFAIL\033[0m  %-52s %s\n' "/sw.js caching" "$(printf '%s' "$swh" | grep -i '^Cache-Control' | tr -d '\r')"; fail=$((fail+1))
 fi
 
+# Compression. Production answers through Plesk's nginx with Content-Encoding: br
+# on HTML and JS alike (measured 2026-10-20 on www.ethr.et). The rehearsal must
+# too, or a Lighthouse figure taken here measures 2.4 MB of uncompressed script
+# that the host never sends: the first authenticated baseline did exactly that
+# (BASELINE.md section 24). up.sh loads mod_brotli for this check to pass.
+chunk="$(curl -s --max-time 15 "$BASE/" | grep -oE '/_next/static/chunks/[^"]+\.js' | head -1)"
+enc="$(curl -s -o /dev/null -D - --max-time 15 -H 'Accept-Encoding: gzip, br' "$BASE$chunk" | grep -i '^Content-Encoding' | tr -d '\r')"
+if [ -n "$chunk" ] && printf '%s' "$enc" | grep -qi 'br'; then
+    printf '  \033[32mok\033[0m    %-52s %s\n' "a JS chunk is served compressed" "$enc"; pass=$((pass+1))
+else
+    printf '  \033[31mFAIL\033[0m  %-52s %s\n' "a JS chunk is served compressed" "${enc:-no Content-Encoding} (chunk: ${chunk:-none found})"; fail=$((fail+1))
+fi
+
 printf '\n\033[1m9 · the application root is not web-reachable\033[0m\n'
 # With the document root at api/public, .env is ONE level up: the closest it has
 # ever been. Encoded and plain traversal must both fail to reach it.
