@@ -31,7 +31,7 @@ const DECLARATION = /\bfunction\s+confirm\s*\(/;
 
 const CEILINGS = {
   sub12pxText: 99,
-  nativeConfirm: 13,
+  nativeConfirm: 0,
 };
 
 function walk(dir: string): string[] {

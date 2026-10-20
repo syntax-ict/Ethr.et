@@ -54,6 +54,7 @@ import {
 import { todayIso, toHHMM } from "@/features/shifts/dates";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import { apiErrorDetail } from "@/lib/api/error-message";
 
@@ -98,6 +99,7 @@ type AssignValues = z.infer<typeof assignSchema>;
 
 export default function ShiftsPage() {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { hasPermission } = usePermissions();
   // `shift.delete` is tenant-admin only; HR admins reach this page without it.
   const canDelete = hasPermission("shift.delete");
@@ -168,8 +170,15 @@ export default function ShiftsPage() {
     assignForm.reset();
   }
 
-  function remove(publicId: string) {
-    if (!confirm(t("shifts_settings_page.delete_confirm"))) return;
+  async function remove(publicId: string) {
+    if (
+      !(await requestConfirm({
+        title: t("shifts_settings_page.delete_confirm"),
+        confirmLabel: t("common.delete", "Delete"),
+        variant: "destructive",
+      }))
+    )
+      return;
 
     deleteShift.mutate(publicId, {
       onSuccess: () => toast.success(t("shifts_settings_page.deleted")),
@@ -738,6 +747,7 @@ export default function ShiftsPage() {
           </DialogContent>
         </Dialog>
       </div>
+      {confirmDialog}
     </RoleGate>
   );
 }
