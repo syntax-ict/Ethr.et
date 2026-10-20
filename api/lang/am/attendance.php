@@ -12,6 +12,8 @@ return [
     'geofence_location_required' => 'ጂኦፌንስ ሲነቃ GPS አካባቢ ያስፈልጋል።',
     'outside_geofence' => 'ከተፈቀደው ክልል ውጪ ነዎት። እባክዎ ወደ ቅርንጫፍ ቦታዎ ይቅረቡ።',
     'conflict_already_resolved' => 'ይህ ግጭት ቀድሞውኑ ተፈትቷል።',
+    'payroll_period_closed' => 'ይህ ቀን በጸደቀ የደመወዝ አሂድ ውስጥ ስለሆነ የመገኘት መረጃው ሊቀየር አይችልም። እንደገና ለመክፈት መጀመሪያ አሂዱን ይሰርዙ።',
+    'import_row_payroll_closed' => 'ረድፍ :row፦ ይህ ቀን በጸደቀ የደመወዝ አሂድ ውስጥ ስለሆነ አልገባም።',
     'offline_not_own' => 'ማመሳሰል የሚችሉት የራስዎን መገኘት ብቻ ነው።',
     'offline_outside_window' => 'ይህ መግቢያ ከ:days ቀናት በፊት ወይም ለወደፊት ቀን ስለተመዘገበ ሊመሳሰል አይችልም። የሰው ሀብት ክፍል እንዲያስገባው ይጠይቁ።',
     'auto_checkout' => [

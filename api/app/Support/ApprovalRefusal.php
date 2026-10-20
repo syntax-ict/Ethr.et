@@ -33,6 +33,11 @@ final readonly class ApprovalRefusal
         return new self(403, 'https://ethr.et/errors/self-approval', 'Self-Approval Forbidden', $detail);
     }
 
+    public static function payrollPeriodClosed(string $detail): self
+    {
+        return new self(422, 'https://ethr.et/errors/payroll-period-closed', 'Payroll period closed', $detail);
+    }
+
     public function toResponse(): JsonResponse
     {
         return response()->json([

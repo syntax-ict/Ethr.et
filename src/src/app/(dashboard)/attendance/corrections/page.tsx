@@ -58,6 +58,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorDetail } from "@/lib/api/error-message";
 
 /**
  * Each tab is gated on the ability its endpoint checks.
@@ -327,7 +328,10 @@ function PendingReviewsTab({ canDecide }: { canDecide: boolean }) {
   function approve(publicId: string) {
     approveMut.mutate(publicId, {
       onSuccess: () => toast.success(t("attendance.corrections.approved")),
-      onError: () => toast.error(t("attendance.corrections.approve_failed")),
+      onError: (err: unknown) =>
+        toast.error(
+          apiErrorDetail(err) || t("attendance.corrections.approve_failed"),
+        ),
     });
   }
 
@@ -582,7 +586,10 @@ function RequestDialog({
           onClose();
           setForm(EMPTY_FORM);
         },
-        onError: () => toast.error(t("attendance.corrections.submit_failed")),
+        onError: (err: unknown) =>
+          toast.error(
+            apiErrorDetail(err) || t("attendance.corrections.submit_failed"),
+          ),
       },
     );
   }

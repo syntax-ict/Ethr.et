@@ -9,6 +9,7 @@ use App\Enums\AttendanceStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Services\CurrentTenant;
+use App\Services\Payroll\PayrollPeriodLock;
 use App\Support\Csv;
 use App\Support\TenantTime;
 use Carbon\Carbon;
@@ -16,6 +17,8 @@ use Illuminate\Http\UploadedFile;
 
 final class AttendanceImporter
 {
+    public function __construct(private readonly PayrollPeriodLock $periodLock) {}
+
     public function templateCsv(): string
     {
         return "employee_code,date,check_in_time,check_out_time\n";
@@ -135,6 +138,11 @@ final class AttendanceImporter
             // the app zone (UTC) every imported punch was three hours late in
             // Addis Ababa. The `date` column stays the local working day.
             $date = Carbon::parse($row['date'])->format('Y-m-d');
+            if ($this->periodLock->isClosed($employee->id, $date)) {
+                $errors[] = __('attendance.import_row_payroll_closed', ['row' => $i]);
+
+                continue;
+            }
             $checkIn = TenantTime::wallClockToUtc($date, $row['check_in'], $zone);
             $checkOut = ! empty($row['check_out']) ? TenantTime::wallClockToUtc($date, $row['check_out'], $zone) : null;
 
