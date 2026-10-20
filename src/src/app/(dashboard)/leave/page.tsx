@@ -55,6 +55,7 @@ import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
 import { apiErrorDetail } from "@/lib/api/error-message";
@@ -221,6 +222,7 @@ export default function LeavePage() {
 
 function MyLeaveTab() {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const [page, setPage] = useState(1);
   const { data: balances, isLoading: balancesLoading } = useLeaveBalance();
   const { data: requests, isLoading: requestsLoading } = useMyLeaveRequests({
@@ -325,8 +327,14 @@ function MyLeaveTab() {
                       size="sm"
                       variant="ghost"
                       className="h-7 text-muted-foreground hover:text-destructive"
-                      onClick={() => {
-                        if (confirm(t("leave_page.withdraw_confirm"))) {
+                      onClick={async () => {
+                        if (
+                          await requestConfirm({
+                            title: t("leave_page.withdraw_confirm"),
+                            confirmLabel: t("leave_page.withdraw"),
+                            variant: "destructive",
+                          })
+                        ) {
                           cancelLeave.mutate(req.public_id, {
                             onSuccess: () =>
                               toast.success(t("leave_page.withdrawn")),
@@ -355,6 +363,7 @@ function MyLeaveTab() {
           )}
         </CardContent>
       </Card>
+      {confirmDialog}
     </>
   );
 }

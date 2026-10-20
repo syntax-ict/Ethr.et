@@ -45,6 +45,7 @@ import {
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { toast } from "sonner";
@@ -177,10 +178,17 @@ function RoleCard({
   onEdit: (role: CustomRole) => void;
 }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const deleteRole = useDeleteCustomRole();
 
-  function handleDelete() {
-    if (!confirm(`${t("roles_page.delete_confirm_prefix")} "${role.name}"?`))
+  async function handleDelete() {
+    if (
+      !(await requestConfirm({
+        title: t("roles_page.delete_confirm", undefined, { name: role.name }),
+        confirmLabel: t("common.delete", "Delete"),
+        variant: "destructive",
+      }))
+    )
       return;
     deleteRole.mutate(role.public_id, {
       onSuccess: () =>
@@ -239,6 +247,7 @@ function RoleCard({
           </Button>
         </div>
       </CardContent>
+      {confirmDialog}
     </Card>
   );
 }
