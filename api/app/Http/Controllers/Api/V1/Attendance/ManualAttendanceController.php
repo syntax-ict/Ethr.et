@@ -14,6 +14,7 @@ use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\CurrentTenant;
+use App\Services\Payroll\PayrollPeriodLock;
 use App\Support\TenantTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -32,6 +33,7 @@ class ManualAttendanceController extends Controller
 
         $zone = TenantTime::zone(app(CurrentTenant::class)->get());
         $date = $request->validated('date');
+        app(PayrollPeriodLock::class)->assertOpen($employee->id, $date);
         $checkIn = TenantTime::wallClockToUtc($date, $request->validated('check_in'), $zone);
         $checkOut = $request->validated('check_out')
             ? TenantTime::wallClockToUtc($date, $request->validated('check_out'), $zone)

@@ -11706,6 +11706,15 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** @constant */
+                        type: "https://ethr.et/errors/payroll-period-closed";
+                        /** @constant */
+                        title: "Payroll period closed";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This day is in an approved payroll run, so its attendance cannot be changed. Void the run first to reopen it.";
+                    } | {
+                        /** @constant */
                         type: "https://ethr.et/errors/invalid-state";
                         /** @constant */
                         title: "Invalid State";
