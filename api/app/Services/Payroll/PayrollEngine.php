@@ -168,11 +168,25 @@ final class PayrollEngine
             Employee::query()
                 ->withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenantId)
-                ->whereIn('status', [
-                    EmployeeStatus::HIRED,
-                    EmployeeStatus::PROBATION,
-                    EmployeeStatus::CONFIRMED,
-                ])
+                // Someone who left during the period is owed the days they
+                // worked in it. Until 2026-10-20 only the three working
+                // statuses were selected, so a leaver vanished from their
+                // last run, though ACCOUNTANT-SIGN-OFF.md §1 says a mid-period
+                // termination is prorated (blueprint D3).
+                ->where(fn ($q) => $q
+                    ->whereIn('status', [
+                        EmployeeStatus::HIRED,
+                        EmployeeStatus::PROBATION,
+                        EmployeeStatus::CONFIRMED,
+                    ])
+                    ->orWhere(fn ($left) => $left
+                        ->whereIn('status', [
+                            EmployeeStatus::RESIGNED,
+                            EmployeeStatus::TERMINATED,
+                            EmployeeStatus::RETIRED,
+                        ])
+                        ->whereDate('termination_date', '>=', $periodStart->toDateString())
+                        ->whereDate('termination_date', '<=', $periodEnd->toDateString())))
                 // For the contract fallback in processEmployee(): an employee whose
                 // salary_cents is unset may still have a contract that states one,
                 // and until 2026-10-15 that employee silently vanished from the run
@@ -388,6 +402,7 @@ final class PayrollEngine
                 'period_start' => $periodStart->toDateString(),
                 'period_end' => $periodEnd->toDateString(),
                 'hire_date' => Carbon::parse($employee->hire_date)->toDateString(),
+                'termination_date' => $employee->termination_date?->toDateString(),
                 'status' => $employee->status,
                 'pagumen_proration_strategy' => $pagumenStrategy,
                 'fiscal_year_start_month' => $fiscalYearStartMonth,
@@ -395,13 +410,20 @@ final class PayrollEngine
             'steps' => [],
         ];
 
-        // Mid-period-hire proration: an employee who joined after the period
-        // began is paid only for the fraction of the period they worked.
+        // Mid-period proration: an employee who joined after the period began,
+        // or left before it ended, is paid only for the days of the period
+        // they were employed. A termination date outside the period changes
+        // nothing.
         $totalPeriodDays = $periodStart->diffInDays($periodEnd) + 1;
         $hireDate = $employee->hire_date;
+        $terminationDate = $employee->termination_date;
+        $firstDay = $hireDate && $hireDate->gt($periodStart) ? $hireDate->copy()->startOfDay() : $periodStart->copy()->startOfDay();
+        $lastDay = $terminationDate && $terminationDate->between($periodStart, $periodEnd)
+            ? $terminationDate->copy()->startOfDay()
+            : $periodEnd->copy()->startOfDay();
         $hireProrationFactor = 1.0;
-        if ($hireDate && $hireDate->gt($periodStart)) {
-            $workedDays = $hireDate->diffInDays($periodEnd) + 1;
+        if ($firstDay->gt($periodStart) || $lastDay->lt($periodEnd->copy()->startOfDay())) {
+            $workedDays = $lastDay->lt($firstDay) ? 0 : $firstDay->diffInDays($lastDay) + 1;
             $hireProrationFactor = $workedDays / $totalPeriodDays;
         }
 
