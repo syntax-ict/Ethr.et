@@ -232,12 +232,20 @@ test('the payroll impact of a correction outside the team is not revealed', func
     $teamCorrection = correctionScopePendingFor($tenant, $report);
     $strangerCorrection = correctionScopePendingFor($tenant, $stranger);
 
-    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$teamCorrection->public_id}/payroll-impact")
-        ->assertOk();
-
     test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$strangerCorrection->public_id}/payroll-impact")
         ->assertForbidden()
         ->assertJsonMissingPath('hourly_rate_cents');
+
+    // Nor inside it: the hourly rate is the report's salary over 176 hours,
+    // and a supervisor does not hold employee.viewFinancial (2026-10-20).
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$teamCorrection->public_id}/payroll-impact")
+        ->assertForbidden()
+        ->assertJsonMissingPath('hourly_rate_cents');
+
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$teamCorrection->public_id}/payroll-impact")
+        ->assertOk()
+        ->assertJsonPath('hourly_rate_cents', 10_020);
 });
 
 test('my corrections lists the caller\'s own corrections and nobody else\'s', function () {
