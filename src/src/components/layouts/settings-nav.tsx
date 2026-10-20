@@ -16,6 +16,7 @@ import {
   Mail,
   ScrollText,
   UserCog,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
@@ -69,7 +70,7 @@ function resolveActiveHref(
  */
 export function useSettingsNavGroups(): SettingsNavGroup[] {
   const { t } = useT();
-  const { can, isTenantAdmin } = usePermissions();
+  const { can, isTenantAdmin, hasPermission } = usePermissions();
 
   const groups: SettingsNavGroup[] = [
     {
@@ -115,6 +116,14 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
           href: "/settings/payroll",
           icon: Coins,
           show: isTenantAdmin,
+        },
+        {
+          label: t("nav.opening_balances", "Opening balances"),
+          href: "/settings/opening-balances",
+          icon: Upload,
+          show:
+            hasPermission("leave.adjustBalance") ||
+            hasPermission("payroll.manageLoan"),
         },
       ],
     },

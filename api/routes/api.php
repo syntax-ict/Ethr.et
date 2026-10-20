@@ -73,6 +73,7 @@ use App\Http\Controllers\Api\V1\Employee\PersonnelActionController;
 use App\Http\Controllers\Api\V1\Employee\RetirementCaseController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Holiday\HolidayController;
+use App\Http\Controllers\Api\V1\Import\BalanceImportController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskCheckInController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSessionController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSyncController;
@@ -677,6 +678,11 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     });
 
     // Profile self-service
+    // Opening leave and loan balances brought over from a previous system.
+    Route::get('/imports/balances/{kind}/template', [BalanceImportController::class, 'template']);
+    Route::post('/imports/balances/{kind}/preview', [BalanceImportController::class, 'preview'])->middleware('throttle:uploads');
+    Route::post('/imports/balances/{kind}/commit', [BalanceImportController::class, 'commit']);
+
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
     Route::put('/profile/preferences', [ProfilePreferencesController::class, 'update']);

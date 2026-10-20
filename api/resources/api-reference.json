@@ -15075,6 +15075,337 @@
                 }
             }
         },
+        "/imports/balances/{kind}/commit": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "balanceImport.commit",
+                "summary": "Commit balances",
+                "tags": [
+                    "Balance Import"
+                ],
+                "parameters": [
+                    {
+                        "name": "kind",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CommitBalanceImportRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/imports/balances/{kind}/preview": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "balanceImport.preview",
+                "summary": "Preview balances",
+                "tags": [
+                    "Balance Import"
+                ],
+                "parameters": [
+                    {
+                        "name": "kind",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PreviewBalanceImportRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "rows": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "valid": {
+                                                    "type": "integer"
+                                                },
+                                                "invalid": {
+                                                    "type": "integer"
+                                                },
+                                                "errors": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "minItems": 0,
+                                                    "maxItems": 0,
+                                                    "additionalItems": false
+                                                }
+                                            },
+                                            "required": [
+                                                "rows",
+                                                "valid",
+                                                "invalid",
+                                                "errors"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "rows": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "minItems": 0,
+                                                    "maxItems": 0,
+                                                    "additionalItems": false
+                                                },
+                                                "valid": {
+                                                    "type": "integer"
+                                                },
+                                                "invalid": {
+                                                    "type": "integer"
+                                                },
+                                                "errors": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                        {
+                                                            "type": "string"
+                                                        }
+                                                    ],
+                                                    "minItems": 1,
+                                                    "maxItems": 1,
+                                                    "additionalItems": false
+                                                }
+                                            },
+                                            "required": [
+                                                "rows",
+                                                "valid",
+                                                "invalid",
+                                                "errors"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "rows": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "minItems": 0,
+                                                    "maxItems": 0,
+                                                    "additionalItems": false
+                                                },
+                                                "valid": {
+                                                    "type": "integer"
+                                                },
+                                                "invalid": {
+                                                    "type": "integer"
+                                                },
+                                                "errors": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                        {
+                                                            "type": "string",
+                                                            "const": "The file needs a header row and at least one row of data."
+                                                        }
+                                                    ],
+                                                    "minItems": 1,
+                                                    "maxItems": 1,
+                                                    "additionalItems": false
+                                                }
+                                            },
+                                            "required": [
+                                                "rows",
+                                                "valid",
+                                                "invalid",
+                                                "errors"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/imports/balances/{kind}/template": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "balanceImport.template",
+                "summary": "Template balances",
+                "tags": [
+                    "Balance Import"
+                ],
+                "parameters": [
+                    {
+                        "name": "kind",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "template": {
+                                            "type": "string"
+                                        },
+                                        "headers": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                        {
+                                                            "type": "string",
+                                                            "const": "employee_code"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "leave_type_code"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "year"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "entitled_days"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "used_days"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "carried_days"
+                                                        }
+                                                    ],
+                                                    "minItems": 6,
+                                                    "maxItems": 6,
+                                                    "additionalItems": false
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                        {
+                                                            "type": "string",
+                                                            "const": "employee_code"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "principal_etb"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "remaining_etb"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "monthly_deduction_etb"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "start_date"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "reason"
+                                                        }
+                                                    ],
+                                                    "minItems": 6,
+                                                    "maxItems": 6,
+                                                    "additionalItems": false
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "template",
+                                        "headers"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/kiosk-sessions": {
             "get": {
                 "x-abilities": [
@@ -32996,6 +33327,38 @@
                 },
                 "title": "CloseDisciplinaryCaseRequest"
             },
+            "CommitBalanceImportRequest": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "employee_code": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 50
+                                },
+                                "line": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ]
+                                }
+                            }
+                        },
+                        "minItems": 1,
+                        "maxItems": 5000
+                    }
+                },
+                "required": [
+                    "rows"
+                ],
+                "title": "CommitBalanceImportRequest"
+            },
             "ConcernMessageRequest": {
                 "type": "object",
                 "properties": {
@@ -36339,6 +36702,21 @@
                     "updated_at"
                 ],
                 "title": "PositionResource"
+            },
+            "PreviewBalanceImportRequest": {
+                "type": "object",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "description": "Maximum file size: 2048 kilobytes."
+                    }
+                },
+                "required": [
+                    "file"
+                ],
+                "title": "PreviewBalanceImportRequest"
             },
             "PreviewConfigurationRequest": {
                 "type": "object",

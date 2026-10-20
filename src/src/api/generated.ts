@@ -1231,6 +1231,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/imports/balances/{kind}/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Template balances */
+        get: operations["balanceImport.template"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports/balances/{kind}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview balances */
+        post: operations["balanceImport.preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports/balances/{kind}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commit balances */
+        post: operations["balanceImport.commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/plans": {
         parameters: {
             query?: never;
@@ -6896,6 +6947,13 @@ export interface components {
         CloseDisciplinaryCaseRequest: {
             notes?: string | null;
         };
+        /** CommitBalanceImportRequest */
+        CommitBalanceImportRequest: {
+            rows: {
+                employee_code?: string | null;
+                line?: number | null;
+            }[];
+        };
         /** ConcernMessageRequest */
         ConcernMessageRequest: {
             body: string;
@@ -7946,6 +8004,14 @@ export interface components {
             created_at: string | null;
             /** Format: date-time */
             updated_at: string | null;
+        };
+        /** PreviewBalanceImportRequest */
+        PreviewBalanceImportRequest: {
+            /**
+             * Format: binary
+             * @description Maximum file size: 2048 kilobytes.
+             */
+            file: string;
         };
         /** PreviewConfigurationRequest */
         PreviewConfigurationRequest: {
@@ -12970,6 +13036,121 @@ export interface operations {
                     };
                 };
             };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "balanceImport.template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        template: string;
+                        headers: [
+                            "employee_code",
+                            "leave_type_code",
+                            "year",
+                            "entitled_days",
+                            "used_days",
+                            "carried_days"
+                        ] | [
+                            "employee_code",
+                            "principal_etb",
+                            "remaining_etb",
+                            "monthly_deduction_etb",
+                            "start_date",
+                            "reason"
+                        ];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "balanceImport.preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["PreviewBalanceImportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rows: string[];
+                        valid: number;
+                        invalid: number;
+                        errors: string[];
+                    } | {
+                        rows: string[];
+                        valid: number;
+                        invalid: number;
+                        errors: [
+                            string
+                        ];
+                    } | {
+                        rows: string[];
+                        valid: number;
+                        invalid: number;
+                        errors: [
+                            "The file needs a header row and at least one row of data."
+                        ];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "balanceImport.commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitBalanceImportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
         };
     };
