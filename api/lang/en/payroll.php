@@ -7,6 +7,8 @@ return [
     'cannot_void' => 'Only a completed or approved payroll run can be voided.',
     'cannot_reprocess' => 'Only a voided payroll run can be reprocessed.',
     'balances_changed' => 'Loan or cost-sharing balances changed after this run was calculated. Void the run and reprocess the period.',
+    'bank_export_not_approved' => 'A bank file can only be exported for an approved payroll run.',
+    'self_approval' => 'You processed this payroll run, so another approver in your organisation must approve it.',
     'fiscal_year_start_month' => 'Fiscal Year Start Month',
     'tax_bracket_must_start_at_zero' => 'The first tax bracket must start at 0.',
     'tax_bracket_only_last_open_ended' => 'Only the final tax bracket may be open-ended.',

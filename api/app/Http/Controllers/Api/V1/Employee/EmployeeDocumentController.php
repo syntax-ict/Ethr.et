@@ -18,6 +18,14 @@ use Illuminate\Support\Facades\Gate;
 
 class EmployeeDocumentController extends Controller
 {
+    /**
+     * Medical records and identity-document copies are special-category data
+     * (Proclamation 1321/2024), so they are shown to the people who manage the
+     * employee's record, not to everyone who can view it. Until 2026-10-20 a
+     * supervisor could open their team's.
+     */
+    private const SENSITIVE_TYPES = ['medical', 'id_copy'];
+
     public function __construct(private readonly FileStorageService $fileService) {}
 
     public function index(Request $request, Employee $employee): AnonymousResourceCollection
@@ -25,6 +33,9 @@ class EmployeeDocumentController extends Controller
         $this->authorize('view', $employee);
 
         $query = $employee->documents();
+        if (! $request->user()->can('update', $employee)) {
+            $query->whereNotIn('type', self::SENSITIVE_TYPES);
+        }
 
         if ($request->has('filter.type')) {
             $query->where('type', $request->input('filter.type'));
@@ -52,10 +63,13 @@ class EmployeeDocumentController extends Controller
 
         $days = min(max((int) $request->query('days', 30), 1), 365);
 
+        $hidden = $request->user()->hasPermission('employee.update') ? [] : self::SENSITIVE_TYPES;
+
         $documents = EmployeeDocument::query()
             ->whereNotNull('expiry_date')
             ->whereDate('expiry_date', '<=', now()->addDays($days))
             ->whereHas('employee', fn ($q) => $request->user()->scopeAccessibleEmployees($q))
+            ->whereNotIn('type', $hidden)
             ->with('employee:id,public_id,name')
             ->orderBy('expiry_date')
             ->paginate(min((int) $request->query('per_page', 25), 100));
@@ -92,9 +106,20 @@ class EmployeeDocumentController extends Controller
             ->setStatusCode(201);
     }
 
-    public function show(Employee $employee, EmployeeDocument $document): JsonResponse
+    public function show(Request $request, Employee $employee, EmployeeDocument $document): JsonResponse
     {
         $this->authorize('view', $employee);
+        abort_unless((int) $document->employee_id === (int) $employee->id, 404);
+        abort_if(
+            in_array($document->type, self::SENSITIVE_TYPES, true) && ! $request->user()->can('update', $employee),
+            404,
+        );
+
+        // A download link is a read of the file, so it is recorded.
+        AuditLog::record('employee.document.viewed', $employee, [
+            'document_id' => $document->public_id,
+            'type' => $document->type,
+        ]);
 
         $url = $this->fileService->temporaryUrl($document->file_path, 15);
 

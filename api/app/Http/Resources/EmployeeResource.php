@@ -19,6 +19,15 @@ class EmployeeResource extends JsonResource
     {
         $photoPath = $this->photo_path;
 
+        // Pay is shown to the employee themselves and to holders of
+        // employee.viewFinancial, the permission that exists for exactly this.
+        // Until 2026-10-20 every caller with employee.view, supervisors
+        // included, read their team's salaries here (blueprint D4).
+        $viewer = $request->user();
+        $showPay = $viewer !== null
+            && ($viewer->hasPermission('employee.viewFinancial')
+                || ($viewer->employee_id !== null && (int) $viewer->employee_id === (int) $this->id));
+
         return [
             'public_id' => $this->public_id,
             'name' => $this->name,
@@ -39,7 +48,7 @@ class EmployeeResource extends JsonResource
             'probation_end_date' => $this->probation_end_date?->format('Y-m-d'),
             'confirmation_date' => $this->confirmation_date?->format('Y-m-d'),
             'termination_date' => $this->termination_date?->format('Y-m-d'),
-            'salary_cents' => $this->whenHas('salary_cents'),
+            'salary_cents' => $this->when($showPay, fn () => $this->whenHas('salary_cents')),
             'photo_path' => $photoPath,
             'photo_url' => $this->photoUrl($photoPath),
             'photo_thumb_url' => $this->photoThumbUrl($photoPath),
