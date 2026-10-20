@@ -55,7 +55,7 @@ export function LegalDocumentView({ document }: { document: LegalDocument }) {
         {LEGAL_REVIEW_REQUIRED && (
           <div
             role="note"
-            className="mb-10 flex items-start gap-3 rounded-xl border border-status-warning/30 bg-status-warning/5 p-4"
+            className="mb-10 flex items-start gap-3 rounded-xl border border-warning-edge bg-warning-soft p-4"
           >
             <AlertTriangle
               className="mt-0.5 h-5 w-5 shrink-0 text-status-warning"
@@ -68,7 +68,9 @@ export function LegalDocumentView({ document }: { document: LegalDocument }) {
                   "Draft: pending legal review",
                 )}
               </p>
-              <p className="mt-1 text-muted-foreground">
+              {/* The warning callout pair: secondary grey on the warm tint
+                  measured 4.4:1, under AA (UX audit baseline, 2026-10-20). */}
+              <p className="mt-1 text-warning-on-soft">
                 {t(
                   "marketing.legal.draft_body",
                   "This document is an accurate description of how the software behaves, but it has not yet been reviewed by a qualified legal adviser and should not be relied upon as a binding agreement.",
