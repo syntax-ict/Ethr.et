@@ -72,7 +72,7 @@ export function ProductFlow() {
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             {t(
               "marketing.flow.step_checkin_desc",
-              "Fingerprint, QR or shared kiosk, on the factory floor, with no network.",
+              "Phone, QR code or shared kiosk, on the factory floor, with no network.",
             )}
           </p>
         </li>

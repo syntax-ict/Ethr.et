@@ -1,5 +1,10 @@
 "use client";
 
+// This is the one page outside every route group, so no RootShell wraps it
+// and nothing else loads the stylesheet: the exported 404.html rendered in
+// browser default styling (observed live 2026-10-20). Fonts come from the
+// stylesheet's fallbacks here; next/font variables live on the shells.
+import "@/styles/globals.css";
 import Link from "next/link";
 import { ArrowLeft, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
