@@ -122,6 +122,17 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * The calendar context, or null outside a `CalendarProvider`.
+ *
+ * `useDateFormatters()` runs in components that also render outside the
+ * dashboard shell (the command palette, a few cards), where throwing would
+ * break a screen that only wanted a date. Those fall back to Gregorian.
+ */
+export function useOptionalCalendar(): CalendarContextValue | null {
+  return useContext(CalendarContext);
+}
+
 export function useCalendar(): CalendarContextValue {
   const ctx = useContext(CalendarContext);
   if (!ctx) {

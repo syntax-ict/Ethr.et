@@ -60,6 +60,7 @@ import { ReportingChart } from "@/features/organization/components/reporting-cha
 import { GradeSalaryStepsDialog } from "@/features/organization/components/grade-salary-steps-dialog";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 
@@ -170,6 +171,7 @@ function useCanDeleteOrg(): boolean {
 function BranchesTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { data, isLoading } = branchesApi.useList();
   const createMut = branchesApi.useCreate();
   const updateMut = branchesApi.useUpdate();
@@ -242,8 +244,17 @@ function BranchesTab() {
     }).catch(() => toast.error(t("org.save_failed", "Save failed")));
   }
 
-  function handleDelete(b: Branch) {
-    if (!confirm(`Delete branch "${b.name}"?`)) return;
+  async function handleDelete(b: Branch) {
+    if (
+      !(await requestConfirm({
+        title: t("org.branch.delete_confirm", 'Delete branch ":name"?', {
+          name: b.name,
+        }),
+        confirmLabel: t("common.delete", "Delete"),
+        variant: "destructive",
+      }))
+    )
+      return;
     deleteMut.mutate(b.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
       onError: () => toast.error(t("org.delete_failed", "Delete failed")),
@@ -430,6 +441,7 @@ function BranchesTab() {
           </form>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </ResourceLayout>
   );
 }
@@ -466,6 +478,7 @@ function descendantIds(
 function DepartmentsTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { data, isLoading } = departmentsApi.useList();
   const { data: branches } = branchesApi.useList();
   const createMut = departmentsApi.useCreate();
@@ -527,8 +540,21 @@ function DepartmentsTab() {
     }).catch(() => toast.error(t("org.save_failed", "Save failed")));
   }
 
-  function handleDelete(d: Department) {
-    if (!confirm(`Delete department "${d.name}"?`)) return;
+  async function handleDelete(d: Department) {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "org.department.delete_confirm",
+          'Delete department ":name"?',
+          {
+            name: d.name,
+          },
+        ),
+        confirmLabel: t("common.delete", "Delete"),
+        variant: "destructive",
+      }))
+    )
+      return;
     deleteMut.mutate(d.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
       onError: () => toast.error(t("org.delete_failed", "Delete failed")),
@@ -702,6 +728,7 @@ function DepartmentsTab() {
           </form>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </ResourceLayout>
   );
 }
@@ -711,6 +738,7 @@ function DepartmentsTab() {
 function TeamsTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { data, isLoading } = teamsApi.useList();
   const { data: departments } = departmentsApi.useList();
   const createMut = teamsApi.useCreate();
@@ -765,8 +793,17 @@ function TeamsTab() {
     }).catch(() => toast.error(t("org.save_failed", "Save failed")));
   }
 
-  function handleDelete(tm: Team) {
-    if (!confirm(`Delete team "${tm.name}"?`)) return;
+  async function handleDelete(tm: Team) {
+    if (
+      !(await requestConfirm({
+        title: t("org.team.delete_confirm", 'Delete team ":name"?', {
+          name: tm.name,
+        }),
+        confirmLabel: t("common.delete", "Delete"),
+        variant: "destructive",
+      }))
+    )
+      return;
     deleteMut.mutate(tm.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
       onError: () => toast.error(t("org.delete_failed", "Delete failed")),
@@ -889,6 +926,7 @@ function TeamsTab() {
           </form>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </ResourceLayout>
   );
 }
@@ -898,6 +936,7 @@ function TeamsTab() {
 function PositionsTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { data, isLoading } = positionsApi.useList();
   const createMut = positionsApi.useCreate();
   const updateMut = positionsApi.useUpdate();
@@ -953,8 +992,17 @@ function PositionsTab() {
     }).catch(() => toast.error(t("org.save_failed", "Save failed")));
   }
 
-  function handleDelete(p: Position) {
-    if (!confirm(`Delete position "${p.title}"?`)) return;
+  async function handleDelete(p: Position) {
+    if (
+      !(await requestConfirm({
+        title: t("org.position.delete_confirm", 'Delete position ":name"?', {
+          name: p.title,
+        }),
+        confirmLabel: t("common.delete", "Delete"),
+        variant: "destructive",
+      }))
+    )
+      return;
     deleteMut.mutate(p.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
       onError: () => toast.error(t("org.delete_failed", "Delete failed")),
@@ -1084,6 +1132,7 @@ function PositionsTab() {
           </form>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </ResourceLayout>
   );
 }
@@ -1093,6 +1142,7 @@ function PositionsTab() {
 function GradesTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { data, isLoading } = gradesApi.useList();
   const createMut = gradesApi.useCreate();
   const updateMut = gradesApi.useUpdate();
@@ -1141,8 +1191,17 @@ function GradesTab() {
     }).catch(() => toast.error(t("org.save_failed", "Save failed")));
   }
 
-  function handleDelete(g: Grade) {
-    if (!confirm(`Delete grade "${g.name}"?`)) return;
+  async function handleDelete(g: Grade) {
+    if (
+      !(await requestConfirm({
+        title: t("org.grade.delete_confirm", 'Delete grade ":name"?', {
+          name: g.name,
+        }),
+        confirmLabel: t("common.delete", "Delete"),
+        variant: "destructive",
+      }))
+    )
+      return;
     deleteMut.mutate(g.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
       onError: () => toast.error(t("org.delete_failed", "Delete failed")),
@@ -1286,6 +1345,7 @@ function GradesTab() {
           </form>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </ResourceLayout>
   );
 }
@@ -1295,6 +1355,7 @@ function GradesTab() {
 function CostCentersTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { data, isLoading } = costCentersApi.useList();
   const createMut = costCentersApi.useCreate();
   const updateMut = costCentersApi.useUpdate();
@@ -1336,8 +1397,21 @@ function CostCentersTab() {
     }).catch(() => toast.error(t("org.save_failed", "Save failed")));
   }
 
-  function handleDelete(c: CostCenter) {
-    if (!confirm(`Delete cost center "${c.name}"?`)) return;
+  async function handleDelete(c: CostCenter) {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "org.cost_center.delete_confirm",
+          'Delete cost center ":name"?',
+          {
+            name: c.name,
+          },
+        ),
+        confirmLabel: t("common.delete", "Delete"),
+        variant: "destructive",
+      }))
+    )
+      return;
     deleteMut.mutate(c.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
       onError: () => toast.error(t("org.delete_failed", "Delete failed")),
@@ -1439,6 +1513,7 @@ function CostCentersTab() {
           </form>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </ResourceLayout>
   );
 }

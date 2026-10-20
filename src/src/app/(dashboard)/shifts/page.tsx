@@ -50,6 +50,7 @@ import {
 import { parseWorkingDays, toHHMM } from "@/features/shifts/dates";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -105,6 +106,7 @@ function workedHours(
 
 export default function ShiftsPage() {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { hasPermission } = usePermissions();
   // Deleting is `shift.delete`, a tenant-admin grant; this page admits HR
   // admins, who hold create/update but not delete. The item was offered to
@@ -164,8 +166,15 @@ export default function ShiftsPage() {
     });
   }
 
-  function remove(shift: Shift) {
-    if (!confirm(t("shifts_settings_page.delete_confirm"))) return;
+  async function remove(shift: Shift) {
+    if (
+      !(await requestConfirm({
+        title: t("shifts_settings_page.delete_confirm"),
+        confirmLabel: t("common.delete", "Delete"),
+        variant: "destructive",
+      }))
+    )
+      return;
 
     deleteShift.mutate(shift.public_id, {
       onSuccess: () => toast.success(t("shifts_settings_page.deleted")),
@@ -677,6 +686,7 @@ export default function ShiftsPage() {
           </DialogContent>
         </Dialog>
       </div>
+      {confirmDialog}
     </RoleGate>
   );
 }
