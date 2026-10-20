@@ -401,6 +401,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Documents",
     description: "Your contract, certificates and other documents on file",
   },
+  "/employees/letters": {
+    section: "People",
+    parent: { label: "Employees", href: "/employees" },
+    label: "Letter requests",
+    description: "Employment letters employees asked for",
+  },
   "/profile/security": {
     parent: { label: "My Profile", href: "/profile" },
     label: "Security",

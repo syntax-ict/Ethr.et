@@ -3339,6 +3339,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/letters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List letters */
+        get: operations["letterRequest.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/letters/{letter}/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue letters */
+        post: operations["letterRequest.issue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/letters/{letter}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject letters */
+        post: operations["letterRequest.reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/my-shift": {
         parameters: {
             query?: never;
@@ -6217,6 +6268,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/letters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List letters */
+        get: operations["profileLetter.index"];
+        put?: never;
+        /** Create letter */
+        post: operations["profileLetter.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/letters/{letter}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pdf letters */
+        get: operations["profileLetter.pdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile": {
         parameters: {
             query?: never;
@@ -8095,6 +8181,10 @@ export interface components {
         RejectLeaveRequest: {
             reason: string;
         };
+        /** RejectLetterRequest */
+        RejectLetterRequest: {
+            reason: string;
+        };
         /** RenewEmployeeContractRequest */
         RenewEmployeeContractRequest: {
             /**
@@ -8667,6 +8757,14 @@ export interface components {
             /** @enum {string|null} */
             gender_restriction?: "male" | "female" | null;
             sort_order?: number | null;
+        };
+        /** StoreLetterRequest */
+        StoreLetterRequest: {
+            purpose: string;
+            addressed_to?: string | null;
+            include_salary?: boolean;
+            /** @enum {string} */
+            language?: "en" | "am";
         };
         /** StoreLoanRequest */
         StoreLoanRequest: {
@@ -18698,6 +18796,127 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "letterRequest.index": {
+        parameters: {
+            query?: {
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            employee: {
+                                public_id: string;
+                                name: string;
+                            } | null;
+                            purpose: string;
+                            addressed_to: string | null;
+                            include_salary: boolean;
+                            language: string;
+                            status: string;
+                            reference: string | null;
+                            rejection_reason: string | null;
+                            decided_at: string | null;
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "letterRequest.issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                letter: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                        purpose: string;
+                        addressed_to: string | null;
+                        include_salary: boolean;
+                        language: string;
+                        status: string;
+                        reference: string | null;
+                        rejection_reason: string | null;
+                        decided_at: string | null;
+                        created_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "letterRequest.reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                letter: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectLetterRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                        purpose: string;
+                        addressed_to: string | null;
+                        include_salary: boolean;
+                        language: string;
+                        status: string;
+                        reference: string | null;
+                        rejection_reason: string | null;
+                        decided_at: string | null;
+                        created_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "attendance.myShift": {
         parameters: {
             query?: never;
@@ -26871,6 +27090,107 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "profileLetter.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            employee: {
+                                public_id: string;
+                                name: string;
+                            } | null;
+                            purpose: string;
+                            addressed_to: string | null;
+                            include_salary: boolean;
+                            language: string;
+                            status: string;
+                            reference: string | null;
+                            rejection_reason: string | null;
+                            decided_at: string | null;
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "profileLetter.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreLetterRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                        purpose: string;
+                        addressed_to: string | null;
+                        include_salary: boolean;
+                        language: string;
+                        status: string;
+                        reference: string | null;
+                        rejection_reason: string | null;
+                        decided_at: string | null;
+                        created_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "profileLetter.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                letter: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "profile.show": {

@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Users, Download, Upload, Loader2 } from "lucide-react";
+import {
+  Plus,
+  Users,
+  Download,
+  Upload,
+  Loader2,
+  FileSignature,
+} from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import type {
   ColumnDef,
@@ -222,6 +229,17 @@ export default function EmployeesPage() {
               >
                 <Link href="/employees/import">
                   <Upload className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                asChild
+                title={t("letters.hr_title")}
+                aria-label={t("letters.hr_title")}
+              >
+                <Link href="/employees/letters">
+                  <FileSignature className="h-4 w-4" />
                 </Link>
               </Button>
             </>

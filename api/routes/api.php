@@ -69,6 +69,7 @@ use App\Http\Controllers\Api\V1\Employee\EmployeeController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeDocumentController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeImportController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeTransitionController;
+use App\Http\Controllers\Api\V1\Employee\LetterRequestController;
 use App\Http\Controllers\Api\V1\Employee\PersonnelActionController;
 use App\Http\Controllers\Api\V1\Employee\RetirementCaseController;
 use App\Http\Controllers\Api\V1\HealthController;
@@ -104,6 +105,7 @@ use App\Http\Controllers\Api\V1\Profile\PhotoConsentController;
 use App\Http\Controllers\Api\V1\Profile\ProfileController;
 use App\Http\Controllers\Api\V1\Profile\ProfileDocumentController;
 use App\Http\Controllers\Api\V1\Profile\ProfileEmergencyContactController;
+use App\Http\Controllers\Api\V1\Profile\ProfileLetterController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePhotoController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
 use App\Http\Controllers\Api\V1\Profile\ProfileUpdateRequestController;
@@ -461,6 +463,10 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::get('/employees/documents/expiring', [EmployeeDocumentController::class, 'expiring']);
     // Same reasoning for the expiring-contract watchlist.
     Route::get('/employees/contracts/expiring', [EmployeeContractController::class, 'expiring']);
+    // Employment letters employees asked for (EmploymentLetters).
+    Route::get('/employees/letters', [LetterRequestController::class, 'index']);
+    Route::post('/employees/letters/{letter}/issue', [LetterRequestController::class, 'issue']);
+    Route::post('/employees/letters/{letter}/reject', [LetterRequestController::class, 'reject']);
 
     // Recover the outcome of a committed import when the client lost the response.
     Route::get('/employees/import/status/{key}', [EmployeeImportController::class, 'status']);
@@ -678,6 +684,11 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     });
 
     // Profile self-service
+    // Own employment letters: ask, follow, download.
+    Route::get('/profile/letters', [ProfileLetterController::class, 'index']);
+    Route::post('/profile/letters', [ProfileLetterController::class, 'store'])->middleware('throttle:10,60');
+    Route::get('/profile/letters/{letter}/pdf', [ProfileLetterController::class, 'pdf']);
+
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
     Route::put('/profile/preferences', [ProfilePreferencesController::class, 'update']);
