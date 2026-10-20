@@ -134,6 +134,50 @@
   --radius-lg: 8px;
   --radius-xl: 12px;
 
+  /* --- Type scale (FRONTEND_REDESIGN_PLAN.md, section E) -------------------
+     Documented in DESIGN_SYSTEM.md for months with no token behind it, so
+     every page chose its own size. Each step carries its line height and
+     weight; `text-title` sets all three. 12px (`text-caption`) is the floor:
+     nothing readable goes smaller. Additive: nothing uses these until a page
+     moves to them. */
+  --text-display: 1.875rem; /* 30px, marketing hero only */
+  --text-display--line-height: 2.25rem;
+  --text-display--font-weight: 600;
+  --text-title: 1.375rem; /* 22px, the page h1 */
+  --text-title--line-height: 1.75rem;
+  --text-title--font-weight: 600;
+  --text-heading: 1.0625rem; /* 17px, card and section titles */
+  --text-heading--line-height: 1.5rem;
+  --text-heading--font-weight: 600;
+  --text-body: 0.875rem; /* 14px, default operational text */
+  --text-body--line-height: 1.25rem;
+  --text-label: 0.8125rem; /* 13px, form labels and table headers */
+  --text-label--line-height: 1.125rem;
+  --text-label--font-weight: 500;
+  --text-caption: 0.75rem; /* 12px, metadata; the floor */
+  --text-caption--line-height: 1rem;
+  --text-numeric: 0.875rem; /* 14px; pair with font-mono tabular-nums */
+  --text-numeric--line-height: 1.25rem;
+
+  /* Amharic needs 1.6 to 1.8 or its characters clip (DESIGN_SYSTEM.md,
+     Amharic Typography Rules). A token now; Phase 6 applies it under :lang(am). */
+  --leading-amharic: 1.7;
+
+  /* --- Layout rhythm ----------------------------------------------------------
+     `p-page`, `space-y-section`, `gap-stack`, `gap-inline`. Page padding is
+     24px, 16px on phones, through --space-page below. */
+  --spacing-page: var(--space-page);
+  --spacing-section: 2rem;
+  --spacing-stack: 1rem;
+  --spacing-inline: 0.5rem;
+
+  /* --- Sizes ------------------------------------------------------------------
+     `h-row-compact` for operational tables, `h-row-comfortable` for marketing,
+     auth and the kiosk, `min-h-touch` for anything tapped on a phone. */
+  --spacing-row-compact: 2.25rem; /* 36px */
+  --spacing-row-comfortable: 3rem; /* 48px */
+  --spacing-touch: 2.75rem; /* 44px */
+
   /* --- Elevation (theme-aware via --shadow-color) ------------------------- */
   --shadow-2xs: 0 1px 2px 0 hsl(var(--shadow-color) / 0.04);
   --shadow-xs: 0 1px 2px 0 hsl(var(--shadow-color) / 0.06);
@@ -167,6 +211,34 @@
    LIGHT (default)
    ETHR brand palette — Deep Teal Blue primary, Ethiopian Gold accent.
    ========================================================================= */
+
+/* Page padding steps down on phones; `p-page` reads this. */
+:root {
+  --space-page: 1rem;
+}
+@media (min-width: 640px) {
+  :root {
+    --space-page: 1.5rem;
+  }
+}
+
+/* Density is set once on a page container, not per component:
+   <div data-density="compact">. Operational pages are compact (36px rows,
+   32px controls, 8px gaps); marketing, auth and the kiosk are comfortable.
+   Components read the variables, e.g. h-(--density-row). Compact is the
+   default because most of the app is operational. */
+:root,
+[data-density="compact"] {
+  --density-row: var(--spacing-row-compact);
+  --density-control: 2rem;
+  --density-gap: 0.5rem;
+}
+[data-density="comfortable"] {
+  --density-row: var(--spacing-row-comfortable);
+  --density-control: var(--spacing-touch);
+  --density-gap: 1rem;
+}
+
 :root {
   --shadow-color: 210 30% 18%;
 
