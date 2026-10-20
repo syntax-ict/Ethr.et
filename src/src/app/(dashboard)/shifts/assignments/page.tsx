@@ -39,6 +39,7 @@ import {
 import { todayIso, toHHMM } from "@/features/shifts/dates";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
@@ -70,6 +71,7 @@ const TYPE_ICONS = {
 
 function AssignmentsContent() {
   const { t, locale } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { formatDate: formatCalendarDate } = useCalendar();
   // The card printed raw ISO dates while the form beside it set them in the
   // user's calendar (audit N30). Built from parts, not `new Date(iso)`: that is
@@ -139,8 +141,15 @@ function AssignmentsContent() {
     );
   }
 
-  function remove(a: ShiftAssignment) {
-    if (!confirm(t("shift_assignments_page.delete_confirm"))) return;
+  async function remove(a: ShiftAssignment) {
+    if (
+      !(await requestConfirm({
+        title: t("shift_assignments_page.delete_confirm"),
+        confirmLabel: t("common.delete", "Delete"),
+        variant: "destructive",
+      }))
+    )
+      return;
     deleteAssignment.mutate(a.public_id, {
       onSuccess: () => toast.success(t("shift_assignments_page.deleted")),
       // A 409 says the assignment has already taken effect and should be
@@ -524,6 +533,7 @@ function AssignmentsContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }
