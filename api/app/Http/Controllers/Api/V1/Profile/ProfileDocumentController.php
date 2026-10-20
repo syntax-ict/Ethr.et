@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\EmployeeDocumentResource;
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Models\EmployeeDocument;
 use App\Services\FileStorageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,8 +22,8 @@ use Illuminate\Http\Request;
  * contract (blueprint assessment ESS8). Read-only: filing and removing stay
  * with HR.
  *
- * Every lookup goes through the caller's own `documents()` relation, never
- * route-model binding, so another employee's document cannot be reached here.
+ * Every lookup is bound to the caller's own employee id, never route-model
+ * binding, so another employee's document cannot be reached here.
  */
 class ProfileDocumentController extends Controller
 {
@@ -43,8 +44,12 @@ class ProfileDocumentController extends Controller
     {
         $employee = $this->ownEmployee($request);
 
-        $model = $employee->documents()->with('employee:id,public_id,name')->where('public_id', $document)->first();
-        abort_if($model === null, 404);
+        $model = EmployeeDocument::query()
+            ->where('employee_id', $employee->id)
+            ->where('public_id', $document)
+            ->with('employee:id,public_id,name')
+            ->first();
+        abort_unless($model instanceof EmployeeDocument, 404);
 
         AuditLog::record('employee.document.viewed', $employee, [
             'document_id' => $model->public_id,
