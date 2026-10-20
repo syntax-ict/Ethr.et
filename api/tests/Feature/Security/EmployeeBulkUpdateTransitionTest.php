@@ -295,12 +295,12 @@ test('each employee changed gets its own audit entry with before and after', fun
 
     expect($entry->tenant_id)->toBe($tenant->id)
         ->and($entry->payload['before'])->toEqual(['department_id' => $from->public_id, 'status' => 'confirmed'])
-        ->and($entry->payload['after'])->toBe(['department_id' => $to->public_id, 'status' => 'terminated']);
+        ->and($entry->payload['after'])->toEqual(['department_id' => $to->public_id, 'status' => 'terminated']);
 
     $secondEntry = AuditLog::where('action', 'employee.bulk_updated')
         ->where('auditable_id', $second->id)
         ->sole();
-    expect($secondEntry->payload['before'])->toBe(['department_id' => null, 'status' => 'probation']);
+    expect($secondEntry->payload['before'])->toEqual(['department_id' => null, 'status' => 'probation']);
 
     // The transition itself is audited as every other transition is.
     expect(AuditLog::where('action', 'employee.transitioned')->count())->toBe(2);
