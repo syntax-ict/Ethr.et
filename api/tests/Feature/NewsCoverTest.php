@@ -76,7 +76,7 @@ it('bounds the cover to 1920 px, encodes narrower copies, keeps only the pixels 
     expect($version)->toMatch('/^[0-9a-f]{16}$/')
         ->and(getimagesizefromstring(coverDisk()->get($stored['path']))[0])->toBe(1920)
         ->and(coverDisk()->get($stored['path']))->not->toContain('GPS-SECRET')
-        ->and(array_keys($stored['variants']))->toBe([1280, 640])
+        ->and(array_keys($stored['variants']))->toEqualCanonicalizing([1280, 640])
         ->and($cover)->toBe([
             'url' => "{$base}/cover/{$version}",
             'srcset' => "{$base}/cover-1280/{$version} 1280w, {$base}/cover-640/{$version} 640w, {$base}/cover/{$version} 1920w",

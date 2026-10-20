@@ -184,6 +184,92 @@ jobs:
           DB_PASSWORD: ethr
         run: ./scripts/gates.sh mysql
 
+  backend-mysql8:
+    name: Backend suite on MySQL 8 (production engine)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Production is MySQL 8.0.32, not MariaDB: the first live `migrate` on
+    # 2026-10-10 failed there with error 1067, on a migration every MariaDB
+    # run had passed. The job above keeps MariaDB because local development
+    # and on-prem installs run it; this one runs the same suite on the engine
+    # and version production runs (blueprint assessment 2026-10-20, OPS16).
+    #
+    # Started with `docker run` rather than as a service, because a service
+    # container cannot take server flags. Two are set:
+    #   - strict sql_mode, as production reports it;
+    #   - log_bin_trust_function_creators, because MySQL 8 enables binary
+    #     logging by default and then refuses CREATE TRIGGER from a user
+    #     without SUPER. The audit_log triggers are created on production by
+    #     a user without SUPER, so production is in one of the two states
+    #     that allow it; this flag is the less invasive of them.
+    # Runs as the non-root `ethr` user, like the MariaDB job.
+    #
+    # Its first run found the one behaviour that differs: MySQL stores a JSON
+    # column as binary JSON and returns object keys in its own order, where
+    # MariaDB stores text and returns them as written. Five assertions had
+    # compared key order; none of the code relied on it. Never read meaning
+    # into the order of keys in a JSON column.
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Start MySQL 8.0.32
+        run: |
+          docker run -d --name mysql8 -p 3306:3306 \
+            -e MYSQL_ROOT_PASSWORD=root \
+            -e MYSQL_DATABASE=ethr_suite_mysql \
+            -e MYSQL_USER=ethr \
+            -e MYSQL_PASSWORD=ethr \
+            mysql:8.0.32 \
+            --character-set-server=utf8mb4 \
+            --collation-server=utf8mb4_unicode_ci \
+            --log-bin-trust-function-creators=1 \
+            --sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+          # The image's first start runs a socket-only bootstrap server; a TCP
+          # ping answers only once the real server is listening.
+          for i in $(seq 1 90); do
+            if docker exec mysql8 mysqladmin ping -h127.0.0.1 -uethr -pethr --silent 2>/dev/null; then
+              docker exec mysql8 mysql -h127.0.0.1 -uroot -proot -e "SELECT VERSION(), @@GLOBAL.sql_mode"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs mysql8
+          exit 1
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, simplexml, tokenizer
+          coverage: none
+          ini-values: memory_limit=-1
+
+      - name: Cache Composer packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Generate an application key
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run the backend suite against MySQL 8
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: ethr_suite_mysql
+          DB_USERNAME: ethr
+          DB_PASSWORD: ethr
+        run: ./scripts/gates.sh mysql
+
   frontend:
     name: Frontend (i18n, Prettier, ESLint, tsc, Vitest)
     runs-on: ubuntu-latest
