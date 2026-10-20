@@ -26,6 +26,7 @@ use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\PayslipPdfService;
 use App\Services\Payroll\RunRegisterService;
 use App\Services\Payroll\StatutorySchedules;
+use App\Support\Csv;
 use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -348,7 +349,7 @@ class PayrollController extends Controller
     {
         $this->authorize('view', $payrollRun);
 
-        $csv = $registerService->csv($payrollRun);
+        $csv = Csv::forSpreadsheet($registerService->csv($payrollRun));
 
         AuditLog::record('payroll.register_export', $payrollRun);
 

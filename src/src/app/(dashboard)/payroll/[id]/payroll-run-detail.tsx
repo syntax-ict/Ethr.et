@@ -285,6 +285,8 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
       saveCsv(
         `bank-transfer-${file.period.replace(/\s/g, "-")}.csv`,
         bankTransferCsv(file),
+        // Uploaded to the bank, whose importer may refuse a byte-order mark.
+        { byteOrderMark: false },
       );
       toast.success(t("payroll_detail_page.bank_file_downloaded"));
     } catch {
@@ -300,7 +302,9 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         return;
       }
       // The same file the Accounting settings page exports.
-      saveCsv(journalFilename(journal), journalCsv(journal));
+      saveCsv(journalFilename(journal), journalCsv(journal), {
+        byteOrderMark: false,
+      });
       toast.success(t("payroll_detail_page.journal_downloaded"));
     } catch {
       toast.error(t("payroll_detail_page.journal_failed"));
