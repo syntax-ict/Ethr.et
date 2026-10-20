@@ -147,6 +147,9 @@ final class AttendanceEngine
             ->whereDate('date', '<=', $today)
             ->whereNotNull('check_in')
             ->whereNull('check_out')
+            // A voided duplicate keeps its check-in; closing it would put the
+            // check-out on a record nothing counts.
+            ->where('status', '!=', AttendanceStatus::VOIDED)
             ->with('shift')
             ->latest('check_in')
             ->get();
