@@ -196,7 +196,8 @@ test('an attendance report keeps the newest rows past the limit, and says it was
 
 test('grouping a payroll report sums cents columns per group, not just counts', function () {
     $tenant = createTenant();
-    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    // Finance, not HR: the payroll source needs payroll.viewAll (blueprint D6).
+    actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
 
     $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'period_label' => 'August 2026']);
     $employeeA = Employee::factory()->create(['tenant_id' => $tenant->id]);
