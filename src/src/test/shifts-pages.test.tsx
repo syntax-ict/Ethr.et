@@ -263,7 +263,6 @@ describe("Shifts page", () => {
         );
       }),
     );
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     renderPage(<ShiftsPage />);
 
@@ -271,12 +270,19 @@ describe("Shifts page", () => {
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(await screen.findByRole("menuitem", { name: /Delete/ }));
 
-    expect(confirm).toHaveBeenCalledWith("Delete this shift?");
+    // The question is the app's own dialog, translated, not the browser's.
+    const asked = await screen.findByRole("dialog");
+    expect(within(asked).getByText("Delete this shift?")).toBeInTheDocument();
+    await user.click(within(asked).getByRole("button", { name: "Cancel" }));
     expect(deletes).toBe(0);
 
-    confirm.mockReturnValue(true);
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(await screen.findByRole("menuitem", { name: /Delete/ }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
+    );
 
     // The API's own sentence, not a canned one: a refusal may be 403 (as
     // here) or 409 while the shift is still assigned, and only `detail`
@@ -484,19 +490,26 @@ describe("Shift assignments page", () => {
         );
       }),
     );
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     renderPage(<ShiftAssignmentsPage />);
 
     await user.click(
       await screen.findByRole("button", { name: "Delete Abebe Kebede" }),
     );
-    expect(confirm).toHaveBeenCalledWith("Delete this upcoming assignment?");
+    const asked = await screen.findByRole("dialog");
+    expect(
+      within(asked).getByText("Delete this upcoming assignment?"),
+    ).toBeInTheDocument();
+    await user.click(within(asked).getByRole("button", { name: "Cancel" }));
     expect(deletes).toBe(0);
 
-    confirm.mockReturnValue(true);
     await user.click(
       screen.getByRole("button", { name: "Delete Abebe Kebede" }),
+    );
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
     );
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
@@ -572,7 +585,6 @@ describe("Shift rotations page", () => {
         ),
       ),
     );
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
     renderPage(<ShiftRotationsPage />);
 

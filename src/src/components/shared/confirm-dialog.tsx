@@ -16,7 +16,9 @@ interface ConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description: string;
+  /** Optional: a title that is already the whole question needs no second line. */
+  description?: string;
+  /** The confirming button. "Confirm", translated, by default; prefer the verb ("Delete"). */
   confirmLabel?: string;
   /** The dismiss button. "Cancel" by default; say something else when the action itself is a cancellation. */
   cancelLabel?: string;
@@ -30,7 +32,7 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = "Confirm",
+  confirmLabel,
   cancelLabel,
   variant = "default",
   loading = false,
@@ -40,10 +42,14 @@ export function ConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      {/* With no description, say so: Radix otherwise warns that the dialog
+          points aria-describedby at nothing. */}
+      <DialogContent
+        {...(description ? {} : { "aria-describedby": undefined })}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <DialogFooter>
           <Button
@@ -59,7 +65,7 @@ export function ConfirmDialog({
             disabled={loading}
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {confirmLabel}
+            {confirmLabel ?? t("common.confirm", "Confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

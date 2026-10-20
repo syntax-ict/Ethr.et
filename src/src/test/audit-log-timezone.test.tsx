@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -84,6 +84,13 @@ function renderExplorer() {
 }
 
 describe("audit trail timestamps", () => {
+  // These are about the zone, so they read Gregorian dates. Since 2026-10-20
+  // the date part follows the reader's calendar, which defaults to Ethiopian;
+  // the last case below covers that. Only this key is touched: clearing
+  // localStorage would also drop the locale and render Amharic.
+  beforeEach(() => localStorage.setItem("ethr.calendar", "gregorian"));
+  afterEach(() => localStorage.removeItem("ethr.calendar"));
+
   it("reads an entry in the tenant's zone, not the host's", async () => {
     // 09:00Z is 12:00 in Addis.
     mockMe("Africa/Addis_Ababa");
@@ -110,5 +117,17 @@ describe("audit trail timestamps", () => {
     renderExplorer();
 
     expect(await screen.findByText(/20 Aug 2026, 12:00/)).toBeInTheDocument();
+  });
+
+  it("writes the date in the Ethiopian calendar for a reader who uses it, time still in the tenant's zone", async () => {
+    // 20 August 2026 is 14 Nehase 2018; 09:00Z is still 12:00 in Addis.
+    localStorage.setItem("ethr.calendar", "ethiopian");
+    mockMe("Africa/Addis_Ababa");
+    mockLogs();
+    renderExplorer();
+
+    expect(
+      await screen.findByText(/Nehase 14, 2018, 12:00/),
+    ).toBeInTheDocument();
   });
 });

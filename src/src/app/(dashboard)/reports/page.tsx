@@ -74,6 +74,7 @@ import {
 
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { buildCsv, saveCsv } from "@/lib/utils/csv-export";
@@ -914,6 +915,7 @@ function QuickTab() {
 
 function SavedTab() {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { formatDate } = useDateFormatters();
   const { data, isLoading } = useSavedReports();
   const deleteReport = useDeleteSavedReport();
@@ -933,9 +935,15 @@ function SavedTab() {
     });
   }
 
-  function handleDelete(r: SavedReport) {
+  async function handleDelete(r: SavedReport) {
     if (
-      !confirm(`${t("reports_page.delete_saved_confirm_prefix")} "${r.name}"?`)
+      !(await requestConfirm({
+        title: t("reports_page.delete_saved_confirm", undefined, {
+          name: r.name,
+        }),
+        confirmLabel: t("common.delete", "Delete"),
+        variant: "destructive",
+      }))
     )
       return;
     deleteReport.mutate(r.public_id, {
@@ -1039,6 +1047,7 @@ function SavedTab() {
           onClose={() => setScheduleFor(null)}
         />
       )}
+      {confirmDialog}
     </div>
   );
 }
@@ -1188,17 +1197,21 @@ function ScheduleDialog({
 
 function ScheduledTab() {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   // A schedule is only meaningful in the zone the tenant reads it in: "next run
   // 06:00" has to mean 06:00 to the person who set it, not 03:00 UTC.
   const { formatDateTime } = useDateFormatters();
   const { data, isLoading } = useScheduledReports();
   const deleteScheduled = useDeleteScheduledReport();
 
-  function handleDelete(publicId: string, name: string) {
+  async function handleDelete(publicId: string, name: string) {
     if (
-      !confirm(
-        `${t("reports_page.cancel_scheduled_confirm_prefix")} "${name}"?`,
-      )
+      !(await requestConfirm({
+        title: t("reports_page.cancel_scheduled_confirm", undefined, { name }),
+        confirmLabel: t("reports_page.cancel_schedule"),
+        cancelLabel: t("reports_page.keep_schedule"),
+        variant: "destructive",
+      }))
     )
       return;
     deleteScheduled.mutate(publicId, {
@@ -1279,6 +1292,7 @@ function ScheduledTab() {
           ))}
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }
