@@ -339,7 +339,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               {periodTitle}
             </h1>
-            <StatusBadge status={run.status} />
+            <StatusBadge status={run.status} domain="payroll_run" />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {run.period_start

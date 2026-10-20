@@ -21,18 +21,23 @@ import {
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
-import { statusBadgeClass } from "@/lib/utils/status-colors";
+import { statusTone } from "@/lib/utils/status-colors";
 import { csvFromRows, saveCsv } from "@/lib/utils/csv-export";
 import { toast } from "sonner";
 
+// Actions are not statuses, so they ask for a tone by name rather than
+// borrowing a status that happens to be the right colour today: "updated"
+// borrowed `draft`, and draft is now grey.
 function getActionColor(action: string): string {
-  if (action.includes("created") || action.includes("approved"))
-    return statusBadgeClass("created");
-  if (action.includes("updated") || action.includes("processed"))
-    return statusBadgeClass("draft");
-  if (action.includes("deleted") || action.includes("rejected"))
-    return statusBadgeClass("rejected");
-  return statusBadgeClass("unknown");
+  const tone =
+    action.includes("created") || action.includes("approved")
+      ? "success"
+      : action.includes("updated") || action.includes("processed")
+        ? "info"
+        : action.includes("deleted") || action.includes("rejected")
+          ? "error"
+          : "neutral";
+  return `${statusTone(tone).badge} border-0`;
 }
 
 /**

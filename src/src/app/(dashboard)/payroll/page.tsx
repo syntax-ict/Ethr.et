@@ -192,7 +192,10 @@ export default function PayrollPage() {
                               locale,
                             )}
                           </span>
-                          <StatusBadge status={run.status} />
+                          <StatusBadge
+                            status={run.status}
+                            domain="payroll_run"
+                          />
                         </div>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {run.employee_count}{" "}
