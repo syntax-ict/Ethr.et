@@ -34,7 +34,10 @@ const SHIFT_COLOURS = [
   "bg-primary-soft text-primary-on-soft border-primary-edge",
   "bg-warning-soft text-warning-on-soft border-status-warning/20",
   "bg-destructive-soft text-destructive-on-soft border-status-error/20",
-  "bg-brand-accent/10 text-brand-accent border-brand-accent/20",
+  // Gold stays gold through the brand soft pair. The raw accent as text on its
+  // own tint measured 1.93:1 (light) and 2.93:1 (high contrast) in the UX audit
+  // baseline, 2026-10-20; the plan reserves the accent for marks, not text.
+  "bg-brand-soft text-brand-on-soft border-brand-edge",
 ];
 
 function shiftColour(name: string): string {
