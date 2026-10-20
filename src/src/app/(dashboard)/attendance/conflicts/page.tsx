@@ -44,6 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { PaginationControls } from "@/components/shared/pagination-controls";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 /**
  * Attendance conflict review.
@@ -99,11 +100,14 @@ export default function AttendanceConflictsPage() {
           );
           closeDialog();
         },
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            t(
-              "attendance.conflicts.resolve_failed",
-              "Failed to resolve conflict",
+            apiErrorMessage(
+              err,
+              t(
+                "attendance.conflicts.resolve_failed",
+                "Failed to resolve conflict",
+              ),
             ),
           ),
       },

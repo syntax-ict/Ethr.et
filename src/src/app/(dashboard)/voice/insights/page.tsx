@@ -58,6 +58,7 @@ import {
   type ConcernStatus,
 } from "@/features/voice/api";
 import { ConcernStatusBadge, ConcernThread } from "@/features/voice/components";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 /**
  * Employee voice for HR: how people say work is going, and the concerns they
@@ -431,9 +432,12 @@ function HrConcernDialog({
           setStatus("");
           setResolution("");
         },
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            t("voice.resolution_required", "Add how it was resolved"),
+            apiErrorMessage(
+              err,
+              t("voice.resolution_required", "Add how it was resolved"),
+            ),
           ),
       },
     );

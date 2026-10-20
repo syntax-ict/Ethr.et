@@ -216,9 +216,14 @@ return Application::configure(basePath: dirname(__DIR__))
             // X-RateLimit-* pair, and dropping them left an API client to
             // guess when to try again (API/webhook end-to-end test, 2026-10-14,
             // D2 and D3).
-            $detail = $e->getPrevious() instanceof ModelNotFoundException
+            // Translated, because the app shows this sentence to the person:
+            // since 2026-10-20 every failed save surfaces the server's reason,
+            // and Laravel's generic 403 was English on an Amharic screen.
+            // __() returns a sentence unchanged when it has no translation,
+            // and domain messages arrive already translated.
+            $detail = __($e->getPrevious() instanceof ModelNotFoundException
                 ? 'The requested resource was not found.'
-                : ($e->getMessage() ?: 'An error occurred.');
+                : ($e->getMessage() ?: 'An error occurred.'));
 
             // An upload over PHP's post_max_size is refused by global
             // middleware, before SetLocale runs: name the real limit, in the
@@ -342,7 +347,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'type' => 'https://ethr.et/errors/unauthorized',
                 'title' => 'Unauthorized',
                 'status' => 403,
-                'detail' => $e->getMessage() ?: 'You are not authorized to perform this action.',
+                'detail' => __($e->getMessage() ?: 'You are not authorized to perform this action.'),
             ], 403);
         });
     })->create();

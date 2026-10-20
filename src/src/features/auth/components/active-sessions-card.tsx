@@ -16,6 +16,7 @@ import {
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 /**
  * `toLocaleString()` with no arguments renders in the *browser's* timezone and
@@ -58,11 +59,14 @@ export function ActiveSessionsCard() {
         toast.success(
           t("security_page.session_revoked", "Session signed out."),
         ),
-      onError: () =>
+      onError: (err) =>
         toast.error(
-          t(
-            "security_page.session_revoke_failed",
-            "Could not sign that session out.",
+          apiErrorMessage(
+            err,
+            t(
+              "security_page.session_revoke_failed",
+              "Could not sign that session out.",
+            ),
           ),
         ),
     });
@@ -87,11 +91,14 @@ export function ActiveSessionsCard() {
                       "Other sessions signed out.",
                     ) + ` (${r.revoked})`,
                   ),
-                onError: () =>
+                onError: (err) =>
                   toast.error(
-                    t(
-                      "security_page.session_revoke_failed",
-                      "Could not sign those sessions out.",
+                    apiErrorMessage(
+                      err,
+                      t(
+                        "security_page.session_revoke_failed",
+                        "Could not sign those sessions out.",
+                      ),
                     ),
                   ),
               })
@@ -259,11 +266,14 @@ export function TrustedDevicesCard() {
                           "Device removed. MFA will be required on it again.",
                         ),
                       ),
-                    onError: () =>
+                    onError: (err) =>
                       toast.error(
-                        t(
-                          "security_page.device_remove_failed",
-                          "Could not remove that device.",
+                        apiErrorMessage(
+                          err,
+                          t(
+                            "security_page.device_remove_failed",
+                            "Could not remove that device.",
+                          ),
                         ),
                       ),
                   })

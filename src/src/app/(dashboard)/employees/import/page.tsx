@@ -35,7 +35,7 @@ import {
 } from "@/features/employees/api";
 import { saveCsv } from "@/lib/utils/csv-export";
 import { useT } from "@/lib/i18n/useT";
-import { apiErrorDetail } from "@/lib/api/error-message";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { useUploadLimit } from "@/features/auth/api";
 import {
   overServerLimit,
@@ -158,7 +158,10 @@ export default function EmployeeImportPage() {
               `${t("employees_import_page.imported")} ${data.created} ${t("employees_import_page.employees")}`,
             );
         },
-        onError: () => toast.error(t("employees_import_page.import_failed")),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(err, t("employees_import_page.import_failed")),
+          ),
       },
     );
   }

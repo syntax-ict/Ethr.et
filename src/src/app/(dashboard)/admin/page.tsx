@@ -50,6 +50,7 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 function formatAction(action: string): string {
   return action.replace(/\./g, " › ").replace(/_/g, " ");
@@ -510,9 +511,12 @@ export default function AdminConsolePage() {
                             "All jobs retried",
                           ),
                       ),
-                    onError: () =>
+                    onError: (err) =>
                       toast.error(
-                        t("admin_console_page.retry_failed", "Retry failed"),
+                        apiErrorMessage(
+                          err,
+                          t("admin_console_page.retry_failed", "Retry failed"),
+                        ),
                       ),
                   })
                 }
@@ -571,11 +575,14 @@ export default function AdminConsolePage() {
                                   "Job retried",
                                 ),
                               ),
-                            onError: () =>
+                            onError: (err) =>
                               toast.error(
-                                t(
-                                  "admin_console_page.retry_failed",
-                                  "Retry failed",
+                                apiErrorMessage(
+                                  err,
+                                  t(
+                                    "admin_console_page.retry_failed",
+                                    "Retry failed",
+                                  ),
                                 ),
                               ),
                           })
@@ -638,9 +645,12 @@ export default function AdminConsolePage() {
                 toast.success(
                   t("admin_console_page.job_dismissed", "Job dismissed"),
                 ),
-              onError: () =>
+              onError: (err) =>
                 toast.error(
-                  t("admin_console_page.dismiss_failed", "Dismiss failed"),
+                  apiErrorMessage(
+                    err,
+                    t("admin_console_page.dismiss_failed", "Dismiss failed"),
+                  ),
                 ),
             });
             setDismissTarget(null);

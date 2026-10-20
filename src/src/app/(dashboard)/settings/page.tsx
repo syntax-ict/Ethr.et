@@ -48,6 +48,7 @@ import {
 } from "@/features/settings/api";
 import { type CalendarSystem } from "@/lib/calendar/calendar-context";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const VALID_TABS = ["general", "branding", "security", "sso"];
 
@@ -152,9 +153,12 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
         setSsoDirty({});
         toast.success(t("settings.sso_saved", "SSO settings saved"));
       },
-      onError: () =>
+      onError: (err) =>
         toast.error(
-          t("settings.sso_save_failed", "Failed to save SSO settings"),
+          apiErrorMessage(
+            err,
+            t("settings.sso_save_failed", "Failed to save SSO settings"),
+          ),
         ),
     });
   }

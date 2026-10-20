@@ -58,7 +58,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
-import { apiErrorDetail } from "@/lib/api/error-message";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 
 function leaveTypeName(
   lt: LeaveBalance["leave_type"],
@@ -338,8 +338,13 @@ function MyLeaveTab() {
                           cancelLeave.mutate(req.public_id, {
                             onSuccess: () =>
                               toast.success(t("leave_page.withdrawn")),
-                            onError: () =>
-                              toast.error(t("leave_page.withdraw_failed")),
+                            onError: (err) =>
+                              toast.error(
+                                apiErrorMessage(
+                                  err,
+                                  t("leave_page.withdraw_failed"),
+                                ),
+                              ),
                           });
                         }
                       }}

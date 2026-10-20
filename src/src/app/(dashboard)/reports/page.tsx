@@ -83,6 +83,7 @@ import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
 import { usePlanFeatures } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { ReportFilterValue } from "@/features/reports/components/report-filter-value";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const prebuilt: Array<{
   key: ReportSourceKey;
@@ -263,7 +264,8 @@ function BuilderTab() {
 
   function handlePreview() {
     generate.mutate(buildPayload(), {
-      onError: () => toast.error(t("reports_page.generate_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("reports_page.generate_failed"))),
     });
   }
 
@@ -731,7 +733,10 @@ function SaveReportDialog({
           setName("");
           onClose();
         },
-        onError: () => toast.error(t("reports_page.save_template_failed")),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(err, t("reports_page.save_template_failed")),
+          ),
       },
     );
   }
@@ -839,7 +844,8 @@ function QuickTab() {
           toast.success(
             `${t("reports_page.generated_prefix")} ${data.total} ${t("reports_page.records")}`,
           ),
-        onError: () => toast.error(t("reports_page.generate_failed")),
+        onError: (err) =>
+          toast.error(apiErrorMessage(err, t("reports_page.generate_failed"))),
       },
     );
   }
@@ -942,7 +948,8 @@ function SavedTab() {
           `${t("reports_page.generated_prefix")} ${data.total} ${t("reports_page.records")}`,
         );
       },
-      onError: () => toast.error(t("reports_page.run_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("reports_page.run_failed"))),
     });
   }
 
@@ -1101,7 +1108,8 @@ function ScheduleDialog({
           toast.success(t("reports_page.report_scheduled"));
           onClose();
         },
-        onError: () => toast.error(t("reports_page.schedule_failed")),
+        onError: (err) =>
+          toast.error(apiErrorMessage(err, t("reports_page.schedule_failed"))),
       },
     );
   }

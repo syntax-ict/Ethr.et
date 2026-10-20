@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogoUpload } from "@/features/settings/components/logo-upload";
 import { BrandImageUpload } from "@/features/settings/components/brand-image-upload";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 /**
  * Tenant branding — the logo and its variants, and the theme colours.
@@ -70,9 +71,12 @@ export function BrandingCard({
       {
         onSuccess: () =>
           toast.success(t("settings.branding_saved", "Branding saved")),
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            t("settings.branding_save_failed", "Failed to save branding"),
+            apiErrorMessage(
+              err,
+              t("settings.branding_save_failed", "Failed to save branding"),
+            ),
           ),
       },
     );

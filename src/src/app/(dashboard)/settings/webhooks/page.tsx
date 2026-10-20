@@ -160,14 +160,16 @@ export default function WebhooksPage() {
         toast.success(t("webhooks_page.deleted"));
         setDeleting(null);
       },
-      onError: () => toast.error(t("common.action_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("common.action_failed"))),
     });
   }
 
   function sendTest(publicId: string) {
     testWebhook.mutate(publicId, {
       onSuccess: () => toast.success(t("webhooks_page.test_dispatched")),
-      onError: () => toast.error(t("webhooks_page.test_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("webhooks_page.test_failed"))),
     });
   }
 

@@ -34,6 +34,7 @@ import {
   type AlertOperator,
   type AlertSeverity,
 } from "@/features/dashboard/executive-api";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const METRICS: AlertMetric[] = [
   "turnover_rate",
@@ -79,8 +80,13 @@ export function AlertThresholdsDialog({
           toast.success(t("alert_dialog.created", "Alert threshold added"));
           setValue("");
         },
-        onError: () =>
-          toast.error(t("alert_dialog.create_failed", "Could not add rule")),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("alert_dialog.create_failed", "Could not add rule"),
+            ),
+          ),
       },
     );
   }

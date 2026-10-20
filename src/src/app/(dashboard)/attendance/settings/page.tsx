@@ -18,6 +18,7 @@ import {
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { SettingRow } from "@/components/patterns/SettingRow";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 type Method = AttendanceSettings["enabled_methods"][number];
 
@@ -85,7 +86,10 @@ export default function AttendanceSettingsPage() {
         setForm(updated);
         toast.success(t("attendance.settings_page.saved"));
       },
-      onError: () => toast.error(t("attendance.settings_page.save_failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("attendance.settings_page.save_failed")),
+        ),
     });
   }
 

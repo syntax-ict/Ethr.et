@@ -26,6 +26,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage";
 import { useSavedViews } from "@/lib/hooks/useSavedViews";
 import type { Employee } from "@/features/employees/types";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 interface EmployeesViewState {
   search: string;
@@ -102,7 +103,10 @@ export default function EmployeesPage() {
         }),
       );
     },
-    onError: () => toast.error(t("employees.export_failed", "Export failed")),
+    onError: (err) =>
+      toast.error(
+        apiErrorMessage(err, t("employees.export_failed", "Export failed")),
+      ),
   });
 
   const columns: ColumnDef<Employee, unknown>[] = [

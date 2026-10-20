@@ -19,6 +19,7 @@ import {
   type PlatformSettings,
 } from "@/features/admin/api";
 import { useT } from "@/lib/i18n/useT";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 /**
  * Super-admin editor for the bank account tenants pay ETHR into.
@@ -124,9 +125,12 @@ function PaymentForm({ settings }: { settings: PlatformSettings }) {
     update.mutate(form, {
       onSuccess: () =>
         toast.success(t("platform_settings.saved", "Payment details updated")),
-      onError: () =>
+      onError: (err) =>
         toast.error(
-          t("platform_settings.save_failed", "Could not save changes"),
+          apiErrorMessage(
+            err,
+            t("platform_settings.save_failed", "Could not save changes"),
+          ),
         ),
     });
   }
@@ -314,9 +318,12 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
       {
         onSuccess: () =>
           toast.success(t("site_content.saved", "Public site content updated")),
-        onError: () =>
+        onError: (err) =>
           toast.error(
-            t("site_content.save_failed", "Could not save the site content"),
+            apiErrorMessage(
+              err,
+              t("site_content.save_failed", "Could not save the site content"),
+            ),
           ),
       },
     );

@@ -40,6 +40,7 @@ import {
   ActiveSessionsCard,
   TrustedDevicesCard,
 } from "@/features/auth/components/active-sessions-card";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 /** The URL never changes while this page is open, so there is nothing to subscribe to. */
 function subscribeToNothing(): () => void {
@@ -100,7 +101,8 @@ export default function SecurityPage() {
         setSetupData(data);
         setSetupOpen(true);
       },
-      onError: () => toast.error(t("security_page.mfa_setup_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("security_page.mfa_setup_failed"))),
     });
   }
 
@@ -121,7 +123,8 @@ export default function SecurityPage() {
           setSetupData(null);
           setCode("");
         },
-        onError: () => toast.error(t("security_page.invalid_code")),
+        onError: (err) =>
+          toast.error(apiErrorMessage(err, t("security_page.invalid_code"))),
       },
     );
   }
@@ -135,7 +138,8 @@ export default function SecurityPage() {
           setDisableOpen(false);
           setDisableCode("");
         },
-        onError: () => toast.error(t("security_page.invalid_code")),
+        onError: (err) =>
+          toast.error(apiErrorMessage(err, t("security_page.invalid_code"))),
       },
     );
   }

@@ -78,7 +78,7 @@ import {
   sizeLabel,
 } from "@/lib/uploads/upload-limit";
 
-import { apiErrorDetail } from "@/lib/api/error-message";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
@@ -493,9 +493,12 @@ export default function AnnouncementsPage() {
         setPendingDelete(null);
         toast.success(t("announcements.deleted", "Announcement deleted"));
       },
-      onError: () =>
+      onError: (err) =>
         toast.error(
-          t("announcements.delete_failed", "Failed to delete announcement"),
+          apiErrorMessage(
+            err,
+            t("announcements.delete_failed", "Failed to delete announcement"),
+          ),
         ),
     });
   }

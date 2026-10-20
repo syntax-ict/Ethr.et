@@ -56,6 +56,7 @@ import {
   type VacancyStatus,
   type VacancyVisibility,
 } from "@/features/vacancies/api";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const NONE = "__none__";
 
@@ -142,8 +143,13 @@ export default function VacanciesPage() {
               ? t("vacancies.closed_toast", "Vacancy closed")
               : t("vacancies.opened_toast", "Vacancy is open"),
           ),
-        onError: () =>
-          toast.error(t("vacancies.save_failed", "Failed to save vacancy")),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("vacancies.save_failed", "Failed to save vacancy"),
+            ),
+          ),
       },
     );
   }
@@ -154,8 +160,13 @@ export default function VacanciesPage() {
         setPendingDelete(null);
         toast.success(t("vacancies.deleted", "Vacancy deleted"));
       },
-      onError: () =>
-        toast.error(t("vacancies.delete_failed", "Failed to delete vacancy")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t("vacancies.delete_failed", "Failed to delete vacancy"),
+          ),
+        ),
     });
   }
 

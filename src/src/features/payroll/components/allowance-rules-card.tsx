@@ -43,6 +43,7 @@ import {
   type AllowanceRule,
   type AllowanceRuleType,
 } from "../api";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 interface FormState {
   name: string;
@@ -177,11 +178,14 @@ export function AllowanceRulesCard() {
         toast.success(
           t("payroll_config.allowance_deleted", "Allowance removed"),
         ),
-      onError: () =>
+      onError: (err) =>
         toast.error(
-          t(
-            "payroll_config.allowance_delete_failed",
-            "Could not remove allowance",
+          apiErrorMessage(
+            err,
+            t(
+              "payroll_config.allowance_delete_failed",
+              "Could not remove allowance",
+            ),
           ),
         ),
     });

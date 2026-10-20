@@ -21,6 +21,7 @@ import {
 } from "@/features/notifications/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const TYPE_LABEL_KEYS: Record<string, { labelKey: string; descKey?: string }> =
   {
@@ -116,7 +117,10 @@ export default function NotificationPreferencesPage() {
         setDirty(false);
         toast.success(t("notification_prefs_page.saved"));
       },
-      onError: () => toast.error(t("notification_prefs_page.save_failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("notification_prefs_page.save_failed")),
+        ),
     });
   }
 

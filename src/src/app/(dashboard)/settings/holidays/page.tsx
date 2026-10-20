@@ -48,6 +48,7 @@ import { rules, fieldMessage } from "@/lib/forms/rules";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
 import { z } from "zod";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const holidaySchema = z.object({
   name: rules.requiredText(255),
@@ -135,7 +136,8 @@ export default function HolidaysPage() {
     if (!deleting) return;
     deleteHoliday.mutate(deleting.public_id, {
       onSuccess: () => toast.success(t("holidays_page.deleted")),
-      onError: () => toast.error(t("holidays_page.delete_failed")),
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("holidays_page.delete_failed"))),
       onSettled: () => setDeleting(null),
     });
   }
@@ -143,7 +145,10 @@ export default function HolidaysPage() {
   function runAutoDetect() {
     autoDetect.mutate(undefined, {
       onSuccess: () => toast.success(t("holidays_page.auto_detected")),
-      onError: () => toast.error(t("holidays_page.auto_detect_failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("holidays_page.auto_detect_failed")),
+        ),
     });
   }
 

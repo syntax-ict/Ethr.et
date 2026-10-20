@@ -31,6 +31,7 @@ import {
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 export default function ApprovalsPage() {
   const { t } = useT();
@@ -69,7 +70,10 @@ export default function ApprovalsPage() {
   ) {
     batchAction.mutate(payload, {
       onSuccess: reportOutcome,
-      onError: () => toast.error(t("approvals.action_failed", "Action failed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("approvals.action_failed", "Action failed")),
+        ),
       onSettled: options?.onSettled,
     });
   }

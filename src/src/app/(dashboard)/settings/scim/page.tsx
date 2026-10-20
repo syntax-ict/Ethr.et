@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useGenerateScimToken } from "@/features/settings/api";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 export default function ScimSettingsPage() {
   const { t } = useT();
@@ -36,9 +37,12 @@ export default function ScimSettingsPage() {
           t("settings.scim_token_generated", "SCIM token generated"),
         );
       },
-      onError: () =>
+      onError: (err) =>
         toast.error(
-          t("settings.scim_token_failed", "Failed to generate token"),
+          apiErrorMessage(
+            err,
+            t("settings.scim_token_failed", "Failed to generate token"),
+          ),
         ),
     });
   }
