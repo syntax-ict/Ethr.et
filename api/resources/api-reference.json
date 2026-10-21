@@ -1434,12 +1434,10 @@
                                                                 "type": "string"
                                                             },
                                                             "step": {
-                                                                "type": "integer",
-                                                                "const": 1
+                                                                "type": "integer"
                                                             },
                                                             "steps": {
-                                                                "type": "integer",
-                                                                "const": 1
+                                                                "type": "integer"
                                                             }
                                                         },
                                                         "required": [
@@ -38092,6 +38090,9 @@
                             "string",
                             "null"
                         ]
+                    },
+                    "approval": {
+                        "$ref": "#/components/schemas/ApprovalSummaryResource"
                     },
                     "created_at": {
                         "type": [

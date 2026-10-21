@@ -6,6 +6,7 @@ namespace App\Enums;
 
 use App\Models\AttendanceCorrection;
 use App\Models\LeaveRequest;
+use App\Models\ProfileUpdateRequest;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -17,6 +18,7 @@ enum ApprovalRequestType: string
 {
     case LEAVE = 'leave';
     case CORRECTION = 'correction';
+    case PROFILE_UPDATE = 'profile_update';
 
     /** The permission every step's approver must hold, as the policies require today. */
     public function permission(): string
@@ -24,6 +26,7 @@ enum ApprovalRequestType: string
         return match ($this) {
             self::LEAVE => 'leave.approve',
             self::CORRECTION => 'correction.approve',
+            self::PROFILE_UPDATE => 'employee.update',
         };
     }
 
@@ -32,6 +35,7 @@ enum ApprovalRequestType: string
         return match (true) {
             $approvable instanceof LeaveRequest => self::LEAVE,
             $approvable instanceof AttendanceCorrection => self::CORRECTION,
+            $approvable instanceof ProfileUpdateRequest => self::PROFILE_UPDATE,
             default => throw new \InvalidArgumentException('No approval workflow for '.$approvable::class),
         };
     }

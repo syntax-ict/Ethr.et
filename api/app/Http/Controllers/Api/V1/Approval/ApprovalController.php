@@ -107,7 +107,7 @@ class ApprovalController extends Controller
         // reviewer without that permission simply sees none.
         if ($user->hasPermission('employee.update')) {
             $profileUpdates = $this->approvals->profileUpdates($user)
-                ->with('employee:id,name,public_id')
+                ->with('employee:id,name,public_id', 'approvalInstance')
                 ->orderByDesc('created_at')
                 ->get();
 
@@ -126,8 +126,8 @@ class ApprovalController extends Controller
                         'new' => $this->displayValue($pu, $pu->new_value, $user) ?? '—',
                     ]),
                     'submitted_at' => $pu->created_at,
-                    'step' => 1,
-                    'steps' => 1,
+                    'step' => $this->approvalOf($pu)->current_position ?? 1,
+                    'steps' => $this->approvalOf($pu)?->stepCount() ?? 1,
                 ];
             }
         }
@@ -257,7 +257,7 @@ class ApprovalController extends Controller
     }
 
     /** The eager-loaded approval, or null for a request on the default single step. */
-    private function approvalOf(LeaveRequest|AttendanceCorrection $request): ?ApprovalInstance
+    private function approvalOf(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $request): ?ApprovalInstance
     {
         $instance = $request->getRelation('approvalInstance');
 
@@ -301,7 +301,7 @@ class ApprovalController extends Controller
             return ['status' => 'error', 'detail' => 'Not found or not pending'];
         }
 
-        $refusal = $this->profileUpdates->refusal($profileUpdate, $user);
+        $refusal = $this->profileUpdates->refusal($profileUpdate, $user, $action['action'] === 'approve');
         if ($refusal !== null) {
             return ['status' => 'error', 'detail' => $refusal->detail];
         }
