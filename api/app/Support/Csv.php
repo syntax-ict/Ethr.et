@@ -40,6 +40,19 @@ final class Csv
     }
 
     /**
+     * A CSV for people to open in a spreadsheet: UTF-8 with a byte-order
+     * mark, which is how Excel knows the file is UTF-8. Without it Excel reads
+     * it as the Windows code page and every Amharic name arrives garbled
+     * (blueprint assessment RP20). Only for files people read: a bank,
+     * accounting or agency upload format gets no mark, since its importer may
+     * refuse one. The importers here strip it (lines()).
+     */
+    public static function forSpreadsheet(string $csv): string
+    {
+        return $csv === '' || str_starts_with($csv, "\xEF\xBB\xBF") ? $csv : "\xEF\xBB\xBF".$csv;
+    }
+
+    /**
      * The non-blank lines of an uploaded CSV, whatever wrote it.
      *
      * Excel on Windows saves CRLF and, as "CSV UTF-8", a leading byte-order

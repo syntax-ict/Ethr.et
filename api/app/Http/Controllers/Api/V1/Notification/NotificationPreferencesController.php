@@ -32,6 +32,7 @@ class NotificationPreferencesController extends Controller
         'payroll_processed',
         'announcement',
         'approval_reminder',
+        'expiry_reminder',
         'profile_update',
         'employee_voice',
     ];

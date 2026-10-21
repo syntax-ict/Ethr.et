@@ -40,7 +40,8 @@ class PayslipAvailableNotification extends Notification
         return [
             'period' => $this->entry->payrollRun?->period_label,
             'net_cents' => $this->entry->net_cents,
-            'message' => 'Your payslip is available for '.($this->entry->payrollRun?->period_label ?? 'this period'),
+            'message' => __('notification.inapp.payslip_available', ['period' => (string) $this->entry->payrollRun?->period_label]),
+            'url' => '/payroll/payslips',
         ];
     }
 

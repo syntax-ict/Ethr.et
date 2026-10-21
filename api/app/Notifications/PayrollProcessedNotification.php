@@ -37,7 +37,8 @@ class PayrollProcessedNotification extends Notification
         return [
             'payroll_run_id' => $this->payrollRun->public_id,
             'period' => $this->payrollRun->period_label,
-            'message' => 'Payroll has been processed for '.$this->payrollRun->period_label,
+            'message' => __('notification.inapp.payroll_processed', ['period' => (string) $this->payrollRun->period_label]),
+            'url' => '/payroll/'.$this->payrollRun->public_id,
         ];
     }
 }
