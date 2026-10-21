@@ -3,16 +3,7 @@
 import { useState } from "react";
 import { CheckSquare, Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { FormField } from "@/components/patterns/FormField";
+import { ReasonDialog } from "@/components/shared/reason-dialog";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/page-header";
@@ -37,9 +28,8 @@ export default function ApprovalsPage() {
   const { t } = useT();
   const { formatDate } = useDateFormatters();
 
-  /** The item awaiting a rejection reason, and the reason being typed. */
+  /** The item awaiting a rejection reason; ReasonDialog holds the reason. */
   const [rejecting, setRejecting] = useState<PendingApproval | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
 
   const pending = usePendingApprovals();
   const batchAction = useBatchApprovals();
@@ -94,7 +84,7 @@ export default function ApprovalsPage() {
    * that they had been refused, and the approver had no way to say why.
    * Collect the real reason instead.
    */
-  function confirmReject() {
+  function confirmReject(reason: string) {
     if (!rejecting) return;
 
     submit(
@@ -104,15 +94,12 @@ export default function ApprovalsPage() {
             type: rejecting.type,
             public_id: rejecting.public_id,
             action: "reject",
-            reason: rejectReason.trim(),
+            reason,
           },
         ],
       },
       {
-        onSettled: () => {
-          setRejecting(null);
-          setRejectReason("");
-        },
+        onSettled: () => setRejecting(null),
       },
     );
   }
@@ -210,10 +197,7 @@ export default function ApprovalsPage() {
                       size="sm"
                       variant="outline"
                       className="text-destructive hover:bg-destructive/10"
-                      onClick={() => {
-                        setRejectReason("");
-                        setRejecting(item);
-                      }}
+                      onClick={() => setRejecting(item)}
                       disabled={batchAction.isPending}
                     >
                       <X className="mr-1 h-3 w-3" aria-hidden="true" />
@@ -226,69 +210,34 @@ export default function ApprovalsPage() {
           )}
         </QueryBoundary>
 
-        <Dialog
+        {/* A rejection with an empty reason is the defect this dialog exists
+            to fix, so ReasonDialog keeps its confirm button off until one is
+            typed. */}
+        <ReasonDialog
           open={rejecting !== null}
           onOpenChange={(open) => {
             if (!open) setRejecting(null);
           }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {t("approvals.reject_title", "Reject request")}
-              </DialogTitle>
-              <DialogDescription>
-                {rejecting
-                  ? t(
-                      "approvals.reject_description",
-                      "This will be recorded and shown to :name. Explain why so they know what to do next.",
-                      { name: rejecting.employee_name ?? "" },
-                    )
-                  : ""}
-              </DialogDescription>
-            </DialogHeader>
-
-            <FormField
-              id="reject_reason"
-              label={t("approvals.reject_reason", "Reason for rejection")}
-              required
-              hint={t(
-                "approvals.reject_reason_hint",
-                "Visible to the employee.",
-              )}
-            >
-              <Textarea
-                rows={3}
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder={t(
-                  "approvals.reject_reason_placeholder",
-                  "e.g. Team is already at minimum cover for those dates.",
-                )}
-              />
-            </FormField>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setRejecting(null)}>
-                {t("common.cancel", "Cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={confirmReject}
-                // A rejection with an empty reason is the defect this dialog
-                // exists to fix, so it is not submittable.
-                disabled={
-                  batchAction.isPending || rejectReason.trim().length === 0
-                }
-              >
-                {batchAction.isPending && (
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                )}
-                {t("common.reject", "Reject")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          title={t("approvals.reject_title", "Reject request")}
+          description={
+            rejecting
+              ? t(
+                  "approvals.reject_description",
+                  "This will be recorded and shown to :name. Explain why so they know what to do next.",
+                  { name: rejecting.employee_name ?? "" },
+                )
+              : undefined
+          }
+          label={t("approvals.reject_reason", "Reason for rejection")}
+          hint={t("approvals.reject_reason_hint", "Visible to the employee.")}
+          placeholder={t(
+            "approvals.reject_reason_placeholder",
+            "e.g. Team is already at minimum cover for those dates.",
+          )}
+          confirmLabel={t("common.reject", "Reject")}
+          loading={batchAction.isPending}
+          onConfirm={confirmReject}
+        />
       </div>
     </RoleGate>
   );

@@ -27,7 +27,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -60,6 +59,7 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
+import { ReasonDialog } from "@/components/shared/reason-dialog";
 
 /**
  * Each tab is gated on the ability its endpoint checks.
@@ -330,7 +330,6 @@ function PendingReviewsTab({ canDecide }: { canDecide: boolean }) {
   const { formatTime } = useDateFormatters();
   const [page, setPage] = useState(1);
   const [rejectFor, setRejectFor] = useState<AttendanceCorrection | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
 
   const { data, isLoading, isError, refetch } = usePendingCorrections({
     page,
@@ -350,15 +349,14 @@ function PendingReviewsTab({ canDecide }: { canDecide: boolean }) {
     });
   }
 
-  function reject() {
+  function reject(reason: string) {
     if (!rejectFor) return;
     rejectMut.mutate(
-      { publicId: rejectFor.public_id, reason: rejectReason },
+      { publicId: rejectFor.public_id, reason },
       {
         onSuccess: () => {
           toast.success(t("attendance.corrections.rejected"));
           setRejectFor(null);
-          setRejectReason("");
         },
         onError: (err) =>
           toast.error(
@@ -492,52 +490,25 @@ function PendingReviewsTab({ canDecide }: { canDecide: boolean }) {
       </div>
       <PaginationControls meta={data?.meta} onPageChange={setPage} />
 
-      <Dialog
+      <ReasonDialog
         open={!!rejectFor}
         onOpenChange={(open) => {
-          if (!open) {
-            setRejectFor(null);
-            setRejectReason("");
-          }
+          if (!open) setRejectFor(null);
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {t("attendance.corrections.reject_title")}
-            </DialogTitle>
-            <DialogDescription>
-              {t("attendance.corrections.reject_desc_prefix")}{" "}
-              {rejectFor?.employee?.name ??
-                t("attendance.corrections.the_employee")}{" "}
-              {t("attendance.corrections.reject_desc_suffix")}
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            placeholder={t("attendance.corrections.reject_reason_placeholder")}
-            aria-label={t("attendance.corrections.reason")}
-            rows={3}
-            required
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectFor(null)}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={reject}
-              disabled={rejectMut.isPending || !rejectReason.trim()}
-            >
-              {rejectMut.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              {t("attendance.corrections.reject_correction")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title={t("attendance.corrections.reject_title")}
+        description={
+          rejectFor?.employee?.name
+            ? t("attendance.corrections.reject_desc", undefined, {
+                name: rejectFor.employee.name,
+              })
+            : t("attendance.corrections.reject_desc_unnamed")
+        }
+        label={t("attendance.corrections.reason")}
+        placeholder={t("attendance.corrections.reject_reason_placeholder")}
+        confirmLabel={t("attendance.corrections.reject_correction")}
+        loading={rejectMut.isPending}
+        onConfirm={reject}
+      />
     </>
   );
 }
