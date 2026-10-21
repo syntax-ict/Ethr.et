@@ -78,6 +78,7 @@ Three standing caveats:
 | Document | What it is |
 |---|---|
 | [`ENTERPRISE_ROADMAP.md`](ENTERPRISE_ROADMAP.md) | **Live status** — done, partial, missing, grounded in code (97 KB). Cites several audit documents that no longer exist; see the note below |
+| [`APPROVAL-ENGINE-DESIGN.md`](APPROVAL-ENGINE-DESIGN.md) | **Proposal awaiting owner decisions:** configurable approval chains, delegation, escalation and return for correction, delivered in phases that change nothing until an organisation configures a chain |
 | [`external/ERCA_INCOME_TAX_QUERY.md`](external/ERCA_INCOME_TAX_QUERY.md) | **Drafted, unsent.** Asks the **Ministry of Revenues** (not "ERCA" — that body is gone) to confirm the Proclamation 1395/2025 employment-income ladder band by band, because `DEPLOYMENT.md` records it was taken from legal-firm summaries rather than the Negarit Gazeta, and to say how an over-withholding must be corrected. Also records that **both** "open items" in roadmap 4.3 are stale |
 | [`B1-B5_GATE_REPORT.md`](B1-B5_GATE_REPORT.md) | External probing of the hosting target — DNS, ports, TLS |
 | [`phases/`](phases/) | `PHASE_00`–`PHASE_09` design records. **Checkboxes not maintained** |
@@ -131,8 +132,10 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | [`decisions/DECISIONS.md`](decisions/DECISIONS.md) | Decision log — what was chosen, why, and what would reverse it |
 | [`audit/BASELINE.md`](audit/BASELINE.md) | The forensic baseline — §1–§18 of measured state. The deepest reference in this tree |
 | [`operations/QUEUE-MONITORING.md`](operations/QUEUE-MONITORING.md) | Detecting silent queue death on a host with no supervisor |
+| [`operations/METRIC-DEFINITIONS.md`](operations/METRIC-DEFINITIONS.md) | What each dashboard and analytics figure counts: headcount, turnover, attendance and leave rates, and which CSVs carry a byte-order mark |
 | [`operations/ON-CALL.md`](operations/ON-CALL.md) | **What to do when** something breaks in production — symptom, cause, action, on a host with no shell |
 | [`operations/TRUSTED-BY.md`](operations/TRUSTED-BY.md) | **Trusted by**: which organisations the public site names (consented, active, not hidden by the platform), where each decision is made, and how the list is served |
+| [`operations/DATA-EXPORT.md`](operations/DATA-EXPORT.md) | **Organisation data export**: an administrator downloads every record and uploaded document from Settings, what is left out (secrets, encrypted identity numbers, attendance photos), the 7-day expiry, and the host limits the job is built for |
 | [`operations/TENANT-DELETION.md`](operations/TENANT-DELETION.md) | **Deleting an organisation**: what the console's Delete does (closes it, keeps every record, ends sessions, reserves the address), the safeguards (cancel first, reason, typed address, authenticator code), and Restore |
 | [`operations/DATA-BREACH-RESPONSE.md`](operations/DATA-BREACH-RESPONSE.md) | **Data breach response**: the first hour (evidence, containment), telling affected organisations within 24 hours, and the 72-hour notice under Proclamation 1321/2024. Drafted for the owner to adopt |
 | [`operations/SEARCH-LISTINGS.md`](operations/SEARCH-LISTINGS.md) | **Search listings**: the off-site steps that get ETHR found (contact details, Google Business Profile, software directories, outreach, the DNS ticket), with the approved copy to paste into every listing |

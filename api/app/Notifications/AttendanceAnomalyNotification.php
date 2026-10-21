@@ -41,7 +41,8 @@ class AttendanceAnomalyNotification extends Notification
             'anomaly_type' => $this->anomalyType,
             'date' => $this->date,
             'detail' => $this->detail,
-            'message' => "Attendance anomaly detected for {$this->employeeName}: {$this->anomalyType}",
+            'message' => __('notification.inapp.attendance_anomaly', ['name' => $this->employeeName, 'type' => $this->anomalyType]),
+            'url' => '/attendance',
         ];
     }
 }

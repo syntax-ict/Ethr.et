@@ -46,7 +46,8 @@ class AttendanceCorrectionApprovedNotification extends Notification
             'correction_id' => $this->correction->public_id,
             'date' => $date?->format('Y-m-d'),
             'action' => $action,
-            'message' => "Your attendance correction for {$date?->format('M d')} has been {$action}",
+            'message' => __($this->approved ? 'notification.inapp.correction_approved' : 'notification.inapp.correction_rejected', ['date' => $date?->format('Y-m-d') ?? '']),
+            'url' => '/attendance/corrections',
         ];
     }
 }

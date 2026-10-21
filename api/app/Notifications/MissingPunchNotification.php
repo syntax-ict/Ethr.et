@@ -44,9 +44,8 @@ class MissingPunchNotification extends Notification
             'employee_name' => $this->employee->name,
             'date' => $this->date,
             'type' => $this->type,
-            'message' => $this->type === 'missing_check_out'
-                ? "{$this->employee->name} did not check out on {$this->date}"
-                : "{$this->employee->name} did not check in on {$this->date}",
+            'message' => __($this->type === 'missing_check_out' ? 'notification.inapp.missing_check_out' : 'notification.inapp.missing_check_in', ['name' => $this->employee->name, 'date' => $this->date]),
+            'url' => '/attendance',
         ];
     }
 

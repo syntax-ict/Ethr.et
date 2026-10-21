@@ -42,7 +42,8 @@ class LeaveApprovedNotification extends Notification
             'leave_type' => $this->leaveRequest->leaveType?->name,
             'start_date' => $this->leaveRequest->start_date->format('Y-m-d'),
             'end_date' => $this->leaveRequest->end_date->format('Y-m-d'),
-            'message' => 'Your leave request has been approved',
+            'message' => __('notification.inapp.leave_approved'),
+            'url' => '/leave',
         ];
     }
 

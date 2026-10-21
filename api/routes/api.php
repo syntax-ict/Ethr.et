@@ -57,6 +57,7 @@ use App\Http\Controllers\Api\V1\Dashboard\ExecutiveDashboardController;
 use App\Http\Controllers\Api\V1\Device\DeviceCommandController;
 use App\Http\Controllers\Api\V1\Device\DeviceController;
 use App\Http\Controllers\Api\V1\Device\DeviceEnrollmentController;
+use App\Http\Controllers\Api\V1\Device\UnmatchedPunchController;
 use App\Http\Controllers\Api\V1\Directory\DirectoryController;
 use App\Http\Controllers\Api\V1\Employee\BankDetailController;
 use App\Http\Controllers\Api\V1\Employee\DisciplinaryCaseController;
@@ -69,10 +70,12 @@ use App\Http\Controllers\Api\V1\Employee\EmployeeController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeDocumentController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeImportController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeTransitionController;
+use App\Http\Controllers\Api\V1\Employee\LetterRequestController;
 use App\Http\Controllers\Api\V1\Employee\PersonnelActionController;
 use App\Http\Controllers\Api\V1\Employee\RetirementCaseController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Holiday\HolidayController;
+use App\Http\Controllers\Api\V1\Import\BalanceImportController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskCheckInController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSessionController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSyncController;
@@ -102,7 +105,9 @@ use App\Http\Controllers\Api\V1\Payroll\TaxBracketController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\Profile\PhotoConsentController;
 use App\Http\Controllers\Api\V1\Profile\ProfileController;
+use App\Http\Controllers\Api\V1\Profile\ProfileDocumentController;
 use App\Http\Controllers\Api\V1\Profile\ProfileEmergencyContactController;
+use App\Http\Controllers\Api\V1\Profile\ProfileLetterController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePhotoController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
 use App\Http\Controllers\Api\V1\Profile\ProfileUpdateRequestController;
@@ -112,6 +117,7 @@ use App\Http\Controllers\Api\V1\Scim\ScimGroupController;
 use App\Http\Controllers\Api\V1\Scim\ScimUserController;
 use App\Http\Controllers\Api\V1\Search\GlobalSearchController;
 use App\Http\Controllers\Api\V1\Settings\AuditLogController;
+use App\Http\Controllers\Api\V1\Settings\DataExportController;
 use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
 use App\Http\Controllers\Api\V1\Settings\TenantBrandAssetController;
@@ -460,6 +466,10 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::get('/employees/documents/expiring', [EmployeeDocumentController::class, 'expiring']);
     // Same reasoning for the expiring-contract watchlist.
     Route::get('/employees/contracts/expiring', [EmployeeContractController::class, 'expiring']);
+    // Employment letters employees asked for (EmploymentLetters).
+    Route::get('/employees/letters', [LetterRequestController::class, 'index']);
+    Route::post('/employees/letters/{letter}/issue', [LetterRequestController::class, 'issue']);
+    Route::post('/employees/letters/{letter}/reject', [LetterRequestController::class, 'reject']);
 
     // Recover the outcome of a committed import when the client lost the response.
     Route::get('/employees/import/status/{key}', [EmployeeImportController::class, 'status']);
@@ -541,6 +551,10 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Devices
     Route::prefix('devices')->group(function () {
         Route::get('/dashboard', [DeviceController::class, 'dashboard']);
+        // Badges no employee matched, with their held punches (UnmatchedPunches).
+        Route::get('/unmatched-punches', [UnmatchedPunchController::class, 'index']);
+        Route::post('/unmatched-punches/assign', [UnmatchedPunchController::class, 'assign']);
+        Route::post('/unmatched-punches/dismiss', [UnmatchedPunchController::class, 'dismiss']);
         Route::post('/sync-all', [DeviceController::class, 'syncAll']);
         Route::get('/{device}/status', [DeviceController::class, 'status']);
         Route::post('/{device}/pull', [DeviceController::class, 'pull']);
@@ -676,7 +690,17 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::delete('/scheduled/{scheduledReport}', [ReportController::class, 'deleteScheduled']);
     });
 
+    // Opening leave and loan balances brought over from a previous system.
+    Route::get('/imports/balances/{kind}/template', [BalanceImportController::class, 'template']);
+    Route::post('/imports/balances/{kind}/preview', [BalanceImportController::class, 'preview'])->middleware('throttle:uploads');
+    Route::post('/imports/balances/{kind}/commit', [BalanceImportController::class, 'commit']);
+
     // Profile self-service
+    // Own employment letters: ask, follow, download.
+    Route::get('/profile/letters', [ProfileLetterController::class, 'index']);
+    Route::post('/profile/letters', [ProfileLetterController::class, 'store'])->middleware('throttle:10,60');
+    Route::get('/profile/letters/{letter}/pdf', [ProfileLetterController::class, 'pdf']);
+
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
     Route::put('/profile/preferences', [ProfilePreferencesController::class, 'update']);
@@ -695,6 +719,10 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/profile/emergency-contacts', [ProfileEmergencyContactController::class, 'store']);
     Route::put('/profile/emergency-contacts/{contact}', [ProfileEmergencyContactController::class, 'update']);
     Route::delete('/profile/emergency-contacts/{contact}', [ProfileEmergencyContactController::class, 'destroy']);
+
+    // Own documents, read-only: what HR has filed against the caller's record.
+    Route::get('/profile/documents', [ProfileDocumentController::class, 'index']);
+    Route::get('/profile/documents/{document}', [ProfileDocumentController::class, 'show']);
 
     // HR review queue for approval-gated profile fields
     Route::get('/profile-update-requests', [ProfileUpdateRequestController::class, 'index']);
@@ -908,6 +936,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/settings/scim-token', [SettingsController::class, 'generateScimToken']);
     Route::get('/settings/notification-templates', [NotificationTemplateController::class, 'index']);
     Route::put('/settings/notification-templates/{type}', [NotificationTemplateController::class, 'update']);
+    Route::get('/settings/data-export', [DataExportController::class, 'index']);
+    Route::post('/settings/data-export', [DataExportController::class, 'store']);
+    Route::get('/settings/data-export/{export}/download', [DataExportController::class, 'download']);
 
     // Audit logs
     //

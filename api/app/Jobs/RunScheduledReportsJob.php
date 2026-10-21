@@ -12,6 +12,7 @@ use App\Notifications\ScheduledReportFailedNotification;
 use App\Notifications\ScheduledReportNotification;
 use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
+use App\Support\Csv;
 use App\Traits\SendsNotifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -133,7 +134,7 @@ class RunScheduledReportsJob implements ShouldQueue
             || ($rows !== [] && array_key_exists('salary_cents', $rows[0]));
         $withheld = 0;
         $rowCount = count($rows);
-        $csv = $engine->toCsv($rows);
+        $csv = Csv::forSpreadsheet($engine->toCsv($rows));
         $filename = Str::slug($saved->name).'-'.now()->format('Y-m-d').'.csv';
 
         $rawRecipients = $schedule->getAttribute('recipients');

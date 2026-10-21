@@ -35,7 +35,8 @@ class DeviceOfflineNotification extends Notification
             'device_name' => $this->device->name,
             'location' => $this->device->branch?->name ?? 'Unknown',
             'offline_since' => $this->device->last_sync_at?->toIso8601String(),
-            'message' => "Device \"{$this->device->name}\" has gone offline.",
+            'message' => __('notification.inapp.device_offline', ['name' => $this->device->name]),
+            'url' => '/devices/'.$this->device->public_id,
         ];
     }
 

@@ -1514,12 +1514,6 @@ parameters:
 			path: app/Notifications/DeviceOfflineNotification.php
 
 		-
-			message: '#^Using nullsafe property access "\?\-\>period_label" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Notifications/PayslipAvailableNotification.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>employee_count" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1

@@ -8742,6 +8742,185 @@
                 }
             }
         },
+        "/devices/unmatched-punches": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "unmatchedPunch.index",
+                "summary": "List unmatched punches",
+                "tags": [
+                    "Unmatched Punch"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "device_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "device_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "badge": {
+                                                        "type": "string"
+                                                    },
+                                                    "punches": {
+                                                        "type": "string"
+                                                    },
+                                                    "first_seen": {
+                                                        "type": "string"
+                                                    },
+                                                    "last_seen": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "device_public_id",
+                                                    "device_name",
+                                                    "badge",
+                                                    "punches",
+                                                    "first_seen",
+                                                    "last_seen"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/devices/unmatched-punches/assign": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "unmatchedPunch.assign",
+                "summary": "Assign unmatched punches",
+                "tags": [
+                    "Unmatched Punch"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AssignUnmatchedBadgeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "replayed": {
+                                            "type": "integer"
+                                        },
+                                        "refused": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "replayed",
+                                        "refused"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/devices/unmatched-punches/dismiss": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "unmatchedPunch.dismiss",
+                "summary": "Create dismiss",
+                "tags": [
+                    "Unmatched Punch"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DismissUnmatchedBadgeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "dismissed": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                        }
+                                    },
+                                    "required": [
+                                        "dismissed"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/devices/{device}": {
             "get": {
                 "x-abilities": [
@@ -11458,6 +11637,386 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/letters": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "employees"
+                ],
+                "operationId": "letterRequest.index",
+                "summary": "List letters",
+                "tags": [
+                    "Letter Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "employee": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ],
+                                                        "properties": {
+                                                            "public_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "public_id",
+                                                            "name"
+                                                        ]
+                                                    },
+                                                    "purpose": {
+                                                        "type": "string"
+                                                    },
+                                                    "addressed_to": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "include_salary": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "language": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "reference": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "rejection_reason": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "decided_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "employee",
+                                                    "purpose",
+                                                    "addressed_to",
+                                                    "include_salary",
+                                                    "language",
+                                                    "status",
+                                                    "reference",
+                                                    "rejection_reason",
+                                                    "decided_at",
+                                                    "created_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/letters/{letter}/issue": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "letterRequest.issue",
+                "summary": "Issue letters",
+                "tags": [
+                    "Letter Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "letter",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "employee": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "public_id": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "public_id",
+                                                "name"
+                                            ]
+                                        },
+                                        "purpose": {
+                                            "type": "string"
+                                        },
+                                        "addressed_to": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "include_salary": {
+                                            "type": "boolean"
+                                        },
+                                        "language": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "reference": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "rejection_reason": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "decided_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "created_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "employee",
+                                        "purpose",
+                                        "addressed_to",
+                                        "include_salary",
+                                        "language",
+                                        "status",
+                                        "reference",
+                                        "rejection_reason",
+                                        "decided_at",
+                                        "created_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/letters/{letter}/reject": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "letterRequest.reject",
+                "summary": "Reject letters",
+                "tags": [
+                    "Letter Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "letter",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RejectLetterRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "employee": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "public_id": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "public_id",
+                                                "name"
+                                            ]
+                                        },
+                                        "purpose": {
+                                            "type": "string"
+                                        },
+                                        "addressed_to": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "include_salary": {
+                                            "type": "boolean"
+                                        },
+                                        "language": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "reference": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "rejection_reason": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "decided_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "created_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "employee",
+                                        "purpose",
+                                        "addressed_to",
+                                        "include_salary",
+                                        "language",
+                                        "status",
+                                        "reference",
+                                        "rejection_reason",
+                                        "decided_at",
+                                        "created_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -15075,6 +15634,337 @@
                 }
             }
         },
+        "/imports/balances/{kind}/commit": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "balanceImport.commit",
+                "summary": "Commit balances",
+                "tags": [
+                    "Balance Import"
+                ],
+                "parameters": [
+                    {
+                        "name": "kind",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CommitBalanceImportRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/imports/balances/{kind}/preview": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "balanceImport.preview",
+                "summary": "Preview balances",
+                "tags": [
+                    "Balance Import"
+                ],
+                "parameters": [
+                    {
+                        "name": "kind",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PreviewBalanceImportRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "rows": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "valid": {
+                                                    "type": "integer"
+                                                },
+                                                "invalid": {
+                                                    "type": "integer"
+                                                },
+                                                "errors": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "minItems": 0,
+                                                    "maxItems": 0,
+                                                    "additionalItems": false
+                                                }
+                                            },
+                                            "required": [
+                                                "rows",
+                                                "valid",
+                                                "invalid",
+                                                "errors"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "rows": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "minItems": 0,
+                                                    "maxItems": 0,
+                                                    "additionalItems": false
+                                                },
+                                                "valid": {
+                                                    "type": "integer"
+                                                },
+                                                "invalid": {
+                                                    "type": "integer"
+                                                },
+                                                "errors": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                        {
+                                                            "type": "string"
+                                                        }
+                                                    ],
+                                                    "minItems": 1,
+                                                    "maxItems": 1,
+                                                    "additionalItems": false
+                                                }
+                                            },
+                                            "required": [
+                                                "rows",
+                                                "valid",
+                                                "invalid",
+                                                "errors"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "rows": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "minItems": 0,
+                                                    "maxItems": 0,
+                                                    "additionalItems": false
+                                                },
+                                                "valid": {
+                                                    "type": "integer"
+                                                },
+                                                "invalid": {
+                                                    "type": "integer"
+                                                },
+                                                "errors": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                        {
+                                                            "type": "string",
+                                                            "const": "The file needs a header row and at least one row of data."
+                                                        }
+                                                    ],
+                                                    "minItems": 1,
+                                                    "maxItems": 1,
+                                                    "additionalItems": false
+                                                }
+                                            },
+                                            "required": [
+                                                "rows",
+                                                "valid",
+                                                "invalid",
+                                                "errors"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/imports/balances/{kind}/template": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "balanceImport.template",
+                "summary": "Template balances",
+                "tags": [
+                    "Balance Import"
+                ],
+                "parameters": [
+                    {
+                        "name": "kind",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "template": {
+                                            "type": "string"
+                                        },
+                                        "headers": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                        {
+                                                            "type": "string",
+                                                            "const": "employee_code"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "leave_type_code"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "year"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "entitled_days"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "used_days"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "carried_days"
+                                                        }
+                                                    ],
+                                                    "minItems": 6,
+                                                    "maxItems": 6,
+                                                    "additionalItems": false
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                        {
+                                                            "type": "string",
+                                                            "const": "employee_code"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "principal_etb"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "remaining_etb"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "monthly_deduction_etb"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "start_date"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "const": "reason"
+                                                        }
+                                                    ],
+                                                    "minItems": 6,
+                                                    "maxItems": 6,
+                                                    "additionalItems": false
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "template",
+                                        "headers"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/kiosk-sessions": {
             "get": {
                 "x-abilities": [
@@ -17098,6 +17988,10 @@
                                                 },
                                                 {
                                                     "type": "string",
+                                                    "const": "expiry_reminder"
+                                                },
+                                                {
+                                                    "type": "string",
                                                     "const": "profile_update"
                                                 },
                                                 {
@@ -17105,8 +17999,8 @@
                                                     "const": "employee_voice"
                                                 }
                                             ],
-                                            "minItems": 11,
-                                            "maxItems": 11,
+                                            "minItems": 12,
+                                            "maxItems": 12,
                                             "additionalItems": false
                                         },
                                         "channels": {
@@ -17242,6 +18136,10 @@
                                                 },
                                                 {
                                                     "type": "string",
+                                                    "const": "expiry_reminder"
+                                                },
+                                                {
+                                                    "type": "string",
                                                     "const": "profile_update"
                                                 },
                                                 {
@@ -17249,8 +18147,8 @@
                                                     "const": "employee_voice"
                                                 }
                                             ],
-                                            "minItems": 11,
-                                            "maxItems": 11,
+                                            "minItems": 12,
+                                            "maxItems": 12,
                                             "additionalItems": false
                                         },
                                         "channels": {
@@ -26942,6 +27840,132 @@
                 }
             }
         },
+        "/settings/data-export": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "dataExport.index",
+                "summary": "Data export settings",
+                "tags": [
+                    "Data Export"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "size_bytes": {
+                                                        "type": [
+                                                            "integer",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "file_count": {
+                                                        "type": [
+                                                            "integer",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "expires_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "status",
+                                                    "size_bytes",
+                                                    "file_count",
+                                                    "expires_at",
+                                                    "created_at"
+                                                ]
+                                            }
+                                        },
+                                        "expires_days": {
+                                            "type": "integer",
+                                            "const": 7
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "expires_days"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/settings/data-export/{export}/download": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "dataExport.download",
+                "summary": "Download data export",
+                "tags": [
+                    "Data Export"
+                ],
+                "parameters": [
+                    {
+                        "name": "export",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/settings/notification-templates": {
             "get": {
                 "x-abilities": [
@@ -31647,6 +32671,31 @@
                 ],
                 "title": "AssignShiftRotationRequest"
             },
+            "AssignUnmatchedBadgeRequest": {
+                "type": "object",
+                "properties": {
+                    "device_public_id": {
+                        "type": "string",
+                        "minLength": 26,
+                        "maxLength": 26
+                    },
+                    "badge": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "employee_public_id": {
+                        "type": "string",
+                        "minLength": 26,
+                        "maxLength": 26
+                    }
+                },
+                "required": [
+                    "device_public_id",
+                    "badge",
+                    "employee_public_id"
+                ],
+                "title": "AssignUnmatchedBadgeRequest"
+            },
             "AttendanceConflictResource": {
                 "type": "object",
                 "properties": {
@@ -32996,6 +34045,38 @@
                 },
                 "title": "CloseDisciplinaryCaseRequest"
             },
+            "CommitBalanceImportRequest": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "employee_code": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 50
+                                },
+                                "line": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ]
+                                }
+                            }
+                        },
+                        "minItems": 1,
+                        "maxItems": 5000
+                    }
+                },
+                "required": [
+                    "rows"
+                ],
+                "title": "CommitBalanceImportRequest"
+            },
             "ConcernMessageRequest": {
                 "type": "object",
                 "properties": {
@@ -33761,6 +34842,25 @@
                     "termination"
                 ],
                 "title": "DisciplinarySanctionType"
+            },
+            "DismissUnmatchedBadgeRequest": {
+                "type": "object",
+                "properties": {
+                    "device_public_id": {
+                        "type": "string",
+                        "minLength": 26,
+                        "maxLength": 26
+                    },
+                    "badge": {
+                        "type": "string",
+                        "maxLength": 64
+                    }
+                },
+                "required": [
+                    "device_public_id",
+                    "badge"
+                ],
+                "title": "DismissUnmatchedBadgeRequest"
             },
             "EducationResource": {
                 "type": "object",
@@ -35392,6 +36492,18 @@
                             "null"
                         ]
                     },
+                    "seniority_every_years": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "seniority_extra_days": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
                     "requires_approval": {
                         "type": "boolean"
                     },
@@ -35446,6 +36558,8 @@
                     "accrual_type",
                     "carry_forward",
                     "max_carry_days",
+                    "seniority_every_years",
+                    "seniority_extra_days",
                     "requires_approval",
                     "requires_attachment",
                     "min_notice_days",
@@ -36340,6 +37454,21 @@
                 ],
                 "title": "PositionResource"
             },
+            "PreviewBalanceImportRequest": {
+                "type": "object",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "description": "Maximum file size: 2048 kilobytes."
+                    }
+                },
+                "required": [
+                    "file"
+                ],
+                "title": "PreviewBalanceImportRequest"
+            },
             "PreviewConfigurationRequest": {
                 "type": "object",
                 "properties": {
@@ -36687,6 +37816,20 @@
                     "reason"
                 ],
                 "title": "RejectLeaveRequest"
+            },
+            "RejectLetterRequest": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "reason"
+                ],
+                "title": "RejectLetterRequest"
             },
             "RenewEmployeeContractRequest": {
                 "type": "object",
@@ -38514,6 +39657,22 @@
                         ],
                         "minimum": 0
                     },
+                    "seniority_every_years": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 1,
+                        "maximum": 10
+                    },
+                    "seniority_extra_days": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 30
+                    },
                     "requires_approval": {
                         "type": [
                             "boolean",
@@ -40155,6 +41314,22 @@
                             "null"
                         ],
                         "minimum": 0
+                    },
+                    "seniority_every_years": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 1,
+                        "maximum": 10
+                    },
+                    "seniority_extra_days": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 30
                     },
                     "requires_approval": {
                         "type": "boolean"

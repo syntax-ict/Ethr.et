@@ -8,6 +8,7 @@ use App\Jobs\CarryForwardLeaveBalancesJob;
 use App\Jobs\ScanAttendanceAnomaliesJob;
 use App\Jobs\ScanMissingPunchesJob;
 use App\Jobs\SendApprovalRemindersJob;
+use App\Jobs\SendExpiryRemindersJob;
 use App\Models\Tenant;
 use Illuminate\Console\Scheduling\CallbackEvent;
 use Illuminate\Console\Scheduling\Schedule;
@@ -43,6 +44,7 @@ dataset('tenant sweeps', [
     'carry-forward-leave-balances' => ['carry-forward-leave-balances', CarryForwardLeaveBalancesJob::class],
     'scan-attendance-anomalies' => ['scan-attendance-anomalies', ScanAttendanceAnomaliesJob::class],
     'send-approval-reminders' => ['send-approval-reminders', SendApprovalRemindersJob::class],
+    'send-expiry-reminders' => ['send-expiry-reminders', SendExpiryRemindersJob::class],
 ]);
 
 test('a tenant sweep reaches active tenants and live trials, and nothing else', function (string $name, string $job) {

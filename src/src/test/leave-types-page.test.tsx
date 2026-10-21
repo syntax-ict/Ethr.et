@@ -191,6 +191,53 @@ describe("<LeaveTypesPage>", () => {
     });
   });
 
+  // Labour Proclamation 1156/2019 Art. 77(1): one more day for every
+  // additional two years of service (2026-10-20).
+  it("keeps the seniority step when a leave type is edited, and clears it", async () => {
+    let sent: Record<string, unknown> | null = null;
+    const stepped = {
+      ...ANNUAL,
+      seniority_every_years: 2,
+      seniority_extra_days: 1,
+    };
+    serveLeaveTypes([stepped]);
+    server.use(
+      me(["leave.manageTypes", "leave.viewTypes"]),
+      http.put("*/api/v1/leave-types/LT1", async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...stepped, ...sent });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    const row = (await screen.findByText("Annual Leave")).closest("tr")!;
+    await user.click(within(row).getByRole("button", { name: "Edit" }));
+    const every = await screen.findByRole("spinbutton", {
+      name: /Add days every/,
+    });
+    expect(every).toHaveValue(2);
+
+    // One half alone is refused on the form.
+    await user.clear(every);
+    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    expect(
+      await screen.findByText("Fill in both, or leave both empty."),
+    ).toBeInTheDocument();
+    expect(sent).toBeNull();
+
+    await user.clear(
+      screen.getByRole("spinbutton", { name: /Days added each time/ }),
+    );
+    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+
+    await waitFor(() => expect(sent).not.toBeNull());
+    expect(sent).toMatchObject({
+      seniority_every_years: null,
+      seniority_extra_days: null,
+    });
+  });
+
   it("lists leave types past the first page of 25", async () => {
     serveLeaveTypes(Array.from({ length: 30 }, (_, i) => leaveType(i + 1)));
     server.use(me(["leave.manageTypes"]));

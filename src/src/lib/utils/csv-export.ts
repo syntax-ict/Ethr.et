@@ -52,11 +52,23 @@ export function csvAmount(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
-/** Save CSV text as a file. */
-export function saveCsv(filename: string, csv: string) {
+/**
+ * Save CSV text as a file.
+ *
+ * A UTF-8 byte-order mark goes first by default: it is how Excel knows the
+ * file is UTF-8, and without it every Amharic name opens garbled. A file
+ * another system imports (a bank transfer file, an accounting journal) passes
+ * `byteOrderMark: false`, since that importer may refuse the mark.
+ */
+export function saveCsv(
+  filename: string,
+  csv: string,
+  { byteOrderMark = true }: { byteOrderMark?: boolean } = {},
+) {
   if (csv === "") return;
 
-  saveBlob(filename, new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  const body = byteOrderMark ? `﻿${csv}` : csv;
+  saveBlob(filename, new Blob([body], { type: "text/csv;charset=utf-8;" }));
 }
 
 /** Hand a file the API returned to the browser as a download. */

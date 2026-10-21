@@ -1231,6 +1231,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/imports/balances/{kind}/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Template balances */
+        get: operations["balanceImport.template"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports/balances/{kind}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview balances */
+        post: operations["balanceImport.preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports/balances/{kind}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commit balances */
+        post: operations["balanceImport.commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/plans": {
         parameters: {
             query?: never;
@@ -1826,6 +1877,41 @@ export interface paths {
         post?: never;
         /** Delete scheduled */
         delete: operations["report.deleteScheduled"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/data-export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Data export settings */
+        get: operations["dataExport.index"];
+        put?: never;
+        /** Data export settings */
+        post: operations["dataExport.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/data-export/{export}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download data export */
+        get: operations["dataExport.download"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3333,6 +3419,57 @@ export interface paths {
         put?: never;
         /** Batch approvals */
         post: operations["approval.batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/letters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List letters */
+        get: operations["letterRequest.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/letters/{letter}/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue letters */
+        post: operations["letterRequest.issue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/letters/{letter}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject letters */
+        post: operations["letterRequest.reject"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6142,6 +6279,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/unmatched-punches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List unmatched punches */
+        get: operations["unmatchedPunch.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/unmatched-punches/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign unmatched punches */
+        post: operations["unmatchedPunch.assign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/unmatched-punches/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create dismiss */
+        post: operations["unmatchedPunch.dismiss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users": {
         parameters: {
             query?: never;
@@ -6211,6 +6399,41 @@ export interface paths {
          *     browsers are forgotten, and they are emailed that it happened
          */
         post: operations["user.resetMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/letters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List letters */
+        get: operations["profileLetter.index"];
+        put?: never;
+        /** Create letter */
+        post: operations["profileLetter.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/letters/{letter}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pdf letters */
+        get: operations["profileLetter.pdf"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6301,6 +6524,40 @@ export interface paths {
         post?: never;
         /** Delete emergency contact */
         delete: operations["profileEmergencyContact.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List documents */
+        get: operations["profileDocument.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/documents/{document}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get document */
+        get: operations["profileDocument.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -6587,6 +6844,12 @@ export interface components {
              *     joins a team already part-way through its pattern.
              */
             anchor_date?: string | null;
+        };
+        /** AssignUnmatchedBadgeRequest */
+        AssignUnmatchedBadgeRequest: {
+            device_public_id: string;
+            badge: string;
+            employee_public_id: string;
         };
         /** AttendanceConflictResource */
         AttendanceConflictResource: {
@@ -6896,6 +7159,13 @@ export interface components {
         CloseDisciplinaryCaseRequest: {
             notes?: string | null;
         };
+        /** CommitBalanceImportRequest */
+        CommitBalanceImportRequest: {
+            rows: {
+                employee_code?: string | null;
+                line?: number | null;
+            }[];
+        };
         /** ConcernMessageRequest */
         ConcernMessageRequest: {
             body: string;
@@ -7115,6 +7385,11 @@ export interface components {
          * @enum {string}
          */
         DisciplinarySanctionType: "verbal_warning" | "written_warning" | "suspension" | "demotion" | "salary_deduction" | "termination";
+        /** DismissUnmatchedBadgeRequest */
+        DismissUnmatchedBadgeRequest: {
+            device_public_id: string;
+            badge: string;
+        };
         /** EducationResource */
         EducationResource: {
             public_id: string;
@@ -7578,6 +7853,8 @@ export interface components {
             accrual_type: string;
             carry_forward: boolean;
             max_carry_days: number | null;
+            seniority_every_years: number | null;
+            seniority_extra_days: number | null;
             requires_approval: boolean;
             requires_attachment: boolean;
             min_notice_days: number;
@@ -7947,6 +8224,14 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** PreviewBalanceImportRequest */
+        PreviewBalanceImportRequest: {
+            /**
+             * Format: binary
+             * @description Maximum file size: 2048 kilobytes.
+             */
+            file: string;
+        };
         /** PreviewConfigurationRequest */
         PreviewConfigurationRequest: {
             /** @enum {string} */
@@ -8059,6 +8344,10 @@ export interface components {
         };
         /** RejectLeaveRequest */
         RejectLeaveRequest: {
+            reason: string;
+        };
+        /** RejectLetterRequest */
+        RejectLetterRequest: {
             reason: string;
         };
         /** RenewEmployeeContractRequest */
@@ -8625,6 +8914,8 @@ export interface components {
             accrual_type: components["schemas"]["AccrualType"];
             carry_forward?: boolean | null;
             max_carry_days?: number | null;
+            seniority_every_years?: number | null;
+            seniority_extra_days?: number | null;
             requires_approval?: boolean | null;
             requires_attachment?: boolean | null;
             min_notice_days?: number | null;
@@ -8633,6 +8924,14 @@ export interface components {
             /** @enum {string|null} */
             gender_restriction?: "male" | "female" | null;
             sort_order?: number | null;
+        };
+        /** StoreLetterRequest */
+        StoreLetterRequest: {
+            purpose: string;
+            addressed_to?: string | null;
+            include_salary?: boolean;
+            /** @enum {string} */
+            language?: "en" | "am";
         };
         /** StoreLoanRequest */
         StoreLoanRequest: {
@@ -9259,6 +9558,8 @@ export interface components {
             accrual_type?: components["schemas"]["AccrualType"];
             carry_forward?: boolean;
             max_carry_days?: number | null;
+            seniority_every_years?: number | null;
+            seniority_extra_days?: number | null;
             requires_approval?: boolean;
             requires_attachment?: boolean;
             min_notice_days?: number;
@@ -12973,6 +13274,121 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "balanceImport.template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        template: string;
+                        headers: [
+                            "employee_code",
+                            "leave_type_code",
+                            "year",
+                            "entitled_days",
+                            "used_days",
+                            "carried_days"
+                        ] | [
+                            "employee_code",
+                            "principal_etb",
+                            "remaining_etb",
+                            "monthly_deduction_etb",
+                            "start_date",
+                            "reason"
+                        ];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "balanceImport.preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["PreviewBalanceImportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rows: string[];
+                        valid: number;
+                        invalid: number;
+                        errors: string[];
+                    } | {
+                        rows: string[];
+                        valid: number;
+                        invalid: number;
+                        errors: [
+                            string
+                        ];
+                    } | {
+                        rows: string[];
+                        valid: number;
+                        invalid: number;
+                        errors: [
+                            "The file needs a header row and at least one row of data."
+                        ];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "balanceImport.commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitBalanceImportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "plan.index": {
         parameters: {
             query?: never;
@@ -14554,6 +14970,89 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "dataExport.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            status: string;
+                            size_bytes: number | null;
+                            file_count: number | null;
+                            expires_at: string | null;
+                            created_at: string | null;
+                        }[];
+                        /** @constant */
+                        expires_days: 7;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "dataExport.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        status: string;
+                        size_bytes: number | null;
+                        file_count: number | null;
+                        expires_at: string | null;
+                        created_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "dataExport.download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                export: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "device.webhookHikvision": {
@@ -18664,6 +19163,127 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "letterRequest.index": {
+        parameters: {
+            query?: {
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            employee: {
+                                public_id: string;
+                                name: string;
+                            } | null;
+                            purpose: string;
+                            addressed_to: string | null;
+                            include_salary: boolean;
+                            language: string;
+                            status: string;
+                            reference: string | null;
+                            rejection_reason: string | null;
+                            decided_at: string | null;
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "letterRequest.issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                letter: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                        purpose: string;
+                        addressed_to: string | null;
+                        include_salary: boolean;
+                        language: string;
+                        status: string;
+                        reference: string | null;
+                        rejection_reason: string | null;
+                        decided_at: string | null;
+                        created_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "letterRequest.reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                letter: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectLetterRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                        purpose: string;
+                        addressed_to: string | null;
+                        include_salary: boolean;
+                        language: string;
+                        status: string;
+                        reference: string | null;
+                        rejection_reason: string | null;
+                        decided_at: string | null;
+                        created_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "attendance.myShift": {
         parameters: {
             query?: never;
@@ -19155,6 +19775,7 @@ export interface operations {
                             "payroll_processed",
                             "announcement",
                             "approval_reminder",
+                            "expiry_reminder",
                             "profile_update",
                             "employee_voice"
                         ];
@@ -19213,6 +19834,7 @@ export interface operations {
                             "payroll_processed",
                             "announcement",
                             "approval_reminder",
+                            "expiry_reminder",
                             "profile_update",
                             "employee_voice"
                         ];
@@ -26560,6 +27182,94 @@ export interface operations {
             };
         };
     };
+    "unmatchedPunch.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            device_public_id: string;
+                            device_name: string;
+                            badge: string;
+                            punches: string;
+                            first_seen: string;
+                            last_seen: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "unmatchedPunch.assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignUnmatchedBadgeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        replayed: number;
+                        refused: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "unmatchedPunch.dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DismissUnmatchedBadgeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        dismissed: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "user.index": {
         parameters: {
             query?: {
@@ -26837,6 +27547,107 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "profileLetter.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            employee: {
+                                public_id: string;
+                                name: string;
+                            } | null;
+                            purpose: string;
+                            addressed_to: string | null;
+                            include_salary: boolean;
+                            language: string;
+                            status: string;
+                            reference: string | null;
+                            rejection_reason: string | null;
+                            decided_at: string | null;
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "profileLetter.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreLetterRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                        purpose: string;
+                        addressed_to: string | null;
+                        include_salary: boolean;
+                        language: string;
+                        status: string;
+                        reference: string | null;
+                        rejection_reason: string | null;
+                        decided_at: string | null;
+                        created_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "profileLetter.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                letter: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "profile.show": {
@@ -27247,6 +28058,54 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "profileDocument.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "profileDocument.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        download_url: string;
+                        document: components["schemas"]["EmployeeDocumentResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "profileUpdateRequest.index": {

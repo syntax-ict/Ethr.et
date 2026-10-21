@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Archive,
   SlidersHorizontal,
   Clock,
   Timer,
@@ -16,6 +17,7 @@ import {
   Mail,
   ScrollText,
   UserCog,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
@@ -69,7 +71,7 @@ function resolveActiveHref(
  */
 export function useSettingsNavGroups(): SettingsNavGroup[] {
   const { t } = useT();
-  const { can, isTenantAdmin } = usePermissions();
+  const { can, isTenantAdmin, hasPermission } = usePermissions();
 
   const groups: SettingsNavGroup[] = [
     {
@@ -115,6 +117,14 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
           href: "/settings/payroll",
           icon: Coins,
           show: isTenantAdmin,
+        },
+        {
+          label: t("nav.opening_balances", "Opening balances"),
+          href: "/settings/opening-balances",
+          icon: Upload,
+          show:
+            hasPermission("leave.adjustBalance") ||
+            hasPermission("payroll.manageLoan"),
         },
       ],
     },
@@ -179,6 +189,12 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
           label: t("nav.audit_log", "Audit Log"),
           href: "/settings/audit-logs",
           icon: ScrollText,
+          show: can.manageSettings,
+        },
+        {
+          label: t("nav.data_export", "Data export"),
+          href: "/settings/data-export",
+          icon: Archive,
           show: can.manageSettings,
         },
       ],

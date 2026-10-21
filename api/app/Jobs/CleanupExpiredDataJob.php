@@ -11,6 +11,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class CleanupExpiredDataJob implements ShouldQueue
@@ -18,7 +19,7 @@ class CleanupExpiredDataJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
-     * Declared rather than inherited: prunes notifications, webhook deliveries and import staging across every tenant.
+     * Declared rather than inherited: prunes notifications, webhook deliveries, import staging and expired data exports across every tenant.
      *
      * Without this the job silently takes the worker's --timeout (60s by
      * default), and the queue retry_after invariant cannot be computed at all -
@@ -43,6 +44,23 @@ class CleanupExpiredDataJob implements ShouldQueue
         $deleted += DB::table('migration_batches')
             ->where('created_at', '<', now()->subDays(7))
             ->delete();
+
+        // An organisation's data export is deleted when it expires
+        // (TenantExport::EXPIRES_DAYS). The row stays, marked expired, so the
+        // settings page and the audit trail can still say it existed.
+        $disk = Storage::disk(config('filesystems.default'));
+        $expired = DB::table('tenant_exports')
+            ->where('status', 'ready')
+            ->where('expires_at', '<', now())
+            ->get(['id', 'path']);
+        foreach ($expired as $export) {
+            if (is_string($export->path) && $export->path !== '') {
+                $disk->delete($export->path);
+            }
+            DB::table('tenant_exports')->where('id', $export->id)
+                ->update(['status' => 'expired', 'path' => null, 'updated_at' => now()]);
+            $deleted++;
+        }
 
         Log::info("CleanupExpiredDataJob: deleted {$deleted} expired records.");
     }

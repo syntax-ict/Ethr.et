@@ -34,7 +34,8 @@ class ApprovalReminderNotification extends Notification
         return [
             'pending_count' => $this->pendingCount,
             'oldest_hours' => $this->oldestHours,
-            'message' => "You have {$this->pendingCount} pending approval(s) awaiting your review, oldest is {$this->oldestHours} hours old.",
+            'message' => __('notification.inapp.approval_reminder', ['count' => $this->pendingCount, 'hours' => $this->oldestHours]),
+            'url' => '/approvals',
         ];
     }
 
