@@ -53,6 +53,7 @@ import { useEmployeeOptions } from "@/features/attendance/api";
 import { costCentersApi, teamsApi } from "@/features/organization/api";
 import { RelationPicker } from "@/features/employees/components/relation-picker";
 import { ErrorState } from "@/components/shared/error-state";
+import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 
 /** A 404 means the record is gone; anything else means the request failed. */
 function isNotFound(error: unknown): boolean {
@@ -119,6 +120,9 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
       cost_center_id: employee.cost_center?.public_id ?? "",
     });
     setEditing(true);
+    // The form lives on the Info tab; from any other tab Edit appeared to
+    // do nothing (FRONTEND_REDESIGN_PLAN.md, employee detail).
+    setTab("info");
   }
 
   function handleSave() {
@@ -175,16 +179,15 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary-soft ring-1 ring-border">
-            <span className="text-lg font-semibold text-primary-on-soft">
-              {employee.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .slice(0, 2)
-                .toUpperCase()}
-            </span>
-          </div>
+          {/* The shared avatar shows the employee's photo; this drew initials
+              by hand, so a photo uploaded on the profile never appeared. */}
+          <EmployeeAvatar
+            name={employee.name}
+            photoThumbUrl={employee.photo_thumb_url}
+            photoUrl={employee.photo_url}
+            className="h-14 w-14 shrink-0 ring-1 ring-border"
+            fallbackClassName="bg-primary-soft text-lg font-semibold text-primary-on-soft"
+          />
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               {employee.name}
