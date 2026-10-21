@@ -9,6 +9,9 @@ export interface PaginationMeta {
   last_page: number;
   per_page?: number;
   total?: number;
+  /** First and last record on this page, when the API sends them. */
+  from?: number | null;
+  to?: number | null;
 }
 
 /**
@@ -21,6 +24,11 @@ export interface PaginationMeta {
  * "'setPage' is assigned a value but never used".
  *
  * Renders nothing for a single page, so it can be dropped in unconditionally.
+ *
+ * The one pager in the app (FRONTEND_REDESIGN_PLAN.md, Phase 3). Seven lists
+ * drew their own, with five different sets of Previous/Next labels; some
+ * said "1–25 of 140" and others "Page 1 of 6". This says the range when the
+ * API sends `from`, `to` and `total`, and the page otherwise.
  */
 export function PaginationControls({
   meta,
@@ -43,9 +51,15 @@ export function PaginationControls({
       className="flex items-center justify-between gap-4 border-t border-border-default px-4 py-3"
     >
       <p className="text-xs text-muted-foreground">
-        {t("common.page_of", "Page {current} of {last}")
-          .replace("{current}", String(current))
-          .replace("{last}", String(last))}
+        {meta.from != null && meta.to != null && meta.total != null
+          ? t("common.showing_range", "Showing :from to :to of :total", {
+              from: meta.from,
+              to: meta.to,
+              total: meta.total,
+            })
+          : t("common.page_of", "Page {current} of {last}")
+              .replace("{current}", String(current))
+              .replace("{last}", String(last))}
       </p>
       <div className="flex gap-2">
         <Button
