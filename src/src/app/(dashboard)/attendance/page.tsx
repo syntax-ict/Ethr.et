@@ -66,16 +66,46 @@ import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { PaginationControls } from "@/components/shared/pagination-controls";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
+
+// The values the address may carry; anything else falls back to "all".
+const SOURCES = [
+  "all",
+  "web",
+  "mobile",
+  "biometric",
+  "qr",
+  "kiosk",
+  "manual",
+  "csv",
+  "offline_mobile",
+] as const;
+const STATUSES = [
+  "all",
+  "present",
+  "late",
+  "absent",
+  "early_leave",
+  "on_leave",
+] as const;
 
 export default function AttendancePage() {
   const { formatTime } = useDateFormatters();
   const { t, locale } = useT();
   const { formatDate } = useCalendar();
   const [page, setPage] = useState(1);
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  // In the address, so "who is absent today" can be opened from the
+  // command palette or sent as a link, and survives a reload.
+  const filters = useQueryFilters(
+    { source: "all", status: "all", from: "", to: "" },
+    { source: SOURCES, status: STATUSES },
+  );
+  const {
+    source: sourceFilter,
+    status: statusFilter,
+    from: dateFrom,
+    to: dateTo,
+  } = filters.values;
   const [showFilters, setShowFilters] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const checkIn = useCheckIn();
@@ -119,10 +149,7 @@ export default function AttendancePage() {
     dateTo;
 
   function clearFilters() {
-    setSourceFilter("all");
-    setStatusFilter("all");
-    setDateFrom("");
-    setDateTo("");
+    filters.clear();
     setPage(1);
   }
 
@@ -258,7 +285,9 @@ export default function AttendancePage() {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Button
-            variant={showFilters ? "secondary" : "outline"}
+            variant={
+              showFilters || filters.activeCount > 0 ? "secondary" : "outline"
+            }
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
           >
@@ -283,7 +312,7 @@ export default function AttendancePage() {
           )}
         </div>
 
-        {showFilters && (
+        {(showFilters || filters.activeCount > 0) && (
           <Card>
             <CardContent className="p-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -294,7 +323,7 @@ export default function AttendancePage() {
                   <DualCalendarDateInput
                     value={dateFrom}
                     onChange={(v) => {
-                      setDateFrom(v);
+                      filters.set({ from: v });
                       setPage(1);
                     }}
                     className="mt-1"
@@ -307,7 +336,7 @@ export default function AttendancePage() {
                   <DualCalendarDateInput
                     value={dateTo}
                     onChange={(v) => {
-                      setDateTo(v);
+                      filters.set({ to: v });
                       setPage(1);
                     }}
                     className="mt-1"
@@ -321,7 +350,7 @@ export default function AttendancePage() {
                     <Select
                       value={sourceFilter}
                       onValueChange={(v) => {
-                        setSourceFilter(v);
+                        filters.set({ source: v });
                         setPage(1);
                       }}
                     >
@@ -368,7 +397,7 @@ export default function AttendancePage() {
                     <Select
                       value={statusFilter}
                       onValueChange={(v) => {
-                        setStatusFilter(v);
+                        filters.set({ status: v });
                         setPage(1);
                       }}
                     >

@@ -274,3 +274,132 @@ describe("CommandPalette global search", () => {
     ).toBeInTheDocument();
   });
 });
+
+/**
+ * A goal typed in plain words finds the task or page that answers it, for the
+ * people allowed to open it, and opening it only navigates.
+ */
+describe("CommandPalette tasks and pages", () => {
+  beforeEach(() => {
+    pushMock.mockReset();
+    window.localStorage.removeItem("ethr.search.recent.01HZUSER");
+  });
+
+  async function openAndType(text: string) {
+    const user = userEvent.setup();
+    await user.keyboard("{Meta>}k{/Meta}");
+    await user.type(await screen.findByRole("combobox"), text);
+    return user;
+  }
+
+  it("opens today's absent list for someone who may see all attendance", async () => {
+    mockUser("hr_admin", ["attendance.viewAll"]);
+    mockSearch({});
+    renderPalette();
+
+    const user = await openAndType("who is absent today");
+    const option = await screen.findByRole("option", {
+      name: /who is absent today/i,
+    });
+    // The row says what opening it does.
+    expect(option).toHaveTextContent(/filtered to the people marked absent/i);
+    await user.click(option);
+
+    const today = new Date().toISOString().slice(0, 10);
+    expect(pushMock).toHaveBeenLastCalledWith(
+      `/attendance?status=absent&from=${today}&to=${today}`,
+    );
+  });
+
+  it("sends a supervisor to the team page for the same question", async () => {
+    mockUser("supervisor", ["attendance.viewTeam"]);
+    mockSearch({});
+    renderPalette();
+
+    const user = await openAndType("absent today");
+    await user.click(
+      await screen.findByRole("option", { name: /who is absent today/i }),
+    );
+    expect(pushMock).toHaveBeenLastCalledWith("/attendance/team");
+  });
+
+  it("never offers approvals to someone who cannot decide them", async () => {
+    mockUser("employee");
+    mockSearch({});
+    renderPalette();
+
+    await openAndType("approve a leave request");
+    // The ask still lands somewhere: the person's own leave page.
+    await screen.findByRole("option", { name: /request leave/i });
+    expect(
+      screen.queryByRole("option", { name: /pending approvals/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens the payroll list for 'prepare payroll' and nothing more", async () => {
+    mockUser("finance_admin", ["payroll.process", "payroll.viewAll"]);
+    mockSearch({});
+    renderPalette();
+
+    const user = await openAndType("prepare this month's payroll");
+    const option = await screen.findByRole("option", { name: /run payroll/i });
+    expect(option).toHaveTextContent(/nothing is paid until it is approved/i);
+    await user.click(option);
+
+    expect(pushMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).toHaveBeenLastCalledWith("/payroll");
+  });
+
+  it("offers more than one answer to an ambiguous ask", async () => {
+    mockUser("supervisor", ["attendance.viewTeam", "leave.approve"]);
+    mockSearch({});
+    renderPalette();
+
+    await openAndType("leave request");
+    await screen.findByRole("option", { name: /review pending approvals/i });
+    expect(
+      screen.getByRole("option", { name: /request leave/i }),
+    ).toBeInTheDocument();
+    expect((await screen.findAllByRole("option")).length).toBeGreaterThan(1);
+  });
+
+  it("lists a child page with its group, and the page's own description", async () => {
+    mockUser("hr_admin", ["attendance.viewAll"]);
+    mockSearch({});
+    renderPalette();
+
+    await openAndType("attendance records");
+    const option = await screen.findByRole("option", {
+      name: /attendance.*records/i,
+    });
+    expect(option).toHaveTextContent(/track and manage employee attendance/i);
+  });
+
+  it("answers an ask typed in Amharic", async () => {
+    mockUser("employee");
+    mockSearch({});
+    window.localStorage.setItem("locale", "am");
+    window.dispatchEvent(new Event("locale-changed"));
+    try {
+      renderPalette();
+
+      const user = await openAndType("ፈቃድ ጠይቅ");
+      await user.click(await screen.findByRole("option", { name: /ፈቃድ ጠይቅ/ }));
+      expect(pushMock).toHaveBeenLastCalledWith("/leave");
+    } finally {
+      window.localStorage.setItem("locale", "en");
+      window.dispatchEvent(new Event("locale-changed"));
+    }
+  });
+
+  it("points at the kinds of thing that can be searched when nothing matches", async () => {
+    mockUser("employee");
+    mockSearch({});
+    renderPalette();
+
+    await openAndType("zzqqxx");
+    expect(
+      await screen.findByText(/a task such as "request leave"/i),
+    ).toBeInTheDocument();
+  });
+});

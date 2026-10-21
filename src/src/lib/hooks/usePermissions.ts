@@ -57,7 +57,7 @@ const CAN_ABILITIES = {
   viewRegionalDashboard: "dashboard.regional",
 } as const;
 
-type CanFlag = keyof typeof CAN_ABILITIES;
+export type CanFlag = keyof typeof CAN_ABILITIES;
 
 export function usePermissions() {
   const { data: user } = useCurrentUser();

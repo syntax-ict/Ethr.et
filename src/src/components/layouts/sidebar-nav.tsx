@@ -3,41 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Banknote,
-  BarChart3,
-  Briefcase,
-  Building2,
-  CalendarDays,
-  CalendarRange,
-  Camera,
-  CheckSquare,
-  ChevronRight,
-  Clock,
-  Contact,
-  CreditCard,
-  FilePenLine,
-  Fingerprint,
-  GitMerge,
-  GraduationCap,
-  Landmark,
-  Layers,
-  LayoutDashboard,
-  ListChecks,
-  Megaphone,
-  MessageCircleHeart,
-  MessageSquareText,
-  Receipt,
-  ScrollText,
-  Settings,
-  Shield,
-  ShieldAlert,
-  Star,
-  TrendingUp,
-  Users,
-  UsersRound,
-  Wallet,
-} from "lucide-react";
+import { ChevronRight, ListChecks, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -50,6 +16,13 @@ import { useNavPreferences } from "@/lib/hooks/useNavPreferences";
 import { useOnboardingStatus } from "@/features/onboarding/useOnboardingStatus";
 import { useManagerDashboard } from "@/features/dashboard/api";
 import { useSettingsLanding } from "@/components/layouts/settings-nav";
+import {
+  type Destination,
+  isoToday,
+  type NavContext,
+  navSections,
+  resolveHref,
+} from "@/lib/navigation/registry";
 
 // quiet-on-error: the onboarding banner is a nudge; on a failed status request the sidebar draws without it rather than with an error in the navigation.
 
@@ -185,397 +158,53 @@ export function SidebarNav({
 
   // ── Information Architecture ─────────────────────────────────────────────
   //
-  // Sections follow the structure specified in CLAUDE.md (Overview / People /
-  // Operations / Finance / Admin), plus a "My Work" band at the top.
-  //
-  // The split between "My Work" and "Operations" is by *persona*, not by data
-  // domain: attendance appears in both, but "My Work > My Attendance" is the
-  // employee's own record while "Operations > Attendance" holds the
-  // administration of everyone else's. Grouping by who does the task keeps
-  // each band scannable for the role that owns it, instead of forcing every
-  // employee past nine admin screens to reach their own timesheet.
+  // The tree itself lives in lib/navigation/registry.ts, where the command
+  // palette reads the same list: one entry per destination, and the palette
+  // cannot offer a page this sidebar would hide.
+
+  // `can` is rebuilt on every render of usePermissions; its flags are what
+  // matter, so the context keys on them.
+  const canKey = JSON.stringify(can);
+  const ctx: NavContext = useMemo(
+    () => ({
+      can,
+      isSupervisor,
+      isTenantAdmin,
+      isSuperAdmin,
+      settingsLanding,
+      today: isoToday(),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [canKey, isSupervisor, isTenantAdmin, isSuperAdmin, settingsLanding],
+  );
 
   const sections: NavSection[] = useMemo(() => {
-    // A platform super admin belongs to no tenant, so every tenant destination
-    // below ("My Attendance", "Employees", "Payroll Runs", …) is either empty or
-    // an error for them — and on the platform hostname the middleware bounces
-    // each one straight back to /admin. Showing seventeen links that all lead
-    // home is worse than showing the four that work, so the console is the whole
-    // navigation for this persona.
-    if (isSuperAdmin) {
-      return [
-        {
-          title: t("nav.section.platform", "Platform"),
-          entries: [
-            {
-              kind: "leaf",
-              label: t("nav.admin", "Admin Console"),
-              href: "/admin",
-              icon: Shield,
-              show: true,
-            },
-            {
-              kind: "leaf",
-              label: t("nav.tenants", "Tenants"),
-              href: "/admin/tenants",
-              icon: Building2,
-              show: true,
-            },
-            {
-              kind: "leaf",
-              label: t("nav.platform_audit", "Audit Log"),
-              href: "/admin/audit",
-              icon: ScrollText,
-              show: true,
-            },
-            {
-              kind: "leaf",
-              label: t("nav.platform_settings", "Platform Settings"),
-              href: "/admin/platform-settings",
-              icon: Landmark,
-              show: true,
-            },
-            {
-              kind: "leaf",
-              label: t("nav.sms_delivery", "SMS delivery"),
-              href: "/admin/sms",
-              icon: MessageSquareText,
-              show: true,
-            },
-            {
-              kind: "leaf",
-              label: t("nav.plans", "Plans"),
-              href: "/admin/plans",
-              icon: Layers,
-              show: true,
-            },
-          ],
-        },
-      ];
-    }
-
-    return [
-      {
-        entries: [
-          {
-            kind: "leaf",
-            label: t("nav.dashboard", "Dashboard"),
-            href: "/dashboard",
-            icon: LayoutDashboard,
-            show: true,
-          },
-        ],
-      },
-      {
-        title: t("nav.section.my_work", "My Work"),
-        entries: [
-          {
-            kind: "leaf",
-            // Strictly the person's own record. Holders of attendance.viewAll
-            // administer everyone's from Operations > Attendance > Records
-            // instead: showing them this row too put two entries labelled
-            // "Attendance" in one sidebar, and each persona should see
-            // exactly one attendance entry.
-            label: t("nav.my_attendance", "My Attendance"),
-            href: "/attendance",
-            icon: Clock,
-            show: !can.viewAllAttendance,
-          },
-          // Approvals carries a live pending-count badge, so it sits directly
-          // under the daily check-in: actionable, time-sensitive work belongs
-          // near the top of the personal band (only rendered for approvers).
-          {
-            kind: "leaf",
-            label: t("nav.approvals", "Approvals"),
-            href: "/approvals",
-            icon: CheckSquare,
-            show: isSupervisor,
-            badge: approvalCount,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.leave", "Leave"),
-            href: "/leave",
-            icon: CalendarDays,
-            show: true,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.payslips", "My Payslips"),
-            href: "/payroll/payslips",
-            icon: Receipt,
-            show: true,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.announcements", "Announcements"),
-            href: "/announcements",
-            icon: Megaphone,
-            show: true,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.vacancies", "Vacancies"),
-            href: "/vacancies",
-            icon: Briefcase,
-            show: true,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.voice", "Voice"),
-            href: "/voice",
-            icon: MessageCircleHeart,
-            show: true,
-          },
-        ],
-      },
-      {
-        title: t("nav.section.people", "People"),
-        entries: [
-          {
-            kind: "leaf",
-            label: t("nav.employees", "Employees"),
-            href: "/employees",
-            icon: Users,
-            show: can.manageEmployees,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.organization", "Organization"),
-            href: "/organization",
-            icon: Building2,
-            show: can.manageOrg,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.directory", "Directory"),
-            href: "/directory",
-            icon: Contact,
-            show: true,
-          },
-        ],
-      },
-      // The attendance, shifts and devices pages each render their own
-      // exhaustive in-page tab strip. The sidebar therefore carries the area
-      // plus only its highest-frequency sub-destinations rather than mirroring
-      // every child: two complete, competing navigations for the same level
-      // force the user to learn both and disagree on labels ("Intelligence" vs
-      // "Anomalies", "Kiosk" vs "Kiosks"). Sidebar = shortcut layer, page tabs
-      // = complete set.
-      {
-        title: t("nav.section.operations", "Operations"),
-        entries: [
-          {
-            kind: "parent",
-            id: "ops-attendance",
-            label: t("nav.attendance", "Attendance"),
-            icon: Clock,
-            // Each child carries the ability its screen's API checks, so the
-            // group opens for a custom role holding any of them rather than
-            // for a role level alone (audit N78).
-            show:
-              isSupervisor ||
-              can.viewTeam ||
-              can.viewAllAttendance ||
-              can.viewAttendancePhotos,
-            children: [
-              {
-                kind: "leaf",
-                // The whole organisation's records (/attendance). Lives here,
-                // not in My Work: see the note on the My Attendance leaf.
-                label: t("nav.attendance_records", "Records"),
-                href: "/attendance",
-                icon: ListChecks,
-                show: can.viewAllAttendance,
-              },
-              {
-                kind: "leaf",
-                label: t("nav.team_attendance", "Team Attendance"),
-                href: "/attendance/team",
-                icon: UsersRound,
-                show: can.viewTeam,
-              },
-              {
-                kind: "leaf",
-                label: t("nav.corrections", "Corrections"),
-                href: "/attendance/corrections",
-                icon: FilePenLine,
-                show: true,
-              },
-              {
-                kind: "leaf",
-                label: t("nav.conflicts", "Conflicts"),
-                href: "/attendance/conflicts",
-                icon: GitMerge,
-                show: can.viewAttendanceConflicts,
-              },
-              {
-                kind: "leaf",
-                label: t("nav.integrity", "Integrity"),
-                href: "/attendance/integrity",
-                icon: ShieldAlert,
-                show: can.viewAttendanceConflicts,
-              },
-              {
-                kind: "leaf",
-                label: t("nav.overtime", "Overtime"),
-                href: "/attendance/overtime",
-                icon: TrendingUp,
-                show: can.viewAllAttendance,
-              },
-              {
-                kind: "leaf",
-                // Selfies under the retention policy: HR and department
-                // managers review and hold them before deletion.
-                label: t("nav.attendance_photos", "Photos"),
-                href: "/attendance/photos",
-                icon: Camera,
-                show: can.viewAttendancePhotos,
-              },
-            ],
-          },
-          {
-            kind: "leaf",
-            label: t("nav.shifts", "Shifts & Schedules"),
-            href: "/shifts",
-            icon: CalendarRange,
-            show: can.manageShifts,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.devices", "Devices"),
-            href: "/devices",
-            icon: Fingerprint,
-            show: can.viewDevices,
-          },
-        ],
-      },
-      {
-        title: t("nav.section.finance", "Finance"),
-        entries: [
-          {
-            kind: "leaf",
-            label: t("nav.payroll_runs", "Payroll Runs"),
-            href: "/payroll",
-            icon: Wallet,
-            show: can.viewPayrollRuns,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.loans", "Loans"),
-            href: "/payroll/loans",
-            icon: Banknote,
-            show: can.viewPayrollRuns,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.cost_sharing", "Cost Sharing"),
-            href: "/payroll/cost-sharing",
-            icon: GraduationCap,
-            show: can.viewPayrollRuns,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.reports", "Reports"),
-            href: "/reports",
-            icon: BarChart3,
-            show: can.viewReports,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.analytics", "Analytics"),
-            href: "/analytics",
-            icon: TrendingUp,
-            show: can.viewExecutiveDashboard || can.viewRegionalDashboard,
-          },
-        ],
-      },
-      {
-        title: t("nav.section.admin", "Admin"),
-        entries: [
-          // Configuration lives behind a single destination with its own
-          // sub-navigation (see components/layouts/settings-nav.tsx), the
-          // modern SaaS pattern. This replaces the former "Settings" and
-          // "Integrations" collapsible groups plus the Audit Log leaf — ~12
-          // sidebar rows collapsed to one, with every route still reachable
-          // inside the hub.
-          {
-            kind: "leaf",
-            label: t("nav.settings", "Settings"),
-            href: settingsLanding ?? "/settings",
-            icon: Settings,
-            show: settingsLanding !== null,
-          },
-          {
-            kind: "leaf",
-            label: t("nav.billing", "Billing"),
-            href: "/billing",
-            icon: CreditCard,
-            show: isTenantAdmin,
-          },
-          {
-            kind: "parent",
-            id: "admin-platform",
-            label: t("nav.platform", "Platform"),
-            icon: Shield,
-            show: can.viewAdminConsole,
-            children: [
-              {
-                kind: "leaf",
-                label: t("nav.admin", "Admin Console"),
-                href: "/admin",
-                icon: Shield,
-                show: can.viewAdminConsole,
-              },
-              {
-                kind: "leaf",
-                label: t("nav.tenants", "Tenants"),
-                href: "/admin/tenants",
-                icon: Building2,
-                show: can.viewAdminConsole,
-              },
-              {
-                kind: "leaf",
-                label: t("nav.platform_audit", "Audit Log"),
-                href: "/admin/audit",
-                icon: ScrollText,
-                show: can.viewAdminConsole,
-              },
-              {
-                kind: "leaf",
-                label: t("nav.platform_settings", "Platform Settings"),
-                href: "/admin/platform-settings",
-                icon: Landmark,
-                show: can.viewAdminConsole,
-              },
-              {
-                kind: "leaf",
-                label: t("nav.sms_delivery", "SMS delivery"),
-                href: "/admin/sms",
-                icon: MessageSquareText,
-                show: can.viewAdminConsole,
-              },
-              {
-                kind: "leaf",
-                label: t("nav.plans", "Plans"),
-                href: "/admin/plans",
-                icon: Layers,
-                show: can.viewAdminConsole,
-              },
-            ],
-          },
-        ],
-      },
-    ];
-  }, [
-    t,
-    can,
-    isSupervisor,
-    isTenantAdmin,
-    isSuperAdmin,
-    approvalCount,
-    settingsLanding,
-  ]);
+    const toLeaf = (d: Destination): NavLeaf => ({
+      kind: "leaf",
+      label: t(d.labelKey, d.labelFallback),
+      href: resolveHref(d.href, ctx),
+      icon: d.icon,
+      show: d.show(ctx),
+      badge: d.badge === "approvals" ? approvalCount : undefined,
+    });
+    return navSections(ctx).map((section) => ({
+      title: section.titleKey
+        ? t(section.titleKey, section.titleFallback)
+        : undefined,
+      entries: section.entries.map((entry): NavEntry => {
+        if (entry.kind === "leaf") return toLeaf(entry);
+        const parent: NavParent = {
+          kind: "parent",
+          id: entry.id,
+          label: t(entry.labelKey, entry.labelFallback),
+          icon: entry.icon,
+          show: entry.show(ctx),
+          children: entry.children.map(toLeaf),
+        };
+        return parent;
+      }),
+    }));
+  }, [t, ctx, approvalCount]);
 
   // ── Visibility filtering ─────────────────────────────────────────────────
 
