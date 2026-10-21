@@ -78,6 +78,7 @@ export default function LoansPage() {
           <Card>
             <CardContent className="p-0">
               <SimpleTable
+                mobileCards
                 caption={t("payroll_page.loans_page.title", "Loans")}
                 headers={[
                   t("attendance.employee"),

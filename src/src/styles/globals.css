@@ -160,7 +160,8 @@
   --text-numeric--line-height: 1.25rem;
 
   /* Amharic needs 1.6 to 1.8 or its characters clip (DESIGN_SYSTEM.md,
-     Amharic Typography Rules). A token now; Phase 6 applies it under :lang(am). */
+     Amharic Typography Rules). Applied to running text under :lang(am) in
+     the base layer below. */
   --leading-amharic: 1.7;
 
   /* --- Layout rhythm ----------------------------------------------------------
@@ -593,6 +594,16 @@
   html {
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
+  }
+
+  /* Ethiopic glyphs are taller than Latin ones and clip at the 1.5 that suits
+     English. Running text inherits this; sized utilities (text-sm and the
+     type scale) keep their own line height, so controls and tables do not
+     grow. */
+  :lang(am) body,
+  :lang(am) p,
+  :lang(am) li {
+    line-height: var(--leading-amharic);
   }
 
   body {

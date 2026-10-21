@@ -150,6 +150,7 @@ export function DeviceCommandsTab({
           {(data) => (
             <>
               <SimpleTable
+                mobileCards
                 caption={t("device_commands.title")}
                 headers={[
                   t("device_commands.command"),
