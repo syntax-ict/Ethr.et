@@ -35,7 +35,11 @@ const CAN_ABILITIES = {
   viewOwnCorrections: "correction.viewOwn",
   processPayroll: "payroll.process",
   viewPayrollRuns: "payroll.viewAll",
+  manageLoans: "payroll.manageLoan",
+  manageCostSharing: "payroll.manageCostSharing",
   approveLeave: "leave.approve",
+  // The approvals queue (`ApprovalController::pending` authorises this).
+  viewTeamLeave: "leave.viewTeam",
   manageLeaveTypes: "leave.manageTypes",
   // Viewing shifts and holidays is granted to everyone, so the management
   // screens are gated on the first write ability instead.
