@@ -10,6 +10,26 @@ shared-hosting migration in more detail than belongs here.
 
 ## [Unreleased]
 
+### Frontend redesign (2026-10-20 to 2026-10-22)
+
+Carried out from `docs/FRONTEND_REDESIGN_PLAN.md`, phases 1 to 6; section L
+of that plan lists every pull request and what was deliberately not done.
+No API changed except where a pull request says so. Highlights a person
+using ETHR will notice:
+
+- Failed loads say so, with Try again, on every screen; none falls through
+  to "nothing here".
+- Rejections, bulk terminations and other leavings ask for a reason;
+  deletes, migration commits and go-live ask first.
+- Lists keep their search and filters in the address. Employees filter by
+  status, department and branch; approvals by type, with bulk decisions.
+- Tables become cards on a phone; Amharic text gets the line height it
+  needs; sentences read in Amharic word order.
+- Dates follow the organisation's calendar on leave; exports carry
+  translated headers and amounts in birr.
+- Payroll runs show where they stand (calculate, review, approve), and a
+  calculated run reads "Awaiting approval".
+
 ### Security
 
 - **The security gate is green for the first time since it was added.**
