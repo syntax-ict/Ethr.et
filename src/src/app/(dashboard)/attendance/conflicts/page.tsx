@@ -45,6 +45,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 /**
  * Attendance conflict review.
@@ -67,7 +68,12 @@ export default function AttendanceConflictsPage() {
   const { can } = usePermissions();
   const { data: me } = useCurrentUser();
 
-  const [status, setStatus] = useState<"pending" | "all">("pending");
+  // In the address, so "all conflicts" can be opened from a link.
+  const filters = useQueryFilters(
+    { status: "pending" },
+    { status: ["pending", "all"] },
+  );
+  const status = filters.values.status as "pending" | "all";
   // The endpoint pages by 25 and this page read only the first: the 26th
   // conflict could not be reviewed until 25 others were resolved, and with
   // "All conflicts" selected nothing older than the latest 25 was reachable.
@@ -134,7 +140,7 @@ export default function AttendanceConflictsPage() {
           <Select
             value={status}
             onValueChange={(v) => {
-              setStatus(v as "pending" | "all");
+              filters.set({ status: v });
               setPage(1);
             }}
           >

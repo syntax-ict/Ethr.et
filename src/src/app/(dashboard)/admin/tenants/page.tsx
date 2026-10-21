@@ -25,6 +25,8 @@ import { useAdminTenants, verifiedDomain } from "@/features/admin/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
+import { FilterBar } from "@/components/shared/filter-bar";
 
 function trialDaysLeft(trialEndsAt: string | null): number | null {
   if (!trialEndsAt) return null;
@@ -40,8 +42,14 @@ export default function AdminTenantsPage() {
   // own falls back to the product default, Africa/Addis_Ababa.
   const { formatDate } = useDateFormatters();
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<string>("all");
+  const filters = useQueryFilters(
+    { q: "", status: "all" },
+    {
+      status: ["all", "trial", "active", "suspended", "cancelled", "deleted"],
+    },
+  );
+  const search = filters.values.q;
+  const status = filters.values.status;
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isError, refetch } = useAdminTenants({
@@ -66,12 +74,18 @@ export default function AdminTenantsPage() {
           }
         />
 
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <FilterBar
+          activeCount={filters.activeCount}
+          onClear={() => {
+            filters.clear();
+            setPage(1);
+          }}
+        >
           <div className="w-full max-w-sm">
             <SearchInput
               value={search}
               onChange={(v) => {
-                setSearch(v);
+                filters.set({ q: v });
                 setPage(1);
               }}
               placeholder={t(
@@ -83,7 +97,7 @@ export default function AdminTenantsPage() {
           <Select
             value={status}
             onValueChange={(v) => {
-              setStatus(v);
+              filters.set({ status: v });
               setPage(1);
             }}
           >
@@ -120,7 +134,7 @@ export default function AdminTenantsPage() {
               </SelectItem>
             </SelectContent>
           </Select>
-        </div>
+        </FilterBar>
 
         {isLoading ? (
           <div className="space-y-3">

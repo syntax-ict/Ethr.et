@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { Camera, Loader2, Lock, LockOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
@@ -33,28 +33,9 @@ import {
   type AttendancePhoto,
   type AttendancePhotoStatus,
 } from "@/features/attendance/api";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 type Which = "check-in" | "check-out";
-
-function subscribeToNothing(): () => void {
-  return () => {};
-}
-
-/**
- * The status the page opens on: `?status=review` from the deletion notice.
- * Read from `window.location`, not `useSearchParams`, which a statically
- * exported page cannot render without a Suspense boundary.
- */
-function useInitialStatus(): AttendancePhotoStatus {
-  return useSyncExternalStore(
-    subscribeToNothing,
-    () => {
-      const s = new URLSearchParams(window.location.search).get("status");
-      return s === "review" || s === "held" ? s : "all";
-    },
-    () => "all",
-  );
-}
 
 /**
  * Attendance selfies under the retention policy. Each is kept for the
@@ -70,8 +51,11 @@ export default function AttendancePhotosPage() {
   const { data: permissions } = useCurrentPermissions();
   const permissionsKnown = permissions !== undefined;
   const allowed = can.viewAttendancePhotos;
-  const initialStatus = useInitialStatus();
-  const [status, setStatus] = useState<AttendancePhotoStatus | null>(null);
+  // In the address: the deletion notice links to ?status=review.
+  const filters = useQueryFilters(
+    { status: "all" },
+    { status: ["all", "review", "held"] },
+  );
   const [page, setPage] = useState(1);
   const [viewing, setViewing] = useState<{
     photo: AttendancePhoto;
@@ -79,7 +63,7 @@ export default function AttendancePhotosPage() {
   } | null>(null);
   const [holding, setHolding] = useState<AttendancePhoto | null>(null);
 
-  const current = status ?? initialStatus;
+  const current = filters.values.status as AttendancePhotoStatus;
   // Only for those who hold the ability: anyone else would only be refused.
   const { data, isLoading, isError, refetch } = useAttendancePhotos(
     { status: current, page },
@@ -118,7 +102,7 @@ export default function AttendancePhotosPage() {
               role="radio"
               aria-checked={current === o.value}
               onClick={() => {
-                setStatus(o.value);
+                filters.set({ status: o.value });
                 setPage(1);
               }}
               className={cn(

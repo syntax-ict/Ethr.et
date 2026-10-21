@@ -12,10 +12,13 @@ import { SearchInput } from "@/components/shared/search-input";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { useDirectory } from "@/features/directory/api";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
+import { FilterBar } from "@/components/shared/filter-bar";
 
 export default function DirectoryPage() {
   const { t } = useT();
-  const [search, setSearch] = useState("");
+  const filters = useQueryFilters({ q: "" });
+  const search = filters.values.q;
   // The directory is paginated server-side and the page asked for 50 with no
   // way past them: in a tenant of 51 people the 51st could be found only by
   // already knowing their name.
@@ -35,19 +38,27 @@ export default function DirectoryPage() {
         )}
       />
 
-      <div className="w-full max-w-sm">
-        <SearchInput
-          value={search}
-          onChange={(value) => {
-            setSearch(value);
-            setPage(1);
-          }}
-          placeholder={t(
-            "directory.search_placeholder",
-            "Search by name, email, or phone...",
-          )}
-        />
-      </div>
+      <FilterBar
+        activeCount={filters.activeCount}
+        onClear={() => {
+          filters.clear();
+          setPage(1);
+        }}
+      >
+        <div className="w-full max-w-sm">
+          <SearchInput
+            value={search}
+            onChange={(value) => {
+              filters.set({ q: value });
+              setPage(1);
+            }}
+            placeholder={t(
+              "directory.search_placeholder",
+              "Search by name, email, or phone...",
+            )}
+          />
+        </div>
+      </FilterBar>
 
       <QueryBoundary
         query={query}
