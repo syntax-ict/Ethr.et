@@ -37,6 +37,7 @@ import {
   SetupProgress,
   KpiCard,
   PendingApprovalsPanel,
+  NextSteps,
   RecentActivity,
   AnnouncementsWidget,
   CalendarWidget,
@@ -45,10 +46,7 @@ import {
   OrganisationSnapshot,
   LinkEmployeeCallout,
 } from "@/features/dashboard/components";
-import {
-  IntegrityPrompt,
-  PulsePrompt,
-} from "@/features/dashboard/components/voice-and-integrity-prompts";
+import { PulsePrompt } from "@/features/dashboard/components/voice-and-integrity-prompts";
 import { ErrorState } from "@/components/shared/error-state";
 
 /**
@@ -61,7 +59,9 @@ import { ErrorState } from "@/components/shared/error-state";
  *   4. "Today" — the supervisor's operational state (present/absent/on leave).
  *   5. "My Day" — the individual's own state, shown to every role; an account
  *      with no employee record is told why it has none instead.
- *   6. Work queue, then trends, then reference material.
+ *   6. Next steps: at most three things that need a hand first, from the
+ *      counts the endpoints already return. Then the work queue, trends and
+ *      reference material.
  *
  * The governing rule is decisions-before-trends: what needs a response today
  * outranks a chart of the last five days. Previously the analytics card was
@@ -107,12 +107,12 @@ export default function DashboardPage() {
           "View all" off the page. */}
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="min-w-0 space-y-6 xl:col-span-2">
+          <NextSteps />
           <PendingApprovalsPanel />
           <InteractiveCharts />
         </div>
         <div className="min-w-0 space-y-6">
           {!hasNoEmployee && <PulsePrompt />}
-          {can.viewAttendanceConflicts && <IntegrityPrompt />}
           {/* Personal balances; an account with no employee record has none,
               and "My Day" already says how to get one. */}
           {!hasNoEmployee && <LeaveOverview />}

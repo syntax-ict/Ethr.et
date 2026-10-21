@@ -14,6 +14,7 @@ export { KpiCard } from "./kpi-card";
 export type { KpiTone } from "./kpi-card";
 export { QuickActions } from "./quick-actions";
 export { PendingApprovalsPanel } from "./pending-approvals";
+export { NextSteps } from "./next-steps";
 export { RecentActivity } from "./recent-activity";
 export { AnnouncementsWidget } from "./announcements-widget";
 export { CalendarWidget } from "./calendar-widget";

@@ -75,7 +75,10 @@ function hasRunInFlight(runs: PayrollRun[] | undefined): boolean {
   return (runs ?? []).some((run) => run.status === "processing");
 }
 
-export function usePayrollRuns(params?: { page?: number }) {
+export function usePayrollRuns(
+  params?: { page?: number },
+  options: { enabled?: boolean } = {},
+) {
   return useQuery<PaginatedResponse<PayrollRun>>({
     queryKey: ["payroll", "runs", params],
     queryFn: async () => {
@@ -83,6 +86,7 @@ export function usePayrollRuns(params?: { page?: number }) {
       return data;
     },
     staleTime: 5 * 60 * 1000,
+    enabled: options.enabled ?? true,
     refetchInterval: (query) =>
       hasRunInFlight(query.state.data?.data) ? PROCESSING_POLL_MS : false,
   });
