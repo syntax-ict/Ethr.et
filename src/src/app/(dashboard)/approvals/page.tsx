@@ -106,7 +106,7 @@ export default function ApprovalsPage() {
   const items = pending.data?.items ?? [];
 
   return (
-    <RoleGate minRole="supervisor">
+    <RoleGate anyPermission={["viewTeamLeave"]}>
       <div className="space-y-6">
         {/* QueryBoundary, so a failed load says so. It used to fall through
             to the empty state: a reviewer whose queue could not be read was

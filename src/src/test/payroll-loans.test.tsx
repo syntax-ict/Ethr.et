@@ -11,12 +11,16 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-// The page is wrapped in <RoleGate allowedRoles={[...]}>; grant access directly.
+// The page is gated on payroll.viewAll and its New loan button on
+// payroll.manageLoan, the permissions LoanController authorises.
+const granted = vi.hoisted(() => ({
+  can: { viewPayrollRuns: true, manageLoans: true } as Record<string, boolean>,
+}));
 vi.mock("@/lib/hooks/usePermissions", () => ({
   usePermissions: () => ({
     isAtLeast: () => true,
     hasRole: () => true,
-    can: {},
+    can: granted.can,
     role: "finance_admin",
   }),
 }));
@@ -176,5 +180,28 @@ describe("Loans page — the list", () => {
 
     expect(await screen.findByText("First Page")).toBeInTheDocument();
     expect(await screen.findByText("Second Page")).toBeInTheDocument();
+  });
+});
+
+describe("Loans page — permissions", () => {
+  it("shows the list but not New loan to someone who may only view", async () => {
+    granted.can = { viewPayrollRuns: true };
+    server.use(
+      http.get("*/api/v1/payroll/loans", () =>
+        HttpResponse.json({
+          data: [
+            { ...CREATED_LOAN, employee: { public_id: "E1", name: "Abebe" } },
+          ],
+          meta: { current_page: 1, last_page: 1, per_page: 25, total: 1 },
+          links: { first: null, last: null, prev: null, next: null },
+        }),
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText("Abebe")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /new loan/i })).toBeNull();
+    granted.can = { viewPayrollRuns: true, manageLoans: true };
   });
 });
