@@ -8,6 +8,8 @@ import { useOnboardingStatus } from "@/features/onboarding/useOnboardingStatus";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 
+// quiet-on-error: an optional setup checklist; when its request fails the dashboard is better without it than with a second error card.
+
 /**
  * "Finish setting up" on the dashboard, from the same guided-setup progress
  * the sidebar shows. It used to guess from record counts - departments meant

@@ -49,6 +49,7 @@ import {
   IntegrityPrompt,
   PulsePrompt,
 } from "@/features/dashboard/components/voice-and-integrity-prompts";
+import { ErrorState } from "@/components/shared/error-state";
 
 /**
  * Dashboard layout order is deliberate:
@@ -129,9 +130,20 @@ export default function DashboardPage() {
 
 function SelfServiceKpis() {
   const { t, locale } = useT();
-  const { data, isLoading } = useEmployeeDashboard();
+  const { data, isLoading, isError, refetch } = useEmployeeDashboard();
   const { formatTime } = useDateFormatters();
   const { formatDate } = useCalendar();
+
+  // Without this a failed request fell through to the cards below, which
+  // read a missing record as "Not Checked In" and an empty balance list.
+  if (isError) {
+    return (
+      <ErrorState
+        onRetry={() => refetch()}
+        className="rounded-xl border border-border bg-card"
+      />
+    );
+  }
 
   if (isLoading) {
     return (

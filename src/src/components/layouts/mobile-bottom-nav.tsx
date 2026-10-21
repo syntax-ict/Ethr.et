@@ -25,6 +25,8 @@ import { Sheet } from "@/components/ui/sheet";
 import { SidebarNav } from "./sidebar-nav";
 import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
 
+// quiet-on-error: the setup dot is a nudge; a failed status request leaves it off rather than putting an error in the navigation.
+
 /**
  * Mobile bottom tab bar per CLAUDE.md's Sidebar Navigation Structure
  * ("Mobile: bottom tab bar (Home, Attendance, Leave, Payslips, More) — not

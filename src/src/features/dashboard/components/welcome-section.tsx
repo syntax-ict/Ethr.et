@@ -11,6 +11,8 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { cn } from "@/lib/utils";
 import { QuickActions } from "./quick-actions";
 
+// quiet-on-error: a greeting; a failed /auth/me is a sign-out handled by the API client, and the time line is decoration.
+
 function getGreetingKey(): string {
   const hour = new Date().getHours();
   if (hour < 12) return "dashboard.good_morning";

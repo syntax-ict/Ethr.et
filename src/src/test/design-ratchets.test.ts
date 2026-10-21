@@ -18,6 +18,11 @@ import { join, relative } from "node:path";
  * 3. An `onError` that takes no argument. It can only show a canned message,
  *    so a 403, a 409 or a field's reason never reaches the person. Pass the
  *    error to `apiErrorMessage(err, fallback)` instead. 79 on 2026-10-20, 0 after.
+ * 4. A screen that reads `isLoading` and never `isError`. When its request
+ *    fails it falls through to its empty branch and states something false
+ *    ("Not Checked In", "No attendance this month"). Render `ErrorState`, use
+ *    `QueryBoundary`, or, where silence is right, say why in a
+ *    `quiet-on-error:` comment. 41 files on 2026-10-21.
  */
 
 const SRC = join(process.cwd(), "src");
@@ -37,6 +42,7 @@ const CEILINGS = {
   sub12pxText: 99,
   nativeConfirm: 0,
   discardedErrors: 0,
+  silentLoadFailures: 34,
 };
 
 function walk(dir: string): string[] {
@@ -105,5 +111,29 @@ describe("design ratchets", () => {
       total,
       `An onError that takes no argument cannot show the server's reason. Use (err) => toast.error(apiErrorMessage(err, fallback)). Files:\n${byFile.join("\n")}`,
     ).toBeLessThanOrEqual(CEILINGS.discardedErrors);
+  });
+
+  it(`has no more than ${CEILINGS.silentLoadFailures} screens that hide a failed load`, () => {
+    // Whole-file rule, over the signed-in app only: the public site and the
+    // shared primitives load nothing of their own.
+    const roots = ["app/(dashboard)", "features", "components"].map((d) =>
+      join(SRC, d),
+    );
+    const silent = roots
+      .flatMap((root) => walk(root))
+      .filter((file) => file.endsWith(".tsx"))
+      .filter((file) => {
+        const text = readFileSync(file, "utf8");
+        return (
+          text.includes("isLoading") &&
+          !/\bisError\b|QueryBoundary|quiet-on-error:/.test(text)
+        );
+      })
+      .map((file) => relative(SRC, file).replace(/\\/g, "/"))
+      .sort();
+    expect(
+      silent.length,
+      `A screen that reads isLoading must handle isError too: render <ErrorState onRetry={refetch} />, use QueryBoundary, or explain silence with a quiet-on-error: comment. Files:\n${silent.join("\n")}`,
+    ).toBeLessThanOrEqual(CEILINGS.silentLoadFailures);
   });
 });

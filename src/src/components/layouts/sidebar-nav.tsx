@@ -51,6 +51,8 @@ import { useOnboardingStatus } from "@/features/onboarding/useOnboardingStatus";
 import { useManagerDashboard } from "@/features/dashboard/api";
 import { useSettingsLanding } from "@/components/layouts/settings-nav";
 
+// quiet-on-error: the onboarding banner is a nudge; on a failed status request the sidebar draws without it rather than with an error in the navigation.
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface NavLeaf {

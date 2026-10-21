@@ -2,8 +2,8 @@
 
 import { type ReactNode } from "react";
 import { type UseQueryResult } from "@tanstack/react-query";
-import { AlertTriangle, RefreshCw, Inbox } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Inbox } from "lucide-react";
+import { ErrorState } from "@/components/shared/error-state";
 import { useT } from "@/lib/i18n/useT";
 
 interface QueryBoundaryProps<T> {
@@ -38,29 +38,6 @@ function DefaultEmpty() {
   );
 }
 
-function DefaultError({ retry }: { retry: () => void }) {
-  const { t } = useT();
-
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <AlertTriangle className="h-10 w-10 text-destructive" />
-      <p className="mt-3 text-sm font-medium text-foreground">
-        {t("common.load_failed", "Couldn't load this")}
-      </p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        {t(
-          "common.load_failed_hint",
-          "The data may be out of date. Try again.",
-        )}
-      </p>
-      <Button variant="outline" size="sm" className="mt-4" onClick={retry}>
-        <RefreshCw className="mr-2 h-3 w-3" />
-        {t("common.retry", "Try again")}
-      </Button>
-    </div>
-  );
-}
-
 function defaultIsEmpty<T>(data: T): boolean {
   if (data == null) return true;
   if (Array.isArray(data)) return data.length === 0;
@@ -84,7 +61,7 @@ export function QueryBoundary<T>({
   }
 
   if (query.isError) {
-    return <>{error ?? <DefaultError retry={() => query.refetch()} />}</>;
+    return <>{error ?? <ErrorState onRetry={() => query.refetch()} />}</>;
   }
 
   if (query.data !== undefined && isEmpty(query.data)) {

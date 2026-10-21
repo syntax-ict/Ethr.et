@@ -128,3 +128,37 @@ describe("Dashboard — leave balance tile", () => {
     expect(screen.queryByText("null")).not.toBeInTheDocument();
   });
 });
+
+/**
+ * A failed `GET /dashboard/employee` used to fall through to the tiles, which
+ * read the missing record as "Not Checked In": a wrong answer, stated as fact.
+ * It now says the data did not load and offers to try again.
+ */
+describe("Dashboard — a request that fails", () => {
+  it("says the data did not load instead of 'Not Checked In'", async () => {
+    server.use(
+      http.get("*/api/v1/dashboard/employee", () =>
+        HttpResponse.json({ detail: "Server Error" }, { status: 500 }),
+      ),
+      http.get("*/api/v1/auth/me", () => HttpResponse.json(ME)),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <CalendarProvider>
+          <DashboardPage />
+        </CalendarProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't load this",
+    );
+    expect(
+      screen.getByRole("button", { name: /Try again/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Not Checked In")).not.toBeInTheDocument();
+  });
+});
