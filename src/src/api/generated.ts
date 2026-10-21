@@ -3425,6 +3425,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/approval-workflows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List approval workflows */
+        get: operations["approvalWorkflow.index"];
+        put?: never;
+        /** Create approval workflow */
+        post: operations["approvalWorkflow.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/approval-workflows/{approvalWorkflow}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update approval workflow */
+        put: operations["approvalWorkflow.update"];
+        post?: never;
+        /** Delete approval workflow */
+        delete: operations["approvalWorkflow.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/letters": {
         parameters: {
             query?: never;
@@ -6814,12 +6850,43 @@ export interface components {
             comment: string | null;
             at: string | null;
         };
+        /**
+         * ApprovalRequestType
+         * @description The kinds of request the approval engine routes. The values match the `type` the approvals inbox already returns, so a workflow, an instance and an inbox item name a request the same way.
+         * @enum {string}
+         */
+        ApprovalRequestType: "leave" | "correction";
         /** ApprovalSummaryResource */
         ApprovalSummaryResource: {
             step: number;
             steps: number;
             status: string;
             history?: components["schemas"]["ApprovalActionResource"][];
+        };
+        /** ApprovalWorkflowResource */
+        ApprovalWorkflowResource: {
+            public_id: string;
+            request_type: string;
+            name: string;
+            priority: number;
+            is_active: boolean;
+            conditions: {
+                department_ids?: string[];
+                branch_ids?: string[];
+                leave_type_ids?: string[];
+            } | null;
+            steps?: components["schemas"]["ApprovalWorkflowStepResource"][];
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
+        };
+        /** ApprovalWorkflowStepResource */
+        ApprovalWorkflowStepResource: {
+            position: number;
+            approver_kind: string;
+            approver_ref: string | null;
+            sla_hours: number;
         };
         /**
          * ApprovePayrollRunRequest
@@ -6830,6 +6897,19 @@ export interface components {
         ApprovePayrollRunRequest: {
             acknowledged_pension_exemptions?: number | null;
         };
+        /**
+         * ApproverKind
+         * @description Who decides one step of a workflow. `approver_ref` names the role (a `UserRole` value) or the user (a public id); the other kinds carry none.
+         *     | |
+         *     |---|
+         *     | `permission` <br/> Anyone holding the request's permission who reaches the employee: today's rule. |
+         *     | `supervisor` <br/> The requester's supervisor. |
+         *     | `department_head` <br/> The head of the requester's department (`departments.head_employee_id`). |
+         *     | `role` <br/> Anyone with this system role who holds the permission and reaches the employee. |
+         *     | `user` <br/> One named user. |
+         * @enum {string}
+         */
+        ApproverKind: "permission" | "supervisor" | "department_head" | "role" | "user";
         /** AssignShiftRequest */
         AssignShiftRequest: {
             shift_public_id: string;
@@ -7262,6 +7342,7 @@ export interface components {
             is_active: boolean;
             parent?: components["schemas"]["DepartmentResource"] | null;
             branch?: components["schemas"]["BranchResource"] | null;
+            head?: components["schemas"]["EmployeeSummaryResource"] | null;
             children?: components["schemas"]["DepartmentResource"][];
             children_recursive?: components["schemas"]["DepartmentResource"][];
             employees_count?: number;
@@ -8689,6 +8770,31 @@ export interface components {
             /** Format: date-time */
             expires_at?: string | null;
         };
+        /**
+         * StoreApprovalWorkflowRequest
+         * @description A chain of approval steps for one request type (docs/APPROVAL-ENGINE-DESIGN.md).
+         *
+         *     The cross-checks run in withValidator(), not rules(), so the API contract
+         *     Scramble derives from rules() stays a plain shape. Every public id a
+         *     workflow names must belong to this organisation; the message is Laravel's
+         *     generic `validation.exists`, the same for a foreign id as for a missing one.
+         */
+        StoreApprovalWorkflowRequest: {
+            request_type: components["schemas"]["ApprovalRequestType"];
+            name: string;
+            priority?: number | null;
+            is_active?: boolean | null;
+            conditions?: {
+                department_ids?: string[] | null;
+                branch_ids?: string[] | null;
+                leave_type_ids?: string[] | null;
+            };
+            steps: {
+                approver_kind: components["schemas"]["ApproverKind"];
+                approver_ref?: string | null;
+                sla_hours?: number | null;
+            }[];
+        };
         /** StoreBankDetailRequest */
         StoreBankDetailRequest: {
             bank_name: string;
@@ -8762,6 +8868,7 @@ export interface components {
             code?: string | null;
             parent_public_id?: string | null;
             branch_public_id?: string | null;
+            head_employee_public_id?: string | null;
             is_active?: boolean | null;
         };
         /** StoreDeviceRequest */
@@ -9298,6 +9405,29 @@ export interface components {
             show_on_landing?: boolean;
             featured?: boolean;
         };
+        /**
+         * UpdateApprovalWorkflowRequest
+         * @description Updating replaces the whole workflow, steps included: a chain is short and
+         *     read as a whole, so a partial edit that left the steps half-renumbered
+         *     would be worse than resending them. Requests already submitted keep the
+         *     snapshot they started with.
+         */
+        UpdateApprovalWorkflowRequest: {
+            request_type: components["schemas"]["ApprovalRequestType"];
+            name: string;
+            priority?: number | null;
+            is_active?: boolean | null;
+            conditions?: {
+                department_ids?: string[] | null;
+                branch_ids?: string[] | null;
+                leave_type_ids?: string[] | null;
+            };
+            steps: {
+                approver_kind: components["schemas"]["ApproverKind"];
+                approver_ref?: string | null;
+                sla_hours?: number | null;
+            }[];
+        };
         /** UpdateAttendanceSettingRequest */
         UpdateAttendanceSettingRequest: {
             enabled_methods?: ("biometric" | "mobile" | "qr" | "kiosk" | "web" | "manual" | "csv")[];
@@ -9396,6 +9526,7 @@ export interface components {
             code?: string | null;
             parent_public_id?: string | null;
             branch_public_id?: string | null;
+            head_employee_public_id?: string | null;
             is_active?: boolean | null;
         };
         /** UpdateDeviceRequest */
@@ -19208,6 +19339,116 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "approvalWorkflow.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `ApprovalWorkflowResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["ApprovalWorkflowResource"] & {
+                        steps: components["schemas"]["ApprovalWorkflowStepResource"][];
+                    })[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "approvalWorkflow.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreApprovalWorkflowRequest"];
+            };
+        };
+        responses: {
+            /** @description `ApprovalWorkflowResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalWorkflowResource"] & {
+                        steps: components["schemas"]["ApprovalWorkflowStepResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "approvalWorkflow.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The approval workflow public id */
+                approvalWorkflow: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateApprovalWorkflowRequest"];
+            };
+        };
+        responses: {
+            /** @description `ApprovalWorkflowResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalWorkflowResource"] & {
+                        steps: components["schemas"]["ApprovalWorkflowStepResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "approvalWorkflow.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The approval workflow public id */
+                approvalWorkflow: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "letterRequest.index": {
         parameters: {
             query?: {
@@ -20904,6 +21145,7 @@ export interface operations {
                         data: (components["schemas"]["DepartmentResource"] & {
                             parent: components["schemas"]["DepartmentResource"] | null;
                             branch: components["schemas"]["BranchResource"] | null;
+                            head: components["schemas"]["EmployeeSummaryResource"] | null;
                         })[];
                         links: {
                             first: string | null;
@@ -20959,6 +21201,7 @@ export interface operations {
                     "application/json": components["schemas"]["DepartmentResource"] & {
                         parent: components["schemas"]["DepartmentResource"] | null;
                         branch: components["schemas"]["BranchResource"] | null;
+                        head: components["schemas"]["EmployeeSummaryResource"] | null;
                     };
                 };
             };
@@ -20988,6 +21231,7 @@ export interface operations {
                     "application/json": components["schemas"]["DepartmentResource"] & {
                         parent: components["schemas"]["DepartmentResource"] | null;
                         branch: components["schemas"]["BranchResource"] | null;
+                        head: components["schemas"]["EmployeeSummaryResource"] | null;
                         children: components["schemas"]["DepartmentResource"][];
                     };
                 };
@@ -21022,6 +21266,7 @@ export interface operations {
                     "application/json": components["schemas"]["DepartmentResource"] & {
                         parent: components["schemas"]["DepartmentResource"] | null;
                         branch: components["schemas"]["BranchResource"] | null;
+                        head: components["schemas"]["EmployeeSummaryResource"] | null;
                     };
                 };
             };

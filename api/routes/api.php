@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\Announcement\AnnouncementCoverController;
 use App\Http\Controllers\Api\V1\Announcement\AnnouncementFileController;
 use App\Http\Controllers\Api\V1\ApiKey\ApiKeyController;
 use App\Http\Controllers\Api\V1\Approval\ApprovalController;
+use App\Http\Controllers\Api\V1\Approval\ApprovalWorkflowController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceConflictController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceCorrectionController;
@@ -934,6 +935,10 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::put('/settings/showcase', [ShowcaseConsentController::class, 'update']);
     Route::put('/settings/sso', [SettingsController::class, 'updateSso']);
     Route::post('/settings/scim-token', [SettingsController::class, 'generateScimToken']);
+    Route::get('/settings/approval-workflows', [ApprovalWorkflowController::class, 'index']);
+    Route::post('/settings/approval-workflows', [ApprovalWorkflowController::class, 'store']);
+    Route::put('/settings/approval-workflows/{approvalWorkflow}', [ApprovalWorkflowController::class, 'update']);
+    Route::delete('/settings/approval-workflows/{approvalWorkflow}', [ApprovalWorkflowController::class, 'destroy']);
     Route::get('/settings/notification-templates', [NotificationTemplateController::class, 'index']);
     Route::put('/settings/notification-templates/{type}', [NotificationTemplateController::class, 'update']);
     Route::get('/settings/data-export', [DataExportController::class, 'index']);

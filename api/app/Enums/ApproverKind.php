@@ -7,7 +7,6 @@ namespace App\Enums;
 /**
  * Who decides one step of a workflow. `approver_ref` names the role (a
  * `UserRole` value) or the user (a public id); the other kinds carry none.
- * `department_head` arrives with `departments.head_employee_id` in Phase B.
  */
 enum ApproverKind: string
 {
@@ -16,6 +15,9 @@ enum ApproverKind: string
 
     /** The requester's supervisor. */
     case SUPERVISOR = 'supervisor';
+
+    /** The head of the requester's department (`departments.head_employee_id`). */
+    case DEPARTMENT_HEAD = 'department_head';
 
     /** Anyone with this system role who holds the permission and reaches the employee. */
     case ROLE = 'role';

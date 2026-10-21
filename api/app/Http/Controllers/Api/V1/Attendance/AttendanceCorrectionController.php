@@ -15,6 +15,7 @@ use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\AttendanceCorrectionRequestedNotification;
+use App\Services\Approval\ApprovalEngine;
 use App\Services\Attendance\CorrectionDecisionService;
 use App\Services\Payroll\PayrollPeriodLock;
 use App\Traits\SendsNotifications;
@@ -43,7 +44,10 @@ class AttendanceCorrectionController extends Controller
      */
     private const RECORD_RELATIONS = ['attendanceRecord.employee', 'attendanceRecord.shift'];
 
-    public function __construct(private readonly CorrectionDecisionService $decisions) {}
+    public function __construct(
+        private readonly CorrectionDecisionService $decisions,
+        private readonly ApprovalEngine $approvals,
+    ) {}
 
     public function store(StoreCorrectionRequest $request): JsonResponse
     {
@@ -70,10 +74,10 @@ class AttendanceCorrectionController extends Controller
             'attendance_record_public_id' => $record->public_id,
         ]);
 
-        // Notify supervisor
-        $supervisor = $correction->employee?->supervisor;
-        if ($supervisor?->user) {
-            $this->notify($supervisor->user, new AttendanceCorrectionRequestedNotification($correction));
+        // The person the chain's first step names, else the supervisor.
+        $recipient = $this->approvals->namedApprover($correction) ?? $correction->employee?->supervisor?->user;
+        if ($recipient instanceof User) {
+            $this->notify($recipient, new AttendanceCorrectionRequestedNotification($correction));
         }
 
         $correction->load('attendanceRecord', 'employee', 'approvalInstance.actions.actor');

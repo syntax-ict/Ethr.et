@@ -24,6 +24,7 @@ class UpdateDepartmentRequest extends FormRequest
             'code' => ['nullable', 'string', 'max:20'],
             'parent_public_id' => ['nullable', 'string', 'size:26'],
             'branch_public_id' => ['nullable', 'string', 'size:26'],
+            'head_employee_public_id' => ['nullable', 'string', 'size:26'],
             'is_active' => ['nullable', 'boolean'],
         ];
     }
