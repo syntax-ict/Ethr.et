@@ -52,6 +52,15 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useEmployeeOptions } from "@/features/attendance/api";
 import { costCentersApi, teamsApi } from "@/features/organization/api";
 import { RelationPicker } from "@/features/employees/components/relation-picker";
+import { ErrorState } from "@/components/shared/error-state";
+
+/** A 404 means the record is gone; anything else means the request failed. */
+function isNotFound(error: unknown): boolean {
+  return (
+    (error as { response?: { status?: number } } | null)?.response?.status ===
+    404
+  );
+}
 
 const EMPLOYEE_TABS = [
   "info",
@@ -73,7 +82,13 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   const [tab, setTab] = useQueryTab(EMPLOYEE_TABS, "info");
   const id = useRouteId(routeId) ?? "";
   const { t } = useT();
-  const { data: employee, isLoading } = useEmployee(id);
+  const {
+    data: employee,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useEmployee(id);
   const nationalityLabel = useNationalityStatusLabel();
   useEntityTitle(employee?.name);
   const canManageAttendance =
@@ -133,6 +148,12 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
         </div>
       </div>
     );
+  }
+
+  // Every failure used to read "Employee not found", which sent people to
+  // look for a record that was there all along.
+  if (isError && !isNotFound(error)) {
+    return <ErrorState onRetry={() => refetch()} />;
   }
 
   if (!employee) {

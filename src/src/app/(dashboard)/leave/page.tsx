@@ -59,6 +59,7 @@ import { useConfirm } from "@/components/shared/use-confirm";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 function leaveTypeName(
   lt: LeaveBalance["leave_type"],
@@ -224,8 +225,18 @@ function MyLeaveTab() {
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
   const [page, setPage] = useState(1);
-  const { data: balances, isLoading: balancesLoading } = useLeaveBalance();
-  const { data: requests, isLoading: requestsLoading } = useMyLeaveRequests({
+  const {
+    data: balances,
+    isLoading: balancesLoading,
+    isError: balancesError,
+    refetch: refetchBalances,
+  } = useLeaveBalance();
+  const {
+    data: requests,
+    isLoading: requestsLoading,
+    isError: requestsError,
+    refetch: refetchRequests,
+  } = useMyLeaveRequests({
     page,
   });
   const cancelLeave = useCancelLeave();
@@ -233,51 +244,57 @@ function MyLeaveTab() {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {balancesLoading
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <StatCard key={i} label="" value="" loading />
-            ))
-          : balances && Array.isArray(balances)
-            ? balances.map((b, i) => {
-                const used =
-                  b.entitled_days > 0
-                    ? Math.min(100, (b.used_days / b.entitled_days) * 100)
-                    : 0;
-                return (
-                  <StatCard
-                    key={i}
-                    icon={CalendarDays}
-                    tone="success"
-                    label={leaveTypeName(b.leave_type, t("leave_page.unknown"))}
-                    value={
-                      <span>
-                        {b.remaining_days}
-                        <span className="ml-1.5 text-sm font-normal text-muted-foreground">
-                          {t("common.days", "days")}
-                        </span>
-                      </span>
-                    }
-                    hint={
-                      <span className="block space-y-1.5">
-                        <span className="block">
-                          {b.used_days} {t("leave_page.used_of")}{" "}
-                          {b.entitled_days}
-                        </span>
-                        <span
-                          className="block h-1.5 overflow-hidden rounded-full bg-muted"
-                          aria-hidden="true"
-                        >
-                          <span
-                            className="block h-full rounded-full bg-status-success"
-                            style={{ width: `${used}%` }}
-                          />
-                        </span>
-                      </span>
-                    }
-                  />
-                );
-              })
-            : null}
+        {balancesLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <StatCard key={i} label="" value="" loading />
+          ))
+        ) : balancesError ? (
+          // Without this the balance cards simply did not appear.
+          <ErrorState
+            compact
+            onRetry={() => refetchBalances()}
+            className="col-span-full rounded-xl border border-border bg-card"
+          />
+        ) : balances && Array.isArray(balances) ? (
+          balances.map((b, i) => {
+            const used =
+              b.entitled_days > 0
+                ? Math.min(100, (b.used_days / b.entitled_days) * 100)
+                : 0;
+            return (
+              <StatCard
+                key={i}
+                icon={CalendarDays}
+                tone="success"
+                label={leaveTypeName(b.leave_type, t("leave_page.unknown"))}
+                value={
+                  <span>
+                    {b.remaining_days}
+                    <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                      {t("common.days", "days")}
+                    </span>
+                  </span>
+                }
+                hint={
+                  <span className="block space-y-1.5">
+                    <span className="block">
+                      {b.used_days} {t("leave_page.used_of")} {b.entitled_days}
+                    </span>
+                    <span
+                      className="block h-1.5 overflow-hidden rounded-full bg-muted"
+                      aria-hidden="true"
+                    >
+                      <span
+                        className="block h-full rounded-full bg-status-success"
+                        style={{ width: `${used}%` }}
+                      />
+                    </span>
+                  </span>
+                }
+              />
+            );
+          })
+        ) : null}
       </div>
 
       <Card>
@@ -291,6 +308,8 @@ function MyLeaveTab() {
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
+          ) : requestsError ? (
+            <ErrorState onRetry={() => refetchRequests()} />
           ) : !requests?.data?.length ? (
             <EmptyState
               icon={CalendarDays}
@@ -377,7 +396,10 @@ function TeamLeaveTab() {
   const { t } = useT();
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"list" | "calendar">("list");
-  const { data, isLoading } = useTeamLeaveRequests({ page, per_page: 100 } as {
+  const { data, isLoading, isError, refetch } = useTeamLeaveRequests({
+    page,
+    per_page: 100,
+  } as {
     page: number;
   });
   const approveLeave = useApproveLeave();
@@ -434,6 +456,8 @@ function TeamLeaveTab() {
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
+            ) : isError ? (
+              <ErrorState onRetry={() => refetch()} />
             ) : requests.length === 0 ? (
               <EmptyState
                 icon={CalendarDays}
