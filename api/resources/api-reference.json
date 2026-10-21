@@ -8742,6 +8742,185 @@
                 }
             }
         },
+        "/devices/unmatched-punches": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "unmatchedPunch.index",
+                "summary": "List unmatched punches",
+                "tags": [
+                    "Unmatched Punch"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "device_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "device_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "badge": {
+                                                        "type": "string"
+                                                    },
+                                                    "punches": {
+                                                        "type": "string"
+                                                    },
+                                                    "first_seen": {
+                                                        "type": "string"
+                                                    },
+                                                    "last_seen": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "device_public_id",
+                                                    "device_name",
+                                                    "badge",
+                                                    "punches",
+                                                    "first_seen",
+                                                    "last_seen"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/devices/unmatched-punches/assign": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "unmatchedPunch.assign",
+                "summary": "Assign unmatched punches",
+                "tags": [
+                    "Unmatched Punch"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AssignUnmatchedBadgeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "replayed": {
+                                            "type": "integer"
+                                        },
+                                        "refused": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "replayed",
+                                        "refused"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/devices/unmatched-punches/dismiss": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "unmatchedPunch.dismiss",
+                "summary": "Create dismiss",
+                "tags": [
+                    "Unmatched Punch"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DismissUnmatchedBadgeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "dismissed": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                        }
+                                    },
+                                    "required": [
+                                        "dismissed"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/devices/{device}": {
             "get": {
                 "x-abilities": [
@@ -31655,6 +31834,31 @@
                 ],
                 "title": "AssignShiftRotationRequest"
             },
+            "AssignUnmatchedBadgeRequest": {
+                "type": "object",
+                "properties": {
+                    "device_public_id": {
+                        "type": "string",
+                        "minLength": 26,
+                        "maxLength": 26
+                    },
+                    "badge": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "employee_public_id": {
+                        "type": "string",
+                        "minLength": 26,
+                        "maxLength": 26
+                    }
+                },
+                "required": [
+                    "device_public_id",
+                    "badge",
+                    "employee_public_id"
+                ],
+                "title": "AssignUnmatchedBadgeRequest"
+            },
             "AttendanceConflictResource": {
                 "type": "object",
                 "properties": {
@@ -33769,6 +33973,25 @@
                     "termination"
                 ],
                 "title": "DisciplinarySanctionType"
+            },
+            "DismissUnmatchedBadgeRequest": {
+                "type": "object",
+                "properties": {
+                    "device_public_id": {
+                        "type": "string",
+                        "minLength": 26,
+                        "maxLength": 26
+                    },
+                    "badge": {
+                        "type": "string",
+                        "maxLength": 64
+                    }
+                },
+                "required": [
+                    "device_public_id",
+                    "badge"
+                ],
+                "title": "DismissUnmatchedBadgeRequest"
             },
             "EducationResource": {
                 "type": "object",

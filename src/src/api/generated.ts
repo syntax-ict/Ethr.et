@@ -6142,6 +6142,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/unmatched-punches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List unmatched punches */
+        get: operations["unmatchedPunch.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/unmatched-punches/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign unmatched punches */
+        post: operations["unmatchedPunch.assign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/unmatched-punches/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create dismiss */
+        post: operations["unmatchedPunch.dismiss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users": {
         parameters: {
             query?: never;
@@ -6621,6 +6672,12 @@ export interface components {
              *     joins a team already part-way through its pattern.
              */
             anchor_date?: string | null;
+        };
+        /** AssignUnmatchedBadgeRequest */
+        AssignUnmatchedBadgeRequest: {
+            device_public_id: string;
+            badge: string;
+            employee_public_id: string;
         };
         /** AttendanceConflictResource */
         AttendanceConflictResource: {
@@ -7149,6 +7206,11 @@ export interface components {
          * @enum {string}
          */
         DisciplinarySanctionType: "verbal_warning" | "written_warning" | "suspension" | "demotion" | "salary_deduction" | "termination";
+        /** DismissUnmatchedBadgeRequest */
+        DismissUnmatchedBadgeRequest: {
+            device_public_id: string;
+            badge: string;
+        };
         /** EducationResource */
         EducationResource: {
             public_id: string;
@@ -26600,6 +26662,94 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "unmatchedPunch.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            device_public_id: string;
+                            device_name: string;
+                            badge: string;
+                            punches: string;
+                            first_seen: string;
+                            last_seen: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "unmatchedPunch.assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignUnmatchedBadgeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        replayed: number;
+                        refused: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "unmatchedPunch.dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DismissUnmatchedBadgeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        dismissed: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "user.index": {
