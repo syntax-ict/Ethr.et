@@ -27,6 +27,7 @@ import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { Controller } from "react-hook-form";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { useUploadLimit } from "@/features/auth/api";
 import {
   overServerLimit,
@@ -89,6 +90,7 @@ type DocumentValues = z.infer<typeof documentSchema>;
 
 export function DocumentsTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -168,7 +170,15 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
     reset();
   }
 
-  function onDelete(docId: string) {
+  // One click deleted it, with no way back (FRONTEND_REDESIGN_PLAN.md,
+  // employee detail: four sub-record deletes were unconfirmed).
+  async function onDelete(docId: string, label: string) {
+    const confirmed = await requestConfirm({
+      title: t("employee.documents.delete_confirm", undefined, { name: label }),
+      confirmLabel: t("common.delete", "Delete"),
+      variant: "destructive",
+    });
+    if (!confirmed) return;
     deleteDoc.mutate(docId, {
       onSuccess: () =>
         toast.success(t("employee.documents.deleted", "Document deleted")),
@@ -227,7 +237,7 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onDelete(d.public_id)}
+                    onClick={() => onDelete(d.public_id, d.title)}
                     aria-label={`${t("common.delete", "Delete")} ${d.title}`}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -368,6 +378,7 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
           </form>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </Card>
   );
 }
