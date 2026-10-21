@@ -300,6 +300,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Users & Access",
     description: "Invite people and manage their access",
   },
+  "/settings/data-export": {
+    section: "Admin",
+    parent: { label: "Settings", href: "/settings" },
+    label: "Data export",
+    description: "Download a copy of all your organisation's data",
+  },
   "/settings/scim": {
     section: "Admin",
     parent: { label: "Settings", href: "/settings" },

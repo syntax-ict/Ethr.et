@@ -117,6 +117,7 @@ use App\Http\Controllers\Api\V1\Scim\ScimGroupController;
 use App\Http\Controllers\Api\V1\Scim\ScimUserController;
 use App\Http\Controllers\Api\V1\Search\GlobalSearchController;
 use App\Http\Controllers\Api\V1\Settings\AuditLogController;
+use App\Http\Controllers\Api\V1\Settings\DataExportController;
 use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
 use App\Http\Controllers\Api\V1\Settings\TenantBrandAssetController;
@@ -935,6 +936,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/settings/scim-token', [SettingsController::class, 'generateScimToken']);
     Route::get('/settings/notification-templates', [NotificationTemplateController::class, 'index']);
     Route::put('/settings/notification-templates/{type}', [NotificationTemplateController::class, 'update']);
+    Route::get('/settings/data-export', [DataExportController::class, 'index']);
+    Route::post('/settings/data-export', [DataExportController::class, 'store']);
+    Route::get('/settings/data-export/{export}/download', [DataExportController::class, 'download']);
 
     // Audit logs
     //

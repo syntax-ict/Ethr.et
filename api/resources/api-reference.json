@@ -27840,6 +27840,132 @@
                 }
             }
         },
+        "/settings/data-export": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "dataExport.index",
+                "summary": "Data export settings",
+                "tags": [
+                    "Data Export"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "size_bytes": {
+                                                        "type": [
+                                                            "integer",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "file_count": {
+                                                        "type": [
+                                                            "integer",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "expires_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "status",
+                                                    "size_bytes",
+                                                    "file_count",
+                                                    "expires_at",
+                                                    "created_at"
+                                                ]
+                                            }
+                                        },
+                                        "expires_days": {
+                                            "type": "integer",
+                                            "const": 7
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "expires_days"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/settings/data-export/{export}/download": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "dataExport.download",
+                "summary": "Download data export",
+                "tags": [
+                    "Data Export"
+                ],
+                "parameters": [
+                    {
+                        "name": "export",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/settings/notification-templates": {
             "get": {
                 "x-abilities": [

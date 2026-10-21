@@ -141,7 +141,7 @@ Evidence names the main file or test; `api/` and `src/src/` prefixes are dropped
 | A9 | Date, calendar, language, financial settings | **Verified** | `CalendarPreferenceTest`, `TenantSettingsValidationTest` |
 | A10 | Suspension, reactivation, closure | **Verified** | `TenantDeletionTest`, `OverdueInvoiceEscalationTest`. Org not notified |
 | A11 | Usage, storage, employee limits | Partial | `PlanLimitTest`. No storage measurement; trials uncapped |
-| A12 | Customer data export, offboarding | Partial | Operator-only JSON backup, no files, no download (C5) |
+| A12 | Customer data export, offboarding | **Verified** (2026-10-20) | Settings → Data export: every row and uploaded document, 7-day expiry, audited (`TenantDataExportTest`, [DATA-EXPORT.md](../operations/DATA-EXPORT.md)). Was operator-only JSON backup, no files, no download (C5) |
 | A13 | Auditable support access | **Verified** | `ImpersonationTest`, `docs/operations/IMPERSONATION.md`. No reason/ticket field |
 | A14 | No cross-tenant search, cache, download, notification | **Verified** | `GlobalSearchTest`, `DashboardCachingTest`, `QueuedListenerTenantScopeTest` |
 | A15 | Tenant audit history and report permissions | Partial | Audit log immutable (`AuditLogImmutabilityTest`); report permissions broken inside the tenant (D6) |
@@ -162,7 +162,7 @@ Evidence names the main file or test; `api/` and `src/src/` prefixes are dropped
 | P9 | Release and app health | Partial | `release.json`, `scripts/release-status.sh`; health reports hard-coded `1.0.0` |
 | P10 | Backup status, restore verification | Partial | `BackupRestoreRehearsalTest` in CI; host restore M6 not performed |
 | P11 | Feature flags, controlled rollout | Missing | `FeatureFlag` model has no reader |
-| P12 | Customer export and offboarding | Partial | As A12 |
+| P12 | Customer export and offboarding | **Verified** (2026-10-20) | As A12 |
 | P13 | Availability and incident communication | Missing | No status page or banner |
 | P14 | Operators separate from customer admins | **Verified** | One shared super-admin role; no narrower support/billing roles |
 | P15 | Platform reports without employee-level access | **Verified** | `PlatformAdminTest` |
