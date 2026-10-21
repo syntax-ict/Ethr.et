@@ -350,3 +350,94 @@ describe("<PayrollRunDetail> pension exemptions", () => {
     expect(bodies[0]).toEqual({ acknowledged_pension_exemptions: 3 });
   });
 });
+
+// A completed run and an approved one looked alike, so a run nobody had
+// approved read as finished (FRONTEND_REDESIGN_PLAN.md, Phase 3).
+describe("<PayrollRunDetail> progress", () => {
+  function stepNamed(steps: HTMLElement, name: RegExp) {
+    return within(steps)
+      .getAllByRole("listitem")
+      .find((li) => name.test(li.querySelector("p")?.textContent ?? ""))!;
+  }
+
+  it("marks review as the current step while the run awaits approval", async () => {
+    server.use(me("finance_admin", ["payroll.viewAll", "payroll.approve"]));
+    renderDetail();
+
+    const steps = await screen.findByRole("list", {
+      name: "Payroll run progress",
+    });
+    expect(stepNamed(steps, /^Calculate/)).toHaveTextContent("Done");
+    expect(stepNamed(steps, /^Review/)).toHaveAttribute("aria-current", "step");
+    expect(stepNamed(steps, /^Approve/)).toHaveTextContent("Not started");
+    expect(screen.getByText("Awaiting approval")).toBeInTheDocument();
+  });
+
+  it("tells someone who cannot approve that the run is waiting", async () => {
+    server.use(me("hr_admin", ["payroll.viewAll"]));
+    renderDetail();
+
+    expect(
+      await screen.findByText("Waiting for someone who can approve payroll."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows every step done once the run is approved", async () => {
+    server.use(me("finance_admin", ["payroll.viewAll"]));
+    server.use(
+      http.get("*/api/v1/payroll/runs/RUN1", () =>
+        HttpResponse.json({
+          ...RUN,
+          status: "approved",
+          approved_at: "2026-10-11T06:00:00Z",
+        }),
+      ),
+    );
+    renderDetail();
+
+    const steps = await screen.findByRole("list", {
+      name: "Payroll run progress",
+    });
+    for (const li of within(steps).getAllByRole("listitem")) {
+      expect(li).toHaveTextContent("Done");
+      expect(li).not.toHaveAttribute("aria-current");
+    }
+    expect(screen.queryByText("Awaiting approval")).toBeNull();
+  });
+
+  it("marks the calculation failed on a failed run", async () => {
+    server.use(me("finance_admin", ["payroll.viewAll"]));
+    server.use(
+      http.get("*/api/v1/payroll/runs/RUN1", () =>
+        HttpResponse.json({ ...RUN, status: "failed", processed_at: null }),
+      ),
+    );
+    renderDetail();
+
+    const steps = await screen.findByRole("list", {
+      name: "Payroll run progress",
+    });
+    expect(stepNamed(steps, /^Calculate/)).toHaveTextContent(
+      "The calculation failed",
+    );
+  });
+
+  it("leaves a voided run to its notice", async () => {
+    server.use(me("finance_admin", ["payroll.viewAll"]));
+    server.use(
+      http.get("*/api/v1/payroll/runs/RUN1", () =>
+        HttpResponse.json({
+          ...RUN,
+          status: "voided",
+          void_reason: "Wrong rates",
+        }),
+      ),
+    );
+    renderDetail();
+
+    await screen.findByText("Wrong rates");
+    expect(
+      screen.queryByRole("list", { name: "Payroll run progress" }),
+    ).toBeNull();
+  });
+});
