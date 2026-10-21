@@ -20,6 +20,7 @@ const TYPES = [
   "payroll_processed",
   "announcement",
   "approval_reminder",
+  "expiry_reminder",
   "profile_update",
 ];
 const CHANNELS = ["in_app", "email", "sms"];

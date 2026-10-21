@@ -17098,6 +17098,10 @@
                                                 },
                                                 {
                                                     "type": "string",
+                                                    "const": "expiry_reminder"
+                                                },
+                                                {
+                                                    "type": "string",
                                                     "const": "profile_update"
                                                 },
                                                 {
@@ -17105,8 +17109,8 @@
                                                     "const": "employee_voice"
                                                 }
                                             ],
-                                            "minItems": 11,
-                                            "maxItems": 11,
+                                            "minItems": 12,
+                                            "maxItems": 12,
                                             "additionalItems": false
                                         },
                                         "channels": {
@@ -17242,6 +17246,10 @@
                                                 },
                                                 {
                                                     "type": "string",
+                                                    "const": "expiry_reminder"
+                                                },
+                                                {
+                                                    "type": "string",
                                                     "const": "profile_update"
                                                 },
                                                 {
@@ -17249,8 +17257,8 @@
                                                     "const": "employee_voice"
                                                 }
                                             ],
-                                            "minItems": 11,
-                                            "maxItems": 11,
+                                            "minItems": 12,
+                                            "maxItems": 12,
                                             "additionalItems": false
                                         },
                                         "channels": {
