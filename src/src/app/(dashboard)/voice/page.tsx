@@ -73,6 +73,7 @@ import {
   type RecognitionValue,
 } from "@/features/voice/api";
 import { ConcernStatusBadge, ConcernThread } from "@/features/voice/components";
+import { ErrorState } from "@/components/shared/error-state";
 
 type Tab = "pulse" | "speak-up" | "recognition";
 
@@ -168,7 +169,7 @@ function PrivacyNote({ children }: { children: React.ReactNode }) {
 
 function PulseCard() {
   const { t } = useT();
-  const { data, isLoading } = usePulse();
+  const { data, isLoading, isError, refetch } = usePulse();
   const answer = useAnswerPulse();
   const [score, setScore] = useState<number | null>(null);
   const [tags, setTags] = useState<PulseTag[]>([]);
@@ -184,6 +185,9 @@ function PulseCard() {
     ][s - 1];
 
   if (isLoading) return <Skeleton className="h-72 max-w-2xl" />;
+  // A failed load drew the question as if unanswered.
+  if (isError)
+    return <ErrorState onRetry={() => refetch()} className="max-w-2xl" />;
 
   if (data?.answered) {
     return (
@@ -342,7 +346,7 @@ function PulseCard() {
 function SpeakUp() {
   const { t } = useT();
   const raise = useRaiseConcern();
-  const { data: mine, isLoading } = useMyConcerns();
+  const { data: mine, isLoading, isError, refetch } = useMyConcerns();
   const [category, setCategory] = useState<ConcernCategory>("safety");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
@@ -503,6 +507,8 @@ function SpeakUp() {
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-20" />
+            ) : isError ? (
+              <ErrorState onRetry={() => refetch()} />
             ) : !mine?.data.length ? (
               <p className="text-sm text-muted-foreground">
                 {t(
@@ -690,7 +696,7 @@ function TrackByCode() {
 function RecognitionWall() {
   const { t } = useT();
   const { timeAgo } = useDateFormatters();
-  const { data, isLoading } = useRecognitions();
+  const { data, isLoading, isError, refetch } = useRecognitions();
   const recognise = useRecognise();
   const [search, setSearch] = useState("");
   const [to, setTo] = useState<{ public_id: string; name: string } | null>(
@@ -833,6 +839,8 @@ function RecognitionWall() {
       <div className="space-y-3">
         {isLoading ? (
           <Skeleton className="h-40" />
+        ) : isError ? (
+          <ErrorState onRetry={() => refetch()} />
         ) : !data?.data.length ? (
           <EmptyState
             icon={Award}

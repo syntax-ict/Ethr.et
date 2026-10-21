@@ -69,6 +69,15 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { ErrorState } from "@/components/shared/error-state";
+
+/** A 404 means the record is gone; anything else means the request failed. */
+function isNotFound(error: unknown): boolean {
+  return (
+    (error as { response?: { status?: number } } | null)?.response?.status ===
+    404
+  );
+}
 
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
@@ -103,20 +112,30 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   const [syncLogPage, setSyncLogPage] = useState(1);
   const [eventPage, setEventPage] = useState(1);
 
-  const { data: device, isLoading } = useDevice(id);
+  const { data: device, isLoading, isError, error, refetch } = useDevice(id);
   // Ends the title bar's breadcrumb with this record (it had no back
   // trail but a separate "Back" button).
   useEntityTitle(device?.name);
 
   // Child queries wait for the device itself, so a deleted or foreign id
   // costs one 404 rather than three.
-  const { data: syncLogs, isLoading: syncLogsLoading } = useDeviceSyncLogs(
+  const {
+    data: syncLogs,
+    isLoading: syncLogsLoading,
+    isError: syncLogsError,
+    refetch: refetchSyncLogs,
+  } = useDeviceSyncLogs(
     id,
     { page: syncLogPage, per_page: 10 },
     { enabled: !!device },
   );
 
-  const { data: events, isLoading: eventsLoading } = useDeviceEvents(
+  const {
+    data: events,
+    isLoading: eventsLoading,
+    isError: eventsError,
+    refetch: refetchEvents,
+  } = useDeviceEvents(
     id,
     { page: eventPage, per_page: 15 },
     { enabled: !!device },
@@ -205,6 +224,11 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
         </div>
       </RoleGate>
     );
+  }
+
+  // "Not found" means a 404; any other failure is a failed request.
+  if (isError && !isNotFound(error)) {
+    return <ErrorState onRetry={() => refetch()} />;
   }
 
   if (!device) {
@@ -430,6 +454,8 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                       <Skeleton key={i} className="h-12" />
                     ))}
                   </div>
+                ) : syncLogsError ? (
+                  <ErrorState onRetry={() => refetchSyncLogs()} />
                 ) : syncLogItems.length === 0 ? (
                   <div className="py-12 text-center text-sm text-muted-foreground">
                     {device.adapter_type === "zkteco_adms"
@@ -571,6 +597,8 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                       <Skeleton key={i} className="h-12" />
                     ))}
                   </div>
+                ) : eventsError ? (
+                  <ErrorState onRetry={() => refetchEvents()} />
                 ) : eventItems.length === 0 ? (
                   <div className="py-12 text-center text-sm text-muted-foreground">
                     {t("device_detail_page.no_events")}

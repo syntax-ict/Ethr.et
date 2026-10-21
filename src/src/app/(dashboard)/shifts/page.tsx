@@ -56,6 +56,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SettingRow } from "@/components/patterns/SettingRow";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 const DAY_LABELS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_WORKING_DAYS = "1,2,3,4,5";
@@ -118,7 +119,7 @@ export default function ShiftsPage() {
   const [form, setForm] = useState<ShiftForm>(EMPTY_FORM);
   const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useShifts();
+  const { data, isLoading, isError, refetch } = useShifts();
   const createShift = useCreateShift();
   const updateShift = useUpdateShift();
   const deleteShift = useDeleteShift();
@@ -270,6 +271,8 @@ export default function ShiftsPage() {
               <Skeleton key={i} className="h-40" />
             ))}
           </div>
+        ) : isError ? (
+          <ErrorState onRetry={() => refetch()} />
         ) : filtered.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
