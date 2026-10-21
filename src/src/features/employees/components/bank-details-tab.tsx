@@ -20,6 +20,7 @@ import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { Controller } from "react-hook-form";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
@@ -61,6 +62,7 @@ const EMPTY_BANK: BankValues = {
 
 export function BankDetailsTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const [addOpen, setAddOpen] = useState(false);
 
   const {
@@ -89,7 +91,15 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
     reset(EMPTY_BANK);
   }
 
-  function onDelete(id: string) {
+  // One click deleted it, with no way back (FRONTEND_REDESIGN_PLAN.md,
+  // employee detail: four sub-record deletes were unconfirmed).
+  async function onDelete(id: string, label: string) {
+    const confirmed = await requestConfirm({
+      title: t("employee.bank.delete_confirm", undefined, { name: label }),
+      confirmLabel: t("common.delete", "Delete"),
+      variant: "destructive",
+    });
+    if (!confirmed) return;
     deleteBank.mutate(id, {
       onSuccess: () =>
         toast.success(t("employee.bank.deleted", "Bank deleted")),
@@ -172,7 +182,7 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onDelete(b.public_id)}
+                    onClick={() => onDelete(b.public_id, b.bank_name)}
                     aria-label={`${t("common.delete", "Delete")} ${b.bank_name}`}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -287,6 +297,7 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
           </form>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </Card>
   );
 }

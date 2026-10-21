@@ -138,6 +138,12 @@ describe("<BankDetailsTab> delete", () => {
         name: "Delete Commercial Bank of Ethiopia",
       }),
     );
+    // Deleting asks first.
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
+    );
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("This action is unauthorized."),
@@ -161,6 +167,12 @@ describe("<BankDetailsTab> delete", () => {
     await user.click(
       await screen.findByRole("button", {
         name: "Delete Commercial Bank of Ethiopia",
+      }),
+    );
+    // Deleting asks first.
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Delete",
       }),
     );
 
