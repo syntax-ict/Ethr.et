@@ -34,6 +34,7 @@ must be on the repository's **default branch** to fire: [`../deployment/shared-h
 | daily 04:00 | `HandleOverdueInvoicesJob` | default |
 | daily 05:00 | `NotifyExpiringTrialsJob` | notifications |
 | daily 06:00 | `SendApprovalRemindersJob` (requests waiting over 48 h), per active tenant | notifications |
+| daily 06:05 | `SendExpiryRemindersJob` (contracts and documents 30, 7 and 1 days before they end; probation 14 and 1 days before), per active tenant | notifications |
 | daily 15:30 | missing-punch scan, per active tenant | attendance |
 | daily 15:45 | attendance-anomaly scan, per active tenant | attendance |
 | monthly, 1st 00:30 | leave accrual, per active tenant | default |

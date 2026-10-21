@@ -47,6 +47,7 @@ class ProfileUpdateRequestedNotification extends Notification
             'message' => __('notification.profile_update_requested_body', [
                 'name' => $this->employee->name,
             ]),
+            'url' => '/approvals',
         ];
     }
 }

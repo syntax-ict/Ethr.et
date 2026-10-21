@@ -61,6 +61,10 @@ const TYPE_LABEL_KEYS: Record<string, { labelKey: string; descKey?: string }> =
       labelKey: "notification_prefs_page.type_approval_reminder",
       descKey: "notification_prefs_page.desc_approval_reminder",
     },
+    expiry_reminder: {
+      labelKey: "notification_prefs_page.type_expiry_reminder",
+      descKey: "notification_prefs_page.desc_expiry_reminder",
+    },
     // The API has sent this type since profile changes became reviewable; with
     // no entry here its row was labelled with the raw key "profile_update".
     profile_update: {

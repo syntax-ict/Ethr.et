@@ -270,6 +270,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Leave Types",
     description: "Define leave categories, accrual rules, and balances",
   },
+  "/settings/opening-balances": {
+    section: "Admin",
+    parent: { label: "Settings", href: "/settings" },
+    label: "Opening balances",
+    description: "Leave and loan balances brought over from a previous system",
+  },
   "/settings/holidays": {
     section: "Admin",
     parent: { label: "Settings", href: "/settings" },
@@ -293,6 +299,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     parent: { label: "Settings", href: "/settings" },
     label: "Users & Access",
     description: "Invite people and manage their access",
+  },
+  "/settings/data-export": {
+    section: "Admin",
+    parent: { label: "Settings", href: "/settings" },
+    label: "Data export",
+    description: "Download a copy of all your organisation's data",
   },
   "/settings/scim": {
     section: "Admin",
@@ -395,6 +407,17 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     parent: { label: "My Profile", href: "/profile" },
     label: "Change requests",
     description: "Changes to name, birth date, TIN and bank details",
+  },
+  "/profile/documents": {
+    parent: { label: "My Profile", href: "/profile" },
+    label: "Documents",
+    description: "Your contract, certificates and other documents on file",
+  },
+  "/employees/letters": {
+    section: "People",
+    parent: { label: "Employees", href: "/employees" },
+    label: "Letter requests",
+    description: "Employment letters employees asked for",
   },
   "/profile/security": {
     parent: { label: "My Profile", href: "/profile" },

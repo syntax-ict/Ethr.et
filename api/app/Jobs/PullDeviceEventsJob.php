@@ -16,6 +16,7 @@ use App\Services\Attendance\AttendanceInput;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceCommandQueue;
 use App\Services\Device\DeviceManager;
+use App\Services\Device\UnmatchedPunches;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
 use App\Support\DeviceTime;
@@ -338,6 +339,8 @@ class PullDeviceEventsJob implements ShouldQueue
 
             if (! $match->isActionable()) {
                 $failed++;
+                // Held, not dropped: replayed once someone says whose badge it is.
+                app(UnmatchedPunches::class)->hold($this->device, (string) $badge, (string) $event['type'], "device:{$this->device->id}:{$badge}:{$event['timestamp']}", (string) $event['timestamp']);
                 Log::info('Device event: no confident employee match', [
                     'device_id' => $this->device->id,
                     'badge' => $badge,

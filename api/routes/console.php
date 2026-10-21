@@ -12,6 +12,7 @@ use App\Jobs\RunScheduledReportsJob;
 use App\Jobs\ScanAttendanceAnomaliesJob;
 use App\Jobs\ScanMissingPunchesJob;
 use App\Jobs\SendApprovalRemindersJob;
+use App\Jobs\SendExpiryRemindersJob;
 use App\Models\Tenant;
 use App\Services\Observability\QueueHealth;
 use Illuminate\Foundation\Inspiring;
@@ -111,6 +112,14 @@ Schedule::call(function () {
         SendApprovalRemindersJob::dispatch($tenant->id)->onQueue('notifications');
     });
 })->dailyAt('06:00')->name('send-approval-reminders')->withoutOverlapping();
+
+// Contracts, probation periods and documents ending soon, at the start of the
+// Ethiopian working day like the approval reminders.
+Schedule::call(function () {
+    Tenant::operational()->each(function (Tenant $tenant) {
+        SendExpiryRemindersJob::dispatch($tenant->id)->onQueue('notifications');
+    });
+})->dailyAt('06:05')->name('send-expiry-reminders')->withoutOverlapping();
 
 // Generate monthly invoices on the 1st of each month at 03:00 UTC (06:00 EAT)
 Schedule::job(new GenerateMonthlyInvoicesJob)->monthlyOn(1, '03:00');

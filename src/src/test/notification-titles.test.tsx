@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -7,6 +7,10 @@ import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import NotificationsPage from "@/app/(dashboard)/notifications/page";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+}));
 
 /**
  * NotificationResource rows. Every database notification carries a `message`

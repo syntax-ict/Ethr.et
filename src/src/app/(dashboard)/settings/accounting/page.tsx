@@ -214,7 +214,10 @@ function JournalExportSection() {
   // so split across two columns above 1,000 ETB — see `journalCsv`.
   function handleExport() {
     if (!journal) return;
-    saveCsv(journalFilename(journal), journalCsv(journal));
+    // Imported into accounting software, which may refuse a byte-order mark.
+    saveCsv(journalFilename(journal), journalCsv(journal), {
+      byteOrderMark: false,
+    });
   }
 
   const runs = runsQuery.data ?? [];

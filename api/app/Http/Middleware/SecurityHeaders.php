@@ -13,19 +13,24 @@ class SecurityHeaders
     {
         $response = $next($request);
 
-        $response->header('X-Frame-Options', 'DENY');
-        $response->header('X-Content-Type-Options', 'nosniff');
-        $response->header('X-XSS-Protection', '1; mode=block');
-        $response->header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+        // `headers->set()`, not `header()`: only Laravel's own Response has
+        // `header()`, so a streamed or file download (Symfony's
+        // StreamedResponse, BinaryFileResponse) returned 500 here. Found by
+        // the data export download, the first endpoint to stream a file.
+
+        $response->headers->set('X-Frame-Options', 'DENY');
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+        $response->headers->set('X-XSS-Protection', '1; mode=block');
+        $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 
         $csp = "default-src 'none'; "
             ."frame-ancestors 'none'; "
             ."base-uri 'self'; "
             ."form-action 'self'";
 
-        $response->header('Content-Security-Policy', $csp);
-        $response->header('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->header('Permissions-Policy',
+        $response->headers->set('Content-Security-Policy', $csp);
+        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        $response->headers->set('Permissions-Policy',
             'accelerometer=(), camera=(self), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()'
         );
 

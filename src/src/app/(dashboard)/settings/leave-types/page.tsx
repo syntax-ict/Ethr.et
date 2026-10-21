@@ -59,35 +59,49 @@ function isAccrualType(value: string): value is AccrualType {
   return (ACCRUAL_TYPES as readonly string[]).includes(value);
 }
 
-const leaveTypeSchema = z.object({
-  name: rules.requiredText(255),
-  // The code is the stable key templates and imports match on. It is not
-  // upper-cased: the types organisation templates create are `annual`,
-  // `bereavement`, `r_and_r`, and upper-casing them on every save renamed
-  // them. Up to 30 characters, the column's width — "bereavement" alone is
-  // 11, and a 10-character cap made that type uneditable. A duplicate code is
-  // refused by the server and shown on this field.
-  code: z
-    .string()
-    .trim()
-    .min(2, "validation.name_min")
-    .max(30, "validation.too_long")
-    .regex(/^[A-Za-z0-9_]+$/, "leave_types_page.code_format"),
-  // Kept as a string through the form (an empty number input parses to NaN,
-  // which reads as "0 days" rather than "you left this blank") and converted
-  // once, on submit. 0 is allowed for unpaid leave; the server refuses 0 on
-  // a paid type and the message lands on this field.
-  default_days: rules.integer({ min: 0, max: 365 }),
-  accrual_type: z.enum(ACCRUAL_TYPES),
-  is_paid: z.boolean(),
-  is_active: z.boolean(),
-});
+const leaveTypeSchema = z
+  .object({
+    name: rules.requiredText(255),
+    // The code is the stable key templates and imports match on. It is not
+    // upper-cased: the types organisation templates create are `annual`,
+    // `bereavement`, `r_and_r`, and upper-casing them on every save renamed
+    // them. Up to 30 characters, the column's width — "bereavement" alone is
+    // 11, and a 10-character cap made that type uneditable. A duplicate code is
+    // refused by the server and shown on this field.
+    code: z
+      .string()
+      .trim()
+      .min(2, "validation.name_min")
+      .max(30, "validation.too_long")
+      .regex(/^[A-Za-z0-9_]+$/, "leave_types_page.code_format"),
+    // Kept as a string through the form (an empty number input parses to NaN,
+    // which reads as "0 days" rather than "you left this blank") and converted
+    // once, on submit. 0 is allowed for unpaid leave; the server refuses 0 on
+    // a paid type and the message lands on this field.
+    default_days: rules.integer({ min: 0, max: 365 }),
+    // Labour Proclamation 1156/2019 Art. 77(1): one more day for every
+    // additional two years of service. Both empty means no step.
+    seniority_every_years: rules.integer({ min: 1, max: 10 }).or(z.literal("")),
+    seniority_extra_days: rules.integer({ min: 1, max: 30 }).or(z.literal("")),
+    accrual_type: z.enum(ACCRUAL_TYPES),
+    is_paid: z.boolean(),
+    is_active: z.boolean(),
+  })
+  .refine(
+    (v) => (v.seniority_every_years === "") === (v.seniority_extra_days === ""),
+    {
+      path: ["seniority_extra_days"],
+      message: "leave_types_page.seniority_both",
+    },
+  );
 type LeaveTypeValues = z.infer<typeof leaveTypeSchema>;
 
 const EMPTY_LEAVE_TYPE: LeaveTypeValues = {
   name: "",
   code: "",
   default_days: "",
+  seniority_every_years: "",
+  seniority_extra_days: "",
   accrual_type: "monthly",
   is_paid: true,
   is_active: true,
@@ -125,6 +139,12 @@ export default function LeaveTypesPage() {
       name: lt.name,
       code: lt.code,
       default_days: String(lt.default_days),
+      seniority_every_years:
+        lt.seniority_every_years == null
+          ? ""
+          : String(lt.seniority_every_years),
+      seniority_extra_days:
+        lt.seniority_extra_days == null ? "" : String(lt.seniority_extra_days),
       // This was the literal "monthly", so editing an annual leave type to
       // fix its name quietly saved it back as monthly accrual.
       accrual_type: isAccrualType(lt.accrual_type)
@@ -150,6 +170,14 @@ export default function LeaveTypesPage() {
       name: values.name,
       code: values.code,
       default_days: Number(values.default_days),
+      seniority_every_years:
+        values.seniority_every_years === ""
+          ? null
+          : Number(values.seniority_every_years),
+      seniority_extra_days:
+        values.seniority_extra_days === ""
+          ? null
+          : Number(values.seniority_extra_days),
       accrual_type: values.accrual_type,
       is_paid: values.is_paid,
     };
@@ -385,6 +413,36 @@ export default function LeaveTypesPage() {
                   className="mt-1"
                 />
               </FormField>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField
+                  id="lt_seniority_years"
+                  label={t("leave_types_page.seniority_every_years")}
+                  error={fieldMessage(t, errors.seniority_every_years?.message)}
+                >
+                  <Input
+                    {...register("seniority_every_years")}
+                    type="number"
+                    min="1"
+                    className="mt-1"
+                  />
+                </FormField>
+                <FormField
+                  id="lt_seniority_days"
+                  label={t("leave_types_page.seniority_extra_days")}
+                  error={fieldMessage(t, errors.seniority_extra_days?.message)}
+                >
+                  <Input
+                    {...register("seniority_extra_days")}
+                    type="number"
+                    min="1"
+                    className="mt-1"
+                  />
+                </FormField>
+              </div>
+              <p className="-mt-2 text-xs text-muted-foreground">
+                {t("leave_types_page.seniority_hint")}
+              </p>
 
               <FormField
                 id="lt_accrual"

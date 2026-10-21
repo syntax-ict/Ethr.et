@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   buildCsv,
   csvAmount,
   csvCell,
   csvFromRows,
+  saveCsv,
 } from "@/lib/utils/csv-export";
 
 /**
@@ -81,5 +82,37 @@ describe("buildCsv (the contract it had before the rewrite)", () => {
     ]);
 
     expect(csv).toBe("name,extra\nA,x\nB,");
+  });
+});
+
+/**
+ * Excel opens a UTF-8 CSV as UTF-8 only when it starts with a byte-order mark;
+ * without one, every Amharic name is garbled (2026-10-20, blueprint RP20). A
+ * file another system imports opts out.
+ */
+describe("saveCsv", () => {
+  async function savedBytes(options?: { byteOrderMark?: boolean }) {
+    let saved: Blob | undefined;
+    const spy = vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
+      saved = blob as Blob;
+      return "blob:mock";
+    });
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    saveCsv("people.csv", "name\nአበበ ከበደ", options);
+    spy.mockRestore();
+    click.mockRestore();
+    return new Uint8Array(await saved!.arrayBuffer());
+  }
+
+  it("starts a file people open with the UTF-8 byte-order mark", async () => {
+    const bytes = await savedBytes();
+    expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+  });
+
+  it("leaves the mark off a file another system imports", async () => {
+    const bytes = await savedBytes({ byteOrderMark: false });
+    expect([...bytes.slice(0, 4)]).toEqual([0x6e, 0x61, 0x6d, 0x65]); // "name"
   });
 });

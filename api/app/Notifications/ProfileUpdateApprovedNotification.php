@@ -47,6 +47,7 @@ class ProfileUpdateApprovedNotification extends Notification
             'message' => __($this->approved
                 ? 'notification.profile_update_approved_body'
                 : 'notification.profile_update_rejected_body', ['field' => $this->field]),
+            'url' => '/profile',
         ];
     }
 }

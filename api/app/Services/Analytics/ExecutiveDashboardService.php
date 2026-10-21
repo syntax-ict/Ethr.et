@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Analytics;
 
+use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
@@ -143,13 +144,44 @@ final class ExecutiveDashboardService
         EmployeeStatus::CONFIRMED,
     ];
 
+    private const LEAVING_STATUSES = [
+        EmployeeStatus::RESIGNED,
+        EmployeeStatus::TERMINATED,
+        EmployeeStatus::RETIRED,
+    ];
+
+    /**
+     * Employees on the books on `$day`, by dates rather than today's status:
+     * hired on or before it, and not yet left (no termination date, or one on
+     * or after it). Suspended staff are still employed. A leaver with no
+     * recorded termination date is left out, since when they went is unknown.
+     *
+     * The one definition behind headcount, the headcount trend and turnover.
+     * Until 2026-10-20 each counted differently: `total` included everyone ever
+     * recorded, the trend rebuilt past months from today's status, and
+     * turnover dated exits by `updated_at` (blueprint assessment RP3, RP24,
+     * RP26).
+     *
+     * @param  Builder<Employee>  $query
+     * @return Builder<Employee>
+     */
+    private function employedOn(Builder $query, Carbon $day): Builder
+    {
+        $date = $day->toDateString();
+
+        return $query
+            ->where(fn ($q) => $q->whereNull('hire_date')->orWhereDate('hire_date', '<=', $date))
+            ->where(fn ($q) => $q->whereDate('termination_date', '>=', $date)
+                ->orWhere(fn ($q2) => $q2->whereNull('termination_date')->whereNotIn('status', self::LEAVING_STATUSES)));
+    }
+
     private function headcount(int $tenantId, ?int $branchId): array
     {
         $active = $this->scopedEmployees($tenantId, $branchId)
             ->whereIn('status', self::ACTIVE_STATUSES)
             ->count();
 
-        $total = $this->scopedEmployees($tenantId, $branchId)->count();
+        $total = $this->employedOn($this->scopedEmployees($tenantId, $branchId), Carbon::today())->count();
 
         return [
             'total' => $total,
@@ -170,7 +202,8 @@ final class ExecutiveDashboardService
 
         $todayQuery = AttendanceRecord::withoutGlobalScope('tenant')
             ->where('attendance_records.tenant_id', $tenantId)
-            ->whereDate('attendance_records.date', Carbon::today());
+            ->whereDate('attendance_records.date', Carbon::today())
+            ->where('attendance_records.status', '!=', AttendanceStatus::VOIDED);
         $this->joinBranch($todayQuery, $branchId);
         $todayPresent = $todayQuery->distinct()->count('attendance_records.employee_id');
 
@@ -179,7 +212,10 @@ final class ExecutiveDashboardService
         $periodQuery = AttendanceRecord::withoutGlobalScope('tenant')
             ->where('attendance_records.tenant_id', $tenantId)
             ->whereDate('attendance_records.date', '>=', $from)
-            ->whereDate('attendance_records.date', '<=', $to);
+            ->whereDate('attendance_records.date', '<=', $to)
+            // A voided record is a merged duplicate; counting it counted one
+            // day twice.
+            ->where('attendance_records.status', '!=', AttendanceStatus::VOIDED);
         $this->joinBranch($periodQuery, $branchId);
         $periodPresent = $periodQuery->count();
 
@@ -280,13 +316,18 @@ final class ExecutiveDashboardService
 
     private function turnoverRate(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
     {
+        // Exits: people whose employment ended in the period, by the date it
+        // ended. Rate: exits over the average of the headcount at the start
+        // and at the end of the period.
         $exits = $this->scopedEmployees($tenantId, $branchId)
-            ->whereIn('status', [EmployeeStatus::RESIGNED, EmployeeStatus::TERMINATED, EmployeeStatus::RETIRED])
-            ->whereDate('updated_at', '>=', $from)
-            ->whereDate('updated_at', '<=', $to)
+            ->whereIn('status', self::LEAVING_STATUSES)
+            ->whereDate('termination_date', '>=', $from->toDateString())
+            ->whereDate('termination_date', '<=', $to->toDateString())
             ->count();
 
-        $avgHeadcount = $this->scopedEmployees($tenantId, $branchId)->count();
+        $atStart = $this->employedOn($this->scopedEmployees($tenantId, $branchId), $from)->count();
+        $atEnd = $this->employedOn($this->scopedEmployees($tenantId, $branchId), $to)->count();
+        $avgHeadcount = ($atStart + $atEnd) / 2;
 
         $rate = $avgHeadcount > 0 ? round(($exits / $avgHeadcount) * 100, 1) : 0;
 
@@ -670,11 +711,8 @@ final class ExecutiveDashboardService
     {
         $months = [];
         for ($i = 11; $i >= 0; $i--) {
-            $month = Carbon::now()->subMonths($i);
-            $count = $this->scopedEmployees($tenantId, $branchId)
-                ->whereDate('hire_date', '<=', $month->endOfMonth())
-                ->whereNotIn('status', [EmployeeStatus::RESIGNED, EmployeeStatus::TERMINATED, EmployeeStatus::RETIRED])
-                ->count();
+            $month = Carbon::now()->startOfMonth()->subMonths($i);
+            $count = $this->employedOn($this->scopedEmployees($tenantId, $branchId), $month->copy()->endOfMonth())->count();
 
             $months[] = [
                 'month' => $month->format('Y-m'),

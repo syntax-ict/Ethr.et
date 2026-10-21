@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use App\Traits\ScopesEmployeeAccess;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,7 +30,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read string $name Display name, computed — see name().
  * @property-read CustomRole|null $customRole
  */
-class User extends Authenticatable
+class User extends Authenticatable implements HasLocalePreference
 {
     use BelongsToTenant, HasApiTokens, HasFactory, HasPublicId, Notifiable, ScopesEmployeeAccess, SoftDeletes;
 
@@ -137,6 +138,28 @@ class User extends Authenticatable
     public function customRole(): BelongsTo
     {
         return $this->belongsTo(CustomRole::class);
+    }
+
+    /**
+     * The language notifications to this user are written in: their own
+     * choice, else their organisation's default. Laravel renders every
+     * channel, queued mail and the in-app record alike, inside this locale.
+     * Until 2026-10-20 nothing implemented it, so a queued e-mail went out in
+     * APP_LOCALE whatever the reader had chosen (blueprint assessment N11).
+     */
+    public function preferredLocale(): ?string
+    {
+        $tenantLocale = $this->tenant_id !== null
+            ? Tenant::query()->whereKey($this->tenant_id)->value('default_locale')
+            : null;
+
+        foreach ([$this->locale, $tenantLocale] as $locale) {
+            if (in_array($locale, ['en', 'am'], true)) {
+                return $locale;
+            }
+        }
+
+        return null;
     }
 
     public function hasPermission(string $permission): bool

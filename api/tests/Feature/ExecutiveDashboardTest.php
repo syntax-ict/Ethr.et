@@ -48,7 +48,9 @@ test('headcount returns correct numbers', function () {
     $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive");
 
     $response->assertOk();
-    expect($response->json('headcount.total'))->toBe(4);
+    // `total` is who is on the books today, not every record ever made: the
+    // terminated employee is not counted (2026-10-20, blueprint RP24).
+    expect($response->json('headcount.total'))->toBe(3);
     expect($response->json('headcount.active'))->toBe(3);
 });
 

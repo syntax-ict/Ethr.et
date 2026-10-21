@@ -28,6 +28,8 @@ class UpdateLeaveTypeRequest extends FormRequest
             'accrual_type' => ['sometimes', new Enum(AccrualType::class)],
             'carry_forward' => ['sometimes', 'boolean'],
             'max_carry_days' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'seniority_every_years' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:10'],
+            'seniority_extra_days' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:30'],
             'requires_approval' => ['sometimes', 'boolean'],
             'requires_attachment' => ['sometimes', 'boolean'],
             'min_notice_days' => ['sometimes', 'integer', 'min:0'],

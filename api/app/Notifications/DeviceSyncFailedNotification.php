@@ -67,6 +67,7 @@ class DeviceSyncFailedNotification extends Notification
                 'name' => $this->device->name,
                 'reason' => $this->reason,
             ]),
+            'url' => '/devices/'.$this->device->public_id,
         ];
     }
 
