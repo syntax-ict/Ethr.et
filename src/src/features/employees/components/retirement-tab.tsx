@@ -206,7 +206,9 @@ function CaseCard({
           </Badge>
           <span className="text-sm text-muted-foreground">
             {t("employee.retirement.field.service_years", "Service")}:{" "}
-            {c.service_years} {t("employee.retirement.years", "yrs")}
+            {t("employee.retirement.years_count", ":count yrs", {
+              count: c.service_years,
+            })}
           </span>
           {c.eligible_retirement_date && (
             <span className="text-sm text-muted-foreground">
