@@ -17,22 +17,54 @@ export type CreateEmployeePayload =
 export type UpdateEmployeePayload =
   components["schemas"]["UpdateEmployeeRequest"];
 
-export function useEmployees(params?: {
-  page?: number;
-  search?: string;
-  per_page?: number;
-  sort?: string;
+/** The list's filters, as `EmployeeController::index` and `export` read them. */
+export interface EmployeeFilters {
   /** Only those whose nationality status nobody has confirmed (2026-10-14). */
   nationalityReview?: boolean;
-}) {
+  status?: string;
+  departmentId?: string;
+  branchId?: string;
+}
+
+function filterParams(f: EmployeeFilters): Record<string, string | number> {
+  const out: Record<string, string | number> = {};
+  if (f.nationalityReview) out["filter[nationality_needs_review]"] = 1;
+  if (f.status) out["filter[status]"] = f.status;
+  if (f.departmentId) out["filter[department_id]"] = f.departmentId;
+  if (f.branchId) out["filter[branch_id]"] = f.branchId;
+  return out;
+}
+
+export function useEmployees(
+  params?: {
+    page?: number;
+    search?: string;
+    per_page?: number;
+    sort?: string;
+  } & EmployeeFilters,
+) {
   return useQuery<PaginatedResponse<Employee>>({
     queryKey: ["employees", params],
     queryFn: async () => {
-      const { nationalityReview, ...rest } = params ?? {};
+      const {
+        nationalityReview,
+        status,
+        departmentId,
+        branchId,
+        search,
+        ...rest
+      } = params ?? {};
       const { data } = await apiClient.get("/employees", {
-        params: nationalityReview
-          ? { ...rest, "filter[nationality_needs_review]": 1 }
-          : rest,
+        params: {
+          ...rest,
+          search: search || undefined,
+          ...filterParams({
+            nationalityReview,
+            status,
+            departmentId,
+            branchId,
+          }),
+        },
       });
       return data;
     },
@@ -141,18 +173,19 @@ export type EmployeeExport =
  * nationality filter; it sent only the search, so a filtered list exported
  * everyone.
  */
-export async function exportEmployees(params: {
-  search?: string;
-  sort?: string;
-  nationalityReview?: boolean;
-}): Promise<EmployeeExport> {
+/** Every employee the list's search and filters match, not only the page on screen. */
+export async function exportEmployees(
+  params: {
+    search?: string;
+    sort?: string;
+  } & EmployeeFilters,
+): Promise<EmployeeExport> {
+  const { search, sort, ...filters } = params;
   const { data } = await apiClient.get<EmployeeExport>("/employees/export", {
     params: {
-      search: params.search || undefined,
-      sort: params.sort || undefined,
-      ...(params.nationalityReview
-        ? { "filter[nationality_needs_review]": 1 }
-        : {}),
+      search: search || undefined,
+      sort: sort || undefined,
+      ...filterParams(filters),
     },
   });
   return data;

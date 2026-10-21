@@ -24,9 +24,19 @@ import { SearchInput } from "@/components/shared/search-input";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SavedViewsMenu } from "@/components/shared/saved-views-menu";
+import { FilterBar } from "@/components/shared/filter-bar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DataTable } from "@/components/patterns/DataTable";
 import { BulkActionsBar } from "@/features/employees/components/bulk-actions-bar";
 import { exportEmployees, useEmployees } from "@/features/employees/api";
+import { branchesApi, departmentsApi } from "@/features/organization/api";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { saveCsv } from "@/lib/utils/csv-export";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
@@ -39,7 +49,39 @@ interface EmployeesViewState {
   search: string;
   sort?: string;
   columnVisibility: VisibilityState;
+  // Views saved before 2026-10-22 have none of these, and read as "all".
+  status?: string;
+  department?: string;
+  branch?: string;
 }
+
+/** `EmployeeStatus`, in the order a person moves through them. */
+const STATUSES = [
+  "hired",
+  "probation",
+  "confirmed",
+  "suspended",
+  "resigned",
+  "terminated",
+  "retired",
+] as const;
+
+/** The columns the API sorts by (`EmployeeController::index`). */
+const SORTS = ["name", "employee_code", "status"].flatMap((s) => [s, `-${s}`]);
+
+/**
+ * Search, filters and sort live in the address, so a reload keeps them and a
+ * filtered list can be sent to a colleague (FRONTEND_REDESIGN_PLAN.md,
+ * Phase 4). `all` is the empty choice of each filter.
+ */
+const FILTER_DEFAULTS = {
+  q: "",
+  status: "all",
+  department: "all",
+  branch: "all",
+  review: "",
+  sort: "name",
+};
 
 function parseSort(sort?: string): SortingState {
   if (!sort) return [];
@@ -49,19 +91,34 @@ function parseSort(sort?: string): SortingState {
 
 export default function EmployeesPage() {
   const { t } = useT();
-  const [search, setSearch] = useState("");
+  const filters = useQueryFilters(FILTER_DEFAULTS, {
+    status: ["all", ...STATUSES],
+    review: ["", "1"],
+    sort: SORTS,
+  });
+  const search = filters.values.q;
+  const status = filters.values.status;
+  const department = filters.values.department;
+  const branch = filters.values.branch;
+  const sort = filters.values.sort;
   const [page, setPage] = useState(1);
   // The "check nationality" list: people the 2026-10-14 backfill could not
   // confirm as Ethiopian from their free-text nationality.
-  const [reviewOnly, setReviewOnly] = useState(false);
+  const reviewOnly = filters.values.review === "1";
+  const { data: departments } = departmentsApi.useList();
+  const { data: branches } = branchesApi.useList();
+
+  /** Any change of search, filter or sort starts again at page 1. */
+  function setFilters(patch: Partial<typeof FILTER_DEFAULTS>) {
+    filters.set(patch);
+    setPage(1);
+  }
   const { data: reviewData } = useEmployees({
     per_page: 1,
     nationalityReview: true,
   });
   const reviewCount = reviewData?.meta.total ?? 0;
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "name", desc: false },
-  ]);
+  const sorting = parseSort(sort);
   // Bumped after a bulk action succeeds to remount DataTable and clear its
   // (internally-managed) row selection — column visibility survives the
   // remount because it's now lifted to this page (see below), not internal.
@@ -76,16 +133,29 @@ export default function EmployeesPage() {
     remove: removeView,
   } = useSavedViews<EmployeesViewState>("datatable:employees:views");
 
-  const activeSort = sorting[0];
-  const sort = activeSort
-    ? `${activeSort.desc ? "-" : ""}${activeSort.id}`
-    : undefined;
+  const isFiltered =
+    search !== "" ||
+    reviewOnly ||
+    status !== "all" ||
+    department !== "all" ||
+    branch !== "all";
+
+  const listFilters = {
+    nationalityReview: reviewOnly,
+    status: status === "all" ? undefined : status,
+    departmentId: department === "all" ? undefined : department,
+    branchId: branch === "all" ? undefined : branch,
+  };
 
   function applyView(state: EmployeesViewState) {
-    setSearch(state.search);
-    setSorting(parseSort(state.sort));
+    setFilters({
+      q: state.search,
+      sort: state.sort ?? "name",
+      status: state.status ?? "all",
+      department: state.department ?? "all",
+      branch: state.branch ?? "all",
+    });
     setColumnVisibility(state.columnVisibility);
-    setPage(1);
   }
 
   const { data, isLoading, isError, refetch } = useEmployees({
@@ -93,12 +163,13 @@ export default function EmployeesPage() {
     search,
     per_page: 25,
     sort,
-    nationalityReview: reviewOnly,
+    ...listFilters,
   });
 
+  // It sent only the search, so a list filtered to one department exported
+  // every department.
   const exportCsv = useMutation({
-    mutationFn: () =>
-      exportEmployees({ search, sort, nationalityReview: reviewOnly }),
+    mutationFn: () => exportEmployees({ search, sort, ...listFilters }),
     onSuccess: (data) => {
       saveCsv(
         `employees-${new Date().toISOString().split("T")[0]}.csv`,
@@ -251,10 +322,7 @@ export default function EmployeesPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                setReviewOnly((v) => !v);
-                setPage(1);
-              }}
+              onClick={() => setFilters({ review: reviewOnly ? "" : "1" })}
             >
               {reviewOnly
                 ? t("employees.nationality_review_show_all")
@@ -262,6 +330,88 @@ export default function EmployeesPage() {
             </Button>
           </div>
         )}
+
+        <FilterBar
+          activeCount={filters.activeCount - (sort !== "name" ? 1 : 0)}
+          onClear={() => {
+            // Clearing the filters keeps the sort; it is not a filter.
+            setFilters({ ...FILTER_DEFAULTS, sort });
+          }}
+        >
+          <div className="w-full sm:max-w-xs">
+            <SearchInput
+              value={search}
+              onChange={(v) => setFilters({ q: v })}
+              placeholder={t(
+                "employees.search_placeholder",
+                "Search by name, email, or code...",
+              )}
+            />
+          </div>
+          <Select
+            value={status}
+            onValueChange={(v) => setFilters({ status: v })}
+          >
+            <SelectTrigger
+              className="w-full sm:w-44"
+              aria-label={t("common.status", "Status")}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                {t("employees.filter_all_statuses", "All statuses")}
+              </SelectItem>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {t(`status.${s}`, s)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={department}
+            onValueChange={(v) => setFilters({ department: v })}
+          >
+            <SelectTrigger
+              className="w-full sm:w-48"
+              aria-label={t("common.department", "Department")}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                {t("employees.filter_all_departments", "All departments")}
+              </SelectItem>
+              {departments?.data?.map((d) => (
+                <SelectItem key={d.public_id} value={d.public_id}>
+                  {d.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={branch}
+            onValueChange={(v) => setFilters({ branch: v })}
+          >
+            <SelectTrigger
+              className="w-full sm:w-44"
+              aria-label={t("org.field.branch", "Branch")}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                {t("employees.filter_all_branches", "All branches")}
+              </SelectItem>
+              {branches?.data?.map((b) => (
+                <SelectItem key={b.public_id} value={b.public_id}>
+                  {b.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterBar>
 
         <DataTable
           key={selectionResetKey}
@@ -275,42 +425,36 @@ export default function EmployeesPage() {
           onRetry={() => refetch()}
           sorting={sorting}
           onSortingChange={(next) => {
-            setSorting(next);
-            setPage(1);
+            const first = next[0];
+            setFilters({
+              sort: first ? `${first.desc ? "-" : ""}${first.id}` : "name",
+            });
           }}
           columnVisibility={columnVisibility}
           onColumnVisibilityChange={setColumnVisibility}
           onPageChange={setPage}
           toolbarStart={
-            <>
-              <div className="w-full max-w-sm">
-                <SearchInput
-                  value={search}
-                  onChange={(v) => {
-                    setSearch(v);
-                    setPage(1);
-                  }}
-                  placeholder={t(
-                    "employees.search_placeholder",
-                    "Search by name, email, or code...",
-                  )}
-                />
-              </div>
-              {data?.meta && (
-                <p className="text-sm text-muted-foreground">
-                  {t("employees.total_count", ":count employees", {
-                    count: data.meta.total,
-                  })}
-                </p>
-              )}
-            </>
+            data?.meta && (
+              <p className="text-sm text-muted-foreground">
+                {t("employees.total_count", ":count employees", {
+                  count: data.meta.total,
+                })}
+              </p>
+            )
           }
           toolbarExtra={
             <SavedViewsMenu
               views={views}
               onApply={applyView}
               onSave={(name) =>
-                saveView(name, { search, sort, columnVisibility })
+                saveView(name, {
+                  search,
+                  sort,
+                  columnVisibility,
+                  status,
+                  department,
+                  branch,
+                })
               }
               onDelete={removeView}
             />
@@ -331,10 +475,10 @@ export default function EmployeesPage() {
               icon={Users}
               title={t("employees.none_found", "No employees found")}
               description={
-                search
+                isFiltered
                   ? t(
-                      "employees.try_different_search",
-                      "Try a different search term",
+                      "employees.try_different_filters",
+                      "Try a different search or clear the filters",
                     )
                   : t(
                       "employees.add_first",
@@ -342,7 +486,7 @@ export default function EmployeesPage() {
                     )
               }
               action={
-                !search ? (
+                !isFiltered ? (
                   <Button asChild>
                     <Link href="/employees/new">
                       <Plus className="mr-2 h-4 w-4" />
