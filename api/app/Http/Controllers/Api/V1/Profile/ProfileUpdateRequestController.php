@@ -84,7 +84,7 @@ class ProfileUpdateRequestController extends Controller
 
         return response()->json(
             (new ProfileUpdateRequestResource(
-                $profileUpdate->load(['employee', 'requester.employee', 'reviewer.employee'])
+                $profileUpdate->load(['employee', 'requester.employee', 'reviewer.employee', 'approvalInstance.actions.actor'])
             ))->resolve($request)
         );
     }
@@ -104,7 +104,7 @@ class ProfileUpdateRequestController extends Controller
             ], 422);
         }
 
-        $refusal = $this->service->refusal($profileUpdate, $request->user());
+        $refusal = $this->service->refusal($profileUpdate, $request->user(), $request->validated()['action'] === 'approve');
         if ($refusal !== null) {
             return $refusal->toResponse();
         }
@@ -117,7 +117,7 @@ class ProfileUpdateRequestController extends Controller
 
         return response()->json(
             (new ProfileUpdateRequestResource(
-                $profileUpdate->load(['employee', 'requester.employee', 'reviewer.employee'])
+                $profileUpdate->load(['employee', 'requester.employee', 'reviewer.employee', 'approvalInstance.actions.actor'])
             ))->resolve($request)
         );
     }

@@ -198,5 +198,18 @@ with the blueprint decision that single-step approval stays the default
   to the supervisor as before when the step is open to a role or to the
   permission holders.
 
-Still to come in Phase B: the settings screen, then profile updates and payroll
-on the engine.
+Then the settings screen (Settings > Approval chains, #365).
+
+### Profile changes on the engine (2026-10-21)
+
+- `profile_update` is a request type: chains for it are configured the same
+  way, every step needs `employee.update` and reach, and the change is applied
+  to the employee record only at the last step.
+- The staging notice goes to the person the first step names, else to every
+  reviewer as before. A resubmitted field supersedes the old request one row
+  at a time, so the old request's approval closes; withdrawing closes it too.
+- Rejecting is refused to someone who is not the current step's approver, as
+  for leave and corrections; the existing self-review rules are unchanged.
+
+Still to come in Phase B: payroll on the engine. Payroll approval already has
+its own maker-checker rule (#324), so it moves in a PR of its own.

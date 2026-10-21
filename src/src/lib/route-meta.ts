@@ -280,7 +280,8 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     section: "Admin",
     parent: { label: "Settings", href: "/settings" },
     label: "Approval chains",
-    description: "Who approves leave and attendance corrections, step by step",
+    description:
+      "Who approves leave, attendance corrections and profile changes, step by step",
   },
   "/settings/holidays": {
     section: "Admin",

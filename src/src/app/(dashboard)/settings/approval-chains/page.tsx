@@ -60,6 +60,7 @@ import { useT } from "@/lib/i18n/useT";
 const REQUEST_TYPES = [
   "leave",
   "correction",
+  "profile_update",
 ] as const satisfies readonly ApprovalRequestType[];
 
 const KINDS = [
@@ -131,6 +132,10 @@ const FORM_FIELDS = [
   ),
 ] as const;
 
+function isRequestType(value: string): value is (typeof REQUEST_TYPES)[number] {
+  return (REQUEST_TYPES as readonly string[]).includes(value);
+}
+
 function isKind(value: string): value is ApproverKind {
   return (KINDS as readonly string[]).includes(value);
 }
@@ -138,7 +143,7 @@ function isKind(value: string): value is ApproverKind {
 function toValues(w: ApprovalWorkflow): ChainValues {
   return {
     name: w.name,
-    request_type: w.request_type === "correction" ? "correction" : "leave",
+    request_type: isRequestType(w.request_type) ? w.request_type : "leave",
     is_active: w.is_active,
     priority: String(w.priority),
     department_ids: w.conditions?.department_ids ?? [],
@@ -293,10 +298,16 @@ export default function ApprovalChainsPage() {
     [users.data],
   );
 
-  const typeLabel = (type: string): string =>
-    type === "correction"
-      ? t("approval_chains.type_correction", "Attendance corrections")
-      : t("approval_chains.type_leave", "Leave requests");
+  const typeLabel = (type: string): string => {
+    switch (type) {
+      case "correction":
+        return t("approval_chains.type_correction", "Attendance corrections");
+      case "profile_update":
+        return t("approval_chains.type_profile_update", "Profile changes");
+      default:
+        return t("approval_chains.type_leave", "Leave requests");
+    }
+  };
 
   const kindLabel = (kind: string): string => {
     switch (kind) {
@@ -430,7 +441,7 @@ export default function ApprovalChainsPage() {
             <p>
               {t(
                 "approval_chains.how_default",
-                "Without a chain, a leave request or attendance correction is decided in one step by anyone who may approve it for that employee.",
+                "Without a chain, a leave request, attendance correction or profile change is decided in one step by anyone who may approve it for that employee.",
               )}
             </p>
             <p>

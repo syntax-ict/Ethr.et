@@ -65,9 +65,11 @@ final class DecidableApprovals
 
         // `requested_by != ?` alone would also drop rows with no recorded
         // filer, because NULL compares unknown rather than unequal.
-        return $query->where(fn (Builder $q) => $q
+        $query->where(fn (Builder $q) => $q
             ->whereNull('requested_by')
             ->orWhere('requested_by', '!=', $user->id));
+
+        return $this->engine->onlyCurrentApprover($query, $user);
     }
 
     /** @return array{leave: int, correction: int, profile_update: int, total: int} */

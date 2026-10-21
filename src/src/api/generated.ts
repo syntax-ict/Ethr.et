@@ -6855,7 +6855,7 @@ export interface components {
          * @description The kinds of request the approval engine routes. The values match the `type` the approvals inbox already returns, so a workflow, an instance and an inbox item name a request the same way.
          * @enum {string}
          */
-        ApprovalRequestType: "leave" | "correction";
+        ApprovalRequestType: "leave" | "correction" | "profile_update";
         /** ApprovalSummaryResource */
         ApprovalSummaryResource: {
             step: number;
@@ -8372,6 +8372,7 @@ export interface components {
             /** Format: date-time */
             reviewed_at: string | null;
             review_notes: string | null;
+            approval?: components["schemas"]["ApprovalSummaryResource"];
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
@@ -19293,10 +19294,8 @@ export interface operations {
                              */
                             summary: string;
                             submitted_at: string;
-                            /** @constant */
-                            step: 1;
-                            /** @constant */
-                            steps: 1;
+                            step: number;
+                            steps: number;
                         })[];
                         total: number;
                     };
