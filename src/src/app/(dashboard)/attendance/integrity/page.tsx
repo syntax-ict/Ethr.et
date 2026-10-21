@@ -42,6 +42,8 @@ import {
   type IntegrityStatus,
 } from "@/features/attendance/api";
 import { ErrorState } from "@/components/shared/error-state";
+import { FilterBar } from "@/components/shared/filter-bar";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 type Severity = "all" | "high" | "medium" | "low";
 
@@ -61,8 +63,16 @@ export default function AttendanceIntegrityPage() {
   const { t } = useT();
   const { can } = usePermissions();
   const { data: me } = useCurrentUser();
-  const [status, setStatus] = useState<IntegrityStatus>("open");
-  const [severity, setSeverity] = useState<Severity>("all");
+  // In the address, so "open, high" can be sent as a link and survives a reload.
+  const filters = useQueryFilters(
+    { status: "open", severity: "all" },
+    {
+      status: ["open", "accepted", "rejected"],
+      severity: ["all", "low", "medium", "high"],
+    },
+  );
+  const status = filters.values.status as IntegrityStatus;
+  const severity = filters.values.severity as Severity;
   const [page, setPage] = useState(1);
   const [reviewing, setReviewing] = useState<{
     flag: IntegrityFlag;
@@ -130,13 +140,19 @@ export default function AttendanceIntegrityPage() {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <FilterBar
+        activeCount={filters.activeCount}
+        onClear={() => {
+          filters.clear();
+          setPage(1);
+        }}
+      >
         <Segmented
           label={t("integrity.status_filter", "Status")}
           options={statuses}
           value={status}
           onChange={(v) => {
-            setStatus(v);
+            filters.set({ status: v });
             setPage(1);
           }}
         />
@@ -145,11 +161,11 @@ export default function AttendanceIntegrityPage() {
           options={severities}
           value={severity}
           onChange={(v) => {
-            setSeverity(v);
+            filters.set({ severity: v });
             setPage(1);
           }}
         />
-      </div>
+      </FilterBar>
 
       {isLoading ? (
         <div className="space-y-3">
