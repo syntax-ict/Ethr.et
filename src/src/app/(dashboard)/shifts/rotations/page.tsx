@@ -247,10 +247,9 @@ export default function ShiftRotationsPage() {
                       <span key="n" className="font-medium">
                         {rotation.name}
                       </span>,
-                      t("rotations_page.n_days", "{{count}} days").replace(
-                        "{{count}}",
-                        String(rotation.cycle_days),
-                      ),
+                      t("rotations_page.n_days", ":count days", {
+                        count: rotation.cycle_days,
+                      }),
                       <span key="p" className="text-muted-foreground">
                         {
                           (rotation.steps ?? []).filter((s) => !s.is_rest_day)

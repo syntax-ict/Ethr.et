@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
+import { apiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { useDevices } from "@/features/devices/api";
 import {
@@ -76,6 +78,7 @@ function parseRows(text: string): Record<string, unknown>[] {
 
 export function MigrationStep({ onCommitted }: { onCommitted?: () => void }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const devicesQuery = useDevices();
   const stageDevice = useStageFromDevice();
   const stageRows = useStageFromRows();
@@ -121,26 +124,47 @@ export function MigrationStep({ onCommitted }: { onCommitted?: () => void }) {
     try {
       await setAction.mutateAsync({ rowId, action, employeePublicId });
       batchQuery.refetch();
-    } catch {
-      toast.error(t("setup2.save_failed", "Save failed"));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t("setup2.save_failed", "Save failed")));
     }
   }
 
+  /**
+   * Creates and merges employees as the table says, and cannot be undone
+   * here, so it asks first. It went through on one click
+   * (FRONTEND_REDESIGN_PLAN.md, onboarding).
+   */
   async function runCommit() {
     if (!batchId) return;
+    const confirmed = await requestConfirm({
+      title: t("setup2.commit_confirm_title", "Bring these records in?"),
+      description: t(
+        "setup2.commit_confirm_desc",
+        "Employees are created and merged as the table shows. This cannot be undone from here.",
+      ),
+      confirmLabel: t("setup2.commit_confirm", "Bring them in"),
+    });
+    if (!confirmed) return;
     try {
       const result = await commit.mutateAsync(batchId);
       toast.success(
         t(
           "setup2.migration_done",
-          "Migration complete: {{c}} created, {{m}} merged",
-        )
-          .replace("{{c}}", String(result.totals.created ?? 0))
-          .replace("{{m}}", String(result.totals.merged ?? 0)),
+          "Migration complete: :created created, :merged merged",
+          {
+            created: result.totals.created ?? 0,
+            merged: result.totals.merged ?? 0,
+          },
+        ),
       );
       onCommitted?.();
-    } catch {
-      toast.error(t("setup2.commit_failed", "Could not commit migration"));
+    } catch (err) {
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("setup2.commit_failed", "Could not commit migration"),
+        ),
+      );
     }
   }
 
@@ -375,6 +399,7 @@ export function MigrationStep({ onCommitted }: { onCommitted?: () => void }) {
           </div>
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }
