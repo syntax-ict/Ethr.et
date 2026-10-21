@@ -21,13 +21,14 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ErrorState } from "@/components/shared/error-state";
 
 export default function NotificationsPage() {
   const { t } = useT();
   const { timeAgo } = useDateFormatters();
   // Paged: the page showed the first 25 and nothing past them (audit N83).
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useNotifications({ page });
+  const { data, isLoading, isError, refetch } = useNotifications({ page });
   const markRead = useMarkAsRead();
   const router = useRouter();
   const markAllRead = useMarkAllAsRead();
@@ -72,6 +73,8 @@ export default function NotificationsPage() {
             <Skeleton key={i} className="h-16 w-full" />
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={() => refetch()} />
       ) : notifications.length === 0 ? (
         <EmptyState
           icon={Bell}

@@ -13,6 +13,7 @@ import {
   useUpdateShowcaseConsent,
 } from "@/features/settings/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 /**
  * Whether ETHR may name this organisation on its public site, under "Trusted
@@ -22,7 +23,7 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 export function ShowcaseCard() {
   const { t } = useT();
   const { formatDate } = useCalendar();
-  const { data, isLoading } = useShowcaseConsent();
+  const { data, isLoading, isError, refetch } = useShowcaseConsent();
   const update = useUpdateShowcaseConsent();
 
   function toggle(listed: boolean) {
@@ -58,7 +59,9 @@ export function ShowcaseCard() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {isLoading || !data ? (
+        {isError ? (
+          <ErrorState compact onRetry={() => refetch()} />
+        ) : isLoading || !data ? (
           <Skeleton className="h-16 w-full" />
         ) : (
           <>

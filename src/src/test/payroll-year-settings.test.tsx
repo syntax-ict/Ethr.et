@@ -136,3 +136,29 @@ describe("payroll schedule card when settings do not load", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("working week card when settings do not load", () => {
+  it("shows the error, not a Monday-to-Friday default that could be saved", async () => {
+    server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({ detail: "Server Error" }, { status: 500 }),
+      ),
+      http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          user: { public_id: "U1", name: "Admin", role: "tenant_admin" },
+          tenant: { public_id: "T1", name: "Demo" },
+          permissions: ["settings.manage"],
+        }),
+      ),
+    );
+    renderWith(<WorkingWeekCard />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't load this",
+    );
+    expect(screen.queryByRole("group")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /save/i }),
+    ).not.toBeInTheDocument();
+  });
+});

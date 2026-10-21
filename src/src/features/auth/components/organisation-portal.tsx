@@ -7,6 +7,8 @@ import { PortalView } from "./portal-view";
 import { portalLinks } from "./portal-chrome";
 import { VacancyDialog } from "./vacancy-dialog";
 
+// quiet-on-error: the news and vacancy feed is optional content on a public page; when it fails the portal still renders its sign-in, which is the page's job, rather than an error to a visitor.
+
 /**
  * The organisation portal at ethr.et/{slug}, the organisation's subdomain or
  * its own domain: `PortalView` drawn from the organisation's public context

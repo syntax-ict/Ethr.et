@@ -12,6 +12,8 @@ import type {
 import { useLandingFeed } from "@/features/auth/landing-feed";
 import { PortalView } from "@/features/auth/components/portal-view";
 
+// quiet-on-error: a preview of the public portal, which itself renders without its feed on failure; the preview shows exactly that.
+
 const WIDTHS = { phone: 375, desktop: 1280 } as const;
 
 /**
