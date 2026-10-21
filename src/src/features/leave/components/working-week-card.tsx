@@ -11,6 +11,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ErrorState } from "@/components/shared/error-state";
 
 /** ISO weekdays, Monday = 1 … Sunday = 7, the encoding the API stores. */
 const DAYS = [
@@ -35,7 +36,7 @@ const DAYS = [
 export function WorkingWeekCard() {
   const { t } = useT();
   const { can } = usePermissions();
-  const { data, isLoading } = useSettings();
+  const { data, isLoading, isError, refetch } = useSettings();
   const save = useUpdateSettings();
 
   const persisted = data?.leave?.working_days ?? [1, 2, 3, 4, 5];
@@ -90,7 +91,7 @@ export function WorkingWeekCard() {
             )}
           </p>
         </div>
-        {isDirty && can.manageSettings && (
+        {isDirty && can.manageSettings && !isError && (
           <Button onClick={saveWeek} disabled={save.isPending} size="sm">
             {save.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -104,6 +105,9 @@ export function WorkingWeekCard() {
       <CardContent>
         {isLoading ? (
           <Skeleton className="h-9 w-80" />
+        ) : isError ? (
+          // Never the default week over a failed load: it could be saved.
+          <ErrorState compact onRetry={() => refetch()} />
         ) : (
           <div
             className="flex flex-wrap gap-2"

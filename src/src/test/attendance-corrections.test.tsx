@@ -267,3 +267,24 @@ describe("<CorrectionsPage> lists", () => {
     expect(screen.queryByRole("button", { name: /Approve/ })).toBeNull();
   });
 });
+
+/**
+ * A failed load of the review list read "All caught up", so a manager would
+ * stop looking while requests were waiting for them.
+ */
+describe("<CorrectionsPage> when the review list does not load", () => {
+  it("says it did not load instead of 'All caught up'", async () => {
+    server.use(
+      me("supervisor", ["correction.viewPending", "correction.approve"]),
+      http.get("*/api/v1/attendance/corrections/pending", () =>
+        HttpResponse.json({ detail: "Server Error" }, { status: 500 }),
+      ),
+    );
+    renderPage();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't load this",
+    );
+    expect(screen.queryByText("All caught up")).not.toBeInTheDocument();
+  });
+});

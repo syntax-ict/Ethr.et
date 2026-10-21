@@ -59,6 +59,7 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 /**
  * Each tab is gated on the ability its endpoint checks.
@@ -150,12 +151,14 @@ function punchPair(c: AttendanceCorrection) {
 
 function MyCorrectionsTab() {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useMyCorrections({ page });
+  const { data, isLoading, isError, refetch } = useMyCorrections({ page });
 
   return (
     <CorrectionsList
       data={data}
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => refetch()}
       onPageChange={setPage}
       showEmployee={false}
     />
@@ -166,12 +169,14 @@ function MyCorrectionsTab() {
 
 function AllCorrectionsTab() {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useCorrections({ page });
+  const { data, isLoading, isError, refetch } = useCorrections({ page });
 
   return (
     <CorrectionsList
       data={data}
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => refetch()}
       onPageChange={setPage}
       showEmployee
     />
@@ -181,11 +186,15 @@ function AllCorrectionsTab() {
 function CorrectionsList({
   data,
   isLoading,
+  isError,
+  onRetry,
   onPageChange,
   showEmployee,
 }: {
   data: PaginatedResponse<AttendanceCorrection> | undefined;
   isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
   onPageChange: (page: number) => void;
   showEmployee: boolean;
 }) {
@@ -203,6 +212,10 @@ function CorrectionsList({
         ))}
       </div>
     );
+  }
+
+  if (isError) {
+    return <ErrorState onRetry={onRetry} />;
   }
 
   if (corrections.length === 0) {
@@ -319,7 +332,9 @@ function PendingReviewsTab({ canDecide }: { canDecide: boolean }) {
   const [rejectFor, setRejectFor] = useState<AttendanceCorrection | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  const { data, isLoading } = usePendingCorrections({ page });
+  const { data, isLoading, isError, refetch } = usePendingCorrections({
+    page,
+  });
   const approveMut = useApproveCorrection();
   const rejectMut = useRejectCorrection();
 
@@ -363,6 +378,12 @@ function PendingReviewsTab({ canDecide }: { canDecide: boolean }) {
         ))}
       </div>
     );
+  }
+
+  // A failed load read "all caught up", so a manager would stop looking
+  // while requests were waiting.
+  if (isError) {
+    return <ErrorState onRetry={() => refetch()} />;
   }
 
   if (items.length === 0) {

@@ -13,6 +13,7 @@ import {
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { useT } from "@/lib/i18n/useT";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 /**
  * The employee's own answer to the attendance photo notice: read the notice,
@@ -61,16 +62,24 @@ export function PhotoConsentCard() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-foreground">
-          {given && consent.data?.given_at
-            ? t("profile.photo_consent_status_given", "You agreed on :date.", {
-                date: formatDate(new Date(consent.data.given_at), locale),
-              })
-            : t(
-                "profile.photo_consent_status_none",
-                "You have not agreed. No selfie is taken when you check in on your phone.",
-              )}
-        </p>
+        {consent.isError ? (
+          <ErrorState compact onRetry={() => consent.refetch()} />
+        ) : (
+          <p className="text-sm text-foreground">
+            {given && consent.data?.given_at
+              ? t(
+                  "profile.photo_consent_status_given",
+                  "You agreed on :date.",
+                  {
+                    date: formatDate(new Date(consent.data.given_at), locale),
+                  },
+                )
+              : t(
+                  "profile.photo_consent_status_none",
+                  "You have not agreed. No selfie is taken when you check in on your phone.",
+                )}
+          </p>
+        )}
         <details className="rounded-lg border border-border-default px-4 py-3">
           <summary className="cursor-pointer text-sm font-medium text-foreground">
             {t("profile.photo_consent_read", "Read the notice")}
@@ -82,7 +91,7 @@ export function PhotoConsentCard() {
         <Button
           type="button"
           variant={given ? "outline" : "default"}
-          disabled={busy || consent.isLoading}
+          disabled={busy || consent.isLoading || consent.isError}
           onClick={() => change(!given)}
         >
           {busy && (

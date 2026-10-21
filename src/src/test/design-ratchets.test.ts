@@ -22,7 +22,7 @@ import { join, relative } from "node:path";
  *    fails it falls through to its empty branch and states something false
  *    ("Not Checked In", "No attendance this month"). Render `ErrorState`, use
  *    `QueryBoundary`, or, where silence is right, say why in a
- *    `quiet-on-error:` comment. 41 files on 2026-10-21.
+ *    `quiet-on-error:` comment. 41 files on 2026-10-21, 0 the same day.
  */
 
 const SRC = join(process.cwd(), "src");
@@ -42,7 +42,7 @@ const CEILINGS = {
   sub12pxText: 99,
   nativeConfirm: 0,
   discardedErrors: 0,
-  silentLoadFailures: 10,
+  silentLoadFailures: 0,
 };
 
 function walk(dir: string): string[] {

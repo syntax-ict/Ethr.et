@@ -35,6 +35,7 @@ import {
   type AlertSeverity,
 } from "@/features/dashboard/executive-api";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 const METRICS: AlertMetric[] = [
   "turnover_rate",
@@ -58,7 +59,7 @@ export function AlertThresholdsDialog({
   onClose: () => void;
 }) {
   const { t } = useT();
-  const { data, isLoading } = useAlertThresholds();
+  const { data, isLoading, isError, refetch } = useAlertThresholds();
   const create = useCreateAlertThreshold();
   const deleteThreshold = useDeleteAlertThreshold();
 
@@ -203,6 +204,8 @@ export function AlertThresholdsDialog({
             </p>
             {isLoading ? (
               <Skeleton className="h-16 w-full" />
+            ) : isError ? (
+              <ErrorState compact onRetry={() => refetch()} />
             ) : thresholds.length === 0 ? (
               <EmptyState
                 icon={AlertTriangle}

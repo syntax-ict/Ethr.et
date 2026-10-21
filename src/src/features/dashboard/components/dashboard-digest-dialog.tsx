@@ -34,6 +34,7 @@ import {
   type DigestFrequency,
 } from "@/features/dashboard/executive-api";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 /**
  * Phase 6.6 — schedule/list/cancel a recurring email KPI summary of the
@@ -53,7 +54,7 @@ export function DashboardDigestDialog({
 }) {
   const { t } = useT();
   const { formatDateTime } = useDateFormatters();
-  const { data, isLoading } = useDashboardDigests();
+  const { data, isLoading, isError, refetch } = useDashboardDigests();
   const schedule = useScheduleDashboardDigest();
   const deleteDigest = useDeleteDashboardDigest();
 
@@ -202,6 +203,8 @@ export function DashboardDigestDialog({
             </p>
             {isLoading ? (
               <Skeleton className="h-16 w-full" />
+            ) : isError ? (
+              <ErrorState compact onRetry={() => refetch()} />
             ) : digests.length === 0 ? (
               <EmptyState
                 icon={Mail}

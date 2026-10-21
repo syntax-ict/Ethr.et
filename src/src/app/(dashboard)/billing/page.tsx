@@ -48,11 +48,17 @@ import { formatETB } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { apiErrorDetail } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 export default function BillingPage() {
   const { t } = useT();
   const { formatDate } = useDateFormatters();
-  const { data: dashboard, isLoading } = useBillingDashboard();
+  const {
+    data: dashboard,
+    isLoading,
+    isError,
+    refetch,
+  } = useBillingDashboard();
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
 
   // A tenant is trialling when it has a trial end date and no subscription yet.
@@ -78,6 +84,8 @@ export default function BillingPage() {
 
         {isLoading ? (
           <BillingSkeleton />
+        ) : isError ? (
+          <ErrorState onRetry={() => refetch()} />
         ) : (
           <>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -388,7 +396,12 @@ function PlanChangeDialog({
   currentPlanName: string | null;
 }) {
   const { t } = useT();
-  const { data: plansData, isLoading } = usePlans();
+  const {
+    data: plansData,
+    isLoading,
+    isError: plansError,
+    refetch: refetchPlans,
+  } = usePlans();
   const changePlan = useChangePlan();
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [prorationResult, setProrationResult] = useState<{
@@ -493,6 +506,8 @@ function PlanChangeDialog({
               <Skeleton key={i} className="h-72" />
             ))}
           </div>
+        ) : plansError ? (
+          <ErrorState onRetry={() => refetchPlans()} />
         ) : (
           <>
             <div className="grid gap-3 py-4 sm:grid-cols-3">
