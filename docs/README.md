@@ -131,6 +131,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | [`decisions/DECISIONS.md`](decisions/DECISIONS.md) | Decision log — what was chosen, why, and what would reverse it |
 | [`audit/BASELINE.md`](audit/BASELINE.md) | The forensic baseline — §1–§18 of measured state. The deepest reference in this tree |
 | [`operations/QUEUE-MONITORING.md`](operations/QUEUE-MONITORING.md) | Detecting silent queue death on a host with no supervisor |
+| [`operations/METRIC-DEFINITIONS.md`](operations/METRIC-DEFINITIONS.md) | What each dashboard and analytics figure counts: headcount, turnover, attendance and leave rates, and which CSVs carry a byte-order mark |
 | [`operations/ON-CALL.md`](operations/ON-CALL.md) | **What to do when** something breaks in production — symptom, cause, action, on a host with no shell |
 | [`operations/TRUSTED-BY.md`](operations/TRUSTED-BY.md) | **Trusted by**: which organisations the public site names (consented, active, not hidden by the platform), where each decision is made, and how the list is served |
 | [`operations/TENANT-DELETION.md`](operations/TENANT-DELETION.md) | **Deleting an organisation**: what the console's Delete does (closes it, keeps every record, ends sessions, reserves the address), the safeguards (cancel first, reason, typed address, authenticator code), and Restore |

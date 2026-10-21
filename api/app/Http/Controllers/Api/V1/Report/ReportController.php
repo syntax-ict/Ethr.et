@@ -13,6 +13,7 @@ use App\Models\SavedReport;
 use App\Models\ScheduledReport;
 use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
+use App\Support\Csv;
 use App\Support\StringList;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -75,7 +76,7 @@ class ReportController extends Controller
     /** @param array<int, array<string, mixed>> $rows */
     private function exportCsv(array $rows, string $filename): Response
     {
-        return response($this->engine->toCsv($rows), 200, [
+        return response(Csv::forSpreadsheet($this->engine->toCsv($rows)), 200, [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}.csv\"",
         ]);
