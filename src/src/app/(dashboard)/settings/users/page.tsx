@@ -220,6 +220,7 @@ export default function UsersSettingsPage() {
           <Card>
             <CardContent className="p-0">
               <SimpleTable
+                mobileCards
                 caption={t("users_page.title", "Users & Access")}
                 headers={[
                   t("users_page.user", "User"),

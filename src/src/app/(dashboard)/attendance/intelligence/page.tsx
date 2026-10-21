@@ -121,6 +121,7 @@ export default function AttendanceIntelligencePage() {
                     />
                   ) : (
                     <SimpleTable
+                      mobileCards
                       caption={t("attendance.intelligence_page.anomalies")}
                       headers={[
                         t("attendance.employee"),
@@ -205,6 +206,7 @@ export default function AttendanceIntelligencePage() {
                     />
                   ) : (
                     <SimpleTable
+                      mobileCards
                       caption={t("attendance.intelligence_page.late_arrivals")}
                       headers={[
                         t("attendance.employee"),

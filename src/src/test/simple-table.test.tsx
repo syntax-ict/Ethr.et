@@ -145,3 +145,64 @@ describe("SimpleTable", () => {
     expect(onDelete).toHaveBeenCalledOnce();
   });
 });
+
+/**
+ * On a phone a wide table scrolled sideways (FRONTEND_REDESIGN_PLAN.md,
+ * problem 4). With `mobileCards`, each row is a card whose lines are labelled
+ * by the column headers.
+ */
+describe("SimpleTable on a phone", () => {
+  function asPhone(matches: boolean) {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+  }
+
+  const props = {
+    caption: "Holidays",
+    headers: ["Name", "Date", "Recurring"],
+    rows: [
+      {
+        key: "h1",
+        cells: ["Meskel", "27 Sep", "Yes"],
+        onEdit: vi.fn(),
+        onDelete: vi.fn(),
+      },
+    ],
+  };
+
+  it("draws a card per row, each line labelled by its header", () => {
+    asPhone(true);
+    render(<SimpleTable {...props} mobileCards />);
+
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    const list = screen.getByRole("list", { name: "Holidays" });
+    expect(list).toHaveTextContent("Meskel");
+    expect(screen.getByText("Date")).toBeInTheDocument();
+    expect(screen.getByText("27 Sep")).toBeInTheDocument();
+    // The row's actions come with it.
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it("stays a table on a wider screen", () => {
+    asPhone(false);
+    render(<SimpleTable {...props} mobileCards />);
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it("stays a table on a phone when cards were not asked for", () => {
+    asPhone(true);
+    render(<SimpleTable {...props} />);
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+});

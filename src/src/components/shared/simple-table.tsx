@@ -1,9 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
+import { useIsPhone } from "@/lib/hooks/useMediaQuery";
 
 /**
  * The shared primitive for the many small, non-paginated tables across the app
@@ -81,6 +82,7 @@ export function SimpleTable({
   caption,
   maxHeight,
   footerCells,
+  mobileCards = false,
 }: {
   /** Column headers. Usually plain text, but a matrix-style table (e.g. a
    *  preference grid) can pass richer content — an icon + label stacked
@@ -100,13 +102,22 @@ export function SimpleTable({
   /** A trailing `<tfoot>` row — e.g. totals for a financial/journal table.
    *  One cell per column (any actions column is left blank automatically). */
   footerCells?: ReactNode[];
+  /**
+   * Below the `sm` breakpoint, draw each row as a card instead of a table row:
+   * the first cell is the card's title and every other cell is a labelled
+   * line, with its header as the label. For lists people read on a phone,
+   * where a wide table scrolled sideways (FRONTEND_REDESIGN_PLAN.md, problem
+   * 4). Leave it off for matrix-style grids, which read better as a table.
+   */
+  mobileCards?: boolean;
 }) {
   const { t } = useT();
+  const isPhone = useIsPhone();
   const hasActions = rows.some((r) => r.onEdit || r.onDelete || r.actions);
   const alignClass = (i: number) => ALIGN_CLASS[align?.[i] ?? "left"];
   const colClass = (i: number) => colClassName?.[i] ?? "";
 
-  return (
+  const table = (
     <div
       // `relative` is load-bearing, not cosmetic. Tailwind's `sr-only` is
       // `position: absolute`, and an absolutely-positioned element is clipped
@@ -201,5 +212,61 @@ export function SimpleTable({
         )}
       </table>
     </div>
+  );
+
+  // One layout at a time, chosen by the window width. These lists render after
+  // their data arrives in the browser, so the width is already known and no
+  // table flashes before the cards.
+  if (!mobileCards || !isPhone) return table;
+
+  const card = (
+    cells: ReactNode[],
+    key: string,
+    extra?: Partial<SimpleTableRow>,
+  ) => (
+    <li
+      key={key}
+      onClick={extra?.onClick}
+      tabIndex={extra?.onClick ? 0 : undefined}
+      role={extra?.onClick ? "button" : undefined}
+      onKeyDown={
+        extra?.onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                extra.onClick?.();
+              }
+            }
+          : undefined
+      }
+      className={`rounded-lg border border-border bg-card p-3 ${extra?.onClick ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""} ${extra?.className ?? ""}`}
+    >
+      <div className="text-sm font-medium text-foreground">{cells[0]}</div>
+      {cells.length > 1 && (
+        <dl className="mt-2 grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+          {cells.slice(1).map((c, i) => (
+            <Fragment key={i}>
+              <dt className="text-muted-foreground">{headers[i + 1]}</dt>
+              <dd className="min-w-0 break-words text-foreground">{c}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      )}
+      {extra && (extra.actions || extra.onEdit || extra.onDelete) && (
+        <div className="mt-2 flex justify-end border-t border-border pt-2">
+          {extra.actions ?? (
+            <TableRowActions onEdit={extra.onEdit} onDelete={extra.onDelete} />
+          )}
+        </div>
+      )}
+    </li>
+  );
+
+  return (
+    <ul className="space-y-2" aria-label={caption}>
+      {rows.map((row) => card(row.cells, row.key, row))}
+      {footerCells &&
+        card(footerCells, "__footer", { className: "bg-muted/50" })}
+    </ul>
   );
 }

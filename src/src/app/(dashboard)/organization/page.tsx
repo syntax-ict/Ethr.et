@@ -596,6 +596,7 @@ function DepartmentsTab() {
       <Card>
         <CardContent className="p-0">
           <SimpleTable
+            mobileCards
             headers={[
               t("org.field.name", "Name"),
               t("org.field.code", "Code"),
@@ -844,6 +845,7 @@ function TeamsTab() {
       <Card>
         <CardContent className="p-0">
           <SimpleTable
+            mobileCards
             headers={[
               t("org.field.name", "Name"),
               t("common.department", "Department"),
@@ -1048,6 +1050,7 @@ function PositionsTab() {
       <Card>
         <CardContent className="p-0">
           <SimpleTable
+            mobileCards
             headers={[
               t("org.field.title", "Title"),
               t("org.field.code", "Code"),
@@ -1254,6 +1257,7 @@ function GradesTab() {
       <Card>
         <CardContent className="p-0">
           <SimpleTable
+            mobileCards
             headers={[
               t("org.tab.grades", "Grades"),
               t("org.field.min_salary", "Min Salary"),
@@ -1467,6 +1471,7 @@ function CostCentersTab() {
       <Card>
         <CardContent className="p-0">
           <SimpleTable
+            mobileCards
             headers={[
               t("org.field.name", "Name"),
               t("org.field.code", "Code"),
