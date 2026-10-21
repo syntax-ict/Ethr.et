@@ -43,6 +43,7 @@ import { useConfirm } from "@/components/shared/use-confirm";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 interface AssignmentForm {
   shift_public_id: string;
@@ -95,7 +96,7 @@ function AssignmentsContent() {
   );
 
   const { data: shifts } = useShifts();
-  const { data: schedule, isLoading } = useShiftSchedule();
+  const { data: schedule, isLoading, isError, refetch } = useShiftSchedule();
   const { data: employees } = useAssignableEmployees(
     form.assignable_type === "employee",
   );
@@ -220,6 +221,8 @@ function AssignmentsContent() {
             <Skeleton key={i} className="h-16" />
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={() => refetch()} />
       ) : assignments.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">

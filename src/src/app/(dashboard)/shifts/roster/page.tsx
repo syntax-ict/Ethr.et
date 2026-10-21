@@ -26,6 +26,7 @@ import { buildRoster } from "@/features/shifts/roster";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { ErrorState } from "@/components/shared/error-state";
 
 // Shift colour palette — deterministic by shift name hash
 const SHIFT_COLOURS = [
@@ -94,7 +95,12 @@ export default function RosterPage() {
   const dateFrom = view === "month" ? monthFrom : weekFrom;
   const dateTo = view === "month" ? monthTo : weekTo;
 
-  const { data: scheduleData, isLoading: scheduleLoading } = useShiftSchedule({
+  const {
+    data: scheduleData,
+    isLoading: scheduleLoading,
+    isError: scheduleError,
+    refetch: refetchSchedule,
+  } = useShiftSchedule({
     date_from: dateFrom,
     date_to: dateTo,
   });
@@ -336,6 +342,8 @@ export default function RosterPage() {
 
         {scheduleLoading ? (
           <Skeleton className="h-96" />
+        ) : scheduleError ? (
+          <ErrorState onRetry={() => refetchSchedule()} />
         ) : view === "month" ? (
           // ── Month grid ──
           <div>

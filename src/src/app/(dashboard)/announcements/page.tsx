@@ -82,6 +82,7 @@ import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
+import { ErrorState } from "@/components/shared/error-state";
 
 type Publishing = "keep" | "now" | "schedule" | "draft";
 type Status = "draft" | "scheduled" | "published" | "archived";
@@ -172,7 +173,7 @@ export default function AnnouncementsPage() {
 
   const reading = useAllAnnouncements();
   const managed = useManagedAnnouncements(manager);
-  const { data, isLoading } = manager ? managed : reading;
+  const { data, isLoading, isError, refetch } = manager ? managed : reading;
   const createAnnouncement = useCreateAnnouncement();
   const updateAnnouncement = useUpdateAnnouncement();
   const deleteAnnouncement = useDeleteAnnouncement();
@@ -560,6 +561,8 @@ export default function AnnouncementsPage() {
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={() => refetch()} />
       ) : announcements.length === 0 ? (
         <EmptyState
           icon={Megaphone}

@@ -145,3 +145,37 @@ describe("<DeviceDetail>", () => {
     }
   });
 });
+
+/**
+ * Every failed load used to read as the device's "not found" message. Only a
+ * 404 means that; anything else is a failed request with a retry.
+ */
+describe("device detail when the device does not load", () => {
+  it("says the data did not load, with a retry, for a server error", async () => {
+    server.use(
+      http.get("*/api/v1/devices/DEV1", () =>
+        HttpResponse.json({ detail: "Server Error" }, { status: 500 }),
+      ),
+    );
+    renderDetail();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't load this",
+    );
+    expect(
+      screen.getByRole("button", { name: /Try again/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the not-found message for a 404", async () => {
+    server.use(
+      http.get("*/api/v1/devices/DEV1", () =>
+        HttpResponse.json({ detail: "Not found" }, { status: 404 }),
+      ),
+    );
+    renderDetail();
+
+    expect(await screen.findByText("Device not found")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});

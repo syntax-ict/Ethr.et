@@ -84,6 +84,7 @@ import { usePlanFeatures } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { ReportFilterValue } from "@/features/reports/components/report-filter-value";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 const prebuilt: Array<{
   key: ReportSourceKey;
@@ -187,7 +188,12 @@ interface FilterRow {
 function BuilderTab() {
   const { t } = useT();
   const canSaveTemplates = usePlanFeatures().has("custom_reports");
-  const { data: sourcesData, isLoading: sourcesLoading } = useReportSources();
+  const {
+    data: sourcesData,
+    isLoading: sourcesLoading,
+    isError: sourcesError,
+    refetch: refetchSources,
+  } = useReportSources();
   const generate = useGenerateReport();
   const [config, setConfig] = useState<ReportConfig>({ source: "employees" });
   const [filters, setFilters] = useState<FilterRow[]>([]);
@@ -279,6 +285,8 @@ function BuilderTab() {
   }
 
   if (sourcesLoading) return <Skeleton className="h-96 w-full" />;
+  // Without the sources the builder drew with nothing to choose from.
+  if (sourcesError) return <ErrorState onRetry={() => refetchSources()} />;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
@@ -934,7 +942,7 @@ function SavedTab() {
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
   const { formatDate } = useDateFormatters();
-  const { data, isLoading } = useSavedReports();
+  const { data, isLoading, isError, refetch } = useSavedReports();
   const deleteReport = useDeleteSavedReport();
   const runReport = useGenerateReport();
   const [scheduleFor, setScheduleFor] = useState<SavedReport | null>(null);
@@ -979,6 +987,8 @@ function SavedTab() {
             <Skeleton key={i} className="h-20" />
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={() => refetch()} />
       ) : reports.length === 0 ? (
         <EmptyState
           icon={Bookmark}
@@ -1220,7 +1230,7 @@ function ScheduledTab() {
   // A schedule is only meaningful in the zone the tenant reads it in: "next run
   // 06:00" has to mean 06:00 to the person who set it, not 03:00 UTC.
   const { formatDateTime } = useDateFormatters();
-  const { data, isLoading } = useScheduledReports();
+  const { data, isLoading, isError, refetch } = useScheduledReports();
   const deleteScheduled = useDeleteScheduledReport();
 
   async function handleDelete(publicId: string, name: string) {
@@ -1248,6 +1258,8 @@ function ScheduledTab() {
             <Skeleton key={i} className="h-20" />
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={() => refetch()} />
       ) : schedules.length === 0 ? (
         <EmptyState
           icon={CalendarClock}

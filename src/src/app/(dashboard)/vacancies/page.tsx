@@ -57,6 +57,7 @@ import {
   type VacancyVisibility,
 } from "@/features/vacancies/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 const NONE = "__none__";
 
@@ -110,7 +111,7 @@ export default function VacanciesPage() {
   const { t } = useT();
   const { formatDate } = useDateFormatters();
   const { can } = usePermissions();
-  const { data, isLoading } = useVacancies();
+  const { data, isLoading, isError, refetch } = useVacancies();
   const updateVacancy = useUpdateVacancy();
   const deleteVacancy = useDeleteVacancy();
 
@@ -233,6 +234,8 @@ export default function VacanciesPage() {
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={() => refetch()} />
       ) : shown.length === 0 ? (
         <EmptyState
           icon={Briefcase}

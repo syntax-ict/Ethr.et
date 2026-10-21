@@ -59,6 +59,7 @@ import {
 } from "@/features/voice/api";
 import { ConcernStatusBadge, ConcernThread } from "@/features/voice/components";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 /**
  * Employee voice for HR: how people say work is going, and the concerns they
@@ -99,7 +100,7 @@ export default function VoiceInsightsPage() {
 
 function PulseOverview() {
   const { t } = useT();
-  const { data, isLoading } = usePulseInsights();
+  const { data, isLoading, isError, refetch } = usePulseInsights();
   const { data: concerns } = useConcerns("all", 1);
   const open = (concerns?.counts.new ?? 0) + (concerns?.counts.in_review ?? 0);
 
@@ -158,6 +159,8 @@ function PulseOverview() {
         >
           {isLoading ? (
             <Skeleton className="h-64" />
+          ) : isError ? (
+            <ErrorState compact onRetry={() => refetch()} />
           ) : (data?.trend ?? []).every((w) => w.average === null) ? (
             <p className="flex h-64 items-center justify-center text-center text-sm text-muted-foreground">
               {t(
@@ -302,7 +305,7 @@ function ConcernQueue() {
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<string | null>(null);
   const filter = status === "open" ? "all" : status;
-  const { data, isLoading } = useConcerns(filter, page);
+  const { data, isLoading, isError, refetch } = useConcerns(filter, page);
   const rows = (data?.data ?? []).filter(
     (c) => status !== "open" || c.status === "new" || c.status === "in_review",
   );
@@ -351,6 +354,8 @@ function ConcernQueue() {
       <CardContent>
         {isLoading ? (
           <Skeleton className="h-32" />
+        ) : isError ? (
+          <ErrorState onRetry={() => refetch()} />
         ) : rows.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             {t("voice.no_concerns", "No concerns here.")}

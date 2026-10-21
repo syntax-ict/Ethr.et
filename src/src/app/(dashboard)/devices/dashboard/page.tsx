@@ -26,15 +26,26 @@ import {
 } from "@/features/devices/api";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { ErrorState } from "@/components/shared/error-state";
 
 export default function DeviceDashboardPage() {
   const { t } = useT();
   const { timeAgo } = useDateFormatters();
-  const { data: stats, isLoading: statsLoading } = useDeviceDashboard({
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    refetch: refetchStats,
+  } = useDeviceDashboard({
     refetchInterval: 30000,
   });
 
-  const { data: devices, isLoading: devicesLoading } = useDevices(undefined, {
+  const {
+    data: devices,
+    isLoading: devicesLoading,
+    isError: devicesError,
+    refetch: refetchDevices,
+  } = useDevices(undefined, {
     refetchInterval: 30000,
   });
 
@@ -62,7 +73,9 @@ export default function DeviceDashboardPage() {
           description={t("devices_dashboard_page.description")}
         />
 
-        {statsLoading || !stats ? (
+        {statsError ? (
+          <ErrorState compact onRetry={() => refetchStats()} />
+        ) : statsLoading || !stats ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-24" />
@@ -168,6 +181,8 @@ export default function DeviceDashboardPage() {
                   <Skeleton key={i} className="h-14" />
                 ))}
               </div>
+            ) : devicesError ? (
+              <ErrorState onRetry={() => refetchDevices()} />
             ) : allDevices.length === 0 ? (
               <p className="px-4 py-12 text-center text-sm text-muted-foreground">
                 {t("devices_dashboard_page.no_devices_yet")}
