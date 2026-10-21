@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -364,5 +370,40 @@ describe("ReadinessStep", () => {
     expect(screen.getByText("Employees added")).toBeInTheDocument();
     const fixLink = screen.getByRole("link", { name: /Fix/i });
     expect(fixLink).toHaveAttribute("href", "/employees");
+  });
+
+  // Going live ends setup for everyone; it went through on one click.
+  it("asks before going live, and sends nothing on Cancel", async () => {
+    let posts = 0;
+    server.use(
+      http.get("*/api/v1/onboarding/readiness", () =>
+        HttpResponse.json({
+          overall_score: 100,
+          level: "ready",
+          categories: {},
+          gaps: [],
+        }),
+      ),
+      http.post("*/api/v1/onboarding/go-live", () => {
+        posts++;
+        return HttpResponse.json({ status: "live" });
+      }),
+    );
+    const onLive = vi.fn();
+    renderWithClient(<ReadinessStep onLive={onLive} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /go live/i }));
+    const dialog = await screen.findByRole("dialog", { name: "Go live now?" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(posts).toBe(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /go live/i }));
+    const again = await screen.findByRole("dialog", { name: "Go live now?" });
+    fireEvent.click(within(again).getByRole("button", { name: "Go live" }));
+    await waitFor(() => expect(onLive).toHaveBeenCalled());
+    expect(posts).toBe(1);
   });
 });

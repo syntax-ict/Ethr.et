@@ -192,8 +192,9 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
         created > 0
           ? t(
               "setup2.applied",
-              "Configuration applied: {{n}} records created",
-            ).replace("{{n}}", String(created))
+              "Configuration applied: :count records created",
+              { count: created },
+            )
           : t(
               "setup2.applied_already",
               "Configuration applied. Already set up.",
