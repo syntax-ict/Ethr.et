@@ -87,6 +87,8 @@ function renderPage() {
       <CalendarProvider>{children}</CalendarProvider>
     </QueryClientProvider>
   );
+  // The page reads its tab from the address (`useQueryTab`).
+  window.history.replaceState(null, "", `/settings?tab=${tab}`);
   return render(<SettingsPage />, { wrapper: Wrapper });
 }
 
