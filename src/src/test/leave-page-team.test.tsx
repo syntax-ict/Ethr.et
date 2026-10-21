@@ -87,6 +87,20 @@ function renderPage() {
 }
 
 describe("the team leave tab", () => {
+  // The rows printed the API's "2026-10-22 — 2026-10-22" whatever calendar the
+  // organisation uses (FRONTEND_REDESIGN_PLAN.md, backlog 7).
+  it("shows each request's dates formatted, not as raw ISO strings", async () => {
+    serveLeave();
+    renderPage();
+
+    await userEvent.click(await screen.findByRole("tab", { name: /team/i }));
+    const name = await screen.findByText("Abebe Kebede");
+    const row = name.closest("tr, li, [data-row]") ?? name.parentElement!;
+
+    expect(row.textContent).not.toContain(today());
+    expect(row.textContent).toMatch(/\S+ to \S+/);
+  });
+
   it("names who asked for each request", async () => {
     serveLeave();
     renderPage();
