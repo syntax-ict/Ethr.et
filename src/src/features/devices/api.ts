@@ -388,9 +388,11 @@ export interface UnmatchedBadge {
 
 const UNMATCHED_KEY = ["devices", "unmatched-punches"];
 
-export function useUnmatchedBadges() {
+/** @param enabled Gate on `device.viewAny`, which the endpoint checks. */
+export function useUnmatchedBadges(enabled = true) {
   return useQuery<UnmatchedBadge[]>({
     queryKey: UNMATCHED_KEY,
+    enabled,
     queryFn: async () => {
       const { data } = await apiClient.get<{ data: UnmatchedBadge[] }>(
         "/devices/unmatched-punches",
