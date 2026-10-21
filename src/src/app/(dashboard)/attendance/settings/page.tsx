@@ -19,6 +19,7 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { SettingRow } from "@/components/patterns/SettingRow";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 type Method = AttendanceSettings["enabled_methods"][number];
 
@@ -68,7 +69,7 @@ export default function AttendanceSettingsPage() {
   const { t } = useT();
   const [form, setForm] = useState<AttendanceSettings | null>(null);
 
-  const { data, isLoading } = useAttendanceSettings();
+  const { data, isLoading, isError, refetch } = useAttendanceSettings();
 
   // Seed the editable copy once the server data arrives, without clobbering an
   // in-progress edit. Adjusting state during render avoids an extra effect
@@ -132,7 +133,9 @@ export default function AttendanceSettingsPage() {
           }
         />
 
-        {isLoading || !form ? (
+        {isError ? (
+          <ErrorState onRetry={() => refetch()} />
+        ) : isLoading || !form ? (
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-32" />

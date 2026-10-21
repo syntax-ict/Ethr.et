@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings, useUpdateSettings } from "@/features/settings/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { useT } from "@/lib/i18n/useT";
+import { ErrorState } from "@/components/shared/error-state";
 
 interface StatutoryForm {
   employer_tin: string;
@@ -32,7 +33,7 @@ interface StatutoryForm {
  */
 export function StatutoryDetailsCard() {
   const { t } = useT();
-  const { data, isLoading } = useSettings();
+  const { data, isLoading, isError, refetch } = useSettings();
   const save = useUpdateSettings();
 
   const persisted: StatutoryForm = {
@@ -88,7 +89,7 @@ export function StatutoryDetailsCard() {
             {t("statutory.card_desc")}
           </p>
         </div>
-        {isDirty && (
+        {isDirty && !isError && (
           <Button onClick={submit} disabled={save.isPending} size="sm">
             {save.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -106,6 +107,10 @@ export function StatutoryDetailsCard() {
             <Skeleton className="h-16" />
             <Skeleton className="h-16" />
           </>
+        ) : isError ? (
+          // Never show the form over a failed load: its empty defaults would
+          // be saved over the organisation's real statutory details.
+          <ErrorState compact onRetry={() => refetch()} />
         ) : (
           <>
             <div>

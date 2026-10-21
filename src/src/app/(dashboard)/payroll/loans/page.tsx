@@ -25,6 +25,7 @@ import { useLoans, useCreateLoan, type Loan } from "@/features/payroll/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 export default function LoansPage() {
   const { t } = useT();
@@ -36,7 +37,7 @@ export default function LoansPage() {
     reason: "",
   });
 
-  const { data, isLoading } = useLoans();
+  const { data, isLoading, isError, refetch } = useLoans();
   const createLoan = useCreateLoan();
 
   const loans: Loan[] = data ?? [];
@@ -61,6 +62,8 @@ export default function LoansPage() {
               <Skeleton key={i} className="h-20" />
             ))}
           </div>
+        ) : isError ? (
+          <ErrorState onRetry={() => refetch()} />
         ) : loans.length === 0 ? (
           <EmptyState
             icon={Banknote}
