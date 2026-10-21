@@ -30,7 +30,7 @@ import {
   seriesColor,
   tooltipProps,
 } from "@/components/dashboard/chart-theme";
-import { ChartCard } from "./chart-helpers";
+import { ChartCard } from "@/components/dashboard/chart-card";
 
 export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
   const { t, locale } = useT();
@@ -54,7 +54,7 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
           {data.headcount_trend && data.headcount_trend.length > 0 && (
             <ChartCard
               title={t("analytics_page.headcount_trend")}
-              subtitle={
+              description={
                 (forecast.data?.headcount.projected.length ?? 0) > 0
                   ? t(
                       "executive_dashboard.forecast_subtitle",

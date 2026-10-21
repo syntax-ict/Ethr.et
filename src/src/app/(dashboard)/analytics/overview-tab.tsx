@@ -22,7 +22,9 @@ import {
   seriesColor,
   tooltipProps,
 } from "@/components/dashboard/chart-theme";
-import { ChartCard, KpiBox, KpiBoxCurrency, Metric } from "./chart-helpers";
+import { ChartCard } from "@/components/dashboard/chart-card";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { CompactCurrency } from "@/components/shared/currency-display";
 import { useExecutiveOverview } from "@/features/dashboard/executive-api";
 import { ComplianceCard } from "@/features/dashboard/components/compliance-card";
 import { DepartmentDrillDownDialog } from "@/features/dashboard/components/department-drilldown-dialog";
@@ -43,33 +45,37 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
       {(data) => (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <KpiBox
+            <StatCard
               icon={Users}
-              title={t("analytics_page.headcount")}
+              label={t("analytics_page.headcount")}
               value={data.headcount.active}
-              sub={`${data.headcount.total} ${t("analytics_page.total_lc")}`}
-              color="blue"
+              hint={t("analytics_page.headcount_total", ":count total", {
+                count: data.headcount.total,
+              })}
+              tone="primary"
             />
-            <KpiBox
+            <StatCard
               icon={UserCheck}
-              title={t("analytics_page.attendance_rate")}
+              label={t("analytics_page.attendance_rate")}
               value={`${data.attendance_rate.today}%`}
-              sub={t("analytics_page.today")}
-              color="green"
+              hint={t("analytics_page.today")}
+              tone="success"
             />
-            <KpiBoxCurrency
+            <StatCard
               icon={Wallet}
-              title={t("analytics_page.payroll_net")}
-              cents={data.payroll_summary.net_cents}
-              sub={t("analytics_page.current_month")}
-              color="purple"
+              label={t("analytics_page.payroll_net")}
+              value={<CompactCurrency cents={data.payroll_summary.net_cents} />}
+              hint={t("analytics_page.current_month")}
+              tone="info"
             />
-            <KpiBox
+            <StatCard
               icon={TrendingUp}
-              title={t("analytics_page.turnover")}
+              label={t("analytics_page.turnover")}
               value={`${data.turnover.rate}%`}
-              sub={`${data.turnover.exits} ${t("analytics_page.exits")}`}
-              color="amber"
+              hint={t("analytics_page.exits_count", ":count exits", {
+                count: data.turnover.exits,
+              })}
+              tone="warning"
             />
           </div>
 
@@ -77,7 +83,7 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
             {data.headcount.by_department.length > 0 && (
               <ChartCard
                 title={t("analytics_page.headcount_by_department")}
-                subtitle={t(
+                description={t(
                   "executive_dashboard.click_to_drill_down",
                   "Click a bar for department detail",
                 )}
@@ -196,6 +202,28 @@ function OverviewSkeleton() {
         <Skeleton className="h-80 rounded-xl" />
         <Skeleton className="h-80 rounded-xl" />
       </div>
+    </div>
+  );
+}
+
+/** One figure in the leave utilisation row. */
+function Metric({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string | number;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="min-w-0 flex-1 px-4 text-center">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p
+        className={`mt-1 text-3xl font-semibold tracking-tight tabular-nums ${highlight ? "text-primary" : "text-foreground"}`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
