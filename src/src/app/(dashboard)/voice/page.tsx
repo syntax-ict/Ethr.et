@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useHydrated } from "@/lib/hooks/useHydrated";
 import Link from "next/link";
 import {
   Award,
@@ -22,6 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
+import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
@@ -75,7 +75,7 @@ import {
 import { ConcernStatusBadge, ConcernThread } from "@/features/voice/components";
 import { ErrorState } from "@/components/shared/error-state";
 
-type Tab = "pulse" | "speak-up" | "recognition";
+const VOICE_TABS = ["pulse", "speak-up", "recognition"] as const;
 
 const FACES = [
   { score: 1, icon: Frown },
@@ -94,18 +94,8 @@ const FACES = [
 export default function VoicePage() {
   const { t } = useT();
   const { can } = usePermissions();
-  const [chosen, setTab] = useState<Tab | null>(null);
-  // Notifications link to ?tab=…, read once hydrated: the page is
-  // prerendered without a query string (static export).
-  const hydrated = useHydrated();
-  const requested = hydrated
-    ? new URLSearchParams(window.location.search).get("tab")
-    : null;
-  const tab: Tab =
-    chosen ??
-    (requested === "speak-up" || requested === "recognition"
-      ? requested
-      : "pulse");
+  // Notifications link to ?tab=…; switching tabs now writes it back too.
+  const [tab, setTab] = useQueryTab(VOICE_TABS, "pulse");
 
   return (
     <div className="space-y-6">
@@ -122,7 +112,7 @@ export default function VoicePage() {
         }
       />
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList variant="underline">
           <TabsTrigger value="pulse">
             {t("voice.tab_pulse", "Weekly pulse")}

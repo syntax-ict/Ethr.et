@@ -55,6 +55,7 @@ import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { ReasonDialog } from "@/components/shared/reason-dialog";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
@@ -222,6 +223,7 @@ export default function LeavePage() {
 
 function MyLeaveTab() {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const { requestConfirm, confirmDialog } = useConfirm();
   const [page, setPage] = useState(1);
   const {
@@ -333,7 +335,10 @@ function MyLeaveTab() {
                       {leaveTypeName(req.leave_type, t("leave_page.unknown"))}
                     </span>,
                     <span key="d" className="text-muted-foreground">
-                      {req.start_date} — {req.end_date}
+                      {t("leave_page.date_range", ":from to :to", {
+                        from: formatDate(req.start_date),
+                        to: formatDate(req.end_date),
+                      })}
                     </span>,
                     <span key="days" className="text-muted-foreground">
                       {req.days}
@@ -393,6 +398,7 @@ function MyLeaveTab() {
 
 function TeamLeaveTab() {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"list" | "calendar">("list");
   const { data, isLoading, isError, refetch } = useTeamLeaveRequests({
@@ -509,7 +515,10 @@ function TeamLeaveTab() {
                         {leaveTypeName(req.leave_type, t("leave_page.unknown"))}
                       </span>,
                       <span key="d" className="text-muted-foreground">
-                        {req.start_date} — {req.end_date}
+                        {t("leave_page.date_range", ":from to :to", {
+                          from: formatDate(req.start_date),
+                          to: formatDate(req.end_date),
+                        })}
                       </span>,
                       <StatusBadge key="s" status={req.status} />,
                     ],
