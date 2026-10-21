@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { PageActions } from "@/components/shared/page-actions";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { EmployeeSelect } from "@/components/shared/employee-select";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
@@ -29,6 +30,7 @@ import { ErrorState } from "@/components/shared/error-state";
 
 export default function LoansPage() {
   const { t } = useT();
+  const { can } = usePermissions();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({
     employee_public_id: "",
@@ -43,16 +45,20 @@ export default function LoansPage() {
   const loans: Loan[] = data ?? [];
 
   return (
-    <RoleGate allowedRoles={["finance_admin", "tenant_admin", "super_admin"]}>
+    <RoleGate anyPermission={["viewPayrollRuns"]}>
       <div className="space-y-6">
-        <PageActions
-          actions={
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />{" "}
-              {t("payroll_page.loans_page.new_loan")}
-            </Button>
-          }
-        />
+        {/* Viewing needs payroll.viewAll; recording a loan needs
+            payroll.manageLoan, which a viewer was offered and then refused. */}
+        {can.manageLoans && (
+          <PageActions
+            actions={
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />{" "}
+                {t("payroll_page.loans_page.new_loan")}
+              </Button>
+            }
+          />
+        )}
 
         {isLoading ? (
           <div className="space-y-3">
