@@ -18,6 +18,9 @@ return [
 
     // Approval reminders
     'approval_reminder_subject' => 'Approvals Waiting on You',
+    'approval_escalated_subject' => 'An approval is overdue',
+    'approval_escalated_hint' => 'Please follow up with them, or ask HR to decide it if they are away.',
+    'approval_escalated_action' => 'Open approvals',
 
     // Approval routing
     'review_request' => 'Review Request',
@@ -31,6 +34,7 @@ return [
     // (User::preferredLocale). Each carries a `url` the notification opens.
     'inapp' => [
         'approval_reminder' => 'You have :count approvals waiting. The oldest has waited :hours hours.',
+        'approval_escalated' => ':name\'s :type has waited :hours hours for :approver to decide it.',
         'attendance_anomaly' => 'Attendance anomaly for :name: :type',
         'correction_approved' => 'Your attendance correction for :date was approved.',
         'correction_rejected' => 'Your attendance correction for :date was rejected.',
