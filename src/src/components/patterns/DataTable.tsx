@@ -500,8 +500,11 @@ export function DataTable<TData>({
       {meta && meta.last_page > 1 && onPageChange && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            {t("table.showing", "Showing")} {meta.from}–{meta.to}{" "}
-            {t("table.of", "of")} {meta.total}
+            {t("common.showing_range", "Showing :from to :to of :total", {
+              from: meta.from ?? 0,
+              to: meta.to ?? 0,
+              total: meta.total,
+            })}
           </p>
           <div className="flex gap-2">
             <Button

@@ -164,7 +164,13 @@ export default function AttendanceImportPage() {
           setImportResult(data);
           setStep("done");
           toast.success(
-            `${t("attendance.import_page.imported")} ${data.created} ${t("attendance.import_page.records")}`,
+            t(
+              "attendance.import_page.imported_count",
+              "Imported :count records",
+              {
+                count: data.created,
+              },
+            ),
           );
         },
         onError: (err: unknown) => {
@@ -225,7 +231,9 @@ export default function AttendanceImportPage() {
                 <>
                   <Loader2 className="h-12 w-12 animate-spin text-primary" />
                   <p className="mt-4 text-sm font-medium">
-                    {t("attendance.import_page.parsing")} {fileName}…
+                    {t("attendance.import_page.parsing_file", "Reading :name", {
+                      name: fileName,
+                    })}
                   </p>
                 </>
               ) : (
@@ -319,8 +327,13 @@ export default function AttendanceImportPage() {
                   disabled={preview.valid === 0}
                 >
                   <Upload className="mr-2 h-4 w-4" />
-                  {t("attendance.import_page.import_n_records_prefix")}{" "}
-                  {preview.valid} {t("attendance.import_page.records")}
+                  {t(
+                    "attendance.import_page.import_count",
+                    "Import :count records",
+                    {
+                      count: preview.valid,
+                    },
+                  )}
                 </Button>
               </div>
             </CardHeader>
@@ -418,7 +431,9 @@ export default function AttendanceImportPage() {
                 variant="outline"
                 className="px-3 py-1.5 text-sm bg-success-soft"
               >
-                {importResult.created} {t("attendance.import_page.created")}
+                {t("attendance.import_page.created_count", ":count created", {
+                  count: importResult.created,
+                })}
               </Badge>
               {importResult.skipped > 0 && (
                 <Badge
