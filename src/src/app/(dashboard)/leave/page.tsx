@@ -56,6 +56,7 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useConfirm } from "@/components/shared/use-confirm";
+import { ReasonDialog } from "@/components/shared/reason-dialog";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
@@ -404,8 +405,33 @@ function TeamLeaveTab() {
   });
   const approveLeave = useApproveLeave();
   const rejectLeave = useRejectLeave();
+  // The request awaiting a reason. Rejecting used to send the literal word
+  // "Rejected", so the employee never learned why.
+  const [rejecting, setRejecting] = useState<(typeof requests)[number] | null>(
+    null,
+  );
 
   const requests = data?.data ?? [];
+
+  function confirmReject(reason: string) {
+    if (!rejecting) return;
+    rejectLeave.mutate(
+      { publicId: rejecting.public_id, reason },
+      {
+        onSuccess: () => {
+          toast.success(t("leave_page.rejected", "Leave request rejected"));
+          setRejecting(null);
+        },
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("leave_page.reject_failed", "Reject failed"),
+            ),
+          ),
+      },
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -505,12 +531,7 @@ function TeamLeaveTab() {
                           size="sm"
                           variant="ghost"
                           className="h-7 text-destructive"
-                          onClick={() =>
-                            rejectLeave.mutate({
-                              publicId: req.public_id,
-                              reason: "Rejected",
-                            })
-                          }
+                          onClick={() => setRejecting(req)}
                           disabled={rejectLeave.isPending}
                           aria-label={t("common.reject")}
                         >
@@ -530,6 +551,27 @@ function TeamLeaveTab() {
           </CardContent>
         </Card>
       )}
+      <ReasonDialog
+        open={rejecting !== null}
+        onOpenChange={(open) => {
+          if (!open) setRejecting(null);
+        }}
+        title={t("approvals.reject_title", "Reject request")}
+        description={t(
+          "approvals.reject_description",
+          "This will be recorded and shown to :name. Explain why so they know what to do next.",
+          { name: rejecting?.employee?.name ?? "" },
+        )}
+        label={t("approvals.reject_reason", "Reason for rejection")}
+        hint={t("approvals.reject_reason_hint", "Visible to the employee.")}
+        placeholder={t(
+          "approvals.reject_reason_placeholder",
+          "e.g. Team is already at minimum cover for those dates.",
+        )}
+        confirmLabel={t("common.reject", "Reject")}
+        loading={rejectLeave.isPending}
+        onConfirm={confirmReject}
+      />
     </div>
   );
 }

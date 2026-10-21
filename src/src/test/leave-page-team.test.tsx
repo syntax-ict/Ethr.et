@@ -123,3 +123,50 @@ describe("the leave request form", () => {
     expect(decodeURIComponent(queries[0])).toContain("filter[is_active]=1");
   });
 });
+
+/**
+ * Rejecting a team request sent the literal word "Rejected" in one click, so
+ * the employee never learned why. It now asks for the reason, which the
+ * employee sees, and will not send without one.
+ */
+describe("rejecting a team leave request", () => {
+  it("asks why, and sends the reason that was typed", async () => {
+    serveLeave();
+    const sent: { reason?: string }[] = [];
+    server.use(
+      http.get("*/api/v1/leave/team", () =>
+        HttpResponse.json({
+          data: [teamRequest("Abebe Kebede", "pending")],
+          meta: { current_page: 1, last_page: 1, per_page: 25, total: 1 },
+          links: { first: null, last: null, prev: null, next: null },
+        }),
+      ),
+      http.put("*/api/v1/leave/:id/reject", async ({ request }) => {
+        sent.push((await request.json()) as { reason?: string });
+        return HttpResponse.json({});
+      }),
+    );
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("tab", { name: /team/i }));
+    await user.click(await screen.findByRole("button", { name: "Reject" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Abebe Kebede");
+    const confirm = screen.getAllByRole("button", { name: "Reject" }).at(-1)!;
+    expect(confirm).toBeDisabled();
+
+    await user.type(
+      screen.getByRole("textbox", { name: /reason for rejection/i }),
+      "Team is at minimum cover that week.",
+    );
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+
+    await waitFor(() =>
+      expect(sent).toEqual([{ reason: "Team is at minimum cover that week." }]),
+    );
+    expect(sent[0].reason).not.toBe("Rejected");
+  });
+});
