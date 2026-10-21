@@ -282,6 +282,7 @@ function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
           />
         ) : (
           <SimpleTable
+            mobileCards
             caption={t("billing.invoice_history", "Invoice History")}
             headers={[
               t("billing.invoice_id", "Invoice ID"),

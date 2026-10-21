@@ -20,9 +20,12 @@ describe("OfflineBanner", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders nothing when online with no pending records", async () => {
-    const { container } = render(<OfflineBanner />);
-    await waitFor(() => expect(container).toBeEmptyDOMElement());
+  it("shows nothing when online with no pending records", async () => {
+    render(<OfflineBanner />);
+    // The live region stays mounted, empty, so a later message is announced.
+    const region = screen.getByRole("status");
+    await waitFor(() => expect(region).toBeEmptyDOMElement());
+    expect(region).toHaveAttribute("aria-live", "polite");
   });
 
   it("shows an offline message when the browser goes offline", async () => {

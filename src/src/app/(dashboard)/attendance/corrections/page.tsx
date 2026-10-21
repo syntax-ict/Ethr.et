@@ -233,6 +233,7 @@ function CorrectionsList({
     <Card>
       <CardContent className="p-0">
         <SimpleTable
+          mobileCards
           caption={t("attendance.corrections.title", "Corrections")}
           headers={[
             t("attendance.employee"),

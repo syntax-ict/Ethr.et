@@ -123,6 +123,7 @@ export default function TeamAttendancePage() {
             <Card>
               <CardContent className="p-0">
                 <SimpleTable
+                  mobileCards
                   caption={t("attendance.team_page.title", "Team Attendance")}
                   headers={[
                     t("attendance.employee"),

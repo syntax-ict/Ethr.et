@@ -478,6 +478,7 @@ export default function AttendancePage() {
           <Card className="overflow-hidden rounded-xl border-border/60">
             <CardContent className="p-0">
               <SimpleTable
+                mobileCards
                 caption={t("attendance.title", "Attendance")}
                 headers={[
                   ...(viewAll ? [t("attendance.employee", "Employee")] : []),

@@ -263,6 +263,7 @@ export default function ApiKeysPage() {
             <Card>
               <CardContent className="p-0">
                 <SimpleTable
+                  mobileCards
                   caption={t("api_keys_page.title", "API Keys")}
                   headers={[
                     t("common.name"),

@@ -464,6 +464,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 ) : (
                   <>
                     <SimpleTable
+                      mobileCards
                       caption={t(
                         "device_detail_page.sync_history",
                         "Sync history",
@@ -580,6 +581,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 ) : (
                   <>
                     <SimpleTable
+                      mobileCards
                       caption={t("device_detail_page.events", "Events")}
                       headers={[
                         t("attendance.employee"),

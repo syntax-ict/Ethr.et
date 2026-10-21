@@ -183,6 +183,7 @@ export default function DeviceDashboardPage() {
               </p>
             ) : (
               <SimpleTable
+                mobileCards
                 caption={t("devices_page.title", "Devices")}
                 headers={[
                   t("devices_page.device_name"),
