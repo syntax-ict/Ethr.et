@@ -60,6 +60,7 @@ import {
 import { ConcernStatusBadge, ConcernThread } from "@/features/voice/components";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 /**
  * Employee voice for HR: how people say work is going, and the concerns they
@@ -301,7 +302,11 @@ function PulseOverview() {
 function ConcernQueue() {
   const { t } = useT();
   const { timeAgo } = useDateFormatters();
-  const [status, setStatus] = useState<string>("open");
+  const queryFilters = useQueryFilters(
+    { concern: "open" },
+    { concern: ["open", ...CONCERN_STATUSES] },
+  );
+  const status = queryFilters.values.concern;
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<string | null>(null);
   const filter = status === "open" ? "all" : status;
@@ -336,7 +341,7 @@ function ConcernQueue() {
               role="radio"
               aria-checked={status === f.value}
               onClick={() => {
-                setStatus(f.value);
+                queryFilters.set({ concern: f.value });
                 setPage(1);
               }}
               className={cn(

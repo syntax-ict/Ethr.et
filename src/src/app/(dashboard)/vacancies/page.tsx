@@ -58,6 +58,7 @@ import {
 } from "@/features/vacancies/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 const NONE = "__none__";
 
@@ -115,7 +116,11 @@ export default function VacanciesPage() {
   const updateVacancy = useUpdateVacancy();
   const deleteVacancy = useDeleteVacancy();
 
-  const [filter, setFilter] = useState<Filter>("open");
+  const queryFilters = useQueryFilters(
+    { status: "open" },
+    { status: ["open", "draft", "closed"] },
+  );
+  const filter = queryFilters.values.status as Filter;
   const [editing, setEditing] = useState<Vacancy | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [viewing, setViewing] = useState<Vacancy | null>(null);
@@ -211,7 +216,7 @@ export default function VacanciesPage() {
               type="button"
               role="tab"
               aria-selected={filter === f.value}
-              onClick={() => setFilter(f.value)}
+              onClick={() => queryFilters.set({ status: f.value })}
               className={cn(
                 "rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 filter === f.value

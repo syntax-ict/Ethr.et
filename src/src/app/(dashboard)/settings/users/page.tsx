@@ -53,6 +53,8 @@ import {
 import { SearchInput } from "@/components/shared/search-input";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
+import { FilterBar } from "@/components/shared/filter-bar";
 
 const ROLES = [
   "tenant_admin",
@@ -87,7 +89,8 @@ export default function UsersSettingsPage() {
   // screen read only the first page, so accounts past the 25th could not be
   // edited, re-invited or removed (audit N68).
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const filters = useQueryFilters({ q: "" });
+  const search = filters.values.q;
   const usersQuery = useUsers({ page, search: search || undefined });
   const invite = useInviteUser();
   const update = useUpdateUser();
@@ -186,16 +189,24 @@ export default function UsersSettingsPage() {
           }
         />
 
-        <div className="max-w-sm">
-          <SearchInput
-            value={search}
-            onChange={(value) => {
-              setSearch(value);
-              setPage(1);
-            }}
-            placeholder={t("users_page.search", "Search by name or email")}
-          />
-        </div>
+        <FilterBar
+          activeCount={filters.activeCount}
+          onClear={() => {
+            filters.clear();
+            setPage(1);
+          }}
+        >
+          <div className="w-full max-w-sm">
+            <SearchInput
+              value={search}
+              onChange={(value) => {
+                filters.set({ q: value });
+                setPage(1);
+              }}
+              placeholder={t("users_page.search", "Search by name or email")}
+            />
+          </div>
+        </FilterBar>
 
         {usersQuery.isLoading ? (
           <div className="space-y-2">

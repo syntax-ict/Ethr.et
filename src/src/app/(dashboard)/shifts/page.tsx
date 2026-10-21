@@ -57,6 +57,8 @@ import { cn } from "@/lib/utils";
 import { SettingRow } from "@/components/patterns/SettingRow";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
+import { FilterBar } from "@/components/shared/filter-bar";
 
 const DAY_LABELS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_WORKING_DAYS = "1,2,3,4,5";
@@ -117,7 +119,8 @@ export default function ShiftsPage() {
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<Shift | null>(null);
   const [form, setForm] = useState<ShiftForm>(EMPTY_FORM);
-  const [search, setSearch] = useState("");
+  const filters = useQueryFilters({ q: "" });
+  const search = filters.values.q;
 
   const { data, isLoading, isError, refetch } = useShifts();
   const createShift = useCreateShift();
@@ -256,13 +259,15 @@ export default function ShiftsPage() {
           }
         />
 
-        {/* Search */}
-        <Input
-          placeholder={t("shifts_page.search_placeholder")}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
-        />
+        <FilterBar activeCount={filters.activeCount} onClear={filters.clear}>
+          <Input
+            placeholder={t("shifts_page.search_placeholder")}
+            aria-label={t("shifts_page.search_placeholder")}
+            value={search}
+            onChange={(e) => filters.set({ q: e.target.value })}
+            className="max-w-xs"
+          />
+        </FilterBar>
 
         {/* Shift list */}
         {isLoading ? (

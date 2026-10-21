@@ -29,6 +29,7 @@ import { apiErrorDetail } from "@/lib/api/error-message";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 /**
  * Employment letters employees asked for. Issuing generates the letter with
@@ -36,7 +37,11 @@ import { toast } from "sonner";
  */
 export default function LetterRequestsPage() {
   const { t } = useT();
-  const [status, setStatus] = useState<LetterRequest["status"]>("pending");
+  const filters = useQueryFilters(
+    { status: "pending" },
+    { status: ["pending", "issued", "rejected"] },
+  );
+  const status = filters.values.status as LetterRequest["status"];
   const query = useLetterRequests(status);
 
   return (
@@ -46,10 +51,7 @@ export default function LetterRequestsPage() {
           title={t("letters.hr_title")}
           description={t("letters.hr_description")}
         />
-        <Tabs
-          value={status}
-          onValueChange={(v) => setStatus(v as LetterRequest["status"])}
-        >
+        <Tabs value={status} onValueChange={(v) => filters.set({ status: v })}>
           <TabsList>
             <TabsTrigger value="pending">
               {t("letters.status_pending")}
