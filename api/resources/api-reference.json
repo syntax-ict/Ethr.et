@@ -11641,6 +11641,386 @@
                 }
             }
         },
+        "/employees/letters": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "employees"
+                ],
+                "operationId": "letterRequest.index",
+                "summary": "List letters",
+                "tags": [
+                    "Letter Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "employee": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ],
+                                                        "properties": {
+                                                            "public_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "public_id",
+                                                            "name"
+                                                        ]
+                                                    },
+                                                    "purpose": {
+                                                        "type": "string"
+                                                    },
+                                                    "addressed_to": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "include_salary": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "language": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "reference": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "rejection_reason": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "decided_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "employee",
+                                                    "purpose",
+                                                    "addressed_to",
+                                                    "include_salary",
+                                                    "language",
+                                                    "status",
+                                                    "reference",
+                                                    "rejection_reason",
+                                                    "decided_at",
+                                                    "created_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/letters/{letter}/issue": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "letterRequest.issue",
+                "summary": "Issue letters",
+                "tags": [
+                    "Letter Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "letter",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "employee": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "public_id": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "public_id",
+                                                "name"
+                                            ]
+                                        },
+                                        "purpose": {
+                                            "type": "string"
+                                        },
+                                        "addressed_to": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "include_salary": {
+                                            "type": "boolean"
+                                        },
+                                        "language": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "reference": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "rejection_reason": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "decided_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "created_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "employee",
+                                        "purpose",
+                                        "addressed_to",
+                                        "include_salary",
+                                        "language",
+                                        "status",
+                                        "reference",
+                                        "rejection_reason",
+                                        "decided_at",
+                                        "created_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/letters/{letter}/reject": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "letterRequest.reject",
+                "summary": "Reject letters",
+                "tags": [
+                    "Letter Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "letter",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RejectLetterRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "employee": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "public_id": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "public_id",
+                                                "name"
+                                            ]
+                                        },
+                                        "purpose": {
+                                            "type": "string"
+                                        },
+                                        "addressed_to": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "include_salary": {
+                                            "type": "boolean"
+                                        },
+                                        "language": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "reference": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "rejection_reason": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "decided_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "created_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "employee",
+                                        "purpose",
+                                        "addressed_to",
+                                        "include_salary",
+                                        "language",
+                                        "status",
+                                        "reference",
+                                        "rejection_reason",
+                                        "decided_at",
+                                        "created_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/employees/next-code": {
             "get": {
                 "x-abilities": [
@@ -37310,6 +37690,20 @@
                     "reason"
                 ],
                 "title": "RejectLeaveRequest"
+            },
+            "RejectLetterRequest": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "reason"
+                ],
+                "title": "RejectLetterRequest"
             },
             "RenewEmployeeContractRequest": {
                 "type": "object",

@@ -100,6 +100,12 @@ parameters:
         - message: '#^Method App\\Models\\UnmatchedDevicePunch\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
 
+        # Same larastan limitation for employment letter requests (2026-10-20).
+        # The model is correct and covered by EmploymentLetterTest. Scoped to
+        # the trait file, model-named exact.
+        - message: '#^Method App\\Models\\EmploymentLetterRequest\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+          path: app/Traits/BelongsToTenant.php
+
         # Same larastan limitation for personnel_actions — its JSON `changes`
         # column stops larastan introspecting the table, so the trait generics
         # resolve to false positives "in context of" PersonnelAction. The model

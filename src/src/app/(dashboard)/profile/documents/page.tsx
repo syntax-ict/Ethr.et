@@ -15,6 +15,7 @@ import {
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { MyLettersCard } from "@/features/letters/components/my-letters-card";
 
 /**
  * The documents HR has filed against the caller's own record. Read-only:
@@ -26,34 +27,37 @@ export default function ProfileDocumentsPage() {
   const query = useMyDocuments();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">
-          {t("profile.documents.title")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <QueryBoundary
-          query={query}
-          isEmpty={(docs) => docs.length === 0}
-          empty={
-            <EmptyState
-              icon={FileText}
-              title={t("profile.documents.empty")}
-              description={t("profile.documents.empty_hint")}
-            />
-          }
-        >
-          {(docs) => (
-            <ul className="divide-y">
-              {docs.map((doc) => (
-                <DocumentRow key={doc.public_id} doc={doc} />
-              ))}
-            </ul>
-          )}
-        </QueryBoundary>
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <MyLettersCard />
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            {t("profile.documents.title")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <QueryBoundary
+            query={query}
+            isEmpty={(docs) => docs.length === 0}
+            empty={
+              <EmptyState
+                icon={FileText}
+                title={t("profile.documents.empty")}
+                description={t("profile.documents.empty_hint")}
+              />
+            }
+          >
+            {(docs) => (
+              <ul className="divide-y">
+                {docs.map((doc) => (
+                  <DocumentRow key={doc.public_id} doc={doc} />
+                ))}
+              </ul>
+            )}
+          </QueryBoundary>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
