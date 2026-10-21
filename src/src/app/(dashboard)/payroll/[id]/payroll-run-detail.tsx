@@ -320,20 +320,24 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         "net_cents",
       ] as const;
       const headers = [
-        "Employee Code",
-        "Employee",
-        "Basic",
-        "Overtime",
-        "Allowances",
-        "Gross",
-        "Taxable",
-        "Income Tax",
+        t("payroll_register.employee_code", "Employee Code"),
+        t("payroll_register.employee", "Employee"),
+        t("payroll_register.basic", "Basic"),
+        t("payroll_register.overtime", "Overtime"),
+        t("payroll_register.allowances", "Allowances"),
+        t("payroll_register.gross", "Gross"),
+        t("payroll_register.taxable", "Taxable"),
+        t("payroll_register.income_tax", "Income Tax"),
         // The rates this run applied, never a constant (2026-10-14).
-        `Employee Pension ${rateLabel(register.pension_rates?.employee)}`.trim(),
-        `Employer Pension ${rateLabel(register.pension_rates?.employer)}`.trim(),
-        "Loan",
-        "Cost Sharing",
-        "Net Pay",
+        t("payroll_register.employee_pension", "Employee Pension :rate", {
+          rate: rateLabel(register.pension_rates?.employee),
+        }).trim(),
+        t("payroll_register.employer_pension", "Employer Pension :rate", {
+          rate: rateLabel(register.pension_rates?.employer),
+        }).trim(),
+        t("payroll_register.loan", "Loan"),
+        t("payroll_register.cost_sharing", "Cost Sharing"),
+        t("payroll_register.net_pay", "Net Pay"),
       ];
       const rows = register.rows.map((r) => [
         r.employee_code,
@@ -341,7 +345,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         ...columns.map((c) => csvAmount(r[c])),
       ]);
       rows.push([
-        "TOTAL",
+        t("payroll_register.total", "TOTAL"),
         String(register.rows.length),
         ...columns.map((c) => csvAmount(register.totals[c])),
       ]);
