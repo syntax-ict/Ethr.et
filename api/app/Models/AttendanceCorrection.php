@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\CorrectionStatus;
 use App\Traits\BelongsToTenant;
+use App\Traits\HasApprovalInstance;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -21,7 +22,7 @@ use Illuminate\Support\Carbon;
  */
 class AttendanceCorrection extends Model
 {
-    use BelongsToTenant, HasFactory, HasPublicId;
+    use BelongsToTenant, HasApprovalInstance, HasFactory, HasPublicId;
 
     protected $fillable = [
         'public_id',

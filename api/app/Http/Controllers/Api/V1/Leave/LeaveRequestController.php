@@ -149,7 +149,7 @@ class LeaveRequestController extends Controller
             'days' => $days,
         ]);
 
-        $leaveRequest->load('employee', 'leaveType');
+        $leaveRequest->load('employee', 'leaveType', 'approvalInstance.actions.actor');
 
         // PHASE_05 S26: "LeaveRequestedNotification → approver". The class existed
         // from Phase 5 but nothing ever constructed it, so approvers were never
@@ -241,7 +241,7 @@ class LeaveRequestController extends Controller
     {
         $this->authorize('view', $leaveRequest);
 
-        $leaveRequest->load('employee', 'leaveType');
+        $leaveRequest->load('employee', 'leaveType', 'approvalInstance.actions.actor');
 
         return response()->json(new LeaveRequestResource($leaveRequest));
     }
@@ -259,7 +259,7 @@ class LeaveRequestController extends Controller
 
         $this->decisions->approve($leaveRequest, $user);
 
-        $leaveRequest->load('employee', 'leaveType');
+        $leaveRequest->load('employee', 'leaveType', 'approvalInstance.actions.actor');
 
         return response()->json(new LeaveRequestResource($leaveRequest));
     }
@@ -277,7 +277,7 @@ class LeaveRequestController extends Controller
 
         $this->decisions->reject($leaveRequest, $user, (string) $request->input('reason'));
 
-        $leaveRequest->load('employee', 'leaveType');
+        $leaveRequest->load('employee', 'leaveType', 'approvalInstance.actions.actor');
 
         return response()->json(new LeaveRequestResource($leaveRequest));
     }
@@ -318,7 +318,7 @@ class LeaveRequestController extends Controller
 
         AuditLog::record('leave.cancelled', $leaveRequest);
 
-        $leaveRequest->load('employee', 'leaveType');
+        $leaveRequest->load('employee', 'leaveType', 'approvalInstance.actions.actor');
 
         return response()->json(new LeaveRequestResource($leaveRequest));
     }

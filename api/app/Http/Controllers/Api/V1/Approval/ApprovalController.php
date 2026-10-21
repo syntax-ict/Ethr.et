@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Approval;
 use App\Enums\ProfileUpdateStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Approval\BatchApprovalRequest;
+use App\Models\ApprovalInstance;
 use App\Models\AttendanceCorrection;
 use App\Models\LeaveRequest;
 use App\Models\ProfileUpdateRequest;
@@ -44,7 +45,7 @@ class ApprovalController extends Controller
         // approve. It used to list direct reports only, so HR and branch- or
         // department-scoped approvers saw a fraction of what they could decide.
         $leaveRequests = $this->approvals->leave($user)
-            ->with('employee:id,name,public_id', 'leaveType:id,name,name_am')
+            ->with('employee:id,name,public_id', 'leaveType:id,name,name_am', 'approvalInstance')
             ->orderByDesc('created_at')
             ->get();
 
@@ -69,12 +70,14 @@ class ApprovalController extends Controller
                     'to' => $lr->end_date->translatedFormat('M d'),
                 ]),
                 'submitted_at' => $lr->created_at,
+                'step' => $this->approvalOf($lr)->current_position ?? 1,
+                'steps' => $this->approvalOf($lr)?->stepCount() ?? 1,
             ];
         }
 
         if (class_exists(AttendanceCorrection::class)) {
             $corrections = $this->approvals->corrections($user)
-                ->with('employee:id,name,public_id', 'attendanceRecord:id,date')
+                ->with('employee:id,name,public_id', 'attendanceRecord:id,date', 'approvalInstance')
                 ->orderByDesc('created_at')
                 ->get();
 
@@ -93,6 +96,8 @@ class ApprovalController extends Controller
                         'date' => $date?->translatedFormat('M d') ?? '—',
                     ]),
                     'submitted_at' => $c->created_at,
+                    'step' => $this->approvalOf($c)->current_position ?? 1,
+                    'steps' => $this->approvalOf($c)?->stepCount() ?? 1,
                 ];
             }
         }
@@ -121,6 +126,8 @@ class ApprovalController extends Controller
                         'new' => $this->displayValue($pu, $pu->new_value, $user) ?? '—',
                     ]),
                     'submitted_at' => $pu->created_at,
+                    'step' => 1,
+                    'steps' => 1,
                 ];
             }
         }
@@ -247,6 +254,14 @@ class ApprovalController extends Controller
         $this->correctionDecisions->reject($correction, $user, (string) ($action['reason'] ?? 'Batch rejected'));
 
         return ['status' => 'rejected'];
+    }
+
+    /** The eager-loaded approval, or null for a request on the default single step. */
+    private function approvalOf(LeaveRequest|AttendanceCorrection $request): ?ApprovalInstance
+    {
+        $instance = $request->getRelation('approvalInstance');
+
+        return $instance instanceof ApprovalInstance ? $instance : null;
     }
 
     /**

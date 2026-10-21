@@ -11,6 +11,7 @@ use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Notifications\LeaveApprovedNotification;
 use App\Notifications\LeaveRejectedNotification;
+use App\Services\Approval\ApprovalEngine;
 use App\Support\ApprovalRefusal;
 use App\Traits\DispatchesWebhooks;
 use App\Traits\SendsNotifications;
@@ -29,6 +30,8 @@ class LeaveDecisionService
 {
     use DispatchesWebhooks, SendsNotifications;
 
+    public function __construct(private readonly ApprovalEngine $engine) {}
+
     /** The state checks that follow authorisation, or null when the decision may go ahead. */
     public function refusal(LeaveRequest $leaveRequest, User $by, bool $approving): ?ApprovalRefusal
     {
@@ -40,11 +43,20 @@ class LeaveDecisionService
             return ApprovalRefusal::selfApproval(__('leave.cannot_approve_own'));
         }
 
+        if (! $this->engine->isCurrentApprover($leaveRequest, $by, $approving)) {
+            return ApprovalRefusal::notCurrentApprover(__('approval.not_current_approver'));
+        }
+
         return null;
     }
 
     public function approve(LeaveRequest $leaveRequest, User $by): void
     {
+        // A chain with steps still to go records this one and stays pending.
+        if (! $this->engine->approve($leaveRequest, $by)) {
+            return;
+        }
+
         $chain = $leaveRequest->approved_by ?? [];
         $chain[] = [
             'user_id' => $by->id,
@@ -80,6 +92,8 @@ class LeaveDecisionService
 
     public function reject(LeaveRequest $leaveRequest, User $by, string $reason): void
     {
+        $this->engine->reject($leaveRequest, $by, $reason);
+
         $leaveRequest->update([
             'status' => LeaveStatus::REJECTED,
             'rejected_by' => $by->id,
