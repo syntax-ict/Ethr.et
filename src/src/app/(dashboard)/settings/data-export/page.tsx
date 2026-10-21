@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
@@ -102,12 +102,7 @@ export default function DataExportPage() {
   return (
     <RoleGate anyPermission={["manageSettings"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("nav.data_export", "Data export")}
-          description={t(
-            "route.settings.data_export.desc",
-            "Download a copy of all your organisation's data",
-          )}
+        <PageActions
           actions={
             <Button onClick={requestExport} disabled={request.isPending}>
               {request.isPending ? (

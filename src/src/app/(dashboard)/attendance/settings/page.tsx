@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
   useAttendanceSettings,
@@ -118,9 +118,7 @@ export default function AttendanceSettingsPage() {
     // AttendanceSettingController checks attendance.manage.
     <RoleGate anyPermission={["manageAttendance"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("attendance.settings_page.title")}
-          description={t("attendance.settings_page.description")}
+        <PageActions
           actions={
             <Button onClick={handleSave} disabled={!form || save.isPending}>
               {save.isPending ? (

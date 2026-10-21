@@ -43,7 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmployeeSelect } from "@/components/shared/employee-select";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -65,6 +65,7 @@ import { useCalendar } from "@/lib/calendar/calendar-context";
 import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
+import { PaginationControls } from "@/components/shared/pagination-controls";
 
 export default function AttendancePage() {
   const { formatTime } = useDateFormatters();
@@ -163,12 +164,7 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("nav.attendance", "Attendance")}
-        description={t(
-          "attendance.description",
-          "Track and manage attendance records",
-        )}
+      <PageActions
         actions={
           <div className="flex flex-wrap gap-2">
             <Button onClick={handleCheckIn} disabled={checkIn.isPending}>
@@ -507,32 +503,7 @@ export default function AttendancePage() {
             </CardContent>
           </Card>
 
-          {data?.meta && data.meta.last_page > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                {t("table.showing", "Showing")} {data.meta.from}–{data.meta.to}{" "}
-                {t("table.of", "of")} {data.meta.total}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  {t("table.previous", "Previous")}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= data.meta.last_page}
-                  onClick={() => setPage(page + 1)}
-                >
-                  {t("common.next", "Next")}
-                </Button>
-              </div>
-            </div>
-          )}
+          <PaginationControls meta={data?.meta} onPageChange={setPage} />
         </>
       )}
 

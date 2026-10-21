@@ -18,8 +18,6 @@ import {
   Wifi,
   WifiOff,
   Activity,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,6 +68,7 @@ import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { ErrorState } from "@/components/shared/error-state";
+import { PaginationControls } from "@/components/shared/pagination-controls";
 
 /** A 404 means the record is gone; anything else means the request failed. */
 function isNotFound(error: unknown): boolean {
@@ -550,38 +549,13 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                         ],
                       }))}
                     />
-                    {syncLogPages > 1 && (
-                      <div className="flex items-center justify-between border-t p-3">
-                        <span className="text-xs text-muted-foreground">
-                          {t("device_detail_page.page")} {syncLogPage}
-                        </span>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            aria-label={t(
-                              "common.previous_page",
-                              "Previous page",
-                            )}
-                            disabled={syncLogPage <= 1}
-                            onClick={() => setSyncLogPage((p) => p - 1)}
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            aria-label={t("common.next_page", "Next page")}
-                            disabled={syncLogPage >= syncLogPages}
-                            onClick={() => setSyncLogPage((p) => p + 1)}
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                    <PaginationControls
+                      meta={{
+                        current_page: syncLogPage,
+                        last_page: syncLogPages,
+                      }}
+                      onPageChange={setSyncLogPage}
+                    />
                   </>
                 )}
               </CardContent>
@@ -660,38 +634,10 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                         ],
                       }))}
                     />
-                    {eventPages > 1 && (
-                      <div className="flex items-center justify-between border-t p-3">
-                        <span className="text-xs text-muted-foreground">
-                          {t("device_detail_page.page")} {eventPage}
-                        </span>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            aria-label={t(
-                              "common.previous_page",
-                              "Previous page",
-                            )}
-                            disabled={eventPage <= 1}
-                            onClick={() => setEventPage((p) => p - 1)}
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            aria-label={t("common.next_page", "Next page")}
-                            disabled={eventPage >= eventPages}
-                            onClick={() => setEventPage((p) => p + 1)}
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                    <PaginationControls
+                      meta={{ current_page: eventPage, last_page: eventPages }}
+                      onPageChange={setEventPage}
+                    />
                   </>
                 )}
               </CardContent>

@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
@@ -31,20 +30,11 @@ import { apiErrorMessage } from "@/lib/api/error-message";
  * settings.
  */
 export default function PlatformSettingsPage() {
-  const { t } = useT();
   const query = usePlatformSettings();
 
   return (
     <RoleGate minRole="super_admin">
       <div className="space-y-6">
-        <PageHeader
-          title={t("platform_settings.title", "Platform Settings")}
-          description={t(
-            "platform_settings.description",
-            "Payment details shown to every tenant on their billing page",
-          )}
-        />
-
         <QueryBoundary
           query={query}
           loading={<Skeleton className="h-96 w-full" />}

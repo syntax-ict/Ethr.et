@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ReasonDialog } from "@/components/shared/reason-dialog";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -109,11 +108,6 @@ export default function ApprovalsPage() {
   return (
     <RoleGate minRole="supervisor">
       <div className="space-y-6">
-        <PageHeader
-          title={t("approvals.title", "Pending Approvals")}
-          description={`${items.length} ${t("approvals.items_waiting", "item(s) waiting for your review")}`}
-        />
-
         {/* QueryBoundary, so a failed load says so. It used to fall through
             to the empty state: a reviewer whose queue could not be read was
             told "No pending approvals". */}

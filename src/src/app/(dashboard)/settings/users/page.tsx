@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -175,12 +175,7 @@ export default function UsersSettingsPage() {
   return (
     <RoleGate anyPermission={["viewUsers"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("users_page.title", "Users & Access")}
-          description={t(
-            "users_page.description",
-            "Invite people, set their role, and choose the handle they log in with.",
-          )}
+        <PageActions
           actions={
             <Button onClick={openInvite}>
               <UserPlus className="mr-2 h-4 w-4" />

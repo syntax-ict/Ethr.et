@@ -25,7 +25,7 @@ function getGreetingKey(): string {
  *
  * /dashboard hides the shared PageTitleBar (see components/layouts/
  * page-title-bar.tsx) because this block is the page's h1. Actions sit
- * top-right, matching the position PageHeader uses on every other page, so
+ * top-right, matching the position PageActions uses on every other page, so
  * the primary action lives in one predictable place product-wide (Nielsen #4).
  */
 export function WelcomeSection() {

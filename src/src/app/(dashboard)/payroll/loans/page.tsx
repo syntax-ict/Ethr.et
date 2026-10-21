@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmployeeSelect } from "@/components/shared/employee-select";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
@@ -45,9 +45,7 @@ export default function LoansPage() {
   return (
     <RoleGate allowedRoles={["finance_admin", "tenant_admin", "super_admin"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("payroll_page.loans_page.title")}
-          description={t("payroll_page.loans_page.description")}
+        <PageActions
           actions={
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />{" "}

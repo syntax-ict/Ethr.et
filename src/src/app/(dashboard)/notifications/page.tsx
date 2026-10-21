@@ -6,7 +6,7 @@ import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import {
@@ -46,12 +46,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("common.notifications", "Notifications")}
-        description={t(
-          "notifications.description",
-          "Stay updated on your activities",
-        )}
+      <PageActions
         actions={
           notifications.length > 0 && (
             <Button

@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useGenerateScimToken } from "@/features/settings/api";
 import { toast } from "sonner";
@@ -60,14 +59,6 @@ export default function ScimSettingsPage() {
   return (
     <RoleGate anyPermission={["manageSettings"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("settings.scim_provisioning", "SCIM Provisioning")}
-          description={t(
-            "settings.scim_description",
-            "Connect your identity provider (Okta, Azure AD, OneLogin) to automatically provision and deprovision user accounts via SCIM 2.0.",
-          )}
-        />
-
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">

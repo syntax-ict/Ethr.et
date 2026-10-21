@@ -30,7 +30,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -173,9 +173,7 @@ export default function ApiKeysPage() {
   return (
     <RoleGate anyPermission={["manageApiKeys"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("api_keys_page.title")}
-          description={t("api_keys_page.description")}
+        <PageActions
           actions={
             <div className="flex gap-2">
               <Button variant="outline" asChild>

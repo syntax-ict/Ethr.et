@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
 import { usePlanFeatures } from "@/features/auth/api";
 import { apiErrorDetail } from "@/lib/api/error-message";
+import { PaginationControls } from "@/components/shared/pagination-controls";
 
 export default function PayrollPage() {
   const { t, locale } = useT();
@@ -82,12 +83,7 @@ export default function PayrollPage() {
   return (
     <RoleGate allowedRoles={["finance_admin", "tenant_admin", "super_admin"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("payroll.title", "Payroll")}
-          description={t(
-            "payroll.description",
-            "View payroll runs and processing history",
-          )}
+        <PageActions
           actions={
             can.processPayroll &&
             hasPayroll && (
@@ -239,32 +235,7 @@ export default function PayrollPage() {
               </ul>
             </div>
 
-            {data.meta && data.meta.last_page > 1 && (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  {t("table.showing", "Showing")} {data.meta.from}–
-                  {data.meta.to} {t("table.of", "of")} {data.meta.total}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage(page - 1)}
-                  >
-                    {t("table.previous", "Previous")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= data.meta.last_page}
-                    onClick={() => setPage(page + 1)}
-                  >
-                    {t("common.next", "Next")}
-                  </Button>
-                </div>
-              </div>
-            )}
+            <PaginationControls meta={data.meta} onPageChange={setPage} />
           </>
         )}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

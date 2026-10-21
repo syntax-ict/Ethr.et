@@ -35,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -82,9 +82,7 @@ export default function CorrectionsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("attendance.corrections.title")}
-        description={t("attendance.corrections.description")}
+      <PageActions
         actions={
           <Button onClick={() => setRequestOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />{" "}

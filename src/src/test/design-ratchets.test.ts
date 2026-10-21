@@ -39,7 +39,7 @@ const DECLARATION = /\bfunction\s+confirm\s*\(/;
 const DISCARDED_ERROR = /\bonError:\s*\(\s*\)\s*=>/g;
 
 const CEILINGS = {
-  sub12pxText: 99,
+  sub12pxText: 96,
   nativeConfirm: 0,
   discardedErrors: 0,
   silentLoadFailures: 0,

@@ -21,10 +21,6 @@ export default function PlatformAuditLogPage() {
         endpoint="/admin/audit"
         queryKey="admin-audit"
         title={t("platform_audit_page.title", "Platform Audit Log")}
-        description={t(
-          "platform_audit_page.description",
-          "Every audited action across all tenants",
-        )}
         exportPrefix="platform-audit-log"
       />
     </RoleGate>

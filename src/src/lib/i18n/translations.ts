@@ -112,10 +112,14 @@ export function translateStatic(
 
   if (!replacements) return base;
 
-  return Object.entries(replacements).reduce(
-    (out, [name, value]) => out.split(`:${name}`).join(String(value)),
-    base,
-  );
+  // Longest name first: `:to` is a prefix of `:total`, and replacing it first
+  // printed "50tal" in "Showing :from to :to of :total" (2026-10-21).
+  return Object.entries(replacements)
+    .sort(([a], [b]) => b.length - a.length)
+    .reduce(
+      (out, [name, value]) => out.split(`:${name}`).join(String(value)),
+      base,
+    );
 }
 
 /**

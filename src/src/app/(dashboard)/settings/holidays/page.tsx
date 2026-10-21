@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -155,9 +155,7 @@ export default function HolidaysPage() {
   return (
     <RoleGate anyPermission={["manageHolidays"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("holidays_page.title")}
-          description={t("holidays_page.description")}
+        <PageActions
           actions={
             canCreate && (
               <div className="flex items-center gap-2">

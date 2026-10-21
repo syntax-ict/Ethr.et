@@ -30,7 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/shared/currency-input";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import {
   Select,
   SelectContent,
@@ -258,7 +258,7 @@ export default function NewEmployeePage() {
 
   return (
     <>
-      <PageHeader
+      <PageActions
         actions={
           <Button variant="outline" size="sm" asChild>
             <Link href="/employees/import">

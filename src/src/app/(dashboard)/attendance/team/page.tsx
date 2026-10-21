@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
@@ -53,13 +53,7 @@ export default function TeamAttendancePage() {
     // AttendanceController::team checks attendance.viewTeam, not a role tier.
     <RoleGate anyPermission={["viewTeam"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("attendance.team_page.title")}
-          description={
-            isToday
-              ? t("attendance.team_page.today_desc")
-              : `${t("attendance.team_page.date_desc_prefix")} ${date}`
-          }
+        <PageActions
           actions={
             <div className="flex items-center gap-1">
               <Button
