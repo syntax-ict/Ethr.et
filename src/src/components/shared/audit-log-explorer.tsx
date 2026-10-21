@@ -96,13 +96,13 @@ export function AuditLogExplorer({
     }
     if (!all.length) return;
     const headers = [
-      "Created At",
-      "Action",
-      "User",
-      "User ID",
-      "Entity Type",
-      "Entity ID",
-      "IP Address",
+      t("audit_logs_page.csv.created_at", "Created At"),
+      t("audit_logs_page.csv.action", "Action"),
+      t("audit_logs_page.csv.user", "User"),
+      t("audit_logs_page.csv.user_id", "User ID"),
+      t("audit_logs_page.csv.entity_type", "Entity Type"),
+      t("audit_logs_page.csv.entity_id", "Entity ID"),
+      t("audit_logs_page.csv.ip_address", "IP Address"),
     ];
     const rows = all.map((l) => [
       l.created_at,
