@@ -208,6 +208,7 @@ export default function HolidaysPage() {
               </CardHeader>
               <CardContent className="p-0">
                 <SimpleTable
+                  mobileCards
                   caption={t("holidays_page.title")}
                   headers={[
                     t("common.name"),

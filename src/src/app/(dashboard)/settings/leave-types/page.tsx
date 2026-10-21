@@ -264,6 +264,7 @@ export default function LeaveTypesPage() {
               </CardHeader>
               <CardContent className="p-0">
                 <SimpleTable
+                  mobileCards
                   caption={t("leave_types_page.title")}
                   headers={[
                     t("common.name"),

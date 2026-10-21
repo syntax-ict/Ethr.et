@@ -227,6 +227,7 @@ export function AllowanceRulesCard() {
         >
           {(data) => (
             <SimpleTable
+              mobileCards
               caption={t("payroll_config.allowances", "Allowances")}
               headers={[
                 t("common.name", "Name"),
