@@ -150,37 +150,37 @@ describe("timeAgo", () => {
 
   it("counts whole minutes up to an hour", () => {
     expect(at("2026-09-16T12:00:00.000Z", "2026-09-16T12:01:00.000Z")).toBe(
-      "1m ago",
+      "1 min ago",
     );
     expect(at("2026-09-16T12:00:00.000Z", "2026-09-16T12:59:00.000Z")).toBe(
-      "59m ago",
+      "59 min ago",
     );
   });
 
   it("switches to hours at exactly sixty minutes", () => {
     expect(at("2026-09-16T12:00:00.000Z", "2026-09-16T13:00:00.000Z")).toBe(
-      "1h ago",
+      "1 h ago",
     );
     expect(at("2026-09-16T12:00:00.000Z", "2026-09-17T11:00:00.000Z")).toBe(
-      "23h ago",
+      "23 h ago",
     );
   });
 
   it("switches to days at exactly twenty-four hours", () => {
     expect(at("2026-09-16T12:00:00.000Z", "2026-09-17T12:00:00.000Z")).toBe(
-      "1d ago",
+      "1 d ago",
     );
     expect(at("2026-09-16T12:00:00.000Z", "2026-09-22T12:00:00.000Z")).toBe(
-      "6d ago",
+      "6 d ago",
     );
   });
 
   it("switches to weeks at seven days", () => {
     expect(at("2026-09-16T12:00:00.000Z", "2026-09-23T12:00:00.000Z")).toBe(
-      "1w ago",
+      "1 wk ago",
     );
     expect(at("2026-09-16T12:00:00.000Z", "2026-10-13T12:00:00.000Z")).toBe(
-      "3w ago",
+      "3 wk ago",
     );
   });
 
@@ -292,17 +292,27 @@ describe("calendar dates, which have no time of day to convert", () => {
 // English-only, and this helper was English-only too (redundancy audit,
 // 2026-10-09).
 describe("timeAgo with a translator", () => {
-  it("builds every unit from the translator's words", () => {
+  it("builds each sentence from the translator, in its word order", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-16T12:05:00.000Z"));
     const am: Record<string, string> = {
       "time.just_now": "አሁን",
-      "time.ago": "በፊት",
-      "time.min_short": "ደ",
+      "time.minutes_ago": "ከ:count ደቂቃ በፊት",
+      "time.hours_ago": "ከ:count ሰዓት በፊት",
     };
-    const t = (key: string, fallback: string) => am[key] ?? fallback;
+    const t = (
+      key: string,
+      fallback: string,
+      replacements: Record<string, string | number> = {},
+    ) =>
+      Object.entries(replacements).reduce(
+        (out, [k, v]) => out.split(`:${k}`).join(String(v)),
+        am[key] ?? fallback,
+      );
 
     expect(timeAgo("2026-09-16T12:05:00.000Z", "UTC", t)).toBe("አሁን");
-    expect(timeAgo("2026-09-16T12:00:00.000Z", "UTC", t)).toBe("5ደ በፊት");
+    // The number sits where Amharic puts it, not first as English has it.
+    expect(timeAgo("2026-09-16T12:00:00.000Z", "UTC", t)).toBe("ከ5 ደቂቃ በፊት");
+    expect(timeAgo("2026-09-16T09:05:00.000Z", "UTC", t)).toBe("ከ3 ሰዓት በፊት");
   });
 });

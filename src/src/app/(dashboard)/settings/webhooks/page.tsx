@@ -292,7 +292,13 @@ export default function WebhooksPage() {
                               variant="outline"
                               className={statusBadgeClass("error")}
                             >
-                              {w.failure_count} {t("webhooks_page.failures")}
+                              {t(
+                                "webhooks_page.failures_count",
+                                ":count failures",
+                                {
+                                  count: w.failure_count,
+                                },
+                              )}
                             </Badge>
                           )}
                         </div>
