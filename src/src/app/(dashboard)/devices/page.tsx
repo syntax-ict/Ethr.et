@@ -80,6 +80,8 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 import { UnmatchedBadgesCard } from "@/features/devices/components/unmatched-badges-card";
+import { FilterBar } from "@/components/shared/filter-bar";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
@@ -97,8 +99,13 @@ export default function DevicesPage() {
   const [discoverDevice, setDiscoverDevice] = useState<Device | null>(null);
   const [historyDevice, setHistoryDevice] = useState<Device | null>(null);
   const [form, setForm] = useState<DeviceFormData>({ ...EMPTY_DEVICE_FORM });
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  // In the address: "offline devices" is a link someone can send.
+  const filters = useQueryFilters(
+    { q: "", status: "all" },
+    { status: ["all", "online", "offline", "error", "pending"] },
+  );
+  const search = filters.values.q;
+  const statusFilter = filters.values.status;
 
   const { data, isLoading } = useDevices({
     search: search || undefined,
@@ -266,14 +273,18 @@ export default function DevicesPage() {
 
         <UnmatchedBadgesCard />
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <FilterBar activeCount={filters.activeCount} onClear={filters.clear}>
           <Input
             placeholder={t("devices_page.search_placeholder")}
+            aria-label={t("devices_page.search_placeholder")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => filters.set({ q: e.target.value })}
             className="max-w-xs"
           />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => filters.set({ status: v })}
+          >
             <SelectTrigger
               className="w-[140px]"
               aria-label={t("common.status")}
@@ -294,7 +305,7 @@ export default function DevicesPage() {
               </SelectItem>
             </SelectContent>
           </Select>
-        </div>
+        </FilterBar>
 
         {isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
