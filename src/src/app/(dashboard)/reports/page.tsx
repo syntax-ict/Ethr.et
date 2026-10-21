@@ -77,7 +77,7 @@ import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { buildCsv, saveCsv } from "@/lib/utils/csv-export";
+import { buildCsv, centsAsAmount, saveCsv } from "@/lib/utils/csv-export";
 import { formatETB } from "@/lib/utils/currency";
 import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
 import { usePlanFeatures } from "@/features/auth/api";
@@ -280,7 +280,12 @@ function BuilderTab() {
     if (!result?.data?.length) return;
     saveCsv(
       `${config.source}-report-${new Date().toISOString().split("T")[0]}.csv`,
-      buildCsv(result.data),
+      // Columns read as on screen, in the reader's language, and money as
+      // birr: the file had API field names and raw cents.
+      buildCsv(result.data, {
+        label: (key) => reportFieldLabel(t, key),
+        value: centsAsAmount,
+      }),
     );
   }
 
@@ -624,8 +629,10 @@ function PreviewResult({ result }: { result: ReportResult }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
-            <span className="capitalize">{result.source}</span> · {result.total}{" "}
-            {t("reports_page.records")}
+            <span className="capitalize">{result.source}</span> ·{" "}
+            {t("reports_page.records_count", ":count records", {
+              count: result.total,
+            })}
           </p>
           {result.truncated && (
             <p role="note" className="mt-1 text-xs text-status-warning">
@@ -850,7 +857,9 @@ function QuickTab() {
         // run inside onSuccess: the first run said "Generated 0 records" (N67).
         onSuccess: (data) =>
           toast.success(
-            `${t("reports_page.generated_prefix")} ${data.total} ${t("reports_page.records")}`,
+            t("reports_page.generated_count", "Generated :count records", {
+              count: data.total,
+            }),
           ),
         onError: (err) =>
           toast.error(apiErrorMessage(err, t("reports_page.generate_failed"))),
@@ -863,7 +872,12 @@ function QuickTab() {
     if (!result?.data?.length) return;
     saveCsv(
       `${result.source}-${new Date().toISOString().split("T")[0]}.csv`,
-      buildCsv(result.data),
+      // Columns read as on screen, in the reader's language, and money as
+      // birr: the file had API field names and raw cents.
+      buildCsv(result.data, {
+        label: (key) => reportFieldLabel(t, key),
+        value: centsAsAmount,
+      }),
     );
   }
 
@@ -912,8 +926,10 @@ function QuickTab() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">
-                {generate.data.total} {t("reports_page.records")} ·{" "}
-                <span className="capitalize">{generate.data.source}</span>
+                {t("reports_page.records_count", ":count records", {
+                  count: generate.data.total,
+                })}{" "}
+                · <span className="capitalize">{generate.data.source}</span>
               </p>
               {generate.data.truncated && (
                 <p role="note" className="mt-1 text-xs text-status-warning">
@@ -953,7 +969,9 @@ function SavedTab() {
       onSuccess: (data) => {
         setResultFor(r.public_id);
         toast.success(
-          `${t("reports_page.generated_prefix")} ${data.total} ${t("reports_page.records")}`,
+          t("reports_page.generated_count", "Generated :count records", {
+            count: data.total,
+          }),
         );
       },
       onError: (err) =>
