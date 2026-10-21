@@ -153,7 +153,7 @@ export default function ApprovalsPage() {
   }
 
   return (
-    <RoleGate minRole="supervisor">
+    <RoleGate anyPermission={["viewTeamLeave"]}>
       <div className="space-y-6">
         <FilterBar
           activeCount={filters.activeCount}

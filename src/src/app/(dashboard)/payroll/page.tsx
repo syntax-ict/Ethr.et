@@ -81,7 +81,7 @@ export default function PayrollPage() {
   }
 
   return (
-    <RoleGate allowedRoles={["finance_admin", "tenant_admin", "super_admin"]}>
+    <RoleGate anyPermission={["viewPayrollRuns"]}>
       <div className="space-y-6">
         <PageActions
           actions={
