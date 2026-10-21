@@ -18,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
@@ -50,14 +49,6 @@ export default function SmsDeliveryPage() {
   return (
     <RoleGate minRole="super_admin">
       <div className="space-y-6">
-        <PageHeader
-          title={t("admin_sms.title", "SMS delivery")}
-          description={t(
-            "admin_sms.description",
-            "Text-message sign-in codes and notifications for every organisation. Email codes work without it.",
-          )}
-        />
-
         <QueryBoundary
           query={query}
           loading={<Skeleton className="h-96 w-full" />}

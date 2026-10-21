@@ -16,7 +16,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/shared/page-header";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
@@ -67,11 +66,6 @@ export default function DeviceDashboardPage() {
             </Link>
           </Button>
         </div>
-
-        <PageHeader
-          title={t("devices_dashboard_page.title")}
-          description={t("devices_dashboard_page.description")}
-        />
 
         {statsError ? (
           <ErrorState compact onRetry={() => refetchStats()} />

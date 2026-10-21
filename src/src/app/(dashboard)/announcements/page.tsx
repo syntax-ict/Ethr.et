@@ -43,7 +43,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
@@ -532,19 +532,7 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("announcements.title", "Announcements")}
-        description={
-          manager
-            ? t(
-                "announcements.description_manage",
-                "Write announcements for your people, and publish news on your organisation's public website.",
-              )
-            : t(
-                "announcements.description",
-                "Company-wide announcements and updates",
-              )
-        }
+      <PageActions
         actions={
           manager && (
             <Button onClick={openNew}>

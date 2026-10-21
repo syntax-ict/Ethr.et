@@ -497,7 +497,7 @@ function TenantDetail({ id }: { id: string }) {
       <div className="space-y-6">
         {/* The tenant's own name, rendered here rather than left to the layout's
             title bar: that bar is driven by the URL, and this route's last
-            segment is an opaque ULID. `PageHeader` only renders `actions`, so
+            segment is an opaque ULID. `PageActions` only renders `actions`, so
             passing a title to it would have shown nothing. */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">

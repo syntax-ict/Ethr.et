@@ -43,7 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmployeeSelect } from "@/components/shared/employee-select";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -164,12 +164,7 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("nav.attendance", "Attendance")}
-        description={t(
-          "attendance.description",
-          "Track and manage attendance records",
-        )}
+      <PageActions
         actions={
           <div className="flex flex-wrap gap-2">
             <Button onClick={handleCheckIn} disabled={checkIn.isPending}>

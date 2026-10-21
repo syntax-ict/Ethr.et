@@ -43,7 +43,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import {
@@ -175,9 +175,7 @@ export default function KioskSessionsPage() {
     // Every kiosk-session endpoint checks attendance.manage.
     <RoleGate anyPermission={["manageAttendance"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("attendance.kiosks_page.title")}
-          description={t("attendance.kiosks_page.description")}
+        <PageActions
           actions={
             <Button onClick={() => setShowRegister(true)}>
               <Plus className="mr-2 h-4 w-4" />{" "}

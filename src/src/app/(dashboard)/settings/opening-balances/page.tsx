@@ -5,7 +5,6 @@ import { Download, Loader2, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/shared/page-header";
 import {
   fetchBalanceTemplate,
   useCommitBalances,
@@ -25,15 +24,10 @@ import { toast } from "sonner";
  * problems, then commit; nothing changes unless every row is valid.
  */
 export default function OpeningBalancesPage() {
-  const { t } = useT();
   const { hasPermission } = usePermissions();
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("opening_balances.title")}
-        description={t("opening_balances.description")}
-      />
       {hasPermission("leave.adjustBalance") && <BalanceCard kind="leave" />}
       {hasPermission("payroll.manageLoan") && <BalanceCard kind="loans" />}
     </div>

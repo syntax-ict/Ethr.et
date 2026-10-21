@@ -40,7 +40,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { branchesApi, departmentsApi } from "@/features/organization/api";
@@ -184,12 +184,7 @@ export default function VacanciesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("vacancies.title", "Vacancies")}
-        description={t(
-          "vacancies.description",
-          "Open positions in the organisation",
-        )}
+      <PageActions
         actions={
           can.manageVacancies && (
             <Button

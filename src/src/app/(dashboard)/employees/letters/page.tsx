@@ -15,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -47,10 +46,6 @@ export default function LetterRequestsPage() {
   return (
     <RoleGate anyPermission={["manageEmployees"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("letters.hr_title")}
-          description={t("letters.hr_description")}
-        />
         <Tabs value={status} onValueChange={(v) => filters.set({ status: v })}>
           <TabsList>
             <TabsTrigger value="pending">

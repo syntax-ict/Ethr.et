@@ -6,7 +6,7 @@ import { Download, Mail } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { BranchScopeSelector } from "@/features/dashboard/components/branch-scope-selector";
 import { DashboardDigestDialog } from "@/features/dashboard/components/dashboard-digest-dialog";
@@ -86,9 +86,7 @@ export default function AnalyticsPage() {
       anyPermission={["viewExecutiveDashboard", "viewRegionalDashboard"]}
     >
       <div className="space-y-6">
-        <PageHeader
-          title={t("analytics_page.title")}
-          description={t("analytics_page.description")}
+        <PageActions
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <BranchScopeSelector

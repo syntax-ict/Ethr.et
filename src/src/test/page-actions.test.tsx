@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import {
   PageActionsSlotProvider,
   useRegisterPageActionsSlot,
@@ -18,9 +18,9 @@ function TitleBarStandIn() {
  * 13px of its branch filter and Export button. Measured in the browser; jsdom
  * has no layout, so this pins the classes that decide it.
  */
-describe("<PageHeader>", () => {
+describe("<PageActions>", () => {
   it("lets the actions shrink and wrap instead of overflowing", () => {
-    render(<PageHeader actions={<button type="button">Export</button>} />);
+    render(<PageActions actions={<button type="button">Export</button>} />);
 
     const box = screen.getByRole("button", { name: "Export" }).parentElement!;
     expect(box).not.toHaveClass("shrink-0");
@@ -28,7 +28,7 @@ describe("<PageHeader>", () => {
   });
 
   it("aligns to the end safely, so what cannot fit overflows to the right", () => {
-    render(<PageHeader actions={<button type="button">Export</button>} />);
+    render(<PageActions actions={<button type="button">Export</button>} />);
 
     const box = screen.getByRole("button", { name: "Export" }).parentElement!;
     // `safe flex-end`: plain end alignment pushed /shifts off the left edge.
@@ -40,7 +40,7 @@ describe("<PageHeader>", () => {
     // Most pages pass one `flex gap-2` group of buttons; without wrapping it,
     // that group kept its one-line width and /shifts began at -83px.
     render(
-      <PageHeader
+      <PageActions
         actions={
           <div className="flex gap-2">
             <button type="button">Roster</button>
@@ -55,7 +55,7 @@ describe("<PageHeader>", () => {
   });
 
   it("renders nothing without actions", () => {
-    const { container } = render(<PageHeader title="Analytics" />);
+    const { container } = render(<PageActions />);
     expect(container).toBeEmptyDOMElement();
   });
 
@@ -66,7 +66,7 @@ describe("<PageHeader>", () => {
       <PageActionsSlotProvider>
         <TitleBarStandIn />
         <main>
-          <PageHeader actions={<button type="button">Add employee</button>} />
+          <PageActions actions={<button type="button">Add employee</button>} />
         </main>
       </PageActionsSlotProvider>,
     );

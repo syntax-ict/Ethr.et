@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { SimpleTable } from "@/components/shared/simple-table";
 
 import {
@@ -187,9 +187,7 @@ export default function AttendanceImportPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("attendance.import_page.title")}
-        description={t("attendance.import_page.description")}
+      <PageActions
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={downloadTemplate}>

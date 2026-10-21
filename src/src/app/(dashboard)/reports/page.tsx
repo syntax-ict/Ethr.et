@@ -51,7 +51,6 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -133,11 +132,6 @@ export default function ReportsPage() {
   return (
     <RoleGate anyPermission={["viewReports"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("reports_page.title")}
-          description={t("reports_page.description")}
-        />
-
         {!plan.has("reports") ? (
           <PlanFeatureNotice />
         ) : (

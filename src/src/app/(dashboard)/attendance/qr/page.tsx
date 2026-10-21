@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
   useGenerateQr,
@@ -130,11 +129,6 @@ export default function QrGeneratorPage() {
     // QrAttendanceController::generate checks attendance.manage.
     <RoleGate anyPermission={["manageAttendance"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("attendance.qr_page.title")}
-          description={t("attendance.qr_page.description")}
-        />
-
         <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
           {/* Config panel */}
           <Card>

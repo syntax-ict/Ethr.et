@@ -28,7 +28,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { AddressCard } from "@/features/settings/components/address-card";
@@ -210,9 +210,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("settings.title", "Settings")}
-        description={t("settings.description", "Configure your organization")}
+      <PageActions
         actions={
           hasDirty && (
             <Button onClick={saveSettings} disabled={updateSettings.isPending}>

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import {
@@ -55,13 +55,11 @@ export function AuditLogExplorer({
   endpoint,
   queryKey,
   title,
-  description,
   exportPrefix = "audit-log",
 }: {
   endpoint: AuditLogEndpoint;
   queryKey: string;
   title: string;
-  description: string;
   exportPrefix?: string;
 }) {
   const { t } = useT();
@@ -123,9 +121,7 @@ export function AuditLogExplorer({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={title}
-        description={description}
+      <PageActions
         actions={
           <Button
             variant="outline"

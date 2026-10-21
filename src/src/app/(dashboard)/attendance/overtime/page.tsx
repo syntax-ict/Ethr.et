@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -44,9 +44,7 @@ export default function OvertimePage() {
     // The overtime summary requires attendance.viewAll, not a role tier.
     <RoleGate anyPermission={["viewAllAttendance"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("attendance.overtime_page.title")}
-          description={t("attendance.overtime_page.description")}
+        <PageActions
           actions={
             <Select
               value={period}

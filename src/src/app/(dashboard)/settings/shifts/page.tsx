@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -229,9 +229,7 @@ export default function ShiftsPage() {
   return (
     <RoleGate anyPermission={["manageShifts"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("shifts_settings_page.title")}
-          description={t("shifts_settings_page.description")}
+        <PageActions
           actions={
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setAssignOpen(true)}>

@@ -42,7 +42,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
@@ -130,12 +130,7 @@ export default function AttendanceConflictsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("attendance.conflicts.title", "Attendance Conflicts")}
-        description={t(
-          "attendance.conflicts.description",
-          "Records that disagree about the same day. Review them and decide which one stands.",
-        )}
+      <PageActions
         actions={
           <Select
             value={status}

@@ -5,7 +5,6 @@ import { FileText, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/shared/page-header";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -21,11 +20,6 @@ export default function MyPayslipsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("payroll_page.payslips_page.title")}
-        description={t("payroll_page.payslips_page.description")}
-      />
-
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (

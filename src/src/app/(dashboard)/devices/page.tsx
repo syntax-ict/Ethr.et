@@ -48,7 +48,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 
@@ -230,9 +230,7 @@ export default function DevicesPage() {
   return (
     <RoleGate anyPermission={["viewDevices"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("devices_page.title")}
-          description={t("devices_page.description")}
+        <PageActions
           actions={
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" asChild>

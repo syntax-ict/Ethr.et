@@ -7,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
-import { PageHeader } from "@/components/shared/page-header";
 import { SearchInput } from "@/components/shared/search-input";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PaginationControls } from "@/components/shared/pagination-controls";
@@ -30,14 +29,6 @@ export default function DirectoryPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("directory.title", "Employee Directory")}
-        description={t(
-          "directory.description",
-          "Find contact information for colleagues",
-        )}
-      />
-
       <FilterBar
         activeCount={filters.activeCount}
         onClear={() => {

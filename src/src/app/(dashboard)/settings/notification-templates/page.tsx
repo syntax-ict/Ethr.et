@@ -17,7 +17,6 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
@@ -163,14 +162,6 @@ export default function NotificationTemplatesPage() {
   return (
     <RoleGate anyPermission={["manageSettings"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("nav.notification_templates")}
-          description={t(
-            "settings.templates_description",
-            "Customize the content of notification emails sent to employees and managers",
-          )}
-        />
-
         <QueryBoundary
           query={templatesQuery}
           loading={

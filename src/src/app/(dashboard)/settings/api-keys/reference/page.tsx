@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
@@ -191,9 +191,7 @@ export default function ApiReferencePage() {
   return (
     <RoleGate anyPermission={["manageApiKeys"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("api_reference.title")}
-          description={t("api_reference.description")}
+        <PageActions
           actions={
             <Button variant="outline" asChild>
               <Link href="/settings/api-keys">

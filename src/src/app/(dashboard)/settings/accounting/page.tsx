@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/shared/page-header";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
@@ -47,15 +46,10 @@ type AccountEdit = Partial<
 >;
 
 export default function AccountingSettingsPage() {
-  const { t } = useT();
   return (
     // Every accounting endpoint authorizes `payroll.viewAll`.
     <RoleGate anyPermission={["viewPayrollRuns"]}>
       <div className="space-y-8">
-        <PageHeader
-          title={t("accounting_page.title")}
-          description={t("accounting_page.description")}
-        />
         <ChartOfAccountsSection />
         <JournalExportSection />
       </div>
