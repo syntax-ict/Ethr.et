@@ -2454,6 +2454,7 @@
   "language.coming_soon_hint": "ይህ ቋንቋ ገና አልተተረጎመም። እንግሊዝኛ እና አማርኛ ሙሉ በሙሉ ይገኛሉ።",
   "language.label": "ቋንቋ",
   "leave_page.approved": "ጸድቋል",
+  "leave_page.date_range": "ከ:from እስከ :to",
   "leave_page.dates": "ቀናት",
   "leave_page.days": "ቀናት",
   "leave_page.end_date": "የመጨረሻ ቀን",

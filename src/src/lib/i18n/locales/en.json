@@ -2454,6 +2454,7 @@
   "language.coming_soon_hint": "This language is not translated yet. English and Amharic are fully available.",
   "language.label": "Language",
   "leave_page.approved": "Approved",
+  "leave_page.date_range": ":from to :to",
   "leave_page.dates": "Dates",
   "leave_page.days": "Days",
   "leave_page.end_date": "End Date",
