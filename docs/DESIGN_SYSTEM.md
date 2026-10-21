@@ -130,7 +130,8 @@ No weight above 600 is used. `design-ratchets.test.ts` holds `text-[10px]` and `
 
 ### Amharic Typography Rules
 
-- **Line height:** 1.6–1.8 for Amharic text (characters clip at 1.5)
+- **Line height:** 1.6–1.8 for Amharic text (characters clip at 1.5). Applied as `--leading-amharic` (1.7) to running text under `:lang(am)`; sized utilities keep their own line height
+- **One key per sentence:** a value goes inside its sentence through a placeholder, `t("x.count", ":count records", { count })`, never glued to a separately translated word. Amharic word order differs from English; `design-ratchets` counts glued sentences and fails if they grow
 - **Column widths:** Amharic characters are wider than Latin — allow 120% width for Amharic columns in DataTable
 - **Truncation:** `text-overflow: ellipsis` works but test with actual Amharic data
 - **Word break:** Amharic does not hyphenate — use `overflow-wrap: break-word` not `word-break: break-all`
@@ -238,6 +239,10 @@ The pattern is an SVG consisting of repeating diamond and cross geometric shapes
 | `AvatarGroup` | users[], max | Overlapping avatars with +N indicator. |
 | `EmployeeAvatar` | name, photoThumbUrl, photoUrl, className, fallbackClassName | The only way to render a person. Falls back thumbnail → full-size → initials. Initials split on grapheme boundaries so Amharic syllables stay intact. Never hand-roll `name.split(" ").map(n => n[0])`. |
 | `ChartWrapper` | type, data, options | Consistent chart styling: semantic colors, dark mode, currency axes. |
+| `SimpleTable` | headers, rows, colClassName, mobileCards | The light table for lists and settings. `colClassName` hides a column below a breakpoint (`hidden sm:table-cell`); `mobileCards` draws each row as a card on a phone, the first cell as its title. Leave cards off for grids (imports, brackets, journals). `DataTable` stays for the one sortable, selectable grid (employees). |
+| `PaginationControls` | meta, onPageChange | The one pager. Says "Showing 1 to 25 of 120" when the API sends `from`/`to`. |
+| `Stepper` | steps, label | Where a process stands: calculate, review, approve. Each step states its state in words for screen readers; the current one carries `aria-current="step"`. A step may carry an `href` to its part of a page, as the Add Employee section guide does. |
+| `CompactCurrency` | cents | An amount fitted to a tile (`2.59M ETB`), the exact figure as its tooltip. |
 
 ### Form Components
 
@@ -249,6 +254,9 @@ The pattern is an SVG consisting of repeating diamond and cross geometric shapes
 | `AddressForm` | value, onChange | Ethiopian address: region, city, subcity, woreda, kebele. |
 | `FileUpload` | accept, maxSize, onUpload | Drag-and-drop, preview, progress, client-side type/size validation. |
 | `SearchInput` | value, onChange, placeholder | Debounced (300ms), clear button, search icon. |
+| `CrudSection`, `useCrudSection` | crud, title, query, form | A list with an add and edit dialog and a confirmed delete. The hook owns the dialog state and the two requests, and shows the server's reason when a save is refused; the page owns its fields and rows. The organization page is six of them. |
+| `CrudField`, `CrudFieldRow` | label, required | A label that wraps its control, so it names and focuses it; rows stack on a phone. |
+| `ReasonDialog` | title, label, onConfirm | Asks why before a rejection. Confirm stays off until a reason is typed; a batch shares one reason. |
 
 ### Feedback Components
 
@@ -256,11 +264,11 @@ The pattern is an SVG consisting of repeating diamond and cross geometric shapes
 |---|---|---|
 | `QueryBoundary` | query, loading, empty, error, children | Wraps TanStack Query. Renders correct state (skeleton/empty/error/success). **Required on every data-fetching component.** |
 | `EmptyState` | icon, title, description, action | CTA-driven empty state. Used inside QueryBoundary. |
-| `ErrorPanel` | error, onRetry | Inline error with retry button. Used inside QueryBoundary. |
+| `ErrorState` | onRetry, title | A failed load says so, with Try again. Never let a failed list fall through to its empty state. `design-ratchets` holds silent failures at zero. |
 | `LoadingSkeleton` | variant | Pre-defined shapes: card, table-row, stat-card, profile-header. |
 | `ConfirmDialog` | title, description, onConfirm, variant | Destructive action confirmation. Variant: `danger` (red) or `warning` (amber). |
 | `UndoToast` | message, onUndo, duration | Success toast with 5-second "Undo" button for optimistic actions. |
-| `OfflineBanner` | — | Persistent banner when offline. Not a disappearing toast. |
+| `OfflineBanner` | — | Persistent banner when offline. Not a disappearing toast. A polite live region that stays mounted, so it is announced when it appears. |
 
 ### Navigation Components
 
@@ -270,6 +278,8 @@ The pattern is an SVG consisting of repeating diamond and cross geometric shapes
 | `PageActions` | actions | A page's action buttons, drawn on the right of the shell's title bar. The title, description and breadcrumb come from `lib/route-meta.ts`, not from the page. Was `PageHeader`, whose `title` and `description` props were never drawn. |
 | `FilePreview` | url, type | Lightbox for PDF/image preview. |
 | `PrintButton` | — | Triggers print with print-optimized CSS (forces light mode). |
+| `FilterBar`, `useQueryFilters` | activeCount, onClear | A list's search and filters, kept in the address (`?status=…`), so a reload keeps them and a link shares them. Defaults stay out of the address; unknown values fall back. |
+| `RouteRedirect` | to | A page that moved. The static export has no server redirects, so the old address replaces itself with the new one and keeps its query. |
 
 ---
 
