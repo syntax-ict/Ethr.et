@@ -276,6 +276,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Opening balances",
     description: "Leave and loan balances brought over from a previous system",
   },
+  "/settings/approval-chains": {
+    section: "Admin",
+    parent: { label: "Settings", href: "/settings" },
+    label: "Approval chains",
+    description: "Who approves leave and attendance corrections, step by step",
+  },
   "/settings/holidays": {
     section: "Admin",
     parent: { label: "Settings", href: "/settings" },

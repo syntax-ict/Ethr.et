@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Archive,
+  GitBranch,
   SlidersHorizontal,
   Clock,
   Timer,
@@ -111,6 +112,12 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
           href: "/settings/holidays",
           icon: Calendar,
           show: can.manageHolidays,
+        },
+        {
+          label: t("nav.approval_chains", "Approval chains"),
+          href: "/settings/approval-chains",
+          icon: GitBranch,
+          show: can.manageSettings,
         },
         {
           label: t("nav.payroll_config", "Payroll Rules"),

@@ -16,6 +16,7 @@ import {
   FilePenLine,
   FileText,
   Fingerprint,
+  GitBranch,
   GitMerge,
   GraduationCap,
   KeyRound,
@@ -24,7 +25,6 @@ import {
   LayoutDashboard,
   ListChecks,
   LogIn,
-  type LucideIcon,
   Megaphone,
   MessageCircleHeart,
   MessageSquareText,
@@ -43,6 +43,7 @@ import {
   UsersRound,
   Wallet,
   Webhook,
+  type LucideIcon,
 } from "lucide-react";
 import type { CanFlag } from "@/lib/hooks/usePermissions";
 
@@ -552,6 +553,14 @@ export const MORE_DESTINATIONS: Destination[] = [
     labelFallback: "Holidays",
     icon: Calendar,
     show: (c) => c.can.manageHolidays,
+  },
+  {
+    id: "approval_chains",
+    href: "/settings/approval-chains",
+    labelKey: "nav.approval_chains",
+    labelFallback: "Approval chains",
+    icon: GitBranch,
+    show: (c) => c.can.manageSettings,
   },
   {
     id: "leave_types",
