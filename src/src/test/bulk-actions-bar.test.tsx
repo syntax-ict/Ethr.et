@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { toast } from "sonner";
+import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { BulkActionsBar } from "@/features/employees/components/bulk-actions-bar";
 
 vi.mock("sonner", () => ({
@@ -31,7 +32,9 @@ function renderBar(onComplete = vi.fn()) {
     defaultOptions: { queries: { retry: false } },
   });
   const Wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <CalendarProvider>{children}</CalendarProvider>
+    </QueryClientProvider>
   );
 
   server.use(
@@ -111,14 +114,21 @@ describe("<BulkActionsBar>", () => {
     const { onComplete } = renderBar();
 
     fireEvent.click(screen.getByRole("button", { name: /change status/i }));
-    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getAllByRole("combobox")[0]);
     fireEvent.click(await screen.findByRole("option", { name: "Retired" }));
+    // Leaving needs a reason, recorded in each employee's history.
+    expect(screen.getByRole("button", { name: /confirm/i })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/reason/i), {
+      target: { value: "Reached retirement age" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
     expect(requestBody).toEqual({
       employee_ids: ["emp-1", "emp-2"],
       status: "retired",
+      effective_date: new Date().toISOString().split("T")[0],
+      reason: "Reached retirement age",
     });
     expect(toast.success).toHaveBeenCalledWith("Updated 2 employees");
   });
@@ -145,8 +155,9 @@ describe("<BulkActionsBar>", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /change status/i }));
     expect(screen.getByText(/keeps their current one/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getAllByRole("combobox")[0]);
     fireEvent.click(await screen.findByRole("option", { name: "Confirmed" }));
+    // Not leaving, so no reason is needed.
     fireEvent.click(screen.getByRole("button", { name: /confirm$/i }));
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
@@ -155,5 +166,24 @@ describe("<BulkActionsBar>", () => {
       { description: "Cannot change status from terminated to confirmed." },
     );
     expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("keeps Confirm off for a termination until a reason is typed", async () => {
+    renderBar();
+
+    fireEvent.click(screen.getByRole("button", { name: /change status/i }));
+    fireEvent.click(screen.getAllByRole("combobox")[0]);
+    fireEvent.click(await screen.findByRole("option", { name: "Terminated" }));
+
+    const confirm = screen.getByRole("button", { name: /confirm/i });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/reason/i), {
+      target: { value: "   " },
+    });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/reason/i), {
+      target: { value: "Misconduct, case 14" },
+    });
+    expect(confirm).toBeEnabled();
   });
 });
