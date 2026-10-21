@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -33,6 +39,9 @@ function paginated<T>(rows: T[]) {
 }
 
 function renderPage() {
+  // Gregorian, so the hire date is one date input the tests can fill; the
+  // Ethiopian entry is three parts and has its own tests.
+  localStorage.setItem("ethr.calendar", "gregorian");
   server.use(
     http.get("*/api/v1/employees/next-code", () =>
       HttpResponse.json({ employee_code: "EMP-0042", format: "EMP-{SEQ:4}" }),
@@ -101,6 +110,12 @@ describe("New employee form", () => {
     fireEvent.change(screen.getByLabelText(/Full Name/), {
       target: { value: "Hana Girma" },
     });
+
+    // StoreEmployeeRequest requires it, and the form now checks it first.
+
+    fireEvent.change(document.getElementById("hire_date")!, {
+      target: { value: "2026-10-01" },
+    });
     fireEvent.change(screen.getByLabelText(/Monthly Salary/), {
       target: { value: "5000.50" },
     });
@@ -155,6 +170,10 @@ describe("New employee form", () => {
     fireEvent.change(screen.getByLabelText(/Full Name/), {
       target: { value: "Hana Girma" },
     });
+    // StoreEmployeeRequest requires it, and the form now checks it first.
+    fireEvent.change(document.getElementById("hire_date")!, {
+      target: { value: "2026-10-01" },
+    });
     fireEvent.submit(container.querySelector("form")!);
 
     expect(
@@ -185,6 +204,10 @@ describe("New employee form — login invitation", () => {
   function fillBasics() {
     fireEvent.change(screen.getByLabelText(/Full Name/), {
       target: { value: "Hana Girma" },
+    });
+    // StoreEmployeeRequest requires it, and the form now checks it first.
+    fireEvent.change(document.getElementById("hire_date")!, {
+      target: { value: "2026-10-01" },
     });
     fireEvent.change(screen.getByLabelText(/^Email/), {
       target: { value: "hana@acme.et" },
@@ -275,6 +298,10 @@ describe("New employee form, redesigned", () => {
     fireEvent.change(screen.getByLabelText(/Full Name/), {
       target: { value: "Hana Girma" },
     });
+    // StoreEmployeeRequest requires it, and the form now checks it first.
+    fireEvent.change(document.getElementById("hire_date")!, {
+      target: { value: "2026-10-01" },
+    });
     await screen.findAllByText("Headquarters");
 
     fireEvent.submit(container.querySelector("form")!);
@@ -293,6 +320,10 @@ describe("New employee form, redesigned", () => {
     fireEvent.change(screen.getByLabelText(/Full Name/), {
       target: { value: "Hana Girma" },
     });
+    // StoreEmployeeRequest requires it, and the form now checks it first.
+    fireEvent.change(document.getElementById("hire_date")!, {
+      target: { value: "2026-10-01" },
+    });
 
     fireEvent.submit(container.querySelector("form")!);
 
@@ -310,6 +341,10 @@ describe("New employee form, redesigned", () => {
     fireEvent.change(screen.getByLabelText(/Full Name/), {
       target: { value: "Hana Girma" },
     });
+    // StoreEmployeeRequest requires it, and the form now checks it first.
+    fireEvent.change(document.getElementById("hire_date")!, {
+      target: { value: "2026-10-01" },
+    });
 
     fireEvent.click(
       screen.getByRole("button", { name: "Save and add another" }),
@@ -320,5 +355,54 @@ describe("New employee form, redesigned", () => {
       expect(screen.getByLabelText(/Full Name/)).toHaveValue(""),
     );
     expect(router.push).not.toHaveBeenCalled();
+  });
+});
+
+// The form is one long page; a guide at the top says where each section
+// stands and links to it (FRONTEND_REDESIGN_PLAN.md, Phase 4).
+describe("New employee form, section guide", () => {
+  it("links each section and marks the required ones until they are filled", async () => {
+    renderPage();
+
+    const guide = await screen.findByRole("list", {
+      name: "Sections of the form",
+    });
+    const links = within(guide).getAllByRole("link");
+    expect(links.map((a) => a.getAttribute("href"))).toEqual([
+      "#section-person",
+      "#section-contact",
+      "#section-job",
+      "#section-pay",
+    ]);
+    expect(within(guide).getAllByText("Has a required field")).toHaveLength(2);
+
+    fireEvent.change(screen.getByLabelText(/Full Name/), {
+      target: { value: "Hana Girma" },
+    });
+    expect(within(guide).getAllByText("Has a required field")).toHaveLength(1);
+  });
+
+  it("sends nothing without a hire date, and says where", async () => {
+    let posts = 0;
+    server.use(
+      http.post("*/api/v1/employees", () => {
+        posts++;
+        return HttpResponse.json({ public_id: "E1" }, { status: 201 });
+      }),
+    );
+    const { container } = renderPage();
+    fireEvent.change(screen.getByLabelText(/Full Name/), {
+      target: { value: "Hana Girma" },
+    });
+
+    fireEvent.submit(container.querySelector("form")!);
+
+    expect(
+      await screen.findByText("This field is required"),
+    ).toBeInTheDocument();
+    expect(document.activeElement?.id).toBe("hire_date");
+    const guide = screen.getByRole("list", { name: "Sections of the form" });
+    expect(within(guide).getByText("Needs a change")).toBeInTheDocument();
+    expect(posts).toBe(0);
   });
 });
