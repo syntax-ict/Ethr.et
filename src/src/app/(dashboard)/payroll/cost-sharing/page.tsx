@@ -126,6 +126,7 @@ export default function CostSharingPage() {
           <Card>
             <CardContent className="p-0">
               <SimpleTable
+                mobileCards
                 caption={t("payroll_page.cost_sharing_page.title")}
                 headers={[
                   t("attendance.employee"),

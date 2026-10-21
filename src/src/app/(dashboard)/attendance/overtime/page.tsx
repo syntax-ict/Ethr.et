@@ -137,6 +137,7 @@ export default function OvertimePage() {
                     />
                   ) : (
                     <SimpleTable
+                      mobileCards
                       caption={t("attendance.overtime_page.by_employee")}
                       headers={[
                         t("attendance.employee"),

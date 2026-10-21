@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
+import { apiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { useReadiness, useGoLive } from "../api";
 import type { ReadinessLevel } from "../types";
@@ -23,14 +25,31 @@ export function ReadinessStep({ onLive }: { onLive?: () => void }) {
   const { t } = useT();
   const readinessQuery = useReadiness();
   const goLive = useGoLive();
+  const { requestConfirm, confirmDialog } = useConfirm();
 
+  // Ends setup for everyone and opens the organisation for daily use; it
+  // went through on one click.
   async function launch() {
+    const confirmed = await requestConfirm({
+      title: t("setup2.golive_confirm_title", "Go live now?"),
+      description: t(
+        "setup2.golive_confirm_desc",
+        "Setup ends and the organisation opens for daily use. Anything not yet set up can still be done later from Settings.",
+      ),
+      confirmLabel: t("setup2.golive_confirm", "Go live"),
+    });
+    if (!confirmed) return;
     try {
       await goLive.mutateAsync();
       toast.success(t("setup2.went_live", "Your organization is live."));
       onLive?.();
-    } catch {
-      toast.error(t("setup2.golive_failed", "Could not complete go-live"));
+    } catch (err) {
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("setup2.golive_failed", "Could not complete go-live"),
+        ),
+      );
     }
   }
 
@@ -160,6 +179,7 @@ export function ReadinessStep({ onLive }: { onLive?: () => void }) {
           </div>
         )}
       </QueryBoundary>
+      {confirmDialog}
     </div>
   );
 }

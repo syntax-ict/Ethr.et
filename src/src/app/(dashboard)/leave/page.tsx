@@ -327,6 +327,7 @@ function MyLeaveTab() {
           ) : (
             <div>
               <SimpleTable
+                mobileCards
                 caption={t("leave_page.my_requests")}
                 headers={[
                   t("leave_page.type"),
@@ -504,6 +505,7 @@ function TeamLeaveTab() {
             ) : (
               <div>
                 <SimpleTable
+                  mobileCards
                   caption={t("leave_page.team_requests")}
                   headers={[
                     t("attendance.employee"),

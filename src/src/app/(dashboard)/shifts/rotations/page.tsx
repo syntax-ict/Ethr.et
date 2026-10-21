@@ -232,6 +232,7 @@ export default function ShiftRotationsPage() {
             <Card>
               <CardContent className="pt-6">
                 <SimpleTable
+                  mobileCards
                   caption={t("rotations_page.title", "Shift Rotations")}
                   headers={[
                     t("rotations_page.name", "Name"),
@@ -247,10 +248,9 @@ export default function ShiftRotationsPage() {
                       <span key="n" className="font-medium">
                         {rotation.name}
                       </span>,
-                      t("rotations_page.n_days", "{{count}} days").replace(
-                        "{{count}}",
-                        String(rotation.cycle_days),
-                      ),
+                      t("rotations_page.n_days", ":count days", {
+                        count: rotation.cycle_days,
+                      }),
                       <span key="p" className="text-muted-foreground">
                         {
                           (rotation.steps ?? []).filter((s) => !s.is_rest_day)
@@ -691,6 +691,7 @@ function RotationPreviewDialog({
           <QueryBoundary query={preview}>
             {(data) => (
               <SimpleTable
+                mobileCards
                 caption={t("rotations_page.preview_title", "Preview")}
                 headers={[
                   t("rotations_page.date", "Date"),
