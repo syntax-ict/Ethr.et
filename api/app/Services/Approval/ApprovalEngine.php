@@ -193,6 +193,18 @@ final class ApprovalEngine
         ]);
     }
 
+    /**
+     * The one person the request's current step names, or null when the
+     * step is open to a role or to everyone holding the permission. The
+     * submission notice goes to them rather than to the supervisor.
+     */
+    public function namedApprover(LeaveRequest|AttendanceCorrection $approvable): ?User
+    {
+        $id = $this->instanceOf($approvable)?->current_approver_user_id;
+
+        return $id === null ? null : User::query()->find($id);
+    }
+
     public function instanceOf(LeaveRequest|AttendanceCorrection $approvable): ?ApprovalInstance
     {
         $approvable->loadMissing('approvalInstance');
@@ -214,10 +226,12 @@ final class ApprovalEngine
         $user = null;
         $role = null;
 
-        if ($kind === ApproverKind::USER || $kind === ApproverKind::SUPERVISOR) {
-            $candidate = $kind === ApproverKind::USER
-                ? $this->userByPublicId($approvable->tenant_id, $step['approver_ref'])
-                : $this->supervisorOf($approvable);
+        if (in_array($kind, [ApproverKind::USER, ApproverKind::SUPERVISOR, ApproverKind::DEPARTMENT_HEAD], true)) {
+            $candidate = match ($kind) {
+                ApproverKind::USER => $this->userByPublicId($approvable->tenant_id, $step['approver_ref']),
+                ApproverKind::SUPERVISOR => $this->supervisorOf($approvable),
+                default => $this->departmentHeadOf($approvable),
+            };
             $user = $candidate !== null && $this->eligible($candidate, $instance, $approvable, $type) ? $candidate : null;
         } elseif ($kind === ApproverKind::ROLE) {
             $role = $this->roleWithEligibleHolder($step['approver_ref'], $instance, $approvable, $type);
@@ -436,6 +450,14 @@ final class ApprovalEngine
     {
         $approvable->loadMissing('employee.supervisor.user');
         $user = $this->employeeOf($approvable)?->supervisor?->user;
+
+        return $user instanceof User ? $user : null;
+    }
+
+    private function departmentHeadOf(LeaveRequest|AttendanceCorrection $approvable): ?User
+    {
+        $approvable->loadMissing('employee.department.head.user');
+        $user = $this->employeeOf($approvable)?->department?->head?->user;
 
         return $user instanceof User ? $user : null;
     }

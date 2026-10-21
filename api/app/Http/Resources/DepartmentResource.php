@@ -21,6 +21,7 @@ class DepartmentResource extends JsonResource
             'is_active' => $this->is_active,
             'parent' => new DepartmentResource($this->whenLoaded('parent')),
             'branch' => new BranchResource($this->whenLoaded('branch')),
+            'head' => new EmployeeSummaryResource($this->whenLoaded('head')),
             'children' => DepartmentResource::collection($this->whenLoaded('children')),
             'children_recursive' => DepartmentResource::collection($this->whenLoaded('childrenRecursive')),
             'employees_count' => $this->whenCounted('employees'),
