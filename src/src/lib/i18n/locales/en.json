@@ -535,6 +535,7 @@
   "approvals.reject_reason_hint": "Visible to the employee.",
   "approvals.reject_reason_placeholder": "e.g. Team is already at minimum cover for those dates.",
   "approvals.reject_title": "Reject request",
+  "approvals.step_of": "Step :current of :total",
   "approvals.title": "Pending Approvals",
   "approvals.type_profile_update": "Profile change",
   "attendance.all_sources": "All sources",

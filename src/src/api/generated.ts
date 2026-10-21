@@ -6806,6 +6806,21 @@ export interface components {
             };
             save?: boolean;
         };
+        /** ApprovalActionResource */
+        ApprovalActionResource: {
+            step: number;
+            action: string;
+            actor_name: string | null;
+            comment: string | null;
+            at: string | null;
+        };
+        /** ApprovalSummaryResource */
+        ApprovalSummaryResource: {
+            step: number;
+            steps: number;
+            status: string;
+            history?: components["schemas"]["ApprovalActionResource"][];
+        };
         /**
          * ApprovePayrollRunRequest
          * @description Approving a run. When the run exempts anyone from pension, the approver
@@ -6888,6 +6903,7 @@ export interface components {
             proposed_check_out: string | null;
             status: string;
             approval_chain: unknown[] | null;
+            approval?: components["schemas"]["ApprovalSummaryResource"];
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
@@ -7838,6 +7854,9 @@ export interface components {
             status: string;
             approved_by: unknown[] | null;
             rejected_reason: string | null;
+            approval?: components["schemas"]["ApprovalSummaryResource"] & {
+                history: components["schemas"]["ApprovalActionResource"][];
+            };
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
@@ -11828,6 +11847,7 @@ export interface operations {
                     "application/json": components["schemas"]["AttendanceCorrectionResource"] & {
                         attendance_record: components["schemas"]["AttendanceRecordResource"] | null;
                         employee: components["schemas"]["EmployeeResource"] | null;
+                        approval: components["schemas"]["ApprovalSummaryResource"];
                     };
                 };
             };
@@ -11994,6 +12014,7 @@ export interface operations {
                     "application/json": components["schemas"]["AttendanceCorrectionResource"] & {
                         attendance_record: components["schemas"]["AttendanceRecordResource"] | null;
                         employee: components["schemas"]["EmployeeResource"] | null;
+                        approval: components["schemas"]["ApprovalSummaryResource"];
                     };
                 };
             };
@@ -12053,6 +12074,7 @@ export interface operations {
                     "application/json": components["schemas"]["AttendanceCorrectionResource"] & {
                         attendance_record: components["schemas"]["AttendanceRecordResource"] | null;
                         employee: components["schemas"]["EmployeeResource"] | null;
+                        approval: components["schemas"]["ApprovalSummaryResource"];
                     };
                 };
             };
@@ -18531,6 +18553,9 @@ export interface operations {
                     "application/json": components["schemas"]["LeaveRequestResource"] & {
                         employee: components["schemas"]["EmployeeResource"] | null;
                         leave_type: components["schemas"]["LeaveTypeResource"];
+                        approval: components["schemas"]["ApprovalSummaryResource"] & {
+                            history: components["schemas"]["ApprovalActionResource"][];
+                        };
                     };
                 };
             };
@@ -18724,6 +18749,9 @@ export interface operations {
                     "application/json": components["schemas"]["LeaveRequestResource"] & {
                         employee: components["schemas"]["EmployeeResource"] | null;
                         leave_type: components["schemas"]["LeaveTypeResource"];
+                        approval: components["schemas"]["ApprovalSummaryResource"] & {
+                            history: components["schemas"]["ApprovalActionResource"][];
+                        };
                     };
                 };
             };
@@ -18774,6 +18802,9 @@ export interface operations {
                     "application/json": components["schemas"]["LeaveRequestResource"] & {
                         employee: components["schemas"]["EmployeeResource"] | null;
                         leave_type: components["schemas"]["LeaveTypeResource"];
+                        approval: components["schemas"]["ApprovalSummaryResource"] & {
+                            history: components["schemas"]["ApprovalActionResource"][];
+                        };
                     };
                 };
             };
@@ -18804,6 +18835,9 @@ export interface operations {
                     "application/json": components["schemas"]["LeaveRequestResource"] & {
                         employee: components["schemas"]["EmployeeResource"] | null;
                         leave_type: components["schemas"]["LeaveTypeResource"];
+                        approval: components["schemas"]["ApprovalSummaryResource"] & {
+                            history: components["schemas"]["ApprovalActionResource"][];
+                        };
                     };
                 };
             };
@@ -18866,6 +18900,9 @@ export interface operations {
                     "application/json": components["schemas"]["LeaveRequestResource"] & {
                         employee: components["schemas"]["EmployeeResource"] | null;
                         leave_type: components["schemas"]["LeaveTypeResource"];
+                        approval: components["schemas"]["ApprovalSummaryResource"] & {
+                            history: components["schemas"]["ApprovalActionResource"][];
+                        };
                     };
                 };
             };
@@ -19100,6 +19137,8 @@ export interface operations {
                             employee_public_id: string | null;
                             summary: string;
                             submitted_at: string;
+                            step: number;
+                            steps: number;
                         } | {
                             /** @constant */
                             type: "correction";
@@ -19108,6 +19147,8 @@ export interface operations {
                             employee_public_id: string | null;
                             summary: string;
                             submitted_at: string;
+                            step: number;
+                            steps: number;
                         } | {
                             /** @constant */
                             type: "profile_update";
@@ -19121,6 +19162,10 @@ export interface operations {
                              */
                             summary: string;
                             submitted_at: string;
+                            /** @constant */
+                            step: 1;
+                            /** @constant */
+                            steps: 1;
                         })[];
                         total: number;
                     };

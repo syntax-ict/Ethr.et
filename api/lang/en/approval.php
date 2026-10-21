@@ -9,4 +9,5 @@ return [
     'leave_summary' => ':type: :from - :to',
     'correction_summary' => 'Attendance correction for :date',
     'profile_update_summary' => ':field: :old → :new',
+    'not_current_approver' => 'This request is waiting for another approver at its current step.',
 ];

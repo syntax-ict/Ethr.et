@@ -76,7 +76,7 @@ class AttendanceCorrectionController extends Controller
             $this->notify($supervisor->user, new AttendanceCorrectionRequestedNotification($correction));
         }
 
-        $correction->load('attendanceRecord', 'employee');
+        $correction->load('attendanceRecord', 'employee', 'approvalInstance.actions.actor');
 
         return (new AttendanceCorrectionResource($correction))
             ->response()
@@ -165,7 +165,7 @@ class AttendanceCorrectionController extends Controller
 
         $this->decisions->approve($correction, $user);
 
-        $correction->load('attendanceRecord', 'employee');
+        $correction->load('attendanceRecord', 'employee', 'approvalInstance.actions.actor');
 
         return response()->json(new AttendanceCorrectionResource($correction));
     }
@@ -174,7 +174,7 @@ class AttendanceCorrectionController extends Controller
     {
         Gate::authorize('previewImpact', $correction);
 
-        $correction->load('attendanceRecord', 'employee');
+        $correction->load('attendanceRecord', 'employee', 'approvalInstance.actions.actor');
         $record = $correction->attendanceRecord;
         $employee = $correction->employee;
 
@@ -239,7 +239,7 @@ class AttendanceCorrectionController extends Controller
 
         $this->decisions->reject($correction, $user, (string) $request->input('reason'));
 
-        $correction->load('attendanceRecord', 'employee');
+        $correction->load('attendanceRecord', 'employee', 'approvalInstance.actions.actor');
 
         return response()->json(new AttendanceCorrectionResource($correction));
     }

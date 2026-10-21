@@ -169,6 +169,14 @@ export default function ApprovalsPage() {
                           {item.employee_name}
                         </p>
                         <StatusBadge status={item.type} />
+                        {item.steps > 1 && (
+                          <span className="rounded-full bg-info-soft px-2 py-0.5 text-caption font-medium text-info-on-soft">
+                            {t("approvals.step_of", "Step :current of :total", {
+                              current: item.step,
+                              total: item.steps,
+                            })}
+                          </span>
+                        )}
                       </div>
                       <p className="mt-0.5 text-sm text-muted-foreground">
                         {item.summary}

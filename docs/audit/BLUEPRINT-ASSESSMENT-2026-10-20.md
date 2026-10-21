@@ -401,6 +401,16 @@ followed**: no tenant-specific code paths exist.
 There is no shared engine: one query layer feeds the inbox
 (`Services/Approval/DecidableApprovals.php`) and each module decides in its own service.
 
+*(2026-10-21: the table above is the 2026-10-20 reading and is left as measured.
+Approval engine Phase A has since been built for leave and attendance corrections
+(`docs/APPROVAL-ENGINE-DESIGN.md`, "What Phase A built"; `ApprovalEngineTest`). What
+it moves: W1 and W2 have an engine and multi-step chains, but no settings screen yet,
+so no organisation can configure one; W3 routes by department, branch and leave
+type; W9 records every step's decision with its time; W11 adds that one person
+never approves two steps of the same request. Payroll and profile updates are not on
+the engine yet (Phase B), and W5–W7 are Phase C. Re-scoring the rows is a separate
+pass.)*
+
 ### PY. Payroll — P0 correctness, P1 rest
 
 Accountant sign-off (`docs/payroll/ACCOUNTANT-SIGN-OFF.md`) is **prepared, not signed**.
