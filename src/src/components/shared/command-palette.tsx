@@ -3,40 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Banknote,
-  BarChart3,
-  Briefcase,
   Building2,
-  Calendar,
   CalendarDays,
-  CheckSquare,
+  ChevronRight,
   Clock,
-  Contact,
-  CreditCard,
-  FilePenLine,
-  FileText,
-  Fingerprint,
-  GraduationCap,
-  KeyRound,
-  Landmark,
-  Layers,
-  LayoutDashboard,
   Loader2,
-  Megaphone,
-  MessageCircleHeart,
-  MessageSquareText,
-  Play,
-  Plus,
-  Receipt,
-  ScrollText,
-  Settings,
-  Shield,
-  TrendingUp,
   type LucideIcon,
-  UserCircle,
   Users,
-  Wallet,
-  Webhook,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -60,6 +33,16 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { useT } from "@/lib/i18n/useT";
 import { useSettingsLanding } from "@/components/layouts/settings-nav";
+import { getRouteMeta, routeI18nKey } from "@/lib/route-meta";
+import {
+  isoToday,
+  type NavContext,
+  phrasesKey,
+  QUICK_ACTIONS,
+  resolveHref,
+  visibleDestinations,
+} from "@/lib/navigation/registry";
+import { intentScore, splitPhrases } from "@/lib/navigation/intent-match";
 
 /** Event any UI can fire to open the palette — cleaner than faking a ⌘K keypress. */
 const OPEN_EVENT = "command-palette:open";
@@ -82,24 +65,39 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 }
 
-interface PaletteItem {
+/**
+ * Rows the server already matched carry this prefix in their cmdk value, so
+ * the filter below keeps them without re-judging them.
+ */
+const RECORD = "record:";
+
+interface PaletteRow {
+  /** cmdk value: unique, never shown. */
+  value: string;
+  href: string;
   label: string;
-  href?: string;
+  /** The group a child destination belongs to ("Attendance" for "Records"). */
+  context?: string;
+  description?: string;
+  /** What the row answers to: its label and the phrases people use for it. */
+  phrases: string[];
   icon: LucideIcon;
-  keywords?: string;
-  show: boolean;
 }
 
-interface PaletteGroup {
-  heading: string;
-  items: PaletteItem[];
+/**
+ * What a typed query matches. Words, not fuzzy letters: see
+ * lib/navigation/intent-match.ts for why.
+ */
+function filter(value: string, search: string, keywords?: string[]): number {
+  if (value.startsWith(RECORD)) return 1;
+  return intentScore(search, keywords ?? []);
 }
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const router = useRouter();
-  const { can, isSupervisor, isTenantAdmin } = usePermissions();
+  const { can, isSupervisor, isTenantAdmin, isSuperAdmin } = usePermissions();
   const settingsLanding = useSettingsLanding();
   const { t } = useT();
   const { data: user } = useCurrentUser();
@@ -154,251 +152,70 @@ export function CommandPalette() {
     [router, setPaletteOpen],
   );
 
-  const groups: PaletteGroup[] = useMemo(
-    () => [
-      {
-        heading: t("command.nav", "Navigation"),
-        items: [
-          {
-            label: t("nav.dashboard", "Dashboard"),
-            href: "/dashboard",
-            icon: LayoutDashboard,
-            show: true,
-          },
-          {
-            label: t("nav.my_profile", "My Profile"),
-            href: "/profile",
-            icon: UserCircle,
-            show: true,
-          },
-          {
-            label: t("nav.directory", "Directory"),
-            href: "/directory",
-            icon: Contact,
-            keywords: "search people find",
-            show: true,
-          },
-          {
-            label: t("nav.employees", "Employees"),
-            href: "/employees",
-            icon: Users,
-            show: can.manageEmployees,
-          },
-          {
-            label: t("nav.organization", "Organization"),
-            href: "/organization",
-            icon: Building2,
-            keywords: "departments branches positions grades teams",
-            show: can.manageOrg,
-          },
-          {
-            label: t("nav.attendance", "Attendance"),
-            href: "/attendance",
-            icon: Clock,
-            show: true,
-          },
-          {
-            label: t("nav.corrections", "Corrections"),
-            href: "/attendance/corrections",
-            icon: FilePenLine,
-            show: true,
-          },
-          {
-            label: t("nav.leave", "Leave"),
-            href: "/leave",
-            icon: CalendarDays,
-            show: true,
-          },
-          {
-            label: t("nav.approvals", "Approvals"),
-            href: "/approvals",
-            icon: CheckSquare,
-            show: isSupervisor,
-          },
-          {
-            label: t("nav.payroll", "Payroll Runs"),
-            href: "/payroll",
-            icon: Wallet,
-            show: can.viewPayrollRuns,
-          },
-          {
-            label: t("nav.payslips", "My Payslips"),
-            href: "/payroll/payslips",
-            icon: Receipt,
-            show: true,
-          },
-          {
-            label: t("nav.loans", "Loans"),
-            href: "/payroll/loans",
-            icon: Banknote,
-            show: can.viewPayrollRuns,
-          },
-          {
-            label: t("nav.cost_sharing", "Cost Sharing"),
-            href: "/payroll/cost-sharing",
-            icon: GraduationCap,
-            show: can.viewPayrollRuns,
-          },
-          {
-            label: t("nav.reports", "Reports"),
-            href: "/reports",
-            icon: BarChart3,
-            show: can.viewReports,
-          },
-          {
-            label: t("nav.analytics", "Analytics"),
-            href: "/analytics",
-            icon: TrendingUp,
-            // As the sidebar: the page is for either dashboard ability, and
-            // HR, finance and regional users were left out here (audit N85).
-            show: can.viewExecutiveDashboard || can.viewRegionalDashboard,
-          },
-          {
-            label: t("nav.announcements", "Announcements"),
-            href: "/announcements",
-            icon: Megaphone,
-            show: true,
-          },
-          {
-            label: t("nav.vacancies", "Vacancies"),
-            href: "/vacancies",
-            icon: Briefcase,
-            show: true,
-          },
-          {
-            label: t("nav.voice", "Voice"),
-            href: "/voice",
-            icon: MessageCircleHeart,
-            show: true,
-          },
-          {
-            label: t("nav.devices", "Devices"),
-            href: "/devices",
-            icon: Fingerprint,
-            show: can.viewDevices,
-          },
-          {
-            label: t("nav.holidays", "Holidays"),
-            href: "/settings/holidays",
-            icon: Calendar,
-            show: can.manageHolidays,
-          },
-          {
-            label: t("nav.settings", "Settings"),
-            href: settingsLanding ?? "/settings",
-            icon: Settings,
-            show: settingsLanding !== null,
-          },
-          {
-            label: t("nav.billing", "Billing"),
-            href: "/billing",
-            icon: CreditCard,
-            show: isTenantAdmin,
-          },
-          {
-            label: t("nav.api_keys", "API Keys"),
-            href: "/settings/api-keys",
-            icon: KeyRound,
-            show: isTenantAdmin,
-          },
-          {
-            label: t("nav.webhooks", "Webhooks"),
-            href: "/settings/webhooks",
-            icon: Webhook,
-            show: isTenantAdmin,
-          },
-          {
-            label: t("nav.audit_log", "Audit Log"),
-            href: "/settings/audit-logs",
-            icon: ScrollText,
-            show: isTenantAdmin,
-          },
-          {
-            label: t("nav.roles", "Roles"),
-            href: "/settings/roles",
-            icon: Shield,
-            keywords: "permissions custom role",
-            show: isTenantAdmin,
-          },
-          {
-            label: t("nav.admin", "Admin Console"),
-            href: "/admin",
-            icon: Shield,
-            show: can.viewAdminConsole,
-          },
-          {
-            label: t("nav.tenants", "Tenants"),
-            href: "/admin/tenants",
-            icon: Building2,
-            keywords: "customers organizations subdomain",
-            show: can.viewAdminConsole,
-          },
-          {
-            label: t("nav.platform_audit", "Platform Audit Log"),
-            href: "/admin/audit",
-            icon: ScrollText,
-            keywords: "impersonation compliance all tenants",
-            show: can.viewAdminConsole,
-          },
-          {
-            label: t("nav.platform_settings", "Platform Settings"),
-            href: "/admin/platform-settings",
-            icon: Landmark,
-            keywords: "bank account payment details",
-            show: can.viewAdminConsole,
-          },
-          {
-            label: t("nav.sms_delivery", "SMS delivery"),
-            href: "/admin/sms",
-            icon: MessageSquareText,
-            keywords: "sms text message gateway otp ethio telecom safaricom",
-            show: can.viewAdminConsole,
-          },
-          {
-            label: t("nav.plans", "Plans"),
-            href: "/admin/plans",
-            icon: Layers,
-            keywords: "pricing price catalog subscription tiers",
-            show: can.viewAdminConsole,
-          },
-        ],
-      },
-      {
-        heading: t("command.actions", "Quick Actions"),
-        items: [
-          {
-            label: t("command.add_employee", "Add Employee"),
-            href: "/employees/new",
-            icon: Plus,
-            keywords: "create new hire",
-            show: can.manageEmployees,
-          },
-          {
-            label: t("command.run_payroll", "Run Payroll"),
-            href: "/payroll",
-            icon: Play,
-            keywords: "process salary",
-            show: can.processPayroll,
-          },
-          {
-            label: t("command.request_leave", "Request Leave"),
-            // The leave page holds the request form; /leave/new never existed.
-            href: "/leave",
-            icon: CalendarDays,
-            keywords: "time off vacation",
-            show: true,
-          },
-          {
-            label: t("command.generate_report", "Generate Report"),
-            href: "/reports",
-            icon: FileText,
-            keywords: "export analytics",
-            show: can.viewReports,
-          },
-        ],
-      },
-    ],
-    [t, can, isSupervisor, isTenantAdmin, settingsLanding],
+  // The same registry the sidebar draws, so the palette never offers a page
+  // the sidebar hides. Read when the dialog opens, so "today" is today.
+  // `can` is rebuilt on every render of usePermissions; its flags are what
+  // matter, so the context keys on them.
+  const canKey = JSON.stringify(can);
+  const ctx: NavContext = useMemo(
+    () => ({
+      can,
+      isSupervisor,
+      isTenantAdmin,
+      isSuperAdmin,
+      settingsLanding,
+      today: isoToday(),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [canKey, isSupervisor, isTenantAdmin, isSuperAdmin, settingsLanding, open],
+  );
+
+  const actions: PaletteRow[] = useMemo(
+    () =>
+      QUICK_ACTIONS.filter((a) => a.show(ctx)).map((a) => {
+        const label = t(a.labelKey, a.labelFallback);
+        return {
+          value: `action:${a.id}`,
+          href: resolveHref(a.href, ctx),
+          label,
+          description: t(a.descKey, a.descFallback),
+          phrases: [label, ...splitPhrases(t(phrasesKey(a.id), ""))],
+          icon: a.icon,
+        };
+      }),
+    [ctx, t],
+  );
+
+  const pages: PaletteRow[] = useMemo(
+    () =>
+      visibleDestinations(ctx).map((d) => {
+        const href = resolveHref(d.href, ctx);
+        const label = t(d.labelKey, d.labelFallback);
+        const context = d.context
+          ? t(d.context.labelKey, d.context.labelFallback)
+          : undefined;
+        // The page's own one-line description, as the breadcrumb bar shows it.
+        const path = href.split("?")[0];
+        const meta = getRouteMeta(path);
+        const description =
+          meta?.description !== undefined
+            ? t(routeI18nKey(path, "desc"), meta.description)
+            : undefined;
+        return {
+          value: `nav:${d.id}`,
+          href,
+          label,
+          context,
+          description,
+          phrases: [
+            context ? `${context} ${label}` : label,
+            label,
+            ...splitPhrases(t(phrasesKey(d.id), "")),
+          ],
+          icon: d.icon,
+        };
+      }),
+    [ctx, t],
   );
 
   const term = search.trim();
@@ -433,13 +250,13 @@ export function CommandPalette() {
   // answer. Derived here, so no effect has to chase the data.
   const firstRecord =
     employees[0] !== undefined
-      ? `employee ${employees[0].id} ${term}`
+      ? `${RECORD}employee:${employees[0].id}`
       : attendance[0] !== undefined
-        ? `attendance ${attendance[0].id} ${term}`
+        ? `${RECORD}attendance:${attendance[0].id}`
         : leave[0] !== undefined
-          ? `leave ${leave[0].id} ${term}`
+          ? `${RECORD}leave:${leave[0].id}`
           : departments[0] !== undefined
-            ? `department ${departments[0].id} ${term}`
+            ? `${RECORD}department:${departments[0].id}`
             : undefined;
   const answerKey = `${data?.query ?? ""}|${recordCount}`;
   const [picked, setPicked] = useState<{ key: string; value: string } | null>(
@@ -452,14 +269,16 @@ export function CommandPalette() {
     <CommandDialog
       open={open}
       onOpenChange={setPaletteOpen}
-      commandProps={
-        selectedValue === undefined
-          ? undefined
+      commandProps={{
+        filter,
+        ...(selectedValue === undefined
+          ? {}
           : {
               value: selectedValue,
-              onValueChange: (value) => setPicked({ key: answerKey, value }),
-            }
-      }
+              onValueChange: (value: string) =>
+                setPicked({ key: answerKey, value }),
+            }),
+      }}
     >
       <div className="relative">
         <CommandInput
@@ -480,13 +299,21 @@ export function CommandPalette() {
       </div>
       <CommandList className="max-h-[min(60vh,28rem)]">
         <CommandEmpty>
-          {searching
-            ? t(
-                "command.no_results_for",
-                "Nothing you can open matches :query.",
-                { query: `"${term}"` },
-              )
-            : t("command.no_results", "No results found.")}
+          <p>
+            {searching
+              ? t(
+                  "command.no_results_for",
+                  "Nothing you can open matches :query.",
+                  { query: `"${term}"` },
+                )
+              : t("command.no_results", "No results found.")}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t(
+              "command.no_results_hint",
+              'Try a page name, a person\'s name, or a task such as "request leave".',
+            )}
+          </p>
         </CommandEmpty>
 
         {!searching && recent.items.length > 0 && (
@@ -495,7 +322,8 @@ export function CommandPalette() {
               {recent.items.map((entry) => (
                 <ResultRow
                   key={`recent-${entry.kind}-${entry.id}`}
-                  value={`recent ${entry.title} ${entry.subtitle ?? ""}`}
+                  value={`recent:${entry.kind}:${entry.id}`}
+                  keywords={[entry.title, entry.subtitle ?? ""]}
                   icon={KIND_ICON[entry.kind]}
                   title={entry.title}
                   subtitle={entry.subtitle}
@@ -516,9 +344,7 @@ export function CommandPalette() {
               return (
                 <ResultRow
                   key={`employee-${e.id}`}
-                  // The query is part of the value so cmdk's own filter keeps
-                  // these server-matched rows on screen.
-                  value={`employee ${e.id} ${term}`}
+                  value={`${RECORD}employee:${e.id}`}
                   icon={Users}
                   title={e.name}
                   subtitle={subtitle}
@@ -548,7 +374,7 @@ export function CommandPalette() {
               return (
                 <ResultRow
                   key={`attendance-${a.id}`}
-                  value={`attendance ${a.id} ${term}`}
+                  value={`${RECORD}attendance:${a.id}`}
                   icon={Clock}
                   title={a.name}
                   subtitle={subtitle}
@@ -583,7 +409,7 @@ export function CommandPalette() {
               return (
                 <ResultRow
                   key={`leave-${l.id}`}
-                  value={`leave ${l.id} ${term}`}
+                  value={`${RECORD}leave:${l.id}`}
                   icon={CalendarDays}
                   title={title}
                   subtitle={dates}
@@ -611,7 +437,7 @@ export function CommandPalette() {
             {departments.map((d) => (
               <ResultRow
                 key={`department-${d.id}`}
-                value={`department ${d.id} ${term}`}
+                value={`${RECORD}department:${d.id}`}
                 icon={Building2}
                 title={d.name}
                 subtitle={d.code ?? undefined}
@@ -632,27 +458,43 @@ export function CommandPalette() {
 
         {searching && recordCount > 0 && <CommandSeparator />}
 
-        {groups.map((group, gi) => {
-          const visible = group.items.filter((i) => i.show);
-          if (visible.length === 0) return null;
-          return (
-            <div key={group.heading}>
-              {gi > 0 && <CommandSeparator />}
-              <CommandGroup heading={group.heading}>
-                {visible.map((item) => (
-                  <ResultRow
-                    key={item.href ?? item.label}
-                    value={`${item.label} ${item.keywords ?? ""}`}
-                    icon={item.icon}
-                    title={item.label}
-                    query={term}
-                    onSelect={() => item.href && navigate(item.href)}
-                  />
-                ))}
-              </CommandGroup>
-            </div>
-          );
-        })}
+        {actions.length > 0 && (
+          <CommandGroup heading={t("command.actions", "Quick Actions")}>
+            {actions.map((row) => (
+              <ResultRow
+                key={row.value}
+                value={row.value}
+                keywords={row.phrases}
+                icon={row.icon}
+                title={row.label}
+                subtitle={row.description}
+                query={term}
+                onSelect={() => navigate(row.href)}
+              />
+            ))}
+          </CommandGroup>
+        )}
+
+        {pages.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading={t("command.nav", "Navigation")}>
+              {pages.map((row) => (
+                <ResultRow
+                  key={row.value}
+                  value={row.value}
+                  keywords={row.phrases}
+                  icon={row.icon}
+                  title={row.label}
+                  context={row.context}
+                  subtitle={row.description}
+                  query={term}
+                  onSelect={() => navigate(row.href)}
+                />
+              ))}
+            </CommandGroup>
+          </>
+        )}
       </CommandList>
 
       <div
@@ -722,29 +564,51 @@ function Highlight({ text, query }: { text: string; query?: string }) {
 
 function ResultRow({
   value,
+  keywords,
   icon: Icon,
   title,
+  context,
   subtitle,
   query,
   trailing,
   onSelect,
 }: {
   value: string;
+  keywords?: string[];
   icon: LucideIcon;
   title: string;
+  context?: string;
   subtitle?: string;
   query?: string;
   trailing?: React.ReactNode;
   onSelect: () => void;
 }) {
   return (
-    <CommandItem value={value} onSelect={onSelect} className="gap-3">
+    <CommandItem
+      value={value}
+      keywords={keywords}
+      onSelect={onSelect}
+      className="gap-3"
+    >
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-background">
         <Icon className="!h-4 !w-4 text-muted-foreground" aria-hidden />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm text-foreground">
-          <Highlight text={title} query={query} />
+        <span className="flex min-w-0 items-center gap-1 truncate text-sm text-foreground">
+          {context && (
+            // The group first and muted, as the sidebar's pinned rows do, so
+            // "Records" reads as the attendance records.
+            <>
+              <span className="shrink-0 text-muted-foreground">{context}</span>
+              <ChevronRight
+                className="!h-3 !w-3 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </>
+          )}
+          <span className="truncate">
+            <Highlight text={title} query={query} />
+          </span>
         </span>
         {subtitle && (
           <span className="truncate text-xs text-muted-foreground">

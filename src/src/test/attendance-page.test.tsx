@@ -210,3 +210,62 @@ describe("<AttendancePage> manual entry", () => {
     });
   });
 });
+
+describe("<AttendancePage> filters in the address", () => {
+  it("reads a status and a day from the address, as the command palette sends them", async () => {
+    // "Who is absent today" in the palette opens this page with the filters
+    // already set; they live in the address so the link can be shared too.
+    const seen: string[] = [];
+    server.use(
+      me(["attendance.viewAll"]),
+      http.get("*/api/v1/attendance", ({ request }) => {
+        seen.push(decodeURIComponent(new URL(request.url).search));
+        return HttpResponse.json(page([]));
+      }),
+      http.get("*/api/v1/attendance/my", () => HttpResponse.json(page([]))),
+    );
+    window.history.replaceState(
+      {},
+      "",
+      "/attendance?status=absent&from=2026-10-21&to=2026-10-21",
+    );
+    try {
+      renderPage();
+
+      await waitFor(() =>
+        expect(
+          seen.some(
+            (q) =>
+              q.includes("filter[status]=absent") &&
+              q.includes("filter[date_from]=2026-10-21") &&
+              q.includes("filter[date_to]=2026-10-21"),
+          ),
+        ).toBe(true),
+      );
+      // The filter panel opens by itself, so the reader sees what is applied.
+      expect(await screen.findByText("Absent")).toBeInTheDocument();
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
+
+  it("ignores a status the page does not know", async () => {
+    const seen: string[] = [];
+    server.use(
+      me(["attendance.viewAll"]),
+      http.get("*/api/v1/attendance", ({ request }) => {
+        seen.push(decodeURIComponent(new URL(request.url).search));
+        return HttpResponse.json(page([]));
+      }),
+      http.get("*/api/v1/attendance/my", () => HttpResponse.json(page([]))),
+    );
+    window.history.replaceState({}, "", "/attendance?status=drop+table");
+    try {
+      renderPage();
+      await waitFor(() => expect(seen.length).toBeGreaterThan(0));
+      expect(seen.some((q) => q.includes("filter[status]"))).toBe(false);
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
+});

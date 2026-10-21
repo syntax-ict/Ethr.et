@@ -303,7 +303,7 @@ A permission says *what* a user may do; the organisation scope says *to whom*. P
 
 The scope is anchored on the user's linked employee record; a user with no employee record and a scope other than `all` reaches no one. Scoped checks include viewing, updating and transitioning employees, approving leave and corrections, team attendance, attendance conflicts and disciplinary cases.
 
-Two further rules sit on top of scope for approvals: a user cannot approve their own leave request or their own attendance correction, and every approval is a single step — one approval finalises the request.
+Two further rules sit on top of scope for approvals: a user cannot approve their own leave request or their own attendance correction, and every approval is a single step by default — one approval finalises the request. Leave and corrections run through the approval engine (`docs/APPROVAL-ENGINE-DESIGN.md`), so an organisation can be given a chain of steps; each step still needs the permission and the scope above, and a request with no configured chain is decided exactly as described here.
 
 ---
 

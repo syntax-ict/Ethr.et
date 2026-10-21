@@ -26,6 +26,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 final class DecidableApprovals
 {
+    public function __construct(private readonly ApprovalEngine $engine) {}
+
     /** @return Builder<LeaveRequest> */
     public function leave(User $user): Builder
     {
@@ -85,7 +87,8 @@ final class DecidableApprovals
 
     /**
      * The list counterpart of the decide-side policies: nothing without the
-     * permission, the caller's org scope below ALL, never their own.
+     * permission, the caller's org scope below ALL, never their own, and only
+     * requests whose current approval step is the caller's.
      *
      * @template TModel of LeaveRequest|AttendanceCorrection
      *
@@ -106,6 +109,6 @@ final class DecidableApprovals
             $query->where('employee_id', '!=', $user->employee_id);
         }
 
-        return $query;
+        return $this->engine->onlyCurrentApprover($query, $user);
     }
 }

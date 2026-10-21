@@ -57,7 +57,13 @@ describe("status registry", () => {
 
   it("lets a payroll run badge use its own meaning of completed", () => {
     render(<StatusBadge status="completed" domain="payroll_run" />);
-    const badge = screen.getByText(/completed/i).closest("div, span")!;
+    // Calculated and waiting: "Completed" read as finished.
+    const badge = screen.getByText("Awaiting approval").closest("div, span")!;
     expect(badge.className).toContain(toneClasses("warning").badge);
+  });
+
+  it("keeps the plain word for a completed status elsewhere", () => {
+    render(<StatusBadge status="completed" />);
+    expect(screen.getByText("Completed")).toBeInTheDocument();
   });
 });

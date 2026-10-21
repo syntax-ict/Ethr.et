@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { formatETB, formatETBCompact } from "@/lib/utils/currency";
 
 interface CurrencyDisplayProps {
   cents: number;
@@ -21,4 +22,12 @@ export function CurrencyDisplay({ cents, className }: CurrencyDisplayProps) {
       {formatted} ETB
     </span>
   );
+}
+
+/**
+ * An amount fitted to a tile, `2.59M ETB`, with the exact figure as its
+ * tooltip so nothing is lost by fitting it.
+ */
+export function CompactCurrency({ cents }: { cents: number }) {
+  return <span title={formatETB(cents)}>{formatETBCompact(cents)}</span>;
 }

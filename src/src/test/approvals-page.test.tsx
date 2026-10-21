@@ -18,6 +18,8 @@ const LEAVE_ITEM = {
   employee_public_id: "01HZEMPLOYEE0000000000001",
   summary: "Annual Leave: Oct 06 - Oct 08",
   submitted_at: "2026-10-01T06:00:00Z",
+  step: 1,
+  steps: 1,
 };
 
 function renderPage() {
@@ -50,6 +52,30 @@ beforeEach(() => {
 });
 
 describe("Approvals page", () => {
+  it("says which step of a chain a request is on, and nothing for a single step", async () => {
+    server.use(
+      http.get("*/api/v1/approvals/pending", () =>
+        HttpResponse.json({
+          items: [
+            { ...LEAVE_ITEM, step: 2, steps: 3 },
+            {
+              ...LEAVE_ITEM,
+              public_id: "01HZLEAVE0000000000000002",
+              employee_name: "Sara Tesfaye",
+            },
+          ],
+          total: 2,
+        }),
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText("Step 2 of 3")).toBeInTheDocument();
+    expect(screen.getByText("Sara Tesfaye")).toBeInTheDocument();
+    expect(screen.queryByText(/Step 1 of 1/)).not.toBeInTheDocument();
+  });
+
   it("reports an item the batch endpoint refused instead of calling it done", async () => {
     // The endpoint answers 200 for the batch and refuses items one by one —
     // here, a request someone else already decided.
