@@ -22,6 +22,8 @@ class LeaveTypeResource extends JsonResource
             'accrual_type' => $this->accrual_type?->value,
             'carry_forward' => $this->carry_forward,
             'max_carry_days' => $this->max_carry_days ? (float) $this->max_carry_days : null,
+            'seniority_every_years' => $this->seniority_every_years !== null ? (int) $this->seniority_every_years : null,
+            'seniority_extra_days' => $this->seniority_extra_days !== null ? (float) $this->seniority_extra_days : null,
             'requires_approval' => $this->requires_approval,
             'requires_attachment' => $this->requires_attachment,
             'min_notice_days' => $this->min_notice_days,

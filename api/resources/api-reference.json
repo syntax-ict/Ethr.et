@@ -35392,6 +35392,18 @@
                             "null"
                         ]
                     },
+                    "seniority_every_years": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "seniority_extra_days": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
                     "requires_approval": {
                         "type": "boolean"
                     },
@@ -35446,6 +35458,8 @@
                     "accrual_type",
                     "carry_forward",
                     "max_carry_days",
+                    "seniority_every_years",
+                    "seniority_extra_days",
                     "requires_approval",
                     "requires_attachment",
                     "min_notice_days",
@@ -38514,6 +38528,22 @@
                         ],
                         "minimum": 0
                     },
+                    "seniority_every_years": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 1,
+                        "maximum": 10
+                    },
+                    "seniority_extra_days": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 30
+                    },
                     "requires_approval": {
                         "type": [
                             "boolean",
@@ -40155,6 +40185,22 @@
                             "null"
                         ],
                         "minimum": 0
+                    },
+                    "seniority_every_years": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 1,
+                        "maximum": 10
+                    },
+                    "seniority_extra_days": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 30
                     },
                     "requires_approval": {
                         "type": "boolean"

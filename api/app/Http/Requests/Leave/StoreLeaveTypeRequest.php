@@ -28,6 +28,8 @@ class StoreLeaveTypeRequest extends FormRequest
             'accrual_type' => ['required', new Enum(AccrualType::class)],
             'carry_forward' => ['nullable', 'boolean'],
             'max_carry_days' => ['nullable', 'numeric', 'min:0'],
+            'seniority_every_years' => ['nullable', 'integer', 'min:1', 'max:10', 'required_with:seniority_extra_days'],
+            'seniority_extra_days' => ['nullable', 'numeric', 'min:0', 'max:30', 'required_with:seniority_every_years'],
             'requires_approval' => ['nullable', 'boolean'],
             'requires_attachment' => ['nullable', 'boolean'],
             'min_notice_days' => ['nullable', 'integer', 'min:0'],
