@@ -12,7 +12,6 @@ import type { components } from "@/api/generated";
 import ShiftsPage from "@/app/(dashboard)/shifts/page";
 import ShiftAssignmentsPage from "@/app/(dashboard)/shifts/assignments/page";
 import ShiftRotationsPage from "@/app/(dashboard)/shifts/rotations/page";
-import SettingsShiftsPage from "@/app/(dashboard)/settings/shifts/page";
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -595,53 +594,6 @@ describe("Shift rotations page", () => {
         "This rotation cannot be deleted: 2 assignments are current or upcoming.",
       ),
     );
-  });
-});
-
-describe("Shift settings page", () => {
-  it("lists every shift, not the first 25", async () => {
-    serve({ shifts: Array.from({ length: 30 }, (_, i) => shift(i + 1)) });
-    renderPage(<SettingsShiftsPage />);
-
-    expect(await screen.findByText("Shift 30")).toBeInTheDocument();
-  });
-
-  it("does not offer Delete to a role without shift.delete", async () => {
-    serve({ permissions: HR_ADMIN });
-    renderPage(<SettingsShiftsPage />);
-
-    await screen.findByText("Morning");
-    expect(
-      screen.queryByRole("button", { name: "Delete" }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("rejects a grace period the API would refuse, without sending it", async () => {
-    let posts = 0;
-    serve();
-    server.use(
-      http.post("*/api/v1/shifts", () => {
-        posts++;
-        return HttpResponse.json(shift(2), { status: 201 });
-      }),
-    );
-    const user = userEvent.setup();
-    renderPage(<SettingsShiftsPage />);
-
-    await screen.findByText("Morning");
-    await user.click(screen.getByRole("button", { name: /Add Shift/ }));
-    const dialog = await screen.findByRole("dialog");
-    await user.type(within(dialog).getByLabelText(/^Name/), "Long grace");
-    await user.type(within(dialog).getByLabelText(/^Start Time/), "08:30");
-    await user.type(within(dialog).getByLabelText(/^End Time/), "17:30");
-    const grace = within(dialog).getByLabelText(/^Grace Period/);
-    await user.clear(grace);
-    await user.type(grace, "150");
-    await user.click(within(dialog).getByRole("button", { name: /Add Shift/ }));
-
-    // StoreShiftRequest: 'grace_minutes' => ['integer', 'min:0', 'max:120'].
-    await waitFor(() => expect(grace).toHaveAttribute("aria-invalid", "true"));
-    expect(posts).toBe(0);
   });
 });
 

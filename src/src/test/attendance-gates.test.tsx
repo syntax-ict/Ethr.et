@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
-import AttendanceSettingsPage from "@/app/(dashboard)/attendance/settings/page";
+import AttendanceSettingsPage from "@/app/(dashboard)/settings/attendance/page";
 import OvertimePage from "@/app/(dashboard)/attendance/overtime/page";
 
 /**

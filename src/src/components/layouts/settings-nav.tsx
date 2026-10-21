@@ -91,13 +91,13 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
       items: [
         {
           label: t("nav.attendance_rules", "Attendance Rules"),
-          href: "/attendance/settings",
+          href: "/settings/attendance",
           icon: Clock,
           show: can.manageAttendance,
         },
         {
           label: t("nav.shift_config", "Shift Rules"),
-          href: "/settings/shifts",
+          href: "/shifts",
           icon: Timer,
           show: can.manageShifts,
         },
@@ -217,9 +217,9 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
 export function useSettingsLanding(): string | null {
   const items = useSettingsNavGroups().flatMap((g) => g.items);
   // A page inside the hub first: only /settings/* renders this navigation.
-  // Attendance Rules lives at /attendance/settings, outside it, so an HR admin
-  // landing there had no way on to Leave Types, Holidays or Users — N91 left
-  // them as unreachable as before (found in the browser pass, audit N98).
+  // Shift Rules leads to /shifts, outside it, so landing there would leave an
+  // HR admin with no way on to Leave Types, Holidays or Users (audit N98,
+  // when Attendance Rules was the page outside the hub).
   const inHub = items.find((i) => i.href.startsWith("/settings"));
   return (inHub ?? items[0])?.href ?? null;
 }

@@ -88,8 +88,8 @@ describe("navigation follows the ability each screen's API checks", () => {
     renderWith(<SettingsNav />);
 
     for (const [name, href] of [
-      [/attendance rules/i, "/attendance/settings"],
-      [/shift rules/i, "/settings/shifts"],
+      [/attendance rules/i, "/settings/attendance"],
+      [/shift rules/i, "/shifts"],
       [/leave types/i, "/settings/leave-types"],
       [/^holidays$/i, "/settings/holidays"],
     ] as const) {
@@ -125,13 +125,22 @@ describe("the Settings entry", () => {
   });
 });
 
-// Attendance Rules is the first entry an HR admin may open, but it lives at
-// /attendance/settings, outside the hub, where the settings navigation does
-// not render: landing there left every other settings page unreachable
-// (audit N98).
+// Attendance Rules used to live at /attendance/settings, outside the hub,
+// where the settings navigation does not render: landing there left every
+// other settings page unreachable (audit N98). It is inside the hub now, and
+// Shift Rules, which leads to /shifts, is the entry outside it.
 describe("the Settings entry for HR", () => {
-  it("lands inside the settings hub, not on Attendance Rules", async () => {
+  it("lands on Attendance Rules, now inside the settings hub", async () => {
     asCustomRole(["attendance.manage", "leave.manageTypes", "users.viewAny"]);
+    renderWith(<SidebarNav />);
+
+    expect(
+      await screen.findByRole("link", { name: /^settings$/i }),
+    ).toHaveAttribute("href", "/settings/attendance");
+  });
+
+  it("lands inside the hub, not on Shift Rules", async () => {
+    asCustomRole(["shift.create", "leave.manageTypes"]);
     renderWith(<SidebarNav />);
 
     expect(

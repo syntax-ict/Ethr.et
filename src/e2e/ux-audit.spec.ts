@@ -124,7 +124,7 @@ const PHASES: Record<string, Route[]> = {
       role: "admin",
     },
     {
-      path: "/attendance/settings",
+      path: "/settings/attendance",
       name: "attendance-settings",
       role: "admin",
     },
@@ -211,7 +211,6 @@ const PHASES: Record<string, Route[]> = {
     { path: "/billing", name: "billing", role: "admin" },
     { path: "/settings/users", name: "settings-users", role: "admin" },
     { path: "/settings/roles", name: "settings-roles", role: "admin" },
-    { path: "/settings/shifts", name: "settings-shifts", role: "admin" },
     { path: "/settings/holidays", name: "settings-holidays", role: "admin" },
     {
       path: "/settings/leave-types",

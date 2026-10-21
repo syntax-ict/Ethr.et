@@ -572,7 +572,7 @@ export const MORE_DESTINATIONS: Destination[] = [
   },
   {
     id: "attendance_rules",
-    href: "/attendance/settings",
+    href: "/settings/attendance",
     labelKey: "nav.attendance_rules",
     labelFallback: "Attendance Rules",
     icon: Clock,
@@ -580,7 +580,7 @@ export const MORE_DESTINATIONS: Destination[] = [
   },
   {
     id: "shift_rules",
-    href: "/settings/shifts",
+    href: "/shifts",
     labelKey: "nav.shift_config",
     labelFallback: "Shift Rules",
     icon: CalendarRange,
