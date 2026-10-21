@@ -102,6 +102,7 @@ use App\Http\Controllers\Api\V1\Payroll\TaxBracketController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\Profile\PhotoConsentController;
 use App\Http\Controllers\Api\V1\Profile\ProfileController;
+use App\Http\Controllers\Api\V1\Profile\ProfileDocumentController;
 use App\Http\Controllers\Api\V1\Profile\ProfileEmergencyContactController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePhotoController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
@@ -695,6 +696,10 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/profile/emergency-contacts', [ProfileEmergencyContactController::class, 'store']);
     Route::put('/profile/emergency-contacts/{contact}', [ProfileEmergencyContactController::class, 'update']);
     Route::delete('/profile/emergency-contacts/{contact}', [ProfileEmergencyContactController::class, 'destroy']);
+
+    // Own documents, read-only: what HR has filed against the caller's record.
+    Route::get('/profile/documents', [ProfileDocumentController::class, 'index']);
+    Route::get('/profile/documents/{document}', [ProfileDocumentController::class, 'show']);
 
     // HR review queue for approval-gated profile fields
     Route::get('/profile-update-requests', [ProfileUpdateRequestController::class, 'index']);
