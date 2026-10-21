@@ -31,7 +31,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
@@ -133,9 +133,7 @@ export default function RolesPage() {
   return (
     <RoleGate anyPermission={["manageSettings"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("roles_page.title")}
-          description={t("roles_page.description")}
+        <PageActions
           actions={
             <Button onClick={openCreate}>
               <Plus className="mr-2 h-4 w-4" /> {t("roles_page.create_role")}

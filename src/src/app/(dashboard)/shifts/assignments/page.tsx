@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
   useAssignShift,
@@ -198,9 +198,7 @@ function AssignmentsContent() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("shift_assignments_page.title")}
-        description={t("shift_assignments_page.description")}
+      <PageActions
         actions={
           <Button
             onClick={() => {

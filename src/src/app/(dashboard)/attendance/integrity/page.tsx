@@ -31,7 +31,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/empty-state";
-import { PageHeader } from "@/components/shared/page-header";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { StatCard } from "@/components/dashboard";
 import {
@@ -101,14 +100,6 @@ export default function AttendanceIntegrityPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("integrity.title", "Attendance integrity")}
-        description={t(
-          "integrity.description",
-          "Punches that could not be trusted on their face. Accept to keep, reject to void - the employee is told why.",
-        )}
-      />
-
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={t("integrity.open", "To review")}

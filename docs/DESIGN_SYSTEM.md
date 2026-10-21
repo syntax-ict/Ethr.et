@@ -267,7 +267,7 @@ The pattern is an SVG consisting of repeating diamond and cross geometric shapes
 | Component | Props | Notes |
 |---|---|---|
 | `CommandPalette` | — | ⌘K / Ctrl+K. Search employees, navigate pages, quick actions. Role-filtered. |
-| `PageHeader` | title, breadcrumbs, actions | Page title with breadcrumb trail and action buttons. |
+| `PageActions` | actions | A page's action buttons, drawn on the right of the shell's title bar. The title, description and breadcrumb come from `lib/route-meta.ts`, not from the page. Was `PageHeader`, whose `title` and `description` props were never drawn. |
 | `FilePreview` | url, type | Lightbox for PDF/image preview. |
 | `PrintButton` | — | Triggers print with print-optimized CSS (forces light mode). |
 

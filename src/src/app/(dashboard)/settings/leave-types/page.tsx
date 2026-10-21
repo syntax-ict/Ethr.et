@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -225,9 +225,7 @@ export default function LeaveTypesPage() {
   return (
     <RoleGate anyPermission={["manageLeaveTypes"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("leave_types_page.title")}
-          description={t("leave_types_page.description")}
+        <PageActions
           actions={
             <Button onClick={openNew}>
               <Plus className="mr-2 h-4 w-4" />

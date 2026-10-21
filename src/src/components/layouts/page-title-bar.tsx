@@ -131,7 +131,7 @@ export function PageTitleBar() {
         )}
       </div>
 
-      {/* The page's own actions (PageHeader) are portalled in here, beside
+      {/* The page's own actions (PageActions) are portalled in here, beside
           the title, instead of taking a row of their own below it. */}
       <div
         ref={registerSlot}

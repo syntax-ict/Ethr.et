@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { SimpleTable, TableRowActions } from "@/components/shared/simple-table";
 import { QueryBoundary } from "@/components/patterns";
@@ -190,12 +190,7 @@ export default function ShiftRotationsPage() {
   return (
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
-        <PageHeader
-          title={t("rotations_page.title", "Shift Rotations")}
-          description={t(
-            "rotations_page.description",
-            "Repeating patterns for teams that do not work the same shift every week.",
-          )}
+        <PageActions
           actions={
             <div className="flex gap-2">
               <Link href="/shifts">

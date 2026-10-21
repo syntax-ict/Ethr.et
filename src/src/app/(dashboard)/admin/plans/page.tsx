@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
@@ -83,12 +83,7 @@ export default function AdminPlansPage() {
   return (
     <RoleGate minRole="super_admin">
       <div className="space-y-6">
-        <PageHeader
-          title={t("admin_plans.title", "Plans")}
-          description={t(
-            "admin_plans.description",
-            "The catalog the public pricing page reads",
-          )}
+        <PageActions
           actions={
             !creating && (
               <Button onClick={() => setCreating(true)}>

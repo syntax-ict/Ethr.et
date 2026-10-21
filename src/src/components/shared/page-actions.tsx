@@ -4,18 +4,23 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { usePageActionsSlot } from "@/components/layouts/page-actions-slot";
 
-interface PageHeaderProps {
-  title?: string;
-  description?: string;
+interface PageActionsProps {
   actions?: ReactNode;
 }
 
 /**
- * A page's header actions. The title and breadcrumb come from the shell's
- * `PageTitleBar`; the actions are drawn on its right through
- * `page-actions-slot`, or in place when the page has no title bar.
+ * A page's header actions. The title, description and breadcrumb come from
+ * the shell's `PageTitleBar`, read from `lib/route-meta.ts`; the actions are
+ * drawn on its right through `page-actions-slot`, or in place when the page
+ * has no title bar.
+ *
+ * This was `PageHeader`, and took a `title` and `description` it never drew:
+ * 62 pages passed them, so 122 strings looked editable and changed nothing,
+ * and 22 calls passed no actions and rendered nothing at all
+ * (FRONTEND_REDESIGN_PLAN.md, Phase 3). To change what a page's header says,
+ * edit its entry in `lib/route-meta.ts`.
  */
-export function PageHeader({ actions }: PageHeaderProps) {
+export function PageActions({ actions }: PageActionsProps) {
   const slot = usePageActionsSlot();
 
   if (!actions) return null;

@@ -33,7 +33,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SimpleTable } from "@/components/shared/simple-table";
@@ -110,9 +110,7 @@ export default function LeavePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("nav.leave")}
-        description={t("leave_page.description")}
+      <PageActions
         actions={
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> {t("common.apply_leave")}

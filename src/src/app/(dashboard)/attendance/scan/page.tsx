@@ -15,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/shared/page-header";
 import { useScanQr } from "@/features/attendance/api";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
@@ -156,11 +155,6 @@ export default function QrScanPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("attendance.scan_page.title")}
-        description={t("attendance.scan_page.description")}
-      />
-
       <div className="mx-auto max-w-md space-y-4">
         {/* Type selector */}
         <div className="flex rounded-xl border-2 p-1">

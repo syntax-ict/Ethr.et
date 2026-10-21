@@ -29,7 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useCurrentUser } from "@/features/auth/api";
@@ -97,12 +97,7 @@ export default function AdminConsolePage() {
   return (
     <RoleGate minRole="super_admin">
       <div className="space-y-6">
-        <PageHeader
-          title={t("admin_console_page.title", "Admin Console")}
-          description={t(
-            "admin_console_page.description",
-            "Platform overview and system management",
-          )}
+        <PageActions
           actions={
             <Button asChild>
               <Link href="/admin/tenants">

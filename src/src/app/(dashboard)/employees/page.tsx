@@ -18,7 +18,7 @@ import type {
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { SearchInput } from "@/components/shared/search-input";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -192,12 +192,7 @@ export default function EmployeesPage() {
   return (
     <RoleGate anyPermission={["manageEmployees"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("nav.employees", "Employees")}
-          description={t(
-            "route.employees.desc",
-            "Manage your organization's workforce",
-          )}
+        <PageActions
           actions={
             <>
               <Button asChild>

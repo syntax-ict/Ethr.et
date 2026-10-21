@@ -25,7 +25,6 @@ import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { cn } from "@/lib/utils";
-import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { ChartCard, StatCard } from "@/components/dashboard";
@@ -86,13 +85,6 @@ export default function VoiceInsightsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("voice.insights_title", "Voice insights")}
-        description={t(
-          "voice.insights_desc",
-          "How people say work is going, and the concerns they raised.",
-        )}
-      />
       <PulseOverview />
       <ConcernQueue />
     </div>

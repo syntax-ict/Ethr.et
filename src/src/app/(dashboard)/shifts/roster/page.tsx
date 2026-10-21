@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useShiftSchedule, useShifts } from "@/features/shifts/api";
 import {
@@ -223,9 +223,7 @@ export default function RosterPage() {
   return (
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
-        <PageHeader
-          title={t("shift_roster_page.title")}
-          description={t("shift_roster_page.description")}
+        <PageActions
           actions={
             <div className="flex gap-2">
               <Link href="/shifts/assignments">

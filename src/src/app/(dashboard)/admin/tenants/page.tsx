@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/shared/page-header";
 import { SearchInput } from "@/components/shared/search-input";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -61,20 +60,10 @@ export default function AdminTenantsPage() {
   });
 
   const tenants = data?.data ?? [];
-  const total = data?.meta?.total;
 
   return (
     <RoleGate minRole="super_admin">
       <div className="space-y-6">
-        <PageHeader
-          title={t("admin_tenants_page.title", "Tenants")}
-          description={
-            total !== undefined
-              ? `${total} ${t("admin_tenants_page.total_tenants", "total tenants")}`
-              : t("admin_tenants_page.description", "Manage platform tenants")
-          }
-        />
-
         <FilterBar
           activeCount={filters.activeCount}
           onClear={() => {

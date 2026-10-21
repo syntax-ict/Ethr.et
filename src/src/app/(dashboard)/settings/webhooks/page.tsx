@@ -25,7 +25,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { WebhookDeliveriesDialog } from "@/features/webhooks/webhook-deliveries-dialog";
@@ -193,9 +193,7 @@ export default function WebhooksPage() {
   return (
     <RoleGate anyPermission={["manageWebhooks"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("webhooks_page.title")}
-          description={t("webhooks_page.description")}
+        <PageActions
           actions={
             <>
               {/* The reference is served to holders of apikey.manage. */}

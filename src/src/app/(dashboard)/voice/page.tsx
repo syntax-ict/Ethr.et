@@ -26,7 +26,7 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,12 +109,7 @@ export default function VoicePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("voice.title", "Voice")}
-        description={t(
-          "voice.description",
-          "Say how work is going, raise what worries you, and thank your colleagues.",
-        )}
+      <PageActions
         actions={
           can.manageVoice && (
             <Button asChild variant="outline">

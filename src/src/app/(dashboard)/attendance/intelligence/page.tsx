@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -42,9 +42,7 @@ export default function AttendanceIntelligencePage() {
     // custom role can hold without the HR-admin tier (or lack within it).
     <RoleGate anyPermission={["viewAllAttendance"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("attendance.intelligence_page.title")}
-          description={t("attendance.intelligence_page.description")}
+        <PageActions
           actions={
             <div className="flex flex-wrap items-center gap-2">
               {/* `htmlFor` + `id`: the caption read as a label but bound to

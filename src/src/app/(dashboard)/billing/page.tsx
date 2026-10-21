@@ -28,7 +28,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
@@ -68,12 +68,7 @@ export default function BillingPage() {
   return (
     <RoleGate minRole="tenant_admin">
       <div className="space-y-6">
-        <PageHeader
-          title={t("billing.title", "Billing")}
-          description={t(
-            "billing.description",
-            "Manage your subscription, invoices, and payment history",
-          )}
+        <PageActions
           actions={
             <Button onClick={() => setPlanDialogOpen(true)}>
               <ArrowUpDown className="mr-2 h-4 w-4" />{" "}

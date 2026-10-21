@@ -36,7 +36,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable, TableRowActions } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -84,14 +83,6 @@ export default function OrganizationPage() {
   return (
     <RoleGate anyPermission={["manageOrg"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("org.title", "Organization")}
-          description={t(
-            "org.description",
-            "Manage your organizational structure",
-          )}
-        />
-
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList variant="underline">
             <TabsTrigger value="structure">

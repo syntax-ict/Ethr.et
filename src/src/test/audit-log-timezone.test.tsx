@@ -76,7 +76,6 @@ function renderExplorer() {
           endpoint="/audit-logs"
           queryKey="audit-logs"
           title="Audit log"
-          description="Who changed what"
         />
       </CalendarProvider>
     </QueryClientProvider>,

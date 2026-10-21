@@ -22,7 +22,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/shared/page-header";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
@@ -298,11 +297,6 @@ export default function EmployeeImportPage() {
             </Link>
           </Button>
         </div>
-
-        <PageHeader
-          title={t("employees_import_page.title")}
-          description={t("employees_import_page.description")}
-        />
 
         <StepIndicator current={step} />
 

@@ -36,7 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
   useCreateShift,
@@ -232,9 +232,7 @@ export default function ShiftsPage() {
   return (
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
-        <PageHeader
-          title={t("shifts_page.title")}
-          description={t("shifts_page.description")}
+        <PageActions
           actions={
             <div className="flex gap-2">
               <Link href="/shifts/roster">

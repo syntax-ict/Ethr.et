@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
@@ -165,10 +165,6 @@ export default function NotificationPreferencesPage() {
   if (!data || !local) {
     return (
       <div className="space-y-6">
-        <PageHeader
-          title={t("notification_prefs_page.title")}
-          description={t("notification_prefs_page.description_short")}
-        />
         <QueryBoundary
           query={preferences}
           loading={<Skeleton className="h-96 w-full" />}
@@ -181,9 +177,7 @@ export default function NotificationPreferencesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("notification_prefs_page.title")}
-        description={t("notification_prefs_page.description")}
+      <PageActions
         actions={
           <div className="flex gap-2">
             {dirty && (

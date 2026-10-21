@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageActions } from "@/components/shared/page-actions";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -83,12 +83,7 @@ export default function PayrollPage() {
   return (
     <RoleGate allowedRoles={["finance_admin", "tenant_admin", "super_admin"]}>
       <div className="space-y-6">
-        <PageHeader
-          title={t("payroll.title", "Payroll")}
-          description={t(
-            "payroll.description",
-            "View payroll runs and processing history",
-          )}
+        <PageActions
           actions={
             can.processPayroll &&
             hasPayroll && (
