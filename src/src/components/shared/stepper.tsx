@@ -13,6 +13,8 @@ export interface Step {
   /** A line under the label: when it happened, or what happens next. */
   description?: ReactNode;
   state: StepState;
+  /** Where the step is on the page (`#section-job`), for a form's sections. */
+  href?: string;
 }
 
 /**
@@ -98,7 +100,16 @@ export function Stepper({
                 step.state === "error" && "text-destructive",
               )}
             >
-              {step.label}
+              {step.href ? (
+                <a
+                  href={step.href}
+                  className="rounded-sm hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {step.label}
+                </a>
+              ) : (
+                step.label
+              )}
               <span className="sr-only">. {stateText[step.state]}</span>
             </p>
             {step.description && (
