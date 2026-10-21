@@ -73,6 +73,7 @@ import {
 
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
+import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -122,12 +123,17 @@ const prebuilt: Array<{
   },
 ];
 
+const REPORT_TABS = ["builder", "quick", "saved", "scheduled"] as const;
+
 export default function ReportsPage() {
   const { t } = useT();
   // Generating and exporting need the plan's `reports` feature; saving and
   // scheduling need `custom_reports`. The page offered all of them on every
   // plan, and each was refused with a 403 shown as "failed" (audit N66).
   const plan = usePlanFeatures();
+  // `?tab=` opens a tab and switching writes it back, so a reload or a
+  // shared link keeps the tab (FRONTEND_REDESIGN_PLAN.md, backlog 21).
+  const [tab, setTab] = useQueryTab(REPORT_TABS, "builder");
 
   return (
     <RoleGate anyPermission={["viewReports"]}>
@@ -135,7 +141,7 @@ export default function ReportsPage() {
         {!plan.has("reports") ? (
           <PlanFeatureNotice />
         ) : (
-          <Tabs defaultValue="builder">
+          <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
               <TabsTrigger value="builder">
                 {t("reports_page.builder")}
