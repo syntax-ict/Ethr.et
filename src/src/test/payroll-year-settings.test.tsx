@@ -104,3 +104,35 @@ describe("working week", () => {
     expect(screen.getByRole("button", { name: "Mon" })).toBeDisabled();
   });
 });
+
+/**
+ * On a failed load the card used to draw its form from defaults (run day 25,
+ * January fiscal year). Saving it would have written those defaults over the
+ * organisation's real schedule. It now says the data did not load, and shows
+ * no form to save.
+ */
+describe("payroll schedule card when settings do not load", () => {
+  it("shows the error, not a form of defaults", async () => {
+    server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({ detail: "Server Error" }, { status: 500 }),
+      ),
+      http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          user: { public_id: "U1", name: "Admin", role: "tenant_admin" },
+          tenant: { public_id: "T1", name: "Demo" },
+          permissions: ["settings.manage"],
+        }),
+      ),
+    );
+    renderWith(<PayrollScheduleCard />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't load this",
+    );
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /save/i }),
+    ).not.toBeInTheDocument();
+  });
+});

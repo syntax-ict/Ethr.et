@@ -51,6 +51,7 @@ import { rules, fieldMessage } from "@/lib/forms/rules";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { z } from "zod";
+import { ErrorState } from "@/components/shared/error-state";
 
 /** OrgScope, narrowest first: whose records a holder of the role reaches. */
 const ORG_SCOPES = [
@@ -109,7 +110,9 @@ export default function RolesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<CustomRole | null>(null);
 
-  const { data, isLoading } = useCustomRoles({ per_page: 100 });
+  const { data, isLoading, isError, refetch } = useCustomRoles({
+    per_page: 100,
+  });
   const roles = data?.data ?? [];
 
   function openCreate() {
@@ -146,6 +149,8 @@ export default function RolesPage() {
               <Skeleton key={i} className="h-20 w-full" />
             ))}
           </div>
+        ) : isError ? (
+          <ErrorState onRetry={() => refetch()} />
         ) : roles.length === 0 ? (
           <EmptyState
             icon={ShieldCheck}
@@ -298,7 +303,12 @@ function RoleDialog({
     [setValue],
   );
 
-  const { data: permsByModule, isLoading: permsLoading } = usePermissions();
+  const {
+    data: permsByModule,
+    isLoading: permsLoading,
+    isError: permsError,
+    refetch: refetchPerms,
+  } = usePermissions();
 
   const isEditing = !!editingRole;
   const createRole = useCreateCustomRole();
@@ -499,6 +509,10 @@ function RoleDialog({
                   <Skeleton key={i} className="h-6 w-full" />
                 ))}
               </div>
+            ) : permsError || !permsByModule ? (
+              // The list below asserted permsByModule was present, so a
+              // failed load threw instead of saying anything.
+              <ErrorState compact onRetry={() => refetchPerms()} />
             ) : (
               <div className="divide-y">
                 {moduleOrder.map((module) => {

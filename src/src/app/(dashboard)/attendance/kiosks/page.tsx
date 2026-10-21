@@ -57,6 +57,7 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 export default function KioskSessionsPage() {
   const { t } = useT();
@@ -74,7 +75,12 @@ export default function KioskSessionsPage() {
 
   // KioskSessionController::index pages by 25; the page read only the first,
   // so a 26th kiosk could be neither seen nor deactivated.
-  const { data: sessions, isLoading } = useKioskSessions({ page });
+  const {
+    data: sessions,
+    isLoading,
+    isError,
+    refetch,
+  } = useKioskSessions({ page });
 
   const { data: branches } = branchesApi.useList();
 
@@ -186,6 +192,8 @@ export default function KioskSessionsPage() {
               <Skeleton key={i} className="h-40" />
             ))}
           </div>
+        ) : isError ? (
+          <ErrorState onRetry={() => refetch()} />
         ) : list.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">

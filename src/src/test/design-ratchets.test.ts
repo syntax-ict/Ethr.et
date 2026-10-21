@@ -42,7 +42,7 @@ const CEILINGS = {
   sub12pxText: 99,
   nativeConfirm: 0,
   discardedErrors: 0,
-  silentLoadFailures: 30,
+  silentLoadFailures: 20,
 };
 
 function walk(dir: string): string[] {

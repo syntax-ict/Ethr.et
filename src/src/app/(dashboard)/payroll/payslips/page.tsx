@@ -12,11 +12,12 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { downloadPayslip, useMyPayslips } from "@/features/payroll/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { ErrorState } from "@/components/shared/error-state";
 
 export default function MyPayslipsPage() {
   const { t } = useT();
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useMyPayslips({ page });
+  const { data, isLoading, isError, refetch } = useMyPayslips({ page });
 
   return (
     <div className="space-y-6">
@@ -31,6 +32,8 @@ export default function MyPayslipsPage() {
             <Skeleton key={i} className="h-40" />
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={() => refetch()} />
       ) : !data?.data?.length ? (
         <EmptyState
           icon={FileText}

@@ -49,6 +49,8 @@ import {
 } from "@/lib/attendance/punch-assistant";
 import { cn } from "@/lib/utils";
 
+// quiet-on-error: the punch screen is offline-first and must work with no signal; today's shift line is advisory, so a failed lookup leaves it blank rather than putting an error between a person and the punch button.
+
 type PunchType = "check_in" | "check_out";
 
 interface Done {

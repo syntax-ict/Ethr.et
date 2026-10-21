@@ -57,6 +57,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import { apiErrorDetail } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 function assignableTypeLabel(
   type: string,
@@ -129,11 +130,16 @@ export default function ShiftsPage() {
 
   const assignableType = assignForm.watch("assignable_type");
 
-  const { data, isLoading } = useShifts();
+  const { data, isLoading, isError, refetch } = useShifts();
   // "Active schedule": assignments still in force today or starting later.
   // Unfiltered, this listed every expired assignment too — and only the first
   // 25, since it asked for no page size.
-  const { data: scheduleData, isLoading: scheduleLoading } = useShiftSchedule({
+  const {
+    data: scheduleData,
+    isLoading: scheduleLoading,
+    isError: scheduleError,
+    refetch: refetchSchedule,
+  } = useShiftSchedule({
     date_from: todayIso(),
   });
   const { data: employees } = useAssignableEmployees(
@@ -257,6 +263,8 @@ export default function ShiftsPage() {
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
+            ) : isError ? (
+              <ErrorState onRetry={() => refetch()} />
             ) : shifts.length === 0 ? (
               <EmptyState
                 icon={Clock}
@@ -340,6 +348,8 @@ export default function ShiftsPage() {
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
+            ) : scheduleError ? (
+              <ErrorState onRetry={() => refetchSchedule()} />
             ) : schedule.length === 0 ? (
               <EmptyState
                 icon={CalendarDays}

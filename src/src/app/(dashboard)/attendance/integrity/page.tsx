@@ -41,6 +41,7 @@ import {
   type IntegrityFlag,
   type IntegrityStatus,
 } from "@/features/attendance/api";
+import { ErrorState } from "@/components/shared/error-state";
 
 type Severity = "all" | "high" | "medium" | "low";
 
@@ -68,7 +69,11 @@ export default function AttendanceIntegrityPage() {
     decision: "accept" | "reject";
   } | null>(null);
 
-  const { data, isLoading } = useIntegrityFlags({ status, severity, page });
+  const { data, isLoading, isError, refetch } = useIntegrityFlags({
+    status,
+    severity,
+    page,
+  });
   const { data: summary, isLoading: summaryLoading } = useIntegritySummary();
   const flags = data?.data ?? [];
 
@@ -152,6 +157,8 @@ export default function AttendanceIntegrityPage() {
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={() => refetch()} />
       ) : flags.length === 0 ? (
         <EmptyState
           icon={ShieldCheck}

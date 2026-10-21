@@ -19,6 +19,7 @@ import { ethiopianMonthName } from "@/lib/calendar/ethiopian";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { ErrorState } from "@/components/shared/error-state";
 
 interface ScheduleForm {
   run_day: number;
@@ -43,7 +44,7 @@ const MONTHS = Array.from({ length: 13 }, (_, i) => i + 1);
 export function PayrollScheduleCard() {
   const { t, locale } = useT();
 
-  const { data, isLoading } = useSettings();
+  const { data, isLoading, isError, refetch } = useSettings();
 
   const persisted: ScheduleForm = {
     run_day: data?.payroll?.run_day ?? 25,
@@ -109,7 +110,7 @@ export function PayrollScheduleCard() {
             )}
           </p>
         </div>
-        {isDirty && (
+        {isDirty && !isError && (
           <Button onClick={saveSchedule} disabled={save.isPending} size="sm">
             {save.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -127,6 +128,10 @@ export function PayrollScheduleCard() {
             <Skeleton className="h-16" />
             <Skeleton className="h-16" />
           </>
+        ) : isError ? (
+          // Never show the form over a failed load: its defaults would be
+          // saved over the organisation's real schedule.
+          <ErrorState compact onRetry={() => refetch()} />
         ) : (
           <>
             <div>
