@@ -38,6 +38,7 @@ class ProfileUpdateRequestResource extends JsonResource
             'reviewed_by_name' => $this->displayName($this->reviewer),
             'reviewed_at' => $this->reviewed_at,
             'review_notes' => $this->review_notes,
+            'approval' => new ApprovalSummaryResource($this->whenLoaded('approvalInstance')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

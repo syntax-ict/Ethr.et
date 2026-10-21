@@ -12,6 +12,7 @@ use App\Models\ProfileUpdateRequest;
 use App\Models\User;
 use App\Notifications\ProfileUpdateApprovedNotification;
 use App\Notifications\ProfileUpdateRequestedNotification;
+use App\Services\Approval\ApprovalEngine;
 use App\Support\ApprovalRefusal;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,8 @@ use Throwable;
  */
 class ProfileUpdateRequestService
 {
+    public function __construct(private readonly ApprovalEngine $approvals) {}
+
     /**
      * Stage proposed values for gated fields.
      *
@@ -53,14 +56,17 @@ class ProfileUpdateRequestService
             }
 
             DB::transaction(function () use ($employee, $requester, $field, $oldValue, $newValue, $staged) {
+                // One row at a time, not a bulk update: the update event is
+                // what closes each superseded request's approval.
                 ProfileUpdateRequest::where('employee_id', $employee->id)
                     ->where('field_name', $field)
                     ->where('status', ProfileUpdateStatus::PENDING)
-                    ->update([
+                    ->get()
+                    ->each(fn (ProfileUpdateRequest $superseded) => $superseded->update([
                         'status' => ProfileUpdateStatus::REJECTED->value,
                         'review_notes' => 'Superseded by a newer request from the employee.',
                         'reviewed_at' => now(),
-                    ]);
+                    ]));
 
                 $staged->push(ProfileUpdateRequest::create([
                     'tenant_id' => $employee->tenant_id,
@@ -98,7 +104,7 @@ class ProfileUpdateRequestService
      * `DecidableApprovals::profileUpdates()` leaves out the same requests, so
      * the queue never offers what this refuses.
      */
-    public function refusal(ProfileUpdateRequest $request, User $reviewer): ?ApprovalRefusal
+    public function refusal(ProfileUpdateRequest $request, User $reviewer, bool $approving = true): ?ApprovalRefusal
     {
         if ($reviewer->employee_id !== null && $reviewer->employee_id === $request->employee_id) {
             return ApprovalRefusal::selfApproval(__('employee.cannot_review_own_profile'));
@@ -106,6 +112,10 @@ class ProfileUpdateRequestService
 
         if ($request->requested_by !== null && $request->requested_by === $reviewer->id) {
             return ApprovalRefusal::selfApproval(__('employee.cannot_review_filed_profile'));
+        }
+
+        if (! $this->approvals->isCurrentApprover($request, $reviewer, $approving)) {
+            return ApprovalRefusal::notCurrentApprover(__('approval.not_current_approver'));
         }
 
         return null;
@@ -118,6 +128,11 @@ class ProfileUpdateRequestService
     {
         if ($request->status !== ProfileUpdateStatus::PENDING) {
             return $request;
+        }
+
+        // A chain with steps still to go records this one and stays pending.
+        if (! $this->approvals->approve($request, $reviewer)) {
+            return $request->refresh();
         }
 
         DB::transaction(function () use ($request, $reviewer, $notes) {
@@ -176,6 +191,8 @@ class ProfileUpdateRequestService
         if ($request->status !== ProfileUpdateStatus::PENDING) {
             return $request;
         }
+
+        $this->approvals->reject($request, $reviewer, (string) $notes);
 
         $request->update([
             'status' => ProfileUpdateStatus::REJECTED->value,
@@ -268,6 +285,16 @@ class ProfileUpdateRequestService
         // Every row in one staging shares its employee and filer, so the first
         // answers for all: nobody is asked to review what they may not decide.
         $first = $staged->first();
+
+        // A chain whose first step names one person tells them alone.
+        $named = $first === null ? null : $this->approvals->namedApprover($first);
+        if ($named !== null) {
+            $this->deliver(fn () => $named->notify(
+                new ProfileUpdateRequestedNotification($employee, $staged->pluck('field_name')->all()),
+            ));
+
+            return;
+        }
 
         $reviewers = User::where('tenant_id', $employee->tenant_id)
             ->get()
