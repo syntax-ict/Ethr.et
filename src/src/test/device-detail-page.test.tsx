@@ -109,7 +109,8 @@ describe("<DeviceDetail>", () => {
     const panel = await screen.findByRole("tabpanel");
     expect(await within(panel).findByText("Employee 1")).toBeInTheDocument();
 
-    await user.click(within(panel).getByRole("button", { name: "Next page" }));
+    // The shared pager (one for the whole app) names its button "Next".
+    await user.click(within(panel).getByRole("button", { name: "Next" }));
     expect(await within(panel).findByText("Employee 2")).toBeInTheDocument();
   });
 

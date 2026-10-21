@@ -27,6 +27,7 @@ import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { FilterBar } from "@/components/shared/filter-bar";
+import { PaginationControls } from "@/components/shared/pagination-controls";
 
 function trialDaysLeft(trialEndsAt: string | null): number | null {
   if (!trialEndsAt) return null;
@@ -273,32 +274,7 @@ export default function AdminTenantsPage() {
               </CardContent>
             </Card>
 
-            {data?.meta && data.meta.last_page > 1 && (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  {data.meta.from}–{data.meta.to}{" "}
-                  {t("admin_tenants_page.of", "of")} {data.meta.total}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage(page - 1)}
-                  >
-                    {t("admin_tenants_page.previous", "Previous")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= data.meta.last_page}
-                    onClick={() => setPage(page + 1)}
-                  >
-                    {t("admin_tenants_page.next", "Next")}
-                  </Button>
-                </div>
-              </div>
-            )}
+            <PaginationControls meta={data?.meta} onPageChange={setPage} />
           </>
         )}
       </div>

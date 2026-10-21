@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
 import { usePlanFeatures } from "@/features/auth/api";
 import { apiErrorDetail } from "@/lib/api/error-message";
+import { PaginationControls } from "@/components/shared/pagination-controls";
 
 export default function PayrollPage() {
   const { t, locale } = useT();
@@ -239,32 +240,7 @@ export default function PayrollPage() {
               </ul>
             </div>
 
-            {data.meta && data.meta.last_page > 1 && (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  {t("table.showing", "Showing")} {data.meta.from}–
-                  {data.meta.to} {t("table.of", "of")} {data.meta.total}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage(page - 1)}
-                  >
-                    {t("table.previous", "Previous")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= data.meta.last_page}
-                    onClick={() => setPage(page + 1)}
-                  >
-                    {t("common.next", "Next")}
-                  </Button>
-                </div>
-              </div>
-            )}
+            <PaginationControls meta={data.meta} onPageChange={setPage} />
           </>
         )}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

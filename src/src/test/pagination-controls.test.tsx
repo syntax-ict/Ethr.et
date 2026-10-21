@@ -85,3 +85,51 @@ describe("PaginationControls", () => {
     ).toBeInTheDocument();
   });
 });
+
+/**
+ * Seven lists drew their own pager, some saying "1–25 of 140" and others
+ * "Page 1 of 6" (FRONTEND_REDESIGN_PLAN.md, Phase 3: one pager). The shared
+ * one now says the range whenever the API sends it, so no list lost detail in
+ * the move.
+ */
+describe("PaginationControls with a record range", () => {
+  it("says which records are showing when the API sends the range", () => {
+    render(
+      <PaginationControls
+        meta={{ current_page: 2, last_page: 6, total: 140, from: 26, to: 50 }}
+        onPageChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Showing 26 to 50 of 140")).toBeInTheDocument();
+  });
+
+  it("falls back to the page when the range is missing", () => {
+    render(
+      <PaginationControls
+        meta={{
+          current_page: 2,
+          last_page: 6,
+          total: 140,
+          from: null,
+          to: null,
+        }}
+        onPageChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Page 2 of 6")).toBeInTheDocument();
+  });
+});
+
+describe("translated placeholders", () => {
+  it("does not let a short name eat the start of a longer one", async () => {
+    const { translateStatic } = await import("@/lib/i18n/translations");
+    // `:to` is a prefix of `:total`; given in this order it once printed "50tal".
+    expect(
+      translateStatic("x.missing", "en", "Showing :from to :to of :total", {
+        from: 26,
+        to: 50,
+        total: 140,
+      }),
+    ).toBe("Showing 26 to 50 of 140");
+  });
+});

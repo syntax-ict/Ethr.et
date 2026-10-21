@@ -24,6 +24,7 @@ import { useT } from "@/lib/i18n/useT";
 import { statusTone } from "@/lib/utils/status-colors";
 import { csvFromRows, saveCsv } from "@/lib/utils/csv-export";
 import { toast } from "sonner";
+import { PaginationControls } from "@/components/shared/pagination-controls";
 
 // Actions are not statuses, so they ask for a tone by name rather than
 // borrowing a status that happens to be the right colour today: "updated"
@@ -273,32 +274,7 @@ export function AuditLogExplorer({
               </CardContent>
             </Card>
 
-            {result.meta && result.meta.last_page > 1 && (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  {t("audit_logs_page.showing")} {result.meta.from}–
-                  {result.meta.to} {t("audit_logs_page.of")} {result.meta.total}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage(page - 1)}
-                  >
-                    {t("audit_logs_page.previous")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= result.meta.last_page}
-                    onClick={() => setPage(page + 1)}
-                  >
-                    {t("audit_logs_page.next")}
-                  </Button>
-                </div>
-              </div>
-            )}
+            <PaginationControls meta={result.meta} onPageChange={setPage} />
           </>
         )}
       </QueryBoundary>

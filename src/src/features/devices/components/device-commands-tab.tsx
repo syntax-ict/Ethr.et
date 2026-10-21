@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Clock, Loader2, Users } from "lucide-react";
+import { Clock, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
+import { PaginationControls } from "@/components/shared/pagination-controls";
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-warning-soft text-warning-on-soft border-0",
@@ -187,31 +188,7 @@ export function DeviceCommandsTab({
                   ],
                 }))}
               />
-              {data.meta.last_page > 1 && (
-                <div className="flex items-center justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label={t("common.previous")}
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="text-sm tabular-nums text-muted-foreground">
-                    {page} / {data.meta.last_page}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label={t("common.next")}
-                    disabled={page >= data.meta.last_page}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+              <PaginationControls meta={data.meta} onPageChange={setPage} />
             </>
           )}
         </QueryBoundary>
