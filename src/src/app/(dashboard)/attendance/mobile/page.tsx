@@ -466,9 +466,13 @@ export default function MobilePunchPage() {
               )}
             >
               {status === "checked_in"
-                ? `${t("attendance.punch.in_since", "Checked in at")} ${timeOf(shift.attendance.check_in)}`
+                ? t("attendance.punch.in_at_time", "Checked in at :time", {
+                    time: timeOf(shift.attendance.check_in),
+                  })
                 : status === "checked_out"
-                  ? `${t("attendance.punch.out_at", "Checked out at")} ${timeOf(shift.attendance.check_out)}`
+                  ? t("attendance.punch.out_at_time", "Checked out at :time", {
+                      time: timeOf(shift.attendance.check_out),
+                    })
                   : t("dashboard.not_checked_in", "Not checked in")}
             </Badge>
           </div>

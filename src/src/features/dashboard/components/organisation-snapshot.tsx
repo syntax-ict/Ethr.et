@@ -72,7 +72,13 @@ export function OrganisationSnapshot() {
           tone="primary"
           label={t("dashboard.headcount", "Headcount")}
           value={data?.headcount.active ?? 0}
-          hint={`${hiresThisMonth} ${t("dashboard.hires_this_month", "hired this month")}`}
+          hint={t(
+            "dashboard.hired_this_month_count",
+            ":count hired this month",
+            {
+              count: hiresThisMonth,
+            },
+          )}
           spark={growth.map((g) => g.hires)}
           href="/employees"
         />
@@ -94,7 +100,14 @@ export function OrganisationSnapshot() {
           value={pending?.total ?? 0}
           hint={
             pending
-              ? `${pending.leave} ${t("dashboard.leave_short", "leave")} · ${pending.correction} ${t("dashboard.corrections_short", "corrections")}`
+              ? t(
+                  "dashboard.pending_split",
+                  ":leave leave · :corrections corrections",
+                  {
+                    leave: pending.leave,
+                    corrections: pending.correction,
+                  },
+                )
               : undefined
           }
           href="/approvals"

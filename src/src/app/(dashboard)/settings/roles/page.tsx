@@ -221,7 +221,9 @@ function RoleCard({
           )}
           <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
             <span>
-              {role.permissions.length} {t("roles_page.permissions_lc")}
+              {t("roles_page.permissions_count", ":count permissions", {
+                count: role.permissions.length,
+              })}
             </span>
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" />
@@ -485,7 +487,11 @@ function RoleDialog({
               <Label id="role_permissions_label">
                 {t("roles_page.permissions")}{" "}
                 <span className="text-muted-foreground">
-                  ({selected.size} {t("roles_page.selected")})
+                  (
+                  {t("roles_page.selected_count", ":count selected", {
+                    count: selected.size,
+                  })}
+                  )
                 </span>
               </Label>
               {errors.permissions?.message && (

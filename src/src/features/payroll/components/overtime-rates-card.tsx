@@ -183,9 +183,9 @@ export function OvertimeRatesCard() {
                       id={`ot_${key}`}
                       label={labels[key]}
                       required
-                      hint={`${t("payroll_config.minimum", "Minimum")} ${
-                        MINIMUMS[key]
-                      }×`}
+                      hint={t("payroll_config.minimum_rate", "Minimum :rate×", {
+                        rate: MINIMUMS[key],
+                      })}
                       error={errors[key]}
                     >
                       <Input

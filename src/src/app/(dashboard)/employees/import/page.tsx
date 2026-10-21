@@ -154,7 +154,13 @@ export default function EmployeeImportPage() {
           setStep("result");
           if (data.created > 0)
             toast.success(
-              `${t("employees_import_page.imported")} ${data.created} ${t("employees_import_page.employees")}`,
+              t(
+                "employees_import_page.imported_count",
+                "Imported :count employees",
+                {
+                  count: data.created,
+                },
+              ),
             );
         },
         onError: (err) =>
@@ -663,10 +669,18 @@ export default function EmployeeImportPage() {
                 ) : (
                   <UploadIcon className="mr-2 h-4 w-4" />
                 )}
-                {t("employees_import_page.import_prefix")} {validCount}{" "}
-                {validCount !== 1
-                  ? t("employees_import_page.valid_rows_lc")
-                  : t("employees_import_page.valid_row_lc")}
+                {validCount === 1
+                  ? t(
+                      "employees_import_page.import_one_row",
+                      "Import 1 valid row",
+                    )
+                  : t(
+                      "employees_import_page.import_rows",
+                      "Import :count valid rows",
+                      {
+                        count: validCount,
+                      },
+                    )}
               </Button>
             </div>
           </>

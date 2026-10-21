@@ -138,10 +138,14 @@ export function LeaveOverview() {
                   />
                   <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground">
                     <span>
-                      {used} {t("dashboard.used", "used")}
+                      {t("dashboard.used_count", ":count used", {
+                        count: used,
+                      })}
                     </span>
                     <span>
-                      {remaining} {t("dashboard.remaining", "remaining")}
+                      {t("dashboard.remaining_count", ":count remaining", {
+                        count: remaining,
+                      })}
                     </span>
                   </div>
                 </div>

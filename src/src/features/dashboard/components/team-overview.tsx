@@ -118,7 +118,9 @@ export function TeamOverview() {
           tone="success"
           title={t("dashboard.present_today", "Present Today")}
           value={String(attn.present)}
-          sub={`${t("dashboard.of_team", "of")} ${data.team_size}`}
+          sub={t("dashboard.of_team_count", "of :count", {
+            count: data.team_size,
+          })}
         />
         <KpiCard
           icon={UserX}
