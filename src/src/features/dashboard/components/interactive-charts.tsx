@@ -34,6 +34,7 @@ import {
 } from "@/components/dashboard/chart-theme";
 import { dayKeyLabel } from "@/app/(dashboard)/analytics/axis-format";
 import { cn } from "@/lib/utils";
+import { ErrorState } from "@/components/shared/error-state";
 
 type ChartTab = "attendance" | "workforce";
 
@@ -128,11 +129,16 @@ function ChartEmpty({ children }: { children: React.ReactNode }) {
 }
 
 function OrganisationAttendance() {
-  const { data, isLoading } = useExecutiveAttendance();
+  const { data, isLoading, isError, refetch } = useExecutiveAttendance();
   const { t, locale } = useT();
   const { calendar } = useCalendar();
 
   if (isLoading) return <Skeleton className={cn(CHART_HEIGHT, "rounded-lg")} />;
+  // A failed request is not "no attendance this month".
+  if (isError)
+    return (
+      <ErrorState compact onRetry={() => refetch()} className={CHART_HEIGHT} />
+    );
 
   const days = data?.daily_trend ?? [];
   if (days.length === 0) {
@@ -197,10 +203,14 @@ function OrganisationAttendance() {
 }
 
 function HeadcountByDepartment() {
-  const { data, isLoading } = useExecutiveOverview();
+  const { data, isLoading, isError, refetch } = useExecutiveOverview();
   const { t } = useT();
 
   if (isLoading) return <Skeleton className={cn(CHART_HEIGHT, "rounded-lg")} />;
+  if (isError)
+    return (
+      <ErrorState compact onRetry={() => refetch()} className={CHART_HEIGHT} />
+    );
 
   const departments = [...(data?.headcount.by_department ?? [])].sort(
     (a, b) => b.count - a.count,
@@ -250,10 +260,15 @@ function HeadcountByDepartment() {
 }
 
 function TeamAttendanceTrend() {
-  const { data, isLoading } = useTeamAttendanceSummary("weekly");
+  const { data, isLoading, isError, refetch } =
+    useTeamAttendanceSummary("weekly");
   const { t } = useT();
 
   if (isLoading) return <Skeleton className={cn(CHART_HEIGHT, "rounded-lg")} />;
+  if (isError)
+    return (
+      <ErrorState compact onRetry={() => refetch()} className={CHART_HEIGHT} />
+    );
 
   // This chart used to synthesise a week from a single day's totals —
   // `attn.present - i * 2 + Math.round(Math.random() * 3)` — so the "trend" a

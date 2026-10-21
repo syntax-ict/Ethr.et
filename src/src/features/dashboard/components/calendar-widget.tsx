@@ -20,6 +20,7 @@ import {
   todayEthiopian,
 } from "@/lib/calendar/ethiopian";
 import { cn } from "@/lib/utils";
+import { ErrorState } from "@/components/shared/error-state";
 
 const WEEKDAYS_EN = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const WEEKDAYS_AM = ["እሁድ", "ሰኞ", "ማክሰ", "ረቡዕ", "ሐሙስ", "አርብ", "ቅዳሜ"];
@@ -170,7 +171,7 @@ function EthiopianGrid({
 
 export function CalendarWidget() {
   const { t, locale } = useT();
-  const { data, isLoading } = useEmployeeDashboard();
+  const { data, isLoading, isError, refetch } = useEmployeeDashboard();
   const { calendar, formatDate } = useCalendar();
 
   const [gregOffset, setGregOffset] = useState(0);
@@ -252,6 +253,18 @@ export function CalendarWidget() {
       month: "long",
       year: "numeric",
     }).format(new Date(gregYear, gregMonth, 1));
+  }
+
+  // The month grid needs no data, but the holidays on it do: without this a
+  // failed request drew a month with no holidays in it.
+  if (isError) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <ErrorState compact onRetry={() => refetch()} />
+        </CardContent>
+      </Card>
+    );
   }
 
   if (isLoading) {
