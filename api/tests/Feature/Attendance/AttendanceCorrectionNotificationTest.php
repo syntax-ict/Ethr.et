@@ -148,7 +148,8 @@ it('describes the request by public id, name and the corrected day — never an 
         'correction_id' => $correction->public_id,
         'employee_name' => 'Abebe Kebede',
         'date' => '2026-10-05',
-        'message' => 'Attendance correction request pending your review',
+        'message' => 'Abebe Kebede asked for an attendance correction.',
+        'url' => '/approvals',
     ]);
 });
 
@@ -190,7 +191,7 @@ it('tells the employee their correction was rejected, with the same notification
             $payload = $n->toArray($team['staffUser']);
 
             return $payload['action'] === 'rejected'
-                && $payload['message'] === 'Your attendance correction for Oct 05 has been rejected';
+                && $payload['message'] === 'Your attendance correction for 2026-10-05 was rejected.';
         }
     );
 });
@@ -221,7 +222,8 @@ it('names the corrected day in the outcome message', function () {
         'correction_id' => $correction->public_id,
         'date' => '2026-10-05',
         'action' => 'approved',
-        'message' => 'Your attendance correction for Oct 05 has been approved',
+        'message' => 'Your attendance correction for 2026-10-05 was approved.',
+        'url' => '/attendance/corrections',
     ]);
 });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import {
   useMarkAsRead,
   useMarkAllAsRead,
   notificationText,
+  notificationLink,
   type Notification,
 } from "@/features/notifications/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -27,6 +29,7 @@ export default function NotificationsPage() {
   const [page, setPage] = useState(1);
   const { data, isLoading } = useNotifications({ page });
   const markRead = useMarkAsRead();
+  const router = useRouter();
   const markAllRead = useMarkAllAsRead();
 
   function handleMarkAllRead() {
@@ -95,6 +98,8 @@ export default function NotificationsPage() {
                     if (!n.read_at) {
                       markRead.mutate(n.id);
                     }
+                    const link = notificationLink(n);
+                    if (link) router.push(link);
                   }}
                 >
                   <div

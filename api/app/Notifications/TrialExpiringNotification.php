@@ -29,7 +29,8 @@ class TrialExpiringNotification extends Notification
         return [
             'days_remaining' => $this->daysRemaining,
             'trial_ends_at' => $this->trialEndsAt,
-            'message' => "Your trial expires in {$this->daysRemaining} day(s). Upgrade to continue using ETHR.",
+            'message' => trans_choice('notification.inapp.trial_expiring', $this->daysRemaining, ['days' => $this->daysRemaining]),
+            'url' => '/billing',
         ];
     }
 

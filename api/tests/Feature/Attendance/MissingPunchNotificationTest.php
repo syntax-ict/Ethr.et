@@ -71,7 +71,8 @@ it('describes a missing check-out by the employee\'s public id, name and the day
             'employee_name' => 'Abebe Kebede',
             'date' => '2026-10-05',
             'type' => 'missing_check_out',
-            'message' => 'Abebe Kebede did not check out on 2026-10-05',
+            'message' => 'Abebe Kebede did not check out on 2026-10-05.',
+            'url' => '/attendance',
         ]);
 });
 
@@ -81,7 +82,7 @@ it('words a missing check-in differently from a missing check-out', function () 
 
     $notification = new MissingPunchNotification($employee, '2026-10-05', 'missing_check_in');
 
-    expect($notification->toArray($to)['message'])->toBe('Abebe Kebede did not check in on 2026-10-05')
+    expect($notification->toArray($to)['message'])->toBe('Abebe Kebede did not check in on 2026-10-05.')
         ->and(implode(' ', $notification->toMail($to)->introLines))->toContain('missing a check-in for 2026-10-05');
 });
 

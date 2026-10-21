@@ -26,6 +26,18 @@ export function notificationText(n: Notification): string | undefined {
   return undefined;
 }
 
+/**
+ * Where a notification opens: the in-app path the server stored with it.
+ * Only a same-origin path is followed, never a full or protocol-relative URL,
+ * so a stored value cannot send the reader off the site.
+ */
+export function notificationLink(n: Notification): string | undefined {
+  const { url } = n.data;
+  return typeof url === "string" && url.startsWith("/") && !url.startsWith("//")
+    ? url
+    : undefined;
+}
+
 type UnreadCount =
   operations["notification.unreadCount"]["responses"][200]["content"]["application/json"];
 

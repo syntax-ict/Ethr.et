@@ -45,7 +45,8 @@ class LeaveRequestedNotification extends Notification
             'start_date' => $this->leaveRequest->start_date->format('Y-m-d'),
             'end_date' => $this->leaveRequest->end_date->format('Y-m-d'),
             'days' => $this->leaveRequest->days,
-            'message' => 'New leave request pending your approval',
+            'message' => __('notification.inapp.leave_requested', ['name' => (string) $this->leaveRequest->employee?->name]),
+            'url' => '/approvals',
         ];
     }
 
