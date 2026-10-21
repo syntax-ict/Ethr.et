@@ -77,12 +77,21 @@ import { apiErrorDetail } from "@/lib/api/error-message";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { localizedPeriodLabel } from "@/lib/calendar/period-label";
+import { ErrorState } from "@/components/shared/error-state";
+
+/** A 404 means the record is gone; anything else means the request failed. */
+function isNotFound(error: unknown): boolean {
+  return (
+    (error as { response?: { status?: number } } | null)?.response?.status ===
+    404
+  );
+}
 
 export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const { t, locale } = useT();
   const { calendar, formatDate } = useCalendar();
   const id = useRouteId(routeId) ?? "";
-  const { data: run, isLoading } = usePayrollRun(id);
+  const { data: run, isLoading, isError, error, refetch } = usePayrollRun(id);
   const periodTitle = run
     ? localizedPeriodLabel(
         run.period_label,
@@ -323,6 +332,10 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         <Skeleton className="h-64 w-full" />
       </div>
     );
+  }
+
+  if (isError && !isNotFound(error)) {
+    return <ErrorState onRetry={() => refetch()} />;
   }
 
   if (!run) {

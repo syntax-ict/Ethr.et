@@ -64,6 +64,7 @@ import { useConfirm } from "@/components/shared/use-confirm";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { ErrorState } from "@/components/shared/error-state";
 
 const ORG_TABS = [
   "structure",
@@ -173,7 +174,7 @@ function BranchesTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
-  const { data, isLoading } = branchesApi.useList();
+  const { data, isLoading, isError, refetch } = branchesApi.useList();
   const createMut = branchesApi.useCreate();
   const updateMut = branchesApi.useUpdate();
   const deleteMut = branchesApi.useDelete();
@@ -271,6 +272,8 @@ function BranchesTab() {
       title={t("org.tab.branches", "Branches")}
       onAdd={openCreate}
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => refetch()}
       isEmpty={items.length === 0}
       emptyIcon={Building2}
       emptyTitle={t("org.branch.empty_title", "No branches")}
@@ -483,7 +486,7 @@ function DepartmentsTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
-  const { data, isLoading } = departmentsApi.useList();
+  const { data, isLoading, isError, refetch } = departmentsApi.useList();
   const { data: branches } = branchesApi.useList();
   const createMut = departmentsApi.useCreate();
   const updateMut = departmentsApi.useUpdate();
@@ -580,6 +583,8 @@ function DepartmentsTab() {
       title={t("org.tab.departments", "Departments")}
       onAdd={openCreate}
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => refetch()}
       isEmpty={items.length === 0}
       emptyIcon={GitBranch}
       emptyTitle={t("org.department.empty_title", "No departments")}
@@ -746,7 +751,7 @@ function TeamsTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
-  const { data, isLoading } = teamsApi.useList();
+  const { data, isLoading, isError, refetch } = teamsApi.useList();
   const { data: departments } = departmentsApi.useList();
   const createMut = teamsApi.useCreate();
   const updateMut = teamsApi.useUpdate();
@@ -826,6 +831,8 @@ function TeamsTab() {
       title={t("org.tab.teams", "Teams")}
       onAdd={openCreate}
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => refetch()}
       isEmpty={items.length === 0}
       emptyIcon={Users2}
       emptyTitle={t("org.team.empty_title", "No teams")}
@@ -947,7 +954,7 @@ function PositionsTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
-  const { data, isLoading } = positionsApi.useList();
+  const { data, isLoading, isError, refetch } = positionsApi.useList();
   const createMut = positionsApi.useCreate();
   const updateMut = positionsApi.useUpdate();
   const deleteMut = positionsApi.useDelete();
@@ -1028,6 +1035,8 @@ function PositionsTab() {
       title={t("org.tab.positions", "Positions")}
       onAdd={openCreate}
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => refetch()}
       isEmpty={items.length === 0}
       emptyIcon={Briefcase}
       emptyTitle={t("org.position.empty_title", "No positions")}
@@ -1156,7 +1165,7 @@ function GradesTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
-  const { data, isLoading } = gradesApi.useList();
+  const { data, isLoading, isError, refetch } = gradesApi.useList();
   const createMut = gradesApi.useCreate();
   const updateMut = gradesApi.useUpdate();
   const deleteMut = gradesApi.useDelete();
@@ -1232,6 +1241,8 @@ function GradesTab() {
       title={t("org.tab.grades", "Grades")}
       onAdd={openCreate}
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => refetch()}
       isEmpty={items.length === 0}
       emptyIcon={Award}
       emptyTitle={t("org.grade.empty_title", "No grades")}
@@ -1372,7 +1383,7 @@ function CostCentersTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
-  const { data, isLoading } = costCentersApi.useList();
+  const { data, isLoading, isError, refetch } = costCentersApi.useList();
   const createMut = costCentersApi.useCreate();
   const updateMut = costCentersApi.useUpdate();
   const deleteMut = costCentersApi.useDelete();
@@ -1443,6 +1454,8 @@ function CostCentersTab() {
       title={t("org.tab.cost_centers", "Cost Centers")}
       onAdd={openCreate}
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => refetch()}
       isEmpty={items.length === 0}
       emptyIcon={Wallet}
       emptyTitle={t("org.cost_center.empty_title", "No cost centers")}
@@ -1543,6 +1556,8 @@ function ResourceLayout({
   title,
   onAdd,
   isLoading,
+  isError,
+  onRetry,
   isEmpty,
   emptyIcon,
   emptyTitle,
@@ -1552,6 +1567,9 @@ function ResourceLayout({
   title: string;
   onAdd: () => void;
   isLoading: boolean;
+  /** A failed list must not read as "No branches yet, add your first one". */
+  isError: boolean;
+  onRetry: () => void;
   isEmpty: boolean;
   emptyIcon: React.ComponentType<{ className?: string }>;
   emptyTitle: string;
@@ -1574,6 +1592,8 @@ function ResourceLayout({
             <Skeleton key={i} className="h-16" />
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={onRetry} />
       ) : isEmpty ? (
         <EmptyState
           icon={emptyIcon}
