@@ -24,6 +24,7 @@ class AttendanceCorrectionResource extends JsonResource
             'proposed_check_out' => $this->proposed_check_out?->toIso8601String(),
             'status' => $this->status?->value,
             'approval_chain' => $this->approval_chain,
+            'approval' => new ApprovalSummaryResource($this->whenLoaded('approvalInstance')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

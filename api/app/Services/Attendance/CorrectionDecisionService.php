@@ -9,6 +9,7 @@ use App\Models\AttendanceCorrection;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\AttendanceCorrectionApprovedNotification;
+use App\Services\Approval\ApprovalEngine;
 use App\Services\Payroll\PayrollPeriodLock;
 use App\Support\ApprovalRefusal;
 use App\Support\AttendanceWebhookPayload;
@@ -29,6 +30,7 @@ class CorrectionDecisionService
     public function __construct(
         private readonly AttendanceEngine $engine,
         private readonly PayrollPeriodLock $periodLock,
+        private readonly ApprovalEngine $approvals,
     ) {}
 
     /**
@@ -56,6 +58,10 @@ class CorrectionDecisionService
         // and are decided as before.
         if ($approving && self::filedBy($correction) === $by->public_id) {
             return ApprovalRefusal::selfApproval(__('correction.cannot_approve_filed'));
+        }
+
+        if (! $this->approvals->isCurrentApprover($correction, $by, $approving)) {
+            return ApprovalRefusal::notCurrentApprover(__('approval.not_current_approver'));
         }
 
         // A day already paid in an approved run is not rewritten (PayrollPeriodLock).
@@ -98,6 +104,11 @@ class CorrectionDecisionService
 
     public function approve(AttendanceCorrection $correction, User $by): void
     {
+        // A chain with steps still to go records this one and stays pending.
+        if (! $this->approvals->approve($correction, $by)) {
+            return;
+        }
+
         $chain = $correction->approval_chain ?? [];
         $chain[] = [
             'user_id' => $by->id,
@@ -168,6 +179,8 @@ class CorrectionDecisionService
 
     public function reject(AttendanceCorrection $correction, User $by, string $reason): void
     {
+        $this->approvals->reject($correction, $by, $reason);
+
         $chain = $correction->approval_chain ?? [];
         $chain[] = [
             'user_id' => $by->id,

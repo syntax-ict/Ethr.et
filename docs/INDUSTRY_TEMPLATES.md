@@ -129,7 +129,9 @@ nothing.
 
 ## What templates cannot configure (no module exists)
 
-Multi-step approval workflows (approval is single-step and permission-based),
+Multi-step approval workflows (single step by default; the approval engine
+exists for leave and corrections, but chains have no settings screen yet, so a
+template proposes none),
 employee onboarding and offboarding checklists, performance cycles, training,
 expense categories, recruitment stages (only vacancies exist), salary structures
 (allowances are tenant-wide), document categories (a fixed list), split shifts and

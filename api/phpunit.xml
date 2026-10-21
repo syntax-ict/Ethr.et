@@ -39,8 +39,14 @@
             error rather than a test failure, so it reads like a broken suite
             instead of an exhausted one. Raised here rather than in php.ini so
             the FPM runtime keeps its production-shaped limit.
+
+            2G, not 1G (2026-10-21): this setting overrides the `-d
+            memory_limit=-1` gates.sh passes, and with coverage on Pest loads
+            the whole serialised report after the last test. That report grows
+            with the codebase; at 1G the coverage job died there with every
+            test green, on the approval engine PR (#359).
         -->
-        <ini name="memory_limit" value="1G"/>
+        <ini name="memory_limit" value="2G"/>
         <env name="APP_ENV" value="testing" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
         <env name="BCRYPT_ROUNDS" value="4" force="true"/>
