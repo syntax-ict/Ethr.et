@@ -29,7 +29,7 @@ import {
   seriesColor,
   tooltipProps,
 } from "@/components/dashboard/chart-theme";
-import { ChartCard } from "./chart-helpers";
+import { ChartCard } from "@/components/dashboard/chart-card";
 
 export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
   const { t, locale } = useT();

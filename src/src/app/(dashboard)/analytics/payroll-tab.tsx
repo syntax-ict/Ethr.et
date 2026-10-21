@@ -24,7 +24,9 @@ import {
   seriesColor,
   tooltipProps,
 } from "@/components/dashboard/chart-theme";
-import { ChartCard, KpiBoxCurrency } from "./chart-helpers";
+import { ChartCard } from "@/components/dashboard/chart-card";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { CompactCurrency } from "@/components/shared/currency-display";
 import { birrTick, birrTooltip } from "./axis-format";
 
 export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
@@ -53,23 +55,25 @@ export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
         <div className="space-y-6">
           {data.totals && (
             <div className="grid gap-4 sm:grid-cols-3">
-              <KpiBoxCurrency
+              <StatCard
                 icon={Wallet}
-                title={t("analytics_page.total_gross")}
-                cents={data.totals.total_gross_cents}
-                color="blue"
+                label={t("analytics_page.total_gross")}
+                value={
+                  <CompactCurrency cents={data.totals.total_gross_cents} />
+                }
+                tone="primary"
               />
-              <KpiBoxCurrency
+              <StatCard
                 icon={Wallet}
-                title={t("analytics_page.total_net")}
-                cents={data.totals.total_net_cents}
-                color="green"
+                label={t("analytics_page.total_net")}
+                value={<CompactCurrency cents={data.totals.total_net_cents} />}
+                tone="success"
               />
-              <KpiBoxCurrency
+              <StatCard
                 icon={Wallet}
-                title={t("payroll_detail_page.total_tax")}
-                cents={data.totals.total_tax_cents}
-                color="amber"
+                label={t("payroll_detail_page.total_tax")}
+                value={<CompactCurrency cents={data.totals.total_tax_cents} />}
+                tone="warning"
               />
             </div>
           )}
@@ -77,7 +81,7 @@ export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
           {data.monthly_trend && data.monthly_trend.length > 0 && (
             <ChartCard
               title={t("analytics_page.monthly_payroll_cost")}
-              subtitle={
+              description={
                 (forecast.data?.payroll_gross.projected.length ?? 0) > 0
                   ? t(
                       "executive_dashboard.forecast_subtitle",
