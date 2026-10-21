@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -94,9 +94,40 @@ describe("<EmergencyContactsTab>", () => {
     await user.click(
       await screen.findByRole("button", { name: "Delete Abebe Kebede" }),
     );
+    // Deleting asks first.
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
+    );
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("Could not delete the contact"),
     );
+  });
+
+  it("asks before deleting, and deletes nothing on Cancel", async () => {
+    let deletes = 0;
+    server.use(
+      http.get(CONTACTS_URL, () => HttpResponse.json([buildContact()])),
+      http.delete(`${CONTACTS_URL}/:id`, () => {
+        deletes++;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderTab();
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Abebe Kebede" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent('Delete the contact "Abebe Kebede"?');
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(deletes).toBe(0);
   });
 });

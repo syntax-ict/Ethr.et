@@ -94,6 +94,12 @@ describe("<EducationTab>", () => {
     const user = userEvent.setup();
     renderTab();
     await user.click(await screen.findByRole("button", { name: "Delete BSc" }));
+    // Deleting asks first.
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
+    );
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(

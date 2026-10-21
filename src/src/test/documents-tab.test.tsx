@@ -144,6 +144,12 @@ describe("DocumentsTab list", () => {
         name: "Delete Employment contract 2026",
       }),
     );
+    // Deleting asks first.
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
+    );
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("Could not delete the document"),

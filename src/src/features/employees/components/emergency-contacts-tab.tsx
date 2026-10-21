@@ -18,6 +18,7 @@ import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
@@ -42,6 +43,7 @@ type ContactValues = z.infer<typeof contactSchema>;
 
 export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const [addOpen, setAddOpen] = useState(false);
 
   const {
@@ -68,7 +70,15 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
     reset();
   }
 
-  function onDelete(id: string) {
+  // One click deleted it, with no way back (FRONTEND_REDESIGN_PLAN.md,
+  // employee detail: four sub-record deletes were unconfirmed).
+  async function onDelete(id: string, label: string) {
+    const confirmed = await requestConfirm({
+      title: t("employee.emergency.delete_confirm", undefined, { name: label }),
+      confirmLabel: t("common.delete", "Delete"),
+      variant: "destructive",
+    });
+    if (!confirmed) return;
     deleteContact.mutate(id, {
       onSuccess: () =>
         toast.success(t("employee.emergency.deleted", "Contact deleted")),
@@ -127,7 +137,7 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onDelete(c.public_id)}
+                    onClick={() => onDelete(c.public_id, c.name)}
                     aria-label={`${t("common.delete", "Delete")} ${c.name}`}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -214,6 +224,7 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
           </form>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </Card>
   );
 }
