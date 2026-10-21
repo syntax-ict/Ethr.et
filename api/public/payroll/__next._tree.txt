@@ -1,7 +1,7 @@
 :HL["/_next/static/chunks/0idi3csoibjnk.css","style"]
-:HL["/_next/static/chunks/2my4lwdeo725m.css","style"]
+:HL["/_next/static/chunks/0n0m2hipsy20s.css","style"]
 :HL["/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
 3:[["children",{"s":"__PAGE__","h":160}]]
 2:[["children",{"s":"payroll","h":100,"c":"$Q3"}]]
 1:[["children",{"s":"(dashboard)","h":124,"c":"$Q2"}]]
-0:{"b":"Haxn7K7kdL1wEbqGXu8m7","t":{"t":{"s":"","h":88,"c":"$Q1"}}}
+0:{"b":"I6dT7buO5rMHihILpe2dq","t":{"t":{"s":"","h":88,"c":"$Q1"}}}
