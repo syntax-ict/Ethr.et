@@ -270,6 +270,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Leave Types",
     description: "Define leave categories, accrual rules, and balances",
   },
+  "/settings/opening-balances": {
+    section: "Admin",
+    parent: { label: "Settings", href: "/settings" },
+    label: "Opening balances",
+    description: "Leave and loan balances brought over from a previous system",
+  },
   "/settings/holidays": {
     section: "Admin",
     parent: { label: "Settings", href: "/settings" },
