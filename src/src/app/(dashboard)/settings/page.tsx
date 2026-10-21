@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
-import { useSearchParams } from "next/navigation";
+import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import {
   Save,
   Loader2,
@@ -28,7 +28,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { AddressCard } from "@/features/settings/components/address-card";
@@ -50,7 +49,7 @@ import { type CalendarSystem } from "@/lib/calendar/calendar-context";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 
-const VALID_TABS = ["general", "branding", "security", "sso"];
+const VALID_TABS = ["general", "branding", "security", "sso"] as const;
 
 type MfaPolicy = NonNullable<SettingsUpdate["mfa_policy"]>;
 
@@ -83,11 +82,9 @@ export default function SettingsPage() {
 
 function SettingsTabs({ data }: { data: TenantSettings }) {
   const { t } = useT();
-  const searchParams = useSearchParams();
-  const defaultTab = useMemo(() => {
-    const tab = searchParams.get("tab");
-    return tab && VALID_TABS.includes(tab) ? tab : "general";
-  }, [searchParams]);
+  // `?tab=` opens a tab, and switching tabs writes it back, so a reload
+  // stays put and a link can point at Security or SSO.
+  const [tab, setTab] = useQueryTab(VALID_TABS, "general");
 
   const updateSettings = useUpdateSettings();
   const updateSso = useUpdateSso();
@@ -210,22 +207,11 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
 
   return (
     <div className="space-y-6">
-      <PageActions
-        actions={
-          hasDirty && (
-            <Button onClick={saveSettings} disabled={updateSettings.isPending}>
-              {updateSettings.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
-              )}
-              {t("common.save", "Save Changes")}
-            </Button>
-          )
-        }
-      />
-
-      <Tabs defaultValue={defaultTab} className="w-full">
+      {/* Each card saves itself. The Security fields were saved by a button
+          in the title bar, shown on every tab, while SSO saved in its card
+          and the organisation, address and numbering cards each had their
+          own: one page, four ways to save (FRONTEND_REDESIGN_PLAN.md). */}
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
         <TabsList className="flex w-full flex-wrap">
           <TabsTrigger value="general">
             {t("settings.tab_general", "General")}
@@ -401,6 +387,19 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                     "Sign people out after this many minutes without activity (5 to 480).",
                   )}
                 </p>
+              </div>
+              <div className="flex justify-end sm:col-span-2">
+                <Button
+                  onClick={saveSettings}
+                  disabled={!hasDirty || updateSettings.isPending}
+                >
+                  {updateSettings.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  {t("settings.save_security", "Save security settings")}
+                </Button>
               </div>
             </CardContent>
           </Card>
