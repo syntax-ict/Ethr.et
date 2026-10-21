@@ -135,3 +135,46 @@ table (`TenantIsolationTest`).
 
 With yes to 1 and 2, Phase A is about one week of work and changes nothing
 users see until an organisation configures a chain.
+
+### Decided 2026-10-21
+
+The owner delegated these ("decide for me"). Each answer is the most
+conservative one this document already recommended, and each is consistent
+with the blueprint decision that single-step approval stays the default
+(`audit/BLUEPRINT-ASSESSMENT-2026-10-20.md` §2):
+
+1. **Build it: yes**, in the phases of §7. Single step remains what every
+   organisation has until it configures a chain, so `PERMISSIONS.md` and
+   `INDUSTRY_TEMPLATES.md` now say "single step by default", not "by design".
+2. **Department head: yes**, `departments.head_employee_id`, delivered with
+   Phase B's settings screen, where it is first needed.
+3. **Fallback: yes**, the organisation's HR approvers (the `permission` kind),
+   and the history records that the fallback was used.
+4. **Default chain: today's single step.** No organisation's routing changes
+   without someone choosing it.
+5. **Escalation: yes**, 48 hours, to the approver's supervisor, else HR. It
+   notifies only; nothing is auto-approved (Phase C).
+6. **Parallel approvals: later.**
+
+### What Phase A built
+
+- Tables `approval_workflows`, `approval_workflow_steps`, `approval_instances`,
+  `approval_actions`, all tenant-owned. `approval_delegations` waits for
+  Phase C.
+- `ApprovalEngine` starts an instance when a leave request or attendance
+  correction is created, snapshotting the workflow that applies. It resolves
+  each step's approver when the step is entered (the supervisor becomes that
+  user; no one, or only the requester, falls back to the permission rule), so
+  the inbox can filter in SQL.
+- A request with no instance — everything submitted before this shipped — is
+  on the built-in default workflow, which is today's single step.
+- The decision services ask the engine first: an approval that is not the
+  last step records the step and leaves the request pending; the last step
+  calls the existing `approve()`. Policies are unchanged, so every step still
+  needs the request's permission and reach.
+- The inbox shows "step 2 of 3" when a chain has more than one step, and the
+  leave and correction resources carry `approval` with the step and its
+  history.
+- Supported approver kinds in Phase A: `permission`, `supervisor`, `role`
+  (the user's system role), `user`. `department_head` arrives with its column
+  in Phase B.

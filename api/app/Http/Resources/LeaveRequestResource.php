@@ -27,6 +27,7 @@ class LeaveRequestResource extends JsonResource
             'status' => $this->status?->value,
             'approved_by' => $this->approved_by,
             'rejected_reason' => $this->rejected_reason,
+            'approval' => new ApprovalSummaryResource($this->whenLoaded('approvalInstance')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

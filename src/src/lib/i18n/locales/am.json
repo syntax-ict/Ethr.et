@@ -514,6 +514,7 @@
   "approvals.reject_reason_hint": "ለሠራተኛው ይታያል።",
   "approvals.reject_reason_placeholder": "ለምሳሌ፦ በእነዚያ ቀናት ቡድኑ በዝቅተኛ ሽፋን ላይ ነው።",
   "approvals.reject_title": "ጥያቄውን አትቀበል",
+  "approvals.step_of": "ደረጃ :current ከ :total",
   "approvals.type_profile_update": "የመገለጫ ለውጥ",
   "attendance.all_sources": "ሁሉም ምንጮች",
   "attendance.all_statuses": "ሁሉም ሁኔታዎች",
