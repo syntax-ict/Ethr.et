@@ -1,0 +1,137 @@
+# Approval engine: design for owner review
+
+**Status:** proposal, 2026-10-20. Nothing here is built. It needs the owner
+decisions in [§8](#8-decisions-needed-from-the-owner) before work starts.
+
+**Why now:** the blueprint assessment (`audit/BLUEPRINT-ASSESSMENT-2026-10-20.md`,
+§3 W1–W14) rated approval workflow the weakest area, with 1 of 14 items
+Verified. `ENTERPRISE_ROADMAP.md` 10.1 records configurable chains as
+"Missing — owner decision pending". `PRD.md` FR-06.4 lists them as P0, while
+`PERMISSIONS.md` and `INDUSTRY_TEMPLATES.md` describe single-step approval as
+the design. This document is the decision those disagree about.
+
+## 1. What exists today
+
+| Piece | Where | Behaviour |
+|---|---|---|
+| Who may decide | `Services/Approval/DecidableApprovals.php` | Holders of the request's permission (`leave.approve`, `correction.approve`, `employee.update`) whose org scope reaches the employee |
+| The decision | `LeaveDecisionService`, `CorrectionDecisionService`, `ProfileUpdateRequestService`, `PayrollController::approve` | One step: the first permitted approver decides |
+| Self-approval | Same services | Refused for leave, corrections and profile updates; payroll since #324 (sole approver allowed, audited) |
+| Inbox | `GET /approvals/pending`, `POST /approvals/batch` | Leave, corrections and profile updates. Payroll runs are not in it |
+| Reminders | `SendApprovalRemindersJob` | One digest per approver after 48 h; never escalates |
+| Unused | `leave_requests.current_approver_id` | Column and relation exist, nothing writes it |
+
+The org-scope rule ("reaches the employee") is good and stays: every step
+below still requires reach.
+
+## 2. Goals
+
+1. **Configurable chains** per request type, for example: leave goes to the
+   supervisor, then the department head, then HR.
+2. **Routing** by department, branch, leave type and, later, by amount (loans,
+   expenses).
+3. **Delegation** while an approver is away, recorded as on someone's behalf.
+4. **Escalation** of overdue steps to a named fallback, not just another
+   reminder to the same person.
+5. **Return for correction**: a request can be sent back to its author and
+   resubmitted, not only approved or rejected.
+6. **One inbox and one history**: every request type, with "step 2 of 3"
+   shown and a timeline of who did what, when.
+
+## 3. Non-goals for the first version
+
+- Parallel branches ("HR **and** Finance in any order").
+- Conditions on arbitrary custom fields.
+- A drag-and-drop workflow designer. Steps are a short ordered list.
+
+## 4. Model
+
+```
+approval_workflows      tenant_id, request_type, name, priority, is_active,
+                        conditions json {department_ids, branch_ids,
+                        leave_type_ids, min_amount_cents, max_amount_cents}
+approval_workflow_steps workflow_id, position, approver_kind, approver_ref,
+                        sla_hours, can_return
+approval_instances      tenant_id, approvable (morph), workflow snapshot json,
+                        current_position, status, submitted_by, submitted_at
+approval_actions        instance_id, position, actor_user_id, on_behalf_of_user_id,
+                        action (approve|reject|return|escalate|reassign),
+                        comment, created_at          (append-only, like audit_log)
+approval_delegations    tenant_id, delegator_user_id, delegate_user_id,
+                        starts_on, ends_on, request_types json
+departments.head_employee_id                        (roadmap 10.6)
+```
+
+**Approver kinds:** `supervisor` (the requester's), `department_head`,
+`permission` (anyone holding it who reaches the employee, today's rule),
+`role`, `user`.
+
+**The workflow is snapshotted** onto the instance when the request is
+submitted. Editing a workflow later never changes a request already in
+flight, the same principle as the payroll `calculation_log`.
+
+**Which workflow applies:** the active workflow for the request type with
+the highest priority whose conditions all match. With none configured, a
+built-in **default workflow** reproduces today's single step exactly
+(`permission` kind, the request's current permission), so **nothing changes
+for any organisation until it configures a chain**.
+
+## 5. Rules the engine enforces
+
+1. **Never self-approval.** A step whose only resolved approver is the
+   requester moves to the step's fallback. It is never skipped silently, and
+   never decided by the requester.
+2. **Fallback when no approver resolves** (no supervisor, no department head):
+   the organisation's HR approvers, i.e. the `permission` kind. The action
+   history records that the fallback was used.
+3. **Reach is always required**, at every step, as today.
+4. **Maker-checker** for payroll becomes a two-step default (process, then
+   approve), keeping #324's sole-approver exception.
+5. **Every action is append-only** in `approval_actions` and mirrored to
+   `audit_log`.
+6. **Final approval and rejection call the module's existing service**
+   (`LeaveDecisionService::approve` and the others). Balances, payroll locks
+   and notifications stay where they are; the engine only decides *when*.
+
+## 6. Delegation, escalation, return
+
+- **Delegation:** while a delegation is active, the delegate is an eligible
+  approver for the delegator's steps. Actions record
+  `on_behalf_of_user_id`. A delegate can never approve their own request.
+- **Escalation:** an hourly sweep finds steps past `sla_hours` (default 48)
+  and notifies the step's escalation target: the approver's own supervisor,
+  else HR. The first version does not auto-approve or auto-advance.
+- **Return for correction:** the author edits and resubmits. The instance
+  restarts at step 1 with a fresh snapshot, and earlier actions stay in the
+  history.
+
+## 7. Delivery in phases
+
+| Phase | Scope | Changes behaviour? |
+|---|---|---|
+| A | Engine, tables, default workflow; leave and attendance corrections routed through it; inbox shows step and history | No: the default workflow reproduces today |
+| B | Workflow settings screen (steps editor per request type); department head field; profile updates and payroll on the engine | Only for organisations that configure a chain |
+| C | Delegation (profile setting), escalation sweep, return for correction | Opt-in per organisation |
+| D | Amount routing for loans, and expenses once that module exists | Opt-in |
+
+Each phase is its own PR with tests: a request is decided by exactly the
+configured approvers, in order; the requester can never decide; a workflow
+edited mid-flight changes nothing in flight; tenant isolation for every new
+table (`TenantIsolationTest`).
+
+## 8. Decisions needed from the owner
+
+1. **Build it?** This replaces "single-step by design" in `PERMISSIONS.md` and
+   `INDUSTRY_TEMPLATES.md`, and closes roadmap 10.1.
+2. **Department head:** add `departments.head_employee_id` (roadmap 10.6)?
+   Chains like supervisor, then department head, then HR need it.
+3. **Fallback approver:** is "HR approvers of the organisation" the right
+   universal fallback when a step resolves no one?
+4. **Default chain for new organisations:** keep today's single step, or start
+   leave as supervisor then HR?
+5. **Escalation:** 48 hours by default, escalating to the approver's
+   supervisor, else HR. Acceptable?
+6. **Parallel approvals:** confirm they can wait for a later version.
+
+With yes to 1 and 2, Phase A is about one week of work and changes nothing
+users see until an organisation configures a chain.

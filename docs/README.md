@@ -78,6 +78,7 @@ Three standing caveats:
 | Document | What it is |
 |---|---|
 | [`ENTERPRISE_ROADMAP.md`](ENTERPRISE_ROADMAP.md) | **Live status** — done, partial, missing, grounded in code (97 KB). Cites several audit documents that no longer exist; see the note below |
+| [`APPROVAL-ENGINE-DESIGN.md`](APPROVAL-ENGINE-DESIGN.md) | **Proposal awaiting owner decisions:** configurable approval chains, delegation, escalation and return for correction, delivered in phases that change nothing until an organisation configures a chain |
 | [`external/ERCA_INCOME_TAX_QUERY.md`](external/ERCA_INCOME_TAX_QUERY.md) | **Drafted, unsent.** Asks the **Ministry of Revenues** (not "ERCA" — that body is gone) to confirm the Proclamation 1395/2025 employment-income ladder band by band, because `DEPLOYMENT.md` records it was taken from legal-firm summaries rather than the Negarit Gazeta, and to say how an over-withholding must be corrected. Also records that **both** "open items" in roadmap 4.3 are stale |
 | [`B1-B5_GATE_REPORT.md`](B1-B5_GATE_REPORT.md) | External probing of the hosting target — DNS, ports, TLS |
 | [`phases/`](phases/) | `PHASE_00`–`PHASE_09` design records. **Checkboxes not maintained** |
