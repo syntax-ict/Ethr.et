@@ -130,6 +130,26 @@ const CLASSES: Record<StatusTone, ToneClasses> = {
   },
 };
 
+/**
+ * A status whose word depends on what it describes. A payroll run's
+ * `completed` means calculated and waiting for approval; "Completed" read as
+ * finished, beside an approved run that is.
+ */
+const DOMAIN_LABEL_KEYS: Record<StatusDomain, Record<string, string>> = {
+  payroll_run: { completed: "status.payroll_run.completed" },
+};
+
+/** The translation key for a status's label. */
+export function statusLabelKeyOf(
+  status: string,
+  domain?: StatusDomain,
+): string {
+  return (
+    (domain && DOMAIN_LABEL_KEYS[domain][status.toLowerCase()]) ||
+    `status.${status}`
+  );
+}
+
 export function statusToneOf(
   status: string,
   domain?: StatusDomain,

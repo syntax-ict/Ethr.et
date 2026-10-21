@@ -40,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { Stepper, type Step } from "@/components/shared/stepper";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { StatCard, type StatTone } from "@/components/dashboard/stat-card";
@@ -78,6 +79,81 @@ import { useCalendar } from "@/lib/calendar/calendar-context";
 import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { localizedPeriodLabel } from "@/lib/calendar/period-label";
 import { ErrorState } from "@/components/shared/error-state";
+
+/**
+ * Where a run stands: calculated, then reviewed, then approved. A completed
+ * run and an approved one used to look alike, so a run nobody had approved
+ * read as finished (FRONTEND_REDESIGN_PLAN.md, Phase 3).
+ */
+function runSteps(
+  run: {
+    status: string;
+    processed_at?: string | null;
+    approved_at?: string | null;
+  },
+  {
+    canApprove,
+    t,
+    formatWhen,
+  }: {
+    canApprove: boolean;
+    t: (
+      key: string,
+      fallback?: string,
+      replacements?: Record<string, string | number>,
+    ) => string;
+    formatWhen: (iso: string) => string;
+  },
+): Step[] {
+  const { status } = run;
+  const calculated = status === "completed" || status === "approved";
+  const approved = status === "approved";
+  return [
+    {
+      key: "calculate",
+      label: t("payroll_detail_page.step_calculate", "Calculate"),
+      state:
+        status === "failed" ? "error" : calculated ? "complete" : "current",
+      description:
+        status === "failed"
+          ? t(
+              "payroll_detail_page.step_calculate_failed",
+              "The calculation failed",
+            )
+          : calculated && run.processed_at
+            ? formatWhen(run.processed_at)
+            : undefined,
+    },
+    {
+      key: "review",
+      label: t("payroll_detail_page.step_review", "Review"),
+      state: approved
+        ? "complete"
+        : status === "completed"
+          ? "current"
+          : "upcoming",
+      description:
+        status === "completed"
+          ? canApprove
+            ? t(
+                "payroll_detail_page.step_review_approver",
+                "Check the totals and the register, then approve.",
+              )
+            : t(
+                "payroll_detail_page.step_review_waiting",
+                "Waiting for someone who can approve payroll.",
+              )
+          : undefined,
+    },
+    {
+      key: "approve",
+      label: t("payroll_detail_page.step_approve", "Approve"),
+      state: approved ? "complete" : "upcoming",
+      description:
+        approved && run.approved_at ? formatWhen(run.approved_at) : undefined,
+    },
+  ];
+}
 
 /** A 404 means the record is gone; anything else means the request failed. */
 function isNotFound(error: unknown): boolean {
@@ -463,6 +539,19 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* A voided run says so in the notice below instead. */}
+      {run.status !== "voided" && (
+        <Stepper
+          label={t("payroll_detail_page.steps_label", "Payroll run progress")}
+          steps={runSteps(run, {
+            canApprove,
+            t,
+            formatWhen: (iso) => formatDate(new Date(iso), locale),
+          })}
+          className="rounded-xl border border-border bg-card p-4"
+        />
+      )}
 
       {run.status === "voided" && (
         <div className="rounded-lg border-2 border-destructive/30 bg-destructive/5 p-3 text-sm">

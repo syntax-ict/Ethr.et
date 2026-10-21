@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import {
+  statusLabelKeyOf,
   statusToneOf,
   toneClasses,
   type StatusDomain,
@@ -48,7 +49,7 @@ export function StatusBadge({ status, domain, className }: StatusBadgeProps) {
           aria-hidden
         />
       )}
-      {t(`status.${status}`, humanized)}
+      {t(statusLabelKeyOf(status, domain), humanized)}
     </Badge>
   );
 }
