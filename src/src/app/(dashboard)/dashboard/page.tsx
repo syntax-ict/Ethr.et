@@ -185,7 +185,9 @@ function SelfServiceKpis() {
               // fallback returns the bare translation ("Since") whenever the
               // key exists, dropping the time. Compose outside the call.
               // `check_in` is a UTC instant; print the tenant's wall clock.
-              `${t("dashboard.since", "Since")} ${formatTime(checkIn)}`
+              t("dashboard.since_time", "Since :time", {
+                time: formatTime(checkIn),
+              })
             : t("dashboard.no_record_today", "No record today")
         }
       />

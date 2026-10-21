@@ -279,7 +279,14 @@ function MyLeaveTab() {
                 hint={
                   <span className="block space-y-1.5">
                     <span className="block">
-                      {b.used_days} {t("leave_page.used_of")} {b.entitled_days}
+                      {t(
+                        "leave_page.used_of_entitled",
+                        ":used used of :entitled",
+                        {
+                          used: b.used_days,
+                          entitled: b.entitled_days,
+                        },
+                      )}
                     </span>
                     <span
                       className="block h-1.5 overflow-hidden rounded-full bg-muted"
