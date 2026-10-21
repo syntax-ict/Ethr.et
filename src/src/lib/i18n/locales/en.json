@@ -3093,7 +3093,7 @@
   "offline.offline": "You're offline",
   "offline.page_body": "No internet connection. Check your network and try again. Attendance you record offline will sync automatically when you reconnect.",
   "offline.page_title": "You are offline",
-  "offline.pending_sync": "record(s) waiting to sync",
+  "offline.pending_count": ":count records waiting to sync",
   "onboarding.readiness_score": "Readiness score",
   "onboarding.setup_progress": "Setup progress",
   "opening_balances.choose_file": "Choose CSV file",

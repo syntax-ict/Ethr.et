@@ -164,6 +164,7 @@ export default function AdminTenantsPage() {
             <Card>
               <CardContent className="p-0">
                 <SimpleTable
+                  mobileCards
                   caption={t("admin_tenants_page.title", "Tenants")}
                   headers={[
                     t("admin_tenants_page.tenant", "Tenant"),

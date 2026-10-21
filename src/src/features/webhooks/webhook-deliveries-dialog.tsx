@@ -81,6 +81,7 @@ export function WebhookDeliveriesDialog({
           {(deliveries) => (
             <div className="max-h-[60vh] overflow-y-auto">
               <SimpleTable
+                mobileCards
                 caption={t(
                   "webhooks_page.deliveries_title",
                   "Delivery history",

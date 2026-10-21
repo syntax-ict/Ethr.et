@@ -232,6 +232,7 @@ export default function ShiftRotationsPage() {
             <Card>
               <CardContent className="pt-6">
                 <SimpleTable
+                  mobileCards
                   caption={t("rotations_page.title", "Shift Rotations")}
                   headers={[
                     t("rotations_page.name", "Name"),
@@ -691,6 +692,7 @@ function RotationPreviewDialog({
           <QueryBoundary query={preview}>
             {(data) => (
               <SimpleTable
+                mobileCards
                 caption={t("rotations_page.preview_title", "Preview")}
                 headers={[
                   t("rotations_page.date", "Date"),

@@ -3093,7 +3093,7 @@
   "offline.offline": "ከመስመር ውጭ ነዎት",
   "offline.page_body": "የበይነመረብ ግንኙነት የለም። አውታረ መረብዎን ይፈትሹና እንደገና ይሞክሩ። ከመስመር ውጪ የመዘገቡት መገኘት ሲገናኙ በራሱ ይመሳሰላል።",
   "offline.page_title": "ከመስመር ውጪ ነዎት",
-  "offline.pending_sync": "መዝገብ(ዎች) ለማመሳሰል በመጠባበቅ ላይ",
+  "offline.pending_count": ":count መዝገቦች ለማመሳሰል በመጠባበቅ ላይ",
   "onboarding.readiness_score": "የዝግጁነት ነጥብ",
   "onboarding.setup_progress": "የማዋቀር ሂደት",
   "opening_balances.choose_file": "የCSV ፋይል ይምረጡ",

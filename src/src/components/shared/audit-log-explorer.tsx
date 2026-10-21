@@ -211,6 +211,7 @@ export function AuditLogExplorer({
             <Card>
               <CardContent className="p-0">
                 <SimpleTable
+                  mobileCards
                   caption={title}
                   headers={[
                     t("audit_logs_page.time"),
