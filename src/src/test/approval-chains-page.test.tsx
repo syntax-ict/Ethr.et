@@ -91,6 +91,24 @@ describe("<ApprovalChainsPage>", () => {
     expect(await screen.findByText("Applies to: Finance")).toBeInTheDocument();
   });
 
+  it("groups a chain for profile changes under its own heading", async () => {
+    setup([
+      {
+        ...CHAIN,
+        public_id: "01HZCHAIN0000000000000002",
+        request_type: "profile_update",
+        name: "HR then finance",
+        conditions: null,
+      },
+    ]);
+
+    expect(await screen.findByText("HR then finance")).toBeInTheDocument();
+    expect(screen.getByText("Profile changes")).toBeInTheDocument();
+    expect(
+      screen.getByText("Applies to every request of this type"),
+    ).toBeInTheDocument();
+  });
+
   it("says every request is decided in one step when there is no chain", async () => {
     setup([]);
 
