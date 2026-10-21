@@ -25,6 +25,7 @@ import {
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Stepper, type Step } from "@/components/shared/stepper";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -164,6 +165,17 @@ export default function NewEmployeePage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // The two fields the API requires are checked here first, so a missing
+    // one is named under its field, in its section, without a round trip.
+    const missing: FieldErrors = {};
+    if (!form.name.trim()) missing.name = t("validation.required");
+    if (!form.hire_date) missing.hire_date = t("validation.required");
+    if (Object.keys(missing).length > 0) {
+      setErrors(missing);
+      document.getElementById(Object.keys(missing)[0])?.focus();
+      return;
+    }
     setErrors({});
 
     const payload: CreateEmployeePayload = {
@@ -247,6 +259,78 @@ export default function NewEmployeePage() {
     });
   }
 
+  /** Each section's fields, as the API names them. */
+  const SECTIONS: {
+    id: string;
+    label: string;
+    fields: (keyof EmployeeForm)[];
+    required: (keyof EmployeeForm)[];
+  }[] = [
+    {
+      id: "section-person",
+      label: t("employee.section_person", "Person"),
+      fields: [
+        "name",
+        "name_am",
+        "gender",
+        "date_of_birth",
+        "marital_status",
+        "nationality",
+        "nationality_status",
+      ],
+      required: ["name"],
+    },
+    {
+      id: "section-contact",
+      label: t("employee.section_contact", "Contact and sign-in"),
+      fields: ["email", "phone"],
+      required: [],
+    },
+    {
+      id: "section-job",
+      label: t("employee.section_job", "Job"),
+      fields: [
+        "hire_date",
+        "employee_code",
+        "branch_id",
+        "department_id",
+        "position_id",
+        "supervisor_id",
+        "team_id",
+        "cost_center_id",
+        "badge_number",
+      ],
+      required: ["hire_date"],
+    },
+    {
+      id: "section-pay",
+      label: t("employee.section_pay", "Pay and identity"),
+      fields: ["salary_cents", "tin", "national_id"],
+      required: [],
+    },
+  ];
+  const sectionSteps: Step[] = SECTIONS.map((section) => {
+    const hasError = section.fields.some((f) => errors[f]);
+    const touched = section.fields.some((f) => form[f] !== EMPTY_FORM[f]);
+    const requiredDone = section.required.every(
+      (f) => String(form[f] ?? "").trim() !== "",
+    );
+    const done = section.required.length > 0 ? requiredDone : touched;
+    return {
+      key: section.id,
+      label: section.label,
+      href: `#${section.id}`,
+      state: hasError ? "error" : done ? "complete" : "upcoming",
+      description: hasError
+        ? t("employee.section_needs_change", "Needs a change")
+        : section.required.length > 0 && !requiredDone
+          ? t("employee.section_required", "Has a required field")
+          : section.required.length === 0
+            ? t("common.optional", "optional")
+            : undefined,
+    };
+  });
+
   const codeHint = nextCode.data?.employee_code
     ? t("employee.code_auto_hint", "Leave blank and ETHR assigns :code.", {
         code: nextCode.data.employee_code,
@@ -288,11 +372,22 @@ export default function NewEmployeePage() {
           </div>
         )}
 
+        {/* A guide to the four sections: where each stands, and a link to
+            it. The form stays one page so people keying in many employees
+            with "Save and add another" do not click through steps
+            (FRONTEND_REDESIGN_PLAN.md, Phase 4). */}
+        <Stepper
+          label={t("employee.sections_label", "Sections of the form")}
+          steps={sectionSteps}
+          className="hidden rounded-xl border border-border bg-card p-4 sm:flex"
+        />
+
         {/* Every control's `id` is the API field name so a 422's `errors` key
             maps straight onto it — that is also what lets the submit handler
             focus the first invalid field. */}
         <div key={formKey} className="space-y-6">
           <Section
+            id="section-person"
             icon={<UserRound className="h-4 w-4" />}
             title={t("employee.section_person", "Person")}
             description={t(
@@ -418,6 +513,7 @@ export default function NewEmployeePage() {
           </Section>
 
           <Section
+            id="section-contact"
             icon={<Mail className="h-4 w-4" />}
             title={t("employee.section_contact", "Contact and sign-in")}
             description={t(
@@ -486,6 +582,7 @@ export default function NewEmployeePage() {
           </Section>
 
           <Section
+            id="section-job"
             icon={<Briefcase className="h-4 w-4" />}
             title={t("employee.section_job", "Job")}
             description={t(
@@ -670,6 +767,7 @@ export default function NewEmployeePage() {
           </Section>
 
           <Section
+            id="section-pay"
             icon={<Wallet className="h-4 w-4" />}
             title={t("employee.section_pay", "Pay and identity")}
             description={t(
@@ -778,18 +876,20 @@ export default function NewEmployeePage() {
 }
 
 function Section({
+  id,
   icon,
   title,
   description,
   children,
 }: {
+  id: string;
   icon: ReactNode;
   title: string;
   description: string;
   children: ReactNode;
 }) {
   return (
-    <Card>
+    <Card id={id} className="scroll-mt-24">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-base">
           <span className="text-muted-foreground" aria-hidden="true">
