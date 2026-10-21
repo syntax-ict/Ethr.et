@@ -33,6 +33,12 @@ final readonly class ApprovalRefusal
         return new self(403, 'https://ethr.et/errors/self-approval', 'Self-Approval Forbidden', $detail);
     }
 
+    /** Authorised for the request, but its current step belongs to someone else. */
+    public static function notCurrentApprover(string $detail): self
+    {
+        return new self(403, 'https://ethr.et/errors/not-current-approver', 'Not the Current Approver', $detail);
+    }
+
     public static function payrollPeriodClosed(string $detail): self
     {
         return new self(422, 'https://ethr.et/errors/payroll-period-closed', 'Payroll period closed', $detail);

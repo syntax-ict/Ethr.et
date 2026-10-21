@@ -1339,6 +1339,12 @@
                                                             },
                                                             "submitted_at": {
                                                                 "type": "string"
+                                                            },
+                                                            "step": {
+                                                                "type": "integer"
+                                                            },
+                                                            "steps": {
+                                                                "type": "integer"
                                                             }
                                                         },
                                                         "required": [
@@ -1347,7 +1353,9 @@
                                                             "employee_name",
                                                             "employee_public_id",
                                                             "summary",
-                                                            "submitted_at"
+                                                            "submitted_at",
+                                                            "step",
+                                                            "steps"
                                                         ]
                                                     },
                                                     {
@@ -1377,6 +1385,12 @@
                                                             },
                                                             "submitted_at": {
                                                                 "type": "string"
+                                                            },
+                                                            "step": {
+                                                                "type": "integer"
+                                                            },
+                                                            "steps": {
+                                                                "type": "integer"
                                                             }
                                                         },
                                                         "required": [
@@ -1385,7 +1399,9 @@
                                                             "employee_name",
                                                             "employee_public_id",
                                                             "summary",
-                                                            "submitted_at"
+                                                            "submitted_at",
+                                                            "step",
+                                                            "steps"
                                                         ]
                                                     },
                                                     {
@@ -1416,6 +1432,14 @@
                                                             },
                                                             "submitted_at": {
                                                                 "type": "string"
+                                                            },
+                                                            "step": {
+                                                                "type": "integer",
+                                                                "const": 1
+                                                            },
+                                                            "steps": {
+                                                                "type": "integer",
+                                                                "const": 1
                                                             }
                                                         },
                                                         "required": [
@@ -1424,7 +1448,9 @@
                                                             "employee_name",
                                                             "employee_public_id",
                                                             "summary",
-                                                            "submitted_at"
+                                                            "submitted_at",
+                                                            "step",
+                                                            "steps"
                                                         ]
                                                     }
                                                 ]
@@ -2489,11 +2515,15 @@
                                                             "type": "null"
                                                         }
                                                     ]
+                                                },
+                                                "approval": {
+                                                    "$ref": "#/components/schemas/ApprovalSummaryResource"
                                                 }
                                             },
                                             "required": [
                                                 "attendance_record",
-                                                "employee"
+                                                "employee",
+                                                "approval"
                                             ]
                                         }
                                     ]
@@ -2914,11 +2944,15 @@
                                                             "type": "null"
                                                         }
                                                     ]
+                                                },
+                                                "approval": {
+                                                    "$ref": "#/components/schemas/ApprovalSummaryResource"
                                                 }
                                             },
                                             "required": [
                                                 "attendance_record",
-                                                "employee"
+                                                "employee",
+                                                "approval"
                                             ]
                                         }
                                     ]
@@ -3145,11 +3179,15 @@
                                                             "type": "null"
                                                         }
                                                     ]
+                                                },
+                                                "approval": {
+                                                    "$ref": "#/components/schemas/ApprovalSummaryResource"
                                                 }
                                             },
                                             "required": [
                                                 "attendance_record",
-                                                "employee"
+                                                "employee",
+                                                "approval"
                                             ]
                                         }
                                     ]
@@ -17140,11 +17178,33 @@
                                                 },
                                                 "leave_type": {
                                                     "$ref": "#/components/schemas/LeaveTypeResource"
+                                                },
+                                                "approval": {
+                                                    "allOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/ApprovalSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "history": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "$ref": "#/components/schemas/ApprovalActionResource"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "history"
+                                                            ]
+                                                        }
+                                                    ]
                                                 }
                                             },
                                             "required": [
                                                 "employee",
-                                                "leave_type"
+                                                "leave_type",
+                                                "approval"
                                             ]
                                         }
                                     ]
@@ -17414,11 +17474,33 @@
                                                 },
                                                 "leave_type": {
                                                     "$ref": "#/components/schemas/LeaveTypeResource"
+                                                },
+                                                "approval": {
+                                                    "allOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/ApprovalSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "history": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "$ref": "#/components/schemas/ApprovalActionResource"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "history"
+                                                            ]
+                                                        }
+                                                    ]
                                                 }
                                             },
                                             "required": [
                                                 "employee",
-                                                "leave_type"
+                                                "leave_type",
+                                                "approval"
                                             ]
                                         }
                                     ]
@@ -17485,11 +17567,33 @@
                                                 },
                                                 "leave_type": {
                                                     "$ref": "#/components/schemas/LeaveTypeResource"
+                                                },
+                                                "approval": {
+                                                    "allOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/ApprovalSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "history": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "$ref": "#/components/schemas/ApprovalActionResource"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "history"
+                                                            ]
+                                                        }
+                                                    ]
                                                 }
                                             },
                                             "required": [
                                                 "employee",
-                                                "leave_type"
+                                                "leave_type",
+                                                "approval"
                                             ]
                                         }
                                     ]
@@ -17590,11 +17694,33 @@
                                                 },
                                                 "leave_type": {
                                                     "$ref": "#/components/schemas/LeaveTypeResource"
+                                                },
+                                                "approval": {
+                                                    "allOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/ApprovalSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "history": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "$ref": "#/components/schemas/ApprovalActionResource"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "history"
+                                                            ]
+                                                        }
+                                                    ]
                                                 }
                                             },
                                             "required": [
                                                 "employee",
-                                                "leave_type"
+                                                "leave_type",
+                                                "approval"
                                             ]
                                         }
                                     ]
@@ -17736,11 +17862,33 @@
                                                 },
                                                 "leave_type": {
                                                     "$ref": "#/components/schemas/LeaveTypeResource"
+                                                },
+                                                "approval": {
+                                                    "allOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/ApprovalSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "history": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "$ref": "#/components/schemas/ApprovalActionResource"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "history"
+                                                            ]
+                                                        }
+                                                    ]
                                                 }
                                             },
                                             "required": [
                                                 "employee",
-                                                "leave_type"
+                                                "leave_type",
+                                                "approval"
                                             ]
                                         }
                                     ]
@@ -32571,6 +32719,69 @@
                 ],
                 "title": "ApplyConfigurationRequest"
             },
+            "ApprovalActionResource": {
+                "type": "object",
+                "properties": {
+                    "step": {
+                        "type": "integer"
+                    },
+                    "action": {
+                        "type": "string"
+                    },
+                    "actor_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "comment": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "step",
+                    "action",
+                    "actor_name",
+                    "comment",
+                    "at"
+                ],
+                "title": "ApprovalActionResource"
+            },
+            "ApprovalSummaryResource": {
+                "type": "object",
+                "properties": {
+                    "step": {
+                        "type": "integer"
+                    },
+                    "steps": {
+                        "type": "integer"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "history": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ApprovalActionResource"
+                        }
+                    }
+                },
+                "required": [
+                    "step",
+                    "steps",
+                    "status"
+                ],
+                "title": "ApprovalSummaryResource"
+            },
             "ApprovePayrollRunRequest": {
                 "type": "object",
                 "description": "Approving a run. When the run exempts anyone from pension, the approver\nmust say how many they saw (PayrollController::approve) — the count, not a\ncheckbox, so approving a run that has since changed does not slip through.",
@@ -32888,6 +33099,9 @@
                             "null"
                         ],
                         "items": []
+                    },
+                    "approval": {
+                        "$ref": "#/components/schemas/ApprovalSummaryResource"
                     },
                     "created_at": {
                         "type": [
@@ -36425,6 +36639,27 @@
                         "type": [
                             "string",
                             "null"
+                        ]
+                    },
+                    "approval": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApprovalSummaryResource"
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "history": {
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/components/schemas/ApprovalActionResource"
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "history"
+                                ]
+                            }
                         ]
                     },
                     "created_at": {
