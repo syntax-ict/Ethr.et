@@ -16,6 +16,7 @@ use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Notifications\LeaveRequestedNotification;
+use App\Services\Approval\ApprovalEngine;
 use App\Services\Leave\LeaveBalanceService;
 use App\Services\Leave\LeaveDayCalculator;
 use App\Services\Leave\LeaveDecisionService;
@@ -34,6 +35,7 @@ class LeaveRequestController extends Controller
         private readonly LeaveBalanceService $balanceService,
         private readonly LeaveDayCalculator $dayCalculator,
         private readonly LeaveDecisionService $decisions,
+        private readonly ApprovalEngine $approvals,
     ) {}
 
     public function store(StoreLeaveRequestRequest $request): JsonResponse
@@ -154,8 +156,10 @@ class LeaveRequestController extends Controller
         // PHASE_05 S26: "LeaveRequestedNotification → approver". The class existed
         // from Phase 5 but nothing ever constructed it, so approvers were never
         // told a request was waiting.
+        // A chain whose first step names one person tells them; otherwise
+        // the supervisor, as before.
         $this->notify(
-            $this->supervisorUserOf($leaveRequest->employee),
+            $this->approvals->namedApprover($leaveRequest) ?? $this->supervisorUserOf($leaveRequest->employee),
             new LeaveRequestedNotification($leaveRequest),
         );
 

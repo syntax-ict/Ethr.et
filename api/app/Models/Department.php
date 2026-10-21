@@ -21,6 +21,7 @@ class Department extends Model
         'tenant_id',
         'parent_id',
         'branch_id',
+        'head_employee_id',
         'name',
         'name_am',
         'code',
@@ -32,6 +33,7 @@ class Department extends Model
         'tenant_id',
         'parent_id',
         'branch_id',
+        'head_employee_id',
     ];
 
     protected function casts(): array
@@ -62,6 +64,17 @@ class Department extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * Who heads the department, for approval chains with a department-head
+     * step. Not a reporting line: supervisors stay on each employee.
+     *
+     * @return BelongsTo<Employee, $this>
+     */
+    public function head(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'head_employee_id');
     }
 
     public function teams(): HasMany

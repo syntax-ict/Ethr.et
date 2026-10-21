@@ -20734,11 +20734,22 @@
                                                                         "type": "null"
                                                                     }
                                                                 ]
+                                                            },
+                                                            "head": {
+                                                                "anyOf": [
+                                                                    {
+                                                                        "$ref": "#/components/schemas/EmployeeSummaryResource"
+                                                                    },
+                                                                    {
+                                                                        "type": "null"
+                                                                    }
+                                                                ]
                                                             }
                                                         },
                                                         "required": [
                                                             "parent",
-                                                            "branch"
+                                                            "branch",
+                                                            "head"
                                                         ]
                                                     }
                                                 ]
@@ -20929,11 +20940,22 @@
                                                             "type": "null"
                                                         }
                                                     ]
+                                                },
+                                                "head": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/EmployeeSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
                                                 }
                                             },
                                             "required": [
                                                 "parent",
-                                                "branch"
+                                                "branch",
+                                                "head"
                                             ]
                                         }
                                     ]
@@ -21007,6 +21029,16 @@
                                                         }
                                                     ]
                                                 },
+                                                "head": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/EmployeeSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                },
                                                 "children": {
                                                     "type": "array",
                                                     "items": {
@@ -21017,6 +21049,7 @@
                                             "required": [
                                                 "parent",
                                                 "branch",
+                                                "head",
                                                 "children"
                                             ]
                                         }
@@ -21097,11 +21130,22 @@
                                                             "type": "null"
                                                         }
                                                     ]
+                                                },
+                                                "head": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/EmployeeSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
                                                 }
                                             },
                                             "required": [
                                                 "parent",
-                                                "branch"
+                                                "branch",
+                                                "head"
                                             ]
                                         }
                                     ]
@@ -27988,6 +28032,57 @@
                 }
             }
         },
+        "/settings/approval-workflows": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "approvalWorkflow.index",
+                "summary": "List approval workflows",
+                "tags": [
+                    "Leave"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `ApprovalWorkflowResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/ApprovalWorkflowResource"
+                                            },
+                                            {
+                                                "type": "object",
+                                                "properties": {
+                                                    "steps": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "$ref": "#/components/schemas/ApprovalWorkflowStepResource"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "steps"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/settings/data-export": {
             "get": {
                 "x-abilities": [
@@ -32782,6 +32877,110 @@
                 ],
                 "title": "ApprovalSummaryResource"
             },
+            "ApprovalWorkflowResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "request_type": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "priority": {
+                        "type": "integer"
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "conditions": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "department_ids": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "branch_ids": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "leave_type_ids": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "steps": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ApprovalWorkflowStepResource"
+                        }
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "request_type",
+                    "name",
+                    "priority",
+                    "is_active",
+                    "conditions",
+                    "created_at",
+                    "updated_at"
+                ],
+                "title": "ApprovalWorkflowResource"
+            },
+            "ApprovalWorkflowStepResource": {
+                "type": "object",
+                "properties": {
+                    "position": {
+                        "type": "integer"
+                    },
+                    "approver_kind": {
+                        "type": "string"
+                    },
+                    "approver_ref": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "sla_hours": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "position",
+                    "approver_kind",
+                    "approver_ref",
+                    "sla_hours"
+                ],
+                "title": "ApprovalWorkflowStepResource"
+            },
             "ApprovePayrollRunRequest": {
                 "type": "object",
                 "description": "Approving a run. When the run exempts anyone from pension, the approver\nmust say how many they saw (PayrollController::approve) — the count, not a\ncheckbox, so approving a run that has since changed does not slip through.",
@@ -34438,6 +34637,16 @@
                         "anyOf": [
                             {
                                 "$ref": "#/components/schemas/BranchResource"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "head": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/EmployeeSummaryResource"
                             },
                             {
                                 "type": "null"
@@ -39198,6 +39407,14 @@
                         "minLength": 26,
                         "maxLength": 26
                     },
+                    "head_employee_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 26,
+                        "maxLength": 26
+                    },
                     "is_active": {
                         "type": [
                             "boolean",
@@ -41142,6 +41359,14 @@
                         "maxLength": 26
                     },
                     "branch_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 26,
+                        "maxLength": 26
+                    },
+                    "head_employee_public_id": {
                         "type": [
                             "string",
                             "null"

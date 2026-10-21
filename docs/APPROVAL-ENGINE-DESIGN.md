@@ -178,3 +178,25 @@ with the blueprint decision that single-step approval stays the default
 - Supported approver kinds in Phase A: `permission`, `supervisor`, `role`
   (the user's system role), `user`. `department_head` arrives with its column
   in Phase B.
+
+### What Phase B's backend built (2026-10-21)
+
+- `departments.head_employee_id`, set through the department endpoints as
+  `head_employee_public_id` and returned as `head`.
+- The `department_head` approver kind: the head of the requester's department,
+  through the same eligibility as every other kind, so a head asking for leave
+  themselves, or one who cannot reach the employee, falls back to HR.
+- `GET|POST /settings/approval-workflows` and
+  `PUT|DELETE /settings/approval-workflows/{publicId}`, behind
+  `settings.manage`. An update replaces the whole chain, steps included, and
+  is audited with the steps before and after. At most five steps; a role must
+  be a tenant role other than `employee`; a named user, department, branch or
+  leave type must belong to the organisation (a foreign id gets the same
+  `validation.exists` message as a missing one); leave-type conditions only on
+  leave chains.
+- The submission notice goes to the person the first step names, falling back
+  to the supervisor as before when the step is open to a role or to the
+  permission holders.
+
+Still to come in Phase B: the settings screen, then profile updates and payroll
+on the engine.

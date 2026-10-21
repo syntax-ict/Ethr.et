@@ -12,6 +12,7 @@ use App\Http\Resources\DepartmentResource;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Department;
+use App\Models\Employee;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -26,7 +27,7 @@ class DepartmentController extends Controller
         Gate::authorize('org.viewAny');
 
         $query = Department::query()
-            ->with(['parent', 'branch'])
+            ->with(['parent', 'branch', 'head'])
             ->withCount('employees');
 
         if ($request->filled('search')) {
@@ -83,8 +84,13 @@ class DepartmentController extends Controller
         }
         unset($data['branch_public_id']);
 
+        if (! empty($data['head_employee_public_id'])) {
+            $data['head_employee_id'] = Employee::where('public_id', $data['head_employee_public_id'])->firstOrFail()->id;
+        }
+        unset($data['head_employee_public_id']);
+
         $department = Department::create($data);
-        $department->load(['parent', 'branch']);
+        $department->load(['parent', 'branch', 'head']);
 
         AuditLog::record('department.created', $department);
 
@@ -97,7 +103,7 @@ class DepartmentController extends Controller
     {
         Gate::authorize('org.view');
 
-        $department->load(['parent', 'branch', 'children']);
+        $department->load(['parent', 'branch', 'head', 'children']);
         $department->loadCount('employees');
 
         return new DepartmentResource($department);
@@ -129,8 +135,15 @@ class DepartmentController extends Controller
         }
         unset($data['branch_public_id']);
 
+        if (array_key_exists('head_employee_public_id', $data)) {
+            $data['head_employee_id'] = $data['head_employee_public_id']
+                ? Employee::where('public_id', $data['head_employee_public_id'])->firstOrFail()->id
+                : null;
+        }
+        unset($data['head_employee_public_id']);
+
         $department->update($data);
-        $department->load(['parent', 'branch']);
+        $department->load(['parent', 'branch', 'head']);
 
         AuditLog::record('department.updated', $department);
 
