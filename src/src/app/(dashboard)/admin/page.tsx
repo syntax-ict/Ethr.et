@@ -245,7 +245,9 @@ export default function AdminConsolePage() {
               tone="primary"
               title={t("admin_console_page.total_tenants", "Total Tenants")}
               value={String(revenue.total_tenants)}
-              sub={`${revenue.active_tenants} ${t("admin_console_page.active_sub", "active")}`}
+              sub={t("admin_console_page.active_count", ":count active", {
+                count: revenue.active_tenants,
+              })}
             />
             <KpiCard
               icon={Users}

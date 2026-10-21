@@ -298,7 +298,9 @@ function AssignmentsContent() {
                       {t("shift_assignments_page.from")}{" "}
                       {showDate(a.effective_from)}
                       {a.effective_to
-                        ? ` ${t("shift_assignments_page.to_lc")} ${showDate(a.effective_to)}`
+                        ? ` ${t("shift_assignments_page.to_date", "to :date", {
+                            date: showDate(a.effective_to),
+                          })}`
                         : ` (${t("shift_assignments_page.no_end_date")})`}
                     </p>
                   </div>
