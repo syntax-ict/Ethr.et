@@ -291,6 +291,33 @@ function renderBranded(
   );
 }
 
+// While the organisation loads, the heading showed "…" (backlog 26).
+describe("<OrganisationPortal> while the organisation loads", () => {
+  it("holds the heading's place with a bar, not an ellipsis", () => {
+    hostContextValue.mockReturnValue({
+      ...organisationContext(),
+      tenantName: null,
+      tenantLanding: null,
+      tenantContextLoading: true,
+    });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <OrganisationPortal>
+          <p>the sign-in form</p>
+        </OrganisationPortal>
+      </QueryClientProvider>,
+    );
+
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).toHaveAttribute("aria-busy", "true");
+    expect(heading.textContent).not.toContain("…");
+    expect(heading).toHaveTextContent(/loading/i);
+  });
+});
+
 describe("<OrganisationPortal> brand images", () => {
   afterEach(() => {
     theme.resolvedTheme = "light";
