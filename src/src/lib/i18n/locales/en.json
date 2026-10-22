@@ -3162,6 +3162,8 @@
   "org.field.branch": "Branch",
   "org.field.city": "City",
   "org.field.code": "Code",
+  "org.field.department_head": "Department head",
+  "org.field.department_head_hint": "Approval chains with a department-head step send requests from this department to this person.",
   "org.field.description": "Description",
   "org.field.employees": "Employees",
   "org.field.geofence": "Geofence (m)",

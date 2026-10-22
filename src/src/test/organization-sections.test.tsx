@@ -165,6 +165,71 @@ describe("organization sections", () => {
     );
   });
 
+  it("shows a department's head and keeps or clears it on save", async () => {
+    const HEAD = {
+      public_id: "01HZEMPHEAD001",
+      name: "Hanna Girma",
+      employee_code: "E-007",
+    };
+    const DEPT = {
+      public_id: "01HZDEPT0001",
+      name: "Finance",
+      name_am: null,
+      code: "FIN",
+      is_active: true,
+      branch: null,
+      parent: null,
+      head: HEAD,
+    };
+    const bodies: unknown[] = [];
+    serveBranches();
+    server.use(
+      http.get("*/api/v1/organization/departments", () =>
+        HttpResponse.json(page([DEPT])),
+      ),
+      http.get("*/api/v1/employees", () => HttpResponse.json(page([HEAD]))),
+      http.put("*/api/v1/organization/departments/:id", async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json(DEPT);
+      }),
+      http.post("*/api/v1/organization/departments", async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({ ...DEPT, public_id: "01HZNEWDEPT" });
+      }),
+    );
+    renderPage();
+    await userEvent.click(
+      await screen.findByRole("tab", { name: /departments/i }),
+    );
+
+    expect(await screen.findByText("Hanna Girma")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /edit/i }));
+    const editDialog = await screen.findByRole("dialog");
+    await userEvent.click(
+      within(editDialog).getByRole("button", { name: "Save" }),
+    );
+    await vi.waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toMatchObject({
+      head_employee_public_id: "01HZEMPHEAD001",
+    });
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+    const newDialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(newDialog).getByLabelText(/^Name \*$/),
+      "Audit",
+    );
+    await userEvent.click(
+      within(newDialog).getByRole("button", { name: "Save" }),
+    );
+    await vi.waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies[1]).toMatchObject({ head_employee_public_id: null });
+  });
+
   it("asks before deleting, and deletes on yes", async () => {
     serveBranches();
     const deleted = vi.fn();

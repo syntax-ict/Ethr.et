@@ -3162,6 +3162,8 @@
   "org.field.branch": "ቅርንጫፍ",
   "org.field.city": "ከተማ",
   "org.field.code": "ኮድ",
+  "org.field.department_head": "የክፍል ኃላፊ",
+  "org.field.department_head_hint": "የክፍል ኃላፊ ደረጃ ያላቸው የማጽደቂያ ሰንሰለቶች ከዚህ ክፍል የሚመጡ ጥያቄዎችን ወደዚህ ሰው ይልካሉ።",
   "org.field.description": "መግለጫ",
   "org.field.employees": "ሰራተኞች",
   "org.field.geofence": "ጂኦፌንስ (ሜ.)",
