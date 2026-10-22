@@ -62,6 +62,7 @@ class ApprovalEscalatedNotification extends Notification
         $type = match ($this->requestType) {
             'correction' => __('approval.type_correction'),
             'profile_update' => __('approval.type_profile_update'),
+            'overtime' => __('approval.type_overtime'),
             default => __('approval.type_leave'),
         };
 

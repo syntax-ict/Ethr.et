@@ -12,5 +12,7 @@ return [
     'type_leave' => 'leave request',
     'type_correction' => 'attendance correction',
     'type_profile_update' => 'profile change',
+    'type_overtime' => 'overtime request',
+    'overtime_summary' => 'Overtime on :date, :hours hours',
     'not_current_approver' => 'This request is waiting for another approver at its current step.',
 ];

@@ -187,6 +187,7 @@ export interface OvertimeLimits {
     days_over_legal_daily_limit: number;
     weeks_over_legal_weekly_limit: number;
     longest_week_minutes: number;
+    days_over_approved?: number;
   }[];
 }
 

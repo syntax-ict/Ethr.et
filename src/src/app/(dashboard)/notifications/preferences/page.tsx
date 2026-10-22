@@ -70,6 +70,10 @@ const TYPE_LABEL_KEYS: Record<string, { labelKey: string; descKey?: string }> =
     profile_update: {
       labelKey: "approvals.type_profile_update",
     },
+    overtime_request: {
+      labelKey: "notification_prefs_page.type_overtime_request",
+      descKey: "notification_prefs_page.desc_overtime_request",
+    },
     employee_voice: {
       labelKey: "notification_prefs_page.type_employee_voice",
       descKey: "notification_prefs_page.desc_employee_voice",

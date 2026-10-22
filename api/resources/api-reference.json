@@ -1409,6 +1409,52 @@
                                                         "properties": {
                                                             "type": {
                                                                 "type": "string",
+                                                                "const": "overtime"
+                                                            },
+                                                            "public_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "employee_name": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "employee_public_id": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "summary": {
+                                                                "type": "string"
+                                                            },
+                                                            "submitted_at": {
+                                                                "type": "string"
+                                                            },
+                                                            "step": {
+                                                                "type": "integer"
+                                                            },
+                                                            "steps": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "type",
+                                                            "public_id",
+                                                            "employee_name",
+                                                            "employee_public_id",
+                                                            "summary",
+                                                            "submitted_at",
+                                                            "step",
+                                                            "steps"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "type": {
+                                                                "type": "string",
                                                                 "const": "profile_update"
                                                             },
                                                             "public_id": {
@@ -5180,6 +5226,875 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/overtime-requests": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "overtimeRequest.index",
+                "summary": "Every request the caller may see: all of them with `overtime.viewAll`,\notherwise those of the employees an approver reaches",
+                "tags": [
+                    "Overtime Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 25
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `OvertimeRequestResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/OvertimeRequestResource"
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee": {
+                                                                "anyOf": [
+                                                                    {
+                                                                        "$ref": "#/components/schemas/EmployeeSummaryResource"
+                                                                    },
+                                                                    {
+                                                                        "type": "null"
+                                                                    }
+                                                                ]
+                                                            },
+                                                            "approval": {
+                                                                "allOf": [
+                                                                    {
+                                                                        "$ref": "#/components/schemas/ApprovalSummaryResource"
+                                                                    },
+                                                                    {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                            "history": {
+                                                                                "type": "array",
+                                                                                "items": {
+                                                                                    "$ref": "#/components/schemas/ApprovalActionResource"
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "required": [
+                                                                            "history"
+                                                                        ]
+                                                                    }
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee",
+                                                            "approval"
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "overtimeRequest.store",
+                "summary": "Create overtime request",
+                "tags": [
+                    "Overtime Request"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreOvertimeRequestRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`OvertimeRequestResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/OvertimeRequestResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "employee": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/EmployeeSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                },
+                                                "approval": {
+                                                    "allOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/ApprovalSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "history": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "$ref": "#/components/schemas/ApprovalActionResource"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "history"
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "employee",
+                                                "approval"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/overtime-requests/my": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "overtimeRequest.my",
+                "summary": "The caller's own requests, newest first",
+                "tags": [
+                    "Overtime Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 25
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `OvertimeRequestResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/OvertimeRequestResource"
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee": {
+                                                                "anyOf": [
+                                                                    {
+                                                                        "$ref": "#/components/schemas/EmployeeSummaryResource"
+                                                                    },
+                                                                    {
+                                                                        "type": "null"
+                                                                    }
+                                                                ]
+                                                            },
+                                                            "approval": {
+                                                                "allOf": [
+                                                                    {
+                                                                        "$ref": "#/components/schemas/ApprovalSummaryResource"
+                                                                    },
+                                                                    {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                            "history": {
+                                                                                "type": "array",
+                                                                                "items": {
+                                                                                    "$ref": "#/components/schemas/ApprovalActionResource"
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "required": [
+                                                                            "history"
+                                                                        ]
+                                                                    }
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee",
+                                                            "approval"
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/overtime-requests/{overtimeRequest}/approve": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "overtimeRequest.approve",
+                "summary": "Approve overtime requests",
+                "tags": [
+                    "Overtime Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "overtimeRequest",
+                        "in": "path",
+                        "required": true,
+                        "description": "The overtime request public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`OvertimeRequestResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/OvertimeRequestResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "employee": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/EmployeeSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                },
+                                                "approval": {
+                                                    "allOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/ApprovalSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "history": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "$ref": "#/components/schemas/ApprovalActionResource"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "history"
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "employee",
+                                                "approval"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string",
+                                            "const": "https://ethr.et/errors/invalid-state"
+                                        },
+                                        "title": {
+                                            "type": "string",
+                                            "const": "Invalid State"
+                                        },
+                                        "status": {
+                                            "type": "integer",
+                                            "const": 422
+                                        },
+                                        "detail": {
+                                            "type": "string",
+                                            "const": "This overtime request has already been decided."
+                                        }
+                                    },
+                                    "required": [
+                                        "type",
+                                        "title",
+                                        "status",
+                                        "detail"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/overtime-requests/{overtimeRequest}/cancel": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "overtimeRequest.cancel",
+                "summary": "Withdraw a request that is still waiting",
+                "tags": [
+                    "Overtime Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "overtimeRequest",
+                        "in": "path",
+                        "required": true,
+                        "description": "The overtime request public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`OvertimeRequestResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/OvertimeRequestResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "employee": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/EmployeeSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                },
+                                                "approval": {
+                                                    "allOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/ApprovalSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "history": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "$ref": "#/components/schemas/ApprovalActionResource"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "history"
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "employee",
+                                                "approval"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string",
+                                            "const": "https://ethr.et/errors/invalid-state"
+                                        },
+                                        "title": {
+                                            "type": "string",
+                                            "const": "Invalid State"
+                                        },
+                                        "status": {
+                                            "type": "integer",
+                                            "const": 422
+                                        },
+                                        "detail": {
+                                            "type": "string",
+                                            "const": "This overtime request has already been decided."
+                                        }
+                                    },
+                                    "required": [
+                                        "type",
+                                        "title",
+                                        "status",
+                                        "detail"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/overtime-requests/{overtimeRequest}/reject": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "overtimeRequest.reject",
+                "summary": "Reject overtime requests",
+                "tags": [
+                    "Overtime Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "overtimeRequest",
+                        "in": "path",
+                        "required": true,
+                        "description": "The overtime request public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RejectOvertimeRequestRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`OvertimeRequestResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/OvertimeRequestResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "employee": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/EmployeeSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                },
+                                                "approval": {
+                                                    "allOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/ApprovalSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "history": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "$ref": "#/components/schemas/ApprovalActionResource"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "history"
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "employee",
+                                                "approval"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -18114,6 +19029,10 @@
                                                 },
                                                 {
                                                     "type": "string",
+                                                    "const": "overtime_request"
+                                                },
+                                                {
+                                                    "type": "string",
                                                     "const": "attendance_anomaly"
                                                 },
                                                 {
@@ -18145,8 +19064,8 @@
                                                     "const": "employee_voice"
                                                 }
                                             ],
-                                            "minItems": 12,
-                                            "maxItems": 12,
+                                            "minItems": 13,
+                                            "maxItems": 13,
                                             "additionalItems": false
                                         },
                                         "channels": {
@@ -18262,6 +19181,10 @@
                                                 },
                                                 {
                                                     "type": "string",
+                                                    "const": "overtime_request"
+                                                },
+                                                {
+                                                    "type": "string",
                                                     "const": "attendance_anomaly"
                                                 },
                                                 {
@@ -18293,8 +19216,8 @@
                                                     "const": "employee_voice"
                                                 }
                                             ],
-                                            "minItems": 12,
-                                            "maxItems": 12,
+                                            "minItems": 13,
+                                            "maxItems": 13,
                                             "additionalItems": false
                                         },
                                         "channels": {
@@ -25387,6 +26310,13 @@
                                                             "integer",
                                                             "null"
                                                         ]
+                                                    },
+                                                    "overtime_days_over_approved": {
+                                                        "type": [
+                                                            "array",
+                                                            "null"
+                                                        ],
+                                                        "items": []
                                                     }
                                                 },
                                                 "required": [
@@ -25417,7 +26347,8 @@
                                                     "overtime_weeks_over_legal_weekly_limit",
                                                     "overtime_daily_limit_minutes",
                                                     "overtime_legal_daily_limit_minutes",
-                                                    "overtime_legal_weekly_limit_minutes"
+                                                    "overtime_legal_weekly_limit_minutes",
+                                                    "overtime_days_over_approved"
                                                 ]
                                             }
                                         },
@@ -25555,6 +26486,9 @@
                                                             },
                                                             "longest_week_minutes": {
                                                                 "type": "integer"
+                                                            },
+                                                            "days_over_approved": {
+                                                                "type": "integer"
                                                             }
                                                         },
                                                         "required": [
@@ -25564,7 +26498,8 @@
                                                             "days_over_daily_limit",
                                                             "days_over_legal_daily_limit",
                                                             "weeks_over_legal_weekly_limit",
-                                                            "longest_week_minutes"
+                                                            "longest_week_minutes",
+                                                            "days_over_approved"
                                                         ]
                                                     }
                                                 }
@@ -34136,6 +35071,9 @@
                     "ot_daily_cap_minutes": {
                         "type": "integer"
                     },
+                    "overtime_requires_approval": {
+                        "type": "boolean"
+                    },
                     "confidence_threshold": {
                         "type": "integer"
                     },
@@ -34178,6 +35116,7 @@
                     "kiosk_auto_reset_seconds",
                     "grace_period_minutes",
                     "ot_daily_cap_minutes",
+                    "overtime_requires_approval",
                     "confidence_threshold",
                     "reminders_enabled",
                     "reminder_lead_minutes",
@@ -34305,7 +35244,8 @@
                                     "enum": [
                                         "leave",
                                         "correction",
-                                        "profile_update"
+                                        "profile_update",
+                                        "overtime"
                                     ]
                                 },
                                 "public_id": {
@@ -37553,6 +38493,87 @@
                 ],
                 "title": "OnboardingProgress"
             },
+            "OvertimeRequestResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "employee": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/EmployeeSummaryResource"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "date": {
+                        "type": "string"
+                    },
+                    "planned_minutes": {
+                        "type": "integer"
+                    },
+                    "reason": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "decision_note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "decided_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "approval": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApprovalSummaryResource"
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "history": {
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/components/schemas/ApprovalActionResource"
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "history"
+                                ]
+                            }
+                        ]
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "date",
+                    "planned_minutes",
+                    "reason",
+                    "status",
+                    "decision_note",
+                    "decided_at",
+                    "created_at"
+                ],
+                "title": "OvertimeRequestResource"
+            },
             "PayrollEntryResource": {
                 "type": "object",
                 "properties": {
@@ -38396,6 +39417,20 @@
                     "reason"
                 ],
                 "title": "RejectLetterRequest"
+            },
+            "RejectOvertimeRequestRequest": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 1000
+                    }
+                },
+                "required": [
+                    "reason"
+                ],
+                "title": "RejectOvertimeRequestRequest"
             },
             "RenewEmployeeContractRequest": {
                 "type": "object",
@@ -40335,6 +41370,40 @@
                 ],
                 "title": "StoreLoanRequest"
             },
+            "StoreOvertimeRequestRequest": {
+                "type": "object",
+                "description": "Asking to work overtime on a day. Without `employee_public_id` the request\nis for the caller; with one, HR asks on that employee's behalf (the\ncontroller authorises which). A day can carry one open request at a time:\nanother for the same day while one is pending or approved is refused, so\nnobody approves the same hours twice.",
+                "properties": {
+                    "employee_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 26,
+                        "maxLength": 26
+                    },
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "planned_minutes": {
+                        "type": "integer",
+                        "minimum": 15,
+                        "maximum": 240
+                    },
+                    "reason": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 1000
+                    }
+                },
+                "required": [
+                    "date",
+                    "planned_minutes",
+                    "reason"
+                ],
+                "title": "StoreOvertimeRequestRequest"
+            },
             "StorePayrollRuleRequest": {
                 "type": "object",
                 "description": "Creates a tenant allowance rule. The `formula` shape depends on `type`:\n  fixed      → {\"amount_cents\": int}\n  percentage → {\"percent\": float}  (of basic salary)",
@@ -41230,6 +42299,9 @@
                         "type": "integer",
                         "minimum": 0,
                         "maximum": 1440
+                    },
+                    "overtime_requires_approval": {
+                        "type": "boolean"
                     },
                     "confidence_threshold": {
                         "type": "integer",

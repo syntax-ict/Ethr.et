@@ -6,11 +6,13 @@ namespace App\Jobs;
 
 use App\Enums\CorrectionStatus;
 use App\Enums\LeaveStatus;
+use App\Enums\OvertimeRequestStatus;
 use App\Enums\ProfileUpdateStatus;
 use App\Models\ApprovalInstance;
 use App\Models\AttendanceCorrection;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\OvertimeRequest;
 use App\Models\ProfileUpdateRequest;
 use App\Models\Tenant;
 use App\Models\User;
@@ -71,6 +73,7 @@ class SendApprovalRemindersJob implements ShouldQueue
         $this->collectLeave($cutoff, $waiting);
         $this->collectCorrections($cutoff, $waiting);
         $this->collectProfileUpdates($cutoff, $waiting);
+        $this->collectOvertime($cutoff, $waiting);
 
         $this->escalateOverdueSteps();
 
@@ -137,6 +140,28 @@ class SendApprovalRemindersJob implements ShouldQueue
     }
 
     /**
+     * Overtime asked for in advance routes like a correction: to the chain's
+     * current approvers, else the supervisor.
+     *
+     * @param  array<int, array<int, CarbonImmutable>>  $waiting
+     */
+    private function collectOvertime(CarbonImmutable $cutoff, array &$waiting): void
+    {
+        $requests = OvertimeRequest::query()
+            ->where('status', OvertimeRequestStatus::PENDING)
+            ->where('created_at', '<=', $cutoff)
+            ->with('employee.supervisor.user', 'approvalInstance')
+            ->get();
+
+        foreach ($requests as $request) {
+            if ($this->addForChain($request, $cutoff, $waiting)) {
+                continue;
+            }
+            $this->addFor($request->employee, $request->created_at, $waiting);
+        }
+    }
+
+    /**
      * Profile updates are reviewed by whoever holds `employee.update`, not by the
      * submitter's supervisor, so they fan out to that group instead.
      *
@@ -184,7 +209,7 @@ class SendApprovalRemindersJob implements ShouldQueue
      *
      * @param  array<int, array<int, CarbonImmutable>>  $waiting
      */
-    private function addForChain(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $request, CarbonImmutable $cutoff, array &$waiting): bool
+    private function addForChain(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $request, CarbonImmutable $cutoff, array &$waiting): bool
     {
         $engine = app(ApprovalEngine::class);
         $approvers = $engine->currentApprovers($request);

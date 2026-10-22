@@ -115,6 +115,11 @@ class PermissionSeeder extends Seeder
             ['name' => 'correction.viewAll', 'module' => 'correction', 'action' => 'viewAll', 'description' => 'View all correction requests'],
             ['name' => 'correction.approve', 'module' => 'correction', 'action' => 'approve', 'description' => 'Approve or reject corrections'],
 
+            // Overtime asked for in advance
+            ['name' => 'overtime.request', 'module' => 'overtime', 'action' => 'request', 'description' => 'Ask to work overtime'],
+            ['name' => 'overtime.approve', 'module' => 'overtime', 'action' => 'approve', 'description' => 'Approve or reject overtime requests'],
+            ['name' => 'overtime.viewAll', 'module' => 'overtime', 'action' => 'viewAll', 'description' => 'View every overtime request'],
+
             // Holiday
             ['name' => 'holiday.viewAny', 'module' => 'holiday', 'action' => 'viewAny', 'description' => 'View holidays list'],
             ['name' => 'holiday.view', 'module' => 'holiday', 'action' => 'view', 'description' => 'View holiday details'],
@@ -219,6 +224,7 @@ class PermissionSeeder extends Seeder
             'attendance.checkIn', 'attendance.viewOwn', 'attendance.view',
             'shift.viewAny', 'shift.view',
             'correction.create', 'correction.viewOwn',
+            'overtime.request',
             'holiday.viewAny', 'holiday.view',
             'payroll.viewOwnPayslip',
             'leave.viewTypes', 'leave.request',
@@ -229,6 +235,7 @@ class PermissionSeeder extends Seeder
         $supervisor = [
             'attendance.viewTeam',
             'correction.viewPending', 'correction.approve',
+            'overtime.approve',
             'leave.viewTeam', 'leave.approve',
             'employee.viewAny', 'employee.view',
             // Supervisors read their team's employment history but don't record actions.
@@ -269,6 +276,7 @@ class PermissionSeeder extends Seeder
             'shift.create', 'shift.update',
             'device.viewAny', 'device.view',
             'correction.viewAll',
+            'overtime.viewAll',
             'holiday.create', 'holiday.update',
             'leave.manageTypes', 'leave.adjustBalance',
             'employee.create', 'employee.update', 'employee.transition',
