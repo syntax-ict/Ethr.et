@@ -1330,6 +1330,7 @@ class ComposerStaticInitc55cb2ae424c531b91a8534a43564f3d
         'App\\Models\\WebhookDelivery' => __DIR__ . '/../..' . '/app/Models/WebhookDelivery.php',
         'App\\Notifications\\AccountActivationNotification' => __DIR__ . '/../..' . '/app/Notifications/AccountActivationNotification.php',
         'App\\Notifications\\AnnouncementNotification' => __DIR__ . '/../..' . '/app/Notifications/AnnouncementNotification.php',
+        'App\\Notifications\\ApprovalEscalatedNotification' => __DIR__ . '/../..' . '/app/Notifications/ApprovalEscalatedNotification.php',
         'App\\Notifications\\ApprovalReminderNotification' => __DIR__ . '/../..' . '/app/Notifications/ApprovalReminderNotification.php',
         'App\\Notifications\\AttendanceAnomalyNotification' => __DIR__ . '/../..' . '/app/Notifications/AttendanceAnomalyNotification.php',
         'App\\Notifications\\AttendanceAutoCheckedOutNotification' => __DIR__ . '/../..' . '/app/Notifications/AttendanceAutoCheckedOutNotification.php',

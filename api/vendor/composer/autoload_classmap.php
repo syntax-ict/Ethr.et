@@ -647,6 +647,7 @@ return array(
     'App\\Models\\WebhookDelivery' => $baseDir . '/app/Models/WebhookDelivery.php',
     'App\\Notifications\\AccountActivationNotification' => $baseDir . '/app/Notifications/AccountActivationNotification.php',
     'App\\Notifications\\AnnouncementNotification' => $baseDir . '/app/Notifications/AnnouncementNotification.php',
+    'App\\Notifications\\ApprovalEscalatedNotification' => $baseDir . '/app/Notifications/ApprovalEscalatedNotification.php',
     'App\\Notifications\\ApprovalReminderNotification' => $baseDir . '/app/Notifications/ApprovalReminderNotification.php',
     'App\\Notifications\\AttendanceAnomalyNotification' => $baseDir . '/app/Notifications/AttendanceAnomalyNotification.php',
     'App\\Notifications\\AttendanceAutoCheckedOutNotification' => $baseDir . '/app/Notifications/AttendanceAutoCheckedOutNotification.php',
