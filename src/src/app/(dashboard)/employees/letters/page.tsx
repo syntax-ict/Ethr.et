@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -58,29 +58,34 @@ export default function LetterRequestsPage() {
               {t("letters.status_rejected")}
             </TabsTrigger>
           </TabsList>
+          {/* The list is the selected tab's panel. Without one, the tab's
+              aria-controls named nothing: a critical axe failure found by
+              the UX audit (2026-10-22). */}
+          <TabsContent value={status} className="mt-6">
+            <Card>
+              <CardContent className="p-0">
+                <QueryBoundary
+                  query={query}
+                  isEmpty={(rows) => rows.length === 0}
+                  empty={
+                    <EmptyState
+                      icon={FileSignature}
+                      title={t("letters.hr_empty")}
+                    />
+                  }
+                >
+                  {(rows) => (
+                    <ul className="divide-y">
+                      {rows.map((letter) => (
+                        <LetterRow key={letter.public_id} letter={letter} />
+                      ))}
+                    </ul>
+                  )}
+                </QueryBoundary>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
-        <Card>
-          <CardContent className="p-0">
-            <QueryBoundary
-              query={query}
-              isEmpty={(rows) => rows.length === 0}
-              empty={
-                <EmptyState
-                  icon={FileSignature}
-                  title={t("letters.hr_empty")}
-                />
-              }
-            >
-              {(rows) => (
-                <ul className="divide-y">
-                  {rows.map((letter) => (
-                    <LetterRow key={letter.public_id} letter={letter} />
-                  ))}
-                </ul>
-              )}
-            </QueryBoundary>
-          </CardContent>
-        </Card>
       </div>
     </RoleGate>
   );
