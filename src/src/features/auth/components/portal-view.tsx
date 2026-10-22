@@ -225,12 +225,28 @@ export function PortalView({
               </p>
             )}
             <h1
+              aria-busy={loading || undefined}
               className={cn(
                 "max-w-xl text-balance text-3xl font-bold leading-tight text-primary-foreground @sm:text-4xl",
                 ownHeadline ? "mt-2" : "mt-6",
               )}
             >
-              {loading ? "…" : ((headline || name) ?? "")}
+              {/* A bar the size of a name while it loads: it read "…", which
+                  looked like a broken heading (FRONTEND_REDESIGN_PLAN.md,
+                  backlog 26). */}
+              {loading ? (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="inline-block h-9 w-64 max-w-full animate-pulse rounded-lg bg-primary-foreground/20 align-middle"
+                  />
+                  <span className="sr-only">
+                    {t("common.loading", "Loading")}
+                  </span>
+                </>
+              ) : (
+                ((headline || name) ?? "")
+              )}
             </h1>
             <p className="mt-3 max-w-xl whitespace-pre-line text-base leading-relaxed text-primary-foreground/80">
               {message ||
