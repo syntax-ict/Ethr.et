@@ -261,8 +261,10 @@ final class ApprovalEngine
     /**
      * Tell someone when a step that names one person has waited past its
      * time limit: that person's supervisor, else the organisation's HR
-     * admins. Once per step, recorded in the history, and only a notice:
-     * nothing is approved or moved on (docs/APPROVAL-ENGINE-DESIGN.md §6).
+     * admins. Once per step, recorded in the history. Nothing is approved or
+     * moved on, but the step opens to everyone who may approve the request,
+     * so an absent approver cannot hold it for ever
+     * (docs/APPROVAL-ENGINE-DESIGN.md §6).
      *
      * @return list<User> who was told
      */
@@ -298,6 +300,15 @@ final class ApprovalEngine
         $this->record($instance, null, 'escalate', null, [
             'approver' => $approver?->public_id,
             'notified' => array_map(static fn (User $u): string => $u->public_id, $targets),
+            'opened_to' => ApproverKind::PERMISSION->value,
+        ]);
+
+        // A step that waits on one absent person would otherwise wait for
+        // ever: from here anyone who may approve the request may decide it,
+        // under every other rule. The named approver still can.
+        $instance->update([
+            'current_approver_user_id' => null,
+            'current_approver_role' => null,
         ]);
         AuditLog::record('approval.escalated', $approvable, [
             'step' => $instance->current_position,
