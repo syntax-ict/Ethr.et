@@ -127,6 +127,38 @@ test('an overdue step naming one person is escalated to that person\'s superviso
     expect($leave->refresh()->status)->toBe(LeaveStatus::PENDING);
 });
 
+test('an escalated step opens to everyone who may approve it, so it cannot stall', function () {
+    Notification::fake();
+    $org = chainReminderOrg();
+    chainReminderWorkflow($org['tenant'], [[ApproverKind::SUPERVISOR]]);
+
+    $this->travelTo(now()->subHours(50));
+    $leave = chainReminderLeave($org['tenant'], $org['employee']);
+    $this->travelBack();
+
+    $url = "http://{$org['tenant']->subdomain}.ethr.test/api/v1/leave/{$leave->public_id}/approve";
+
+    // Before the escalation the step is the supervisor's alone.
+    $this->actingAs($org['hr'])->putJson($url)
+        ->assertForbidden()
+        ->assertJsonPath('type', 'https://ethr.et/errors/not-current-approver');
+
+    chainReminderRun($org['tenant']);
+
+    app('auth')->forgetGuards();
+    $pending = $this->actingAs($org['hr'])
+        ->getJson("http://{$org['tenant']->subdomain}.ethr.test/api/v1/approvals/pending")
+        ->json('items');
+    expect(collect($pending)->pluck('public_id')->all())->toContain($leave->public_id);
+
+    app('auth')->forgetGuards();
+    $this->actingAs($org['hr'])->putJson($url)
+        ->assertOk()
+        ->assertJsonPath('status', 'approved')
+        ->assertJsonPath('approval.history.0.action', 'escalate')
+        ->assertJsonPath('approval.history.1.action', 'approve');
+});
+
 test('an overdue approver with no supervisor is escalated to HR', function () {
     Notification::fake();
     $org = chainReminderOrg();

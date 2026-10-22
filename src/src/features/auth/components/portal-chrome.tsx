@@ -212,6 +212,9 @@ export function PortalHeader({
         {links ? (
           <a
             href={current === "home" ? "#top" : links.home}
+            // With no organisation resolved the mark is a bare initial and the
+            // name is empty, so the link needs a name of its own.
+            aria-label={name ? undefined : t("news.home", "Home")}
             className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring @lg:flex-none"
           >
             {identity}

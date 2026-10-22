@@ -244,6 +244,14 @@ maker and checker.
   reaches the whole group.
 - It runs daily rather than hourly, so an escalation lands at most a day after
   the limit passes.
+- **An escalated step opens to everyone who may approve the request**
+  (decided 2026-10-22). Without this, a step naming one absent person could
+  wait for ever: the escalation told their supervisor, but nobody else was
+  allowed to decide it. The named approver still can; every other rule
+  (permission, reach, no self-approval, no two steps by one person) still
+  applies; the history's `escalate` entry records `opened_to`. This is the
+  small answer to an approver being away; delegation, the larger one, waits
+  because a delegate rarely has the absent approver's reach.
 
 Still to come in Phase C: delegation while an approver is away, and returning
 a request to its author for correction.

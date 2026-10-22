@@ -102,12 +102,12 @@ export default function DirectoryPage() {
                             {e.department}
                           </p>
                         )}
-                        <div className="mt-2 space-y-1">
+                        <div className="mt-2">
                           {e.email && (
                             <a
                               href={`mailto:${e.email}`}
                               title={e.email}
-                              className="flex min-w-0 items-center gap-1.5 text-xs text-primary hover:underline"
+                              className="flex min-h-6 min-w-0 items-center gap-1.5 text-xs text-primary hover:underline"
                             >
                               <Mail
                                 className="h-3 w-3 shrink-0"
@@ -121,7 +121,7 @@ export default function DirectoryPage() {
                           {e.phone && (
                             <a
                               href={`tel:${e.phone}`}
-                              className="flex min-w-0 items-center gap-1.5 text-xs text-primary hover:underline"
+                              className="flex min-h-6 min-w-0 items-center gap-1.5 text-xs text-primary hover:underline"
                             >
                               <Phone
                                 className="h-3 w-3 shrink-0"

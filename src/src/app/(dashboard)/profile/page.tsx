@@ -395,8 +395,10 @@ function PhotoControl({
             ref={inputRef}
             type="file"
             accept={ACCEPTED_PHOTO_TYPES.join(",")}
-            className="sr-only"
-            aria-label={t("profile.change_photo", "Change photo")}
+            // Hidden, not sr-only: the button beside it opens the picker, and
+            // a second, invisible tab stop for the same action only confuses.
+            className="hidden"
+            tabIndex={-1}
             onChange={(e) => void onPick(e.target.files?.[0])}
           />
           <Button
