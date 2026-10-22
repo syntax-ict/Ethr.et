@@ -8,7 +8,9 @@
  *   2. screenshots each combination into `test-results/ux-<phase>/`,
  *   3. runs axe-core at WCAG 2.1 AA **with `color-contrast` enabled**,
  *   4. asserts the page body does not scroll horizontally,
- *   5. asserts the browser console is free of errors.
+ *   5. at 375px, asserts every control is at least 24x24 or has clear space
+ *      around it (WCAG 2.5.8),
+ *   6. asserts the browser console is free of errors.
  *
  * Select a phase with `UX_PHASE` (defaults to `all`):
  *
@@ -272,7 +274,115 @@ const PHASES: Record<string, Route[]> = {
       role: "admin",
     },
   ],
+  // Added 2026-10-22 (FRONTEND_REDESIGN_PLAN.md, Phase 7): the dashboard
+  // routes no phase visited. /attendance/settings and /settings/shifts are
+  // redirects now (RouteRedirect), so their destinations are audited instead.
+  "10": [
+    {
+      path: "/settings/attendance",
+      name: "settings-attendance",
+      role: "admin",
+    },
+    { path: "/employees/letters", name: "employee-letters", role: "admin" },
+    {
+      path: "/settings/approval-chains",
+      name: "settings-approval-chains",
+      role: "admin",
+    },
+    {
+      path: "/settings/data-export",
+      name: "settings-data-export",
+      role: "admin",
+    },
+    {
+      path: "/settings/opening-balances",
+      name: "settings-opening-balances",
+      role: "admin",
+    },
+    { path: "/profile/documents", name: "profile-documents", role: "employee" },
+  ],
 };
+
+/**
+ * Controls on a phone that are too small to hit: WCAG 2.2 SC 2.5.8 (AA).
+ * A target passes at 24 by 24 CSS pixels, or when a 24px circle centred on
+ * it reaches no other target (the spacing exception). Links inside a line of
+ * text, and a checkbox or radio inside its label, are exempt as the success
+ * criterion exempts them. Returns a line per failing control.
+ */
+async function undersizedTargets(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const MIN = 24;
+    const selector = [
+      "button",
+      "a[href]",
+      "input:not([type=hidden])",
+      "select",
+      "textarea",
+      "[role=button]",
+      "[role=tab]",
+      "[role=switch]",
+      "[role=checkbox]",
+      "[role=radio]",
+      "[role=combobox]",
+      "[role=menuitem]",
+    ].join(",");
+    const visible = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      return (
+        r.width > 0 &&
+        r.height > 0 &&
+        style.visibility !== "hidden" &&
+        style.display !== "none" &&
+        !el.closest("[aria-hidden=true]")
+      );
+    };
+    const targets = [...document.querySelectorAll(selector)].filter(visible);
+    const exempt = (el: Element) => {
+      // A link in running text: its line, not its box, is the target.
+      if (el.tagName === "A" && getComputedStyle(el).display === "inline") {
+        const parent = el.parentElement;
+        if (parent && /^(P|LI|SPAN|TD|DD)$/.test(parent.tagName)) return true;
+      }
+      // The label is the target for a checkbox or radio it wraps.
+      const kind = (
+        el.getAttribute("type") ??
+        el.getAttribute("role") ??
+        ""
+      ).toLowerCase();
+      if ((kind === "checkbox" || kind === "radio") && el.closest("label")) {
+        return true;
+      }
+      return false;
+    };
+    const rects = targets.map((el) => el.getBoundingClientRect());
+    const failures: string[] = [];
+    targets.forEach((el, i) => {
+      const r = rects[i];
+      if (r.width >= MIN && r.height >= MIN) return;
+      if (exempt(el)) return;
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const crowded = rects.some((o, j) => {
+        if (j === i) return false;
+        // Nearest point of the other target to this one's centre.
+        const nx = Math.max(o.left, Math.min(cx, o.right));
+        const ny = Math.max(o.top, Math.min(cy, o.bottom));
+        return Math.hypot(nx - cx, ny - cy) < MIN / 2;
+      });
+      if (!crowded) return;
+      const name =
+        el.getAttribute("aria-label") ||
+        (el.textContent ?? "").trim().slice(0, 40) ||
+        el.tagName.toLowerCase();
+      failures.push(
+        `${el.tagName.toLowerCase()} "${name}" ${Math.round(r.width)}x${Math.round(r.height)}`,
+      );
+    });
+    return failures;
+  });
+}
 
 const VIEWPORTS = [
   { name: "mobile", width: 375, height: 812 },
@@ -546,6 +656,15 @@ for (const phase of phases) {
                 overflows,
                 `${targetPath} scrolls horizontally at ${vp.width}px (${theme})`,
               ).toBe(false);
+
+              // Touch targets matter on a phone; desktop has a pointer.
+              if (vp.name === "mobile") {
+                const small = await undersizedTargets(page);
+                expect(
+                  small.join("\n"),
+                  `${targetPath} has controls under 24x24px with no clear space around them at ${vp.width}px (WCAG 2.5.8)`,
+                ).toBe("");
+              }
             }
 
             // A RoleGate denial is a fully accessible, perfectly contrasted
