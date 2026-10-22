@@ -189,9 +189,15 @@ export default function OvertimeRequestsPage() {
                           <SelectContent>
                             {DURATIONS.map((m) => (
                               <SelectItem key={m} value={String(m)}>
-                                {t("overtime_requests.hours", ":hours hours", {
-                                  hours: hours(m),
-                                })}
+                                {m === 60
+                                  ? t("overtime_requests.hours_one", "1 hour")
+                                  : t(
+                                      "overtime_requests.hours",
+                                      ":hours hours",
+                                      {
+                                        hours: hours(m),
+                                      },
+                                    )}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -265,14 +271,22 @@ export default function OvertimeRequestsPage() {
                           <StatusBadge status={r.status} />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {t(
-                            "overtime_requests.line",
-                            ":hours hours: :reason",
-                            {
-                              hours: hours(r.planned_minutes),
-                              reason: r.reason,
-                            },
-                          )}
+                          {r.planned_minutes === 60
+                            ? t(
+                                "overtime_requests.line_one",
+                                "1 hour: :reason",
+                                {
+                                  reason: r.reason,
+                                },
+                              )
+                            : t(
+                                "overtime_requests.line",
+                                ":hours hours: :reason",
+                                {
+                                  hours: hours(r.planned_minutes),
+                                  reason: r.reason,
+                                },
+                              )}
                         </p>
                         {r.decision_note && (
                           <p className="text-xs text-muted-foreground">
