@@ -1,0 +1,145 @@
+name: UX audit (manual)
+
+# The parameterised UX audit (src/e2e/ux-audit.spec.ts): every route of the
+# chosen phases, in light, dark and high contrast, at 375, 768 and 1280px, with
+# axe at WCAG 2.1 AA, horizontal-scroll and touch-target checks, and a clean
+# console. `gates.sh e2e` leaves it out because it is long and fails on any
+# console line, so it runs here, on demand, against the same seeded stack the
+# E2E job uses. Screenshots and the report are uploaded either way.
+#
+#   gh workflow run ux-audit.yml -f phase=10
+#   gh workflow run ux-audit.yml -f phase=all
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: "Phases to audit: one, a comma list, or all"
+        required: true
+        default: "10"
+
+concurrency:
+  group: ux-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ux-audit:
+    name: UX audit (desktop Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: ethr_e2e
+          MARIADB_USER: ethr
+          MARIADB_PASSWORD: ethr
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+
+    env:
+      DB_CONNECTION: mariadb
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ethr_e2e
+      DB_USERNAME: ethr
+      DB_PASSWORD: ethr
+      # The specs address the tenant as demo.localhost; Chromium and curl both
+      # resolve *.localhost to loopback, so no hosts-file entry is needed.
+      BASE_URL: http://demo.localhost:3000
+      API_URL: http://demo.localhost:8000/api/v1
+      # A failed super-admin sign-in would otherwise SKIP the admin specs, and in
+      # CI a skip is a pass nobody reads. See e2e/global-setup.ts.
+      E2E_REQUIRE_SUPER_ADMIN: "1"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, session, simplexml, tokenizer
+          coverage: none
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Cache Composer packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Install frontend dependencies and Chromium
+        working-directory: src
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # Seeded with DatabaseSeeder, which creates the demo tenant and the
+      # admin / hr / employee / super-admin accounts the specs sign in as.
+      - name: Prepare the database
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan migrate --force
+          php artisan db:seed --force
+
+      - name: Start the API and the frontend
+        run: |
+          (cd api && nohup php artisan serve --host=127.0.0.1 --port=8000 > "$RUNNER_TEMP/api.log" 2>&1 &)
+          (cd src && nohup npm run dev > "$RUNNER_TEMP/web.log" 2>&1 &)
+
+      # Wait for the proxy to reach the API. The check hits /sanctum/csrf-cookie
+      # through Next rather than a bare "is the port open": a server that answers
+      # is not proof that it is THIS server behind the proxy.
+      - name: Wait for the stack, then warm the routes
+        run: |
+          for i in $(seq 1 90); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/sanctum/csrf-cookie" || true)
+            [ "$code" = "204" ] && break
+            sleep 5
+          done
+          [ "$code" = "204" ] || { echo "stack never came up (last: $code)"; tail -50 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/web.log"; exit 1; }
+          # next dev compiles each route on first request; global-setup's 30s
+          # page.goto timeout is shorter than a cold compile on a runner.
+          # /employees/warm compiles the [id] route; the id need not exist.
+          for path in /login /dashboard /employees /employees/warm /attendance /leave /payroll /devices /admin /settings /profile; do
+            curl -s -o /dev/null -m 240 -w "$path %{http_code} %{time_total}s\n" "$BASE_URL$path" || true
+          done
+
+      # The sweep is too long and too strict for every pull request: it
+      # loads each route in three themes at three widths and fails on any
+      # console line. Run it when a phase of the redesign lands.
+      - name: Run the UX audit
+        working-directory: src
+        env:
+          UX_PHASE: ${{ inputs.phase }}
+        run: npx playwright test ux-audit.spec.ts --project=chromium-desktop
+
+      - name: Upload the Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ux-audit-report
+          path: |
+            src/playwright-report
+            src/test-results
+          retention-days: 7
+
+      - name: Server logs on failure
+        if: failure()
+        run: tail -100 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/web.log" || true
