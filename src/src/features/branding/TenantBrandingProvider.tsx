@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useCurrentTenant } from "@/features/auth/api";
-import { aaCorrected, tint } from "@/lib/utils/color";
+import { aaCorrected, contrastRatio, tint } from "@/lib/utils/color";
 
 /**
  * Reads the current tenant from /auth/me and applies its saved brand colours
@@ -39,14 +39,32 @@ const BRAND_PROPERTIES = [
   "--brand-accent-foreground",
 ] as const;
 
-export function brandProperties(theme: {
-  primary_color?: string | null;
-  accent_color?: string | null;
-}): Partial<Record<(typeof BRAND_PROPERTIES)[number], string>> {
+/** The dark theme's page surface (`--surface-primary` under `.dark`). */
+export const DARK_SURFACE = "#0f172a";
+/**
+ * What a brand colour must reach against the dark page in dark mode: 3:1,
+ * WCAG's floor for a control's boundary and a focus ring (1.4.11).
+ */
+export const DARK_UI_CONTRAST = 3;
+
+export function brandProperties(
+  theme: {
+    primary_color?: string | null;
+    accent_color?: string | null;
+  },
+  mode: "light" | "dark" = "light",
+): Partial<Record<(typeof BRAND_PROPERTIES)[number], string>> {
   const out: Partial<Record<(typeof BRAND_PROPERTIES)[number], string>> = {};
 
+  // A brand colour can be fine on white and vanish on the dark page: navy
+  // links, buttons and focus rings at 1.5:1. In dark mode a colour that
+  // cannot reach 3:1 against the page is not applied, and ETHR's own dark
+  // colour stays (FRONTEND_REDESIGN_PLAN.md, backlog 25).
+  const visibleInMode = (hex: string) =>
+    mode === "light" || contrastRatio(hex, DARK_SURFACE) >= DARK_UI_CONTRAST;
+
   const primary = aaCorrected(theme.primary_color ?? "");
-  if (primary) {
+  if (primary && visibleInMode(primary.color)) {
     out["--interactive-primary"] = primary.color;
     out["--interactive-focus"] = primary.color;
     out["--interactive-hover"] = tint(primary.color, 0.25) ?? primary.color;
@@ -54,7 +72,7 @@ export function brandProperties(theme: {
   }
 
   const accent = aaCorrected(theme.accent_color ?? "");
-  if (accent) {
+  if (accent && visibleInMode(accent.color)) {
     out["--brand-accent"] = accent.color;
     out["--brand-accent-foreground"] = accent.ink;
   }
@@ -73,7 +91,8 @@ export function applyBrandToDocument(theme: {
 }): () => void {
   if (typeof document === "undefined") return () => {};
   const root = document.documentElement;
-  const applied = Object.entries(brandProperties(theme));
+  const mode = root.classList.contains("dark") ? "dark" : "light";
+  const applied = Object.entries(brandProperties(theme, mode));
   for (const [property, value] of applied) {
     root.style.setProperty(property, value);
   }
@@ -105,7 +124,10 @@ export function TenantBrandingProvider({
     // applying them there overrode an accessibility choice.
     if (!theme || resolvedTheme === "high-contrast") return;
 
-    for (const [property, value] of Object.entries(brandProperties(theme))) {
+    const mode = resolvedTheme === "dark" ? "dark" : "light";
+    for (const [property, value] of Object.entries(
+      brandProperties(theme, mode),
+    )) {
       root.style.setProperty(property, value);
     }
   }, [tenant?.theme, resolvedTheme]);
