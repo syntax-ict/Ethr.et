@@ -154,8 +154,10 @@ export function AppSidebar() {
     : "";
   const tenantName = tenant?.name ?? "ETHR";
   const tenantInitial = tenantName.charAt(0).toUpperCase();
-  // The name starts with what the button shows (WCAG 2.5.3, label in name):
-  // a voice user says the organisation's name to open it.
+  // The collapsed button shows only an initial, so it is named; its name
+  // starts with that initial (WCAG 2.5.3, label in name). The expanded one
+  // is named by what it shows, organisation and role, and aria-haspopup
+  // says it opens a menu.
   const workspaceLabel = t(
     "nav.workspace_menu_named",
     ":name, workspace menu",
@@ -185,7 +187,6 @@ export function AppSidebar() {
           <WorkspaceMenu tenantName={tenantName} roleName={roleName}>
             <button
               type="button"
-              aria-label={workspaceLabel}
               className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-sidebar-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-sidebar-accent"
             >
               <TenantLogoBadge showName={false} surface="dark" />
