@@ -71,6 +71,19 @@ describe("<OvertimeRequestsPage>", () => {
     ).toBeInTheDocument();
   });
 
+  it("says one hour, not one hours", async () => {
+    setup([
+      {
+        ...PENDING,
+        public_id: "01HZOT00000000000000000002",
+        planned_minutes: 60,
+        reason: "Inventory",
+      },
+    ]);
+
+    expect(await screen.findByText("1 hour: Inventory")).toBeInTheDocument();
+  });
+
   it("sends a request for a day, hours and reason", async () => {
     const user = userEvent.setup();
     let body: unknown = null;
