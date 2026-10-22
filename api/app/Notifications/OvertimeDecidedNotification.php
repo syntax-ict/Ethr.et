@@ -45,7 +45,7 @@ class OvertimeDecidedNotification extends Notification
             'message' => $this->approved
                 ? __('notification.inapp.overtime_approved', ['date' => $date])
                 : __('notification.inapp.overtime_rejected', ['date' => $date]),
-            'url' => '/attendance/overtime',
+            'url' => '/attendance/overtime-requests',
         ];
     }
 }

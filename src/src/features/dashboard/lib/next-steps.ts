@@ -17,6 +17,7 @@ export interface NextStepsInput {
     leave: number;
     correction: number;
     profile_update: number;
+    overtime?: number;
     total: number;
   };
   /** `team_attendance.absent` from the same endpoint. */

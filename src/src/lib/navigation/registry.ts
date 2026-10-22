@@ -365,6 +365,14 @@ const TENANT_SECTIONS: NavSectionDef[] = [
             show: always,
           },
           {
+            id: "overtime_requests",
+            href: "/attendance/overtime-requests",
+            labelKey: "nav.overtime_requests",
+            labelFallback: "Overtime requests",
+            icon: Clock,
+            show: (c) => c.can.requestOvertime,
+          },
+          {
             id: "conflicts",
             href: "/attendance/conflicts",
             labelKey: "nav.conflicts",

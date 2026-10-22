@@ -76,6 +76,17 @@ Permissions are cached through the Laravel cache for 1 hour — `role_permission
 | `correction.viewAll` | View all correction requests |
 | `correction.approve` | Approve or reject corrections |
 
+### overtime
+
+Overtime asked for before it is worked (2026-10-22). Deciding goes through the
+approval engine, so an organisation's `overtime` chain applies.
+
+| Permission | Description |
+|---|---|
+| `overtime.request` | Ask to work overtime (for oneself; on someone's behalf also needs `attendance.manage` and reach) |
+| `overtime.approve` | Approve or reject overtime requests for employees one reaches |
+| `overtime.viewAll` | View every overtime request |
+
 ### holiday
 
 | Permission | Description |
@@ -194,6 +205,7 @@ org.viewAny, org.view,
 attendance.checkIn, attendance.viewOwn, attendance.view,
 shift.viewAny, shift.view,
 correction.create, correction.viewOwn,
+overtime.request,
 holiday.viewAny, holiday.view,
 payroll.viewOwnPayslip,
 leave.viewTypes, leave.request,
@@ -205,6 +217,7 @@ profile.view, profile.update
 ```
 attendance.viewTeam,
 correction.viewPending, correction.approve,
+overtime.approve,
 leave.viewTeam, leave.approve,
 employee.viewAny, employee.view,
 personnel_action.viewAny,
@@ -231,6 +244,7 @@ attendance.viewConflicts, attendance.resolveConflicts,
 shift.create, shift.update,
 device.viewAny, device.view,
 correction.viewAll,
+overtime.viewAll,
 holiday.create, holiday.update,
 leave.manageTypes, leave.adjustBalance,
 employee.create, employee.update, employee.transition,

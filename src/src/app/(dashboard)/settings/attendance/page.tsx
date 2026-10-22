@@ -254,6 +254,24 @@ export default function AttendanceSettingsPage() {
                     )}
                   </p>
                 </div>
+                <SettingRow
+                  id="overtime-requires-approval"
+                  title={t(
+                    "attendance.settings_page.overtime_requires_approval",
+                    "Overtime needs approval in advance",
+                  )}
+                  description={t(
+                    "attendance.settings_page.overtime_requires_approval_desc",
+                    "Employees ask before working overtime. Overtime worked past what was approved is flagged on the payroll run, and still paid.",
+                  )}
+                >
+                  <Switch
+                    checked={form.overtime_requires_approval}
+                    onCheckedChange={(v) =>
+                      setField("overtime_requires_approval", v)
+                    }
+                  />
+                </SettingRow>
                 <div>
                   <Label htmlFor="confidence-threshold" className="text-sm">
                     {t(

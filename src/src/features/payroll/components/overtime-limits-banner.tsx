@@ -75,6 +75,16 @@ export function OvertimeLimitsBanner({ limits }: { limits: OvertimeLimits }) {
                     week_limit: weekLimit,
                   },
                 )}
+                {(e.days_over_approved ?? 0) > 0 && (
+                  <>
+                    {" "}
+                    {t(
+                      "overtime_limits.employee_unapproved",
+                      "Past what was approved on :days day(s).",
+                      { days: e.days_over_approved ?? 0 },
+                    )}
+                  </>
+                )}
               </li>
             ))}
           </ul>

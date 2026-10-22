@@ -38,6 +38,8 @@ const CAN_ABILITIES = {
   manageLoans: "payroll.manageLoan",
   manageCostSharing: "payroll.manageCostSharing",
   approveLeave: "leave.approve",
+  requestOvertime: "overtime.request",
+  approveOvertime: "overtime.approve",
   // The approvals queue (`ApprovalController::pending` authorises this).
   viewTeamLeave: "leave.viewTeam",
   manageLeaveTypes: "leave.manageTypes",
