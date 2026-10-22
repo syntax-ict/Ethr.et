@@ -170,6 +170,20 @@ export interface PayrollRegister {
   pension_rates?: { employee: number[]; employer: number[] };
   /** Who the run exempted from pension, and why — acknowledged at approval. */
   pension_exemptions?: PensionExemptions;
+  /** Who worked overtime past the daily or monthly limit; all of it is paid. */
+  overtime_limits?: OvertimeLimits;
+}
+
+export interface OvertimeLimits {
+  count: number;
+  daily_limit_minutes: number | null;
+  employees: {
+    employee_public_id: string | null;
+    employee_name: string;
+    overtime_minutes: number;
+    days_over_daily_limit: number;
+    over_monthly_limit: boolean;
+  }[];
 }
 
 export interface PensionExemptions {

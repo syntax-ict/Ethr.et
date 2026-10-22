@@ -36,6 +36,7 @@ final class RunRegisterService
      *     pension_rates: array{employee: list<float>, employer: list<float>},
      *     basis: array{pension: list<array<string, mixed>>, tax: list<array<string, mixed>>},
      *     pension_exemptions: array{count: int, by_reason: array<string, int>, employees: list<array{employee_public_id: mixed, employee_name: mixed, reason: string}>},
+     *     overtime_limits: array{count: int, daily_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, over_monthly_limit: bool}>},
      * }
      */
     public function register(PayrollRun $run): array
@@ -62,7 +63,56 @@ final class RunRegisterService
             'pension_rates' => self::ratesUsed($rows),
             'basis' => self::basisUsed($rows),
             'pension_exemptions' => self::exemptions($rows),
+            'overtime_limits' => self::overtimeLimits($rows),
         ];
+    }
+
+    /**
+     * Who worked overtime past the organisation's daily limit or the legal
+     * monthly one, from each entry's log. Shown on the run page before
+     * approval; never a reason to pay less, since overtime worked is owed.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array{count: int, daily_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, over_monthly_limit: bool}>}
+     */
+    public static function overtimeLimits(array $rows): array
+    {
+        $employees = [];
+        foreach ($rows as $row) {
+            $days = is_array($row['overtime_days_over_daily_limit'] ?? null) ? count($row['overtime_days_over_daily_limit']) : 0;
+            $monthly = ($row['overtime_over_monthly_limit'] ?? null) === true;
+
+            if ($days === 0 && ! $monthly) {
+                continue;
+            }
+
+            $employees[] = [
+                'employee_public_id' => $row['employee_public_id'],
+                'employee_name' => $row['employee_name'],
+                'overtime_minutes' => (int) ($row['overtime_minutes'] ?? 0),
+                'days_over_daily_limit' => $days,
+                'over_monthly_limit' => $monthly,
+            ];
+        }
+
+        return ['count' => count($employees), 'daily_limit_minutes' => self::dailyLimitUsed($rows), 'employees' => $employees];
+    }
+
+    /**
+     * The daily overtime limit the run applied, from the first entry that
+     * logged one; null for a run calculated before limits were logged.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     */
+    private static function dailyLimitUsed(array $rows): ?int
+    {
+        foreach ($rows as $row) {
+            if (is_int($row['overtime_daily_limit_minutes'] ?? null)) {
+                return $row['overtime_daily_limit_minutes'];
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -181,7 +231,13 @@ final class RunRegisterService
         return implode("\r\n", $lines);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * The overtime limit fields come from the log too: flagged and still
+     * paid (2026-10-22), and null on entries calculated before the limits
+     * were logged.
+     *
+     * @return array<string, mixed>
+     */
     private function row(PayrollEntry $entry): array
     {
         // The `array` cast: read as the loosely-typed attribute so the shape
@@ -226,6 +282,16 @@ final class RunRegisterService
             'employer_pension_rate' => isset($steps['pension']['employer_rate']) ? (float) $steps['pension']['employer_rate'] : null,
             'pension_rule' => is_array($steps['pension']['rule'] ?? null) ? $steps['pension']['rule'] : null,
             'tax_rule' => is_array($steps['income_tax']['rule'] ?? null) ? $steps['income_tax']['rule'] : null,
+            'overtime_minutes' => (int) ($steps['overtime']['overtime_minutes'] ?? 0),
+            'overtime_days_over_daily_limit' => is_array($steps['overtime']['limits']['days_over_daily_limit'] ?? null)
+                ? array_values($steps['overtime']['limits']['days_over_daily_limit'])
+                : null,
+            'overtime_over_monthly_limit' => isset($steps['overtime']['limits']['over_monthly_limit'])
+                ? (bool) $steps['overtime']['limits']['over_monthly_limit']
+                : null,
+            'overtime_daily_limit_minutes' => isset($steps['overtime']['limits']['daily_limit_minutes'])
+                ? (int) $steps['overtime']['limits']['daily_limit_minutes']
+                : null,
         ];
     }
 }

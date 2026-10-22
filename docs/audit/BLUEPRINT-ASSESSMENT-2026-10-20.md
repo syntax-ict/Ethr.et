@@ -321,6 +321,13 @@ followed**: no tenant-specific code paths exist.
 | AT30 | Device data retention | Partial | Photos covered; sync logs and identities not |
 | — | **Acceptance:** an approved change never silently erases the punch or changes approved payroll | Partial | Originals kept (tested); **no lock** between approved payroll and later attendance edits |
 
+*(2026-10-22: AT10 and S8 above are the 2026-10-20 reading. The daily overtime
+limit (`ot_daily_cap_minutes`) is now read: payroll logs the days past it and a
+month past the 20-hour legal limit (Proclamation 1156/2019 Art. 67(2), to be
+confirmed in O2), the run page warns before approval, and every minute is still
+paid, since overtime worked is owed (Art. 68). The setting no longer claims to
+cap what is counted. Pre-approval of overtime is still missing.)*
+
 ### IN. Integrations
 
 | ID | Item | Status | Evidence / gap |

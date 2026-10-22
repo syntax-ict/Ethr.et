@@ -22473,6 +22473,10 @@ export interface operations {
                             employer_pension_rate: number | null;
                             pension_rule: string | null;
                             tax_rule: string | null;
+                            overtime_minutes: number;
+                            overtime_days_over_daily_limit: unknown[] | null;
+                            overtime_over_monthly_limit: boolean | null;
+                            overtime_daily_limit_minutes: number | null;
                         }[];
                         totals: string;
                         pension_rates: {
@@ -22490,6 +22494,17 @@ export interface operations {
                                 employee_public_id: string;
                                 employee_name: string;
                                 reason: string | "unknown";
+                            }[];
+                        };
+                        overtime_limits: {
+                            count: number;
+                            daily_limit_minutes: number | null;
+                            employees: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                overtime_minutes: number;
+                                days_over_daily_limit: number;
+                                over_monthly_limit: boolean;
                             }[];
                         };
                     };

@@ -9,6 +9,7 @@ use App\Enums\EmployeeStatus;
 use App\Enums\LeaveStatus;
 use App\Exceptions\PayrollRunRefused;
 use App\Models\AttendanceRecord;
+use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
@@ -29,6 +30,18 @@ final class PayrollEngine
     private const WORKING_DAYS_PER_MONTH = 22;
 
     private const HOURS_PER_DAY = 8;
+
+    /**
+     * Labour Proclamation 1156/2019 Art. 67(2): overtime may not exceed
+     * 20 hours a month. Used only to flag a run for review; overtime worked
+     * is paid whatever the limit (Art. 68), so no amount depends on it.
+     * To be confirmed in the accountant sign-off (O2) with the other
+     * statutory figures.
+     */
+    private const LEGAL_MONTHLY_OVERTIME_MINUTES = 1200;
+
+    /** @var array<int, int> tenant id => the organisation's daily overtime limit, in minutes */
+    private array $dailyOvertimeLimits = [];
 
     public function __construct(
         private readonly TaxCalculator $taxCalculator,
@@ -489,7 +502,7 @@ final class PayrollEngine
             'basic_after_unpaid_leave_cents' => $proratedBasic,
         ];
 
-        $overtimeByType = $this->gatherOvertimeByType($employee, $periodStart, $periodEnd);
+        ['buckets' => $overtimeByType, 'by_day' => $overtimeByDay] = $this->gatherOvertimeByType($employee, $periodStart, $periodEnd);
         $overtimeRates = $this->overtimeCalculator->ratesFor($employee->tenant_id);
 
         $overtimeAmount = 0;
@@ -513,11 +526,24 @@ final class PayrollEngine
             ];
         }
 
+        $dailyLimit = $this->dailyOvertimeLimit($employee->tenant_id);
+        $daysOverLimit = array_keys(array_filter(
+            $overtimeByDay,
+            static fn (int $minutes): bool => $dailyLimit > 0 && $minutes > $dailyLimit,
+        ));
+
         $log['steps'][] = [
             'step' => 'overtime',
             'overtime_minutes' => $overtimeMinutes,
             'overtime_amount_cents' => $overtimeAmount,
             'by_type' => $overtimeBreakdown,
+            // Flagged for review, never capped: every minute above is paid.
+            'limits' => [
+                'daily_limit_minutes' => $dailyLimit,
+                'days_over_daily_limit' => $daysOverLimit,
+                'monthly_limit_minutes' => self::LEGAL_MONTHLY_OVERTIME_MINUTES,
+                'over_monthly_limit' => $overtimeMinutes > self::LEGAL_MONTHLY_OVERTIME_MINUTES,
+            ],
         ];
 
         $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic);
@@ -725,13 +751,15 @@ final class PayrollEngine
      * (normal / night / rest_day / holiday / holiday_night). Holidays are
      * pre-fetched once for the period so classification is a memory lookup per
      * record. A weekly rest day is a day the record's shift does not work; with
-     * no shift it is Sunday, Art. 69's default.
+     * no shift it is Sunday, Art. 69's default. Also each day's total, for
+     * the daily overtime limit.
      *
-     * @return array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}
+     * @return array{buckets: array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}, by_day: array<string, int>}
      */
     private function gatherOvertimeByType(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
     {
         $buckets = ['normal' => 0, 'night' => 0, 'rest_day' => 0, 'holiday' => 0, 'holiday_night' => 0];
+        $byDay = [];
 
         $holidayDates = $this->holidayService->getHolidayDates(
             $employee->tenant_id,
@@ -769,9 +797,24 @@ final class PayrollEngine
 
             foreach ($this->overtimeClassifier->classify($record, $isHoliday, $isRestDay) as $type => $minutes) {
                 $buckets[$type] += $minutes;
+                $byDay[$date->format('Y-m-d')] = ($byDay[$date->format('Y-m-d')] ?? 0) + $minutes;
             }
         }
 
-        return $buckets;
+        ksort($byDay);
+
+        return ['buckets' => $buckets, 'by_day' => $byDay];
+    }
+
+    /**
+     * The organisation's own daily overtime limit (Attendance rules), or the
+     * default when it has never saved its rules. Read once per run.
+     */
+    private function dailyOvertimeLimit(int $tenantId): int
+    {
+        return $this->dailyOvertimeLimits[$tenantId] ??= (int) (
+            AttendanceSetting::query()->where('tenant_id', $tenantId)->value('ot_daily_cap_minutes')
+            ?? AttendanceSetting::defaults()['ot_daily_cap_minutes']
+        );
     }
 }
