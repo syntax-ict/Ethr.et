@@ -104,7 +104,7 @@ test('a week past the legal twelve hours is flagged even when no day passes four
 
     expect($step['overtime_minutes'])->toBe(840)
         ->and($step['limits']['days_over_legal_daily_limit'])->toBe([])
-        ->and($step['limits']['weeks_over_legal_weekly_limit'])->toBe([['week_start' => '2026-06-01', 'minutes' => 840]]);
+        ->and($step['limits']['weeks_over_legal_weekly_limit'])->toEqual([['week_start' => '2026-06-01', 'minutes' => 840]]);
 
     $limits = app(RunRegisterService::class)->register($run)['overtime_limits'];
     expect($limits['employees'][0]['weeks_over_legal_weekly_limit'])->toBe(1)
@@ -122,7 +122,7 @@ test('a week that runs into the next period is counted whole, and only the perio
 
     expect($step['overtime_minutes'])->toBe(420)
         ->and($step['overtime_amount_cents'])->toBe((new OvertimeCalculator)->calculate(500000, 22, 8, 420, 'normal'))
-        ->and($step['limits']['weeks_over_legal_weekly_limit'])->toBe([['week_start' => '2026-06-29', 'minutes' => 840]]);
+        ->and($step['limits']['weeks_over_legal_weekly_limit'])->toEqual([['week_start' => '2026-06-29', 'minutes' => 840]]);
 });
 
 test('public holiday work is paid at its own rate and not counted against the limits', function () {
