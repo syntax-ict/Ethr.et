@@ -248,7 +248,7 @@ followed**: no tenant-specific code paths exist.
 | L7 | Salary, department, manager change | Partial | Manager change has no history |
 | L8 | Suspension and reinstatement | Partial | Untested directly |
 | L9 | Resignation, retirement, termination | Partial | `RetirementCaseTest`; login not deactivated on exit |
-| L10 | Exit clearance, property return | Missing | — |
+| L10 | Exit clearance, property return | Done (2026-10-22) | `ExitClearanceTest`: a checklist from the organisation's template starts on resignation, termination or retirement; HR, finance and the supervisor tick their lines; the balance line shows loans and cost sharing owed. It records and never blocks. No asset register (deferred, PRODUCT_VISION.md §20) |
 | L11 | Final pay, loan reconciliation | Missing | D3 |
 | L12 | Archived records, retention | Partial | Soft delete only |
 | — | **Acceptance:** create, update, transfer, offboard via authorized workflows | Partial | Create/update/transfer yes; offboarding incomplete |
@@ -738,7 +738,7 @@ reconciliation report.
 
 Shift swaps and staffing alerts; overtime pre-approval and caps; establishment
 management; legal entities and pay groups; project and donor cost allocation; academic
-calendar; expense and travel; asset register and exit clearance; feature flags; status
+calendar; expense and travel; asset register (exit clearance built 2026-10-22, L10); feature flags; status
 banner and support tickets; storage metering.
 
 ### After validating demand — P3

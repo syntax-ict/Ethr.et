@@ -33,6 +33,7 @@ import { EmployeeHistoryTab } from "@/features/employees/components/employee-his
 import { DisciplinaryCasesTab } from "@/features/employees/components/disciplinary-cases-tab";
 import { ContractsTab } from "@/features/employees/components/contracts-tab";
 import { RetirementTab } from "@/features/employees/components/retirement-tab";
+import { ExitClearanceTab } from "@/features/offboarding/components/exit-clearance-tab";
 import { EducationTab } from "@/features/employees/components/education-tab";
 import { DocumentsTab } from "@/features/employees/components/documents-tab";
 import { BankDetailsTab } from "@/features/employees/components/bank-details-tab";
@@ -75,8 +76,12 @@ const EMPLOYEE_TABS = [
   "history",
   "discipline",
   "retirement",
+  "exit",
   "attendance",
 ] as const;
+
+/** Resigned, terminated or retired: the statuses with an exit clearance. */
+const LEAVING_STATUSES = ["resigned", "terminated", "retired"];
 
 export function EmployeeDetail({ routeId }: { routeId: string }) {
   // `?tab=attendance` is how search opens this record on its attendance.
@@ -250,6 +255,11 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
           <TabsTrigger value="retirement">
             {t("employee.detail.tab.retirement", "Retirement")}
           </TabsTrigger>
+          {LEAVING_STATUSES.includes(employee.status ?? "") && (
+            <TabsTrigger value="exit">
+              {t("employee.detail.tab.exit", "Exit clearance")}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="attendance">
             {t("employee.detail.tab.attendance", "Attendance")}
           </TabsTrigger>
@@ -558,6 +568,10 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
 
         <TabsContent value="retirement" className="mt-4">
           <RetirementTab employeeId={id} />
+        </TabsContent>
+
+        <TabsContent value="exit" className="mt-4">
+          <ExitClearanceTab employeeId={id} />
         </TabsContent>
 
         <TabsContent value="attendance" className="mt-4 space-y-4">

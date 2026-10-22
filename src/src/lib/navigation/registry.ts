@@ -10,6 +10,7 @@ import {
   CalendarRange,
   Camera,
   CheckSquare,
+  ClipboardCheck,
   Clock,
   Contact,
   CreditCard,
@@ -306,6 +307,14 @@ const TENANT_SECTIONS: NavSectionDef[] = [
         show: (c) => c.can.manageOrg,
       }),
       leaf({
+        id: "exit_clearances",
+        href: "/employees/exit-clearances",
+        labelKey: "nav.exit_clearances",
+        labelFallback: "Exit clearances",
+        icon: ClipboardCheck,
+        show: (c) => c.can.transitionEmployees || c.can.manageLoans,
+      }),
+      leaf({
         id: "directory",
         href: "/directory",
         labelKey: "nav.directory",
@@ -570,6 +579,14 @@ export const MORE_DESTINATIONS: Destination[] = [
     labelKey: "nav.approval_chains",
     labelFallback: "Approval chains",
     icon: GitBranch,
+    show: (c) => c.can.manageSettings,
+  },
+  {
+    id: "exit_clearance_checklist",
+    href: "/settings/exit-clearance",
+    labelKey: "nav.exit_clearance_checklist",
+    labelFallback: "Exit checklist",
+    icon: ClipboardCheck,
     show: (c) => c.can.manageSettings,
   },
   {

@@ -2864,6 +2864,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/exit-clearances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open (or finished) clearances the caller has a part in: HR sees the
+         *     employees it can reach, finance sees all, a supervisor sees their
+         *     reports
+         */
+        get: operations["exitClearance.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/exit-clearance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The employee's latest clearance (null when there is none) and what they
+         *     still owe, which finance settles or notes against the obligations line
+         */
+        get: operations["exitClearance.show"];
+        put?: never;
+        /** Start a clearance by hand, for someone who has left; returns the open one if it exists */
+        post: operations["exitClearance.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/exit-clearance/items/{exitClearanceItem}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update item */
+        put: operations["exitClearance.updateItem"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/exit-clearance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Exit clearance settings */
+        get: operations["exitClearanceTemplate.show"];
+        /** Exit clearance settings */
+        put: operations["exitClearanceTemplate.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/find-organisation": {
         parameters: {
             query?: never;
@@ -7787,6 +7864,32 @@ export interface components {
             /** Format: date */
             effective_to: string;
         };
+        /** ExitClearanceItemResource */
+        ExitClearanceItemResource: {
+            public_id: string;
+            key: string | null;
+            label: string;
+            owner: string;
+            kind: string;
+            done: boolean;
+            done_at: string | null;
+            done_by?: string | null;
+            note: string | null;
+            can_tick: boolean;
+        };
+        /** ExitClearanceResource */
+        ExitClearanceResource: {
+            public_id: string;
+            employee?: components["schemas"]["EmployeeSummaryResource"] | null;
+            exit_status: string;
+            leaving_date: string | null;
+            status: string;
+            completed_at: string | null;
+            created_at: string | null;
+            done_count: number;
+            item_count: number;
+            items?: components["schemas"]["ExitClearanceItemResource"][];
+        };
         /** ExitKioskRequest */
         ExitKioskRequest: {
             token: string;
@@ -9710,6 +9813,29 @@ export interface components {
             team_id?: string | null;
             cost_center_id?: string | null;
             supervisor_id?: string | null;
+        };
+        /**
+         * UpdateExitClearanceItemRequest
+         * @description Ticking or unticking one line of an exit clearance; the controller authorises who.
+         */
+        UpdateExitClearanceItemRequest: {
+            done: boolean;
+            note?: string | null;
+        };
+        /**
+         * UpdateExitClearanceTemplateRequest
+         * @description The organisation's exit clearance lines. At most one line may show the
+         *     leaver's outstanding balance, since a second would show the same figure.
+         */
+        UpdateExitClearanceTemplateRequest: {
+            items: {
+                key?: string | null;
+                label: string;
+                /** @enum {string} */
+                owner: "hr" | "finance" | "supervisor";
+                /** @enum {string|null} */
+                kind?: "manual" | "obligations" | null;
+            }[];
         };
         /** UpdateGradeRequest */
         UpdateGradeRequest: {
@@ -17663,6 +17789,251 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "exitClearance.index": {
+        parameters: {
+            query?: {
+                status?: "open" | "complete" | null;
+                per_page?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `ExitClearanceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ExitClearanceResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "exitClearance.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        clearance: components["schemas"]["ExitClearanceResource"] & {
+                            items: components["schemas"]["ExitClearanceItemResource"][];
+                        };
+                        obligations: {
+                            loans_cents: number;
+                            cost_sharing_cents: number;
+                            total_cents: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example
+                         */
+                        message: string;
+                    };
+                };
+            };
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "exitClearance.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `ExitClearanceResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExitClearanceResource"] & {
+                        items: components["schemas"]["ExitClearanceItemResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "exitClearance.updateItem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The exit clearance item public id */
+                exitClearanceItem: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateExitClearanceItemRequest"];
+            };
+        };
+        responses: {
+            /** @description `ExitClearanceItemResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExitClearanceItemResource"] & {
+                        done_by: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example
+                         */
+                        message: string;
+                    };
+                };
+            };
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "exitClearanceTemplate.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: unknown[];
+                        is_customized: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "exitClearanceTemplate.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateExitClearanceTemplateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: unknown[];
+                        is_customized: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "auth.findOrganisation": {
