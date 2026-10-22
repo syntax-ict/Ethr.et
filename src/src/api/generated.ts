@@ -4326,6 +4326,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/overtime-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every request the caller may see: all of them with `overtime.viewAll`,
+         *     otherwise those of the employees an approver reaches
+         */
+        get: operations["overtimeRequest.index"];
+        put?: never;
+        /** Create overtime request */
+        post: operations["overtimeRequest.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/overtime-requests/my": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's own requests, newest first */
+        get: operations["overtimeRequest.my"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/overtime-requests/{overtimeRequest}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Approve overtime requests */
+        put: operations["overtimeRequest.approve"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/overtime-requests/{overtimeRequest}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reject overtime requests */
+        put: operations["overtimeRequest.reject"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/overtime-requests/{overtimeRequest}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Withdraw a request that is still waiting */
+        put: operations["overtimeRequest.cancel"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/process": {
         parameters: {
             query?: never;
@@ -6855,7 +6944,7 @@ export interface components {
          * @description The kinds of request the approval engine routes. The values match the `type` the approvals inbox already returns, so a workflow, an instance and an inbox item name a request the same way.
          * @enum {string}
          */
-        ApprovalRequestType: "leave" | "correction" | "profile_update";
+        ApprovalRequestType: "leave" | "correction" | "profile_update" | "overtime";
         /** ApprovalSummaryResource */
         ApprovalSummaryResource: {
             step: number;
@@ -7141,6 +7230,7 @@ export interface components {
             kiosk_auto_reset_seconds: number;
             grace_period_minutes: number;
             ot_daily_cap_minutes: number;
+            overtime_requires_approval: boolean;
             confidence_threshold: number;
             reminders_enabled: boolean;
             reminder_lead_minutes: number;
@@ -7181,7 +7271,7 @@ export interface components {
         BatchApprovalRequest: {
             actions: {
                 /** @enum {string} */
-                type: "leave" | "correction" | "profile_update";
+                type: "leave" | "correction" | "profile_update" | "overtime";
                 public_id: string;
                 /** @enum {string} */
                 action: "approve" | "reject";
@@ -8110,6 +8200,22 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** OvertimeRequestResource */
+        OvertimeRequestResource: {
+            public_id: string;
+            employee?: components["schemas"]["EmployeeSummaryResource"] | null;
+            date: string;
+            planned_minutes: number;
+            reason: string;
+            status: string;
+            decision_note: string | null;
+            decided_at: string | null;
+            approval?: components["schemas"]["ApprovalSummaryResource"] & {
+                history: components["schemas"]["ApprovalActionResource"][];
+            };
+            /** Format: date-time */
+            created_at: string | null;
+        };
         /** PayrollEntryResource */
         PayrollEntryResource: {
             public_id: string;
@@ -8449,6 +8555,10 @@ export interface components {
         };
         /** RejectLetterRequest */
         RejectLetterRequest: {
+            reason: string;
+        };
+        /** RejectOvertimeRequestRequest */
+        RejectOvertimeRequestRequest: {
             reason: string;
         };
         /** RenewEmployeeContractRequest */
@@ -9068,6 +9178,21 @@ export interface components {
             reason?: string | null;
         };
         /**
+         * StoreOvertimeRequestRequest
+         * @description Asking to work overtime on a day. Without `employee_public_id` the request
+         *     is for the caller; with one, HR asks on that employee's behalf (the
+         *     controller authorises which). A day can carry one open request at a time:
+         *     another for the same day while one is pending or approved is refused, so
+         *     nobody approves the same hours twice.
+         */
+        StoreOvertimeRequestRequest: {
+            employee_public_id?: string | null;
+            /** Format: date */
+            date: string;
+            planned_minutes: number;
+            reason: string;
+        };
+        /**
          * StorePayrollRuleRequest
          * @description Creates a tenant allowance rule. The `formula` shape depends on `type`:
          *       fixed      → {"amount_cents": int}
@@ -9443,6 +9568,7 @@ export interface components {
             kiosk_auto_reset_seconds?: number;
             grace_period_minutes?: number;
             ot_daily_cap_minutes?: number;
+            overtime_requires_approval?: boolean;
             confidence_threshold?: number;
             reminders_enabled?: boolean;
             reminder_lead_minutes?: number;
@@ -19283,6 +19409,16 @@ export interface operations {
                             steps: number;
                         } | {
                             /** @constant */
+                            type: "overtime";
+                            public_id: string;
+                            employee_name: string | null;
+                            employee_public_id: string | null;
+                            summary: string;
+                            submitted_at: string;
+                            step: number;
+                            steps: number;
+                        } | {
+                            /** @constant */
                             type: "profile_update";
                             public_id: string;
                             employee_name: string | null;
@@ -20055,6 +20191,7 @@ export interface operations {
                             "leave_approved",
                             "leave_rejected",
                             "attendance_correction",
+                            "overtime_request",
                             "attendance_anomaly",
                             "payslip_available",
                             "payroll_processed",
@@ -20114,6 +20251,7 @@ export interface operations {
                             "leave_approved",
                             "leave_rejected",
                             "attendance_correction",
+                            "overtime_request",
                             "attendance_anomaly",
                             "payslip_available",
                             "payroll_processed",
@@ -22168,6 +22306,283 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "overtimeRequest.index": {
+        parameters: {
+            query?: {
+                status?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `OvertimeRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["OvertimeRequestResource"] & {
+                            employee: components["schemas"]["EmployeeSummaryResource"] | null;
+                            approval: components["schemas"]["ApprovalSummaryResource"] & {
+                                history: components["schemas"]["ApprovalActionResource"][];
+                            };
+                        })[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "overtimeRequest.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreOvertimeRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description `OvertimeRequestResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OvertimeRequestResource"] & {
+                        employee: components["schemas"]["EmployeeSummaryResource"] | null;
+                        approval: components["schemas"]["ApprovalSummaryResource"] & {
+                            history: components["schemas"]["ApprovalActionResource"][];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "overtimeRequest.my": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `OvertimeRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["OvertimeRequestResource"] & {
+                            employee: components["schemas"]["EmployeeSummaryResource"] | null;
+                            approval: components["schemas"]["ApprovalSummaryResource"] & {
+                                history: components["schemas"]["ApprovalActionResource"][];
+                            };
+                        })[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "overtimeRequest.approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The overtime request public id */
+                overtimeRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `OvertimeRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OvertimeRequestResource"] & {
+                        employee: components["schemas"]["EmployeeSummaryResource"] | null;
+                        approval: components["schemas"]["ApprovalSummaryResource"] & {
+                            history: components["schemas"]["ApprovalActionResource"][];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/invalid-state";
+                        /** @constant */
+                        title: "Invalid State";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This overtime request has already been decided.";
+                    };
+                };
+            };
+        };
+    };
+    "overtimeRequest.reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The overtime request public id */
+                overtimeRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectOvertimeRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description `OvertimeRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OvertimeRequestResource"] & {
+                        employee: components["schemas"]["EmployeeSummaryResource"] | null;
+                        approval: components["schemas"]["ApprovalSummaryResource"] & {
+                            history: components["schemas"]["ApprovalActionResource"][];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "overtimeRequest.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The overtime request public id */
+                overtimeRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `OvertimeRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OvertimeRequestResource"] & {
+                        employee: components["schemas"]["EmployeeSummaryResource"] | null;
+                        approval: components["schemas"]["ApprovalSummaryResource"] & {
+                            history: components["schemas"]["ApprovalActionResource"][];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/invalid-state";
+                        /** @constant */
+                        title: "Invalid State";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This overtime request has already been decided.";
+                    };
+                };
+            };
+        };
+    };
     "payroll.process": {
         parameters: {
             query?: never;
@@ -22480,6 +22895,7 @@ export interface operations {
                             overtime_daily_limit_minutes: number | null;
                             overtime_legal_daily_limit_minutes: number | null;
                             overtime_legal_weekly_limit_minutes: number | null;
+                            overtime_days_over_approved: unknown[] | null;
                         }[];
                         totals: string;
                         pension_rates: {
@@ -22512,6 +22928,7 @@ export interface operations {
                                 days_over_legal_daily_limit: number;
                                 weeks_over_legal_weekly_limit: number;
                                 longest_week_minutes: number;
+                                days_over_approved: number;
                             }[];
                         };
                     };

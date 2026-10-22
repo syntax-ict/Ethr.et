@@ -121,6 +121,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Team Attendance",
     description: "View and manage team attendance at a glance",
   },
+  "/attendance/overtime-requests": {
+    section: "Operations",
+    parent: { label: "Attendance", href: "/attendance" },
+    label: "Overtime requests",
+    description: "Ask to work overtime before the day",
+  },
   "/attendance/corrections": {
     section: "Operations",
     parent: { label: "Attendance", href: "/attendance" },

@@ -12,5 +12,7 @@ return [
     'type_leave' => 'የፈቃድ ጥያቄ',
     'type_correction' => 'የመገኘት እርማት',
     'type_profile_update' => 'የመገለጫ ለውጥ',
+    'type_overtime' => 'የትርፍ ሰዓት ጥያቄ',
+    'overtime_summary' => 'በ:date የትርፍ ሰዓት፣ :hours ሰዓት',
     'not_current_approver' => 'ይህ ጥያቄ በአሁኑ ደረጃው ሌላ አጽዳቂን እየጠበቀ ነው።',
 ];

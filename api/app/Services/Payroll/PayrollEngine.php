@@ -7,6 +7,7 @@ namespace App\Services\Payroll;
 use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
 use App\Enums\LeaveStatus;
+use App\Enums\OvertimeRequestStatus;
 use App\Exceptions\PayrollRunRefused;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
@@ -14,6 +15,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\OvertimeRequest;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
@@ -54,6 +56,9 @@ final class PayrollEngine
 
     /** @var array<int, int> tenant id => the organisation's daily overtime limit, in minutes */
     private array $dailyOvertimeLimits = [];
+
+    /** @var array<int, bool> tenant id => whether overtime must be approved in advance */
+    private array $overtimeApprovalRequired = [];
 
     public function __construct(
         private readonly TaxCalculator $taxCalculator,
@@ -544,7 +549,7 @@ final class PayrollEngine
             'overtime_amount_cents' => $overtimeAmount,
             'by_type' => $overtimeBreakdown,
             // Flagged for review, never capped: every minute above is paid.
-            'limits' => $this->overtimeLimits($employee->tenant_id, $overtimeByDay, $periodStart, $periodEnd),
+            'limits' => $this->overtimeLimits($employee, $overtimeByDay, $periodStart, $periodEnd),
         ];
 
         $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic);
@@ -826,13 +831,20 @@ final class PayrollEngine
      * The days and weeks whose overtime passed a limit: the organisation's
      * own daily limit and the legal daily one on the period's days, and the
      * legal weekly one on every week that touches the period, counted whole.
+     * With the organisation requiring overtime to be approved in advance,
+     * also the days whose overtime went past what was approved for them (no
+     * approved request counts as nothing approved).
      *
      * @param  array<string, int>  $byDay  limited overtime minutes by date, whole weeks
-     * @return array{daily_limit_minutes: int, days_over_daily_limit: list<string>, legal_daily_limit_minutes: int, days_over_legal_daily_limit: list<string>, legal_weekly_limit_minutes: int, weeks_over_legal_weekly_limit: list<array{week_start: string, minutes: int}>}
+     * @return array{daily_limit_minutes: int, days_over_daily_limit: list<string>, legal_daily_limit_minutes: int, days_over_legal_daily_limit: list<string>, legal_weekly_limit_minutes: int, weeks_over_legal_weekly_limit: list<array{week_start: string, minutes: int}>, requires_approval: bool, days_over_approved: list<array{date: string, worked_minutes: int, approved_minutes: int}>}
      */
-    private function overtimeLimits(int $tenantId, array $byDay, Carbon $periodStart, Carbon $periodEnd): array
+    private function overtimeLimits(Employee $employee, array $byDay, Carbon $periodStart, Carbon $periodEnd): array
     {
+        $tenantId = $employee->tenant_id;
         $dailyLimit = $this->dailyOvertimeLimit($tenantId);
+        $requiresApproval = $this->overtimeRequiresApproval($tenantId);
+        $approved = $requiresApproval ? $this->approvedOvertimeByDay($employee, $periodStart, $periodEnd) : [];
+        $overApproved = [];
         $firstPaid = $periodStart->format('Y-m-d');
         $lastPaid = $periodEnd->format('Y-m-d');
 
@@ -846,6 +858,9 @@ final class PayrollEngine
                 }
                 if ($minutes > self::LEGAL_DAILY_OVERTIME_MINUTES) {
                     $overLegal[] = $day;
+                }
+                if ($requiresApproval && $minutes > ($approved[$day] ?? 0)) {
+                    $overApproved[] = ['date' => $day, 'worked_minutes' => $minutes, 'approved_minutes' => $approved[$day] ?? 0];
                 }
             }
 
@@ -867,7 +882,42 @@ final class PayrollEngine
             'days_over_legal_daily_limit' => $overLegal,
             'legal_weekly_limit_minutes' => self::LEGAL_WEEKLY_OVERTIME_MINUTES,
             'weeks_over_legal_weekly_limit' => $weeksOver,
+            'requires_approval' => $requiresApproval,
+            'days_over_approved' => $overApproved,
         ];
+    }
+
+    /**
+     * Minutes of overtime approved in advance for each of the period's days.
+     *
+     * @return array<string, int>
+     */
+    private function approvedOvertimeByDay(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $byDay = [];
+
+        $requests = OvertimeRequest::query()
+            ->where('tenant_id', $employee->tenant_id)
+            ->where('employee_id', $employee->id)
+            ->where('status', OvertimeRequestStatus::APPROVED)
+            ->whereDate('date', '>=', $periodStart->format('Y-m-d'))
+            ->whereDate('date', '<=', $periodEnd->format('Y-m-d'))
+            ->get(['date', 'planned_minutes']);
+
+        foreach ($requests as $request) {
+            $day = $request->date->format('Y-m-d');
+            $byDay[$day] = ($byDay[$day] ?? 0) + $request->planned_minutes;
+        }
+
+        return $byDay;
+    }
+
+    /** Whether the organisation asks for overtime to be approved before it is worked. Read once per run. */
+    private function overtimeRequiresApproval(int $tenantId): bool
+    {
+        return $this->overtimeApprovalRequired[$tenantId] ??= (bool) AttendanceSetting::query()
+            ->where('tenant_id', $tenantId)
+            ->value('overtime_requires_approval');
     }
 
     /**

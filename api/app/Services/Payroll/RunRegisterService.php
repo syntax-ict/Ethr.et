@@ -36,7 +36,7 @@ final class RunRegisterService
      *     pension_rates: array{employee: list<float>, employer: list<float>},
      *     basis: array{pension: list<array<string, mixed>>, tax: list<array<string, mixed>>},
      *     pension_exemptions: array{count: int, by_reason: array<string, int>, employees: list<array{employee_public_id: mixed, employee_name: mixed, reason: string}>},
-     *     overtime_limits: array{count: int, daily_limit_minutes: int|null, legal_daily_limit_minutes: int|null, legal_weekly_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, days_over_legal_daily_limit: int, weeks_over_legal_weekly_limit: int, longest_week_minutes: int}>},
+     *     overtime_limits: array{count: int, daily_limit_minutes: int|null, legal_daily_limit_minutes: int|null, legal_weekly_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, days_over_legal_daily_limit: int, weeks_over_legal_weekly_limit: int, longest_week_minutes: int, days_over_approved: int}>},
      * }
      */
     public function register(PayrollRun $run): array
@@ -68,13 +68,14 @@ final class RunRegisterService
     }
 
     /**
-     * Who worked overtime past the organisation's daily limit or the legal
-     * daily or weekly one, from each entry's log. Shown on the run page
+     * Who worked overtime past the organisation's daily limit, the legal
+     * daily or weekly one, or what was approved in advance, from each
+     * entry's log. Shown on the run page
      * before approval; never a reason to pay less, since overtime worked is
      * owed.
      *
      * @param  list<array<string, mixed>>  $rows
-     * @return array{count: int, daily_limit_minutes: int|null, legal_daily_limit_minutes: int|null, legal_weekly_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, days_over_legal_daily_limit: int, weeks_over_legal_weekly_limit: int, longest_week_minutes: int}>}
+     * @return array{count: int, daily_limit_minutes: int|null, legal_daily_limit_minutes: int|null, legal_weekly_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, days_over_legal_daily_limit: int, weeks_over_legal_weekly_limit: int, longest_week_minutes: int, days_over_approved: int}>}
      */
     public static function overtimeLimits(array $rows): array
     {
@@ -83,8 +84,9 @@ final class RunRegisterService
             $own = self::countOf($row['overtime_days_over_daily_limit'] ?? null);
             $legalDays = self::countOf($row['overtime_days_over_legal_daily_limit'] ?? null);
             $weeks = is_array($row['overtime_weeks_over_legal_weekly_limit'] ?? null) ? $row['overtime_weeks_over_legal_weekly_limit'] : [];
+            $unapproved = self::countOf($row['overtime_days_over_approved'] ?? null);
 
-            if ($own === 0 && $legalDays === 0 && $weeks === []) {
+            if ($own === 0 && $legalDays === 0 && $weeks === [] && $unapproved === 0) {
                 continue;
             }
 
@@ -96,6 +98,7 @@ final class RunRegisterService
                 'days_over_legal_daily_limit' => $legalDays,
                 'weeks_over_legal_weekly_limit' => count($weeks),
                 'longest_week_minutes' => self::longestWeek($weeks),
+                'days_over_approved' => $unapproved,
             ];
         }
 
@@ -328,6 +331,9 @@ final class RunRegisterService
                 : null,
             'overtime_legal_weekly_limit_minutes' => isset($steps['overtime']['limits']['legal_weekly_limit_minutes'])
                 ? (int) $steps['overtime']['limits']['legal_weekly_limit_minutes']
+                : null,
+            'overtime_days_over_approved' => is_array($steps['overtime']['limits']['days_over_approved'] ?? null)
+                ? array_values($steps['overtime']['limits']['days_over_approved'])
                 : null,
         ];
     }

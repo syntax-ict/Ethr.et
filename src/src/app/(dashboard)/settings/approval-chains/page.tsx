@@ -61,6 +61,7 @@ const REQUEST_TYPES = [
   "leave",
   "correction",
   "profile_update",
+  "overtime",
 ] as const satisfies readonly ApprovalRequestType[];
 
 const KINDS = [
@@ -304,6 +305,8 @@ export default function ApprovalChainsPage() {
         return t("approval_chains.type_correction", "Attendance corrections");
       case "profile_update":
         return t("approval_chains.type_profile_update", "Profile changes");
+      case "overtime":
+        return t("approval_chains.type_overtime", "Overtime requests");
       default:
         return t("approval_chains.type_leave", "Leave requests");
     }

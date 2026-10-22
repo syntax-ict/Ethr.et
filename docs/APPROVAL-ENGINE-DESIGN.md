@@ -211,6 +211,14 @@ Then the settings screen (Settings > Approval chains, #365).
 - Rejecting is refused to someone who is not the current step's approver, as
   for leave and corrections; the existing self-review rules are unchanged.
 
+### Overtime requests on the engine (2026-10-22)
+
+`overtime` is the fourth request type: overtime asked for before it is worked
+(blueprint S8). Every step needs `overtime.approve` and reach; the inbox, batch
+decisions, reminders and escalation handle it like a correction. With the
+organisation's `overtime_requires_approval` on, payroll flags overtime worked
+past what was approved for the day, and pays it.
+
 ### Payroll stays off the engine for now (decided 2026-10-21)
 
 Payroll was the last item of Phase B. It is deferred, because it is the

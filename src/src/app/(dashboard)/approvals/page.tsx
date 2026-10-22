@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 
 /** The kinds of request the queue holds (`BatchApprovalRequest`). */
-const TYPES = ["leave", "correction", "profile_update"] as const;
+const TYPES = ["leave", "correction", "profile_update", "overtime"] as const;
 
 export default function ApprovalsPage() {
   const { t } = useT();

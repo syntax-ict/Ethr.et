@@ -77,9 +77,10 @@ parameters:
           path: app/Traits/BelongsToTenant.php
 
         # Same larastan limitation for the approval engine's four tables
-        # (2026-10-21). The models are correct and covered by
-        # ApprovalEngineTest. Scoped to the trait file, model-named exact.
-        - message: '#^Method App\\Models\\Approval(Action|Instance|Workflow|WorkflowStep)\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+        # (2026-10-21) and overtime requests (2026-10-22). The models are
+        # correct and covered by ApprovalEngineTest and OvertimeRequestTest.
+        # Scoped to the trait file, model-named exact.
+        - message: '#^Method App\\Models\\(Approval(Action|Instance|Workflow|WorkflowStep)|OvertimeRequest)\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
 
         # Same larastan limitation for device_commands (2026-10-14). The model is

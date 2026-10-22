@@ -328,8 +328,11 @@ days past the legal four hours and the weeks past the legal twelve
 crosses into the next pay period whole. The run page warns before approval and
 every minute is still paid, since overtime worked is owed (Art. 68). Rest-day
 and public-holiday work is paid at its own rates and not counted against the
-limits. The setting no longer claims to cap what is counted. Pre-approval of
-overtime is still missing.)*
+limits. The setting no longer claims to cap what is counted. Overtime can now
+also be asked for and approved in advance (Attendance > Overtime requests, on
+the approval engine); with the organisation's "Overtime needs approval in
+advance" on, overtime past what was approved for a day is flagged on the run
+too, and still paid.)*
 
 ### IN. Integrations
 
