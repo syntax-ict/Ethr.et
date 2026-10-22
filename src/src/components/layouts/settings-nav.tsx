@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Archive,
+  ClipboardCheck,
   GitBranch,
   SlidersHorizontal,
   Clock,
@@ -117,6 +118,12 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
           label: t("nav.approval_chains", "Approval chains"),
           href: "/settings/approval-chains",
           icon: GitBranch,
+          show: can.manageSettings,
+        },
+        {
+          label: t("nav.exit_clearance_checklist", "Exit checklist"),
+          href: "/settings/exit-clearance",
+          icon: ClipboardCheck,
           show: can.manageSettings,
         },
         {

@@ -33,6 +33,16 @@ enum EmployeeStatus: string
         return [self::HIRED, self::PROBATION, self::CONFIRMED];
     }
 
+    /**
+     * The statuses of someone who has left: resigned, terminated or retired.
+     *
+     * @return list<self>
+     */
+    public static function leaving(): array
+    {
+        return [self::RESIGNED, self::TERMINATED, self::RETIRED];
+    }
+
     public function canTransitionTo(self $target): bool
     {
         return in_array($target, $this->allowedTransitions(), true);
