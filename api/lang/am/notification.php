@@ -18,6 +18,9 @@ return [
 
     // Approval reminders
     'approval_reminder_subject' => 'እርስዎን የሚጠብቁ ማጽደቆች',
+    'approval_escalated_subject' => 'የዘገየ ማጽደቂያ አለ',
+    'approval_escalated_hint' => 'እባክዎ ይከታተሉ፤ ከሌሉ የሰው ሀብት እንዲወስነው ይጠይቁ።',
+    'approval_escalated_action' => 'ማጽደቂያዎችን ክፈት',
 
     // Approval routing
     'review_request' => 'ጥያቄ ይከልሱ',
@@ -31,6 +34,7 @@ return [
     // (User::preferredLocale). Each carries a `url` the notification opens.
     'inapp' => [
         'approval_reminder' => ':count የሚጠብቁ ማጽደቂያዎች አሉዎት። በጣም የቆየው :hours ሰዓት ጠብቋል።',
+        'approval_escalated' => 'የ:name :type :approver እንዲወስኑት :hours ሰዓት ጠብቋል።',
         'attendance_anomaly' => 'የ:name የመገኘት ያልተለመደ ሁኔታ፦ :type',
         'correction_approved' => 'የ:date የመገኘት ማስተካከያ ጥያቄዎ ጸድቋል።',
         'correction_rejected' => 'የ:date የመገኘት ማስተካከያ ጥያቄዎ ውድቅ ተደርጓል።',
