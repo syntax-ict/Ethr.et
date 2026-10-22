@@ -138,9 +138,11 @@ describe("Profile photo", () => {
 
     render(<ProfilePage />, { wrapper });
 
-    const input = (await screen.findByLabelText(
-      /change photo/i,
-    )) as HTMLInputElement;
+    // The file input is hidden; the visible button opens it.
+    await screen.findByRole("button", { name: /change photo/i });
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
     const file = new File(["binary"], "me.jpg", { type: "image/jpeg" });
     fireEvent.change(input, { target: { files: [file] } });
 
@@ -160,9 +162,11 @@ describe("Profile photo", () => {
 
     render(<ProfilePage />, { wrapper });
 
-    const input = (await screen.findByLabelText(
-      /change photo/i,
-    )) as HTMLInputElement;
+    // The file input is hidden; the visible button opens it.
+    await screen.findByRole("button", { name: /change photo/i });
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
     fireEvent.change(input, {
       target: {
         files: [new File(["%PDF"], "payslip.pdf", { type: "application/pdf" })],
