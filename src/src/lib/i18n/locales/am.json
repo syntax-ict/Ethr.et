@@ -3023,7 +3023,7 @@
   "nav.vacancies": "ክፍት የስራ ቦታዎች",
   "nav.voice": "ድምፅ",
   "nav.webhooks": "ዌብሁኮች",
-  "nav.workspace_menu": "የድርጅት ምናሌ",
+  "nav.workspace_menu_named": ":name፣ የድርጅት ምናሌ",
   "nav.workspace_settings": "የድርጅት ቅንብሮች",
   "news.all": "ሁሉም",
   "news.all_news": "ሁሉንም ዜናዎች ይመልከቱ",

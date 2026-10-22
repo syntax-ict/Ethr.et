@@ -3023,7 +3023,7 @@
   "nav.vacancies": "Vacancies",
   "nav.voice": "Voice",
   "nav.webhooks": "Webhooks",
-  "nav.workspace_menu": "Workspace menu",
+  "nav.workspace_menu_named": ":name, workspace menu",
   "nav.workspace_settings": "Workspace settings",
   "news.all": "All",
   "news.all_news": "See all news",
