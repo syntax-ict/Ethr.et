@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EmployeeSelect } from "@/components/shared/employee-select";
 import { SimpleTable } from "@/components/shared/simple-table";
 import {
   ActiveToggle,
@@ -32,6 +33,7 @@ const EMPTY = {
   code: "",
   branch_public_id: "none",
   parent_public_id: "none",
+  head_employee_public_id: "none",
   is_active: true,
 };
 
@@ -78,6 +80,7 @@ export function DepartmentsSection() {
       code: d.code ?? "",
       branch_public_id: d.branch?.public_id ?? "none",
       parent_public_id: d.parent?.public_id ?? "none",
+      head_employee_public_id: d.head?.public_id ?? "none",
       is_active: d.is_active,
     }),
     toPayload: (f) => ({
@@ -86,6 +89,7 @@ export function DepartmentsSection() {
       code: f.code || null,
       branch_public_id: noneToNull(f.branch_public_id),
       parent_public_id: noneToNull(f.parent_public_id),
+      head_employee_public_id: noneToNull(f.head_employee_public_id),
       is_active: f.is_active,
     }),
     messages: {
@@ -192,6 +196,22 @@ export function DepartmentsSection() {
                 </SelectContent>
               </Select>
             </CrudField>
+            <CrudField
+              label={t("org.field.department_head", "Department head")}
+            >
+              <EmployeeSelect
+                value={form.head_employee_public_id}
+                onChange={(v) => set("head_employee_public_id", v)}
+                enabled={crud.isOpen}
+                noneLabel={t("common.none", "None")}
+              />
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {t(
+                  "org.field.department_head_hint",
+                  "Approval chains with a department-head step send requests from this department to this person.",
+                )}
+              </span>
+            </CrudField>
           </CrudFieldRow>
           <ActiveToggle
             checked={form.is_active}
@@ -209,6 +229,7 @@ export function DepartmentsSection() {
               t("org.field.code", "Code"),
               t("org.tab.branches", "Branches"),
               t("org.field.parent", "Parent"),
+              t("org.field.department_head", "Department head"),
               t("common.status", "Status"),
             ]}
             rows={items.map((d) => ({
@@ -218,6 +239,7 @@ export function DepartmentsSection() {
                 d.code ?? "—",
                 d.branch?.name ?? "—",
                 d.parent?.name ?? "—",
+                d.head?.name ?? "—",
                 <ActiveBadge key="s" active={d.is_active} />,
               ],
               onEdit: () => crud.openEdit(d),

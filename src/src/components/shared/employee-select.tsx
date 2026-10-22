@@ -23,12 +23,15 @@ export function EmployeeSelect({
   value,
   onChange,
   enabled = true,
+  noneLabel,
 }: {
   id?: string;
   value: string;
   onChange: (publicId: string) => void;
   /** Fetch the list only while the form is open. */
   enabled?: boolean;
+  /** Offer "no one" first, as the value `none`, for a field that may be empty. */
+  noneLabel?: string;
 }) {
   const { t } = useT();
   const { data: employees } = useEmployeeOptions({ enabled });
@@ -41,6 +44,9 @@ export function EmployeeSelect({
         />
       </SelectTrigger>
       <SelectContent>
+        {noneLabel !== undefined && (
+          <SelectItem value="none">{noneLabel}</SelectItem>
+        )}
         {employees?.map((e) => (
           <SelectItem key={e.public_id} value={e.public_id}>
             {e.name}{" "}
