@@ -230,7 +230,7 @@ export default function AttendanceSettingsPage() {
                   <Label htmlFor="ot-daily-cap" className="text-sm">
                     {t(
                       "attendance.settings_page.ot_daily_cap",
-                      "OT daily cap (minutes)",
+                      "Daily overtime limit (minutes)",
                     )}
                   </Label>
                   <Input
@@ -250,7 +250,7 @@ export default function AttendanceSettingsPage() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     {t(
                       "attendance.settings_page.ot_daily_cap_desc",
-                      "Maximum overtime counted per day",
+                      "Days with more overtime are flagged on the payroll run for review, as are days over the legal 4 hours and weeks over 12. All overtime worked is still paid.",
                     )}
                   </p>
                 </div>
