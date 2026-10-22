@@ -28,7 +28,7 @@ import { join, relative } from "node:path";
  *    is then fixed in every language: Amharic read "መሳሪያው ነው online". Put the
  *    value in the sentence with a placeholder:
  *    `t("x.count", ":count records", { count })`. Accessible names
- *    ("Delete" and a name) are exempt. 60 on 2026-10-22, 6 the same day.
+ *    ("Delete" and a name) are exempt. 60 on 2026-10-22, 0 the same day.
  */
 
 const SRC = join(process.cwd(), "src");
@@ -53,7 +53,7 @@ const CEILINGS = {
   nativeConfirm: 0,
   discardedErrors: 0,
   silentLoadFailures: 0,
-  gluedSentences: 6,
+  gluedSentences: 0,
 };
 
 function walk(dir: string): string[] {
