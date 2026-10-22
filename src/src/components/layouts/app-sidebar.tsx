@@ -154,6 +154,15 @@ export function AppSidebar() {
     : "";
   const tenantName = tenant?.name ?? "ETHR";
   const tenantInitial = tenantName.charAt(0).toUpperCase();
+  // The name starts with what the button shows (WCAG 2.5.3, label in name):
+  // a voice user says the organisation's name to open it.
+  const workspaceLabel = t(
+    "nav.workspace_menu_named",
+    ":name, workspace menu",
+    {
+      name: tenantName,
+    },
+  );
 
   return (
     <aside
@@ -176,7 +185,7 @@ export function AppSidebar() {
           <WorkspaceMenu tenantName={tenantName} roleName={roleName}>
             <button
               type="button"
-              aria-label={t("nav.workspace_menu", "Workspace menu")}
+              aria-label={workspaceLabel}
               className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-sidebar-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-sidebar-accent"
             >
               <TenantLogoBadge showName={false} surface="dark" />
@@ -198,7 +207,7 @@ export function AppSidebar() {
             <button
               type="button"
               title={tenantName}
-              aria-label={t("nav.workspace_menu", "Workspace menu")}
+              aria-label={workspaceLabel}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-accent text-sm font-bold text-sidebar-accent-foreground shadow-sm transition-shadow hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:ring-2 data-[state=open]:ring-ring"
             >
               {tenantInitial}
