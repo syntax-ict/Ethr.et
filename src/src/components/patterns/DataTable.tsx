@@ -250,12 +250,16 @@ export function DataTable<TData>({
             aria-label={t("table.select_all_rows", "Select all rows")}
           />
         ),
+        // The label widens the hit area to 24px (WCAG 2.5.8) without moving
+        // the 16px box: rows sit close enough on a phone to tap the wrong one.
         cell: ({ row }) => (
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label={t("table.select_row", "Select row")}
-          />
+          <label className="-m-1 flex h-6 w-6 cursor-pointer items-center justify-center">
+            <Checkbox
+              checked={row.getIsSelected()}
+              onCheckedChange={(value) => row.toggleSelected(!!value)}
+              aria-label={t("table.select_row", "Select row")}
+            />
+          </label>
         ),
         enableSorting: false,
         enableHiding: false,

@@ -346,9 +346,10 @@ async function undersizedTargets(page: Page): Promise<string[]> {
         if (parent && /^(P|LI|SPAN|TD|DD)$/.test(parent.tagName)) return true;
       }
       // The label is the target for a checkbox or radio it wraps.
+      // Role first: a Radix checkbox is <button type="button" role="checkbox">.
       const kind = (
-        el.getAttribute("type") ??
         el.getAttribute("role") ??
+        el.getAttribute("type") ??
         ""
       ).toLowerCase();
       if ((kind === "checkbox" || kind === "radio") && el.closest("label")) {
