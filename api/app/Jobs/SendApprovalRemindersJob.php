@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Enums\CorrectionStatus;
 use App\Enums\LeaveStatus;
 use App\Enums\ProfileUpdateStatus;
+use App\Models\ApprovalInstance;
 use App\Models\AttendanceCorrection;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
@@ -14,6 +15,7 @@ use App\Models\ProfileUpdateRequest;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\ApprovalReminderNotification;
+use App\Services\Approval\ApprovalEngine;
 use App\Services\CurrentTenant;
 use App\Services\Profile\ProfileUpdateRequestService;
 use Carbon\CarbonImmutable;
@@ -70,6 +72,8 @@ class SendApprovalRemindersJob implements ShouldQueue
         $this->collectCorrections($cutoff, $waiting);
         $this->collectProfileUpdates($cutoff, $waiting);
 
+        $this->escalateOverdueSteps();
+
         if ($waiting === []) {
             return;
         }
@@ -102,10 +106,13 @@ class SendApprovalRemindersJob implements ShouldQueue
         $requests = LeaveRequest::query()
             ->where('status', LeaveStatus::PENDING)
             ->where('created_at', '<=', $cutoff)
-            ->with('employee.supervisor.user')
+            ->with('employee.supervisor.user', 'approvalInstance')
             ->get();
 
         foreach ($requests as $request) {
+            if ($this->addForChain($request, $cutoff, $waiting)) {
+                continue;
+            }
             $this->addFor($request->employee, $request->created_at, $waiting);
         }
     }
@@ -118,10 +125,13 @@ class SendApprovalRemindersJob implements ShouldQueue
         $corrections = AttendanceCorrection::query()
             ->where('status', CorrectionStatus::PENDING)
             ->where('created_at', '<=', $cutoff)
-            ->with('employee.supervisor.user')
+            ->with('employee.supervisor.user', 'approvalInstance')
             ->get();
 
         foreach ($corrections as $correction) {
+            if ($this->addForChain($correction, $cutoff, $waiting)) {
+                continue;
+            }
             $this->addFor($correction->employee, $correction->created_at, $waiting);
         }
     }
@@ -150,6 +160,10 @@ class SendApprovalRemindersJob implements ShouldQueue
         $decisions = app(ProfileUpdateRequestService::class);
 
         foreach ($pending as $request) {
+            if ($this->addForChain($request, $cutoff, $waiting)) {
+                continue;
+            }
+
             foreach ($reviewers as $reviewer) {
                 // Not a change the reviewer may decide, so not one the queue
                 // lists for them: the reminder counts what the queue shows.
@@ -160,6 +174,53 @@ class SendApprovalRemindersJob implements ShouldQueue
                 $waiting[$reviewer->id][] = CarbonImmutable::instance($request->created_at);
             }
         }
+    }
+
+    /**
+     * A request on a configured approval chain is waiting on its current
+     * step's approvers, not on the supervisor, and has waited since the step
+     * began rather than since it was filed. False when the request is on the
+     * built-in single step, which keeps the reminder it always had.
+     *
+     * @param  array<int, array<int, CarbonImmutable>>  $waiting
+     */
+    private function addForChain(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $request, CarbonImmutable $cutoff, array &$waiting): bool
+    {
+        $engine = app(ApprovalEngine::class);
+        $approvers = $engine->currentApprovers($request);
+
+        if ($approvers === null) {
+            return false;
+        }
+
+        $instance = $engine->instanceOf($request);
+        $since = $instance === null ? null : $engine->stepEnteredAt($instance);
+
+        if ($since === null || CarbonImmutable::instance($since)->greaterThan($cutoff)) {
+            return true;
+        }
+
+        foreach ($approvers as $approver) {
+            $waiting[$approver->id][] = CarbonImmutable::instance($since);
+        }
+
+        return true;
+    }
+
+    /**
+     * A step that names one person and has waited past its time limit is
+     * told to someone above them, once (ApprovalEngine::escalateIfOverdue).
+     */
+    private function escalateOverdueSteps(): void
+    {
+        $engine = app(ApprovalEngine::class);
+
+        ApprovalInstance::query()
+            ->where('status', ApprovalInstance::STATUS_PENDING)
+            ->whereNotNull('current_approver_user_id')
+            ->with('approvable')
+            ->get()
+            ->each(fn (ApprovalInstance $instance) => $engine->escalateIfOverdue($instance));
     }
 
     /**

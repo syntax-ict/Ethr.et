@@ -17,12 +17,16 @@ use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\ProfileUpdateRequest;
 use App\Models\User;
+use App\Notifications\ApprovalEscalatedNotification;
 use App\Notifications\AttendanceCorrectionRequestedNotification;
 use App\Notifications\LeaveRequestedNotification;
 use App\Notifications\ProfileUpdateRequestedNotification;
 use App\Traits\SendsNotifications;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Decides *when* a request is decided; the module's decision service still
@@ -209,6 +213,136 @@ final class ApprovalEngine
             'current_approver_user_id' => null,
             'current_approver_role' => null,
         ]);
+    }
+
+    /**
+     * Who may decide the request's current step, for reminders. Null when the
+     * request is on the built-in single step, so the caller keeps reminding
+     * whoever it always has; otherwise exactly the people the inbox lists it
+     * for, which on a chain is rarely the supervisor.
+     *
+     * @return Collection<int, User>|null
+     */
+    public function currentApprovers(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): ?Collection
+    {
+        $instance = $this->instanceOf($approvable);
+
+        if ($instance === null
+            || $instance->status !== ApprovalInstance::STATUS_PENDING
+            || $instance->workflow_snapshot['workflow_public_id'] === null) {
+            return null;
+        }
+
+        $type = ApprovalRequestType::fromModel($approvable);
+
+        $candidates = User::query()
+            ->where('tenant_id', $approvable->tenant_id)
+            ->where('status', 'active')
+            ->when($instance->current_approver_user_id !== null, fn (Builder $q) => $q->whereKey($instance->current_approver_user_id))
+            ->when($instance->current_approver_role !== null, fn (Builder $q) => $q->where('role', $instance->current_approver_role))
+            ->get();
+
+        return $candidates
+            ->filter(fn (User $user): bool => $this->eligible($user, $instance, $approvable, $type))
+            ->values();
+    }
+
+    /** When the request reached its current step: submission, or the last approval. */
+    public function stepEnteredAt(ApprovalInstance $instance): ?CarbonInterface
+    {
+        $lastApproval = $instance->actions()
+            ->where('action', ApprovalAction::APPROVE)
+            ->latest('id')
+            ->value('created_at');
+
+        return $lastApproval !== null ? Carbon::parse($lastApproval) : $instance->submitted_at;
+    }
+
+    /**
+     * Tell someone when a step that names one person has waited past its
+     * time limit: that person's supervisor, else the organisation's HR
+     * admins. Once per step, recorded in the history, and only a notice:
+     * nothing is approved or moved on (docs/APPROVAL-ENGINE-DESIGN.md §6).
+     *
+     * @return list<User> who was told
+     */
+    public function escalateIfOverdue(ApprovalInstance $instance, ?CarbonInterface $now = null): array
+    {
+        $approvable = $instance->approvable;
+
+        if (! ($approvable instanceof LeaveRequest || $approvable instanceof AttendanceCorrection || $approvable instanceof ProfileUpdateRequest)
+            || $instance->status !== ApprovalInstance::STATUS_PENDING
+            || $instance->current_approver_user_id === null) {
+            return [];
+        }
+
+        $slaHours = (int) ($instance->workflow_snapshot['steps'][$instance->current_position - 1]['sla_hours'] ?? self::DEFAULT_SLA_HOURS);
+        $entered = $this->stepEnteredAt($instance);
+        $now ??= now();
+
+        if ($entered === null || $entered->greaterThan($now->copy()->subHours($slaHours))) {
+            return [];
+        }
+
+        $already = $instance->actions()
+            ->where('action', 'escalate')
+            ->where('position', $instance->current_position)
+            ->exists();
+        if ($already) {
+            return [];
+        }
+
+        $approver = User::query()->find($instance->current_approver_user_id);
+        $targets = $this->escalationTargets($approver, $approvable, $instance);
+
+        $this->record($instance, null, 'escalate', null, [
+            'approver' => $approver?->public_id,
+            'notified' => array_map(static fn (User $u): string => $u->public_id, $targets),
+        ]);
+        AuditLog::record('approval.escalated', $approvable, [
+            'step' => $instance->current_position,
+            'notified' => count($targets),
+        ]);
+
+        $employee = $this->employeeOf($approvable);
+        foreach ($targets as $target) {
+            $this->notify($target, new ApprovalEscalatedNotification(
+                ApprovalRequestType::fromModel($approvable)->value,
+                $employee->name ?? '',
+                $approver->name ?? '',
+                (int) $entered->diffInHours($now),
+            ));
+        }
+
+        return $targets;
+    }
+
+    /** @return list<User> */
+    private function escalationTargets(?User $approver, LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable, ApprovalInstance $instance): array
+    {
+        $excluded = array_filter([$approver?->id, $instance->submitted_by]);
+        $requesterEmployee = $approvable->employee_id;
+
+        if ($approver !== null) {
+            $approver->loadMissing('employee.supervisor.user');
+            $boss = $approver->employee?->supervisor?->user;
+
+            if ($boss instanceof User && $boss->status === 'active'
+                && ! in_array($boss->id, $excluded, true)
+                && $boss->employee_id !== $requesterEmployee) {
+                return [$boss];
+            }
+        }
+
+        return User::query()
+            ->where('tenant_id', $approvable->tenant_id)
+            ->where('role', UserRole::HR_ADMIN->value)
+            ->where('status', 'active')
+            ->whereNotIn('id', $excluded)
+            ->get()
+            ->filter(fn (User $u): bool => $u->employee_id === null || $u->employee_id !== $requesterEmployee)
+            ->values()
+            ->all();
     }
 
     /**

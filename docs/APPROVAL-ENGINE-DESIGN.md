@@ -211,5 +211,39 @@ Then the settings screen (Settings > Approval chains, #365).
 - Rejecting is refused to someone who is not the current step's approver, as
   for leave and corrections; the existing self-review rules are unchanged.
 
-Still to come in Phase B: payroll on the engine. Payroll approval already has
-its own maker-checker rule (#324), so it moves in a PR of its own.
+### Payroll stays off the engine for now (decided 2026-10-21)
+
+Payroll was the last item of Phase B. It is deferred, because it is the
+riskiest piece and adds the least:
+
+- A run already needs a second person: the maker-checker rule from #324
+  refuses approval by whoever processed it, with an audited exception for an
+  organisation whose only approver did.
+- A run has no single employee, so the supervisor, department-head and reach
+  rules the engine applies to every step have nothing to apply to.
+- A run is not pending from creation: it becomes approvable when processing
+  completes, and reprocessing or voiding starts it over. The engine would need
+  to start and close instances on those transitions, inside the money path.
+
+Revisit when an organisation asks for a payroll sign-off chain longer than
+maker and checker.
+
+### Reminders and escalation follow the chain (Phase C, part, 2026-10-21)
+
+- The daily 06:00 reminder job (`SendApprovalRemindersJob`) asks the engine
+  who can decide a request's current step. On a configured chain that is the
+  step's approvers, exactly as the inbox lists them, and the 48 hours run from
+  when the step began, not from when the request was filed. A request on the
+  built-in single step is reminded as before.
+- In the same run, a step that names one person (`supervisor`,
+  `department_head`, `user`) and has waited past its `sla_hours` is escalated
+  once: that person's supervisor is told, or every active HR admin when they
+  have none. The escalation is recorded in the request's history and the audit
+  log. It only notifies; nothing is approved or moved on. Steps open to a role
+  or to the permission holders are not escalated, since the reminder already
+  reaches the whole group.
+- It runs daily rather than hourly, so an escalation lands at most a day after
+  the limit passes.
+
+Still to come in Phase C: delegation while an approver is away, and returning
+a request to its author for correction.
