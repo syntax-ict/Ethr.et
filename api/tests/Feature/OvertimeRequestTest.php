@@ -244,7 +244,7 @@ test('with approval required, overtime past what was approved is flagged and sti
 
     expect($step['overtime_minutes'])->toBe(300)
         ->and($step['limits']['requires_approval'])->toBeTrue()
-        ->and($step['limits']['days_over_approved'])->toBe([
+        ->and($step['limits']['days_over_approved'])->toEqual([
             ['date' => '2026-06-01', 'worked_minutes' => 120, 'approved_minutes' => 60],
             ['date' => '2026-06-02', 'worked_minutes' => 60, 'approved_minutes' => 0],
         ]);
@@ -262,5 +262,5 @@ test('without approval required, nothing is flagged for want of a request', func
     $step = collect($entry->calculation_log['steps'])->firstWhere('step', 'overtime');
 
     expect($step['limits']['requires_approval'])->toBeFalse()
-        ->and($step['limits']['days_over_approved'])->toBe([]);
+        ->and($step['limits']['days_over_approved'])->toEqual([]);
 });
