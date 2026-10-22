@@ -170,19 +170,23 @@ export interface PayrollRegister {
   pension_rates?: { employee: number[]; employer: number[] };
   /** Who the run exempted from pension, and why — acknowledged at approval. */
   pension_exemptions?: PensionExemptions;
-  /** Who worked overtime past the daily or monthly limit; all of it is paid. */
+  /** Who worked overtime past the organisation's or the legal limits; all of it is paid. */
   overtime_limits?: OvertimeLimits;
 }
 
 export interface OvertimeLimits {
   count: number;
   daily_limit_minutes: number | null;
+  legal_daily_limit_minutes: number | null;
+  legal_weekly_limit_minutes: number | null;
   employees: {
     employee_public_id: string | null;
     employee_name: string;
     overtime_minutes: number;
     days_over_daily_limit: number;
-    over_monthly_limit: boolean;
+    days_over_legal_daily_limit: number;
+    weeks_over_legal_weekly_limit: number;
+    longest_week_minutes: number;
   }[];
 }
 

@@ -12,12 +12,16 @@ function hours(minutes: number): string {
 
 /**
  * Everyone in this run who worked overtime past the organisation's daily
- * limit or the 20-hour monthly limit, before anyone approves it. All of it is
- * paid; the point is that someone sees it and asks whether it was authorised.
+ * limit, or the legal four hours a day or twelve a week (Proclamation
+ * 1156/2019 Art. 67), before anyone approves it. All of it is paid; the
+ * point is that someone sees it and asks whether it was authorised.
  */
 export function OvertimeLimitsBanner({ limits }: { limits: OvertimeLimits }) {
   const { t } = useT();
   if (limits.count === 0) return null;
+
+  const dayLimit = hours(limits.legal_daily_limit_minutes ?? 240);
+  const weekLimit = hours(limits.legal_weekly_limit_minutes ?? 720);
 
   return (
     <section
@@ -30,55 +34,49 @@ export function OvertimeLimitsBanner({ limits }: { limits: OvertimeLimits }) {
           <p className="font-medium">
             {t(
               "overtime_limits.summary",
-              ":count employee(s) worked overtime past the limits: more than :daily hours on a day, or more than 20 hours in the month.",
+              ":count employee(s) worked overtime past a limit: your organisation's :own_limit hours a day, or the legal :day_limit hours a day or :week_limit hours a week.",
               {
                 count: limits.count,
-                daily: hours(limits.daily_limit_minutes ?? 120),
+                own_limit: hours(limits.daily_limit_minutes ?? 120),
+                day_limit: dayLimit,
+                week_limit: weekLimit,
               },
             )}
           </p>
           <p>
             {t(
               "overtime_limits.hint",
-              "All of it is paid. Check that the extra hours were authorised before approving the run.",
+              "All of it is paid. Check that the extra hours were authorised before approving the run. Work on rest days and public holidays is paid at its own rates and not counted here.",
             )}
           </p>
           <ul className="list-inside list-disc space-y-0.5">
-            {limits.employees.map((e, i) => {
-              const detail = e.over_monthly_limit
-                ? t(
-                    "overtime_limits.employee_monthly",
-                    ":hours hours in the period, over the monthly limit; :days day(s) over the daily limit",
-                    {
-                      hours: hours(e.overtime_minutes),
-                      days: e.days_over_daily_limit,
-                    },
-                  )
-                : t(
-                    "overtime_limits.employee_daily",
-                    ":hours hours in the period; :days day(s) over the daily limit",
-                    {
-                      hours: hours(e.overtime_minutes),
-                      days: e.days_over_daily_limit,
-                    },
-                  );
-              return (
-                <li key={`${e.employee_public_id ?? i}`}>
-                  {e.employee_public_id ? (
-                    <Link
-                      href={`/employees/${e.employee_public_id}`}
-                      className="font-medium underline underline-offset-2"
-                    >
-                      {e.employee_name}
-                    </Link>
-                  ) : (
-                    <span className="font-medium">{e.employee_name}</span>
-                  )}
-                  {": "}
-                  {detail}
-                </li>
-              );
-            })}
+            {limits.employees.map((e, i) => (
+              <li key={`${e.employee_public_id ?? i}`}>
+                {e.employee_public_id ? (
+                  <Link
+                    href={`/employees/${e.employee_public_id}`}
+                    className="font-medium underline underline-offset-2"
+                  >
+                    {e.employee_name}
+                  </Link>
+                ) : (
+                  <span className="font-medium">{e.employee_name}</span>
+                )}
+                {": "}
+                {t(
+                  "overtime_limits.employee",
+                  ":hours hours of overtime. Over your limit on :over_own day(s), over :day_limit hours on :over_day day(s), over :week_limit hours in :over_week week(s).",
+                  {
+                    hours: hours(e.overtime_minutes),
+                    over_own: e.days_over_daily_limit,
+                    over_day: e.days_over_legal_daily_limit,
+                    over_week: e.weeks_over_legal_weekly_limit,
+                    day_limit: dayLimit,
+                    week_limit: weekLimit,
+                  },
+                )}
+              </li>
+            ))}
           </ul>
         </div>
       </div>

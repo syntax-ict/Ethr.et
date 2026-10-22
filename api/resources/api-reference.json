@@ -25356,13 +25356,33 @@
                                                         ],
                                                         "items": []
                                                     },
-                                                    "overtime_over_monthly_limit": {
+                                                    "overtime_days_over_legal_daily_limit": {
                                                         "type": [
-                                                            "boolean",
+                                                            "array",
+                                                            "null"
+                                                        ],
+                                                        "items": []
+                                                    },
+                                                    "overtime_weeks_over_legal_weekly_limit": {
+                                                        "type": [
+                                                            "array",
+                                                            "null"
+                                                        ],
+                                                        "items": []
+                                                    },
+                                                    "overtime_daily_limit_minutes": {
+                                                        "type": [
+                                                            "integer",
                                                             "null"
                                                         ]
                                                     },
-                                                    "overtime_daily_limit_minutes": {
+                                                    "overtime_legal_daily_limit_minutes": {
+                                                        "type": [
+                                                            "integer",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "overtime_legal_weekly_limit_minutes": {
                                                         "type": [
                                                             "integer",
                                                             "null"
@@ -25393,8 +25413,11 @@
                                                     "tax_rule",
                                                     "overtime_minutes",
                                                     "overtime_days_over_daily_limit",
-                                                    "overtime_over_monthly_limit",
-                                                    "overtime_daily_limit_minutes"
+                                                    "overtime_days_over_legal_daily_limit",
+                                                    "overtime_weeks_over_legal_weekly_limit",
+                                                    "overtime_daily_limit_minutes",
+                                                    "overtime_legal_daily_limit_minutes",
+                                                    "overtime_legal_weekly_limit_minutes"
                                                 ]
                                             }
                                         },
@@ -25495,6 +25518,18 @@
                                                         "null"
                                                     ]
                                                 },
+                                                "legal_daily_limit_minutes": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "legal_weekly_limit_minutes": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "employees": {
                                                     "type": "array",
                                                     "items": {
@@ -25512,8 +25547,14 @@
                                                             "days_over_daily_limit": {
                                                                 "type": "integer"
                                                             },
-                                                            "over_monthly_limit": {
-                                                                "type": "boolean"
+                                                            "days_over_legal_daily_limit": {
+                                                                "type": "integer"
+                                                            },
+                                                            "weeks_over_legal_weekly_limit": {
+                                                                "type": "integer"
+                                                            },
+                                                            "longest_week_minutes": {
+                                                                "type": "integer"
                                                             }
                                                         },
                                                         "required": [
@@ -25521,7 +25562,9 @@
                                                             "employee_name",
                                                             "overtime_minutes",
                                                             "days_over_daily_limit",
-                                                            "over_monthly_limit"
+                                                            "days_over_legal_daily_limit",
+                                                            "weeks_over_legal_weekly_limit",
+                                                            "longest_week_minutes"
                                                         ]
                                                     }
                                                 }
@@ -25529,6 +25572,8 @@
                                             "required": [
                                                 "count",
                                                 "daily_limit_minutes",
+                                                "legal_daily_limit_minutes",
+                                                "legal_weekly_limit_minutes",
                                                 "employees"
                                             ]
                                         }

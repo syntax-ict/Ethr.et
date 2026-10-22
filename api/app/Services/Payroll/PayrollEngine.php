@@ -32,13 +32,25 @@ final class PayrollEngine
     private const HOURS_PER_DAY = 8;
 
     /**
-     * Labour Proclamation 1156/2019 Art. 67(2): overtime may not exceed
-     * 20 hours a month. Used only to flag a run for review; overtime worked
-     * is paid whatever the limit (Art. 68), so no amount depends on it.
-     * To be confirmed in the accountant sign-off (O2) with the other
-     * statutory figures.
+     * Labour Proclamation 1156/2019 Art. 67: overtime may not exceed four
+     * hours in a day or twelve hours in a week. (The two hours a day and
+     * twenty a month first written here were the repealed Proclamation
+     * 377/2003.) Used only to flag a run for review: overtime worked is paid
+     * whatever the limit (Art. 68), so no amount depends on these. To be
+     * confirmed in the accountant sign-off (O2) with the other statutory
+     * figures.
      */
-    private const LEGAL_MONTHLY_OVERTIME_MINUTES = 1200;
+    private const LEGAL_DAILY_OVERTIME_MINUTES = 240;
+
+    private const LEGAL_WEEKLY_OVERTIME_MINUTES = 720;
+
+    /**
+     * Overtime in the sense of Art. 67: work beyond normal hours on a working
+     * day. Work on a weekly rest day or a public holiday is paid at its own
+     * Art. 68 rates in full but is not counted against these limits, or an
+     * ordinary eight-hour holiday shift would read as twice the daily limit.
+     */
+    private const LIMITED_OVERTIME_TYPES = ['normal', 'night'];
 
     /** @var array<int, int> tenant id => the organisation's daily overtime limit, in minutes */
     private array $dailyOvertimeLimits = [];
@@ -526,24 +538,13 @@ final class PayrollEngine
             ];
         }
 
-        $dailyLimit = $this->dailyOvertimeLimit($employee->tenant_id);
-        $daysOverLimit = array_keys(array_filter(
-            $overtimeByDay,
-            static fn (int $minutes): bool => $dailyLimit > 0 && $minutes > $dailyLimit,
-        ));
-
         $log['steps'][] = [
             'step' => 'overtime',
             'overtime_minutes' => $overtimeMinutes,
             'overtime_amount_cents' => $overtimeAmount,
             'by_type' => $overtimeBreakdown,
             // Flagged for review, never capped: every minute above is paid.
-            'limits' => [
-                'daily_limit_minutes' => $dailyLimit,
-                'days_over_daily_limit' => $daysOverLimit,
-                'monthly_limit_minutes' => self::LEGAL_MONTHLY_OVERTIME_MINUTES,
-                'over_monthly_limit' => $overtimeMinutes > self::LEGAL_MONTHLY_OVERTIME_MINUTES,
-            ],
+            'limits' => $this->overtimeLimits($employee->tenant_id, $overtimeByDay, $periodStart, $periodEnd),
         ];
 
         $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic);
@@ -751,8 +752,12 @@ final class PayrollEngine
      * (normal / night / rest_day / holiday / holiday_night). Holidays are
      * pre-fetched once for the period so classification is a memory lookup per
      * record. A weekly rest day is a day the record's shift does not work; with
-     * no shift it is Sunday, Art. 69's default. Also each day's total, for
-     * the daily overtime limit.
+     * no shift it is Sunday, Art. 69's default.
+     *
+     * Also each day's limited overtime (LIMITED_OVERTIME_TYPES), over whole
+     * Monday-to-Sunday weeks: a week that starts in the previous period or
+     * ends in the next is read whole, or twelve hours split across two runs
+     * would never be flagged. Only the period's own days are paid.
      *
      * @return array{buckets: array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}, by_day: array<string, int>}
      */
@@ -761,10 +766,15 @@ final class PayrollEngine
         $buckets = ['normal' => 0, 'night' => 0, 'rest_day' => 0, 'holiday' => 0, 'holiday_night' => 0];
         $byDay = [];
 
+        $windowStart = $periodStart->copy()->startOfWeek(Carbon::MONDAY);
+        $windowEnd = $periodEnd->copy()->endOfWeek(Carbon::SUNDAY);
+        $firstPaid = $periodStart->format('Y-m-d');
+        $lastPaid = $periodEnd->format('Y-m-d');
+
         $holidayDates = $this->holidayService->getHolidayDates(
             $employee->tenant_id,
-            $periodStart,
-            $periodEnd,
+            $windowStart,
+            $windowEnd,
             $employee->branch_id,
         );
 
@@ -774,8 +784,8 @@ final class PayrollEngine
         $records = AttendanceRecord::query()
             ->withoutGlobalScope('tenant')
             ->where('employee_id', $employee->id)
-            ->whereDate('date', '>=', $periodStart->format('Y-m-d'))
-            ->whereDate('date', '<=', $periodEnd->format('Y-m-d'))
+            ->whereDate('date', '>=', $windowStart->format('Y-m-d'))
+            ->whereDate('date', '<=', $windowEnd->format('Y-m-d'))
             ->whereNotNull('check_in')
             ->whereNotNull('check_out')
             ->where('status', '!=', AttendanceStatus::VOIDED)
@@ -785,10 +795,12 @@ final class PayrollEngine
         // A rotation decides its own rest days: it can put a Monday-Friday
         // shift on a Saturday, and its rest day matches no shift at all.
         // Asked once for the period, not per record.
-        $rotationRestDays = $this->shiftMatcher->rotationRestDays($employee, $periodStart, $periodEnd);
+        $rotationRestDays = $this->shiftMatcher->rotationRestDays($employee, $windowStart, $windowEnd);
 
         foreach ($records as $record) {
             $date = Carbon::parse($record->date);
+            $day = $date->format('Y-m-d');
+            $paid = $day >= $firstPaid && $day <= $lastPaid;
             $isHoliday = isset($holidayDates[$date->format('Y-m-d')]);
             $isRestDay = $rotationRestDays[$date->format('Y-m-d')]
                 ?? ($record->shift !== null
@@ -796,14 +808,66 @@ final class PayrollEngine
                     : $date->isSunday());
 
             foreach ($this->overtimeClassifier->classify($record, $isHoliday, $isRestDay) as $type => $minutes) {
-                $buckets[$type] += $minutes;
-                $byDay[$date->format('Y-m-d')] = ($byDay[$date->format('Y-m-d')] ?? 0) + $minutes;
+                if ($paid) {
+                    $buckets[$type] += $minutes;
+                }
+                if (in_array($type, self::LIMITED_OVERTIME_TYPES, true)) {
+                    $byDay[$day] = ($byDay[$day] ?? 0) + $minutes;
+                }
             }
         }
 
         ksort($byDay);
 
         return ['buckets' => $buckets, 'by_day' => $byDay];
+    }
+
+    /**
+     * The days and weeks whose overtime passed a limit: the organisation's
+     * own daily limit and the legal daily one on the period's days, and the
+     * legal weekly one on every week that touches the period, counted whole.
+     *
+     * @param  array<string, int>  $byDay  limited overtime minutes by date, whole weeks
+     * @return array{daily_limit_minutes: int, days_over_daily_limit: list<string>, legal_daily_limit_minutes: int, days_over_legal_daily_limit: list<string>, legal_weekly_limit_minutes: int, weeks_over_legal_weekly_limit: list<array{week_start: string, minutes: int}>}
+     */
+    private function overtimeLimits(int $tenantId, array $byDay, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $dailyLimit = $this->dailyOvertimeLimit($tenantId);
+        $firstPaid = $periodStart->format('Y-m-d');
+        $lastPaid = $periodEnd->format('Y-m-d');
+
+        $overOwn = [];
+        $overLegal = [];
+        $weeks = [];
+        foreach ($byDay as $day => $minutes) {
+            if ($day >= $firstPaid && $day <= $lastPaid) {
+                if ($dailyLimit > 0 && $minutes > $dailyLimit) {
+                    $overOwn[] = $day;
+                }
+                if ($minutes > self::LEGAL_DAILY_OVERTIME_MINUTES) {
+                    $overLegal[] = $day;
+                }
+            }
+
+            $weekStart = Carbon::parse($day)->startOfWeek(Carbon::MONDAY)->format('Y-m-d');
+            $weeks[$weekStart] = ($weeks[$weekStart] ?? 0) + $minutes;
+        }
+
+        $weeksOver = [];
+        foreach ($weeks as $weekStart => $minutes) {
+            if ($minutes > self::LEGAL_WEEKLY_OVERTIME_MINUTES) {
+                $weeksOver[] = ['week_start' => $weekStart, 'minutes' => $minutes];
+            }
+        }
+
+        return [
+            'daily_limit_minutes' => $dailyLimit,
+            'days_over_daily_limit' => $overOwn,
+            'legal_daily_limit_minutes' => self::LEGAL_DAILY_OVERTIME_MINUTES,
+            'days_over_legal_daily_limit' => $overLegal,
+            'legal_weekly_limit_minutes' => self::LEGAL_WEEKLY_OVERTIME_MINUTES,
+            'weeks_over_legal_weekly_limit' => $weeksOver,
+        ];
     }
 
     /**

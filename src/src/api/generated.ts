@@ -22475,8 +22475,11 @@ export interface operations {
                             tax_rule: string | null;
                             overtime_minutes: number;
                             overtime_days_over_daily_limit: unknown[] | null;
-                            overtime_over_monthly_limit: boolean | null;
+                            overtime_days_over_legal_daily_limit: unknown[] | null;
+                            overtime_weeks_over_legal_weekly_limit: unknown[] | null;
                             overtime_daily_limit_minutes: number | null;
+                            overtime_legal_daily_limit_minutes: number | null;
+                            overtime_legal_weekly_limit_minutes: number | null;
                         }[];
                         totals: string;
                         pension_rates: {
@@ -22499,12 +22502,16 @@ export interface operations {
                         overtime_limits: {
                             count: number;
                             daily_limit_minutes: number | null;
+                            legal_daily_limit_minutes: number | null;
+                            legal_weekly_limit_minutes: number | null;
                             employees: {
                                 employee_public_id: string;
                                 employee_name: string;
                                 overtime_minutes: number;
                                 days_over_daily_limit: number;
-                                over_monthly_limit: boolean;
+                                days_over_legal_daily_limit: number;
+                                weeks_over_legal_weekly_limit: number;
+                                longest_week_minutes: number;
                             }[];
                         };
                     };

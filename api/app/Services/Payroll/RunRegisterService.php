@@ -36,7 +36,7 @@ final class RunRegisterService
      *     pension_rates: array{employee: list<float>, employer: list<float>},
      *     basis: array{pension: list<array<string, mixed>>, tax: list<array<string, mixed>>},
      *     pension_exemptions: array{count: int, by_reason: array<string, int>, employees: list<array{employee_public_id: mixed, employee_name: mixed, reason: string}>},
-     *     overtime_limits: array{count: int, daily_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, over_monthly_limit: bool}>},
+     *     overtime_limits: array{count: int, daily_limit_minutes: int|null, legal_daily_limit_minutes: int|null, legal_weekly_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, days_over_legal_daily_limit: int, weeks_over_legal_weekly_limit: int, longest_week_minutes: int}>},
      * }
      */
     public function register(PayrollRun $run): array
@@ -69,20 +69,22 @@ final class RunRegisterService
 
     /**
      * Who worked overtime past the organisation's daily limit or the legal
-     * monthly one, from each entry's log. Shown on the run page before
-     * approval; never a reason to pay less, since overtime worked is owed.
+     * daily or weekly one, from each entry's log. Shown on the run page
+     * before approval; never a reason to pay less, since overtime worked is
+     * owed.
      *
      * @param  list<array<string, mixed>>  $rows
-     * @return array{count: int, daily_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, over_monthly_limit: bool}>}
+     * @return array{count: int, daily_limit_minutes: int|null, legal_daily_limit_minutes: int|null, legal_weekly_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, days_over_legal_daily_limit: int, weeks_over_legal_weekly_limit: int, longest_week_minutes: int}>}
      */
     public static function overtimeLimits(array $rows): array
     {
         $employees = [];
         foreach ($rows as $row) {
-            $days = is_array($row['overtime_days_over_daily_limit'] ?? null) ? count($row['overtime_days_over_daily_limit']) : 0;
-            $monthly = ($row['overtime_over_monthly_limit'] ?? null) === true;
+            $own = self::countOf($row['overtime_days_over_daily_limit'] ?? null);
+            $legalDays = self::countOf($row['overtime_days_over_legal_daily_limit'] ?? null);
+            $weeks = is_array($row['overtime_weeks_over_legal_weekly_limit'] ?? null) ? $row['overtime_weeks_over_legal_weekly_limit'] : [];
 
-            if ($days === 0 && ! $monthly) {
+            if ($own === 0 && $legalDays === 0 && $weeks === []) {
                 continue;
             }
 
@@ -90,25 +92,51 @@ final class RunRegisterService
                 'employee_public_id' => $row['employee_public_id'],
                 'employee_name' => $row['employee_name'],
                 'overtime_minutes' => (int) ($row['overtime_minutes'] ?? 0),
-                'days_over_daily_limit' => $days,
-                'over_monthly_limit' => $monthly,
+                'days_over_daily_limit' => $own,
+                'days_over_legal_daily_limit' => $legalDays,
+                'weeks_over_legal_weekly_limit' => count($weeks),
+                'longest_week_minutes' => self::longestWeek($weeks),
             ];
         }
 
-        return ['count' => count($employees), 'daily_limit_minutes' => self::dailyLimitUsed($rows), 'employees' => $employees];
+        return [
+            'count' => count($employees),
+            'daily_limit_minutes' => self::limitUsed($rows, 'overtime_daily_limit_minutes'),
+            'legal_daily_limit_minutes' => self::limitUsed($rows, 'overtime_legal_daily_limit_minutes'),
+            'legal_weekly_limit_minutes' => self::limitUsed($rows, 'overtime_legal_weekly_limit_minutes'),
+            'employees' => $employees,
+        ];
+    }
+
+    /** @param  array<mixed>  $weeks */
+    private static function longestWeek(array $weeks): int
+    {
+        $longest = 0;
+        foreach ($weeks as $week) {
+            if (is_array($week) && is_numeric($week['minutes'] ?? null) && (int) $week['minutes'] > $longest) {
+                $longest = (int) $week['minutes'];
+            }
+        }
+
+        return $longest;
+    }
+
+    private static function countOf(mixed $list): int
+    {
+        return is_array($list) ? count($list) : 0;
     }
 
     /**
-     * The daily overtime limit the run applied, from the first entry that
-     * logged one; null for a run calculated before limits were logged.
+     * An overtime limit the run applied, from the first entry that logged
+     * one; null for a run calculated before limits were logged.
      *
      * @param  list<array<string, mixed>>  $rows
      */
-    private static function dailyLimitUsed(array $rows): ?int
+    private static function limitUsed(array $rows, string $key): ?int
     {
         foreach ($rows as $row) {
-            if (is_int($row['overtime_daily_limit_minutes'] ?? null)) {
-                return $row['overtime_daily_limit_minutes'];
+            if (is_int($row[$key] ?? null)) {
+                return $row[$key];
             }
         }
 
@@ -286,11 +314,20 @@ final class RunRegisterService
             'overtime_days_over_daily_limit' => is_array($steps['overtime']['limits']['days_over_daily_limit'] ?? null)
                 ? array_values($steps['overtime']['limits']['days_over_daily_limit'])
                 : null,
-            'overtime_over_monthly_limit' => isset($steps['overtime']['limits']['over_monthly_limit'])
-                ? (bool) $steps['overtime']['limits']['over_monthly_limit']
+            'overtime_days_over_legal_daily_limit' => is_array($steps['overtime']['limits']['days_over_legal_daily_limit'] ?? null)
+                ? array_values($steps['overtime']['limits']['days_over_legal_daily_limit'])
+                : null,
+            'overtime_weeks_over_legal_weekly_limit' => is_array($steps['overtime']['limits']['weeks_over_legal_weekly_limit'] ?? null)
+                ? array_values($steps['overtime']['limits']['weeks_over_legal_weekly_limit'])
                 : null,
             'overtime_daily_limit_minutes' => isset($steps['overtime']['limits']['daily_limit_minutes'])
                 ? (int) $steps['overtime']['limits']['daily_limit_minutes']
+                : null,
+            'overtime_legal_daily_limit_minutes' => isset($steps['overtime']['limits']['legal_daily_limit_minutes'])
+                ? (int) $steps['overtime']['limits']['legal_daily_limit_minutes']
+                : null,
+            'overtime_legal_weekly_limit_minutes' => isset($steps['overtime']['limits']['legal_weekly_limit_minutes'])
+                ? (int) $steps['overtime']['limits']['legal_weekly_limit_minutes']
                 : null,
         ];
     }
