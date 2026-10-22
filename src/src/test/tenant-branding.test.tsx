@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import {
+  DARK_SURFACE,
   TenantBrandingProvider,
   brandProperties,
 } from "@/features/branding/TenantBrandingProvider";
@@ -127,5 +128,27 @@ describe("<TenantBrandingProvider>", () => {
     expect(document.documentElement.style.getPropertyValue("--primary")).toBe(
       "",
     );
+  });
+});
+
+// A brand colour fine on white can vanish on the dark page (backlog 25).
+describe("brand colours in dark mode", () => {
+  it("keeps ETHR's colour when the brand cannot be seen on the dark page", () => {
+    // Navy: AA under white ink, about 1.3:1 against the dark surface.
+    const props = brandProperties({ primary_color: "#0a1f44" }, "dark");
+    expect(props["--interactive-primary"]).toBeUndefined();
+  });
+
+  it("applies a brand colour that holds on the dark page", () => {
+    const props = brandProperties({ primary_color: "#3b82f6" }, "dark");
+    expect(props["--interactive-primary"]).toBeDefined();
+    expect(
+      contrastRatio(props["--interactive-primary"]!, DARK_SURFACE),
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  it("still applies the navy brand in light mode", () => {
+    const props = brandProperties({ primary_color: "#0a1f44" });
+    expect(props["--interactive-primary"]).toBe("#0a1f44");
   });
 });
