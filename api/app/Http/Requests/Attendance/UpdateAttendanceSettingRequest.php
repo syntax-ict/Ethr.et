@@ -29,6 +29,7 @@ class UpdateAttendanceSettingRequest extends FormRequest
             'kiosk_auto_reset_seconds' => ['sometimes', 'integer', 'min:2', 'max:30'],
             'grace_period_minutes' => ['sometimes', 'integer', 'min:0', 'max:240'],
             'ot_daily_cap_minutes' => ['sometimes', 'integer', 'min:0', 'max:1440'],
+            'overtime_requires_approval' => ['sometimes', 'boolean'],
             'confidence_threshold' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'reminders_enabled' => ['sometimes', 'boolean'],
             'reminder_lead_minutes' => ['sometimes', 'integer', 'min:0', 'max:120'],

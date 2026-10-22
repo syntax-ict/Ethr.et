@@ -342,6 +342,7 @@ class PayrollController extends Controller
             'pension_rates' => $register['pension_rates'],
             'basis' => $register['basis'],
             'pension_exemptions' => $register['pension_exemptions'],
+            'overtime_limits' => $register['overtime_limits'],
         ]);
     }
 

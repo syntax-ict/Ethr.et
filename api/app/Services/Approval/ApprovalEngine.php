@@ -15,11 +15,13 @@ use App\Models\AttendanceCorrection;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\OvertimeRequest;
 use App\Models\ProfileUpdateRequest;
 use App\Models\User;
 use App\Notifications\ApprovalEscalatedNotification;
 use App\Notifications\AttendanceCorrectionRequestedNotification;
 use App\Notifications\LeaveRequestedNotification;
+use App\Notifications\OvertimeRequestedNotification;
 use App\Notifications\ProfileUpdateRequestedNotification;
 use App\Traits\SendsNotifications;
 use Carbon\CarbonInterface;
@@ -51,7 +53,7 @@ final class ApprovalEngine
     private const DEFAULT_SLA_HOURS = 48;
 
     /** Start a pending request on the workflow that applies to it now. */
-    public function start(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable, ?User $submittedBy): ?ApprovalInstance
+    public function start(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable, ?User $submittedBy): ?ApprovalInstance
     {
         if (! $this->isPending($approvable)) {
             return null;
@@ -76,7 +78,7 @@ final class ApprovalEngine
      * Whether $user may act on the request's current step. The policy has
      * already checked the permission and reach; this adds the step.
      */
-    public function isCurrentApprover(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable, User $user, bool $approving): bool
+    public function isCurrentApprover(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable, User $user, bool $approving): bool
     {
         $instance = $this->instanceOf($approvable);
 
@@ -103,7 +105,7 @@ final class ApprovalEngine
      * Narrow a query of pending requests to those whose current step $user
      * may approve: the SQL counterpart of isCurrentApprover().
      *
-     * @template TModel of LeaveRequest|AttendanceCorrection|ProfileUpdateRequest
+     * @template TModel of LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest
      *
      * @param  Builder<TModel>  $query
      * @return Builder<TModel>
@@ -129,7 +131,7 @@ final class ApprovalEngine
      * and the caller should now apply the decision; false when the request
      * moved on to the next step and stays pending.
      */
-    public function approve(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable, User $by): bool
+    public function approve(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable, User $by): bool
     {
         $instance = $this->instanceOf($approvable) ?? $this->startDefault($approvable);
         $type = ApprovalRequestType::fromModel($approvable);
@@ -163,7 +165,7 @@ final class ApprovalEngine
     }
 
     /** The notice a step's approver gets, the same one the first step's gets. */
-    private function requestedNotification(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): Notification
+    private function requestedNotification(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): Notification
     {
         if ($approvable instanceof LeaveRequest) {
             return new LeaveRequestedNotification($approvable);
@@ -173,13 +175,17 @@ final class ApprovalEngine
             return new AttendanceCorrectionRequestedNotification($approvable);
         }
 
+        if ($approvable instanceof OvertimeRequest) {
+            return new OvertimeRequestedNotification($approvable);
+        }
+
         $approvable->loadMissing('employee');
         $employee = $approvable->getRelation('employee');
 
         return new ProfileUpdateRequestedNotification($employee, [$approvable->field_name]);
     }
 
-    public function reject(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable, User $by, string $reason): void
+    public function reject(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable, User $by, string $reason): void
     {
         $instance = $this->instanceOf($approvable) ?? $this->startDefault($approvable);
 
@@ -196,7 +202,7 @@ final class ApprovalEngine
      * Close an instance whose request left pending some other way: the
      * employee cancelled it, or a path outside the engine decided it.
      */
-    public function close(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): void
+    public function close(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): void
     {
         $instance = $this->instanceOf($approvable);
 
@@ -223,7 +229,7 @@ final class ApprovalEngine
      *
      * @return Collection<int, User>|null
      */
-    public function currentApprovers(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): ?Collection
+    public function currentApprovers(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): ?Collection
     {
         $instance = $this->instanceOf($approvable);
 
@@ -272,7 +278,7 @@ final class ApprovalEngine
     {
         $approvable = $instance->approvable;
 
-        if (! ($approvable instanceof LeaveRequest || $approvable instanceof AttendanceCorrection || $approvable instanceof ProfileUpdateRequest)
+        if (! ($approvable instanceof LeaveRequest || $approvable instanceof AttendanceCorrection || $approvable instanceof ProfileUpdateRequest || $approvable instanceof OvertimeRequest)
             || $instance->status !== ApprovalInstance::STATUS_PENDING
             || $instance->current_approver_user_id === null) {
             return [];
@@ -329,7 +335,7 @@ final class ApprovalEngine
     }
 
     /** @return list<User> */
-    private function escalationTargets(?User $approver, LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable, ApprovalInstance $instance): array
+    private function escalationTargets(?User $approver, LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable, ApprovalInstance $instance): array
     {
         $excluded = array_filter([$approver?->id, $instance->submitted_by]);
         $requesterEmployee = $approvable->employee_id;
@@ -361,14 +367,14 @@ final class ApprovalEngine
      * step is open to a role or to everyone holding the permission. The
      * submission notice goes to them rather than to the supervisor.
      */
-    public function namedApprover(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): ?User
+    public function namedApprover(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): ?User
     {
         $id = $this->instanceOf($approvable)?->current_approver_user_id;
 
         return $id === null ? null : User::query()->find($id);
     }
 
-    public function instanceOf(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): ?ApprovalInstance
+    public function instanceOf(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): ?ApprovalInstance
     {
         $approvable->loadMissing('approvalInstance');
         $instance = $approvable->getRelation('approvalInstance');
@@ -381,7 +387,7 @@ final class ApprovalEngine
      * the permission when the step names no one who may (rule 2), and record
      * that the fallback was used. Returns the user to notify, if one person.
      */
-    private function enter(ApprovalInstance $instance, int $position, LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable, ApprovalRequestType $type): ?User
+    private function enter(ApprovalInstance $instance, int $position, LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable, ApprovalRequestType $type): ?User
     {
         $step = $instance->workflow_snapshot['steps'][$position - 1];
         $kind = ApproverKind::tryFrom($step['approver_kind']) ?? ApproverKind::PERMISSION;
@@ -417,7 +423,7 @@ final class ApprovalEngine
      * Never the requester, never whoever filed the request, never someone who
      * already approved a step of it; and they must be able to decide it at all.
      */
-    private function eligible(User $user, ApprovalInstance $instance, LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable, ApprovalRequestType $type): bool
+    private function eligible(User $user, ApprovalInstance $instance, LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable, ApprovalRequestType $type): bool
     {
         if ($user->status !== 'active' || (int) $user->tenant_id !== (int) $approvable->tenant_id) {
             return false;
@@ -444,7 +450,7 @@ final class ApprovalEngine
         return $employee !== null && $user->canAccessEmployee($employee);
     }
 
-    private function roleWithEligibleHolder(?string $ref, ApprovalInstance $instance, LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable, ApprovalRequestType $type): ?string
+    private function roleWithEligibleHolder(?string $ref, ApprovalInstance $instance, LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable, ApprovalRequestType $type): ?string
     {
         $role = UserRole::tryFrom((string) $ref);
 
@@ -467,7 +473,7 @@ final class ApprovalEngine
         return null;
     }
 
-    private function workflowFor(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable, ApprovalRequestType $type): ?ApprovalWorkflow
+    private function workflowFor(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable, ApprovalRequestType $type): ?ApprovalWorkflow
     {
         $workflows = ApprovalWorkflow::query()
             ->where('tenant_id', $approvable->tenant_id)
@@ -492,7 +498,7 @@ final class ApprovalEngine
     }
 
     /** Every condition the workflow states must hold; an absent or empty one holds. */
-    private function matches(ApprovalWorkflow $workflow, LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): bool
+    private function matches(ApprovalWorkflow $workflow, LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): bool
     {
         $conditions = $workflow->conditions ?? [];
         $employee = $this->employeeOf($approvable);
@@ -554,7 +560,7 @@ final class ApprovalEngine
      * workflow; its instance is created when it is decided, so its history
      * is recorded like any other.
      */
-    private function startDefault(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): ApprovalInstance
+    private function startDefault(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): ApprovalInstance
     {
         return $this->createInstance($approvable, null, $this->defaultSnapshot(), null, $approvable->created_at);
     }
@@ -563,7 +569,7 @@ final class ApprovalEngine
      * @param  array{workflow_public_id: string|null, name: string|null, steps: list<array{position: int, approver_kind: string, approver_ref: string|null, sla_hours: int, can_return: bool}>}  $snapshot
      */
     private function createInstance(
-        LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable,
+        LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable,
         ?ApprovalWorkflow $workflow,
         array $snapshot,
         ?int $submittedBy,
@@ -609,7 +615,7 @@ final class ApprovalEngine
             ->exists();
     }
 
-    private function supervisorOf(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): ?User
+    private function supervisorOf(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): ?User
     {
         $approvable->loadMissing('employee.supervisor.user');
         $user = $this->employeeOf($approvable)?->supervisor?->user;
@@ -617,7 +623,7 @@ final class ApprovalEngine
         return $user instanceof User ? $user : null;
     }
 
-    private function departmentHeadOf(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): ?User
+    private function departmentHeadOf(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): ?User
     {
         $approvable->loadMissing('employee.department.head.user');
         $user = $this->employeeOf($approvable)?->department?->head?->user;
@@ -634,7 +640,7 @@ final class ApprovalEngine
         return User::query()->where('tenant_id', $tenantId)->where('public_id', $publicId)->first();
     }
 
-    private function employeeOf(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): ?Employee
+    private function employeeOf(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): ?Employee
     {
         $approvable->loadMissing('employee');
         $employee = $approvable->getRelation('employee');
@@ -642,12 +648,12 @@ final class ApprovalEngine
         return $employee instanceof Employee ? $employee : null;
     }
 
-    private function isPending(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): bool
+    private function isPending(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): bool
     {
         return $this->statusValue($approvable) === ApprovalInstance::STATUS_PENDING;
     }
 
-    private function statusValue(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $approvable): string
+    private function statusValue(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): string
     {
         $status = $approvable->getAttribute('status');
 

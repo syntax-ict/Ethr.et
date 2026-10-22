@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\V1\Attendance\ManualAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\MobileAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\MyShiftController;
 use App\Http\Controllers\Api\V1\Attendance\OfflineSyncController;
+use App\Http\Controllers\Api\V1\Attendance\OvertimeRequestController;
 use App\Http\Controllers\Api\V1\Attendance\QrAttendanceController;
 use App\Http\Controllers\Api\V1\Auth\FindOrganisationController;
 use App\Http\Controllers\Api\V1\Auth\LandingFeedController;
@@ -417,6 +418,15 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::get('/{correction}/payroll-impact', [AttendanceCorrectionController::class, 'payrollImpact']);
             Route::put('/{correction}/approve', [AttendanceCorrectionController::class, 'approve']);
             Route::put('/{correction}/reject', [AttendanceCorrectionController::class, 'reject']);
+        });
+
+        Route::prefix('overtime-requests')->group(function () {
+            Route::get('/', [OvertimeRequestController::class, 'index']);
+            Route::get('/my', [OvertimeRequestController::class, 'my']);
+            Route::post('/', [OvertimeRequestController::class, 'store']);
+            Route::put('/{overtimeRequest}/approve', [OvertimeRequestController::class, 'approve']);
+            Route::put('/{overtimeRequest}/reject', [OvertimeRequestController::class, 'reject']);
+            Route::put('/{overtimeRequest}/cancel', [OvertimeRequestController::class, 'cancel']);
         });
 
         Route::prefix('conflicts')->group(function () {
