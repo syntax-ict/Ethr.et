@@ -85,6 +85,8 @@ use App\Http\Controllers\Api\V1\Leave\LeaveRequestController;
 use App\Http\Controllers\Api\V1\Leave\LeaveTypeController;
 use App\Http\Controllers\Api\V1\Notification\NotificationController;
 use App\Http\Controllers\Api\V1\Notification\NotificationPreferencesController;
+use App\Http\Controllers\Api\V1\Offboarding\ExitClearanceController;
+use App\Http\Controllers\Api\V1\Offboarding\ExitClearanceTemplateController;
 use App\Http\Controllers\Api\V1\Onboarding\AccessController as OnboardingAccessController;
 use App\Http\Controllers\Api\V1\Onboarding\ConfigurationController as OnboardingConfigurationController;
 use App\Http\Controllers\Api\V1\Onboarding\MigrationController;
@@ -491,6 +493,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/employees/import/template', [EmployeeImportController::class, 'template']);
     Route::post('/employees/import/preview', [EmployeeImportController::class, 'preview'])->middleware('throttle:imports');
     Route::post('/employees/import/commit', [EmployeeImportController::class, 'commit'])->middleware('throttle:imports');
+    Route::get('/exit-clearances', [ExitClearanceController::class, 'index']);
     Route::apiResource('employees', EmployeeController::class);
 
     // scopeBindings(): a child must belong to the {employee} in the path. Without it
@@ -517,6 +520,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/retirement-cases/{retirementCase}/decision', [RetirementCaseController::class, 'decide']);
         Route::post('/retirement-cases/{retirementCase}/finalize', [RetirementCaseController::class, 'finalize']);
         Route::post('/retirement-cases/{retirementCase}/cancel', [RetirementCaseController::class, 'cancel']);
+        Route::get('/exit-clearance', [ExitClearanceController::class, 'show']);
+        Route::post('/exit-clearance', [ExitClearanceController::class, 'store']);
+        Route::put('/exit-clearance/items/{exitClearanceItem}', [ExitClearanceController::class, 'updateItem']);
         Route::get('/contracts', [EmployeeContractController::class, 'index']);
         Route::post('/contracts', [EmployeeContractController::class, 'store']);
         Route::post('/contracts/{contract}/renew', [EmployeeContractController::class, 'renew']);
@@ -949,6 +955,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/settings/approval-workflows', [ApprovalWorkflowController::class, 'store']);
     Route::put('/settings/approval-workflows/{approvalWorkflow}', [ApprovalWorkflowController::class, 'update']);
     Route::delete('/settings/approval-workflows/{approvalWorkflow}', [ApprovalWorkflowController::class, 'destroy']);
+    Route::get('/settings/exit-clearance', [ExitClearanceTemplateController::class, 'show']);
+    Route::put('/settings/exit-clearance', [ExitClearanceTemplateController::class, 'update']);
     Route::get('/settings/notification-templates', [NotificationTemplateController::class, 'index']);
     Route::put('/settings/notification-templates/{type}', [NotificationTemplateController::class, 'update']);
     Route::get('/settings/data-export', [DataExportController::class, 'index']);
