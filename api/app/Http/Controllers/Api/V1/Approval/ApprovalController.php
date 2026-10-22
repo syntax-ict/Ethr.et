@@ -10,10 +10,12 @@ use App\Http\Requests\Approval\BatchApprovalRequest;
 use App\Models\ApprovalInstance;
 use App\Models\AttendanceCorrection;
 use App\Models\LeaveRequest;
+use App\Models\OvertimeRequest;
 use App\Models\ProfileUpdateRequest;
 use App\Models\User;
 use App\Services\Approval\DecidableApprovals;
 use App\Services\Attendance\CorrectionDecisionService;
+use App\Services\Attendance\OvertimeDecisionService;
 use App\Services\Leave\LeaveDecisionService;
 use App\Services\Profile\ProfileUpdateRequestService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -27,6 +29,7 @@ class ApprovalController extends Controller
         private readonly ProfileUpdateRequestService $profileUpdates,
         private readonly LeaveDecisionService $leaveDecisions,
         private readonly CorrectionDecisionService $correctionDecisions,
+        private readonly OvertimeDecisionService $overtimeDecisions,
         private readonly DecidableApprovals $approvals,
     ) {}
 
@@ -102,6 +105,27 @@ class ApprovalController extends Controller
             }
         }
 
+        $overtimeRequests = $this->approvals->overtime($user)
+            ->with('employee:id,name,public_id', 'approvalInstance')
+            ->orderByDesc('created_at')
+            ->get();
+
+        foreach ($overtimeRequests as $ot) {
+            $items[] = [
+                'type' => 'overtime',
+                'public_id' => $ot->public_id,
+                'employee_name' => $ot->employee?->name,
+                'employee_public_id' => $ot->employee?->public_id,
+                'summary' => __('approval.overtime_summary', [
+                    'date' => $ot->date->translatedFormat('M d'),
+                    'hours' => round($ot->planned_minutes / 60, 1),
+                ]),
+                'submitted_at' => $ot->created_at,
+                'step' => $this->approvalOf($ot)->current_position ?? 1,
+                'steps' => $this->approvalOf($ot)?->stepCount() ?? 1,
+            ];
+        }
+
         // Profile-update requests are reviewed by HR (`employee.update`), not by the
         // submitter's supervisor, so they are not filtered by org scope — a
         // reviewer without that permission simply sees none.
@@ -145,7 +169,7 @@ class ApprovalController extends Controller
         // Each item is authorised on its own below, with the ability its single
         // endpoint checks. This only turns away a caller who could decide none
         // of the three kinds.
-        if (Gate::none(['leave.approve', 'correction.approve', 'employee.update'])) {
+        if (Gate::none(['leave.approve', 'correction.approve', 'employee.update', 'overtime.approve'])) {
             throw new AuthorizationException;
         }
 
@@ -172,6 +196,7 @@ class ApprovalController extends Controller
                 'leave' => $this->processLeaveAction($action, $user),
                 'correction' => $this->processCorrectionAction($action, $user),
                 'profile_update' => $this->processProfileUpdateAction($action, $user),
+                'overtime' => $this->processOvertimeAction($action, $user),
                 default => ['status' => 'error', 'detail' => 'Unknown type'],
             };
 
@@ -220,6 +245,42 @@ class ApprovalController extends Controller
     }
 
     /**
+     * The same decision `OvertimeRequestController::approve/reject` makes,
+     * through the same policy and the same service.
+     *
+     * @param  array<string, mixed>  $action
+     * @return array<string, string>
+     */
+    private function processOvertimeAction(array $action, User $user): array
+    {
+        $overtime = OvertimeRequest::where('public_id', $action['public_id'])->first();
+        if (! $overtime) {
+            return ['status' => 'error', 'detail' => 'Not found or not pending'];
+        }
+
+        if (Gate::forUser($user)->denies('decide', $overtime)) {
+            return ['status' => 'error', 'detail' => 'Not permitted to decide this request'];
+        }
+
+        $approving = $action['action'] === 'approve';
+
+        $refusal = $this->overtimeDecisions->refusal($overtime, $user, $approving);
+        if ($refusal !== null) {
+            return ['status' => 'error', 'detail' => $refusal->detail];
+        }
+
+        if ($approving) {
+            $this->overtimeDecisions->approve($overtime, $user);
+
+            return ['status' => 'approved'];
+        }
+
+        $this->overtimeDecisions->reject($overtime, $user, (string) ($action['reason'] ?? 'Batch rejected'));
+
+        return ['status' => 'rejected'];
+    }
+
+    /**
      * The same decision `AttendanceCorrectionController::approve/reject` makes:
      * `correction.approve` and the subject inside the caller's org scope
      * (`AttendanceCorrectionPolicy::decide`), not `leave.approve`.
@@ -257,7 +318,7 @@ class ApprovalController extends Controller
     }
 
     /** The eager-loaded approval, or null for a request on the default single step. */
-    private function approvalOf(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest $request): ?ApprovalInstance
+    private function approvalOf(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $request): ?ApprovalInstance
     {
         $instance = $request->getRelation('approvalInstance');
 

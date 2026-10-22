@@ -27,6 +27,7 @@ class AttendanceSettingResource extends JsonResource
             'kiosk_auto_reset_seconds' => $this->kiosk_auto_reset_seconds,
             'grace_period_minutes' => $this->grace_period_minutes,
             'ot_daily_cap_minutes' => $this->ot_daily_cap_minutes,
+            'overtime_requires_approval' => (bool) $this->overtime_requires_approval,
             'confidence_threshold' => $this->confidence_threshold,
             'reminders_enabled' => $this->reminders_enabled,
             'reminder_lead_minutes' => $this->reminder_lead_minutes,

@@ -7,9 +7,11 @@ namespace App\Services\Approval;
 use App\Enums\CorrectionStatus;
 use App\Enums\LeaveStatus;
 use App\Enums\OrgScope;
+use App\Enums\OvertimeRequestStatus;
 use App\Enums\ProfileUpdateStatus;
 use App\Models\AttendanceCorrection;
 use App\Models\LeaveRequest;
+use App\Models\OvertimeRequest;
 use App\Models\ProfileUpdateRequest;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -42,6 +44,13 @@ final class DecidableApprovals
             ->where('status', CorrectionStatus::PENDING);
     }
 
+    /** @return Builder<OvertimeRequest> */
+    public function overtime(User $user): Builder
+    {
+        return $this->scoped(OvertimeRequest::query(), $user, 'overtime.approve')
+            ->where('status', OvertimeRequestStatus::PENDING);
+    }
+
     /**
      * Profile-update requests are reviewed by HR (`employee.update`), not by
      * the submitter's supervisor, so they are not narrowed by org scope; a
@@ -72,18 +81,20 @@ final class DecidableApprovals
         return $this->engine->onlyCurrentApprover($query, $user);
     }
 
-    /** @return array{leave: int, correction: int, profile_update: int, total: int} */
+    /** @return array{leave: int, correction: int, profile_update: int, overtime: int, total: int} */
     public function counts(User $user): array
     {
         $leave = $this->leave($user)->count();
         $correction = $this->corrections($user)->count();
         $profileUpdate = $this->profileUpdates($user)->count();
+        $overtime = $this->overtime($user)->count();
 
         return [
             'leave' => $leave,
             'correction' => $correction,
             'profile_update' => $profileUpdate,
-            'total' => $leave + $correction + $profileUpdate,
+            'overtime' => $overtime,
+            'total' => $leave + $correction + $profileUpdate + $overtime,
         ];
     }
 
@@ -92,7 +103,7 @@ final class DecidableApprovals
      * permission, the caller's org scope below ALL, never their own, and only
      * requests whose current approval step is the caller's.
      *
-     * @template TModel of LeaveRequest|AttendanceCorrection
+     * @template TModel of LeaveRequest|AttendanceCorrection|OvertimeRequest
      *
      * @param  Builder<TModel>  $query
      * @return Builder<TModel>
