@@ -123,10 +123,21 @@ export default function OvertimePage() {
                     <EmptyState
                       icon={Clock}
                       title={t("attendance.overtime_page.empty_title")}
-                      description={`${t("attendance.overtime_page.empty_desc_prefix")} ${period === "monthly" ? t("attendance.overtime_page.this_month_lc") : t("attendance.overtime_page.this_week_lc")}`}
+                      description={
+                        period === "monthly"
+                          ? t(
+                              "attendance.overtime_page.empty_desc_month",
+                              "No employees logged overtime this month",
+                            )
+                          : t(
+                              "attendance.overtime_page.empty_desc_week",
+                              "No employees logged overtime this week",
+                            )
+                      }
                     />
                   ) : (
                     <SimpleTable
+                      mobileCards
                       caption={t("attendance.overtime_page.by_employee")}
                       headers={[
                         t("attendance.employee"),

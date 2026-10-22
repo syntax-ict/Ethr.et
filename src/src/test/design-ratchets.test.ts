@@ -23,6 +23,12 @@ import { join, relative } from "node:path";
  *    ("Not Checked In", "No attendance this month"). Render `ErrorState`, use
  *    `QueryBoundary`, or, where silence is right, say why in a
  *    `quiet-on-error:` comment. 41 files on 2026-10-21, 0 the same day.
+ * 5. A number or name glued to a separately translated word
+ *    (`{count} {t("records")}`, `${t("Imported")} ${n}`). English word order
+ *    is then fixed in every language: Amharic read "መሳሪያው ነው online". Put the
+ *    value in the sentence with a placeholder:
+ *    `t("x.count", ":count records", { count })`. Accessible names
+ *    ("Delete" and a name) are exempt. 60 on 2026-10-22, 0 the same day.
  */
 
 const SRC = join(process.cwd(), "src");
@@ -37,12 +43,17 @@ const NATIVE_CONFIRM = /(?:\bwindow\.|(?<![\w.$]))confirm\(/;
 const COMMENT_LINE = /^\s*(?:\/\/|\*|\/\*)/;
 const DECLARATION = /\bfunction\s+confirm\s*\(/;
 const DISCARDED_ERROR = /\bonError:\s*\(\s*\)\s*=>/g;
+// `{n} {t("…")}`, `{t("…")} {n}`, `${t("…")} ${n}` and `${n} ${t("…")}`.
+const GLUED_SENTENCE =
+  /(\{[A-Za-z_][\w.?]*\}\s*\{t\(")|(\{t\("[^"]+"[^)]*\)\}\s*\{[A-Za-z_][\w.?]*\})|(\$\{t\([^`]*?\)\}\s+\$\{)|(\$\{[A-Za-z_][\w.]*\}\s+\$\{t\()/;
+const ACCESSIBLE_NAME = /aria-label|placeholder=|sr-only/;
 
 const CEILINGS = {
   sub12pxText: 96,
   nativeConfirm: 0,
   discardedErrors: 0,
   silentLoadFailures: 0,
+  gluedSentences: 0,
 };
 
 function walk(dir: string): string[] {
@@ -135,5 +146,20 @@ describe("design ratchets", () => {
       silent.length,
       `A screen that reads isLoading must handle isError too: render <ErrorState onRetry={refetch} />, use QueryBoundary, or explain silence with a quiet-on-error: comment. Files:\n${silent.join("\n")}`,
     ).toBeLessThanOrEqual(CEILINGS.silentLoadFailures);
+  });
+
+  it(`has no more than ${CEILINGS.gluedSentences} values glued to a translated word`, () => {
+    let previous = "";
+    const { total, byFile } = tally((line) => {
+      // An accessible name may span the line before (`<span className="sr-only">`).
+      const exempt =
+        ACCESSIBLE_NAME.test(line) || ACCESSIBLE_NAME.test(previous);
+      previous = line;
+      return !exempt && GLUED_SENTENCE.test(line) ? 1 : 0;
+    });
+    expect(
+      total,
+      `A value glued to a translated word fixes English word order in every language. Use one key with a placeholder: t("x.count", ":count records", { count }). Files:\n${byFile.join("\n")}`,
+    ).toBeLessThanOrEqual(CEILINGS.gluedSentences);
   });
 });

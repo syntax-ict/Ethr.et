@@ -292,7 +292,13 @@ function TenantDetail({ id }: { id: string }) {
       {
         onSuccess: () => {
           toast.success(
-            `${t("admin_tenant_detail_page.tenant_cap")} ${pendingStatus}`,
+            t(
+              "admin_tenant_detail_page.status_now",
+              "The organisation is now :status",
+              {
+                status: t(`status.${pendingStatus}`, pendingStatus),
+              },
+            ),
           );
           setPendingStatus(null);
         },
@@ -317,7 +323,13 @@ function TenantDetail({ id }: { id: string }) {
       {
         onSuccess: () => {
           toast.success(
-            `${t("admin_tenant_detail_page.trial_extended_prefix")} ${extendDays} ${t("admin_tenant_detail_page.days")}`,
+            t(
+              "admin_tenant_detail_page.trial_extended",
+              "Trial extended by :count days",
+              {
+                count: extendDays,
+              },
+            ),
           );
           setExtendOpen(false);
         },
@@ -527,7 +539,9 @@ function TenantDetail({ id }: { id: string }) {
                 "Trial expires in",
               )}{" "}
               <span className="font-semibold">
-                {trialDaysLeft} {t("admin_tenant_detail_page.days", "days")}
+                {t("admin_tenant_detail_page.days_count", ":count days", {
+                  count: trialDaysLeft,
+                })}
               </span>
             </p>
             <Button

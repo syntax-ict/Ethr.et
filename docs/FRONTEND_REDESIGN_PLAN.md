@@ -572,6 +572,41 @@ A phase is done when all of the following hold, with evidence attached to the PR
 
 ---
 
+## L. Implementation status (2026-10-22)
+
+The roadmap in section H was carried out between 2026-10-20 and 2026-10-22, one pull request per slice, each with its tests, merged on a green CI run and deployed through Plesk Git. This section records what shipped and, as plainly, what was deliberately not done.
+
+### Shipped
+
+| Phase | What | Pull requests |
+|---|---|---|
+| 1 | Baselines, quick wins (styled 404, hero claim, route titles) | #319 to #322 |
+| 2 | Tokens (type, spacing, density), status registry, one error extractor, `useConfirm`, toaster | #325, #329, #330, #332, #337, #343 |
+| 3 | `ErrorState` everywhere (ratchet 0), `ReasonDialog`, phone cards, `FilterBar` on 11 lists, one pager, `PageActions`, `CrudSection`, payroll `Stepper`, Analytics on the dashboard kit | #347 to #358, #361, #363 |
+| 4 | Employees filters in the address; bulk status date and reason; approvals filter and bulk; permission gates on payroll and approvals; settings one save per card, Attendance Rules in the hub, one shift route; leave dates in the organisation's calendar; tabs in the address; employee detail confirmations, photo and Edit; Add Employee section guide | #366, #368 to #372, #374, #375 |
+| 5 | Onboarding confirms commit and go-live; translated exports (report builder, payroll register, audit log); reports split into its tabs | #376, #377, #380 |
+| 6 | Keyboard-only focus rings; Amharic line height; announced offline banner; phone cards on 19 list tables; glued sentences rewritten with a ratchet; tenant brand colours checked against the dark page; portal heading skeleton | #378, #379, #381, #382 |
+
+Backlog items closed: 1 to 26 and 29, except where the next subsection says otherwise. Charts were already loaded on demand (item 28, first half).
+
+### Deliberately not done, and why
+
+| Item | Why it stops here | What would change that |
+|---|---|---|
+| Replace `DataTable` with `SimpleTable` (11) | The employees list needs sorting, column visibility, bulk selection and row expansion; at 375px it already shows only the name and status. Moving it would be churn | A second consumer of those features |
+| `PageBody` density wrapper (Phase 3) | Compact density is the root default and nothing reads the density variables, so the wrapper would change nothing on screen | A comfortable-density page inside the app |
+| Announcements and tenant detail splits (27) | Each is one 1,100 to 1,400-line component, not separate pieces; splitting needs a redesign of their state, not a move. The reports page, which had separate pieces, was split | A feature change in either screen |
+| Voice and vacancies on `useZodForm` (27) | Both already show the server's message under each field; the change would be consistency only | A new field with client-side rules |
+| Amharic dictionary split inside the app (28) | Amharic is the default locale and must render synchronously; a per-route key map risks untranslated text flashing. It is already off the public site | A measured authenticated LCP that the dictionary dominates |
+| 44px touch targets on phones (Phase 6) | Icon buttons are 28px, above WCAG 2.5.8's 24px; raising every control would reflow tables and dialogs without a screenshot review | The screenshot baseline from Phase 1 being stored and reviewable |
+| Target-size assertion and the 20 extra `ux-audit.spec` routes (30) | Needs the Playwright run against the local-production rehearsal | Phase 7 rehearsal on `:8081` |
+
+### Gates added on the way
+
+`design-ratchets.test.ts` now holds five counts: text below 12px (96), native `confirm()` (0), `onError` handlers that drop the error (0), screens that hide a failed load (0), and values glued to a translated word. Each fails when its count grows.
+
+---
+
 ## Closing
 
 Highest-impact first phase: **Phase 2, tokens and shared foundations**, authorised only once the six Phase 1 gates above are met. Prerequisites: the authenticated Lighthouse and screenshot baselines, the extended `ux-audit.spec`, green quick, frontend and export gates, the two guard tests with recorded starting counts, and an approved token sheet. Affected components: `globals.css`, `status-badge.tsx`, the new status registry, `useTenantTimezone.ts`, `error-message.ts`, `confirm-dialog.tsx`, `dialog.tsx`, `providers.tsx`. It changes no API, no route and no business rule, and it is reversible file by file.

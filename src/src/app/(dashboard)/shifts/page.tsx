@@ -545,7 +545,13 @@ export default function ShiftsPage() {
                     )}
                   </strong>
                   {form.break_minutes > 0 &&
-                    ` (${t("shifts_page.after")} ${form.break_minutes}m ${t("shifts_page.break_lc")})`}
+                    ` (${t(
+                      "shifts_page.after_break",
+                      "after a :count min break",
+                      {
+                        count: form.break_minutes,
+                      },
+                    )})`}
                 </p>
               )}
 

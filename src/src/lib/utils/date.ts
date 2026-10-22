@@ -143,12 +143,23 @@ export function formatTime(
  * tenant zone like everything else.
  */
 /** A translator: the key, and the English to use when it has none. */
-type Translate = (key: string, fallback: string) => string;
+type Translate = (
+  key: string,
+  fallback: string,
+  replacements?: Record<string, string | number>,
+) => string;
 
-const untranslated: Translate = (_key, fallback) => fallback;
+/** The fallback, with `:name` placeholders filled, longest name first. */
+const untranslated: Translate = (_key, fallback, replacements = {}) =>
+  Object.entries(replacements)
+    .sort(([a], [b]) => b.length - a.length)
+    .reduce(
+      (out, [name, value]) => out.split(`:${name}`).join(String(value)),
+      fallback,
+    );
 
 /**
- * "5m ago", "3h ago", "2w ago", then the date itself after 30 days.
+ * "5 min ago", "3 h ago", "2 wk ago", then the date itself after 30 days.
  *
  * The one implementation: five screens kept their own copies, three of them
  * translated and two English-only, while this one was English-only too
@@ -166,14 +177,20 @@ export function timeAgo(
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const diffMin = Math.floor(diffMs / 60000);
   if (diffMin < 1) return t("time.just_now", "just now");
-  const ago = t("time.ago", "ago");
-  if (diffMin < 60) return `${diffMin}${t("time.min_short", "m")} ${ago}`;
+  // One sentence each: Amharic says "ከ5 ደቂቃ በፊት", which a number, a unit
+  // letter and a separate "ago" glued in English order could not.
+  if (diffMin < 60)
+    return t("time.minutes_ago", ":count min ago", { count: diffMin });
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}${t("time.hour_short", "h")} ${ago}`;
+  if (diffHr < 24)
+    return t("time.hours_ago", ":count h ago", { count: diffHr });
   const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 7) return `${diffDay}${t("time.day_short", "d")} ${ago}`;
+  if (diffDay < 7)
+    return t("time.days_ago", ":count d ago", { count: diffDay });
   if (diffDay < 30)
-    return `${Math.floor(diffDay / 7)}${t("time.week_short", "w")} ${ago}`;
+    return t("time.weeks_ago", ":count wk ago", {
+      count: Math.floor(diffDay / 7),
+    });
   return formatOld(dateStr);
 }
 

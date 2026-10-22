@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { PageActions } from "@/components/shared/page-actions";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { EmployeeSelect } from "@/components/shared/employee-select";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
@@ -41,6 +42,7 @@ const EMPTY_FORM = {
 
 export default function CostSharingPage() {
   const { t } = useT();
+  const { can } = usePermissions();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
 
@@ -78,16 +80,21 @@ export default function CostSharingPage() {
   };
 
   return (
-    <RoleGate allowedRoles={["finance_admin", "tenant_admin", "super_admin"]}>
+    <RoleGate anyPermission={["viewPayrollRuns"]}>
       <div className="space-y-6">
-        <PageActions
-          actions={
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />{" "}
-              {t("payroll_page.cost_sharing_page.new_obligation")}
-            </Button>
-          }
-        />
+        {/* Viewing needs payroll.viewAll; recording an obligation needs
+            payroll.manageCostSharing, which a viewer was offered and then
+            refused. */}
+        {can.manageCostSharing && (
+          <PageActions
+            actions={
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />{" "}
+                {t("payroll_page.cost_sharing_page.new_obligation")}
+              </Button>
+            }
+          />
+        )}
 
         {isLoading ? (
           <div className="space-y-3">
@@ -119,6 +126,7 @@ export default function CostSharingPage() {
           <Card>
             <CardContent className="p-0">
               <SimpleTable
+                mobileCards
                 caption={t("payroll_page.cost_sharing_page.title")}
                 headers={[
                   t("attendance.employee"),
@@ -170,8 +178,9 @@ export default function CostSharingPage() {
                     // Completion is payroll's to declare (it fires when the
                     // balance reaches zero) and cancellation is a write-off, so
                     // neither belongs behind a one-click table button.
-                    obligation.status === "active" ||
-                    obligation.status === "suspended" ? (
+                    can.manageCostSharing &&
+                    (obligation.status === "active" ||
+                      obligation.status === "suspended") ? (
                       <Button
                         key="a"
                         variant="outline"

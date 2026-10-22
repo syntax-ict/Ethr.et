@@ -252,17 +252,11 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "General Settings",
     description: "Organization, branding, and workspace configuration",
   },
-  "/attendance/settings": {
+  "/settings/attendance": {
     section: "Admin",
     parent: { label: "Settings", href: "/settings" },
     label: "Attendance Rules",
     description: "Configure attendance rules, grace periods, and policies",
-  },
-  "/settings/shifts": {
-    section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
-    label: "Shift Rules",
-    description: "Configure shift templates and rotation rules",
   },
   "/settings/leave-types": {
     section: "Admin",

@@ -39,18 +39,25 @@ export function OfflineBanner() {
     };
   }, []);
 
-  if (isOnline && pendingCount === 0) return null;
+  const visible = !isOnline || pendingCount > 0;
 
+  // The live region stays mounted, so a screen reader hears "You're offline"
+  // when it appears; a region that mounts with its text is not announced.
   return (
-    <div className="flex items-center justify-center gap-2 bg-warning-soft px-4 py-1.5 text-xs font-medium text-warning-on-soft">
-      <WifiOff className="h-3.5 w-3.5" />
-      {!isOnline && <span>{t("offline.offline", "You're offline")}</span>}
-      {pendingCount > 0 && (
-        <span>
-          {!isOnline && <>&middot; </>}
-          {pendingCount}{" "}
-          {t("offline.pending_sync", "record(s) waiting to sync")}
-        </span>
+    <div role="status" aria-live="polite">
+      {visible && (
+        <div className="flex items-center justify-center gap-2 bg-warning-soft px-4 py-1.5 text-xs font-medium text-warning-on-soft">
+          <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
+          {!isOnline && <span>{t("offline.offline", "You're offline")}</span>}
+          {pendingCount > 0 && (
+            <span>
+              {!isOnline && <>&middot; </>}
+              {t("offline.pending_count", ":count records waiting to sync", {
+                count: pendingCount,
+              })}
+            </span>
+          )}
+        </div>
       )}
     </div>
   );

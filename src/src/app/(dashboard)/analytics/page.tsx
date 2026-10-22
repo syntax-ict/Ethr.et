@@ -13,6 +13,7 @@ import { DashboardDigestDialog } from "@/features/dashboard/components/dashboard
 import { useExecutiveOverview } from "@/features/dashboard/executive-api";
 import { downloadCsv } from "@/lib/utils/csv-export";
 import { useT } from "@/lib/i18n/useT";
+import { useQueryTab } from "@/lib/hooks/useQueryTab";
 
 const LazyOverviewTab = dynamic(
   () => import("./overview-tab").then((m) => ({ default: m.OverviewTab })),
@@ -31,8 +32,16 @@ const LazyWorkforceTab = dynamic(
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 
+const ANALYTICS_TABS = [
+  "overview",
+  "attendance",
+  "payroll",
+  "workforce",
+] as const;
+
 export default function AnalyticsPage() {
   const { t } = useT();
+  const [tab, setTab] = useQueryTab(ANALYTICS_TABS, "overview");
   const [branchPublicId, setBranchPublicId] = useState<string | undefined>();
   const [digestOpen, setDigestOpen] = useState(false);
 
@@ -122,7 +131,7 @@ export default function AnalyticsPage() {
           />
         )}
 
-        <Tabs defaultValue="overview">
+        <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="overview">
               {t("analytics_page.overview")}

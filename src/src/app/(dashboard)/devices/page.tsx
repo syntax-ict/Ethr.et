@@ -184,7 +184,13 @@ export default function DevicesPage() {
     syncAllMutation.mutate(undefined, {
       onSuccess: (d) =>
         toast.success(
-          `${t("devices_page.sync_dispatched_prefix")} ${d.dispatched} ${t("devices_page.device_s")}`,
+          t(
+            "devices_page.sync_dispatched_count",
+            "Sync sent to :count devices",
+            {
+              count: d.dispatched,
+            },
+          ),
         ),
       onError: (err) =>
         toast.error(apiErrorMessage(err, t("devices_page.bulk_sync_failed"))),
@@ -197,7 +203,11 @@ export default function DevicesPage() {
         if (status === "online") {
           toast.success(t("devices_page.online_responding"));
         } else {
-          toast.error(`${t("devices_page.device_is")} ${status}`);
+          toast.error(
+            t("devices_page.device_status", "The device is :status", {
+              status: t(`status.${status}`, status),
+            }),
+          );
         }
       },
       onError: (err) =>
@@ -587,7 +597,9 @@ function DeviceCard({
           <p>
             {t("devices_page.sync")}:{" "}
             {device.auto_sync
-              ? `${t("devices_page.every")} ${device.sync_interval_minutes}m`
+              ? t("devices_page.every_minutes", "Every :count min", {
+                  count: device.sync_interval_minutes,
+                })
               : t("devices_page.manual_only")}
           </p>
           <p>

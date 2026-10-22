@@ -33,15 +33,36 @@ export function csvFromRows(
   return [headers, ...rows].map((r) => r.map(csvCell).join(",")).join("\n");
 }
 
-/** Pure CSV-string builder — kept separate from the DOM side effect so it's testable. */
-export function buildCsv(rows: Array<Record<string, unknown>>): string {
+/**
+ * Pure CSV-string builder — kept separate from the DOM side effect so it's
+ * testable. `label` names each column for the reader (the keys are API field
+ * names, `basic_salary_cents`); `value` formats a cell, such as cents as an
+ * amount.
+ */
+export function buildCsv(
+  rows: Array<Record<string, unknown>>,
+  {
+    label,
+    value,
+  }: {
+    label?: (key: string) => string;
+    value?: (key: string, raw: unknown) => unknown;
+  } = {},
+): string {
   if (rows.length === 0) return "";
 
-  const headers = Object.keys(rows[0]);
+  const keys = Object.keys(rows[0]);
   return csvFromRows(
-    headers,
-    rows.map((row) => headers.map((h) => row[h])),
+    label ? keys.map(label) : keys,
+    rows.map((row) => keys.map((k) => (value ? value(k, row[k]) : row[k]))),
   );
+}
+
+/** A `*_cents` number as an amount; anything else unchanged. */
+export function centsAsAmount(key: string, raw: unknown): unknown {
+  return key.endsWith("_cents") && typeof raw === "number"
+    ? csvAmount(raw)
+    : raw;
 }
 
 /**

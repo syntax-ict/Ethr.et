@@ -18,35 +18,35 @@
  *
  *     npx playwright test amharic-layout.spec.ts --project=chromium-desktop
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from "@playwright/test";
 
 interface Route {
   path: string;
-  role: 'admin' | 'hr' | 'employee';
+  role: "admin" | "hr" | "employee";
 }
 
 /** Text-dense routes — labels, table headers, buttons, chips. */
 const ROUTES: Route[] = [
-  { path: '/login', role: 'admin' },
-  { path: '/dashboard', role: 'admin' },
-  { path: '/employees', role: 'admin' },
-  { path: '/employees/new', role: 'admin' },
-  { path: '/attendance', role: 'admin' },
-  { path: '/attendance/settings', role: 'admin' },
-  { path: '/leave', role: 'employee' },
-  { path: '/payroll', role: 'admin' },
-  { path: '/approvals', role: 'hr' },
-  { path: '/settings', role: 'admin' },
-  { path: '/settings/roles', role: 'admin' },
-  { path: '/organization', role: 'admin' },
-  { path: '/billing', role: 'admin' },
-  { path: '/profile', role: 'employee' },
+  { path: "/login", role: "admin" },
+  { path: "/dashboard", role: "admin" },
+  { path: "/employees", role: "admin" },
+  { path: "/employees/new", role: "admin" },
+  { path: "/attendance", role: "admin" },
+  { path: "/settings/attendance", role: "admin" },
+  { path: "/leave", role: "employee" },
+  { path: "/payroll", role: "admin" },
+  { path: "/approvals", role: "hr" },
+  { path: "/settings", role: "admin" },
+  { path: "/settings/roles", role: "admin" },
+  { path: "/organization", role: "admin" },
+  { path: "/billing", role: "admin" },
+  { path: "/profile", role: "employee" },
 ];
 
 /** Narrow enough to expose clipping, wide enough to be a real target. */
 const VIEWPORTS = [
-  { name: 'mobile', width: 375, height: 812 },
-  { name: 'desktop', width: 1280, height: 900 },
+  { name: "mobile", width: 375, height: 812 },
+  { name: "desktop", width: 1280, height: 900 },
 ] as const;
 
 interface Clipped {
@@ -60,12 +60,12 @@ async function findClippedText(page: Page): Promise<Clipped[]> {
   return page.evaluate(() => {
     const results: Clipped[] = [];
 
-    document.querySelectorAll<HTMLElement>('*').forEach((el) => {
+    document.querySelectorAll<HTMLElement>("*").forEach((el) => {
       // Leaf text only: a clipped parent is usually reported by its child, and
       // reporting both buries the actual element in duplicates.
       if (el.children.length > 0) return;
 
-      const text = (el.textContent ?? '').trim();
+      const text = (el.textContent ?? "").trim();
       if (!text) return;
 
       const style = getComputedStyle(el);
@@ -76,16 +76,16 @@ async function findClippedText(page: Page): Promise<Clipped[]> {
       const isVisuallyHidden =
         el.clientWidth <= 1 ||
         el.clientHeight <= 1 ||
-        style.clip === 'rect(0px, 0px, 0px, 0px)' ||
-        style.clipPath === 'inset(50%)';
+        style.clip === "rect(0px, 0px, 0px, 0px)" ||
+        style.clipPath === "inset(50%)";
       if (isVisuallyHidden) return;
 
-      if (style.visibility === 'hidden' || style.display === 'none') return;
+      if (style.visibility === "hidden" || style.display === "none") return;
 
       const clips =
-        style.textOverflow === 'ellipsis' ||
-        style.overflow === 'hidden' ||
-        style.overflowX === 'hidden';
+        style.textOverflow === "ellipsis" ||
+        style.overflow === "hidden" ||
+        style.overflowX === "hidden";
       if (!clips) return;
 
       // Deliberate truncation of *data* (a long department name in a tree row)
@@ -98,9 +98,9 @@ async function findClippedText(page: Page): Promise<Clipped[]> {
       // element named only by `title` is still a defect (see UX_PHASE_04.md
       // P4-02), and those are caught by the axe run in `ux-audit.spec.ts`.
       const isRecoverable =
-        el.hasAttribute('title') ||
-        el.closest('[title]') !== null ||
-        el.hasAttribute('aria-label');
+        el.hasAttribute("title") ||
+        el.closest("[title]") !== null ||
+        el.hasAttribute("aria-label");
       if (isRecoverable) return;
 
       // 1px of slack absorbs sub-pixel rounding, which otherwise reports every
@@ -109,7 +109,9 @@ async function findClippedText(page: Page): Promise<Clipped[]> {
 
       const selector =
         el.tagName.toLowerCase() +
-        (el.className ? `.${String(el.className).split(/\s+/).slice(0, 2).join('.')}` : '');
+        (el.className
+          ? `.${String(el.className).split(/\s+/).slice(0, 2).join(".")}`
+          : "");
 
       results.push({
         text: text.slice(0, 60),
@@ -129,18 +131,18 @@ function format(items: Clipped[]): string {
       (c) =>
         `    • "${c.text}" clipped — needs ${c.scrollWidth}px, has ${c.clientWidth}px  (${c.selector})`,
     )
-    .join('\n');
+    .join("\n");
 }
 
-test.describe('Amharic layout', () => {
+test.describe("Amharic layout", () => {
   for (const route of ROUTES) {
     test.describe(route.path, () => {
       test.use({ storageState: `e2e/.auth/${route.role}.json` });
 
-      test('renders Amharic without clipping text', async ({ page }) => {
+      test("renders Amharic without clipping text", async ({ page }) => {
         await page.addInitScript(() => {
-          localStorage.setItem('locale', 'am');
-          localStorage.setItem('theme', 'light');
+          localStorage.setItem("locale", "am");
+          localStorage.setItem("theme", "light");
         });
 
         const failures: string[] = [];
@@ -148,14 +150,14 @@ test.describe('Amharic layout', () => {
         for (const vp of VIEWPORTS) {
           await page.setViewportSize({ width: vp.width, height: vp.height });
           await page.goto(route.path);
-          await page.waitForLoadState('networkidle');
+          await page.waitForLoadState("networkidle");
 
           // The dictionary loads asynchronously; measuring before it lands
           // would size every element against the English fallback and report
           // nothing useful.
           await page
             .waitForFunction(
-              () => document.documentElement.lang === 'am',
+              () => document.documentElement.lang === "am",
               undefined,
               { timeout: 5000 },
             )
@@ -167,10 +169,9 @@ test.describe('Amharic layout', () => {
           }
         }
 
-        expect(
-          failures.join('\n'),
-          `${route.path} clips Amharic text`,
-        ).toBe('');
+        expect(failures.join("\n"), `${route.path} clips Amharic text`).toBe(
+          "",
+        );
       });
     });
   }

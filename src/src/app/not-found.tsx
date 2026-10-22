@@ -9,8 +9,21 @@ import Link from "next/link";
 import { ArrowLeft, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
+// Registers Amharic as the app shells do. This page is outside them, so
+// the browser had no Amharic to hydrate with while the exported HTML,
+// built after other pages had loaded it, was in Amharic: React error 418
+// and a title that flipped language (found on the :8081 rehearsal).
+import { AmharicDictionary } from "@/lib/i18n/amharic-dictionary";
 
 export default function NotFound() {
+  return (
+    <AmharicDictionary>
+      <NotFoundContent />
+    </AmharicDictionary>
+  );
+}
+
+function NotFoundContent() {
   const { t } = useT();
 
   return (
