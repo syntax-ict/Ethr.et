@@ -1,4 +1,5 @@
 import {
+  AlarmClock,
   Banknote,
   BarChart3,
   Bell,
@@ -36,6 +37,7 @@ import {
   Shield,
   ShieldAlert,
   TrendingUp,
+  Upload,
   UserCircle,
   UserPlus,
   UserX,
@@ -638,12 +640,18 @@ export const MORE_DESTINATIONS: Destination[] = [
 
 // ── Quick actions ────────────────────────────────────────────────────────────
 
-/** Today's attendance for the people this person may see, filtered to absent. */
-function absentTodayHref(ctx: NavContext): string {
-  if (ctx.can.viewAllAttendance) {
-    return `/attendance?status=absent&from=${ctx.today}&to=${ctx.today}`;
-  }
-  return "/attendance/team";
+/**
+ * Today's attendance for the people this person may see, filtered to one
+ * status. The team page has no status filter, so a supervisor gets the day's
+ * team view, which shows each person's status.
+ */
+function todayWithStatusHref(status: "absent" | "late") {
+  return (ctx: NavContext): string => {
+    if (ctx.can.viewAllAttendance) {
+      return `/attendance?status=${status}&from=${ctx.today}&to=${ctx.today}`;
+    }
+    return "/attendance/team";
+  };
 }
 
 export const QUICK_ACTIONS: QuickAction[] = [
@@ -660,7 +668,7 @@ export const QUICK_ACTIONS: QuickAction[] = [
   },
   {
     id: "absent_today",
-    href: absentTodayHref,
+    href: todayWithStatusHref("absent"),
     labelKey: "intent.absent_today.label",
     labelFallback: "Who is absent today",
     descKey: "intent.absent_today.desc",
@@ -670,14 +678,29 @@ export const QUICK_ACTIONS: QuickAction[] = [
     show: (c) => c.can.viewAllAttendance || c.can.viewTeam,
   },
   {
+    id: "late_today",
+    href: todayWithStatusHref("late"),
+    labelKey: "intent.late_today.label",
+    labelFallback: "Who is late today",
+    descKey: "intent.late_today.desc",
+    descFallback:
+      "Opens today's attendance, filtered to the people marked late.",
+    icon: AlarmClock,
+    show: (c) => c.can.viewAllAttendance || c.can.viewTeam,
+  },
+  {
     id: "check_in",
-    href: "/attendance",
+    // Someone who sees everyone's attendance gets the records list at
+    // /attendance, not a check-in button; their own punch is the punch page,
+    // where My Day's attendance tile already sends them.
+    href: (c) =>
+      c.can.viewAllAttendance ? "/attendance/mobile" : "/attendance",
     labelKey: "intent.check_in.label",
     labelFallback: "Check in or out",
     descKey: "intent.check_in.desc",
-    descFallback: "Opens your attendance page, where the check-in button is.",
+    descFallback: "Opens the page where you check in and out.",
     icon: LogIn,
-    show: (c) => !c.isSuperAdmin && !c.can.viewAllAttendance,
+    show: (c) => !c.isSuperAdmin,
   },
   {
     id: "correct_attendance",
@@ -722,6 +745,50 @@ export const QUICK_ACTIONS: QuickAction[] = [
       "Opens your leave page, with the request form and your balances.",
     icon: CalendarDays,
     show: (c) => !c.isSuperAdmin,
+  },
+  {
+    id: "update_my_details",
+    href: "/profile/personal",
+    labelKey: "intent.update_my_details.label",
+    labelFallback: "Update my phone or emergency contacts",
+    descKey: "intent.update_my_details.desc",
+    descFallback:
+      "Opens your personal details, where you change these yourself.",
+    icon: UserCircle,
+    show: (c) => !c.isSuperAdmin,
+  },
+  {
+    id: "request_profile_change",
+    href: "/profile/requests",
+    labelKey: "intent.request_profile_change.label",
+    labelFallback: "Ask to change my name, TIN or bank details",
+    descKey: "intent.request_profile_change.desc",
+    descFallback:
+      "Opens your change requests. HR reviews each one before it applies.",
+    icon: FilePenLine,
+    show: (c) => !c.isSuperAdmin,
+  },
+  {
+    id: "my_security",
+    href: "/profile/security",
+    labelKey: "intent.my_security.label",
+    labelFallback: "Change my password or two-factor",
+    descKey: "intent.my_security.desc",
+    descFallback:
+      "Opens your sign-in security: password, two-factor and active sessions.",
+    icon: KeyRound,
+    show: (c) => !c.isSuperAdmin,
+  },
+  {
+    id: "import_employees",
+    href: "/employees/import",
+    labelKey: "intent.import_employees.label",
+    labelFallback: "Import employees from a file",
+    descKey: "intent.import_employees.desc",
+    descFallback:
+      "Opens the import. Rows are checked and shown to you before any is saved.",
+    icon: Upload,
+    show: (c) => c.can.manageEmployees,
   },
   {
     id: "run_payroll",

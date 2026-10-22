@@ -402,4 +402,54 @@ describe("CommandPalette tasks and pages", () => {
       await screen.findByText(/a task such as "request leave"/i),
     ).toBeInTheDocument();
   });
+
+  it("selects the best answer, even after a query that hid it", async () => {
+    // Found 2026-10-22 in the browser: typed over "change my phone number",
+    // "who is late today" kept "Who is absent today" first and selected, so
+    // Enter opened the absent list.
+    mockUser("hr_admin", ["attendance.viewAll"]);
+    mockSearch({});
+    renderPalette();
+
+    const user = await openAndType("change my phone number");
+    const input = screen.getByRole("combobox");
+    await user.clear(input);
+    await user.type(input, "who is late today");
+
+    const options = await screen.findAllByRole("option");
+    expect(options[0]).toHaveTextContent(/who is late today/i);
+    await waitFor(() =>
+      expect(options[0]).toHaveAttribute("aria-selected", "true"),
+    );
+    await user.keyboard("{Enter}");
+    expect(pushMock).toHaveBeenCalledWith(
+      expect.stringContaining("/attendance?status=late"),
+    );
+  });
+
+  it("puts the page first when it answers better than any task", async () => {
+    mockUser("hr_admin", ["employee.create"]);
+    mockSearch({});
+    renderPalette();
+
+    await openAndType("find an employee");
+    const options = await screen.findAllByRole("option");
+    expect(options[0]).toHaveTextContent(/^Employees/);
+    expect(screen.getByRole("option", { name: /add employee/i })).toBeTruthy();
+  });
+
+  it("offers the person's own tasks when nothing matches, and opening one only navigates", async () => {
+    mockUser("employee");
+    mockSearch({});
+    renderPalette();
+
+    const user = await openAndType("zzqqxx");
+    await screen.findByText(/tasks you can start/i);
+    // An employee's tasks, never an administrator's.
+    expect(
+      screen.queryByRole("button", { name: /add employee/i }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /check in or out/i }));
+    expect(pushMock).toHaveBeenCalledWith("/attendance");
+  });
 });
