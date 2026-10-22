@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
@@ -302,6 +303,23 @@ class Employee extends Model
     public function retirementCases(): HasMany
     {
         return $this->hasMany(RetirementCase::class);
+    }
+
+    /** @return HasMany<ExitClearance, $this> */
+    public function exitClearances(): HasMany
+    {
+        return $this->hasMany(ExitClearance::class)->latest('id');
+    }
+
+    /**
+     * Through the clearances, so `{exitClearanceItem}` under `{employee}` in a
+     * route resolves only to this employee's lines (scopeBindings()).
+     *
+     * @return HasManyThrough<ExitClearanceItem, ExitClearance, $this>
+     */
+    public function exitClearanceItems(): HasManyThrough
+    {
+        return $this->hasManyThrough(ExitClearanceItem::class, ExitClearance::class);
     }
 
     /** @return HasMany<EmployeeBankDetail, $this> */

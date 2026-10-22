@@ -15316,6 +15316,281 @@
                 }
             }
         },
+        "/employees/{employee}/exit-clearance": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "employees"
+                ],
+                "operationId": "exitClearance.show",
+                "summary": "The employee's latest clearance (null when there is none) and what they\nstill owe, which finance settles or notes against the obligations line",
+                "tags": [
+                    "Exit Clearance"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "clearance": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/ExitClearanceResource"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "items": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/ExitClearanceItemResource"
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "items"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "obligations": {
+                                            "type": "object",
+                                            "properties": {
+                                                "loans_cents": {
+                                                    "type": "integer"
+                                                },
+                                                "cost_sharing_cents": {
+                                                    "type": "integer"
+                                                },
+                                                "total_cents": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "loans_cents",
+                                                "cost_sharing_cents",
+                                                "total_cents"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "clearance",
+                                        "obligations"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "exitClearance.store",
+                "summary": "Start a clearance by hand, for someone who has left; returns the open one if it exists",
+                "tags": [
+                    "Exit Clearance"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "`ExitClearanceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ExitClearanceResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "items": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/ExitClearanceItemResource"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "items"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/{employee}/exit-clearance/items/{exitClearanceItem}": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "exitClearance.updateItem",
+                "summary": "Update item",
+                "tags": [
+                    "Exit Clearance"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "exitClearanceItem",
+                        "in": "path",
+                        "required": true,
+                        "description": "The exit clearance item public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateExitClearanceItemRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`ExitClearanceItemResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ExitClearanceItemResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "done_by": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "done_by"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/employees/{employee}/kiosk-pin": {
             "put": {
                 "x-abilities": [
@@ -16072,6 +16347,216 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/exit-clearances": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "exitClearance.index",
+                "summary": "Open (or finished) clearances the caller has a part in: HR sees the\nemployees it can reach, finance sees all, a supervisor sees their\nreports",
+                "tags": [
+                    "Exit Clearance"
+                ],
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "open",
+                                "complete",
+                                null
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `ExitClearanceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ExitClearanceResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -29263,6 +29748,49 @@
                 }
             }
         },
+        "/settings/exit-clearance": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "exitClearanceTemplate.show",
+                "summary": "Exit clearance settings",
+                "tags": [
+                    "Exit Clearance Template"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": []
+                                        },
+                                        "is_customized": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "items",
+                                        "is_customized"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/settings/notification-templates": {
             "get": {
                 "x-abilities": [
@@ -37211,6 +37739,130 @@
                 ],
                 "title": "EndShiftAssignmentRequest"
             },
+            "ExitClearanceItemResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "key": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "owner": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string"
+                    },
+                    "done": {
+                        "type": "boolean"
+                    },
+                    "done_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "done_by": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "can_tick": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "key",
+                    "label",
+                    "owner",
+                    "kind",
+                    "done",
+                    "done_at",
+                    "note",
+                    "can_tick"
+                ],
+                "title": "ExitClearanceItemResource"
+            },
+            "ExitClearanceResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "employee": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/EmployeeSummaryResource"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "exit_status": {
+                        "type": "string"
+                    },
+                    "leaving_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "completed_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "done_count": {
+                        "type": "integer"
+                    },
+                    "item_count": {
+                        "type": "integer"
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ExitClearanceItemResource"
+                        }
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "exit_status",
+                    "leaving_date",
+                    "status",
+                    "completed_at",
+                    "created_at",
+                    "done_count",
+                    "item_count"
+                ],
+                "title": "ExitClearanceResource"
+            },
             "FileDisciplinaryAppealRequest": {
                 "type": "object",
                 "properties": {
@@ -42831,6 +43483,26 @@
                     }
                 },
                 "title": "UpdateEmployeeRequest"
+            },
+            "UpdateExitClearanceItemRequest": {
+                "type": "object",
+                "description": "Ticking or unticking one line of an exit clearance; the controller authorises who.",
+                "properties": {
+                    "done": {
+                        "type": "boolean"
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "done"
+                ],
+                "title": "UpdateExitClearanceItemRequest"
             },
             "UpdateGradeRequest": {
                 "type": "object",

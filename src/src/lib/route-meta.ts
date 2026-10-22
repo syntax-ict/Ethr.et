@@ -283,6 +283,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     description:
       "Who approves leave, attendance corrections and profile changes, step by step",
   },
+  "/settings/exit-clearance": {
+    section: "Admin",
+    parent: { label: "Settings", href: "/settings" },
+    label: "Exit checklist",
+    description: "The lines every exit clearance starts with",
+  },
   "/settings/holidays": {
     section: "Admin",
     parent: { label: "Settings", href: "/settings" },
@@ -425,6 +431,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     parent: { label: "Employees", href: "/employees" },
     label: "Letter requests",
     description: "Employment letters employees asked for",
+  },
+  "/employees/exit-clearances": {
+    section: "People",
+    parent: { label: "Employees", href: "/employees" },
+    label: "Exit clearances",
+    description: "What leavers still have to return, hand over and settle",
   },
   "/profile/security": {
     parent: { label: "My Profile", href: "/profile" },

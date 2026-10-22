@@ -23,6 +23,8 @@ const CAN_ABILITIES = {
   recordPersonnelAction: "personnel_action.create",
   manageDisciplinaryCases: "disciplinary_case.manage",
   manageRetirementCases: "retirement_case.manage",
+  // Starting an exit clearance by hand and ticking any of its lines.
+  transitionEmployees: "employee.transition",
   viewTeam: "attendance.viewTeam",
   viewAttendanceConflicts: "attendance.viewConflicts",
   resolveAttendanceConflicts: "attendance.resolveConflicts",

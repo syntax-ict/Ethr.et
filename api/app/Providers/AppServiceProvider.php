@@ -24,6 +24,7 @@ use App\Listeners\NotifyPayrollProcessed;
 use App\Listeners\NotifyPayrollRunFailed;
 use App\Listeners\NotifyPayslipsReleased;
 use App\Listeners\ProvisionTenant;
+use App\Listeners\StartExitClearance;
 use App\Models\ApiKey;
 use App\Models\AttendanceConflict;
 use App\Models\AttendanceCorrection;
@@ -187,6 +188,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(PayrollProcessed::class, NotifyPayrollProcessed::class);
         Event::listen(PayrollApproved::class, NotifyPayslipsReleased::class);
         Event::listen(EmployeeTransitioned::class, CloseLeaverLogin::class);
+        Event::listen(EmployeeTransitioned::class, StartExitClearance::class);
 
         // Devices that take commands follow the people of their branch: a new
         // hire is added, a rename or new badge is sent, a leaver is removed

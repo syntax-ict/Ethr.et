@@ -9,6 +9,7 @@ import {
   Upload,
   Loader2,
   FileSignature,
+  ClipboardCheck,
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import type {
@@ -306,6 +307,17 @@ export default function EmployeesPage() {
               >
                 <Link href="/employees/letters">
                   <FileSignature className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                asChild
+                title={t("nav.exit_clearances", "Exit clearances")}
+                aria-label={t("nav.exit_clearances", "Exit clearances")}
+              >
+                <Link href="/employees/exit-clearances">
+                  <ClipboardCheck className="h-4 w-4" />
                 </Link>
               </Button>
             </>
