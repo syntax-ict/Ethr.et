@@ -590,6 +590,17 @@
         ExpiresDefault "access"
         Header set Cache-Control "no-cache"
     </Files>
+    # Pages, the .txt payloads a client-side navigation fetches, and the .json
+    # files (release.json, manifest.json) keep one name across releases too.
+    # Without a Cache-Control header a browser caches them heuristically, for a
+    # tenth of the time since Last-Modified: a page unchanged for ten days was
+    # reused for a day after the deploy that changed it, naming chunks the
+    # service worker still held, so the upgrade did not appear (2026-10-23).
+    # "no-cache" asks the server every time; an unchanged page answers 304.
+    <FilesMatch "\.(html|txt|json)$">
+        ExpiresDefault "access"
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
 </IfModule>
 
 # ── PHP execution time for the payroll/import routes ─────────────────────
