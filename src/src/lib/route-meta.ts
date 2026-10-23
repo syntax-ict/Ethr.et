@@ -438,6 +438,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Exit clearances",
     description: "What leavers still have to return, hand over and settle",
   },
+  "/employees/contracts": {
+    section: "People",
+    parent: { label: "Employees", href: "/employees" },
+    label: "Contracts ending",
+    description: "Contracts that end soon, or ended without a renewal",
+  },
   "/profile/security": {
     parent: { label: "My Profile", href: "/profile" },
     label: "Security",

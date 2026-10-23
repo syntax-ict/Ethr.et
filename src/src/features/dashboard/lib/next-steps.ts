@@ -24,6 +24,12 @@ export interface NextStepsInput {
   teamAbsent?: number;
   /** `open` from GET /attendance/integrity/summary, for a reviewer. */
   integrityOpen?: number;
+  /**
+   * `meta.total` from GET /employees/contracts/expiring?days=30: active
+   * contracts ending within 30 days, and ones already past their end date
+   * that nobody renewed or ended.
+   */
+  contractsEnding?: number;
   /** Badges with held punches from GET /devices/unmatched-punches. */
   unmatchedBadges?: number;
   /** The newest payroll run, for someone who may process payroll. */
@@ -39,6 +45,7 @@ export type NextStepId =
   | "payroll_failed"
   | "payroll_approve"
   | "approvals"
+  | "contracts_ending"
   | "unmatched"
   | "team_absent";
 
@@ -104,6 +111,18 @@ export function nextSteps(
       href: "/approvals",
       signature: String(input.approvals.total),
       count: input.approvals.total,
+      tone: "warning",
+    });
+  }
+
+  // A contract has a date by which someone must renew or end it, so it
+  // comes before counts that wait for no date.
+  if (input.contractsEnding !== undefined && input.contractsEnding > 0) {
+    steps.push({
+      id: "contracts_ending",
+      href: "/employees/contracts",
+      signature: String(input.contractsEnding),
+      count: input.contractsEnding,
       tone: "warning",
     });
   }

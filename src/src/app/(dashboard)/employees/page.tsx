@@ -9,6 +9,7 @@ import {
   Upload,
   Loader2,
   FileSignature,
+  CalendarClock,
   ClipboardCheck,
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
@@ -318,6 +319,17 @@ export default function EmployeesPage() {
               >
                 <Link href="/employees/exit-clearances">
                   <ClipboardCheck className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                asChild
+                title={t("nav.contracts_ending", "Contracts ending")}
+                aria-label={t("nav.contracts_ending", "Contracts ending")}
+              >
+                <Link href="/employees/contracts">
+                  <CalendarClock className="h-4 w-4" />
                 </Link>
               </Button>
             </>
