@@ -383,6 +383,21 @@ it('never marks the service worker immutable', function () {
         ->and($block)->toContain('</Files>');
 });
 
+it('makes pages and their payloads revalidate, so a release reaches browsers that visited before it', function () {
+    // An exported page keeps its name across releases and carried no
+    // Cache-Control, so browsers reused it heuristically after a deploy that
+    // changed it (2026-10-23). It must not fall under the year-long asset rule.
+    $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
+
+    $pages = ethrHtaccessIndexOf($directives, '<FilesMatch "\.(html|txt|json)$">');
+
+    expect($pages)->not->toBeNull('pages have no cache rule');
+
+    $block = array_slice($directives, $pages, 4);
+    expect($block)->toContain('Header set Cache-Control "no-cache"')
+        ->and($block)->toContain('</FilesMatch>');
+});
+
 it('promotes exactly the sentinel lines and no prose', function () {
     $root = dirname(base_path());
     $template = (string) file_get_contents($root.'/docs/deployment/shared-hosting/.htaccess');

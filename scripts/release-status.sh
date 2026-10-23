@@ -20,8 +20,9 @@
 # docs/deployment/SHARED-HOSTING-CONTRACT.md).
 #
 # Exit status: 0 when every place checked agrees (a place that could not be
-# checked is reported as unknown, not failed), 1 when something is behind or
-# pending (the output says what to do), 2 when the repository itself is unusable.
+# checked is reported as unknown, not failed, except a live site that was asked
+# for and did not answer), 1 when something is behind or pending (the output
+# says what to do), 2 when the repository itself is unusable.
 
 set -uo pipefail
 
@@ -83,10 +84,13 @@ if [ -z "$URL" ]; then
   echo "Live site: not checked (pass https://<APP_DOMAIN>, or set ETHR_BASE_URL)"
 else
   echo "Live site  $URL"
-  BODY="$(curl -fsS --max-time 20 -H 'Cache-Control: no-cache' "$URL/release.json?t=$(date +%s)" 2>/dev/null)"
+  # -L: the apex answers 301 to www, and without it every check of the
+  # address people type read as "no release.json" (2026-10-23).
+  BODY="$(curl -fsSL --max-redirs 3 --max-time 20 -H 'Cache-Control: no-cache' "$URL/release.json?t=$(date +%s)" 2>/dev/null)"
   LIVE="$(printf '%s' "$BODY" | sed -n 's/.*"commit":"\([0-9a-f]\{40\}\)".*/\1/p')"
   if [ -z "$LIVE" ]; then
-    unk "no release.json at $URL. Either the site predates it, or the site is not reachable from here"
+    # A site asked about and not answered is not in step: exit 1, not 0.
+    todo "no release.json at $URL. Either the site predates it, or the site is not reachable from here"
   else
     LIVE_REL="$(git log origin/production --format='%H %s' | awk -v s="release: ${LIVE:0:12}" '$0 ~ s"$" {print $1; exit}')"
     LIVE_TAG="$( [ -n "$LIVE_REL" ] && git tag -l --points-at "$LIVE_REL" 'v*' | sort -V | tail -1 )"
