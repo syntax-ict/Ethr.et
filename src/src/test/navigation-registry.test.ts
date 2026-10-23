@@ -111,15 +111,16 @@ describe("what each person may open", () => {
     const hrefs = visibleDestinations(context()).map((d) =>
       resolveHref(d.href, context()),
     );
+    // Workspace, then People, then Communication; the palette-only pages last.
     expect(hrefs).toEqual([
       "/dashboard",
       "/attendance",
       "/leave",
       "/payroll/payslips",
-      "/announcements",
       "/vacancies",
-      "/voice",
       "/directory",
+      "/announcements",
+      "/voice",
       "/profile",
       "/notifications",
     ]);

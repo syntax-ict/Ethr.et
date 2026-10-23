@@ -15,6 +15,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useNavPreferences } from "@/lib/hooks/useNavPreferences";
 import { useOnboardingStatus } from "@/features/onboarding/useOnboardingStatus";
 import { useManagerDashboard } from "@/features/dashboard/api";
+import { useIntegritySummary } from "@/features/attendance/api";
 import { useSettingsLanding } from "@/components/layouts/settings-nav";
 import {
   type Destination,
@@ -149,6 +150,12 @@ export function SidebarNav({
     isSupervisor && !isSuperAdmin,
   );
   const approvalCount = managerData?.pending_approvals?.total ?? 0;
+  // Attendance anomalies, the other count the conventions name: punches
+  // waiting for an integrity review, for those who may review them.
+  const { data: integrityData } = useIntegritySummary(
+    can.viewAttendanceConflicts && !isSuperAdmin,
+  );
+  const integrityCount = integrityData?.open ?? 0;
 
   useEffect(() => {
     if (pathname && pathname !== "/dashboard") {
@@ -185,7 +192,12 @@ export function SidebarNav({
       href: resolveHref(d.href, ctx),
       icon: d.icon,
       show: d.show(ctx),
-      badge: d.badge === "approvals" ? approvalCount : undefined,
+      badge:
+        d.badge === "approvals"
+          ? approvalCount
+          : d.badge === "integrity"
+            ? integrityCount
+            : undefined,
     });
     return navSections(ctx).map((section) => ({
       title: section.titleKey
@@ -204,7 +216,7 @@ export function SidebarNav({
         return parent;
       }),
     }));
-  }, [t, ctx, approvalCount]);
+  }, [t, ctx, approvalCount, integrityCount]);
 
   // ── Visibility filtering ─────────────────────────────────────────────────
 
@@ -322,53 +334,8 @@ export function SidebarNav({
         </div>
       )}
 
-      {/* Recent — collapsed by default, toggleable */}
-      {recentItems.length > 0 && !collapsed && (
-        <div className="flex flex-col gap-px">
-          <button
-            type="button"
-            onClick={toggleRecentExpanded}
-            aria-expanded={recentExpanded}
-            className="flex items-center gap-1.5 rounded-md px-3 pb-1 pt-2 text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <ChevronRight
-              className={cn(
-                "h-3 w-3 shrink-0 transition-transform duration-200",
-                recentExpanded && "rotate-90",
-              )}
-            />
-            <span className="text-[11px] font-semibold uppercase tracking-wider">
-              {t("nav.section.recent", "Recent")}
-            </span>
-          </button>
-          <div
-            className={cn(
-              "grid transition-[grid-template-rows] duration-200 ease-in-out",
-              recentExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-            )}
-          >
-            <div className="overflow-hidden">
-              <div className="flex flex-col gap-px pb-0.5">
-                {recentItems.map((item) => (
-                  <NavLink
-                    key={`recent-${item.href}`}
-                    item={item}
-                    activeHref={activeHref}
-                    onNavigate={onNavigate}
-                    collapsed={false}
-                    onTogglePin={() => toggleFavorite(item.href)}
-                    variant="recent"
-                    favoritesAtLimit={favoritesAtLimit}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Separator between quick-access and main nav */}
-      {(favoriteItems.length > 0 || recentItems.length > 0) && !collapsed && (
+      {/* Separator between the pinned rows and the main nav */}
+      {favoriteItems.length > 0 && !collapsed && (
         <div className="mx-3 my-2 h-px bg-sidebar-border" />
       )}
 
@@ -419,6 +386,51 @@ export function SidebarNav({
           )}
         </div>
       ))}
+      {/* Recent, collapsed by default, below the main nav: history is a
+          shortcut, so it must not push the destinations down. */}
+      {recentItems.length > 0 && !collapsed && (
+        <div className="mt-3 flex flex-col gap-px border-t border-sidebar-border/50 pt-1">
+          <button
+            type="button"
+            onClick={toggleRecentExpanded}
+            aria-expanded={recentExpanded}
+            className="flex items-center gap-1.5 rounded-md px-3 pb-1 pt-2 text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ChevronRight
+              className={cn(
+                "h-3 w-3 shrink-0 transition-transform duration-200",
+                recentExpanded && "rotate-90",
+              )}
+            />
+            <span className="text-[11px] font-semibold uppercase tracking-wider">
+              {t("nav.section.recent", "Recent")}
+            </span>
+          </button>
+          <div
+            className={cn(
+              "grid transition-[grid-template-rows] duration-200 ease-in-out",
+              recentExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            )}
+          >
+            <div className="overflow-hidden">
+              <div className="flex flex-col gap-px pb-0.5">
+                {recentItems.map((item) => (
+                  <NavLink
+                    key={`recent-${item.href}`}
+                    item={item}
+                    activeHref={activeHref}
+                    onNavigate={onNavigate}
+                    collapsed={false}
+                    onTogglePin={() => toggleFavorite(item.href)}
+                    variant="recent"
+                    favoritesAtLimit={favoritesAtLimit}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
@@ -539,15 +551,11 @@ function NavLink({
             <span className="min-w-0 flex-1 truncate">{item.label}</span>
           ))}
         {!collapsed && hasBadge && (
-          <span
-            className={cn(
-              "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-status-error px-1.5 text-[11px] font-semibold tabular-nums leading-none text-text-inverse",
-              // Keep clear of the hover-revealed pin button
-              isPinnable && "group-hover/pin:mr-6",
-            )}
-          >
-            {item.badge! > 99 ? "99+" : item.badge}
-          </span>
+          <CountBadge
+            count={item.badge!}
+            // Keep clear of the hover-revealed pin button
+            className={cn("ml-auto", isPinnable && "group-hover/pin:mr-6")}
+          />
         )}
         {collapsed && hasBadge && (
           <span
@@ -639,6 +647,28 @@ function NavLink({
   );
 }
 
+// ── CountBadge ───────────────────────────────────────────────────────────────
+
+/** The red count on a row, a closed group, or a flyout row: one look for all. */
+function CountBadge({
+  count,
+  className,
+}: {
+  count: number;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "flex h-5 min-w-5 items-center justify-center rounded-full bg-status-error px-1.5 text-[11px] font-semibold tabular-nums leading-none text-text-inverse",
+        className,
+      )}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 // ── NavGroup ─────────────────────────────────────────────────────────────────
 
 function NavGroup({
@@ -664,6 +694,9 @@ function NavGroup({
 }) {
   const hasActiveChild = group.children.some((c) => c.href === activeHref);
   const Icon = group.icon;
+  // A closed group still says that something inside it needs a hand; open,
+  // the count sits on the child it belongs to.
+  const childCount = group.children.reduce((n, c) => n + (c.badge ?? 0), 0);
 
   // Collapsed rail: a hover/focus flyout lists every child. Sending the click
   // straight to the first child (the previous behaviour) made children 2..n
@@ -676,14 +709,22 @@ function NavGroup({
           type="button"
           aria-haspopup="menu"
           className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "relative flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             hasActiveChild
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
           )}
         >
           <Icon className="h-4 w-4 shrink-0" />
-          <span className="sr-only">{group.label}</span>
+          <span className="sr-only">
+            {childCount > 0 ? `${group.label} (${childCount})` : group.label}
+          </span>
+          {childCount > 0 && (
+            <span
+              aria-hidden
+              className="absolute right-1 top-1 h-2 w-2 rounded-full bg-status-error ring-2 ring-sidebar"
+            />
+          )}
         </button>
         <div className="pointer-events-none absolute left-full top-0 z-50 hidden pl-2 group-focus-within/fly:pointer-events-auto group-focus-within/fly:block group-hover/fly:pointer-events-auto group-hover/fly:block">
           <div className="min-w-52 rounded-lg border border-sidebar-border bg-sidebar p-1.5 shadow-xl">
@@ -707,7 +748,10 @@ function NavGroup({
                   )}
                 >
                   <ChildIcon className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{child.label}</span>
+                  <span className="flex-1 truncate">{child.label}</span>
+                  {child.badge != null && child.badge > 0 && (
+                    <CountBadge count={child.badge} className="ml-auto" />
+                  )}
                 </Link>
               );
             })}
@@ -739,6 +783,7 @@ function NavGroup({
         )}
         <Icon className="h-4 w-4 shrink-0" />
         <span className="flex-1 truncate text-left">{group.label}</span>
+        {!isExpanded && childCount > 0 && <CountBadge count={childCount} />}
         <ChevronRight
           className={cn(
             "h-3.5 w-3.5 shrink-0 text-sidebar-foreground/60 transition-transform duration-200",
