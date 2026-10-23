@@ -53,6 +53,15 @@ const STOP_WORDS = new Set([
   "how",
   "do",
   "does",
+  "up",
+  "new",
+  // Prepositions: "in" alone is the start of "invite" and "integrity".
+  "in",
+  "on",
+  "at",
+  "and",
+  "or",
+  "with",
   // Amharic: "I want", "to see", "to open", "please" and the copula.
   "እፈልጋለሁ",
   "ማየት",
@@ -86,10 +95,26 @@ function isContentWord(word: string): boolean {
   return word.length > 1 || !/^[a-z0-9]$/.test(word);
 }
 
+/**
+ * An English plural reduced to its singular, so "vacancy" finds "Vacancies"
+ * and "branches" finds "branch". Only the regular endings; anything else,
+ * and every Ethiopic word, comes back as it was.
+ */
+export function singular(word: string): string {
+  if (!/^[a-z]+$/.test(word) || word.length < 4) return word;
+  if (word.endsWith("ies")) return `${word.slice(0, -3)}y`;
+  if (/(ch|sh|ss|x)es$/.test(word)) return word.slice(0, -2);
+  if (word.endsWith("s") && !word.endsWith("ss")) return word.slice(0, -1);
+  return word;
+}
+
 function wordMatches(query: string, candidate: string): boolean {
   if (candidate.startsWith(query)) return true;
   // "payslips" typed against "payslip": the row's word is a stem of the query.
-  return candidate.length >= 3 && query.startsWith(candidate);
+  if (candidate.length >= 3 && query.startsWith(candidate)) return true;
+  // "vacancy" typed against "vacancies": neither is a prefix of the other.
+  const q = singular(query);
+  return q.length >= 3 && singular(candidate) === q;
 }
 
 /**

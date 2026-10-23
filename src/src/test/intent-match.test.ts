@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { intentScore, splitPhrases } from "@/lib/navigation/intent-match";
+import {
+  intentScore,
+  singular,
+  splitPhrases,
+} from "@/lib/navigation/intent-match";
 
 const approvals = [
   "Approvals",
@@ -82,5 +86,20 @@ describe("splitPhrases", () => {
     expect(splitPhrases(" a | b ||c ")).toEqual(["a", "b", "c"]);
     expect(splitPhrases(undefined)).toEqual([]);
     expect(splitPhrases("")).toEqual([]);
+  });
+});
+
+describe("singular", () => {
+  it("reduces the regular English plurals and leaves the rest", () => {
+    expect(singular("vacancies")).toBe("vacancy");
+    expect(singular("branches")).toBe("branch");
+    expect(singular("devices")).toBe("device");
+    expect(singular("process")).toBe("process");
+    expect(singular("ሰራተኞች")).toBe("ሰራተኞች");
+  });
+
+  it("lets a singular find its plural and back", () => {
+    expect(intentScore("vacancy", ["Vacancies"])).toBeGreaterThan(0);
+    expect(intentScore("branches", ["branch"])).toBeGreaterThan(0);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
@@ -34,15 +34,14 @@ import { useDebounce } from "@/lib/hooks/useDebounce";
 import { useT } from "@/lib/i18n/useT";
 import { useSettingsLanding } from "@/components/layouts/settings-nav";
 import { getRouteMeta, routeI18nKey } from "@/lib/route-meta";
+import { isoToday, type NavContext } from "@/lib/navigation/registry";
+import { intentScore } from "@/lib/navigation/intent-match";
 import {
-  isoToday,
-  type NavContext,
-  phrasesKey,
-  QUICK_ACTIONS,
-  resolveHref,
-  visibleDestinations,
-} from "@/lib/navigation/registry";
-import { intentScore, splitPhrases } from "@/lib/navigation/intent-match";
+  actionRows,
+  type IntentRow,
+  pageRows,
+  rankIntents,
+} from "@/lib/navigation/palette-rows";
 
 /** Event any UI can fire to open the palette — cleaner than faking a ⌘K keypress. */
 const OPEN_EVENT = "command-palette:open";
@@ -65,33 +64,8 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 }
 
-/**
- * Rows the server already matched carry this prefix in their cmdk value, so
- * the filter below keeps them without re-judging them.
- */
+/** Rows the server already matched carry this prefix in their cmdk value. */
 const RECORD = "record:";
-
-interface PaletteRow {
-  /** cmdk value: unique, never shown. */
-  value: string;
-  href: string;
-  label: string;
-  /** The group a child destination belongs to ("Attendance" for "Records"). */
-  context?: string;
-  description?: string;
-  /** What the row answers to: its label and the phrases people use for it. */
-  phrases: string[];
-  icon: LucideIcon;
-}
-
-/**
- * What a typed query matches. Words, not fuzzy letters: see
- * lib/navigation/intent-match.ts for why.
- */
-function filter(value: string, search: string, keywords?: string[]): number {
-  if (value.startsWith(RECORD)) return 1;
-  return intentScore(search, keywords ?? []);
-}
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
@@ -170,55 +144,44 @@ export function CommandPalette() {
     [canKey, isSupervisor, isTenantAdmin, isSuperAdmin, settingsLanding, open],
   );
 
-  const actions: PaletteRow[] = useMemo(
-    () =>
-      QUICK_ACTIONS.filter((a) => a.show(ctx)).map((a) => {
-        const label = t(a.labelKey, a.labelFallback);
-        return {
-          value: `action:${a.id}`,
-          href: resolveHref(a.href, ctx),
-          label,
-          description: t(a.descKey, a.descFallback),
-          phrases: [label, ...splitPhrases(t(phrasesKey(a.id), ""))],
-          icon: a.icon,
-        };
-      }),
-    [ctx, t],
-  );
+  const actions: IntentRow[] = useMemo(() => actionRows(ctx, t), [ctx, t]);
 
-  const pages: PaletteRow[] = useMemo(
+  const pages: IntentRow[] = useMemo(
     () =>
-      visibleDestinations(ctx).map((d) => {
-        const href = resolveHref(d.href, ctx);
-        const label = t(d.labelKey, d.labelFallback);
-        const context = d.context
-          ? t(d.context.labelKey, d.context.labelFallback)
-          : undefined;
+      pageRows(ctx, t).map((row) => {
         // The page's own one-line description, as the breadcrumb bar shows it.
-        const path = href.split("?")[0];
+        const path = row.href.split("?")[0];
         const meta = getRouteMeta(path);
-        const description =
-          meta?.description !== undefined
-            ? t(routeI18nKey(path, "desc"), meta.description)
-            : undefined;
-        return {
-          value: `nav:${d.id}`,
-          href,
-          label,
-          context,
-          description,
-          phrases: [
-            context ? `${context} ${label}` : label,
-            label,
-            ...splitPhrases(t(phrasesKey(d.id), "")),
-          ],
-          icon: d.icon,
-        };
+        return meta?.description !== undefined
+          ? {
+              ...row,
+              description: t(routeI18nKey(path, "desc"), meta.description),
+            }
+          : row;
       }),
     [ctx, t],
   );
 
   const term = search.trim();
+
+  // Matching and order are decided here, not by cmdk. cmdk 1.0.4 sorts by
+  // moving DOM nodes, and a row that comes back after a query that hid it is
+  // put back where React keeps it: typing "who is late today" over another
+  // query left "Who is absent today" first and selected, so Enter opened the
+  // wrong list (found 2026-10-22 in the browser). Words, not fuzzy letters:
+  // see lib/navigation/intent-match.ts for why.
+  const rankedActions = useMemo(
+    () => rankIntents(term, actions),
+    [term, actions],
+  );
+  const rankedPages = useMemo(() => rankIntents(term, pages), [term, pages]);
+  const shownActions = rankedActions.map((r) => r.row);
+  const shownPages = rankedPages.map((r) => r.row);
+  // The group holding the best answer comes first, so Enter opens it: "find
+  // an employee" is the Employees page, not the Add Employee task.
+  const pagesFirst =
+    (rankedPages[0]?.score ?? 0) > (rankedActions[0]?.score ?? 0);
+
   const debounced = useDebounce(term, 200);
   const searching = term.length >= MIN_QUERY_LENGTH;
   const results = useGlobalSearch(debounced, open && searching);
@@ -228,6 +191,9 @@ export function CommandPalette() {
 
   const recent = useRecentSearches(user?.public_id ?? null);
   const { remember } = recent;
+  const shownRecent = recent.items.filter(
+    (entry) => intentScore(term, [entry.title, entry.subtitle ?? ""]) > 0,
+  );
 
   const openRecord = useCallback(
     (entry: RecentEntry) => {
@@ -258,26 +224,45 @@ export function CommandPalette() {
           : departments[0] !== undefined
             ? `${RECORD}department:${departments[0].id}`
             : undefined;
+  const recentValue = (entry: RecentEntry) =>
+    `recent:${entry.kind}:${entry.id}`;
+  const firstRow = pagesFirst
+    ? (shownPages[0] ?? shownActions[0])
+    : (shownActions[0] ?? shownPages[0]);
+  const bestValue =
+    firstRecord ??
+    (!searching && shownRecent[0] ? recentValue(shownRecent[0]) : undefined) ??
+    firstRow?.value ??
+    "";
+  // Always controlled. Left to itself cmdk kept a value from a row that had
+  // gone (a person matched while typing, then the next answer had none), so
+  // nothing was selected and Enter did nothing (found 2026-10-22).
+  const onScreen = new Set<string>([
+    ...employees.map((e) => `${RECORD}employee:${e.id}`),
+    ...attendance.map((a) => `${RECORD}attendance:${a.id}`),
+    ...leave.map((l) => `${RECORD}leave:${l.id}`),
+    ...departments.map((d) => `${RECORD}department:${d.id}`),
+    ...(searching ? [] : shownRecent.map(recentValue)),
+    ...shownActions.map((r) => r.value),
+    ...shownPages.map((r) => r.value),
+  ]);
   const answerKey = `${data?.query ?? ""}|${recordCount}`;
   const [picked, setPicked] = useState<{ key: string; value: string } | null>(
     null,
   );
   const selectedValue =
-    picked !== null && picked.key === answerKey ? picked.value : firstRecord;
+    picked !== null && picked.key === answerKey && onScreen.has(picked.value)
+      ? picked.value
+      : bestValue;
 
   return (
     <CommandDialog
       open={open}
       onOpenChange={setPaletteOpen}
       commandProps={{
-        filter,
-        ...(selectedValue === undefined
-          ? {}
-          : {
-              value: selectedValue,
-              onValueChange: (value: string) =>
-                setPicked({ key: answerKey, value }),
-            }),
+        shouldFilter: false,
+        value: selectedValue,
+        onValueChange: (value: string) => setPicked({ key: answerKey, value }),
       }}
     >
       <div className="relative">
@@ -314,16 +299,41 @@ export function CommandPalette() {
               'Try a page name, a person\'s name, or a task such as "request leave".',
             )}
           </p>
+          {/* A dead end is the moment someone most needs to see what they
+              can do: the tasks open to them, as the empty palette lists. */}
+          {actions.length > 0 && (
+            <div className="mt-4 px-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                {t("command.no_results_tasks", "Tasks you can start")}
+              </p>
+              <ul className="mt-2 flex flex-wrap justify-center gap-1.5">
+                {actions.slice(0, 4).map((row) => (
+                  <li key={row.value}>
+                    <button
+                      type="button"
+                      onClick={() => navigate(row.href)}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <row.icon
+                        className="h-3.5 w-3.5 text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                      {row.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </CommandEmpty>
 
-        {!searching && recent.items.length > 0 && (
+        {!searching && shownRecent.length > 0 && (
           <>
             <CommandGroup heading={t("command.recent", "Recent")}>
-              {recent.items.map((entry) => (
+              {shownRecent.map((entry) => (
                 <ResultRow
                   key={`recent-${entry.kind}-${entry.id}`}
                   value={`recent:${entry.kind}:${entry.id}`}
-                  keywords={[entry.title, entry.subtitle ?? ""]}
                   icon={KIND_ICON[entry.kind]}
                   title={entry.title}
                   subtitle={entry.subtitle}
@@ -458,43 +468,42 @@ export function CommandPalette() {
 
         {searching && recordCount > 0 && <CommandSeparator />}
 
-        {actions.length > 0 && (
-          <CommandGroup heading={t("command.actions", "Quick Actions")}>
-            {actions.map((row) => (
-              <ResultRow
-                key={row.value}
-                value={row.value}
-                keywords={row.phrases}
-                icon={row.icon}
-                title={row.label}
-                subtitle={row.description}
-                query={term}
-                onSelect={() => navigate(row.href)}
-              />
-            ))}
-          </CommandGroup>
-        )}
-
-        {pages.length > 0 && (
-          <>
-            <CommandSeparator />
-            <CommandGroup heading={t("command.nav", "Navigation")}>
-              {pages.map((row) => (
-                <ResultRow
-                  key={row.value}
-                  value={row.value}
-                  keywords={row.phrases}
-                  icon={row.icon}
-                  title={row.label}
-                  context={row.context}
-                  subtitle={row.description}
-                  query={term}
-                  onSelect={() => navigate(row.href)}
-                />
-              ))}
-            </CommandGroup>
-          </>
-        )}
+        {(pagesFirst
+          ? [
+              { key: "nav", rows: shownPages },
+              { key: "actions", rows: shownActions },
+            ]
+          : [
+              { key: "actions", rows: shownActions },
+              { key: "nav", rows: shownPages },
+            ]
+        )
+          .filter((group) => group.rows.length > 0)
+          .map((group, index) => (
+            <Fragment key={group.key}>
+              {index > 0 && <CommandSeparator />}
+              <CommandGroup
+                heading={
+                  group.key === "nav"
+                    ? t("command.nav", "Navigation")
+                    : t("command.actions", "Quick Actions")
+                }
+              >
+                {group.rows.map((row) => (
+                  <ResultRow
+                    key={row.value}
+                    value={row.value}
+                    icon={row.icon}
+                    title={row.label}
+                    context={row.context}
+                    subtitle={row.description}
+                    query={term}
+                    onSelect={() => navigate(row.href)}
+                  />
+                ))}
+              </CommandGroup>
+            </Fragment>
+          ))}
       </CommandList>
 
       <div
@@ -564,7 +573,6 @@ function Highlight({ text, query }: { text: string; query?: string }) {
 
 function ResultRow({
   value,
-  keywords,
   icon: Icon,
   title,
   context,
@@ -574,7 +582,6 @@ function ResultRow({
   onSelect,
 }: {
   value: string;
-  keywords?: string[];
   icon: LucideIcon;
   title: string;
   context?: string;
@@ -584,12 +591,7 @@ function ResultRow({
   onSelect: () => void;
 }) {
   return (
-    <CommandItem
-      value={value}
-      keywords={keywords}
-      onSelect={onSelect}
-      className="gap-3"
-    >
+    <CommandItem value={value} onSelect={onSelect} className="gap-3">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-background">
         <Icon className="!h-4 !w-4 text-muted-foreground" aria-hidden />
       </span>
