@@ -372,37 +372,62 @@ Never use raw Tailwind colors (e.g., `text-blue-600`). Always map to semantic to
 
 ## Sidebar Navigation Structure (Role-Based)
 
+*(Rewritten 2026-10-23 to match what is built. The tree lives in
+`src/src/lib/navigation/registry.ts`, which the command palette reads too;
+each row is shown only to someone holding the ability its page's API checks,
+and a section with no row for the person is not drawn.)*
+
 ```
-OVERVIEW
+Pinned            (the person's own favourites, when any)
+
+WORKSPACE         the person's own day
   Dashboard
+  Approvals       (approvers; pending count)
+  My Attendance   (everyone without attendance.viewAll)
+  Leave
+  My Payslips
 
 PEOPLE
   Employees
   Organization
+  Exit clearances
+  Vacancies
   Directory
 
 OPERATIONS
-  Attendance
+  Attendance      (group: Records, Team Attendance, Corrections, Overtime
+                   requests, Conflicts, Integrity, Overtime, Photos;
+                   Integrity carries the count of punches to review)
   Shifts & Schedules
   Devices
-  Leave
 
 FINANCE
-  Payroll
-  Reports
+  Payroll         (group: Runs, Loans, Cost Sharing)
 
-ADMIN (tenant_admin, hr_admin only)
-  Settings
-  Audit Log
+INSIGHTS
+  Reports
+  Analytics
+
+COMMUNICATION
+  Announcements
+  Voice
+
+ADMIN
+  Settings        (one row; the settings hub has its own navigation)
   Billing
+  Platform        (platform admins only)
+
+Recent            (collapsed, below the main sections)
 
 Bottom:
   [Ethiopian tibeb pattern border]
-  Command Palette (⌘K)
-  User menu
-  Language switcher
-  Dark mode toggle
+  Command Palette (Ctrl+K)
+  Collapse (Ctrl+B)
 ```
+
+Leave sits in Workspace because everyone uses it for their own requests;
+approvers reach their team's from Approvals. A closed group shows the total of
+its rows' counts, so a waiting review is visible without opening it.
 
 Items show notification count badges where applicable (Approvals, Attendance anomalies).
 

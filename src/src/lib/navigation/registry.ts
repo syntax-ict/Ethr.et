@@ -83,8 +83,11 @@ export interface Destination {
   labelFallback: string;
   icon: LucideIcon;
   show: (ctx: NavContext) => boolean;
-  /** The sidebar draws a live count next to this row. */
-  badge?: "approvals";
+  /**
+   * The sidebar draws a live count next to this row: decisions waiting for
+   * the person, or punches waiting for an integrity review.
+   */
+  badge?: "approvals" | "integrity";
 }
 
 export interface DestinationGroup {
@@ -195,18 +198,24 @@ const PLATFORM_SECTIONS: NavSectionDef[] = [
 
 // ── Tenant navigation ────────────────────────────────────────────────────────
 //
-// Sections follow the structure specified in CLAUDE.md (Overview / People /
-// Operations / Finance / Admin), plus a "My Work" band at the top.
+// Sections are named for what a person is doing, not for the data behind it
+// (docs/CLAUDE.md, Sidebar Navigation Structure):
 //
-// The split between "My Work" and "Operations" is by *persona*, not by data
-// domain: attendance appears in both, but "My Work > My Attendance" is the
-// employee's own record while "Operations > Attendance" holds the
-// administration of everyone else's. Grouping by who does the task keeps each
-// band scannable for the role that owns it, instead of forcing every employee
-// past nine admin screens to reach their own timesheet.
+//   Workspace      my own day: dashboard, approvals, attendance, leave, pay
+//   People         the workforce: records, structure, leavers, hiring, directory
+//   Operations     running attendance: records, shifts, devices
+//   Finance        payroll and what it deducts
+//   Insights       reports and analytics, read across every area
+//   Communication  announcements and Voice, organisation to employee and back
+//   Admin          settings, billing, the platform console
+//
+// Attendance appears twice on purpose, and never to the same person: the
+// Workspace row is one's own record, the Operations group is everyone else's.
 
 const TENANT_SECTIONS: NavSectionDef[] = [
   {
+    titleKey: "nav.section.workspace",
+    titleFallback: "Workspace",
     entries: [
       leaf({
         id: "dashboard",
@@ -216,26 +225,8 @@ const TENANT_SECTIONS: NavSectionDef[] = [
         icon: LayoutDashboard,
         show: always,
       }),
-    ],
-  },
-  {
-    titleKey: "nav.section.my_work",
-    titleFallback: "My Work",
-    entries: [
-      // Strictly the person's own record. Holders of attendance.viewAll
-      // administer everyone's from Operations > Attendance > Records instead:
-      // each persona sees exactly one attendance entry.
-      leaf({
-        id: "my_attendance",
-        href: "/attendance",
-        labelKey: "nav.my_attendance",
-        labelFallback: "My Attendance",
-        icon: Clock,
-        show: (c) => !c.can.viewAllAttendance,
-      }),
-      // Approvals carries a live pending-count badge, so it sits directly
-      // under the daily check-in: actionable, time-sensitive work belongs near
-      // the top of the personal band (only rendered for approvers).
+      // Decisions waiting on the person come first in their own band, with
+      // the live count (only rendered for approvers).
       leaf({
         id: "approvals",
         href: "/approvals",
@@ -244,6 +235,16 @@ const TENANT_SECTIONS: NavSectionDef[] = [
         icon: CheckSquare,
         show: (c) => c.isSupervisor,
         badge: "approvals",
+      }),
+      // Strictly the person's own record. Holders of attendance.viewAll
+      // administer everyone's from Operations > Attendance > Records instead.
+      leaf({
+        id: "my_attendance",
+        href: "/attendance",
+        labelKey: "nav.my_attendance",
+        labelFallback: "My Attendance",
+        icon: Clock,
+        show: (c) => !c.can.viewAllAttendance,
       }),
       leaf({
         id: "leave",
@@ -259,30 +260,6 @@ const TENANT_SECTIONS: NavSectionDef[] = [
         labelKey: "nav.payslips",
         labelFallback: "My Payslips",
         icon: Receipt,
-        show: always,
-      }),
-      leaf({
-        id: "announcements",
-        href: "/announcements",
-        labelKey: "nav.announcements",
-        labelFallback: "Announcements",
-        icon: Megaphone,
-        show: always,
-      }),
-      leaf({
-        id: "vacancies",
-        href: "/vacancies",
-        labelKey: "nav.vacancies",
-        labelFallback: "Vacancies",
-        icon: Briefcase,
-        show: always,
-      }),
-      leaf({
-        id: "voice",
-        href: "/voice",
-        labelKey: "nav.voice",
-        labelFallback: "Voice",
-        icon: MessageCircleHeart,
         show: always,
       }),
     ],
@@ -314,6 +291,14 @@ const TENANT_SECTIONS: NavSectionDef[] = [
         labelFallback: "Exit clearances",
         icon: ClipboardCheck,
         show: (c) => c.can.transitionEmployees || c.can.manageLoans,
+      }),
+      leaf({
+        id: "vacancies",
+        href: "/vacancies",
+        labelKey: "nav.vacancies",
+        labelFallback: "Vacancies",
+        icon: Briefcase,
+        show: always,
       }),
       leaf({
         id: "directory",
@@ -352,7 +337,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
         children: [
           {
             // The whole organisation's records (/attendance). Lives here, not
-            // in My Work: see the note on the My Attendance leaf.
+            // in Workspace: see the note on the My Attendance leaf.
             id: "attendance_records",
             href: "/attendance",
             labelKey: "nav.attendance_records",
@@ -399,6 +384,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
             labelFallback: "Integrity",
             icon: ShieldAlert,
             show: (c) => c.can.viewAttendanceConflicts,
+            badge: "integrity",
           },
           {
             id: "overtime",
@@ -442,30 +428,48 @@ const TENANT_SECTIONS: NavSectionDef[] = [
     titleKey: "nav.section.finance",
     titleFallback: "Finance",
     entries: [
-      leaf({
-        id: "payroll_runs",
-        href: "/payroll",
-        labelKey: "nav.payroll_runs",
-        labelFallback: "Payroll Runs",
+      // One expandable Payroll group, so Finance reads as one area rather
+      // than three loose rows, the way Attendance does under Operations.
+      {
+        kind: "group",
+        id: "fin-payroll",
+        labelKey: "nav.payroll",
+        labelFallback: "Payroll",
         icon: Wallet,
         show: (c) => c.can.viewPayrollRuns,
-      }),
-      leaf({
-        id: "loans",
-        href: "/payroll/loans",
-        labelKey: "nav.loans",
-        labelFallback: "Loans",
-        icon: Banknote,
-        show: (c) => c.can.viewPayrollRuns,
-      }),
-      leaf({
-        id: "cost_sharing",
-        href: "/payroll/cost-sharing",
-        labelKey: "nav.cost_sharing",
-        labelFallback: "Cost Sharing",
-        icon: GraduationCap,
-        show: (c) => c.can.viewPayrollRuns,
-      }),
+        children: [
+          {
+            id: "payroll_runs",
+            href: "/payroll",
+            labelKey: "nav.payroll_runs_short",
+            labelFallback: "Runs",
+            icon: ListChecks,
+            show: (c) => c.can.viewPayrollRuns,
+          },
+          {
+            id: "loans",
+            href: "/payroll/loans",
+            labelKey: "nav.loans",
+            labelFallback: "Loans",
+            icon: Banknote,
+            show: (c) => c.can.viewPayrollRuns,
+          },
+          {
+            id: "cost_sharing",
+            href: "/payroll/cost-sharing",
+            labelKey: "nav.cost_sharing",
+            labelFallback: "Cost Sharing",
+            icon: GraduationCap,
+            show: (c) => c.can.viewPayrollRuns,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    titleKey: "nav.section.insights",
+    titleFallback: "Insights",
+    entries: [
       leaf({
         id: "reports",
         href: "/reports",
@@ -484,6 +488,28 @@ const TENANT_SECTIONS: NavSectionDef[] = [
         // users were left out before (audit N85).
         show: (c) =>
           c.can.viewExecutiveDashboard || c.can.viewRegionalDashboard,
+      }),
+    ],
+  },
+  {
+    titleKey: "nav.section.communication",
+    titleFallback: "Communication",
+    entries: [
+      leaf({
+        id: "announcements",
+        href: "/announcements",
+        labelKey: "nav.announcements",
+        labelFallback: "Announcements",
+        icon: Megaphone,
+        show: always,
+      }),
+      leaf({
+        id: "voice",
+        href: "/voice",
+        labelKey: "nav.voice",
+        labelFallback: "Voice",
+        icon: MessageCircleHeart,
+        show: always,
       }),
     ],
   },
