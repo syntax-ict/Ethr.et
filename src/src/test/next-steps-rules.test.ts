@@ -83,4 +83,24 @@ describe("nextSteps", () => {
     }
     expect(nextSteps({ payrollRun: null })).toEqual([]);
   });
+
+  it("puts contracts that need a decision after approvals and before held punches", () => {
+    const steps = nextSteps({
+      approvals: { leave: 1, correction: 0, profile_update: 0, total: 1 },
+      contractsEnding: 2,
+      unmatchedBadges: 4,
+    });
+    expect(steps.map((s) => s.id)).toEqual([
+      "approvals",
+      "contracts_ending",
+      "unmatched",
+    ]);
+    expect(steps[1]).toMatchObject({
+      href: "/employees/contracts",
+      count: 2,
+      tone: "warning",
+      signature: "2",
+    });
+    expect(nextSteps({ contractsEnding: 0 })).toEqual([]);
+  });
 });

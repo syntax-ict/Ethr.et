@@ -91,6 +91,8 @@ describe("goals an HR administrator types", () => {
     ["change my phone number", "/profile/personal"],
     ["reset my password", "/profile/security"],
     ["change my bank account", "/profile/requests"],
+    ["contract expiry", "/employees/contracts"],
+    ["which contracts are ending", "/employees/contracts"],
   ])("%s", (query, href) => {
     expect(opens(query, hrAdmin)).toContain(href);
   });
@@ -115,6 +117,7 @@ describe("goals an employee types", () => {
     "Prepare this month's payroll.",
     "Configure a new shift.",
     "import employees",
+    "contract expiry",
   ])("offers nothing for %s, which is not theirs to do", (query) => {
     expect(opens(query, employee)).toEqual([]);
   });

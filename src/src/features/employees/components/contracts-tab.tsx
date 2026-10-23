@@ -52,7 +52,7 @@ const CONTRACT_TYPES: ContractType[] = [
   "consultancy",
 ];
 
-function contractTypeLabel(
+export function contractTypeLabel(
   type: ContractType,
   t: ReturnType<typeof useT>["t"],
 ) {

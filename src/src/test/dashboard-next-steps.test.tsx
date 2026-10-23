@@ -184,4 +184,29 @@ describe("<NextSteps>", () => {
     expect(screen.queryByText(/punches to review/)).toBeNull();
     expect(hits).toEqual([]);
   });
+
+  it("counts contracts that need a decision for HR, from the watchlist's own total", async () => {
+    const asked: string[] = [];
+    me("hr_admin", ["employee.create"]);
+    server.use(
+      http.get("*/api/v1/employees/contracts/expiring", ({ request }) => {
+        asked.push(new URL(request.url).search);
+        return HttpResponse.json({
+          data: [],
+          links: {},
+          meta: { current_page: 1, last_page: 2, per_page: 1, total: 2 },
+        });
+      }),
+    );
+    renderPanel();
+
+    expect(
+      await screen.findByText("2 contracts end within 30 days or have ended"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /review/i })).toHaveAttribute(
+      "href",
+      "/employees/contracts",
+    );
+    expect(asked[0]).toContain("days=30");
+  });
 });

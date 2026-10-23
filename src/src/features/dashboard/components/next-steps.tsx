@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  CalendarClock,
   CheckSquare,
   Fingerprint,
   type LucideIcon,
@@ -18,6 +19,7 @@ import { useManagerDashboard } from "@/features/dashboard/api";
 import { useIntegritySummary } from "@/features/attendance/api";
 import { usePayrollRuns } from "@/features/payroll/api";
 import { useUnmatchedBadges } from "@/features/devices/api";
+import { useExpiringContracts } from "@/features/employees/api";
 import { useCurrentUser } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
@@ -48,6 +50,7 @@ const ICON: Record<NextStepId, LucideIcon> = {
   payroll_failed: Wallet,
   payroll_approve: Wallet,
   approvals: CheckSquare,
+  contracts_ending: CalendarClock,
   unmatched: Fingerprint,
   team_absent: UserX,
 };
@@ -78,6 +81,11 @@ export function NextSteps() {
   const payroll = usePayrollRuns(undefined, { enabled: can.processPayroll });
   const canHoldPunches = can.viewDevices && can.manageAttendance;
   const unmatched = useUnmatchedBadges(canHoldPunches);
+  // Only the count is read, so one row is enough.
+  const contracts = useExpiringContracts(30, {
+    enabled: can.manageEmployees,
+    perPage: 1,
+  });
 
   const storageKey = `${STORAGE_PREFIX}${user?.public_id ?? "anonymous"}`;
   const [dismissed, setDismissed] = useState<{ key: string; value: Dismissed }>(
@@ -114,6 +122,9 @@ export function NextSteps() {
           integrityOpen: can.viewAttendanceConflicts
             ? integrity.data?.open
             : undefined,
+          contractsEnding: can.manageEmployees
+            ? contracts.data?.meta.total
+            : undefined,
           unmatchedBadges: canHoldPunches ? unmatched.data?.length : undefined,
           payrollRun: can.processPayroll
             ? (payroll.data?.data[0] ?? null)
@@ -126,6 +137,8 @@ export function NextSteps() {
       manager.data,
       can.viewAttendanceConflicts,
       integrity.data,
+      can.manageEmployees,
+      contracts.data,
       canHoldPunches,
       unmatched.data,
       can.processPayroll,
@@ -281,6 +294,25 @@ function describe(
           "Leave, corrections and profile changes from the people you approve for.",
         ),
         action: t("dashboard.next_steps.decide", "Decide"),
+      };
+    case "contracts_ending":
+      return {
+        title:
+          count === 1
+            ? t(
+                "dashboard.next_steps.contracts_ending_one",
+                "1 contract ends within 30 days or has ended",
+              )
+            : t(
+                "dashboard.next_steps.contracts_ending",
+                ":count contracts end within 30 days or have ended",
+                { count },
+              ),
+        reason: t(
+          "dashboard.next_steps.contracts_ending_reason",
+          "Each needs a renewal or an end on the person's Contracts tab.",
+        ),
+        action: t("dashboard.next_steps.review", "Review"),
       };
     case "unmatched":
       return {

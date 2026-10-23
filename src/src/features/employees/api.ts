@@ -557,6 +557,43 @@ function contractsKey(publicId: string) {
   return ["employees", publicId, "contracts"];
 }
 
+/** Every contract list a change to one contract can move. */
+const EXPIRING_CONTRACTS_KEY = ["employees", "contracts-expiring"] as const;
+
+export type ExpiringContractsPage =
+  operations["employeeContract.expiring"]["responses"][200]["content"]["application/json"];
+
+/**
+ * `GET /employees/contracts/expiring`: active contracts ending within `days`,
+ * and ones past their end date that nobody renewed or ended, soonest first,
+ * for the employees the reader's scope reaches.
+ */
+export function useExpiringContracts(
+  days: number,
+  options: { enabled?: boolean; perPage?: number } = {},
+) {
+  const perPage = options.perPage ?? 100;
+  return useQuery<ExpiringContractsPage>({
+    queryKey: [...EXPIRING_CONTRACTS_KEY, days, perPage],
+    queryFn: async () =>
+      (
+        await apiClient.get<ExpiringContractsPage>(
+          "/employees/contracts/expiring",
+          { params: { days, per_page: perPage } },
+        )
+      ).data,
+    enabled: options.enabled ?? true,
+  });
+}
+
+function invalidateContracts(
+  queryClient: ReturnType<typeof useQueryClient>,
+  publicId: string,
+) {
+  queryClient.invalidateQueries({ queryKey: contractsKey(publicId) });
+  queryClient.invalidateQueries({ queryKey: EXPIRING_CONTRACTS_KEY });
+}
+
 export function useEmployeeContracts(publicId: string) {
   return useQuery<EmployeeContract[]>({
     queryKey: contractsKey(publicId),
@@ -580,7 +617,7 @@ export function useCreateContract(publicId: string) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: contractsKey(publicId) });
+      invalidateContracts(queryClient, publicId);
     },
   });
 }
@@ -602,7 +639,7 @@ export function useRenewContract(publicId: string) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: contractsKey(publicId) });
+      invalidateContracts(queryClient, publicId);
     },
   });
 }
@@ -627,7 +664,7 @@ export function useEndContract(publicId: string) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: contractsKey(publicId) });
+      invalidateContracts(queryClient, publicId);
     },
   });
 }

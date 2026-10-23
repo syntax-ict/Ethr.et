@@ -6,6 +6,7 @@ import {
   Briefcase,
   Building2,
   Calendar,
+  CalendarClock,
   CalendarDays,
   CalendarRange,
   Camera,
@@ -548,6 +549,16 @@ export const MORE_DESTINATIONS: Destination[] = [
     labelFallback: "Notifications",
     icon: Bell,
     show: (c) => !c.isSuperAdmin,
+  },
+  {
+    // Reached from the Employees toolbar, the dashboard's Next steps and
+    // here; a sidebar row of its own would crowd People for a weekly check.
+    id: "contracts_ending",
+    href: "/employees/contracts",
+    labelKey: "nav.contracts_ending",
+    labelFallback: "Contracts ending",
+    icon: CalendarClock,
+    show: (c) => c.can.manageEmployees,
   },
   {
     id: "users",
