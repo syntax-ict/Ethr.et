@@ -78,7 +78,7 @@ class ShiftController extends Controller
         }
 
         $this->ensureDefault();
-        $shift->refresh();
+        $this->syncDefaultFlag($shift);
 
         AuditLog::record('shift.created', $shift);
 
@@ -123,7 +123,7 @@ class ShiftController extends Controller
         }
 
         $this->ensureDefault();
-        $shift->refresh();
+        $this->syncDefaultFlag($shift);
 
         AuditLog::record('shift.updated', $shift);
 
@@ -192,6 +192,17 @@ class ShiftController extends Controller
     private function otherActiveShifts(Shift $shift): bool
     {
         return Shift::query()->where('id', '!=', $shift->id)->where('is_active', true)->exists();
+    }
+
+    /**
+     * Bring the in-memory default flag in line with the table after
+     * ensureDefault(). Only that column: a full refresh() re-reads the times
+     * as MySQL formats them (08:30:00), and the response echoes 08:30.
+     */
+    private function syncDefaultFlag(Shift $shift): void
+    {
+        $shift->is_default = (bool) Shift::query()->whereKey($shift->id)->value('is_default');
+        $shift->syncOriginalAttribute('is_default');
     }
 
     /**
