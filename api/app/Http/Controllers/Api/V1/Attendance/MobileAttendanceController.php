@@ -159,11 +159,13 @@ class MobileAttendanceController extends Controller
         }
 
         $branch = $employee->branch;
-        if ($branch === null || ! app(ConfidenceScorer::class)->verifyGeofence(
+        // Only a confirmed inside: a branch with no circle cannot vouch for
+        // where the phone is, so it never punches anyone in by itself.
+        if ($branch === null || app(ConfidenceScorer::class)->verifyGeofence(
             (float) $request->validated('latitude'),
             (float) $request->validated('longitude'),
             $branch,
-        )) {
+        ) !== true) {
             return __('attendance.auto_check_in_outside');
         }
 

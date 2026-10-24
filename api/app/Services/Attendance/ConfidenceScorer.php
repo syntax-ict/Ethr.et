@@ -41,10 +41,16 @@ final class ConfidenceScorer
         return 75;
     }
 
-    public function verifyGeofence(float $lat, float $lon, Branch $branch): bool
+    /**
+     * Whether the point is inside the branch's circle, or null when the branch
+     * has no circle to be inside. Null is not "outside": a branch nobody has
+     * placed yet cannot be checked, and treating it as outside refused every
+     * phone punch there once a geofence was required.
+     */
+    public function verifyGeofence(float $lat, float $lon, Branch $branch): ?bool
     {
-        if ($branch->latitude === null || $branch->longitude === null || $branch->geofence_radius_meters === null) {
-            return false;
+        if ($branch->latitude === null || $branch->longitude === null || (int) $branch->geofence_radius_meters <= 0) {
+            return null;
         }
 
         $distance = $this->distanceMeters(

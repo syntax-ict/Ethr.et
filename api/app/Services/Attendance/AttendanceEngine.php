@@ -14,6 +14,7 @@ use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Tenant;
+use App\Support\AttendanceRules;
 use App\Support\AttendanceWebhookPayload;
 use App\Support\TenantTime;
 use App\Traits\DispatchesWebhooks;
@@ -22,16 +23,6 @@ use Carbon\Carbon;
 final class AttendanceEngine
 {
     use DispatchesWebhooks;
-
-    /** How long after a check-in a check-out on the next day may still close it. */
-    private const MAX_OPEN_HOURS = 14;
-
-    /**
-     * An `auto` punch this soon after the check-in it would close is the same
-     * person scanning twice, not leaving: it is answered as a duplicate. The
-     * same window ConflictResolver merges within.
-     */
-    private const AUTO_REPEAT_MINUTES = 5;
 
     public function __construct(
         private readonly ConfidenceScorer $scorer,
@@ -118,7 +109,7 @@ final class AttendanceEngine
             return $this->processCheckIn($input, $employee, $zone, $settings);
         }
 
-        if ($open->check_in->diffInMinutes($now, absolute: true) < self::AUTO_REPEAT_MINUTES) {
+        if ($open->check_in->diffInMinutes($now, absolute: true) < AttendanceRules::MERGE_WINDOW_MINUTES) {
             return new AttendanceResult($open, wasDuplicate: true);
         }
 
@@ -162,7 +153,7 @@ final class AttendanceEngine
         // stays out of reach — it is a missing punch, not this check-out.
         return $candidates->first(fn (AttendanceRecord $r) => $r->date->format('Y-m-d') === $today)
             ?? $candidates->first(fn (AttendanceRecord $r) => $r->shift?->crosses_midnight === true
-                || $r->check_in->diffInMinutes($now, absolute: true) < self::MAX_OPEN_HOURS * 60);
+                || $r->check_in->diffInMinutes($now, absolute: true) < AttendanceRules::MAX_OPEN_HOURS * 60);
     }
 
     /**
@@ -197,7 +188,7 @@ final class AttendanceEngine
     {
         $now = $this->resolveMoment($input);
         $local = $now->copy()->setTimezone($zone);
-        $shift = $this->shiftMatcher->match($employee, $local);
+        ['shift' => $shift, 'date' => $workDate] = $this->shiftMatcher->forPunch($employee, $local);
 
         $geofenceVerified = null;
         if ($input->latitude !== null && $input->longitude !== null && $employee->branch) {
@@ -208,6 +199,11 @@ final class AttendanceEngine
             );
         }
 
+        // Refused only when the place is known and the punch is outside it.
+        // A branch with no coordinates yet cannot be checked (verifyGeofence
+        // answers null): until 2026-10-24 that refused every phone punch at
+        // the branch the moment the switch was turned on. It is recorded and
+        // flagged `geofence_unconfigured` instead (IntegrityInspector).
         if ($settings?->geofence_required && $input->source->value === 'mobile') {
             if ($input->latitude === null || $input->longitude === null) {
                 throw new AttendanceRefused(__('attendance.geofence_location_required'));
@@ -221,7 +217,7 @@ final class AttendanceEngine
 
         $status = AttendanceStatus::PENDING;
         if ($shift) {
-            $statusStr = $this->shiftMatcher->calculateStatus($local, $shift);
+            $statusStr = $this->shiftMatcher->calculateStatus($local, $shift, $workDate);
             $status = AttendanceStatus::from($statusStr);
         }
 
@@ -229,7 +225,7 @@ final class AttendanceEngine
             'tenant_id' => $input->tenantId,
             'employee_id' => $input->employeeId,
             'shift_id' => $shift?->id,
-            'date' => $local->format('Y-m-d'),
+            'date' => $workDate,
             'check_in' => $now,
             'source' => $input->source,
             'confidence_score' => $confidence,
@@ -352,6 +348,7 @@ final class AttendanceEngine
         $status = AttendanceStatus::from($this->shiftMatcher->calculateStatus(
             $record->check_in->copy()->setTimezone($zone),
             $record->shift,
+            $record->workDate($zone),
         ));
 
         // As at a live check-out, a late arrival stays late however the day
@@ -372,17 +369,11 @@ final class AttendanceEngine
             return false;
         }
 
-        // The shift's end on the day the record began, in the tenant's zone
-        // (see processCheckIn).
-        $shiftEnd = $record->check_in->copy()->setTimezone($zone)
-            ->setTimeFromTimeString($record->shift->end_time);
-
-        // A shift that crosses midnight ends the day after it starts: leaving
-        // at 23:30 was compared with this morning's 06:00 and so never counted
-        // as early.
-        if ($record->shift->crosses_midnight && $shiftEnd->lte($record->check_in)) {
-            $shiftEnd->addDay();
-        }
+        // The shift's end on the record's work day, in the tenant's zone (see
+        // processCheckIn). A shift that crosses midnight ends the next day:
+        // leaving at 23:30 was once compared with that morning's 06:00 and so
+        // never counted as early.
+        [, $shiftEnd] = $record->shift->windowOn($record->workDate($zone), $zone);
 
         return $record->check_out->lt($shiftEnd->subMinutes($record->shift->early_departure_minutes));
     }

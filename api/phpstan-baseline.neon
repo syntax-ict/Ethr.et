@@ -1562,12 +1562,6 @@ parameters:
 			path: app/Services/Attendance/AttendanceIntelligence.php
 
 		-
-			message: '#^Strict comparison using \=\=\= between int\<0, max\> and null will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: app/Services/Attendance/ConfidenceScorer.php
-
-		-
 			message: '#^Call to function method_exists\(\) with Laravel\\Sanctum\\PersonalAccessToken and ''delete'' will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
 			count: 2

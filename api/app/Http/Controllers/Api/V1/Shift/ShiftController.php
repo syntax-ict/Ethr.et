@@ -27,6 +27,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class ShiftController extends Controller
 {
@@ -66,14 +67,18 @@ class ShiftController extends Controller
             $data['grace_minutes'] = min(120, is_numeric($default) ? (int) $default : 15);
         }
 
+        if (($data['is_default'] ?? false) && ! ($data['is_active'] ?? true)) {
+            throw ValidationException::withMessages(['is_active' => __('shift.default_must_be_active')]);
+        }
+
         $shift = Shift::create($data);
 
         if ($shift->is_default) {
-            Shift::where('id', '!=', $shift->id)
-                ->where('tenant_id', $shift->tenant_id)
-                ->where('is_default', true)
-                ->update(['is_default' => false]);
+            $this->clearOtherDefaults($shift);
         }
+
+        $this->ensureDefault();
+        $shift->refresh();
 
         AuditLog::record('shift.created', $shift);
 
@@ -95,14 +100,30 @@ class ShiftController extends Controller
     {
         Gate::authorize('shift.update');
 
-        $shift->update($request->validated());
+        $data = $request->validated();
+        $willBeDefault = (bool) ($data['is_default'] ?? $shift->is_default);
+        $willBeActive = (bool) ($data['is_active'] ?? $shift->is_active);
 
-        if ($shift->is_default) {
-            Shift::where('id', '!=', $shift->id)
-                ->where('tenant_id', $shift->tenant_id)
-                ->where('is_default', true)
-                ->update(['is_default' => false]);
+        if ($willBeDefault && ! $willBeActive && $this->otherActiveShifts($shift)) {
+            throw ValidationException::withMessages(['is_active' => __('shift.default_must_be_active')]);
         }
+
+        // Unticking the default, or switching it off, would leave people with
+        // no shift of their own rated against nothing: every punch PENDING.
+        // Another shift has to take the role first (by being saved as the
+        // default, which clears this one).
+        if ($shift->is_default && ! $willBeDefault && $this->otherActiveShifts($shift)) {
+            throw ValidationException::withMessages(['is_default' => __('shift.default_required')]);
+        }
+
+        $shift->update($data);
+
+        if ($shift->is_default && $shift->is_active) {
+            $this->clearOtherDefaults($shift);
+        }
+
+        $this->ensureDefault();
+        $shift->refresh();
 
         AuditLog::record('shift.updated', $shift);
 
@@ -127,8 +148,13 @@ class ShiftController extends Controller
             ->orderBy('name')
             ->pluck('name');
 
-        if ($inForce > 0 || $rotations->isNotEmpty()) {
+        $isDefault = $shift->is_default && $this->otherActiveShifts($shift);
+
+        if ($inForce > 0 || $rotations->isNotEmpty() || $isDefault) {
             $reasons = [];
+            if ($isDefault) {
+                $reasons[] = 'it is the default shift, used for everyone without a shift of their own (make another shift the default first)';
+            }
             if ($inForce > 0) {
                 $reasons[] = $inForce === 1
                     ? '1 assignment is current or upcoming'
@@ -148,10 +174,41 @@ class ShiftController extends Controller
         }
 
         $shift->delete();
+        $this->ensureDefault();
 
         AuditLog::record('shift.deleted', $shift);
 
         return response()->json(null, 204);
+    }
+
+    private function clearOtherDefaults(Shift $shift): void
+    {
+        Shift::where('id', '!=', $shift->id)
+            ->where('tenant_id', $shift->tenant_id)
+            ->where('is_default', true)
+            ->update(['is_default' => false]);
+    }
+
+    private function otherActiveShifts(Shift $shift): bool
+    {
+        return Shift::query()->where('id', '!=', $shift->id)->where('is_active', true)->exists();
+    }
+
+    /**
+     * While any shift is active, one of them is the default. A tenant that
+     * reached a state with none (a default deleted before this rule, or an
+     * organisation's first shift saved without the box ticked) is healed on
+     * the next shift change: the oldest active shift takes the role.
+     */
+    private function ensureDefault(): void
+    {
+        $active = Shift::query()->where('is_active', true);
+
+        if ((clone $active)->where('is_default', true)->exists()) {
+            return;
+        }
+
+        (clone $active)->orderBy('id')->first()?->update(['is_default' => true]);
     }
 
     /**

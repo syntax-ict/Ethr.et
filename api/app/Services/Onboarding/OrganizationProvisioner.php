@@ -171,10 +171,14 @@ final class OrganizationProvisioner
     /** @param array<int, mixed> $entries */
     private function provisionShifts(Tenant $tenant, array $entries, ProvisioningResult $result): void
     {
+        // A live, active default only. A deleted or switched-off one rates
+        // nobody, and counting it (withTrashed, until 2026-10-24) stopped the
+        // profile's first shift from becoming the default, so a re-applied
+        // template left the organisation with no default at all.
         $tenantHasDefault = Shift::withoutGlobalScope('tenant')
-            ->withTrashed()
             ->where('tenant_id', $tenant->id)
             ->where('is_default', true)
+            ->where('is_active', true)
             ->exists();
 
         foreach ($entries as $index => $entry) {

@@ -84,6 +84,12 @@ final class IntegrityInspector
             }
         } elseif (($settings->geofence_required ?? false) && in_array($source, ['offline_mobile', 'web'], true) && ($lat === null || $lon === null)) {
             $findings[] = ['location_missing', 'medium', ['source' => $source]];
+        } elseif (($settings->geofence_required ?? false) && $lat !== null && $lon !== null && in_array($source, self::SELF_SERVICE, true)) {
+            // A geofence is required but there is nothing to check against:
+            // no branch, or a branch nobody has placed on the map. The punch
+            // is kept (refusing it would stop the whole branch) and the gap
+            // is put in front of whoever reviews.
+            $findings[] = ['geofence_unconfigured', 'low', ['reason' => $branch === null ? 'no_branch' : 'branch_not_placed']];
         }
 
         if ($lat !== null && $lon !== null && in_array($source, self::SELF_SERVICE, true)) {

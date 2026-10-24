@@ -8,13 +8,12 @@ use App\Enums\AttendanceStatus;
 use App\Enums\ConflictType;
 use App\Models\AttendanceConflict;
 use App\Models\AttendanceRecord;
+use App\Support\AttendanceRules;
 use Carbon\Carbon;
 
 final class ConflictResolver
 {
     private const DEDUPE_THRESHOLD_MINUTES = 1;
-
-    private const MERGE_THRESHOLD_MINUTES = 5;
 
     private const SOURCE_PRIORITY = [
         // Kiosk and offline punches counted as 0 until 2026-10-13, so a
@@ -61,7 +60,7 @@ final class ConflictResolver
             return $this->mergeByConfidence($newRecord, $existing, 'merged');
         }
 
-        if ($gapMinutes <= self::MERGE_THRESHOLD_MINUTES) {
+        if ($gapMinutes <= AttendanceRules::MERGE_WINDOW_MINUTES) {
             return $this->combine($newRecord, $existing, 'merged');
         }
 

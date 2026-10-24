@@ -260,13 +260,43 @@ final class ShiftMatcher
     }
 
     /**
-     * `present` or `late` against the shift's start plus grace. `$checkIn`
-     * must be in the tenant's zone: shift times are wall-clock times there,
-     * and `setTimeFromTimeString` reads them in $checkIn's own zone.
+     * The shift a punch at $local belongs to, and the day it belongs to.
+     *
+     * Usually today's shift and today. But while yesterday's overnight shift
+     * is still running, a punch belongs to it: someone due at 22:00 who
+     * arrives at 00:30 is late for last night, not early for tonight. Until
+     * 2026-10-24 that punch was matched to today's shift, its start was put
+     * on today's date (22:00, still ahead), and it was stored `present` and
+     * dated the wrong day.
+     *
+     * $local must be in the tenant's zone.
+     *
+     * @return array{shift: ?Shift, date: string}
      */
-    public function calculateStatus(Carbon $checkIn, Shift $shift): string
+    public function forPunch(Employee $employee, Carbon $local): array
     {
-        $shiftStart = $checkIn->copy()->setTimeFromTimeString($shift->start_time);
+        $yesterday = $local->copy()->subDay();
+        $previous = $this->match($employee, $yesterday);
+
+        if ($previous !== null && $previous->crossesMidnight()) {
+            [, $end] = $previous->windowOn($yesterday->format('Y-m-d'), $local->getTimezone()->getName());
+
+            if ($local->lt($end)) {
+                return ['shift' => $previous, 'date' => $yesterday->format('Y-m-d')];
+            }
+        }
+
+        return ['shift' => $this->match($employee, $local), 'date' => $local->format('Y-m-d')];
+    }
+
+    /**
+     * `present` or `late` against the shift's start plus grace, on $workDate
+     * (Y-m-d; the check-in's own date when null). `$checkIn` must be in the
+     * tenant's zone: shift times are wall-clock times there.
+     */
+    public function calculateStatus(Carbon $checkIn, Shift $shift, ?string $workDate = null): string
+    {
+        [$shiftStart] = $shift->windowOn($workDate ?? $checkIn->format('Y-m-d'), $checkIn->getTimezone()->getName());
 
         $graceEnd = $shiftStart->copy()->addMinutes($shift->grace_minutes);
 

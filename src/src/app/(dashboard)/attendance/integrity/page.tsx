@@ -331,6 +331,23 @@ function useDescribeFlag() {
                   "Scanned a QR code that belongs to another branch.",
                 ),
         };
+      case "geofence_unconfigured":
+        return {
+          title: t(
+            "integrity.type.geofence_unconfigured",
+            "Branch not on the map",
+          ),
+          detail:
+            d.reason === "no_branch"
+              ? t(
+                  "integrity.detail.geofence_no_branch",
+                  "A location is required, but this person has no branch to check it against.",
+                )
+              : t(
+                  "integrity.detail.geofence_branch_not_placed",
+                  "A location is required, but this person's branch has no position on the map yet, so the punch could not be checked. Place the branch under Organisation.",
+                ),
+        };
       case "unverified_offline":
         return {
           title: t(

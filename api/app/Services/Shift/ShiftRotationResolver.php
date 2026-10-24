@@ -7,6 +7,7 @@ namespace App\Services\Shift;
 use App\Models\Shift;
 use App\Models\ShiftRotation;
 use App\Models\ShiftRotationStep;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 
 /**
@@ -44,10 +45,15 @@ final class ShiftRotationResolver
             return 0;
         }
 
-        // startOfDay on both sides: a rotation is a whole-day concept, and
-        // diffInDays between timestamps hours apart would otherwise round to a
-        // different offset depending on the time of day the query ran.
-        $days = (int) $anchor->copy()->startOfDay()->diffInDays($date->copy()->startOfDay(), false);
+        // Calendar dates on both sides, read in one zone: a rotation is a
+        // whole-day concept. startOfDay alone was not enough. The anchor is a
+        // date cast (UTC midnight) and the engine passes the punch in the
+        // tenant's zone, whose midnight in Addis Ababa is 21:00 UTC the day
+        // before, so the gap came out as 3.875 days, truncated to 3, while
+        // payroll (passing UTC dates) got 4: one day apart on the same date.
+        $from = Carbon::parse($anchor->format('Y-m-d'), 'UTC');
+        $to = Carbon::parse($date->format('Y-m-d'), 'UTC');
+        $days = (int) round($from->diffInDays($to, false));
 
         return (($days % $cycle) + $cycle) % $cycle;
     }

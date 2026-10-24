@@ -14,6 +14,7 @@ use App\Models\LeaveRequest;
 use App\Models\Shift;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\AttendanceRules;
 use App\Support\PhotoConsent;
 use App\Support\TenantTime;
 use Carbon\Carbon;
@@ -30,9 +31,6 @@ use Carbon\CarbonInterface;
  */
 final class MyShiftService
 {
-    /** How long after a check-in a check-out may still close it (as the engine). */
-    private const MAX_OPEN_HOURS = 14;
-
     public function __construct(private readonly ShiftMatcher $shiftMatcher) {}
 
     /**
@@ -49,7 +47,7 @@ final class MyShiftService
             ->where('employee_id', $employee->id)
             ->whereNotNull('check_in')
             ->whereNull('check_out')
-            ->where('check_in', '>=', Carbon::now('UTC')->subHours(self::MAX_OPEN_HOURS))
+            ->where('check_in', '>=', Carbon::now('UTC')->subHours(AttendanceRules::MAX_OPEN_HOURS))
             ->with('shift')
             ->latest('check_in')
             ->first();
@@ -150,14 +148,7 @@ final class MyShiftService
      */
     public static function window(Shift $shift, CarbonInterface $day): array
     {
-        $start = Carbon::instance($day)->setTimeFromTimeString((string) $shift->start_time);
-        $end = Carbon::instance($day)->setTimeFromTimeString((string) $shift->end_time);
-
-        if ($shift->crosses_midnight || $end->lte($start)) {
-            $end->addDay();
-        }
-
-        return [$start, $end];
+        return $shift->windowOn($day->format('Y-m-d'), $day->getTimezone()->getName());
     }
 
     /** @return array{name: string, name_am: string|null}|null */

@@ -193,18 +193,34 @@ class AttendanceRecord extends Model
         // day and night hours by its clock, so the window is returned in the
         // tenant's zone too (attendance QA A1).
         $zone = $this->tenantZone();
-        $checkIn = $this->check_in->copy()->setTimezone($zone);
-        $shiftEnd = $checkIn->copy()->setTimeFromTimeString($this->shift->end_time);
-
-        if ($this->shift->crosses_midnight && $shiftEnd->lte($checkIn)) {
-            $shiftEnd->addDay();
-        }
+        [, $shiftEnd] = $this->shift->windowOn($this->workDate($zone), $zone);
 
         if ($this->check_out->gt($shiftEnd)) {
             return [$shiftEnd, $this->check_out->copy()->setTimezone($zone)];
         }
 
         return null;
+    }
+
+    /**
+     * The day this record's shift is worked (Y-m-d): its `date`, which is the
+     * tenant's calendar day of the check-in or, for a late arrival on an
+     * overnight shift, the day before (ShiftMatcher::forPunch). A date any
+     * further from the check-in is from before 2026-10-12, when records were
+     * dated on the UTC clock; the check-in's own day is used for those.
+     */
+    public function workDate(string $zone): string
+    {
+        $checkInDay = $this->check_in?->copy()->setTimezone($zone)->format('Y-m-d');
+        $date = $this->date?->format('Y-m-d');
+
+        if ($checkInDay === null) {
+            return (string) $date;
+        }
+
+        $dayBefore = Carbon::parse($checkInDay)->subDay()->format('Y-m-d');
+
+        return $date === $checkInDay || $date === $dayBefore ? $date : $checkInDay;
     }
 
     /** @var array<int, string> tenant id => zone, for the life of the request */
