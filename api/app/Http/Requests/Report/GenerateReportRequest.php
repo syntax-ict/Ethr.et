@@ -16,7 +16,7 @@ class GenerateReportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'source' => ['required', 'string', 'in:employees,attendance,leave,payroll'],
+            'source' => ['required', 'string', 'in:employees,attendance,absences,leave,payroll'],
             'columns' => ['sometimes', 'array'],
             'columns.*' => ['string'],
             'filters' => ['sometimes', 'array'],
