@@ -18,6 +18,8 @@ const STATUS_BG: Record<string, string> = {
   present: "bg-success hover:bg-success",
   late: "bg-warning hover:bg-warning",
   absent: "bg-destructive hover:bg-destructive",
+  holiday: "bg-status-info hover:bg-status-info",
+  on_leave: "bg-primary/60 hover:bg-primary/60",
   weekend: "bg-muted hover:bg-muted-foreground/20",
 };
 
@@ -202,8 +204,16 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
             label={t("employee.attendance.absent", "Absent")}
           />
           <LegendDot
+            color="blue"
+            label={t("employee.attendance.holiday", "Holiday")}
+          />
+          <LegendDot
+            color="leave"
+            label={t("employee.attendance.on_leave", "On leave")}
+          />
+          <LegendDot
             color="gray"
-            label={t("employee.attendance.weekend", "Weekend / no data")}
+            label={t("employee.attendance.weekend", "Rest day / no data")}
           />
         </div>
 
@@ -215,7 +225,7 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
                   {selectedDay.date}
                 </p>
                 <p className="text-xs text-muted-foreground capitalize">
-                  {selectedDay.status}
+                  {selectedDay.status.replace("_", " ")}
                   {selectedDay.source && ` · ${selectedDay.source}`}
                 </p>
               </div>
@@ -305,6 +315,8 @@ const LEGEND_DOT_COLORS: Record<string, string> = {
   green: "bg-status-success",
   amber: "bg-status-warning",
   red: "bg-status-error",
+  blue: "bg-status-info",
+  leave: "bg-primary/60",
   gray: "bg-muted",
 };
 

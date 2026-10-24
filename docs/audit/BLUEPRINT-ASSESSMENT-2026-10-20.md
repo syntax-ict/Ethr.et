@@ -334,6 +334,19 @@ the approval engine); with the organisation's "Overtime needs approval in
 advance" on, overtime past what was approved for a day is flagged on the run
 too, and still paid.)*
 
+*(2026-10-24: AT5, S7 and RP6 above are the 2026-10-20 reading. Derived
+absence now has one rule, `App\Services\Attendance\ExpectedDays`: a day is an
+absence only when it is a workday by the person's shift or rotation (else the
+organisation's working week), not a holiday of their organisation or branch,
+not covered by approved leave, inside their hire and termination dates, and
+passed with no attendance. `GET /attendance/today`, the team view and summary,
+and the employee timeline all read it. Before, `/attendance/today` counted
+leavers, suspended staff, approved leave and holidays as absent (its
+`on_leave` read attendance rows nothing writes, so it was always 0), and the
+other two skipped Saturday and Sunday whatever the working week said. Still
+open: `ABSENT` is never written as a row, so payroll and reports do not see
+absences as records, and nothing deducts for them.)*
+
 ### IN. Integrations
 
 | ID | Item | Status | Evidence / gap |

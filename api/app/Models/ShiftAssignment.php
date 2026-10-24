@@ -49,6 +49,7 @@ class ShiftAssignment extends Model
         ];
     }
 
+    /** @return BelongsTo<Shift, $this> */
     public function shift(): BelongsTo
     {
         return $this->belongsTo(Shift::class);

@@ -58,4 +58,14 @@ final class TenantTime
             ->setTimeFromTimeString($time)
             ->utc();
     }
+
+    /**
+     * Today's date in the tenant's zone, as attendance records store it.
+     * `now()` is UTC, which is still yesterday for the first three hours of
+     * an Addis Ababa day.
+     */
+    public static function today(?Tenant $tenant): CarbonImmutable
+    {
+        return CarbonImmutable::now(self::zone($tenant))->startOfDay();
+    }
 }

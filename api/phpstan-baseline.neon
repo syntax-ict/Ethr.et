@@ -241,12 +241,6 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
 
 		-
-			message: '#^Comparison operation "\>" between int\<1, max\> and 0 is always true\.$#'
-			identifier: greater.alwaysTrue
-			count: 1
-			path: app/Http/Controllers/Api/V1/Team/TeamMonitoringController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$attempt\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1267,12 +1261,6 @@ parameters:
 			path: app/Models/ShiftAssignment.php
 
 		-
-			message: '#^Method App\\Models\\ShiftAssignment\:\:shift\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/ShiftAssignment.php
-
-		-
 			message: '#^Method App\\Models\\ShiftAssignment\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1578,12 +1566,6 @@ parameters:
 			identifier: identical.alwaysFalse
 			count: 1
 			path: app/Services/Attendance/ConfidenceScorer.php
-
-		-
-			message: '#^Method App\\Services\\Attendance\\ShiftMatcher\:\:match\(\) should return App\\Models\\Shift\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Services/Attendance/ShiftMatcher.php
 
 		-
 			message: '#^Call to function method_exists\(\) with Laravel\\Sanctum\\PersonalAccessToken and ''delete'' will always evaluate to true\.$#'

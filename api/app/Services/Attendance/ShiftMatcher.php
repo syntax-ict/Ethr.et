@@ -45,7 +45,7 @@ final class ShiftMatcher
     public function match(Employee $employee, Carbon $date): ?Shift
     {
         $day = $date->format('Y-m-d');
-        $assignment = $this->governing($this->candidates($employee, $day, $day), $day);
+        $assignment = $this->governing($this->candidates([$employee], $day, $day), $day);
 
         if ($assignment === null) {
             return $this->findDefaultShift($employee);
@@ -69,7 +69,7 @@ final class ShiftMatcher
      */
     public function rotationRestDays(Employee $employee, CarbonInterface $from, CarbonInterface $to): array
     {
-        $candidates = $this->candidates($employee, $from->format('Y-m-d'), $to->format('Y-m-d'));
+        $candidates = $this->candidates([$employee], $from->format('Y-m-d'), $to->format('Y-m-d'));
 
         if ($candidates->every(fn (ShiftAssignment $a): bool => ! $a->isRotation())) {
             return [];
@@ -94,24 +94,111 @@ final class ShiftMatcher
     }
 
     /**
-     * Every assignment on the employee, their department or their branch that
-     * is in force at some point in [$from, $to] and still points at something
-     * usable: an active shift, or an active rotation.
+     * For each date in the range, whether $employee is scheduled to work: the
+     * governing rotation's answer, else the governing or default shift's
+     * `working_days`, else the organisation's working week. Same precedence
+     * as match(), so a day this calls a working day is one match() gives a
+     * shift for.
      *
+     * The assignments are loaded once and every day is resolved in memory.
+     *
+     * @param  list<int>  $workingWeek  ISO weekdays, used when no shift applies
+     * @return array<string, bool> keyed by Y-m-d
+     */
+    public function workingDays(Employee $employee, CarbonInterface $from, CarbonInterface $to, array $workingWeek): array
+    {
+        $candidates = $this->candidates([$employee], $from->format('Y-m-d'), $to->format('Y-m-d'));
+        $default = $this->findDefaultShift($employee);
+
+        $days = [];
+        $cursor = Carbon::parse($from->format('Y-m-d'));
+        $end = Carbon::parse($to->format('Y-m-d'));
+
+        while ($cursor->lessThanOrEqualTo($end)) {
+            $days[$cursor->format('Y-m-d')] = $this->worksOn($candidates, $employee, $cursor, $default, $workingWeek);
+            $cursor = $cursor->addDay();
+        }
+
+        return $days;
+    }
+
+    /**
+     * Whether each employee is scheduled to work on $date, by the same rules
+     * as workingDays(). One query for the assignments of all of them, so a
+     * whole organisation's day costs two queries, not one per person.
+     *
+     * @param  Collection<int, Employee>  $employees  all of one tenant
+     * @param  list<int>  $workingWeek
+     * @return array<int, bool> keyed by employee id
+     */
+    public function workingOn(Collection $employees, CarbonInterface $date, array $workingWeek): array
+    {
+        $first = $employees->first();
+
+        if ($first === null) {
+            return [];
+        }
+
+        $day = $date->format('Y-m-d');
+        $candidates = $this->candidates($employees->values()->all(), $day, $day);
+        $default = $this->findDefaultShift($first);
+
+        $working = [];
+        foreach ($employees as $employee) {
+            $working[$employee->id] = $this->worksOn($candidates, $employee, $date, $default, $workingWeek);
+        }
+
+        return $working;
+    }
+
+    /**
+     * @param  Collection<int, ShiftAssignment>  $candidates
+     * @param  list<int>  $workingWeek
+     */
+    private function worksOn(Collection $candidates, Employee $employee, CarbonInterface $date, ?Shift $default, array $workingWeek): bool
+    {
+        $owned = $candidates->filter(fn (ShiftAssignment $a): bool => match ($a->assignable_type) {
+            Employee::class => (int) $a->assignable_id === $employee->id,
+            Department::class => $employee->department_id !== null && (int) $a->assignable_id === (int) $employee->department_id,
+            Branch::class => $employee->branch_id !== null && (int) $a->assignable_id === (int) $employee->branch_id,
+            default => false,
+        });
+
+        $assignment = $this->governing($owned, $date->format('Y-m-d'));
+
+        if ($assignment === null) {
+            return $default !== null
+                ? $default->isWorkingDay($date)
+                : in_array($date->dayOfWeekIso, $workingWeek, true);
+        }
+
+        if ($assignment->isRotation()) {
+            return $this->rotationShift($assignment, $date) !== null;
+        }
+
+        return $assignment->shift !== null && $assignment->shift->isWorkingDay($date);
+    }
+
+    /**
+     * Every assignment on the employees, their departments or their branches
+     * that is in force at some point in [$from, $to] and still points at
+     * something usable: an active shift, or an active rotation.
+     *
+     * @param  list<Employee>  $employees
      * @return Collection<int, ShiftAssignment>
      */
-    private function candidates(Employee $employee, string $from, string $to): Collection
+    private function candidates(array $employees, string $from, string $to): Collection
     {
-        $owners = array_filter([
-            Employee::class => $employee->id,
-            Department::class => $employee->department_id,
-            Branch::class => $employee->branch_id,
-        ]);
+        $owners = [
+            Employee::class => array_values(array_unique(array_map(fn (Employee $e): int => $e->id, $employees))),
+            Department::class => array_values(array_unique(array_filter(array_map(fn (Employee $e): ?int => $e->department_id, $employees)))),
+            Branch::class => array_values(array_unique(array_filter(array_map(fn (Employee $e): ?int => $e->branch_id, $employees)))),
+        ];
 
         return ShiftAssignment::query()
             ->where(function ($query) use ($owners) {
-                foreach ($owners as $type => $id) {
-                    $query->orWhere(fn ($q) => $q->where('assignable_type', $type)->where('assignable_id', $id));
+                foreach (array_filter($owners) as $type => $ids) {
+                    $query->orWhere(fn ($q) => $q->where('assignable_type', $type)->whereIn('assignable_id', $ids));
                 }
             })
             ->whereDate('effective_from', '<=', $to)
