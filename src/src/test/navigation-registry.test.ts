@@ -167,6 +167,7 @@ describe("what each person may open", () => {
       "/admin/platform-settings",
       "/admin/sms",
       "/admin/plans",
+      "/admin/marketing",
     ]);
     expect(QUICK_ACTIONS.filter((a) => a.show(ctx))).toEqual([]);
   });

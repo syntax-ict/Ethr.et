@@ -71,6 +71,10 @@ describe("sidebar navigation for the platform super admin", () => {
       "href",
       "/admin/plans",
     );
+    // The landing page editor, registered in the same three places.
+    expect(
+      screen.getByRole("link", { name: /^marketing site$/i }),
+    ).toHaveAttribute("href", "/admin/marketing");
 
     // A super admin has no tenant, so these lead nowhere useful — and on the
     // platform hostname the middleware bounces each one back to /admin.
