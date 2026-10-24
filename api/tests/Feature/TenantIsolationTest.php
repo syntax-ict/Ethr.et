@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Models\FeatureFlag;
 use App\Models\Lead;
+use App\Models\MarketingItem;
+use App\Models\MarketingSection;
 use App\Models\OrganizationTemplate;
 use App\Models\OtpCode;
 use App\Models\Permission;
