@@ -28,6 +28,9 @@ const eslintConfig = [
       '**/playwright-report/**',
       // Generated from the OpenAPI spec; not ours to style.
       'src/api/generated.ts',
+      // MediaPipe's WASM loaders, copied from node_modules on postinstall
+      // (scripts/copy-mediapipe.mjs) and gitignored; vendor code.
+      'public/mediapipe/**',
     ],
   },
   ...nextCoreWebVitals,
