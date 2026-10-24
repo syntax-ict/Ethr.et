@@ -7164,7 +7164,8 @@
                                             "minimum": 0
                                         },
                                         "absent": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "minimum": 0
                                         },
                                         "late": {
                                             "type": "integer",
@@ -13501,6 +13502,9 @@
                                                 "absent": {
                                                     "type": "integer"
                                                 },
+                                                "on_leave": {
+                                                    "type": "integer"
+                                                },
                                                 "total_minutes_worked": {
                                                     "type": "integer"
                                                 }
@@ -13509,6 +13513,7 @@
                                                 "present",
                                                 "late",
                                                 "absent",
+                                                "on_leave",
                                                 "total_minutes_worked"
                                             ]
                                         },
@@ -13573,8 +13578,12 @@
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
+                                                                    "upcoming",
+                                                                    "absent",
                                                                     "weekend",
-                                                                    "absent"
+                                                                    "holiday",
+                                                                    "on_leave",
+                                                                    "not_employed"
                                                                 ]
                                                             },
                                                             "check_in": {
@@ -31514,7 +31523,8 @@
                                                                 "minimum": 0
                                                             },
                                                             "absent": {
-                                                                "type": "integer"
+                                                                "type": "integer",
+                                                                "minimum": 0
                                                             },
                                                             "late": {
                                                                 "type": "integer",
@@ -31623,8 +31633,7 @@
                                                                 ]
                                                             },
                                                             "status": {
-                                                                "type": "string",
-                                                                "const": "absent"
+                                                                "type": "string"
                                                             },
                                                             "check_in": {
                                                                 "type": [

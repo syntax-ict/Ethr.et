@@ -16,7 +16,13 @@ function buildTimeline() {
   return {
     employee: { public_id: EMPLOYEE_ID, name: "Abebe Kebede" },
     range: { from: "2026-01-05", to: "2026-01-06" },
-    totals: { present: 1, late: 0, absent: 1, total_minutes_worked: 480 },
+    totals: {
+      present: 1,
+      late: 0,
+      absent: 1,
+      on_leave: 0,
+      total_minutes_worked: 480,
+    },
     days: [
       {
         date: "2026-01-05",

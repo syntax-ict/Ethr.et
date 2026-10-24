@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Attendance;
 
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
+use App\Enums\ExpectedDay;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\CheckInRequest;
 use App\Http\Requests\Attendance\CheckOutRequest;
@@ -15,6 +16,9 @@ use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\Attendance\ExpectedDays;
+use App\Services\CurrentTenant;
+use App\Support\TenantTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -24,6 +28,7 @@ class AttendanceController extends Controller
 {
     public function __construct(
         private readonly AttendanceEngine $engine,
+        private readonly ExpectedDays $expectedDays,
     ) {}
 
     public function checkIn(CheckInRequest $request): JsonResponse
@@ -206,26 +211,33 @@ class AttendanceController extends Controller
     {
         Gate::authorize('attendance.viewAll');
 
-        $today = now()->format('Y-m-d');
+        $date = TenantTime::today(app(CurrentTenant::class)->get());
+        $today = $date->format('Y-m-d');
         $user = $request->user();
 
         $records = AttendanceRecord::query()
-            ->where('date', $today)
+            ->whereDate('date', $today)
             ->whereHas('employee', fn ($q) => $user->scopeAccessibleEmployees($q))
             ->get();
 
-        $totalQuery = Employee::query();
-        $user->scopeAccessibleEmployees($totalQuery);
-        $totalEmployees = $totalQuery->count();
+        $employeeQuery = Employee::query();
+        $user->scopeAccessibleEmployees($employeeQuery);
+        $employees = $employeeQuery->get(['id', 'tenant_id', 'department_id', 'branch_id', 'status', 'hire_date', 'termination_date']);
+
+        // Absent means expected at work with no check-in. Expected comes from
+        // ExpectedDays, so leavers, leave, holidays and rest days are not.
+        $expected = $this->expectedDays->onDate($employees, $date);
+        $checkedIn = array_flip($records->whereNotNull('check_in')->pluck('employee_id')->all());
+        $kinds = collect($expected);
 
         return response()->json([
             'date' => $today,
-            'total_employees' => $totalEmployees,
+            'total_employees' => $kinds->reject(fn (ExpectedDay $kind): bool => $kind === ExpectedDay::NOT_EMPLOYED)->count(),
             'present' => $records->whereIn('status', [AttendanceStatus::PRESENT, AttendanceStatus::LATE, AttendanceStatus::EARLY_LEAVE])->count(),
-            'absent' => (int) ($totalEmployees - $records->whereNotNull('check_in')->unique('employee_id')->count()),
+            'absent' => $kinds->filter(fn (ExpectedDay $kind, int $id): bool => $kind === ExpectedDay::WORKDAY && ! isset($checkedIn[$id]))->count(),
             'late' => $records->where('status', AttendanceStatus::LATE)->count(),
             'early_leave' => $records->where('status', AttendanceStatus::EARLY_LEAVE)->count(),
-            'on_leave' => $records->where('status', AttendanceStatus::ON_LEAVE)->count(),
+            'on_leave' => $kinds->filter(fn (ExpectedDay $kind): bool => $kind === ExpectedDay::ON_LEAVE)->count(),
         ]);
     }
 

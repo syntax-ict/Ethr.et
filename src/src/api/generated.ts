@@ -12825,6 +12825,7 @@ export interface operations {
                             present: number;
                             late: number;
                             absent: number;
+                            on_leave: number;
                             total_minutes_worked: number;
                         };
                         days: ({
@@ -12839,7 +12840,7 @@ export interface operations {
                         } | {
                             date: string;
                             /** @enum {string} */
-                            status: "weekend" | "absent";
+                            status: "upcoming" | "absent" | "weekend" | "holiday" | "on_leave" | "not_employed";
                             check_in: null;
                             check_out: null;
                             worked_minutes: null;
@@ -21302,8 +21303,7 @@ export interface operations {
                             department: string | null;
                             photo_path: string | null;
                             photo_thumb_url: string | null;
-                            /** @constant */
-                            status: "absent";
+                            status: string;
                             /** Format: date-time */
                             check_in: string | null;
                             /** Format: date-time */
