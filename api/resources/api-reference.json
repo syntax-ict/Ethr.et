@@ -7500,7 +7500,7 @@
                         "required": true,
                         "description": "The site public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -7556,7 +7556,7 @@
                         "required": true,
                         "description": "The site public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -36651,7 +36651,10 @@
                         "type": "string"
                     },
                     "name_am": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "branch_public_id": {
                         "type": [

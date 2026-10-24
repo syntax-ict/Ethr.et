@@ -7430,7 +7430,7 @@ export interface components {
         AttendanceSiteResource: {
             public_id: string;
             name: string;
-            name_am: string;
+            name_am: string | null;
             branch_public_id: string | null;
             branch_name: string | null;
             latitude: number;
@@ -8640,7 +8640,7 @@ export interface components {
              */
             testimonial_consented_on: string | null;
             has_published_metrics: boolean;
-            google_maps_key: string;
+            google_maps_key: string | null;
             /** Format: date-time */
             updated_at: string | null;
         };
@@ -12270,7 +12270,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The site public id */
-                site: number;
+                site: string;
             };
             cookie?: never;
         };
@@ -12301,7 +12301,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The site public id */
-                site: number;
+                site: string;
             };
             cookie?: never;
         };
