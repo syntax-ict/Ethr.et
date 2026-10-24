@@ -102,8 +102,8 @@ final class AttendanceBaseline
         $settings = $tenant->settings ?? [];
         $settings['attendance_baseline'] = [
             'profile' => $profile['key'],
-            'shifts' => array_values(array_map(static fn (array $shift): string => (string) $shift['name'], $shifts)),
-            'rotations' => array_values(array_map(static fn (array $rotation): string => (string) $rotation['name'], $profile['rotations'])),
+            'shifts' => array_map(static fn (array $shift): string => (string) $shift['name'], $shifts),
+            'rotations' => array_map(static fn (array $rotation): string => (string) $rotation['name'], $profile['rotations']),
             'applied_at' => now()->toIso8601String(),
         ];
         $tenant->update(['settings' => $settings]);

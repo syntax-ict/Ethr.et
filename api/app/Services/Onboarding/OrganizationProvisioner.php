@@ -308,7 +308,7 @@ final class OrganizationProvisioner
                 ->whereIn('name', $rotationNames)
                 ->whereDoesntHave('assignments')
                 ->get()
-                ->each(function (ShiftRotation $rotation): void {
+                ->each(function (Model $rotation): void {
                     $rotation->update(['is_default' => false]);
                     $rotation->delete();
                 });
@@ -319,9 +319,9 @@ final class OrganizationProvisioner
             $shift->delete();
         }
 
-        $settings = $tenant->settings ?? [];
-        unset($settings['attendance_baseline']);
-        $tenant->update(['settings' => $settings]);
+        $tenant->update([
+            'settings' => array_diff_key((array) ($tenant->settings ?? []), ['attendance_baseline' => true]),
+        ]);
     }
 
     /**
