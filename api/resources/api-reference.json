@@ -29228,6 +29228,184 @@
                 }
             }
         },
+        "/push/config": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "pushSubscription.config",
+                "summary": "Whether push is available here, and the key a browser subscribes with",
+                "tags": [
+                    "Push Subscription"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "enabled": {
+                                            "type": "boolean"
+                                        },
+                                        "public_key": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "enabled",
+                                        "public_key"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/push/subscriptions": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "pushSubscription.index",
+                "summary": "How many devices the caller receives push on",
+                "tags": [
+                    "Push Subscription"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "devices": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                        }
+                                    },
+                                    "required": [
+                                        "devices"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "pushSubscription.store",
+                "summary": "Create subscription",
+                "tags": [
+                    "Push Subscription"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StorePushSubscriptionRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "subscribed": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "subscribed"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "Phone notifications are not set up on this server yet."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "pushSubscription.destroy",
+                "summary": "Delete subscription",
+                "tags": [
+                    "Push Subscription"
+                ],
+                "parameters": [
+                    {
+                        "name": "endpoint",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 2000
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/reports/export": {
             "post": {
                 "x-abilities": [
@@ -44408,6 +44586,46 @@
                     "score"
                 ],
                 "title": "StorePulseRequest"
+            },
+            "StorePushSubscriptionRequest": {
+                "type": "object",
+                "description": "A browser's PushSubscription, as `subscription.toJSON()` gives it.",
+                "properties": {
+                    "endpoint": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 2000
+                    },
+                    "keys": {
+                        "type": "object",
+                        "properties": {
+                            "p256dh": {
+                                "type": "string",
+                                "maxLength": 255
+                            },
+                            "auth": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
+                        "required": [
+                            "p256dh",
+                            "auth"
+                        ]
+                    },
+                    "content_encoding": {
+                        "type": "string",
+                        "enum": [
+                            "aes128gcm",
+                            "aesgcm"
+                        ]
+                    }
+                },
+                "required": [
+                    "endpoint",
+                    "keys"
+                ],
+                "title": "StorePushSubscriptionRequest"
             },
             "StoreRecognitionRequest": {
                 "type": "object",

@@ -119,6 +119,7 @@ use App\Http\Controllers\Api\V1\Profile\ProfileLetterController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePhotoController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
 use App\Http\Controllers\Api\V1\Profile\ProfileUpdateRequestController;
+use App\Http\Controllers\Api\V1\Push\PushSubscriptionController;
 use App\Http\Controllers\Api\V1\Report\ReportController;
 use App\Http\Controllers\Api\V1\Role\CustomRoleController;
 use App\Http\Controllers\Api\V1\Scim\ScimGroupController;
@@ -818,6 +819,13 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/approvals/batch', [ApprovalController::class, 'batch']);
 
     // Notifications
+    Route::prefix('push')->group(function () {
+        Route::get('/config', [PushSubscriptionController::class, 'config']);
+        Route::get('/subscriptions', [PushSubscriptionController::class, 'index']);
+        Route::post('/subscriptions', [PushSubscriptionController::class, 'store']);
+        Route::delete('/subscriptions', [PushSubscriptionController::class, 'destroy']);
+    });
+
     Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
         Route::get('/unread-count', [NotificationController::class, 'unreadCount']);

@@ -1,5 +1,6 @@
 "use client";
 
+import { PushToggle } from "@/features/notifications/components/push-toggle";
 import { VisitLogCard } from "@/features/attendance/components/visit-log-card";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -843,6 +844,8 @@ function AssistantCard({
           />
         </div>
       )}
+
+      {shift.assistant.reminders_allowed && <PushToggle />}
 
       {shift.assistant.auto_check_in_allowed && (
         <div className="flex items-start justify-between gap-3">

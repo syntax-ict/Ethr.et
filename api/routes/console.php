@@ -32,6 +32,11 @@ Schedule::command('devices:sync')->everyFiveMinutes()->withoutOverlapping();
 // and it is idempotent, so a late run closes the same records the same way.
 Schedule::command('attendance:auto-checkout')->everyFiveMinutes()->name('attendance-auto-checkout')->withoutOverlapping();
 
+// Punch reminders as web push, for phones where ETHR is closed (before the
+// shift, grace run out, shift ended). Every five minutes; each reminder is a
+// five-minute window and goes at most once per person per day.
+Schedule::command('attendance:push-reminders')->everyFiveMinutes()->name('attendance-push-reminders')->withoutOverlapping();
+
 // Give every organisation a working attendance setup: a default schedule,
 // working week and holidays for one that has none (from before sign-up did it,
 // or made in the platform console), and the default back for one that lost

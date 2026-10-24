@@ -52,4 +52,5 @@ return [
         'payslip_available' => 'የ:period የደመወዝ ወረቀትዎ ዝግጁ ነው።',
         'trial_expiring' => 'የሙከራ ጊዜዎ በ:days ቀን ውስጥ ያበቃል። ETHRን መጠቀም ለመቀጠል ዕቅድ ይምረጡ።',
     ],
+    'push_unavailable' => 'የስልክ ማሳወቂያዎች በዚህ አገልጋይ ላይ ገና አልተዘጋጁም።',
 ];

@@ -52,4 +52,5 @@ return [
         'payslip_available' => 'Your payslip for :period is ready.',
         'trial_expiring' => 'Your trial ends in :days day. Choose a plan to keep using ETHR.|Your trial ends in :days days. Choose a plan to keep using ETHR.',
     ],
+    'push_unavailable' => 'Phone notifications are not set up on this server yet.',
 ];

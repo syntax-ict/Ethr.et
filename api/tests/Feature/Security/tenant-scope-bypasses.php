@@ -11,6 +11,12 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-24, web push: one more. `Listeners/PushDatabaseNotification` asks
+ * whether a notified user has a push subscription. It runs inside queued
+ * notifications, where no tenant may be resolved, so it drops the scope and
+ * states `tenant_id` from the notified user on the same chain, with
+ * `user_id`.)
+ *
  * (2026-10-16, story documents: **168 across 65 files**.
  * `Http/Controllers/NewsFileController` serves a document attached to a public
  * news story. A download link cannot send `X-Tenant`, so the organisation is
@@ -194,6 +200,7 @@ return [
     'Listeners/NotifyDeviceSyncFailed.php' => 1,
     'Listeners/NotifyPayrollProcessed.php' => 1,
     'Listeners/NotifyPayrollRunFailed.php' => 1,
+    'Listeners/PushDatabaseNotification.php' => 1,
     // Pre-authentication: the kiosk token (globally unique, 64 random hex)
     // is the credential and selects its own tenant, which is refused if it
     // differs from a tenant already resolved, or is not active. A shared

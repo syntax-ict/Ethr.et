@@ -24,6 +24,7 @@ use App\Listeners\NotifyPayrollProcessed;
 use App\Listeners\NotifyPayrollRunFailed;
 use App\Listeners\NotifyPayslipsReleased;
 use App\Listeners\ProvisionTenant;
+use App\Listeners\PushDatabaseNotification;
 use App\Listeners\StartExitClearance;
 use App\Models\ApiKey;
 use App\Models\AttendanceConflict;
@@ -70,6 +71,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -180,6 +182,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Event::listen(TenantCreated::class, ProvisionTenant::class);
+        Event::listen(NotificationSent::class, PushDatabaseNotification::class);
         Event::listen(DeviceOffline::class, NotifyDeviceOffline::class);
         Event::listen(DeviceSyncFailed::class, NotifyDeviceSyncFailed::class);
         Event::listen(PayrollRunFailed::class, NotifyPayrollRunFailed::class);

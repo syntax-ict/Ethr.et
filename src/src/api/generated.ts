@@ -5755,6 +5755,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/push/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether push is available here, and the key a browser subscribes with */
+        get: operations["pushSubscription.config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/push/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How many devices the caller receives push on */
+        get: operations["pushSubscription.index"];
+        put?: never;
+        /** Create subscription */
+        post: operations["pushSubscription.store"];
+        /** Delete subscription */
+        delete: operations["pushSubscription.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/voice/recognitions": {
         parameters: {
             query?: never;
@@ -9670,6 +9706,20 @@ export interface components {
             score: number;
             tags?: ("workload" | "manager" | "team" | "pay" | "growth" | "recognition" | "safety" | "facilities" | "tools" | "wellbeing")[];
             comment?: string | null;
+        };
+        /**
+         * StorePushSubscriptionRequest
+         * @description A browser's PushSubscription, as `subscription.toJSON()` gives it.
+         */
+        StorePushSubscriptionRequest: {
+            /** Format: uri */
+            endpoint: string;
+            keys: {
+                p256dh: string;
+                auth: string;
+            };
+            /** @enum {string} */
+            content_encoding?: "aes128gcm" | "aesgcm";
         };
         /** StoreRecognitionRequest */
         StoreRecognitionRequest: {
@@ -26297,6 +26347,115 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "pushSubscription.config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        public_key: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "pushSubscription.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        devices: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "pushSubscription.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePushSubscriptionRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        subscribed: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example Phone notifications are not set up on this server yet.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "pushSubscription.destroy": {
+        parameters: {
+            query: {
+                endpoint: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "recognition.index": {

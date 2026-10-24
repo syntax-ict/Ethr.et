@@ -251,6 +251,22 @@ frontend had to learn first: with a root domain set it used to send every apex s
 organisation on the shared address into empty pages; it now leaves the hand-off to the
 server's 409 and sends the header wherever the hostname names no organisation.)*
 
+## Phone notifications (web push), optional
+
+Without these keys web push is off: nothing is sent and nothing fails, and
+the in-app reminders still work while ETHR is open. With them, every in-app
+notification and the punch reminders also reach phones where ETHR is closed.
+
+1. In the **Laravel Toolkit**, run `ethr:webpush-keys`. It prints two lines
+   and changes nothing.
+2. Add both lines to `/ethr/api/.env` (`WEBPUSH_PUBLIC_KEY=...`,
+   `WEBPUSH_PRIVATE_KEY=...`), then run `optimize`.
+3. Check `GET /api/v1/push/config` signed in: `"enabled": true`.
+
+Never rotate the pair casually: every phone subscribed with the old public
+key stops receiving notifications until its owner turns them on again. The
+private key is a secret like `APP_KEY`; keep it out of chats and tickets.
+
 ## Every release after this
 
 1. Merge to `main`, and wait for **Plesk release** to go green.
