@@ -21,6 +21,7 @@ must be on the repository's **default branch** to fire: [`../deployment/shared-h
 | `ethr:queue:check` | Exit 1 if the scheduler has gone silent or a queue is starving. `--json`, `--scheduler-stale=900`, `--oldest-job=1800` | The only signal that the off-host caller has stopped. [`QUEUE-MONITORING.md`](QUEUE-MONITORING.md) |
 | `health:check` | Are the database and cache reachable | Command-line twin of `GET /api/v1/health` |
 | `devices:sync` | Pull attendance events from auto-sync devices. `--tenant=<public_id>` | Scheduled every five minutes, `withoutOverlapping` |
+| `attendance:baseline` | Give every organisation a working attendance setup: one with no shift gets its industry's usual schedule, working week and holidays; one that lost its default gets it back | Hourly, `withoutOverlapping`, idempotent. Sign-up does the same for a new organisation (`ProvisionTenant`) |
 | `attendance:photo-retention` | Delete attendance selfies whose 48-hour review ended, then announce those past the retention period to HR and department managers | Hourly, `withoutOverlapping`, idempotent. [`ATTENDANCE-PHOTO-RETENTION.md`](ATTENDANCE-PHOTO-RETENTION.md) |
 
 ## Scheduled entries (`routes/console.php`)
@@ -42,6 +43,7 @@ must be on the repository's **default branch** to fire: [`../deployment/shared-h
 | yearly, 1 Jan 01:00 | leave carry-forward, per active tenant | default |
 | hourly | `RunScheduledReportsJob`, `RunDashboardDigestsJob` — both `withoutOverlapping` | exports |
 | hourly | `attendance:photo-retention`, `withoutOverlapping` | — |
+| hourly | `attendance:baseline`, `withoutOverlapping` | — |
 
 **An entry scheduled at a minute that is not a multiple of five would never run**, because the caller
 arrives on the five-minute mark. That is why the backup is at 01:00 and not 01:03.

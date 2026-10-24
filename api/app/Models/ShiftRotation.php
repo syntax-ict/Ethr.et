@@ -29,6 +29,8 @@ class ShiftRotation extends Model
         'description',
         'cycle_days',
         'is_active',
+        'is_default',
+        'anchor_date',
     ];
 
     protected $hidden = [
@@ -41,6 +43,8 @@ class ShiftRotation extends Model
         return [
             'cycle_days' => 'integer',
             'is_active' => 'boolean',
+            'is_default' => 'boolean',
+            'anchor_date' => 'date',
         ];
     }
 

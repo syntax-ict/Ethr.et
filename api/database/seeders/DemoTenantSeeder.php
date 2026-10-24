@@ -116,6 +116,8 @@ class DemoTenantSeeder extends Seeder
                 'end_time' => '17:30',
                 'grace_minutes' => 15,
                 'is_active' => true,
+                // The default: with none, every live punch here was PENDING.
+                'is_default' => true,
             ],
         );
 

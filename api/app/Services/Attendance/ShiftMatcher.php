@@ -9,6 +9,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
+use App\Models\ShiftRotation;
 use App\Services\Shift\ShiftRotationResolver;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -19,7 +20,9 @@ use Illuminate\Support\Collection;
  *
  * Assignments are looked for on the employee, then the department, then the
  * branch — the first level with one in force decides, and the most recent
- * `effective_from` wins within a level. With none, the tenant's default shift.
+ * `effective_from` wins within a level. With none, the tenant's default
+ * schedule: its default rotation if it has one (a six-day week of two shifts),
+ * otherwise its default shift.
  *
  * An assignment holds a fixed shift or a rotation. Until 2026-10-02 only the
  * fixed kind was matched: the query required a loadable `shift`, so a rotation
@@ -48,7 +51,7 @@ final class ShiftMatcher
         $assignment = $this->governing($this->candidates([$employee], $day, $day), $day);
 
         if ($assignment === null) {
-            return $this->findDefaultShift($employee);
+            return $this->defaultOn($this->defaults($employee), $date);
         }
 
         return $assignment->isRotation()
@@ -70,8 +73,9 @@ final class ShiftMatcher
     public function rotationRestDays(Employee $employee, CarbonInterface $from, CarbonInterface $to): array
     {
         $candidates = $this->candidates([$employee], $from->format('Y-m-d'), $to->format('Y-m-d'));
+        $defaultRotation = $this->defaults($employee)['rotation'];
 
-        if ($candidates->every(fn (ShiftAssignment $a): bool => ! $a->isRotation())) {
+        if ($defaultRotation === null && $candidates->every(fn (ShiftAssignment $a): bool => ! $a->isRotation())) {
             return [];
         }
 
@@ -85,6 +89,8 @@ final class ShiftMatcher
 
             if ($assignment !== null && $assignment->isRotation()) {
                 $restDays[$day] = $this->rotationShift($assignment, $cursor) === null;
+            } elseif ($assignment === null && $defaultRotation !== null) {
+                $restDays[$day] = $this->defaultRotationShift($defaultRotation, $cursor) === null;
             }
 
             $cursor = $cursor->addDay();
@@ -108,7 +114,7 @@ final class ShiftMatcher
     public function workingDays(Employee $employee, CarbonInterface $from, CarbonInterface $to, array $workingWeek): array
     {
         $candidates = $this->candidates([$employee], $from->format('Y-m-d'), $to->format('Y-m-d'));
-        $default = $this->findDefaultShift($employee);
+        $default = $this->defaults($employee);
 
         $days = [];
         $cursor = Carbon::parse($from->format('Y-m-d'));
@@ -141,7 +147,7 @@ final class ShiftMatcher
 
         $day = $date->format('Y-m-d');
         $candidates = $this->candidates($employees->values()->all(), $day, $day);
-        $default = $this->findDefaultShift($first);
+        $default = $this->defaults($first);
 
         $working = [];
         foreach ($employees as $employee) {
@@ -153,9 +159,10 @@ final class ShiftMatcher
 
     /**
      * @param  Collection<int, ShiftAssignment>  $candidates
+     * @param  array{rotation: ?ShiftRotation, shift: ?Shift}  $default
      * @param  list<int>  $workingWeek
      */
-    private function worksOn(Collection $candidates, Employee $employee, CarbonInterface $date, ?Shift $default, array $workingWeek): bool
+    private function worksOn(Collection $candidates, Employee $employee, CarbonInterface $date, array $default, array $workingWeek): bool
     {
         $owned = $candidates->filter(fn (ShiftAssignment $a): bool => match ($a->assignable_type) {
             Employee::class => (int) $a->assignable_id === $employee->id,
@@ -167,8 +174,12 @@ final class ShiftMatcher
         $assignment = $this->governing($owned, $date->format('Y-m-d'));
 
         if ($assignment === null) {
-            return $default !== null
-                ? $default->isWorkingDay($date)
+            if ($default['rotation'] !== null) {
+                return $this->defaultRotationShift($default['rotation'], $date) !== null;
+            }
+
+            return $default['shift'] !== null
+                ? $default['shift']->isWorkingDay($date)
                 : in_array($date->dayOfWeekIso, $workingWeek, true);
         }
 
@@ -242,6 +253,52 @@ final class ShiftMatcher
         $anchor = $assignment->anchor_date ?? $assignment->effective_from;
 
         if ($rotation === null || $anchor === null) {
+            return null;
+        }
+
+        $shift = $this->rotations->shiftFor($rotation, $anchor, $date);
+
+        return $shift !== null && $shift->is_active ? $shift : null;
+    }
+
+    /**
+     * The tenant's default schedule: a default rotation, or a default shift.
+     * Both are loaded so callers resolving many days ask once.
+     *
+     * @return array{rotation: ?ShiftRotation, shift: ?Shift}
+     */
+    private function defaults(Employee $employee): array
+    {
+        $rotation = ShiftRotation::query()
+            ->where('tenant_id', $employee->tenant_id)
+            ->where('is_default', true)
+            ->where('is_active', true)
+            ->with('steps.shift')
+            ->first();
+
+        return [
+            'rotation' => $rotation,
+            'shift' => $rotation === null ? $this->findDefaultShift($employee) : null,
+        ];
+    }
+
+    /** @param  array{rotation: ?ShiftRotation, shift: ?Shift}  $default */
+    private function defaultOn(array $default, CarbonInterface $date): ?Shift
+    {
+        return $default['rotation'] !== null
+            ? $this->defaultRotationShift($default['rotation'], $date)
+            : $default['shift'];
+    }
+
+    /**
+     * A default rotation's shift on $date, step 0 falling on its anchor (the
+     * day it was made the default, when none was given). A rest day is null.
+     */
+    private function defaultRotationShift(ShiftRotation $rotation, CarbonInterface $date): ?Shift
+    {
+        $anchor = $rotation->anchor_date ?? $rotation->created_at;
+
+        if ($anchor === null) {
             return null;
         }
 

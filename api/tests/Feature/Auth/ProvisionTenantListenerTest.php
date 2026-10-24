@@ -45,7 +45,7 @@ it('keeps settings the tenant already had, adding the defaults beside them', fun
     $tenant = createTenant(['settings' => ['brand_colour' => '#0a7']]);
     $admin = createUser([], $tenant);
 
-    (new ProvisionTenant)->handle(new TenantCreated($tenant, $admin));
+    app(ProvisionTenant::class)->handle(new TenantCreated($tenant, $admin));
 
     expect($tenant->fresh()->settings)->toMatchArray([
         'brand_colour' => '#0a7',
@@ -59,7 +59,7 @@ it('touches only the tenant it was given', function () {
     $tenant = createTenant();
     $admin = createUser([], $tenant);
 
-    (new ProvisionTenant)->handle(new TenantCreated($tenant, $admin));
+    app(ProvisionTenant::class)->handle(new TenantCreated($tenant, $admin));
 
     expect($other->fresh()->settings)->toBe(['calendar' => 'gregorian']);
 });
@@ -69,10 +69,10 @@ it('is idempotent, so a second delivery changes nothing', function () {
     $admin = createUser([], $tenant);
     $event = new TenantCreated($tenant, $admin);
 
-    (new ProvisionTenant)->handle($event);
+    app(ProvisionTenant::class)->handle($event);
     $first = $tenant->fresh()->settings;
 
-    (new ProvisionTenant)->handle($event);
+    app(ProvisionTenant::class)->handle($event);
 
     expect($tenant->fresh()->settings)->toBe($first);
 });

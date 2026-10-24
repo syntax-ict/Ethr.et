@@ -32,6 +32,12 @@ Schedule::command('devices:sync')->everyFiveMinutes()->withoutOverlapping();
 // and it is idempotent, so a late run closes the same records the same way.
 Schedule::command('attendance:auto-checkout')->everyFiveMinutes()->name('attendance-auto-checkout')->withoutOverlapping();
 
+// Give every organisation a working attendance setup: a default schedule,
+// working week and holidays for one that has none (from before sign-up did it,
+// or made in the platform console), and the default back for one that lost
+// it. Hourly; idempotent, so the first run after a deploy is the backfill.
+Schedule::command('attendance:baseline')->hourly()->name('attendance-baseline')->withoutOverlapping();
+
 // Attendance selfie retention: delete photos whose 48-hour review ended, then
 // announce the ones past the organisation's retention period. Hourly, so a
 // deletion lands within an hour of the review's end; idempotent, so a late or
