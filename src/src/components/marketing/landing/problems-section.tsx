@@ -9,7 +9,7 @@ import { useLocaleHref } from "@/lib/i18n/route-locale";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import { ItemPicture } from "./item-picture";
-import { marketingIcon } from "./marketing-icons";
+import { MarketingIconGlyph } from "./marketing-icon-glyph";
 import { SectionIntro } from "./section-intro";
 
 /**
@@ -59,7 +59,6 @@ function LedgerRow({ item, locale }: { item: MarketingItem; locale: string }) {
   const { t } = useT();
   const href = useLocaleHref();
   const { ref, state } = useRevealOnce<HTMLLIElement>();
-  const Icon = marketingIcon(item.icon);
   const title = pickLocalised(locale, item.title_am, item.title) ?? item.title;
   const body = pickLocalised(locale, item.body_am, item.body);
   const detail = pickLocalised(locale, item.detail_am, item.detail);
@@ -70,11 +69,11 @@ function LedgerRow({ item, locale }: { item: MarketingItem; locale: string }) {
       className="grid gap-6 py-8 lg:grid-cols-[minmax(0,1fr)_3rem_minmax(0,1.15fr)] lg:items-start lg:gap-x-6"
     >
       <div className="flex gap-4">
-        {Icon && (
+        {item.icon && (
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent">
-            <Icon
+            <MarketingIconGlyph
+              name={item.icon}
               className="h-5 w-5 text-sidebar-foreground"
-              aria-hidden="true"
             />
           </span>
         )}
