@@ -110,6 +110,15 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->statefulApi();
 
+        // Laravel's default sends a guest to route('login'), which this app
+        // never names: the sign-in page is the exported frontend's. So every
+        // signed-out request without `Accept: application/json` (a script,
+        // plain curl) threw RouteNotFoundException inside the auth middleware
+        // and answered 500 instead of 401 (production, 2026-10-24). A plain
+        // path never throws; API requests still get the 401 problem document
+        // from the AuthenticationException renderer below, which ignores it.
+        $middleware->redirectGuestsTo('/login');
+
         // Since Laravel 11 the api group carries no throttle unless asked, and
         // nothing asked: the named limiters applied only where a route listed
         // one, so every other endpoint — the whole authenticated API, and the
@@ -334,7 +343,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'title' => 'Unauthenticated',
                 'status' => 401,
                 'detail' => 'You are not authenticated.',
-            ], 401);
+            ], 401, ['Content-Type' => 'application/problem+json']);
         });
 
         // Handle authorization exceptions (403). Laravel's prepareException()
