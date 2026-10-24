@@ -650,6 +650,22 @@ export default function AttendanceSettingsPage() {
                   </p>
                 </div>
                 <SettingRow
+                  id="liveness-check"
+                  title={t(
+                    "attendance.settings_page.liveness_check",
+                    "Live face check before selfies",
+                  )}
+                  description={t(
+                    "attendance.settings_page.liveness_check_desc",
+                    "The phone asks for a blink or a head turn before the photo, to catch a photo of a photo. It runs on the phone; no face data leaves it. A failed check is sent for review, never refused.",
+                  )}
+                >
+                  <Switch
+                    checked={form.liveness_check}
+                    onCheckedChange={(v) => setField("liveness_check", v)}
+                  />
+                </SettingRow>
+                <SettingRow
                   id="adaptive-selfie"
                   title={t(
                     "attendance.settings_page.adaptive_selfie",

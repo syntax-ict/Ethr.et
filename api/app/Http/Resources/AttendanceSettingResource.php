@@ -36,6 +36,7 @@ class AttendanceSettingResource extends JsonResource
             'photo_retention_days' => $this->photo_retention_days,
             'risk_review_threshold' => $this->risk_review_threshold,
             'adaptive_selfie' => $this->adaptive_selfie,
+            'liveness_check' => $this->liveness_check,
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }

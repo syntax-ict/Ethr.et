@@ -24,6 +24,7 @@ class MobileCheckOutRequest extends FormRequest
             'accuracy' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'photo' => ['nullable', 'string', new Base64Image],
             ...PunchSignals::rules(),
+            'liveness' => ['nullable', 'string', 'in:passed,failed,no_face,unavailable'],
         ];
     }
 }

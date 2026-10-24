@@ -77,6 +77,9 @@ final class MyShiftService
         $onLeave = $this->onLeave($employee, $day);
         $working = (bool) ($shift !== null && $shift->isWorkingDay($day) && $holiday === null && ! $onLeave);
 
+        // A selfie today: always where required, sometimes where adaptive.
+        $selfie = $this->policy->selfieRequired($employee, $policy, $day->format('Y-m-d'));
+
         // A remote worker has no place to be shown or measured against.
         $mode = AttendancePolicy::modeOf($employee);
         $branch = $mode === AttendanceMode::REMOTE ? null : $employee->branch;
@@ -114,7 +117,8 @@ final class MyShiftService
                 'qr_enabled' => $policy->isMethodEnabled('qr'),
                 'attendance_mode' => $mode->value,
                 'geofence_required' => (bool) $policy->geofence_required,
-                'photo_required' => $this->policy->selfieRequired($employee, $policy, $day->format('Y-m-d')),
+                'photo_required' => $selfie,
+                'liveness_required' => (bool) ($selfie && $policy->liveness_check),
                 'photo_consent' => PhotoConsent::given($user),
                 'accuracy_threshold_meters' => (int) $policy->mobile_accuracy_threshold_meters,
                 'offline_sync_enabled' => (bool) $policy->offline_sync_enabled,

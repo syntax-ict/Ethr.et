@@ -580,7 +580,14 @@
     # nominatim.openstreetmap.org for the admin's address search (connect-src),
     # and maps.googleapis.com for the optional Google Maps loader (script-src,
     # connect-src), used only when the platform console holds a Maps key.
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://maps.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://nominatim.openstreetmap.org https://maps.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    #
+    # On-device liveness (2026-10-24): 'wasm-unsafe-eval' lets the browser
+    # compile MediaPipe's WebAssembly, served from this site (/mediapipe/). It
+    # is narrower than 'unsafe-eval': it allows WebAssembly compilation and no
+    # JavaScript eval. The face model is fetched from Google's MediaPipe model
+    # storage (connect-src) only where an organisation turns liveness on; no
+    # image or face data is sent anywhere.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://maps.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://nominatim.openstreetmap.org https://maps.googleapis.com https://storage.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 </IfModule>
 
 # ── Static asset caching ──────────────────────────────────────────────────

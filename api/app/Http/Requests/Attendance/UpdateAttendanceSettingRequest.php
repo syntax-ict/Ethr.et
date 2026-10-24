@@ -38,6 +38,7 @@ class UpdateAttendanceSettingRequest extends FormRequest
             'photo_retention_days' => ['sometimes', 'integer', 'min:1', 'max:90'],
             'risk_review_threshold' => ['sometimes', 'integer', 'min:10', 'max:100'],
             'adaptive_selfie' => ['sometimes', 'boolean'],
+            'liveness_check' => ['sometimes', 'boolean'],
         ];
     }
 }

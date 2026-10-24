@@ -349,8 +349,11 @@ it('sends the full security header set, with the CSP that lets the export hydrat
     expect($csp)->toContain("script-src 'self' 'unsafe-inline'");
 
     // 'unsafe-eval' is measured UNNECESSARY here, so this policy stays tighter
-    // than next.config.ts's. Do not widen it to match.
-    expect($csp)->not->toContain('unsafe-eval');
+    // than next.config.ts's. Do not widen it to match. The quoted token, so
+    // 'wasm-unsafe-eval' (WebAssembly compilation for on-device liveness, no
+    // JavaScript eval, added 2026-10-24) is not mistaken for it.
+    expect($csp)->not->toContain("'unsafe-eval'")
+        ->and($csp)->toContain("'wasm-unsafe-eval'");
 
     // No wss: — Reverb is not deployed on this target.
     expect($csp)->not->toContain('wss:');

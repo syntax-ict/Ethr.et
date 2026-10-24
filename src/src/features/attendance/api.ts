@@ -226,6 +226,8 @@ export function useMobilePunch() {
         photo?: string;
         /** Made by the assistant on arrival, not by a tap (check-in only). */
         auto?: boolean;
+        /** The on-device liveness outcome, when the selfie was checked. */
+        liveness?: "passed" | "failed" | "no_face" | "unavailable";
       } & Partial<PunchSignals>,
     ): Promise<PunchResult> => {
       const { type, ...payload } = vars;

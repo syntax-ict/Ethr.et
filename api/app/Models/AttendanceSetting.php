@@ -38,6 +38,7 @@ class AttendanceSetting extends Model
         'photo_retention_days',
         'risk_review_threshold',
         'adaptive_selfie',
+        'liveness_check',
     ];
 
     protected function casts(): array
@@ -65,6 +66,7 @@ class AttendanceSetting extends Model
             'photo_retention_days' => 'integer',
             'risk_review_threshold' => 'integer',
             'adaptive_selfie' => 'boolean',
+            'liveness_check' => 'boolean',
         ];
     }
 
@@ -93,6 +95,7 @@ class AttendanceSetting extends Model
             'photo_retention_days' => 7,
             'risk_review_threshold' => 40,
             'adaptive_selfie' => false,
+            'liveness_check' => false,
         ];
     }
 

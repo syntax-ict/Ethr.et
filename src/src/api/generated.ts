@@ -7521,6 +7521,7 @@ export interface components {
             photo_retention_days: number;
             risk_review_threshold: number;
             adaptive_selfie: boolean;
+            liveness_check: boolean;
             updated_at: string | null;
         };
         /** AttendanceSiteResource */
@@ -8483,6 +8484,8 @@ export interface components {
             /** Format: date-time */
             client_time?: string | null;
             webdriver?: boolean | null;
+            /** @enum {string|null} */
+            liveness?: "passed" | "failed" | "no_face" | "unavailable" | null;
         };
         /** MobileCheckOutRequest */
         MobileCheckOutRequest: {
@@ -8499,6 +8502,8 @@ export interface components {
             /** Format: date-time */
             client_time?: string | null;
             webdriver?: boolean | null;
+            /** @enum {string|null} */
+            liveness?: "passed" | "failed" | "no_face" | "unavailable" | null;
         };
         /**
          * NationalityStatus
@@ -10022,6 +10027,7 @@ export interface components {
             photo_retention_days?: number;
             risk_review_threshold?: number;
             adaptive_selfie?: boolean;
+            liveness_check?: boolean;
         };
         /**
          * UpdateBranchAttendanceRequest
@@ -20930,6 +20936,7 @@ export interface operations {
                             attendance_mode: string;
                             geofence_required: boolean;
                             photo_required: boolean;
+                            liveness_required: boolean;
                             photo_consent: boolean;
                             accuracy_threshold_meters: number;
                             offline_sync_enabled: boolean;

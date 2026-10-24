@@ -4981,6 +4981,9 @@
                                                 "photo_required": {
                                                     "type": "boolean"
                                                 },
+                                                "liveness_required": {
+                                                    "type": "boolean"
+                                                },
                                                 "photo_consent": {
                                                     "type": "boolean"
                                                 },
@@ -5091,6 +5094,7 @@
                                                 "attendance_mode",
                                                 "geofence_required",
                                                 "photo_required",
+                                                "liveness_required",
                                                 "photo_consent",
                                                 "accuracy_threshold_meters",
                                                 "offline_sync_enabled",
@@ -37697,6 +37701,9 @@
                     "adaptive_selfie": {
                         "type": "boolean"
                     },
+                    "liveness_check": {
+                        "type": "boolean"
+                    },
                     "updated_at": {
                         "type": [
                             "string",
@@ -37727,6 +37734,7 @@
                     "photo_retention_days",
                     "risk_review_threshold",
                     "adaptive_selfie",
+                    "liveness_check",
                     "updated_at"
                 ],
                 "title": "AttendanceSettingResource"
@@ -41281,6 +41289,19 @@
                             "boolean",
                             "null"
                         ]
+                    },
+                    "liveness": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "passed",
+                            "failed",
+                            "no_face",
+                            "unavailable",
+                            null
+                        ]
                     }
                 },
                 "required": [
@@ -41378,6 +41399,19 @@
                         "type": [
                             "boolean",
                             "null"
+                        ]
+                    },
+                    "liveness": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "passed",
+                            "failed",
+                            "no_face",
+                            "unavailable",
+                            null
                         ]
                     }
                 },
@@ -45764,6 +45798,9 @@
                         "maximum": 100
                     },
                     "adaptive_selfie": {
+                        "type": "boolean"
+                    },
+                    "liveness_check": {
                         "type": "boolean"
                     }
                 },

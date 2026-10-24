@@ -34,6 +34,7 @@ class MobileCheckInRequest extends FormRequest
             'photo' => ['nullable', 'string', new Base64Image(FileStorageService::SELFIE_UPLOAD_MAX_BYTES)],
             'auto' => ['sometimes', 'boolean'],
             ...PunchSignals::rules(),
+            'liveness' => ['nullable', 'string', 'in:passed,failed,no_face,unavailable'],
         ];
     }
 

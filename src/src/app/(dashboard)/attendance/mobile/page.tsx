@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  checkLiveness,
+  randomPrompt,
+  type LivenessPrompt,
+  type LivenessResult,
+} from "@/lib/attendance/liveness";
 import { PushToggle } from "@/features/notifications/components/push-toggle";
 import { VisitLogCard } from "@/features/attendance/components/visit-log-card";
 import { useEffect, useRef, useState } from "react";
@@ -209,6 +215,35 @@ export default function MobilePunchPage() {
     stopCamera();
   }
 
+  // On-device liveness, where the organisation turned it on: a random blink
+  // or head turn before the photo. The outcome goes with the punch; a failed
+  // check never blocks it (the reviewer sees it), and a phone that cannot run
+  // the check sends "unavailable", which counts for nothing.
+  const livenessRequired = Boolean(shift?.policy.liveness_required);
+  const [livenessPrompt, setLivenessPrompt] = useState<LivenessPrompt | null>(
+    null,
+  );
+  const [liveness, setLiveness] = useState<LivenessResult | null>(null);
+
+  async function checkThenSnap() {
+    const video = videoRef.current;
+    if (!video) return;
+    const prompt = randomPrompt();
+    setLivenessPrompt(prompt);
+    const result = await checkLiveness(video, prompt);
+    setLivenessPrompt(null);
+    setLiveness(result);
+    if (result === "failed" || result === "no_face") {
+      toast.error(
+        t(
+          "liveness.retry",
+          "We could not confirm a live face. Face the camera in good light and try again.",
+        ),
+      );
+    }
+    snapPhoto();
+  }
+
   // What the button does: the server's answer when it has one.
   const status = shift?.attendance.status;
   const type: PunchType = shift
@@ -286,6 +321,7 @@ export default function MobilePunchPage() {
         longitude: position.longitude,
         accuracy: position.accuracy,
         ...punchSignals(position),
+        ...(photo && liveness ? { liveness } : {}),
         // The selfie goes with the check-out too: until 2026-10-24 only the
         // check-in carried one, so a check-out was never evidenced.
         ...(photo ? { photo } : {}),
@@ -692,8 +728,18 @@ export default function MobilePunchPage() {
           )}
           <div className="mt-3 flex gap-2">
             {cameraOn ? (
-              <Button className="flex-1" onClick={snapPhoto}>
-                {t("attendance.mobile_page.capture")}
+              <Button
+                className="flex-1"
+                disabled={livenessPrompt !== null}
+                onClick={() =>
+                  livenessRequired ? void checkThenSnap() : snapPhoto()
+                }
+              >
+                {livenessPrompt === "blink"
+                  ? t("liveness.blink", "Blink once")
+                  : livenessPrompt === "turn"
+                    ? t("liveness.turn", "Turn your head to one side")
+                    : t("attendance.mobile_page.capture")}
               </Button>
             ) : (
               <Button variant="outline" className="flex-1" onClick={takeSelfie}>

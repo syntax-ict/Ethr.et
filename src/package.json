@@ -23,11 +23,13 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
     "generate:api": "node scripts/generate-api.mjs",
     "build:shared-hosting": "node scripts/build-shared-hosting.mjs",
-    "verify:static-export": "node scripts/verify-static-export.mjs"
+    "verify:static-export": "node scripts/verify-static-export.mjs",
+    "postinstall": "node scripts/copy-mediapipe.mjs"
   },
   "type": "module",
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
+    "@mediapipe/tasks-vision": "1.1.0",
     "@radix-ui/react-checkbox": "^1.4.1",
     "@radix-ui/react-dialog": "^1.3.1",
     "@radix-ui/react-dropdown-menu": "^2.2.1",

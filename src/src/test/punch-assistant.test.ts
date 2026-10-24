@@ -56,6 +56,7 @@ function shift(
       attendance_mode: "office",
       geofence_required: false,
       photo_required: overrides.photo ?? false,
+      liveness_required: false,
       photo_consent: false,
       accuracy_threshold_meters: 100,
       offline_sync_enabled: true,

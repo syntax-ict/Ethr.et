@@ -78,6 +78,7 @@ class MobileAttendanceController extends Controller
                     'auto_punch' => $auto ?: null,
                     'accuracy' => $request->validated('accuracy'),
                     ...PunchSignals::from($request->validated(), $request->userAgent()),
+                    'liveness' => $request->validated('liveness'),
                 ], fn ($v) => $v !== null),
             ));
         } catch (\RuntimeException $e) {
@@ -129,6 +130,7 @@ class MobileAttendanceController extends Controller
             metadata: array_filter([
                 'accuracy' => $request->validated('accuracy'),
                 ...PunchSignals::from($request->validated(), $request->userAgent()),
+                'liveness' => $request->validated('liveness'),
             ], fn ($v) => $v !== null),
         ));
 

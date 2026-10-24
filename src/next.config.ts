@@ -100,7 +100,7 @@ const nextConfig: NextConfig = {
               // a URL first.
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              `connect-src 'self' ws: wss: https://nominatim.openstreetmap.org https://maps.googleapis.com${sentryOrigin}`,
+              `connect-src 'self' ws: wss: https://nominatim.openstreetmap.org https://maps.googleapis.com https://storage.googleapis.com${sentryOrigin}`,
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
