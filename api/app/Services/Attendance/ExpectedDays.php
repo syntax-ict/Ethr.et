@@ -59,7 +59,7 @@ final class ExpectedDays
             $employee->branch_id,
         );
 
-        $leave = $this->leaveDays([$employee->id], $from, $to)[$employee->id] ?? [];
+        $leave = $this->leaveDays($employee->tenant_id, [$employee->id], $from, $to)[$employee->id] ?? [];
 
         $days = [];
         foreach ($working as $day => $works) {
@@ -83,7 +83,7 @@ final class ExpectedDays
 
         $day = $date->format('Y-m-d');
         $working = $this->shifts->workingOn($employees, $date, $this->workingWeek($first));
-        $leave = $this->leaveDays($employees->pluck('id')->all(), $date, $date);
+        $leave = $this->leaveDays($first->tenant_id, $employees->pluck('id')->all(), $date, $date);
 
         // Holidays can be branch-wide, so one lookup per branch present.
         $holidaysByBranch = [];
@@ -155,16 +155,20 @@ final class ExpectedDays
     /**
      * Approved leave, as the days it covers inside [$from, $to].
      *
+     * Stated `tenant_id` as well as the scope: payroll asks from a queued job,
+     * where the tenant is whatever the job set.
+     *
      * @param  list<int>  $employeeIds
      * @return array<int, array<string, true>> employee id => Y-m-d => true
      */
-    private function leaveDays(array $employeeIds, CarbonInterface $from, CarbonInterface $to): array
+    private function leaveDays(int $tenantId, array $employeeIds, CarbonInterface $from, CarbonInterface $to): array
     {
         $first = $from->format('Y-m-d');
         $last = $to->format('Y-m-d');
         $days = [];
 
         $requests = LeaveRequest::query()
+            ->where('tenant_id', $tenantId)
             ->whereIn('employee_id', $employeeIds)
             ->where('status', LeaveStatus::APPROVED)
             ->whereDate('start_date', '<=', $last)

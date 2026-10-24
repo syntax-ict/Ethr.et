@@ -23267,6 +23267,7 @@ export interface operations {
                             overtime_legal_daily_limit_minutes: number | null;
                             overtime_legal_weekly_limit_minutes: number | null;
                             overtime_days_over_approved: unknown[] | null;
+                            unexplained_absence_days: unknown[] | null;
                         }[];
                         totals: string;
                         pension_rates: {
@@ -23300,6 +23301,16 @@ export interface operations {
                                 weeks_over_legal_weekly_limit: number;
                                 longest_week_minutes: number;
                                 days_over_approved: number;
+                            }[];
+                        };
+                        absences: {
+                            count: number;
+                            days: number;
+                            employees: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                days: number;
+                                dates: string[];
                             }[];
                         };
                     };

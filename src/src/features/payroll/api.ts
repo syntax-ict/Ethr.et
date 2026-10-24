@@ -172,6 +172,19 @@ export interface PayrollRegister {
   pension_exemptions?: PensionExemptions;
   /** Who worked overtime past the organisation's or the legal limits; all of it is paid. */
   overtime_limits?: OvertimeLimits;
+  /** Who missed workdays with no attendance, leave or holiday on record; pay was not reduced. */
+  absences?: PayrollAbsences;
+}
+
+export interface PayrollAbsences {
+  count: number;
+  days: number;
+  employees: {
+    employee_public_id: string | null;
+    employee_name: string;
+    days: number;
+    dates: string[];
+  }[];
 }
 
 export interface OvertimeLimits {

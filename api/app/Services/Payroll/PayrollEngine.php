@@ -6,6 +6,7 @@ namespace App\Services\Payroll;
 
 use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
+use App\Enums\ExpectedDay;
 use App\Enums\LeaveStatus;
 use App\Enums\OvertimeRequestStatus;
 use App\Exceptions\PayrollRunRefused;
@@ -19,10 +20,12 @@ use App\Models\OvertimeRequest;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
+use App\Services\Attendance\ExpectedDays;
 use App\Services\Attendance\ShiftMatcher;
 use App\Services\Calendar\EthiopianCalendar;
 use App\Services\Holiday\HolidayService;
 use App\Services\Leave\LeaveDayCalculator;
+use App\Support\TenantTime;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -73,7 +76,11 @@ final class PayrollEngine
         private readonly EthiopianCalendar $calendar,
         private readonly ShiftMatcher $shiftMatcher,
         private readonly PayrollBalanceService $balances,
+        private readonly ExpectedDays $expectedDays,
     ) {}
+
+    /** @var array<string, bool> keyed by tenant id and period */
+    private array $attendanceInUse = [];
 
     /**
      * Create the run, then compute it, in one call.
@@ -519,6 +526,12 @@ final class PayrollEngine
             'basic_after_unpaid_leave_cents' => $proratedBasic,
         ];
 
+        $log['steps'][] = [
+            'step' => 'absences',
+            // Flagged for review, never deducted: pay is unchanged.
+            'unexplained_absence_days' => $this->unexplainedAbsences($employee, $periodStart, $periodEnd),
+        ];
+
         ['buckets' => $overtimeByType, 'by_day' => $overtimeByDay] = $this->gatherOvertimeByType($employee, $periodStart, $periodEnd);
         $overtimeRates = $this->overtimeCalculator->ratesFor($employee->tenant_id);
 
@@ -750,6 +763,60 @@ final class PayrollEngine
         }
 
         return $days;
+    }
+
+    /**
+     * The period's workdays on which this person was expected at work and
+     * has no attendance: not approved leave, not a holiday, not a rest day,
+     * inside their employment (ExpectedDays). Flagged on the run before
+     * approval and never deducted. A day the system cannot explain may be
+     * leave nobody recorded, a punch a device missed, or work away from site,
+     * and docking pay for it is a decision for a person, not a count.
+     *
+     * Only days already over count. An organisation that recorded no
+     * attendance at all in the period is not using attendance, and every
+     * workday would read as absent, so nothing is flagged for it.
+     *
+     * @return list<string> Y-m-d
+     */
+    private function unexplainedAbsences(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $yesterday = TenantTime::today(Tenant::query()->find($employee->tenant_id))->subDay()->format('Y-m-d');
+        $first = $periodStart->format('Y-m-d');
+        $last = min($periodEnd->format('Y-m-d'), $yesterday);
+
+        if ($last < $first || ! $this->attendanceInUse($employee->tenant_id, $first, $last)) {
+            return [];
+        }
+
+        $attended = AttendanceRecord::query()
+            ->where('tenant_id', $employee->tenant_id)
+            ->where('employee_id', $employee->id)
+            ->whereDate('date', '>=', $first)
+            ->whereDate('date', '<=', $last)
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            ->where(fn ($q) => $q->whereNotNull('check_in')->orWhereNotNull('check_out'))
+            ->pluck('date')
+            ->mapWithKeys(fn ($date): array => [Carbon::parse($date)->format('Y-m-d') => true])
+            ->all();
+
+        $absent = [];
+        foreach ($this->expectedDays->forEmployee($employee, Carbon::parse($first), Carbon::parse($last)) as $day => $kind) {
+            if ($kind === ExpectedDay::WORKDAY && ! isset($attended[$day])) {
+                $absent[] = $day;
+            }
+        }
+
+        return $absent;
+    }
+
+    private function attendanceInUse(int $tenantId, string $first, string $last): bool
+    {
+        return $this->attendanceInUse["{$tenantId}|{$first}|{$last}"] ??= AttendanceRecord::query()
+            ->where('tenant_id', $tenantId)
+            ->whereDate('date', '>=', $first)
+            ->whereDate('date', '<=', $last)
+            ->exists();
     }
 
     /**
