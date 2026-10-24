@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/shared/error-state";
 import {
   useBranchAttendanceRules,
   useUpdateBranchAttendanceRules,
@@ -56,7 +57,7 @@ const SWITCHES: SwitchKey[] = [
  */
 export function BranchRulesCard() {
   const { t } = useT();
-  const { data, isLoading } = useBranchAttendanceRules();
+  const { data, isLoading, isError, refetch } = useBranchAttendanceRules();
   const [editing, setEditing] = useState<BranchAttendanceRow | null>(null);
 
   const switchLabel: Record<SwitchKey, string> = {
@@ -100,7 +101,9 @@ export function BranchRulesCard() {
         </p>
       </CardHeader>
       <CardContent>
-        {isLoading || !data ? (
+        {isError ? (
+          <ErrorState onRetry={() => refetch()} />
+        ) : isLoading || !data ? (
           <Skeleton className="h-24" />
         ) : data.branches.length === 0 ? (
           <p className="text-sm text-muted-foreground">
