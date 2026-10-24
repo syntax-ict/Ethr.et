@@ -276,6 +276,67 @@ class FileStorageService
     }
 
     /**
+     * Store a landing-page picture, for a row or the hero, encoded exactly as
+     * a cover is (a JPEG at most 1920 px, with 1280 and 640 px copies), under
+     * the owner's public id and a content hash. MarketingImageController
+     * serves it from that path alone, so a new upload is a new URL.
+     *
+     * Under `platform/`, never tenantPrefix(): the console runs with no
+     * tenant resolved, where that prefix is the bare string "tenants/".
+     *
+     * @return array{path: string, version: string, width: int, height: int, variants: array<int, string>}
+     */
+    public function uploadMarketingImage(UploadedFile $file, string $ownerPublicId): array
+    {
+        $image = $this->replaceWithScaled($this->decodeImage($file, 'image'), self::COVER_MAX_DIMENSION);
+        [$content, $encodedVariants] = $this->encodeCover($image);
+        $width = imagesx($image);
+        $height = imagesy($image);
+        imagedestroy($image);
+
+        $version = substr(hash('sha256', $content), 0, 16);
+        $path = self::marketingImagePath($ownerPublicId, $version);
+        Storage::disk($this->disk)->put($path, $content);
+
+        $variants = [];
+        foreach ($encodedVariants as $variantWidth => $bytes) {
+            $variantPath = self::marketingImagePath($ownerPublicId, $version, $variantWidth);
+            Storage::disk($this->disk)->put($variantPath, $bytes);
+            $variants[$variantWidth] = $variantPath;
+        }
+
+        return [
+            'path' => $path,
+            'version' => $version,
+            'width' => $width,
+            'height' => $height,
+            'variants' => $variants,
+        ];
+    }
+
+    /**
+     * Remove a landing-page picture and its narrower copies, best effort.
+     *
+     * @param  array{path: string, variants: array<int, string>}  $image
+     */
+    public function deleteMarketingImage(array $image): void
+    {
+        $this->delete($image['path']);
+        foreach ($image['variants'] as $path) {
+            $this->delete($path);
+        }
+    }
+
+    /**
+     * Where a landing-page picture, or one of its narrower copies, is
+     * stored. One definition for the upload, the seeder and the controller.
+     */
+    public static function marketingImagePath(string $ownerPublicId, string $version, ?int $width = null): string
+    {
+        return "platform/marketing/{$ownerPublicId}-{$version}".($width === null ? '' : "-{$width}").'.jpg';
+    }
+
+    /**
      * Store a document attached to a news story, as uploaded: a PDF whose
      * content the request has already checked. Kept under the story's public
      * id with a fresh ULID, so a name cannot collide and is never a path. The

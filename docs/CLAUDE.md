@@ -846,6 +846,7 @@ These models are global and must NOT have `tenant_id` or `BelongsToTenant`:
 - `SuperAdmin` — platform administrators
 - `StatutoryLayout` — the dated layouts of the national statutory schedules (MoR, POESSA, PSSSA), edited from the platform console *(2026-10-14)*
 - `SmsGateway`, `SmsSetting`, `SmsSend` — SMS delivery, bought and switched on once for the platform; the send ledger holds no number or text *(2026-10-14)*
+- `MarketingSection`, `MarketingItem` — the public landing page's sections and rows, one marketing site read by every visitor and edited from the platform console; the registry of kinds is `App\Support\MarketingContent` and every text field is checked by `PermittedMarketingClaim` *(2026-10-24, `docs/operations/MARKETING-SITE.md`)*
 
 All other models MUST have `tenant_id` and use `BelongsToTenant`. The `TenantIsolationTest` enforces this.
 

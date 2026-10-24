@@ -56,6 +56,11 @@ const GLOBAL_MODELS = [
     // The layouts of the national statutory schedules (MoR, POESSA, PSSSA):
     // one set for every organisation, edited only from the platform console.
     StatutoryLayout::class,
+    // The public landing page: one marketing site read by every visitor and
+    // owned by the platform operator, like Plan and PlatformSetting. Nothing
+    // in either table belongs to a tenant.
+    MarketingSection::class,
+    MarketingItem::class,
 ];
 
 /**

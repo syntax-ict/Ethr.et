@@ -1,0 +1,131 @@
+{
+  "version": "2026-10-24.1",
+  "target_width": 1920,
+  "min_width": 1024,
+  "aspect_tolerance": 0.15,
+  "max_bytes": 1048576,
+  "style": "Editorial flat illustration with soft paper grain and simple shapes. Palette: deep teal #0F4C75 and deep navy #0A2E4A on warm neutral grounds from #F8FAFC to #E2E8F0, with at most one small accent of gold #E8A838. Not photorealistic, not 3D, not clip-art, no gradients that look like stock art. Contemporary Ethiopian settings and people, as in an Addis Ababa office, a factory floor, a hospital ward, a bank branch, a school, a hotel, an NGO field office or a shop. Mixed ages and genders, contemporary dress, a habesha kemis or a netela where it is natural. One strong focal subject placed on the left or right third of the frame, with calm negative space on the other side. Every screen, paper, sign and label is blank or abstract: no letters, no numbers, no script of any kind. No real brands, logos, device models or identifiable people.",
+  "negative": "legible text, letters, numbers, Ge'ez script, Latin script, signage, logos, brand names, watermarks, device model names, identifiable real people, flags, coffee ceremony, maps, Lalibela, photorealism, 3D render, clip-art, stock photo look, neon colours, extra fingers, distorted hands, distorted faces, cluttered composition, centred subject",
+  "scenes": [
+    {
+      "slug": "hero",
+      "kind": "hero",
+      "aspect": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "prompt": "A wide, bright open-plan office in Addis Ababa seen from slightly above. Six or seven staff of mixed ages and genders work at light wooden desks: one stands talking with a colleague, one wears a netela over office clothes, one carries a folder past a window with morning light and the hazy outline of the city. On the far wall hangs one large blank screen, framed as a quiet focal point on the right third. Potted plants, tidy cables, a water dispenser. The whole scene reads as calm, organised, modern work.",
+      "alt": "A wide Addis Ababa office with several staff at work and one blank wall screen.",
+      "alt_am": "ብዙ ሠራተኞች በሥራ ላይ ያሉበት እና አንድ ባዶ የግድግዳ ስክሪን ያለው ሰፊ የአዲስ አበባ ቢሮ።"
+    },
+    {
+      "slug": "paper_attendance",
+      "kind": "problems",
+      "aspect": "16:10",
+      "width": 1920,
+      "height": 1200,
+      "prompt": "A factory floor at shift change. On the left third a supervisor in a work coat holds a thick paper shift register with blank ruled lines and runs a finger down a column. Two workers in overalls stand beside her, one pointing at the page, clearly disputing the hours written down. Behind them, machines, a clock face with no numbers, and a wall rack of blank time cards. The mood is tired and slightly tense, not angry.",
+      "alt": "A factory floor supervisor holding a paper shift register while two workers dispute their overtime.",
+      "alt_am": "አንድ የፋብሪካ ተቆጣጣሪ የወረቀት የፈረቃ መዝገብ ይዞ ሁለት ሠራተኞች በትርፍ ሰዓት ሥራቸው ላይ ሲከራከሩ።"
+    },
+    {
+      "slug": "manual_payroll",
+      "kind": "problems",
+      "aspect": "16:10",
+      "width": 1920,
+      "height": 1200,
+      "prompt": "A small finance office late in the day. On the right third a finance officer in a cardigan sits at a desk recomputing a tax ladder by hand: a desk calculator, a long printed table with blank rows, a pencil, a cup of tea gone cold, several crossed-out sheets. A ring binder of payslips stands open. A desk lamp throws warm light; the window behind is already dark blue. The feeling is of careful, repetitive work that cannot be allowed to be wrong.",
+      "alt": "A finance officer at a desk recomputing tax by hand with a calculator and printed sheets.",
+      "alt_am": "አንድ የፋይናንስ ባለሙያ በጠረጴዛ ላይ በካልኩሌተር እና በታተሙ ወረቀቶች ግብርን በእጅ እንደገና ሲያሰላ።"
+    },
+    {
+      "slug": "leave_spreadsheets",
+      "kind": "problems",
+      "aspect": "16:10",
+      "width": 1920,
+      "height": 1200,
+      "prompt": "An HR officer in a hospital administration office, placed on the left third, leaning over a desk covered in printed sheets with blank grids spread edge to edge. She holds one sheet up against another, comparing leave balances, with a highlighter in her other hand. A wall of lever-arch files behind her. Through a doorway, a corridor with a nurse walking past. The composition shows the sheets overlapping and not quite lining up.",
+      "alt": "An HR officer comparing leave balances across printed sheets spread over a desk.",
+      "alt_am": "አንድ የሰው ኃይል ባለሙያ በጠረጴዛ ላይ በተዘረጉ የታተሙ ወረቀቶች ላይ የፈቃድ ቀሪዎችን ሲያወዳድር።"
+    },
+    {
+      "slug": "branches_offline",
+      "kind": "problems",
+      "aspect": "16:10",
+      "width": 1920,
+      "height": 1200,
+      "prompt": "A small regional branch office of a cooperative bank in a highland town, seen through its open front door. On the right third a staff member in a blazer stands by the window holding a phone up toward the sky, its screen blank, the stylised signal arc above it empty. Inside, a colleague waits at a counter with a customer. Outside, eucalyptus trees, a dusty road, hills, a single power line. The mood is patient waiting rather than frustration.",
+      "alt": "A regional branch office where a staff member holds a phone with no signal.",
+      "alt_am": "አንድ ሠራተኛ ኔትወርክ የሌለው ስልክ ይዞ ያለበት የክልል ቅርንጫፍ ቢሮ።"
+    },
+    {
+      "slug": "bilingual_staff",
+      "kind": "problems",
+      "aspect": "16:10",
+      "width": 1920,
+      "height": 1200,
+      "prompt": "Two colleagues in a hotel back office share one desk and read one blank monitor together, placed on the left third. One, older, wears a netela over her shoulders and points at the screen; the other, younger, in a hotel uniform, leans in with a notebook. Their faces show the small effort of two people reading the same thing in different ways. A reception bell, a key rack and a stack of blank forms sit behind them.",
+      "alt": "Two colleagues reading one blank screen together at a shared desk.",
+      "alt_am": "ሁለት የሥራ ባልደረቦች በጋራ ጠረጴዛ ላይ አንድ ባዶ ስክሪን አብረው ሲያነቡ።"
+    },
+    {
+      "slug": "contracts_expiring",
+      "kind": "problems",
+      "aspect": "16:10",
+      "width": 1920,
+      "height": 1200,
+      "prompt": "A quiet NGO field office desk, early morning. On the right third a large wall calendar with blank cells and one cell circled in gold hangs above a tall, slightly leaning stack of paper contracts with blank pages and coloured tabs. A pen rests on the top contract. A field jacket on the chair, a window with acacia trees and flat light outside. Nobody is in the frame; the stack and the circled date carry the story.",
+      "alt": "A wall calendar beside a stack of contracts on an office desk.",
+      "alt_am": "በቢሮ ጠረጴዛ ላይ ከተከመሩ ውሎች አጠገብ ያለ የግድግዳ የቀን መቁጠሪያ።"
+    },
+    {
+      "slug": "records",
+      "kind": "capabilities",
+      "aspect": "16:10",
+      "width": 1920,
+      "height": 1200,
+      "prompt": "A tidy records room in a school administration block. On the left third an HR officer in a habesha kemis holds one complete employee file, a slim folder with a blank cover, and shows it to a new teacher with visible relief. Behind them, a laptop with a blank screen replaces the usual wall of binders; only a few folders remain on an otherwise clear shelf. Soft daylight from a high window. The feeling is of everything being in one place.",
+      "alt": "An HR officer holding a complete employee file in a tidy records room.",
+      "alt_am": "በተስተካከለ የመዝገብ ክፍል ውስጥ የተሟላ የሠራተኛ ፋይል የያዘ የሰው ኃይል ባለሙያ።"
+    },
+    {
+      "slug": "time",
+      "kind": "capabilities",
+      "aspect": "16:10",
+      "width": 1920,
+      "height": 1200,
+      "prompt": "A factory gate at seven in the morning, low sun. On the right third a worker in overalls and a high-visibility vest holds up a phone with a blank screen toward the gate, checking in; a small gold tick glows on the screen. Other workers walk in behind him through the open gate, one on a bicycle. A guard hut, a boom barrier, a chain-link fence and the long shadows of early morning. The moment is quick and ordinary.",
+      "alt": "A worker checking in on a phone at a factory gate in the morning.",
+      "alt_am": "አንድ ሠራተኛ ጠዋት በፋብሪካ በር ላይ በስልክ መግባቱን ሲመዘግብ።"
+    },
+    {
+      "slug": "payroll",
+      "kind": "capabilities",
+      "aspect": "16:10",
+      "width": 1920,
+      "height": 1200,
+      "prompt": "Outside a bank branch in Addis Ababa at lunchtime. On the left third a young employee in a shop apron stands on the pavement and opens a payslip on her phone, the screen blank except for an abstract column of bars, smiling slightly. A colleague beside her looks over her shoulder. Behind them the bank's glass front, a minibus taxi passing, pedestrians, a jacaranda tree. The feeling is of knowing, in the moment, what you were paid.",
+      "alt": "An employee opening a payslip on a phone outside a bank branch.",
+      "alt_am": "አንድ ሠራተኛ ከባንክ ቅርንጫፍ ውጭ በስልክ የደመወዝ ደረሰኙን ሲከፍት።"
+    },
+    {
+      "slug": "self_service",
+      "kind": "capabilities",
+      "aspect": "16:10",
+      "width": 1920,
+      "height": 1200,
+      "prompt": "A hospital corridor with pale walls and a window at the end. On the right third a ward manager in a white coat stands and approves a request on a tablet with one tap, the tablet showing only an abstract card with a gold mark. A nurse who made the request waits a few steps away, relaxed, holding a clipboard with blank paper. A trolley, a wall clock with no numbers, a sign with no letters. The composition is calm and unhurried.",
+      "alt": "A manager approving a request on a tablet in a hospital corridor.",
+      "alt_am": "አንድ ኃላፊ በሆስፒታል ኮሪደር ውስጥ በታብሌት ጥያቄን ሲያጸድቅ።"
+    },
+    {
+      "slug": "analytics",
+      "kind": "capabilities",
+      "aspect": "16:10",
+      "width": 1920,
+      "height": 1200,
+      "prompt": "A small meeting room in an Addis Ababa office. On the left third a large wall screen shows an abstract dashboard: a few teal bars, one navy line, one gold dot, no numbers or labels. Three managers of mixed ages and genders sit and stand around a table looking at it; one gestures at a bar. A glass wall behind them shows the open office. Morning light, a jug of water, notebooks with blank pages. The feeling is of a decision being made from one clear picture.",
+      "alt": "A team looking at a dashboard on a wall screen in a meeting room.",
+      "alt_am": "አንድ ቡድን በስብሰባ ክፍል ውስጥ በግድግዳ ስክሪን ላይ ያለ ዳሽቦርድ ሲመለከት።"
+    }
+  ]
+}

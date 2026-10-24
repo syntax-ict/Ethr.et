@@ -42,6 +42,8 @@ class GroupOperationsByDomain
         'AdminDashboard' => 'Platform Administration',
         'AdminTenant' => 'Platform Administration',
         'PlatformSettings' => 'Platform Administration',
+        'AdminMarketing' => 'Platform Administration',
+        'AdminPlan' => 'Platform Administration',
 
         // Authentication & identity.
         'Login' => 'Authentication',

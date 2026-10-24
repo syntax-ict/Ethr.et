@@ -184,6 +184,15 @@ Three reasons, all already documented here:
 
 This removes an entire upload subsystem — and a reusable upload component that does not exist — from the work.
 
+> **Amended 2026-10-24: platform image uploads now exist, for the landing page.** Both
+> blockers above were later solved for *tenant* logos and covers, and the landing page's
+> pictures reuse that answer: `FileStorageService::uploadMarketingImage()` writes under a
+> static `platform/marketing/` path (never `tenantPrefix()`, which is the bare string
+> `tenants/` with no tenant resolved), and `MarketingImageController` serves the re-encoded
+> JPEG at a content-hash URL with `Cache-Control: immutable`, so no signed URL is involved.
+> The platform logo itself is still a URL field; nothing here changes it. See
+> [`operations/MARKETING-SITE.md`](operations/MARKETING-SITE.md).
+
 ### D5 — Delivery: build-time snapshot + client revalidation, upgradeable to ISR for free
 
 The load-bearing call, because **hosting gate B5 (is Node.js available on the Plesk host?) is NOT VERIFIED** — `MIGRATION_STATE.md:137`, `B1-B5_GATE_REPORT.md:27`, `GATE-0-RESULT.md:93`, `HOSTING_VERIFICATION_CHECKLIST.md:117-125`, under the rule *"NOT VERIFIED is not a soft yes."* If B5 is no, the frontend becomes `output: "export"`: no middleware, no `headers()`, nothing rendered on the server. There is also **no precedent in this codebase for a Server Component fetching the API** — zero exist.
@@ -219,7 +228,7 @@ Patterns to follow, not reinvent: `RoleGate minRole="super_admin"` → `PageHead
 
 Caching convention: fixed key, integer-second TTL, `Cache::forget()` from a model `saved` hook so any writer invalidates — matching `Tenant.php:216-217`. Never `Cache::tags`; Redis was removed for the shared-hosting target.
 
-A new admin screen needs nav registration in six places — `lib/route-meta.ts`, `sidebar-nav.tsx` (twice), `mobile-bottom-nav.tsx`, `command-palette.tsx`, `admin/page.tsx` — plus `test/platform-admin-nav.test.tsx`, which pins the route-meta label.
+A new admin screen needs nav registration in three places *(corrected 2026-10-24: the sidebar and the command palette both read `lib/navigation/registry.ts` since 2026-10-23, so the six places became three)* — `lib/navigation/registry.ts` (`PLATFORM_CHILDREN`), `lib/route-meta.ts` and `admin/page.tsx` — plus `test/platform-admin-nav.test.tsx` and `test/navigation-registry.test.ts`, which pin the label and the href list. The phone's bottom bar has five slots and takes no more.
 
 The public content endpoint must **not** sit behind `EnsurePlatformContext`: that middleware 404s whenever a tenant *is* resolved, so it would break on every tenant subdomain.
 

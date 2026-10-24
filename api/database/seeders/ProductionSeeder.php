@@ -28,6 +28,7 @@ class ProductionSeeder extends Seeder
             PlanSeeder::class,
             TaxBracketSeeder::class,
             OrganizationTemplateSeeder::class,
+            MarketingContentSeeder::class,
         ]);
 
         $this->command?->info('Production system data seeded (permissions, plans, tax brackets, templates).');
