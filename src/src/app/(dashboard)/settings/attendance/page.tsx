@@ -21,6 +21,7 @@ import { SettingRow } from "@/components/patterns/SettingRow";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
 import { BranchRulesCard } from "@/features/attendance/components/branch-rules-card";
+import { WorkSitesCard } from "@/features/attendance/components/work-sites-card";
 
 type Method = AttendanceSettings["enabled_methods"][number];
 
@@ -600,6 +601,7 @@ export default function AttendanceSettingsPage() {
               </CardContent>
             </Card>
 
+            <WorkSitesCard />
             <BranchRulesCard />
           </div>
         )}

@@ -102,6 +102,7 @@ class UpdatePlatformSettingsRequest extends FormRequest
             'testimonial_role_am' => ['sometimes', 'nullable', 'string', 'max:150'],
             'testimonial_organisation' => ['sometimes', 'nullable', 'string', 'max:150'],
             'testimonial_consented_on' => ['nullable', 'required_with:testimonial_quote', 'date', 'before_or_equal:today'],
+            'google_maps_key' => ['sometimes', 'nullable', 'string', 'max:120', 'regex:/^AIza[0-9A-Za-z_\-]{30,}$/'],
         ];
     }
 

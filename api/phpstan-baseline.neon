@@ -397,6 +397,18 @@ parameters:
 			path: app/Models/BranchAttendanceOverride.php
 
 		-
+			message: '#^Method App\\Models\\AttendanceSite\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AttendanceSite.php
+
+		-
+			message: '#^Method App\\Models\\AttendanceSiteAssignment\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AttendanceSiteAssignment.php
+
+		-
 			message: '#^Class App\\Models\\Announcement uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1

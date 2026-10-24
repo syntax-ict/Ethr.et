@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\Attendance\AttendanceIntegrityController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntelligenceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendancePhotoController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceSettingController;
+use App\Http\Controllers\Api\V1\Attendance\AttendanceSiteController;
 use App\Http\Controllers\Api\V1\Attendance\BranchAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\EmployeeAttendanceModeController;
 use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
@@ -408,6 +409,11 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::put('/settings', [AttendanceSettingController::class, 'update']);
         Route::get('/settings/branches', [BranchAttendanceController::class, 'index']);
         Route::put('/settings/branches/{branch}', [BranchAttendanceController::class, 'update']);
+        Route::get('/map-config', [AttendanceSiteController::class, 'mapConfig']);
+        Route::get('/sites', [AttendanceSiteController::class, 'index']);
+        Route::post('/sites', [AttendanceSiteController::class, 'store']);
+        Route::put('/sites/{site}', [AttendanceSiteController::class, 'update']);
+        Route::delete('/sites/{site}', [AttendanceSiteController::class, 'destroy']);
 
         Route::prefix('photos')->group(function () {
             Route::get('/', [AttendancePhotoController::class, 'index']);

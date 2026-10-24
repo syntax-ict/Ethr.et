@@ -4396,6 +4396,48 @@
                 }
             }
         },
+        "/attendance/map-config": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendanceSite.mapConfig",
+                "summary": "The map settings a picker needs: the platform's Google Maps key, if the\nplatform has one. It is a browser key by Google's design",
+                "tags": [
+                    "Attendance"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "google_maps_key": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "google_maps_key"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/attendance/mobile/check-in": {
             "post": {
                 "x-abilities": [
@@ -4969,6 +5011,77 @@
                                                         "longitude",
                                                         "radius_meters"
                                                     ]
+                                                },
+                                                "places": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "kind": {
+                                                                        "type": "string",
+                                                                        "const": "branch"
+                                                                    },
+                                                                    "public_id": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "latitude": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "longitude": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "radius_meters": {
+                                                                        "type": "integer"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "kind",
+                                                                    "public_id",
+                                                                    "name",
+                                                                    "latitude",
+                                                                    "longitude",
+                                                                    "radius_meters"
+                                                                ]
+                                                            },
+                                                            {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "kind": {
+                                                                        "type": "string",
+                                                                        "const": "site"
+                                                                    },
+                                                                    "public_id": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "latitude": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "longitude": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "radius_meters": {
+                                                                        "type": "integer"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "kind",
+                                                                    "public_id",
+                                                                    "name",
+                                                                    "latitude",
+                                                                    "longitude",
+                                                                    "radius_meters"
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
                                                 }
                                             },
                                             "required": [
@@ -4981,7 +5094,8 @@
                                                 "photo_consent",
                                                 "accuracy_threshold_meters",
                                                 "offline_sync_enabled",
-                                                "geofence"
+                                                "geofence",
+                                                "places"
                                             ]
                                         },
                                         "assistant": {
@@ -7288,6 +7402,176 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/attendance/sites": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendanceSite.index",
+                "summary": "List sites",
+                "tags": [
+                    "Attendance"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `AttendanceSiteResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/AttendanceSiteResource"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceSite.store",
+                "summary": "Create site",
+                "tags": [
+                    "Attendance"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveAttendanceSiteRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`AttendanceSiteResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttendanceSiteResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/attendance/sites/{site}": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceSite.update",
+                "summary": "Update site",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "site",
+                        "in": "path",
+                        "required": true,
+                        "description": "The site public id",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveAttendanceSiteRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`AttendanceSiteResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttendanceSiteResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceSite.destroy",
+                "summary": "Delete site",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "site",
+                        "in": "path",
+                        "required": true,
+                        "description": "The site public id",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
@@ -36357,6 +36641,66 @@
                 ],
                 "title": "AttendanceSettingResource"
             },
+            "AttendanceSiteResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "name_am": {
+                        "type": "string"
+                    },
+                    "branch_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "branch_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "latitude": {
+                        "type": "number"
+                    },
+                    "longitude": {
+                        "type": "number"
+                    },
+                    "radius_meters": {
+                        "type": "integer"
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "employee_public_ids": {
+                        "type": "array",
+                        "items": []
+                    },
+                    "department_public_ids": {
+                        "type": "array",
+                        "items": []
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "name",
+                    "name_am",
+                    "branch_public_id",
+                    "branch_name",
+                    "latitude",
+                    "longitude",
+                    "radius_meters",
+                    "is_active",
+                    "employee_public_ids",
+                    "department_public_ids"
+                ],
+                "title": "AttendanceSiteResource"
+            },
             "AuditLogResource": {
                 "type": "object",
                 "properties": {
@@ -41095,6 +41439,73 @@
                     "action"
                 ],
                 "title": "ReviewProfileUpdateRequest"
+            },
+            "SaveAttendanceSiteRequest": {
+                "type": "object",
+                "description": "A work site, created or edited. The branch, employees and departments are\nnamed by public id and looked up in the current tenant's scope (in the\nafter-hook, so the contract Scramble reads from rules() stays plain): an id\nfrom another organisation fails exactly like one that does not exist.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "name_am": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 120
+                    },
+                    "branch_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 26,
+                        "maxLength": 26
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                    },
+                    "radius_meters": {
+                        "type": "integer",
+                        "minimum": 10,
+                        "maximum": 10000
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "employee_public_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 26,
+                            "maxLength": 26
+                        },
+                        "maxItems": 2000
+                    },
+                    "department_public_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 26,
+                            "maxLength": 26
+                        },
+                        "maxItems": 500
+                    }
+                },
+                "required": [
+                    "name",
+                    "latitude",
+                    "longitude"
+                ],
+                "title": "SaveAttendanceSiteRequest"
             },
             "SaveReportRequest": {
                 "type": "object",

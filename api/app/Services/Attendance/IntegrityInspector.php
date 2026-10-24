@@ -41,7 +41,10 @@ final class IntegrityInspector
     /** Self-service sources: the person's own phone or browser says where they were. */
     private const SELF_SERVICE = ['mobile', 'offline_mobile', 'web', 'qr'];
 
-    public function __construct(private readonly ConfidenceScorer $scorer) {}
+    public function __construct(
+        private readonly ConfidenceScorer $scorer,
+        private readonly AttendancePlaces $places,
+    ) {}
 
     /**
      * @return list<AttendanceIntegrityFlag>
@@ -77,13 +80,16 @@ final class IntegrityInspector
         // has no place to be measured against, so none of this applies.
         // Their location is still kept on the record.
         $remote = AttendancePolicy::modeOf($employee) === AttendanceMode::REMOTE;
-        if (! $remote && $lat !== null && $lon !== null && $branch !== null
-            && $branch->latitude !== null && $branch->longitude !== null && (int) $branch->geofence_radius_meters > 0) {
-            $distance = $this->scorer->distanceMeters($lat, $lon, (float) $branch->latitude, (float) $branch->longitude);
-            if ($distance > $branch->geofence_radius_meters) {
+        $places = $remote || $lat === null || $lon === null ? [] : $this->places->for($employee);
+        $accuracy = $input->metadata['accuracy'] ?? null;
+        if ($places !== []) {
+            // Outside the branch and every site open to this person.
+            $check = $this->places->check($places, (float) $lat, (float) $lon, is_numeric($accuracy) ? (float) $accuracy : null);
+            if ($check['inside'] === false && $check['nearest'] !== null) {
                 $findings[] = ['outside_geofence', in_array($source, ['offline_mobile', 'web'], true) ? 'high' : 'medium', [
-                    'distance_meters' => (int) round($distance),
-                    'radius_meters' => $branch->geofence_radius_meters,
+                    'distance_meters' => (int) round((float) $check['distance_meters']),
+                    'radius_meters' => $check['nearest']['radius_meters'],
+                    'place' => $check['nearest']['name'],
                 ]];
             }
         } elseif (! $remote && ($settings->geofence_required ?? false) && in_array($source, ['offline_mobile', 'web'], true) && ($lat === null || $lon === null)) {

@@ -13,6 +13,8 @@ import {
   useCrudSection,
 } from "@/components/shared/crud-section";
 import { branchesApi, type Branch } from "@/features/organization/api";
+import { MapPicker } from "@/components/shared/map-picker/map-picker";
+import { useMapConfig } from "@/features/attendance/api";
 import { useT } from "@/lib/i18n/useT";
 import { useCanDeleteOrg } from "./shared";
 
@@ -74,6 +76,7 @@ export function BranchesSection() {
     },
   });
   const { form, set } = crud;
+  const mapConfig = useMapConfig();
   const items = list.data?.data ?? [];
 
   return (
@@ -135,31 +138,28 @@ export function BranchesSection() {
               onChange={(e) => set("city", e.target.value)}
             />
           </CrudField>
-          <CrudFieldRow columns={3}>
-            <CrudField label={t("org.field.latitude", "Latitude")}>
-              <Input
-                type="number"
-                step="any"
-                value={form.latitude}
-                onChange={(e) => set("latitude", e.target.value)}
-              />
-            </CrudField>
-            <CrudField label={t("org.field.longitude", "Longitude")}>
-              <Input
-                type="number"
-                step="any"
-                value={form.longitude}
-                onChange={(e) => set("longitude", e.target.value)}
-              />
-            </CrudField>
-            <CrudField label={t("org.field.geofence", "Geofence (m)")}>
-              <Input
-                type="number"
-                value={form.geofence_radius_meters}
-                onChange={(e) => set("geofence_radius_meters", e.target.value)}
-              />
-            </CrudField>
-          </CrudFieldRow>
+          <CrudField label={t("org.field.location", "Location and area")}>
+            <MapPicker
+              googleMapsKey={mapConfig.data?.google_maps_key}
+              value={{
+                latitude: form.latitude === "" ? null : Number(form.latitude),
+                longitude:
+                  form.longitude === "" ? null : Number(form.longitude),
+                radius: Number(form.geofence_radius_meters) || 100,
+              }}
+              onChange={(next) => {
+                set(
+                  "latitude",
+                  next.latitude === null ? "" : String(next.latitude),
+                );
+                set(
+                  "longitude",
+                  next.longitude === null ? "" : String(next.longitude),
+                );
+                set("geofence_radius_meters", String(next.radius));
+              }}
+            />
+          </CrudField>
           <ActiveToggle
             checked={form.is_active}
             onChange={(v) => set("is_active", v)}

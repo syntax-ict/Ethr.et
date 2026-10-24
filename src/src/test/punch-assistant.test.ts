@@ -60,6 +60,7 @@ function shift(
       accuracy_threshold_meters: 100,
       offline_sync_enabled: true,
       geofence: overrides.geofence === undefined ? BRANCH : overrides.geofence,
+      places: [],
     },
     assistant: {
       reminders: overrides.reminders ?? true,

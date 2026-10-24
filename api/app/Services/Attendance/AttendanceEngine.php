@@ -30,6 +30,7 @@ final class AttendanceEngine
         private readonly ConflictResolver $conflictResolver,
         private readonly IntegrityInspector $inspector,
         private readonly AttendancePolicy $policy,
+        private readonly AttendancePlaces $places,
     ) {}
 
     public function record(AttendanceInput $input): AttendanceResult
@@ -196,20 +197,26 @@ final class AttendanceEngine
         $local = $now->copy()->setTimezone($zone);
         ['shift' => $shift, 'date' => $workDate] = $this->shiftMatcher->forPunch($employee, $local);
 
+        // Inside the branch or any of the person's work sites, giving a fix
+        // the benefit of its reported accuracy (AttendancePlaces). Null when
+        // there is no place to be inside.
         $geofenceVerified = null;
-        if ($input->latitude !== null && $input->longitude !== null && $employee->branch) {
-            $geofenceVerified = $this->scorer->verifyGeofence(
+        if ($input->latitude !== null && $input->longitude !== null) {
+            $accuracy = $input->metadata['accuracy'] ?? null;
+            $geofenceVerified = $this->places->check(
+                $this->places->for($employee),
                 $input->latitude,
                 $input->longitude,
-                $employee->branch,
-            );
+                is_numeric($accuracy) ? (float) $accuracy : null,
+            )['inside'];
         }
 
         // Refused only when the place is known and the punch is outside it.
-        // A branch with no coordinates yet cannot be checked (verifyGeofence
-        // answers null): until 2026-10-24 that refused every phone punch at
-        // the branch the moment the switch was turned on. It is recorded and
-        // flagged `geofence_unconfigured` instead (IntegrityInspector).
+        // A person with no placed branch or site cannot be checked
+        // (AttendancePlaces answers null): until 2026-10-24 that refused
+        // every phone punch at the branch the moment the switch was turned
+        // on. It is recorded and flagged `geofence_unconfigured` instead
+        // (IntegrityInspector).
         if ($settings?->geofence_required && $input->source->value === 'mobile') {
             if ($input->latitude === null || $input->longitude === null) {
                 throw new AttendanceRefused(__('attendance.geofence_location_required'));

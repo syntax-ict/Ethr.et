@@ -113,6 +113,8 @@ const keys = {
   kiosks: ["attendance", "kiosks"] as const,
   settings: ["attendance", "settings"] as const,
   branchRules: ["attendance", "settings", "branches"] as const,
+  sites: ["attendance", "sites"] as const,
+  mapConfig: ["attendance", "map-config"] as const,
   myShift: ["attendance", "my-shift"] as const,
 };
 
@@ -714,6 +716,58 @@ export function useUpdateBranchAttendanceRules() {
         })
       ).data,
     [keys.branchRules],
+  );
+}
+
+export type AttendanceSite = components["schemas"]["AttendanceSiteResource"];
+export type SaveAttendanceSite = NonNullable<
+  operations["attendanceSite.store"]["requestBody"]
+>["content"]["application/json"];
+
+/** The map settings a picker needs: the platform's optional Google key. */
+export function useMapConfig() {
+  return useQuery<
+    operations["attendanceSite.mapConfig"]["responses"][200]["content"]["application/json"]
+  >({
+    queryKey: keys.mapConfig,
+    queryFn: async () => (await apiClient.get("/attendance/map-config")).data,
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/** Work sites: places besides the branch where people may punch. */
+export function useAttendanceSites() {
+  return useQuery<AttendanceSite[]>({
+    queryKey: keys.sites,
+    queryFn: async () =>
+      (await apiClient.get("/attendance/sites")).data as AttendanceSite[],
+  });
+}
+
+export function useSaveAttendanceSite() {
+  return useAttendanceMutation(
+    async ({
+      publicId,
+      payload,
+    }: {
+      publicId?: string;
+      payload: SaveAttendanceSite;
+    }): Promise<AttendanceSite> =>
+      (publicId
+        ? await apiClient.put(`/attendance/sites/${publicId}`, payload)
+        : await apiClient.post("/attendance/sites", payload)
+      ).data,
+    [keys.sites],
+  );
+}
+
+export function useDeleteAttendanceSite() {
+  return useAttendanceMutation(
+    async (publicId: string): Promise<void> => {
+      await apiClient.delete(`/attendance/sites/${publicId}`);
+    },
+    [keys.sites],
   );
 }
 

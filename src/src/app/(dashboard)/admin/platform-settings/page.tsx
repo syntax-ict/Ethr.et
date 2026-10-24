@@ -254,6 +254,7 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
     testimonial_role_am: s.testimonial_role_am ?? "",
     testimonial_organisation: s.testimonial_organisation ?? "",
     testimonial_consented_on: s.testimonial_consented_on ?? "",
+    google_maps_key: s.google_maps_key ?? "",
   });
 
   const [form, setForm] = useSeededForm(settings, seed);
@@ -304,6 +305,7 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
         testimonial_role_am: form.testimonial_role_am || null,
         testimonial_organisation: form.testimonial_organisation || null,
         testimonial_consented_on: form.testimonial_consented_on || null,
+        google_maps_key: form.google_maps_key || null,
       },
       {
         onSuccess: () =>
@@ -407,6 +409,23 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
             value={form.social_facebook}
             onChange={set("social_facebook")}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Field
+            label={t(
+              "site_content.google_maps_key",
+              "Google Maps key (optional)",
+            )}
+            value={form.google_maps_key}
+            onChange={set("google_maps_key")}
+          />
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "site_content.google_maps_key_hint",
+              "With a Maps JavaScript API key, every map picker offers Google Maps beside OpenStreetMap. Restrict the key to this site's address in Google Cloud. Leave it empty and nothing is sent to Google.",
+            )}
+          </p>
         </div>
 
         <div className="rounded-lg border border-border/60 bg-muted/30 p-4">

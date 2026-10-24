@@ -86,7 +86,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com",
               "style-src 'self' 'unsafe-inline'",
               // `https:` is required for tenant branding to work at all: a
               // tenant's logo is stored as a URL (`PUT /settings/branding`
@@ -100,7 +100,7 @@ const nextConfig: NextConfig = {
               // a URL first.
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              `connect-src 'self' ws: wss:${sentryOrigin}`,
+              `connect-src 'self' ws: wss: https://nominatim.openstreetmap.org https://maps.googleapis.com${sentryOrigin}`,
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

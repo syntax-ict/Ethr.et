@@ -54,6 +54,7 @@ class PlatformSettingResource extends JsonResource
             // this endpoint is behind admin.manage while that one is open.
             'testimonial_consented_on' => $this->testimonial_consented_on,
             'has_published_metrics' => $this->hasPublishedMetrics(),
+            'google_maps_key' => $this->google_maps_key,
 
             'updated_at' => $this->updated_at,
         ];

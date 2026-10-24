@@ -532,6 +532,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/map-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The map settings a picker needs: the platform's Google Maps key, if the
+         *     platform has one. It is a browser key by Google's design
+         */
+        get: operations["attendanceSite.mapConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/sites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List sites */
+        get: operations["attendanceSite.index"];
+        put?: never;
+        /** Create site */
+        post: operations["attendanceSite.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/sites/{site}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update site */
+        put: operations["attendanceSite.update"];
+        post?: never;
+        /** Delete site */
+        delete: operations["attendanceSite.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/photos": {
         parameters: {
             query?: never;
@@ -7370,6 +7426,20 @@ export interface components {
             photo_retention_days: number;
             updated_at: string | null;
         };
+        /** AttendanceSiteResource */
+        AttendanceSiteResource: {
+            public_id: string;
+            name: string;
+            name_am: string;
+            branch_public_id: string | null;
+            branch_name: string | null;
+            latitude: number;
+            longitude: number;
+            radius_meters: number;
+            is_active: boolean;
+            employee_public_ids: unknown[];
+            department_public_ids: unknown[];
+        };
         /** AuditLogResource */
         AuditLogResource: {
             action: string;
@@ -8570,6 +8640,7 @@ export interface components {
              */
             testimonial_consented_on: string | null;
             has_published_metrics: boolean;
+            google_maps_key: string;
             /** Format: date-time */
             updated_at: string | null;
         };
@@ -8838,6 +8909,24 @@ export interface components {
             /** @enum {string} */
             action: "approve" | "reject";
             notes?: string | null;
+        };
+        /**
+         * SaveAttendanceSiteRequest
+         * @description A work site, created or edited. The branch, employees and departments are
+         *     named by public id and looked up in the current tenant's scope (in the
+         *     after-hook, so the contract Scramble reads from rules() stays plain): an id
+         *     from another organisation fails exactly like one that does not exist.
+         */
+        SaveAttendanceSiteRequest: {
+            name: string;
+            name_am?: string | null;
+            branch_public_id?: string | null;
+            latitude: number;
+            longitude: number;
+            radius_meters?: number;
+            is_active?: boolean;
+            employee_public_ids?: string[];
+            department_public_ids?: string[];
         };
         /** SaveReportRequest */
         SaveReportRequest: {
@@ -10147,6 +10236,7 @@ export interface components {
             testimonial_organisation?: string | null;
             /** Format: date-time */
             testimonial_consented_on?: string | null;
+            google_maps_key?: string | null;
         };
         /** UpdatePositionRequest */
         UpdatePositionRequest: {
@@ -12100,6 +12190,133 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceSite.mapConfig": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        google_maps_key: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceSite.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `AttendanceSiteResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceSiteResource"][];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceSite.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveAttendanceSiteRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendanceSiteResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceSiteResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceSite.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The site public id */
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveAttendanceSiteRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendanceSiteResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceSiteResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceSite.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The site public id */
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "attendancePhoto.index": {
@@ -20255,6 +20472,23 @@ export interface operations {
                                 longitude: number;
                                 radius_meters: number;
                             } | null;
+                            places: ({
+                                /** @constant */
+                                kind: "branch";
+                                public_id: string;
+                                name: string;
+                                latitude: number;
+                                longitude: number;
+                                radius_meters: number;
+                            } | {
+                                /** @constant */
+                                kind: "site";
+                                public_id: string;
+                                name: string;
+                                latitude: number;
+                                longitude: number;
+                                radius_meters: number;
+                            })[];
                         };
                         assistant: {
                             reminders: boolean;

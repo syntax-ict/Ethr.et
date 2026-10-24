@@ -14,8 +14,8 @@ use App\Http\Resources\AttendanceRecordResource;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\Attendance\AttendancePlaces;
 use App\Services\Attendance\AttendancePolicy;
-use App\Services\Attendance\ConfidenceScorer;
 use App\Services\FileStorageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -158,14 +158,18 @@ class MobileAttendanceController extends Controller
             return __('attendance.auto_check_in_not_allowed');
         }
 
-        $branch = $employee->branch;
-        // Only a confirmed inside: a branch with no circle cannot vouch for
-        // where the phone is, so it never punches anyone in by itself.
-        if ($branch === null || app(ConfidenceScorer::class)->verifyGeofence(
+        // Only a confirmed inside the branch or one of the person's sites: a
+        // place with no circle cannot vouch for where the phone is, so it
+        // never punches anyone in by itself.
+        $places = app(AttendancePlaces::class);
+        $accuracy = $request->input('accuracy');
+        $inside = $places->check(
+            $places->for($employee),
             (float) $request->validated('latitude'),
             (float) $request->validated('longitude'),
-            $branch,
-        ) !== true) {
+            is_numeric($accuracy) ? (float) $accuracy : null,
+        )['inside'];
+        if ($inside !== true) {
             return __('attendance.auto_check_in_outside');
         }
 

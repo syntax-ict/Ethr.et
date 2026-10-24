@@ -34,6 +34,7 @@ final class MyShiftService
     public function __construct(
         private readonly ShiftMatcher $shiftMatcher,
         private readonly AttendancePolicy $policy,
+        private readonly AttendancePlaces $places,
     ) {}
 
     /**
@@ -86,6 +87,9 @@ final class MyShiftService
                 'radius_meters' => (int) $branch->geofence_radius_meters,
             ]
             : null;
+        // Every place this person may punch: the branch and their work
+        // sites, so the phone can show the nearest and check against all.
+        $places = $mode === AttendanceMode::REMOTE ? [] : $this->places->for($employee);
 
         return [
             'date' => $day->format('Y-m-d'),
@@ -115,13 +119,14 @@ final class MyShiftService
                 'accuracy_threshold_meters' => (int) $policy->mobile_accuracy_threshold_meters,
                 'offline_sync_enabled' => (bool) $policy->offline_sync_enabled,
                 'geofence' => $geofence,
+                'places' => $places,
             ],
             'assistant' => [
                 'reminders' => (bool) ($policy->reminders_enabled && $prefs['punch_reminders']),
                 'reminders_allowed' => (bool) $policy->reminders_enabled,
                 'reminder_lead_minutes' => (int) $policy->reminder_lead_minutes,
-                'auto_check_in' => (bool) ($policy->geofence_auto_checkin_enabled && $prefs['auto_check_in'] && $geofence !== null),
-                'auto_check_in_allowed' => (bool) ($policy->geofence_auto_checkin_enabled && $geofence !== null),
+                'auto_check_in' => (bool) ($policy->geofence_auto_checkin_enabled && $prefs['auto_check_in'] && $places !== []),
+                'auto_check_in_allowed' => (bool) ($policy->geofence_auto_checkin_enabled && $places !== []),
                 'auto_checkout' => (bool) $policy->auto_checkout_enabled,
                 'auto_checkout_after_minutes' => (int) $policy->auto_checkout_after_minutes,
             ],

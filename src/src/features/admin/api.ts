@@ -613,6 +613,9 @@ export interface PlatformSettings {
   testimonial_role_am: string | null;
   testimonial_organisation: string | null;
   testimonial_consented_on: string | null;
+  // A browser key for the map pickers (Google's design: restricted by
+  // referrer, not secret). Empty means OpenStreetMap only.
+  google_maps_key: string | null;
 
   updated_at: string | null;
 }
