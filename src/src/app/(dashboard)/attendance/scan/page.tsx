@@ -1,5 +1,6 @@
 "use client";
 
+import { currentFix, punchSignals } from "@/lib/attendance/punch-signals";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -111,10 +112,22 @@ export default function QrScanPage() {
   async function verifyToken(qrToken: string) {
     setStatus("verifying");
     try {
+      // Where the code was scanned: a photographed or forwarded code works
+      // from anywhere until it expires, so the phone's own location is what
+      // shows it was scanned at the branch. Sent when the phone gives one.
+      const fix = await currentFix();
       const data = await scan.mutateAsync({
         qr_token: qrToken,
         type,
         idempotency_key: crypto.randomUUID(),
+        ...(fix
+          ? {
+              latitude: fix.latitude,
+              longitude: fix.longitude,
+              accuracy: fix.accuracy,
+            }
+          : {}),
+        ...punchSignals(fix),
       });
       const empName = data.employee?.name ?? t("attendance.employee");
       setStatus("success");

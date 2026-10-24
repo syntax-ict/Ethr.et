@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Attendance;
 
+use App\Support\PunchSignals;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CheckOutRequest extends FormRequest
@@ -17,6 +18,7 @@ class CheckOutRequest extends FormRequest
     {
         return [
             'idempotency_key' => ['required', 'string', 'max:64'],
+            ...PunchSignals::rules(),
         ];
     }
 }

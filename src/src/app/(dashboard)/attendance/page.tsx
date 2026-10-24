@@ -1,5 +1,6 @@
 "use client";
 
+import { punchSignals } from "@/lib/attendance/punch-signals";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -21,6 +22,7 @@ import {
   Monitor,
   GitMerge,
   AlertTriangle,
+  Route,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -155,7 +157,11 @@ export default function AttendancePage() {
 
   function handleCheckIn() {
     checkIn.mutate(
-      { idempotency_key: crypto.randomUUID(), source: "web" },
+      {
+        idempotency_key: crypto.randomUUID(),
+        source: "web",
+        ...punchSignals(null),
+      },
       {
         onSuccess: () =>
           toast.success(t("attendance.checked_in", "Checked in successfully")),
@@ -172,7 +178,7 @@ export default function AttendancePage() {
 
   function handleCheckOut() {
     checkOut.mutate(
-      { idempotency_key: crypto.randomUUID() },
+      { idempotency_key: crypto.randomUUID(), ...punchSignals(null) },
       {
         onSuccess: () =>
           toast.success(
@@ -255,6 +261,11 @@ export default function AttendancePage() {
           {can.viewAllAttendance && (
             <SubNav href="/attendance/overtime" icon={TrendingUp}>
               {t("attendance.overtime", "Overtime")}
+            </SubNav>
+          )}
+          {can.viewAllAttendance && (
+            <SubNav href="/attendance/visits" icon={Route}>
+              {t("visits.title", "Visits")}
             </SubNav>
           )}
           {can.viewAttendancePhotos && (

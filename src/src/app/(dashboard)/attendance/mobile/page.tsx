@@ -1,5 +1,6 @@
 "use client";
 
+import { VisitLogCard } from "@/features/attendance/components/visit-log-card";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -33,6 +34,11 @@ import { PhotoConsentDialog } from "@/features/attendance/components/photo-conse
 import { useOfflineSync } from "@/lib/hooks/useOfflineSync";
 import { enqueueOfflineRecord } from "@/lib/offline-queue";
 import {
+  fixFrom,
+  punchSignals,
+  type Fix,
+} from "@/lib/attendance/punch-signals";
+import {
   currentOfflineGrant,
   refreshOfflineGrant,
 } from "@/lib/attendance/offline-grant";
@@ -45,7 +51,6 @@ import {
   autoCheckInDecision,
   geofenceState,
   type GeofenceState,
-  type Position,
 } from "@/lib/attendance/punch-assistant";
 import { cn } from "@/lib/utils";
 
@@ -91,7 +96,7 @@ export default function MobilePunchPage() {
   const [consentOpen, setConsentOpen] = useState(false);
 
   const [now, setNow] = useState(() => new Date());
-  const [position, setPosition] = useState<Position | null>(null);
+  const [position, setPosition] = useState<Fix | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
@@ -132,11 +137,7 @@ export default function MobilePunchPage() {
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setPosition({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-        });
+        setPosition(fixFrom(pos));
         setLocating(false);
       },
       (err) => {
@@ -260,8 +261,9 @@ export default function MobilePunchPage() {
           latitude: position.latitude,
           longitude: position.longitude,
           accuracy: position.accuracy,
-          photo: photo && type === "check_in" ? photo : null,
+          photo: photo ?? null,
           captured_at: new Date().toISOString(),
+          ...punchSignals(position),
           tenant: tenantHeaderValue(),
           locale,
         });
@@ -282,7 +284,10 @@ export default function MobilePunchPage() {
         latitude: position.latitude,
         longitude: position.longitude,
         accuracy: position.accuracy,
-        ...(photo && type === "check_in" ? { photo } : {}),
+        ...punchSignals(position),
+        // The selfie goes with the check-out too: until 2026-10-24 only the
+        // check-in carried one, so a check-out was never evidenced.
+        ...(photo ? { photo } : {}),
         ...(auto ? { auto: true } : {}),
       },
       {
@@ -731,6 +736,12 @@ export default function MobilePunchPage() {
               })
             }
           />
+        )}
+
+      {shift &&
+        shift.policy.mobile_enabled &&
+        shift.policy.attendance_mode !== "office" && (
+          <VisitLogCard photoConsent={shift.policy.photo_consent} />
         )}
 
       <div className="flex justify-center gap-4 pb-2 text-sm">

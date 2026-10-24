@@ -7,6 +7,7 @@ namespace App\Services\Attendance;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
+use App\Models\AttendanceVisit;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\FileStorageService;
@@ -114,6 +115,32 @@ class PhotoRetention
                 foreach ($records as $record) {
                     /** @var AttendanceRecord $record */
                     $this->deletePhotos($record);
+                    $deleted++;
+                }
+            });
+
+        return $deleted;
+    }
+
+    /**
+     * Deletes field-visit photos older than the retention period plus the
+     * review window, keeping the visits. A visit photo shows a place or a
+     * job more often than a face, so it has no review queue of its own; it
+     * is held no longer than a selfie would be.
+     */
+    public function deleteVisitPhotos(CarbonInterface $now): int
+    {
+        $cutoff = Carbon::instance($now)->subDays($this->retentionDays())->subHours(self::REVIEW_HOURS);
+        $deleted = 0;
+
+        AttendanceVisit::query()
+            ->whereNotNull('photo_path')
+            ->where('occurred_at', '<', $cutoff)
+            ->chunkById(200, function (Collection $visits) use (&$deleted): void {
+                foreach ($visits as $visit) {
+                    /** @var AttendanceVisit $visit */
+                    $this->storage->delete((string) $visit->photo_path);
+                    $visit->forceFill(['photo_path' => null])->save();
                     $deleted++;
                 }
             });

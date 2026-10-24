@@ -17,6 +17,7 @@ use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\QrCodeService;
 use App\Services\CurrentTenant;
+use App\Support\PunchSignals;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
@@ -112,12 +113,19 @@ class QrAttendanceController extends Controller
                 source: AttendanceSource::QR,
                 type: $request->validated('type'),
                 idempotencyKey: $request->validated('idempotency_key'),
+                // Where the scan happened: a photographed or forwarded code
+                // works from anywhere until it expires, so the phone's own
+                // location is what shows it was scanned at the branch.
+                latitude: $request->validated('latitude'),
+                longitude: $request->validated('longitude'),
                 ipAddress: $request->ip(),
-                metadata: [
+                metadata: array_filter([
                     'qr_branch_id' => $payload['branch_id'],
                     'qr_shift_id' => $payload['shift_id'] ?? null,
                     'qr_nonce' => $payload['nonce'] ?? null,
-                ],
+                    'accuracy' => $request->validated('accuracy'),
+                    ...PunchSignals::from($request->validated(), $request->userAgent()),
+                ], fn ($v) => $v !== null),
             ));
         } catch (\RuntimeException $e) {
             return response()->json([

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Attendance;
 
 use App\Rules\Base64Image;
+use App\Support\PunchSignals;
 use Illuminate\Foundation\Http\FormRequest;
 
 class MobileCheckOutRequest extends FormRequest
@@ -22,6 +23,7 @@ class MobileCheckOutRequest extends FormRequest
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'photo' => ['nullable', 'string', new Base64Image],
+            ...PunchSignals::rules(),
         ];
     }
 }

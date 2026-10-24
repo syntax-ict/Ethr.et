@@ -48,6 +48,7 @@ import {
   Wallet,
   Webhook,
   type LucideIcon,
+  Route,
 } from "lucide-react";
 import type { CanFlag } from "@/lib/hooks/usePermissions";
 
@@ -392,6 +393,15 @@ const TENANT_SECTIONS: NavSectionDef[] = [
             labelKey: "nav.overtime",
             labelFallback: "Overtime",
             icon: TrendingUp,
+            show: (c) => c.can.viewAllAttendance,
+          },
+          {
+            // Stops field staff logged during the day; never a punch.
+            id: "attendance_visits",
+            href: "/attendance/visits",
+            labelKey: "visits.title",
+            labelFallback: "Visits",
+            icon: Route,
             show: (c) => c.can.viewAllAttendance,
           },
           {

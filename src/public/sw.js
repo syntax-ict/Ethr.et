@@ -204,6 +204,12 @@ async function flushQueue() {
           longitude: r.longitude,
           accuracy: r.accuracy ?? null,
           photo: r.photo ?? null,
+          altitude: r.altitude,
+          speed: r.speed,
+          heading: r.heading,
+          fix_age_ms: r.fix_age_ms,
+          device_id: r.device_id,
+          webdriver: r.webdriver,
         })),
       }),
     });

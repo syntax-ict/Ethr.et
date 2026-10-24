@@ -17,6 +17,7 @@ use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\AttendancePlaces;
 use App\Services\Attendance\AttendancePolicy;
 use App\Services\FileStorageService;
+use App\Support\PunchSignals;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -76,6 +77,7 @@ class MobileAttendanceController extends Controller
                 metadata: array_filter([
                     'auto_punch' => $auto ?: null,
                     'accuracy' => $request->validated('accuracy'),
+                    ...PunchSignals::from($request->validated(), $request->userAgent()),
                 ], fn ($v) => $v !== null),
             ));
         } catch (\RuntimeException $e) {
@@ -124,7 +126,10 @@ class MobileAttendanceController extends Controller
             longitude: $request->validated('longitude'),
             photoPath: $this->storeSelfie($request),
             ipAddress: $request->ip(),
-            metadata: array_filter(['accuracy' => $request->validated('accuracy')], fn ($v) => $v !== null),
+            metadata: array_filter([
+                'accuracy' => $request->validated('accuracy'),
+                ...PunchSignals::from($request->validated(), $request->userAgent()),
+            ], fn ($v) => $v !== null),
         ));
 
         $result->record->load('employee', 'shift');

@@ -8,6 +8,7 @@ use App\Rules\Base64Image;
 use App\Services\Attendance\AttendancePolicy;
 use App\Services\FileStorageService;
 use App\Support\PhotoConsent;
+use App\Support\PunchSignals;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -30,6 +31,7 @@ class MobileCheckInRequest extends FormRequest
             // never supply `photo_path` themselves.
             'photo' => ['nullable', 'string', new Base64Image(FileStorageService::SELFIE_UPLOAD_MAX_BYTES)],
             'auto' => ['sometimes', 'boolean'],
+            ...PunchSignals::rules(),
         ];
     }
 

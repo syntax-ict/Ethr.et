@@ -552,6 +552,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/visits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Visits of the people the caller may see, filtered by person and day */
+        get: operations["attendanceVisit.index"];
+        put?: never;
+        /** Create visit */
+        post: operations["attendanceVisit.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/visits/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in employee's own visits, newest first */
+        get: operations["attendanceVisit.mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/sites": {
         parameters: {
             query?: never;
@@ -7440,6 +7475,19 @@ export interface components {
             employee_public_ids: unknown[];
             department_public_ids: unknown[];
         };
+        /** AttendanceVisitResource */
+        AttendanceVisitResource: {
+            public_id: string;
+            employee_public_id: string | null;
+            employee_name: string | null;
+            site_name: string | null;
+            latitude: number;
+            longitude: number;
+            accuracy: number | null;
+            occurred_at: string;
+            note: string | null;
+            has_photo: boolean;
+        };
         /** AuditLogResource */
         AuditLogResource: {
             action: string;
@@ -7536,10 +7584,26 @@ export interface components {
             latitude?: number | null;
             longitude?: number | null;
             accuracy?: number | null;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
         };
         /** CheckOutRequest */
         CheckOutRequest: {
             idempotency_key: string;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
         };
         /** CloseDisciplinaryCaseRequest */
         CloseDisciplinaryCaseRequest: {
@@ -8349,6 +8413,14 @@ export interface components {
              */
             photo?: string | null;
             auto?: boolean;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
         };
         /** MobileCheckOutRequest */
         MobileCheckOutRequest: {
@@ -8357,6 +8429,14 @@ export interface components {
             longitude?: number | null;
             accuracy?: number | null;
             photo?: string | null;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
         };
         /**
          * NationalityStatus
@@ -8393,6 +8473,14 @@ export interface components {
                 offline_token: string;
                 accuracy?: number | null;
                 photo?: string | null;
+                altitude?: number | null;
+                speed?: number | null;
+                heading?: number | null;
+                fix_age_ms?: number | null;
+                device_id?: string | null;
+                /** Format: date-time */
+                client_time?: string | null;
+                webdriver?: boolean | null;
             }[];
         };
         /** OnboardingProgress */
@@ -8729,6 +8817,17 @@ export interface components {
             qr_token: string;
             /** @enum {string} */
             type: "check_in" | "check_out";
+            latitude?: number | null;
+            longitude?: number | null;
+            accuracy?: number | null;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
         };
         /** RecordDisciplinaryDecisionRequest */
         RecordDisciplinaryDecisionRequest: {
@@ -9151,6 +9250,25 @@ export interface components {
                 approver_ref?: string | null;
                 sla_hours?: number | null;
             }[];
+        };
+        /** StoreAttendanceVisitRequest */
+        StoreAttendanceVisitRequest: {
+            idempotency_key: string;
+            latitude: number;
+            longitude: number;
+            accuracy?: number | null;
+            /** Format: date-time */
+            occurred_at?: string | null;
+            note?: string | null;
+            photo?: string | null;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
         };
         /** StoreBankDetailRequest */
         StoreBankDetailRequest: {
@@ -12208,6 +12326,160 @@ export interface operations {
                 content: {
                     "application/json": {
                         google_maps_key: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceVisit.index": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AttendanceVisitResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AttendanceVisitResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceVisit.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreAttendanceVisitRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendanceVisitResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceVisitResource"];
+                };
+            };
+            /** @description `AttendanceVisitResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceVisitResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        type: string;
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceVisit.mine": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AttendanceVisitResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AttendanceVisitResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
                     };
                 };
             };

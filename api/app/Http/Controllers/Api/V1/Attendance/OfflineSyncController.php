@@ -13,6 +13,7 @@ use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\OfflineGrant;
 use App\Services\FileStorageService;
 use App\Support\PhotoConsent;
+use App\Support\PunchSignals;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -122,6 +123,7 @@ class OfflineSyncController extends Controller
                     offlineToken: OfflineGrant::fingerprint($record['offline_token']),
                     ipAddress: $request->ip(),
                     metadata: array_filter([
+                        ...PunchSignals::from($record, $request->userAgent(), online: false),
                         'accuracy' => $record['accuracy'] ?? null,
                         'offline_grant' => $this->grants->check($record['offline_token'], $employee, $capturedAt->copy()->utc()),
                     ], fn ($v) => $v !== null),

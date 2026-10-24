@@ -312,9 +312,19 @@ final class AttendanceEngine
         // selfie is kept alongside it so neither punch loses its evidence.
         // The check-out's own idempotency key is kept beside it too: the
         // record's `idempotency_key` column is the check-in's (see record()).
+        // The check-out's own IP and device signals, beside the check-in's:
+        // a day punched in on one phone and out on another is a finding
+        // (AttendanceRiskScorer), and until 2026-10-24 only the check-in's
+        // were kept.
+        $signals = array_intersect_key($input->metadata, array_flip([
+            'accuracy', 'altitude', 'speed', 'heading', 'fix_age_ms', 'device',
+            'client_offset_seconds', 'webdriver', 'user_agent',
+        ]));
         $metadata = array_filter([
             'checkout_photo_path' => $input->photoPath,
             'checkout_idempotency_key' => $input->idempotencyKey,
+            'checkout_ip_address' => $input->ipAddress,
+            'checkout_signals' => $signals !== [] ? $signals : null,
         ], fn ($value) => $value !== null);
 
         if ($metadata !== []) {

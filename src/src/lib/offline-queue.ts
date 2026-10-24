@@ -24,6 +24,14 @@ export interface OfflineAttendanceRecord {
   tenant?: string | null;
   /** The interface language, for the service worker's "sent" notification. */
   locale?: string | null;
+  /** Fix details and the install id, for the risk scoring (punch-signals). */
+  altitude?: number;
+  speed?: number;
+  heading?: number;
+  fix_age_ms?: number;
+  device_id?: string;
+  client_time?: string;
+  webdriver?: boolean;
 }
 
 function openDB(): Promise<IDBDatabase> {

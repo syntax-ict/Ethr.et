@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Attendance;
 
 use App\Rules\Base64Image;
+use App\Support\PunchSignals;
 use Illuminate\Foundation\Http\FormRequest;
 
 class OfflineSyncRequest extends FormRequest
@@ -27,6 +28,7 @@ class OfflineSyncRequest extends FormRequest
             'records.*.offline_token' => ['required', 'string', 'max:2048'],
             'records.*.accuracy' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'records.*.photo' => ['nullable', 'string', new Base64Image],
+            ...PunchSignals::rules('records.*.'),
         ];
     }
 }

@@ -18,6 +18,7 @@ use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\ExpectedDays;
 use App\Services\CurrentTenant;
+use App\Support\PunchSignals;
 use App\Support\TenantTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -56,7 +57,10 @@ class AttendanceController extends Controller
             latitude: $request->validated('latitude'),
             longitude: $request->validated('longitude'),
             ipAddress: $request->ip(),
-            metadata: array_filter(['accuracy' => $request->validated('accuracy')], fn ($v) => $v !== null),
+            metadata: array_filter([
+                'accuracy' => $request->validated('accuracy'),
+                ...PunchSignals::from($request->validated(), $request->userAgent()),
+            ], fn ($v) => $v !== null),
         ));
 
         $result->record->load('employee', 'shift');
@@ -93,6 +97,7 @@ class AttendanceController extends Controller
             type: 'check_out',
             idempotencyKey: $request->validated('idempotency_key'),
             ipAddress: $request->ip(),
+            metadata: PunchSignals::from($request->validated(), $request->userAgent()),
         ));
 
         $result->record->load('employee', 'shift');
