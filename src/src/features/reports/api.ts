@@ -25,6 +25,7 @@ export type ReportSourceKey = keyof ReportSources;
 export const REPORT_FILTERS: Record<ReportSourceKey, readonly string[]> = {
   employees: ["status"],
   attendance: ["from", "to"],
+  absences: ["from", "to"],
   leave: ["year"],
   payroll: [],
 };
