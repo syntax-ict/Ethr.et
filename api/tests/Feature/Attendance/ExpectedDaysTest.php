@@ -294,7 +294,10 @@ test('the team view drops leavers and shows a holiday as a holiday', function ()
     $response = test()->actingAs($user)->getJson(edUrl($tenant, '/team/attendance/today'))->assertOk();
     $statuses = collect($response->json('employees'))->pluck('status', 'public_id')->all();
 
-    expect($statuses)->toBe([$absent->public_id => 'absent', $holiday->public_id => 'holiday'])
+    // The team list has no order, and MySQL 8 returns it differently from
+    // SQLite and MariaDB, so compare the pairs rather than the sequence.
+    expect($statuses)->toHaveCount(2)
+        ->toMatchArray([$absent->public_id => 'absent', $holiday->public_id => 'holiday'])
         ->and($statuses)->not->toHaveKey($leaver->public_id)
         ->and($response->json('summary.absent'))->toBe(1);
 });
