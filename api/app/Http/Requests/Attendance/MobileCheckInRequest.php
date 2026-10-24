@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Attendance;
 
-use App\Models\AttendanceSetting;
 use App\Rules\Base64Image;
+use App\Services\Attendance\AttendancePolicy;
 use App\Services\FileStorageService;
 use App\Support\PhotoConsent;
 use Illuminate\Contracts\Validation\Validator;
@@ -56,7 +56,12 @@ class MobileCheckInRequest extends FormRequest
                 return;
             }
 
-            if (AttendanceSetting::query()->first()?->mobile_photo_required === true) {
+            $employee = $this->user()?->employee;
+            $policy = $employee !== null
+                ? app(AttendancePolicy::class)->for($employee)
+                : app(AttendancePolicy::class)->organisation();
+
+            if ($policy->mobile_photo_required === true) {
                 $v->errors()->add('photo', __('attendance.photo_required'));
             }
         });

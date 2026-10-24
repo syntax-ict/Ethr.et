@@ -271,19 +271,24 @@ describe('applying a composed plan', function () {
     });
 
     it('never overwrites an attendance setting the admin has changed', function () {
-        AttendanceSetting::query()->create([...AttendanceSetting::defaults(), 'tenant_id' => $this->tenant->id, 'grace_period_minutes' => 30]);
+        AttendanceSetting::query()->create([
+            ...AttendanceSetting::defaults(),
+            'tenant_id' => $this->tenant->id,
+            'auto_checkout_enabled' => true,
+            'auto_checkout_after_minutes' => 45,
+        ]);
 
         $plan = $this->postJson(tplUrl($this->tenant, '/onboarding/configuration/preview'), [
-            'industry' => 'technology_company',
+            'industry' => 'hospital',
         ])->json('plan');
 
-        expect($plan['attendance']['grace_period_minutes'])->toBe(120);
+        expect($plan['attendance']['auto_checkout_enabled'])->toBeTrue();
 
-        $this->postJson(tplUrl($this->tenant, '/onboarding/configuration/apply'), ['industry' => 'technology_company', 'plan' => $plan])
+        $this->postJson(tplUrl($this->tenant, '/onboarding/configuration/apply'), ['industry' => 'hospital', 'plan' => $plan])
             ->assertOk()
             ->assertJsonPath('provisioned.resources.attendance_settings.skipped', 1);
 
-        expect(AttendanceSetting::query()->value('grace_period_minutes'))->toBe(30);
+        expect(AttendanceSetting::query()->value('auto_checkout_after_minutes'))->toBe(45);
     });
 
     it('skips a rotation whose shift the admin removed, rather than leaving a hole', function () {

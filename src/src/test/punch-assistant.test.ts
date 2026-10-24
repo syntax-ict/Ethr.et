@@ -52,6 +52,8 @@ function shift(
     policy: {
       mobile_enabled: true,
       web_enabled: true,
+      qr_enabled: true,
+      attendance_mode: "office",
       geofence_required: false,
       photo_required: overrides.photo ?? false,
       photo_consent: false,

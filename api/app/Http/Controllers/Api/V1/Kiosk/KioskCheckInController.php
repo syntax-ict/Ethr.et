@@ -8,12 +8,12 @@ use App\Enums\AttendanceSource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\KioskCheckInRequest;
 use App\Http\Resources\AttendancePunchResource;
-use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\KioskSession;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\Attendance\AttendancePolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -66,9 +66,11 @@ class KioskCheckInController extends Controller
             ], 404)->header('Content-Type', 'application/problem+json');
         }
 
-        $settings = AttendanceSetting::first();
+        // The kiosk's branch may require a PIN when the organisation does not,
+        // or the other way round (AttendancePolicy).
+        $settings = app(AttendancePolicy::class)->forBranch($session->branch_id);
 
-        if ($settings?->kiosk_pin_required) {
+        if ($settings->kiosk_pin_required) {
             $pin = $request->validated('pin');
             if (! $pin || ! $employee->kiosk_pin) {
                 return response()->json([
@@ -110,7 +112,7 @@ class KioskCheckInController extends Controller
             RateLimiter::clear($lockKey);
         }
 
-        if ($settings && ! $settings->isMethodEnabled('kiosk')) {
+        if (! $settings->isMethodEnabled('kiosk')) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/forbidden',
                 'title' => 'Method Disabled',

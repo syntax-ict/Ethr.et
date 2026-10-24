@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
+  useAttendanceSettings,
   useGenerateQr,
   useShiftOptions,
   type QrCode as QrResult,
@@ -42,6 +43,16 @@ export default function QrGeneratorPage() {
   const [shiftId, setShiftId] = useState("none");
   const [expiry, setExpiry] = useState(30);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  // Start from the organisation's own QR settings (Attendance rules), once
+  // they arrive. They were stored and shown there but this page ignored
+  // them and always began at 30 minutes with auto-refresh on.
+  const { data: settings } = useAttendanceSettings();
+  const [seeded, setSeeded] = useState(false);
+  if (settings && !seeded) {
+    setSeeded(true);
+    setExpiry(settings.qr_expiry_minutes);
+    setAutoRefresh(settings.qr_auto_refresh);
+  }
   const [result, setResult] = useState<QrResult | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);

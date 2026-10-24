@@ -18,7 +18,7 @@ test('hr admin can view attendance settings', function () {
         ->assertJsonPath('geofence_required', false)
         ->assertJsonPath('kiosk_pin_required', false)
         ->assertJsonPath('qr_expiry_minutes', 30)
-        ->assertJsonPath('grace_period_minutes', 15)
+        ->assertJsonMissingPath('grace_period_minutes')
         ->assertJsonPath('ot_daily_cap_minutes', 120)
         ->assertJsonPath('confidence_threshold', 70);
 
@@ -50,14 +50,12 @@ test('hr admin can update attendance settings', function () {
         'kiosk_pin_required' => true,
         'qr_expiry_minutes' => 60,
         'enabled_methods' => ['biometric', 'mobile', 'qr'],
-        'grace_period_minutes' => 20,
         'ot_daily_cap_minutes' => 90,
         'confidence_threshold' => 85,
     ])->assertOk()
         ->assertJsonPath('geofence_required', true)
         ->assertJsonPath('kiosk_pin_required', true)
         ->assertJsonPath('qr_expiry_minutes', 60)
-        ->assertJsonPath('grace_period_minutes', 20)
         ->assertJsonPath('ot_daily_cap_minutes', 90)
         ->assertJsonPath('confidence_threshold', 85);
 
@@ -65,7 +63,6 @@ test('hr admin can update attendance settings', function () {
     expect($setting->geofence_required)->toBeTrue();
     expect($setting->enabled_methods)->toContain('biometric', 'mobile', 'qr');
     expect($setting->enabled_methods)->not->toContain('kiosk');
-    expect($setting->grace_period_minutes)->toBe(20);
     expect($setting->confidence_threshold)->toBe(85);
 });
 

@@ -29,6 +29,7 @@ final class AttendanceEngine
         private readonly ShiftMatcher $shiftMatcher,
         private readonly ConflictResolver $conflictResolver,
         private readonly IntegrityInspector $inspector,
+        private readonly AttendancePolicy $policy,
     ) {}
 
     public function record(AttendanceInput $input): AttendanceResult
@@ -57,15 +58,20 @@ final class AttendanceEngine
             }
         }
 
-        $settings = AttendanceSetting::withoutGlobalScope('tenant')
+        $organisation = AttendanceSetting::withoutGlobalScope('tenant')
             ->where('tenant_id', $input->tenantId)
             ->first();
 
-        if ($settings && ! $settings->isMethodEnabled($input->source->value)) {
+        $employee = Employee::findOrFail($input->employeeId);
+
+        // The rules for this person: the organisation's, their branch's
+        // overrides, their attendance mode (AttendancePolicy).
+        $settings = $this->policy->for($employee, $organisation ?? new AttendanceSetting(AttendanceSetting::defaults()));
+
+        if (! $settings->isMethodEnabled($input->source->value)) {
             throw new AttendanceRefused(__('attendance.method_disabled'));
         }
 
-        $employee = Employee::findOrFail($input->employeeId);
         $zone = TenantTime::zone(Tenant::query()->find($input->tenantId));
 
         // Someone who has left records nothing dated after they left. Nothing

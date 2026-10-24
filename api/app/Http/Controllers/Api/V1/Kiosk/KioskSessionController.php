@@ -13,6 +13,7 @@ use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\KioskSession;
 use App\Models\Tenant;
+use App\Services\Attendance\AttendancePolicy;
 use App\Services\CurrentTenant;
 use App\Services\Kiosk\KioskOfflineSeal;
 use Illuminate\Http\JsonResponse;
@@ -145,7 +146,7 @@ class KioskSessionController extends Controller
         // Every session belongs to a tenant; the trait's relation is untyped.
         /** @var Tenant $tenant */
         $tenant = $session->tenant;
-        $settings = $tenant->attendanceSetting;
+        $settings = app(AttendancePolicy::class)->forBranch($session->branch_id, $tenant->attendanceSetting);
 
         return response()->json([
             'session' => new KioskSessionResource($session),
@@ -155,8 +156,8 @@ class KioskSessionController extends Controller
                 'logo_path' => $tenant->logoUrl(),
             ],
             'settings' => [
-                'pin_required' => $settings?->kiosk_pin_required ?? false,
-                'auto_reset_seconds' => $settings?->kiosk_auto_reset_seconds ?? 4,
+                'pin_required' => (bool) $settings->kiosk_pin_required,
+                'auto_reset_seconds' => (int) $settings->kiosk_auto_reset_seconds,
             ],
             // For punching through a power cut or a dropped connection: the
             // key the terminal seals offline punches with, and the grant that

@@ -93,7 +93,6 @@ final class WorkforceProfileCatalog
                 ['name' => 'Flexible day', 'name_am' => 'ተለዋዋጭ ቀን', 'start_time' => '08:00', 'end_time' => '17:00', 'working_days' => '1,2,3,4,5', 'break_minutes' => 60, 'grace_minutes' => 120, 'early_departure_minutes' => 60],
             ],
             'working_days' => [1, 2, 3, 4, 5],
-            'attendance' => ['grace_period_minutes' => 120],
             'review' => ['flexible_is_grace'],
         ],
         'rotating_three_shift' => [

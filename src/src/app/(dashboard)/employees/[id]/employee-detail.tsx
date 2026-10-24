@@ -46,6 +46,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { AttendanceModeCard } from "@/features/employees/components/attendance-mode-card";
 import { KioskPinCard } from "@/features/employees/components/kiosk-pin-card";
 import { InviteToEthrButton } from "@/features/employees/components/invite-to-ethr-button";
 import { EnrolOnDevicesButton } from "@/features/devices/components/enrol-on-devices-button";
@@ -575,6 +576,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
         </TabsContent>
 
         <TabsContent value="attendance" className="mt-4 space-y-4">
+          {canManageAttendance && <AttendanceModeCard employee={employee} />}
           {canManageAttendance && <KioskPinCard employee={employee} />}
           <AttendanceTimelineTab employeeId={id} />
         </TabsContent>

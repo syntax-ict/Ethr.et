@@ -97,18 +97,6 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Employee/EmployeeDocumentController.php
 
 		-
-			message: '#^Using nullsafe property access "\?\-\>kiosk_auto_reset_seconds" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Http/Controllers/Api/V1/Kiosk/KioskSessionController.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>kiosk_pin_required" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Http/Controllers/Api/V1/Kiosk/KioskSessionController.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>account_number" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
@@ -401,6 +389,12 @@ parameters:
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/AlertThreshold.php
+
+		-
+			message: '#^Method App\Models\BranchAttendanceOverride\:\:tenant\(\) return type with generic class Illuminate\Database\Eloquent\Relations\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/BranchAttendanceOverride.php
 
 		-
 			message: '#^Class App\\Models\\Announcement uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'

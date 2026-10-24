@@ -11,10 +11,10 @@ use App\Http\Requests\Attendance\MobileCheckInRequest;
 use App\Http\Requests\Attendance\MobileCheckOutRequest;
 use App\Http\Resources\AttendancePunchResource;
 use App\Http\Resources\AttendanceRecordResource;
-use App\Models\AttendanceSetting;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\Attendance\AttendancePolicy;
 use App\Services\Attendance\ConfidenceScorer;
 use App\Services\FileStorageService;
 use Illuminate\Http\JsonResponse;
@@ -151,10 +151,10 @@ class MobileAttendanceController extends Controller
 
     private function autoCheckInRefusal(MobileCheckInRequest $request, Employee $employee): ?string
     {
-        $settings = AttendanceSetting::query()->first();
+        $settings = app(AttendancePolicy::class)->for($employee);
         $optedIn = ProfilePreferencesController::present($request->user())['auto_check_in'];
 
-        if ($settings?->geofence_auto_checkin_enabled !== true || ! $optedIn) {
+        if ($settings->geofence_auto_checkin_enabled !== true || ! $optedIn) {
             return __('attendance.auto_check_in_not_allowed');
         }
 

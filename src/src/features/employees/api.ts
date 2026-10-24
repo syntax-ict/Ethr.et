@@ -87,6 +87,20 @@ export function useSetKioskPin(publicId: string) {
   });
 }
 
+export function useSetAttendanceMode(publicId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (mode: "office" | "field" | "remote") => {
+      const { data } = await apiClient.put<
+        operations["attendance.employeeAttendanceMode"]["responses"][200]["content"]["application/json"]
+      >(`/employees/${publicId}/attendance-mode`, { attendance_mode: mode });
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["employees", publicId] }),
+  });
+}
+
 export function useEmployee(publicId: string) {
   return useQuery<Employee>({
     queryKey: ["employees", publicId],

@@ -389,6 +389,17 @@ export default function MobilePunchPage() {
 
   return (
     <div className="mx-auto max-w-md space-y-4">
+      {shift && !shift.policy.mobile_enabled && (
+        <div
+          role="status"
+          className="rounded-lg border border-warning-edge bg-warning-soft px-3 py-2 text-sm text-warning-on-soft"
+        >
+          {t(
+            "attendance.punch.mobile_off",
+            "Phone check-in is turned off where you work. Use the device, kiosk or web check-in your organisation provides.",
+          )}
+        </div>
+      )}
       {!isOnline && (
         <div className="flex items-center gap-2 rounded-lg border border-warning-edge bg-warning-soft px-3 py-2 text-sm text-warning-on-soft">
           <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />

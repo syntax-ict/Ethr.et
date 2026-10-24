@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Attendance;
 
+use App\Enums\AttendanceMode;
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
 use App\Models\AttendanceIntegrityFlag;
@@ -72,8 +73,11 @@ final class IntegrityInspector
             ]];
         }
 
-        // Where the person was, for sources that report it.
-        if ($lat !== null && $lon !== null && $branch !== null
+        // Where the person was, for sources that report it. A remote worker
+        // has no place to be measured against, so none of this applies.
+        // Their location is still kept on the record.
+        $remote = AttendancePolicy::modeOf($employee) === AttendanceMode::REMOTE;
+        if (! $remote && $lat !== null && $lon !== null && $branch !== null
             && $branch->latitude !== null && $branch->longitude !== null && (int) $branch->geofence_radius_meters > 0) {
             $distance = $this->scorer->distanceMeters($lat, $lon, (float) $branch->latitude, (float) $branch->longitude);
             if ($distance > $branch->geofence_radius_meters) {
@@ -82,9 +86,9 @@ final class IntegrityInspector
                     'radius_meters' => $branch->geofence_radius_meters,
                 ]];
             }
-        } elseif (($settings->geofence_required ?? false) && in_array($source, ['offline_mobile', 'web'], true) && ($lat === null || $lon === null)) {
+        } elseif (! $remote && ($settings->geofence_required ?? false) && in_array($source, ['offline_mobile', 'web'], true) && ($lat === null || $lon === null)) {
             $findings[] = ['location_missing', 'medium', ['source' => $source]];
-        } elseif (($settings->geofence_required ?? false) && $lat !== null && $lon !== null && in_array($source, self::SELF_SERVICE, true)) {
+        } elseif (! $remote && ($settings->geofence_required ?? false) && $lat !== null && $lon !== null && in_array($source, self::SELF_SERVICE, true)) {
             // A geofence is required but there is nothing to check against:
             // no branch, or a branch nobody has placed on the map. The punch
             // is kept (refusing it would stop the whole branch) and the gap

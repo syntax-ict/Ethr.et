@@ -16,6 +16,7 @@ export type Employee = Pick<
   | "nationality_status"
   | "nationality_needs_review"
   | "has_kiosk_pin"
+  | "attendance_mode"
   | "gender"
   | "status"
   | "photo_url"

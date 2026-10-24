@@ -4927,6 +4927,12 @@
                                                 "web_enabled": {
                                                     "type": "boolean"
                                                 },
+                                                "qr_enabled": {
+                                                    "type": "boolean"
+                                                },
+                                                "attendance_mode": {
+                                                    "type": "string"
+                                                },
                                                 "geofence_required": {
                                                     "type": "boolean"
                                                 },
@@ -4968,6 +4974,8 @@
                                             "required": [
                                                 "mobile_enabled",
                                                 "web_enabled",
+                                                "qr_enabled",
+                                                "attendance_mode",
                                                 "geofence_required",
                                                 "photo_required",
                                                 "photo_consent",
@@ -6752,6 +6760,528 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/attendance/settings/branches": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "branchAttendance.index",
+                "summary": "List branches",
+                "tags": [
+                    "Organization"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "organisation": {
+                                            "type": "object",
+                                            "properties": {
+                                                "enabled_methods": {
+                                                    "type": [
+                                                        "array",
+                                                        "null"
+                                                    ],
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "geofence_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "mobile_photo_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "kiosk_pin_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "mobile_accuracy_threshold_meters": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "auto_checkout_enabled": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "auto_checkout_after_minutes": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "geofence_auto_checkin_enabled": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "enabled_methods",
+                                                "geofence_required",
+                                                "mobile_photo_required",
+                                                "kiosk_pin_required",
+                                                "mobile_accuracy_threshold_meters",
+                                                "auto_checkout_enabled",
+                                                "auto_checkout_after_minutes",
+                                                "geofence_auto_checkin_enabled"
+                                            ]
+                                        },
+                                        "overridable": {
+                                            "type": "array",
+                                            "prefixItems": [
+                                                {
+                                                    "type": "string",
+                                                    "const": "enabled_methods"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "geofence_required"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "mobile_photo_required"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "kiosk_pin_required"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "mobile_accuracy_threshold_meters"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "auto_checkout_enabled"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "auto_checkout_after_minutes"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "geofence_auto_checkin_enabled"
+                                                }
+                                            ],
+                                            "minItems": 8,
+                                            "maxItems": 8,
+                                            "additionalItems": false
+                                        },
+                                        "branches": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "name_am": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "placed": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "overrides": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "enabled_methods": {
+                                                                "type": [
+                                                                    "array",
+                                                                    "null"
+                                                                ],
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "geofence_required": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "mobile_photo_required": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "kiosk_pin_required": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "mobile_accuracy_threshold_meters": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "auto_checkout_enabled": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "auto_checkout_after_minutes": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "geofence_auto_checkin_enabled": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "enabled_methods",
+                                                            "geofence_required",
+                                                            "mobile_photo_required",
+                                                            "kiosk_pin_required",
+                                                            "mobile_accuracy_threshold_meters",
+                                                            "auto_checkout_enabled",
+                                                            "auto_checkout_after_minutes",
+                                                            "geofence_auto_checkin_enabled"
+                                                        ]
+                                                    },
+                                                    "effective": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "enabled_methods": {
+                                                                "type": [
+                                                                    "array",
+                                                                    "null"
+                                                                ],
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "geofence_required": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "mobile_photo_required": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "kiosk_pin_required": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "mobile_accuracy_threshold_meters": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "auto_checkout_enabled": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "auto_checkout_after_minutes": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "geofence_auto_checkin_enabled": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "enabled_methods",
+                                                            "geofence_required",
+                                                            "mobile_photo_required",
+                                                            "kiosk_pin_required",
+                                                            "mobile_accuracy_threshold_meters",
+                                                            "auto_checkout_enabled",
+                                                            "auto_checkout_after_minutes",
+                                                            "geofence_auto_checkin_enabled"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "name",
+                                                    "name_am",
+                                                    "placed",
+                                                    "overrides",
+                                                    "effective"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "organisation",
+                                        "overridable",
+                                        "branches"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/settings/branches/{branch}": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "branchAttendance.update",
+                "summary": "Update branch",
+                "tags": [
+                    "Organization"
+                ],
+                "parameters": [
+                    {
+                        "name": "branch",
+                        "in": "path",
+                        "required": true,
+                        "description": "The branch public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateBranchAttendanceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "name_am": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "placed": {
+                                            "type": "boolean"
+                                        },
+                                        "overrides": {
+                                            "type": "object",
+                                            "properties": {
+                                                "enabled_methods": {
+                                                    "type": [
+                                                        "array",
+                                                        "null"
+                                                    ],
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "geofence_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "mobile_photo_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "kiosk_pin_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "mobile_accuracy_threshold_meters": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "auto_checkout_enabled": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "auto_checkout_after_minutes": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "geofence_auto_checkin_enabled": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "enabled_methods",
+                                                "geofence_required",
+                                                "mobile_photo_required",
+                                                "kiosk_pin_required",
+                                                "mobile_accuracy_threshold_meters",
+                                                "auto_checkout_enabled",
+                                                "auto_checkout_after_minutes",
+                                                "geofence_auto_checkin_enabled"
+                                            ]
+                                        },
+                                        "effective": {
+                                            "type": "object",
+                                            "properties": {
+                                                "enabled_methods": {
+                                                    "type": [
+                                                        "array",
+                                                        "null"
+                                                    ],
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "geofence_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "mobile_photo_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "kiosk_pin_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "mobile_accuracy_threshold_meters": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "auto_checkout_enabled": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "auto_checkout_after_minutes": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "geofence_auto_checkin_enabled": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "enabled_methods",
+                                                "geofence_required",
+                                                "mobile_photo_required",
+                                                "kiosk_pin_required",
+                                                "mobile_accuracy_threshold_meters",
+                                                "auto_checkout_enabled",
+                                                "auto_checkout_after_minutes",
+                                                "geofence_auto_checkin_enabled"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "name",
+                                        "name_am",
+                                        "placed",
+                                        "overrides",
+                                        "effective"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -13412,6 +13942,76 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/{employee}/attendance-mode": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "attendance.employeeAttendanceMode",
+                "summary": "Where this employee is expected to punch: at their branch, at any of\ntheir sites (field), or from anywhere (remote). See AttendancePolicy",
+                "tags": [
+                    "Employees"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAttendanceModeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "attendance_mode": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "attendance_mode"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -35698,9 +36298,6 @@
                     "kiosk_auto_reset_seconds": {
                         "type": "integer"
                     },
-                    "grace_period_minutes": {
-                        "type": "integer"
-                    },
                     "ot_daily_cap_minutes": {
                         "type": "integer"
                     },
@@ -35747,7 +36344,6 @@
                     "mobile_accuracy_threshold_meters",
                     "offline_sync_enabled",
                     "kiosk_auto_reset_seconds",
-                    "grace_period_minutes",
                     "ot_daily_cap_minutes",
                     "overtime_requires_approval",
                     "confidence_threshold",
@@ -37470,6 +38066,9 @@
                     "has_kiosk_pin": {
                         "type": "boolean"
                     },
+                    "attendance_mode": {
+                        "type": "string"
+                    },
                     "gender": {
                         "type": [
                             "string",
@@ -37666,6 +38265,7 @@
                     "employee_code",
                     "badge_number",
                     "has_kiosk_pin",
+                    "attendance_mode",
                     "gender",
                     "date_of_birth",
                     "nationality",
@@ -42995,6 +43595,23 @@
                 },
                 "title": "UpdateAnnouncementRequest"
             },
+            "UpdateAttendanceModeRequest": {
+                "type": "object",
+                "properties": {
+                    "attendance_mode": {
+                        "type": "string",
+                        "enum": [
+                            "office",
+                            "field",
+                            "remote"
+                        ]
+                    }
+                },
+                "required": [
+                    "attendance_mode"
+                ],
+                "title": "UpdateAttendanceModeRequest"
+            },
             "UpdateAttendanceSettingRequest": {
                 "type": "object",
                 "properties": {
@@ -43049,11 +43666,6 @@
                         "minimum": 2,
                         "maximum": 30
                     },
-                    "grace_period_minutes": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 240
-                    },
                     "ot_daily_cap_minutes": {
                         "type": "integer",
                         "minimum": 0,
@@ -43093,6 +43705,86 @@
                     }
                 },
                 "title": "UpdateAttendanceSettingRequest"
+            },
+            "UpdateBranchAttendanceRequest": {
+                "type": "object",
+                "description": "A branch's attendance overrides. Every key is optional and nullable: a key\nleft out or sent as null is inherited from the organisation. The limits\nmatch UpdateAttendanceSettingRequest's.",
+                "properties": {
+                    "overrides": {
+                        "type": "object",
+                        "properties": {
+                            "enabled_methods": {
+                                "type": [
+                                    "array",
+                                    "null"
+                                ],
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "biometric",
+                                        "mobile",
+                                        "qr",
+                                        "kiosk",
+                                        "web",
+                                        "manual",
+                                        "csv"
+                                    ]
+                                },
+                                "minItems": 1
+                            },
+                            "geofence_required": {
+                                "type": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            },
+                            "mobile_photo_required": {
+                                "type": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            },
+                            "kiosk_pin_required": {
+                                "type": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            },
+                            "mobile_accuracy_threshold_meters": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ],
+                                "minimum": 10,
+                                "maximum": 5000
+                            },
+                            "auto_checkout_enabled": {
+                                "type": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            },
+                            "auto_checkout_after_minutes": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ],
+                                "minimum": 15,
+                                "maximum": 720
+                            },
+                            "geofence_auto_checkin_enabled": {
+                                "type": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "overrides"
+                ],
+                "title": "UpdateBranchAttendanceRequest"
             },
             "UpdateBranchRequest": {
                 "type": "object",

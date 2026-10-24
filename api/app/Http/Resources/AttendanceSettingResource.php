@@ -25,7 +25,6 @@ class AttendanceSettingResource extends JsonResource
             'mobile_accuracy_threshold_meters' => $this->mobile_accuracy_threshold_meters,
             'offline_sync_enabled' => $this->offline_sync_enabled,
             'kiosk_auto_reset_seconds' => $this->kiosk_auto_reset_seconds,
-            'grace_period_minutes' => $this->grace_period_minutes,
             'ot_daily_cap_minutes' => $this->ot_daily_cap_minutes,
             'overtime_requires_approval' => (bool) $this->overtime_requires_approval,
             'confidence_threshold' => $this->confidence_threshold,

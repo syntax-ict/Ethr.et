@@ -24,6 +24,8 @@ use App\Http\Controllers\Api\V1\Attendance\AttendanceIntegrityController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntelligenceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendancePhotoController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceSettingController;
+use App\Http\Controllers\Api\V1\Attendance\BranchAttendanceController;
+use App\Http\Controllers\Api\V1\Attendance\EmployeeAttendanceModeController;
 use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
 use App\Http\Controllers\Api\V1\Attendance\KioskAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\ManualAttendanceController;
@@ -404,6 +406,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
 
         Route::get('/settings', [AttendanceSettingController::class, 'show']);
         Route::put('/settings', [AttendanceSettingController::class, 'update']);
+        Route::get('/settings/branches', [BranchAttendanceController::class, 'index']);
+        Route::put('/settings/branches/{branch}', [BranchAttendanceController::class, 'update']);
 
         Route::prefix('photos')->group(function () {
             Route::get('/', [AttendancePhotoController::class, 'index']);
@@ -529,6 +533,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/contracts/{contract}/end', [EmployeeContractController::class, 'end']);
         Route::get('/attendance/timeline', EmployeeAttendanceTimelineController::class);
         Route::put('/kiosk-pin', EmployeeKioskPinController::class);
+        Route::put('/attendance-mode', EmployeeAttendanceModeController::class);
 
         Route::get('/emergency-contacts', [EmergencyContactController::class, 'index']);
         Route::post('/emergency-contacts', [EmergencyContactController::class, 'store']);

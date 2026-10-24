@@ -112,6 +112,7 @@ const keys = {
   conflicts: ["attendance", "conflicts"] as const,
   kiosks: ["attendance", "kiosks"] as const,
   settings: ["attendance", "settings"] as const,
+  branchRules: ["attendance", "settings", "branches"] as const,
   myShift: ["attendance", "my-shift"] as const,
 };
 
@@ -679,6 +680,40 @@ export function useUpdateAttendanceSettings() {
     async (payload: AttendanceSettingsUpdate): Promise<AttendanceSettings> =>
       (await apiClient.put("/attendance/settings", payload)).data,
     [keys.settings],
+  );
+}
+
+export type BranchAttendanceRules =
+  operations["branchAttendance.index"]["responses"][200]["content"]["application/json"];
+export type BranchAttendanceRow = BranchAttendanceRules["branches"][number];
+export type BranchOverrides = NonNullable<
+  operations["branchAttendance.update"]["requestBody"]
+>["content"]["application/json"]["overrides"];
+
+/** Each branch's attendance overrides and the rules that apply there. */
+export function useBranchAttendanceRules() {
+  return useQuery<BranchAttendanceRules>({
+    queryKey: keys.branchRules,
+    queryFn: async () =>
+      (await apiClient.get("/attendance/settings/branches")).data,
+  });
+}
+
+export function useUpdateBranchAttendanceRules() {
+  return useAttendanceMutation(
+    async ({
+      branch,
+      overrides,
+    }: {
+      branch: string;
+      overrides: BranchOverrides;
+    }): Promise<BranchAttendanceRow> =>
+      (
+        await apiClient.put(`/attendance/settings/branches/${branch}`, {
+          overrides,
+        })
+      ).data,
+    [keys.branchRules],
   );
 }
 

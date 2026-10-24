@@ -13,7 +13,6 @@ use App\Http\Requests\Shift\UpdateShiftRequest;
 use App\Http\Resources\ShiftAssignmentResource;
 use App\Http\Resources\ShiftResource;
 use App\Models\AttendanceRecord;
-use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Department;
@@ -57,14 +56,17 @@ class ShiftController extends Controller
     {
         Gate::authorize('shift.create');
 
-        // A shift with no grace of its own takes the organisation's default
-        // (Attendance settings -> grace period), which until 2026-10-13 was
-        // stored and shown but read by nothing (attendance QA H7). The
-        // shift's own value is what rates a punch.
+        // A new shift starts from the default shift's rules: grace, early
+        // departure, break and days the shift does not set itself are copied
+        // from it. Grace is a property of a shift, and the shift's own value
+        // is the only one that rates a punch; the organisation-wide grace
+        // setting that used to seed it was dropped on 2026-10-24.
         $data = $request->validated();
-        if (! array_key_exists('grace_minutes', $data)) {
-            $default = AttendanceSetting::query()->value('grace_period_minutes');
-            $data['grace_minutes'] = min(120, is_numeric($default) ? (int) $default : 15);
+        $default = Shift::query()->where('is_default', true)->where('is_active', true)->first();
+        foreach (['grace_minutes', 'early_departure_minutes', 'break_minutes', 'working_days'] as $field) {
+            if (! array_key_exists($field, $data) && $default !== null) {
+                $data[$field] = $default->getAttribute($field);
+            }
         }
 
         if (($data['is_default'] ?? false) && ! ($data['is_active'] ?? true)) {

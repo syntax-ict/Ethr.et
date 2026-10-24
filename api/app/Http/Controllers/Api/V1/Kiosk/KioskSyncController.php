@@ -9,12 +9,12 @@ use App\Exceptions\AttendanceRefused;
 use App\Exceptions\NoOpenCheckIn;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\KioskSyncRequest;
-use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\KioskSession;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\Attendance\AttendancePolicy;
 use App\Services\Kiosk\KioskOfflineSeal;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -53,8 +53,7 @@ class KioskSyncController extends Controller
             ], 401)->header('Content-Type', 'application/problem+json');
         }
 
-        $settings = AttendanceSetting::first();
-        $pinRequired = (bool) ($settings?->kiosk_pin_required);
+        $pinRequired = (bool) app(AttendancePolicy::class)->forBranch($session->branch_id)->kiosk_pin_required;
         $oldest = Carbon::now('UTC')->subDays((int) config('attendance.offline_max_age_days'));
         $latest = Carbon::now('UTC')->addMinutes((int) config('attendance.offline_future_skew_minutes'));
 

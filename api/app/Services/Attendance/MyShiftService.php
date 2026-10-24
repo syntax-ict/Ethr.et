@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Attendance;
 
+use App\Enums\AttendanceMode;
 use App\Enums\LeaveStatus;
 use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
 use App\Models\AttendanceRecord;
-use App\Models\AttendanceSetting;
 use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\LeaveRequest;
@@ -31,7 +31,10 @@ use Carbon\CarbonInterface;
  */
 final class MyShiftService
 {
-    public function __construct(private readonly ShiftMatcher $shiftMatcher) {}
+    public function __construct(
+        private readonly ShiftMatcher $shiftMatcher,
+        private readonly AttendancePolicy $policy,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -65,15 +68,17 @@ final class MyShiftService
             ->latest('check_in')
             ->first();
 
-        $settings = AttendanceSetting::query()->first();
-        $policy = $settings ?? new AttendanceSetting(AttendanceSetting::defaults());
+        // This person's rules: their branch and mode may differ.
+        $policy = $this->policy->for($employee);
         $prefs = ProfilePreferencesController::present($user);
 
         $holiday = $this->holiday($employee, $day);
         $onLeave = $this->onLeave($employee, $day);
         $working = (bool) ($shift !== null && $shift->isWorkingDay($day) && $holiday === null && ! $onLeave);
 
-        $branch = $employee->branch;
+        // A remote worker has no place to be shown or measured against.
+        $mode = AttendancePolicy::modeOf($employee);
+        $branch = $mode === AttendanceMode::REMOTE ? null : $employee->branch;
         $geofence = $branch !== null && $branch->latitude !== null && $branch->longitude !== null
             ? [
                 'latitude' => (float) $branch->latitude,
@@ -102,6 +107,8 @@ final class MyShiftService
             'policy' => [
                 'mobile_enabled' => $policy->isMethodEnabled('mobile'),
                 'web_enabled' => $policy->isMethodEnabled('web'),
+                'qr_enabled' => $policy->isMethodEnabled('qr'),
+                'attendance_mode' => $mode->value,
                 'geofence_required' => (bool) $policy->geofence_required,
                 'photo_required' => (bool) $policy->mobile_photo_required,
                 'photo_consent' => PhotoConsent::given($user),

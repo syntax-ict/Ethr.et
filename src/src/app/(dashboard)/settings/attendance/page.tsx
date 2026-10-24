@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { SettingRow } from "@/components/patterns/SettingRow";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
+import { BranchRulesCard } from "@/features/attendance/components/branch-rules-card";
 
 type Method = AttendanceSettings["enabled_methods"][number];
 
@@ -198,34 +199,6 @@ export default function AttendanceSettingsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <Label htmlFor="grace-period" className="text-sm">
-                    {t(
-                      "attendance.settings_page.grace_period",
-                      "Grace period (minutes)",
-                    )}
-                  </Label>
-                  <Input
-                    id="grace-period"
-                    type="number"
-                    value={form.grace_period_minutes}
-                    onChange={(e) =>
-                      setField(
-                        "grace_period_minutes",
-                        parseInt(e.target.value) || 0,
-                      )
-                    }
-                    min={0}
-                    max={240}
-                    className="mt-1 w-32"
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t(
-                      "attendance.settings_page.grace_period_desc",
-                      "Default for new shifts. Each shift keeps its own grace, which is what decides lateness.",
-                    )}
-                  </p>
-                </div>
                 <div>
                   <Label htmlFor="ot-daily-cap" className="text-sm">
                     {t(
@@ -626,6 +599,8 @@ export default function AttendanceSettingsPage() {
                 </SettingRow>
               </CardContent>
             </Card>
+
+            <BranchRulesCard />
           </div>
         )}
       </div>

@@ -2681,6 +2681,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{employee}/attendance-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Where this employee is expected to punch: at their branch, at any of
+         *     their sites (field), or from anywhere (remote). See AttendancePolicy
+         */
+        put: operations["attendance.employeeAttendanceMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{employee}/emergency-contacts": {
         parameters: {
             query?: never;
@@ -4020,6 +4040,40 @@ export interface paths {
         put?: never;
         /** Commit batches */
         post: operations["migration.commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/settings/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List branches */
+        get: operations["branchAttendance.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/settings/branches/{branch}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update branch */
+        put: operations["branchAttendance.update"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7305,7 +7359,6 @@ export interface components {
             mobile_accuracy_threshold_meters: number;
             offline_sync_enabled: boolean;
             kiosk_auto_reset_seconds: number;
-            grace_period_minutes: number;
             ot_daily_cap_minutes: number;
             overtime_requires_approval: boolean;
             confidence_threshold: number;
@@ -7785,6 +7838,7 @@ export interface components {
             employee_code: string | null;
             badge_number: string | null;
             has_kiosk_pin: boolean;
+            attendance_mode: string;
             gender: string | null;
             date_of_birth: string | null;
             nationality: string | null;
@@ -9657,6 +9711,11 @@ export interface components {
                 sla_hours?: number | null;
             }[];
         };
+        /** UpdateAttendanceModeRequest */
+        UpdateAttendanceModeRequest: {
+            /** @enum {string} */
+            attendance_mode: "office" | "field" | "remote";
+        };
         /** UpdateAttendanceSettingRequest */
         UpdateAttendanceSettingRequest: {
             enabled_methods?: ("biometric" | "mobile" | "qr" | "kiosk" | "web" | "manual" | "csv")[];
@@ -9669,7 +9728,6 @@ export interface components {
             mobile_accuracy_threshold_meters?: number;
             offline_sync_enabled?: boolean;
             kiosk_auto_reset_seconds?: number;
-            grace_period_minutes?: number;
             ot_daily_cap_minutes?: number;
             overtime_requires_approval?: boolean;
             confidence_threshold?: number;
@@ -9679,6 +9737,24 @@ export interface components {
             auto_checkout_after_minutes?: number;
             geofence_auto_checkin_enabled?: boolean;
             photo_retention_days?: number;
+        };
+        /**
+         * UpdateBranchAttendanceRequest
+         * @description A branch's attendance overrides. Every key is optional and nullable: a key
+         *     left out or sent as null is inherited from the organisation. The limits
+         *     match UpdateAttendanceSettingRequest's.
+         */
+        UpdateBranchAttendanceRequest: {
+            overrides: {
+                enabled_methods?: ("biometric" | "mobile" | "qr" | "kiosk" | "web" | "manual" | "csv")[] | null;
+                geofence_required?: boolean | null;
+                mobile_photo_required?: boolean | null;
+                kiosk_pin_required?: boolean | null;
+                mobile_accuracy_threshold_meters?: number | null;
+                auto_checkout_enabled?: boolean | null;
+                auto_checkout_after_minutes?: number | null;
+                geofence_auto_checkin_enabled?: boolean | null;
+            };
         };
         /** UpdateBranchRequest */
         UpdateBranchRequest: {
@@ -17263,6 +17339,39 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "attendance.employeeAttendanceMode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAttendanceModeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        attendance_mode: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "emergencyContact.index": {
         parameters: {
             query?: never;
@@ -20134,6 +20243,8 @@ export interface operations {
                         policy: {
                             mobile_enabled: boolean;
                             web_enabled: boolean;
+                            qr_enabled: boolean;
+                            attendance_mode: string;
                             geofence_required: boolean;
                             photo_required: boolean;
                             photo_consent: boolean;
@@ -21291,6 +21402,129 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "branchAttendance.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        organisation: {
+                            enabled_methods: string[] | null;
+                            geofence_required: boolean | null;
+                            mobile_photo_required: boolean | null;
+                            kiosk_pin_required: boolean | null;
+                            mobile_accuracy_threshold_meters: number | null;
+                            auto_checkout_enabled: boolean | null;
+                            auto_checkout_after_minutes: number | null;
+                            geofence_auto_checkin_enabled: boolean | null;
+                        };
+                        overridable: [
+                            "enabled_methods",
+                            "geofence_required",
+                            "mobile_photo_required",
+                            "kiosk_pin_required",
+                            "mobile_accuracy_threshold_meters",
+                            "auto_checkout_enabled",
+                            "auto_checkout_after_minutes",
+                            "geofence_auto_checkin_enabled"
+                        ];
+                        branches: {
+                            public_id: string;
+                            name: string;
+                            name_am: string | null;
+                            placed: boolean;
+                            overrides: {
+                                enabled_methods: string[] | null;
+                                geofence_required: boolean | null;
+                                mobile_photo_required: boolean | null;
+                                kiosk_pin_required: boolean | null;
+                                mobile_accuracy_threshold_meters: number | null;
+                                auto_checkout_enabled: boolean | null;
+                                auto_checkout_after_minutes: number | null;
+                                geofence_auto_checkin_enabled: boolean | null;
+                            };
+                            effective: {
+                                enabled_methods: string[] | null;
+                                geofence_required: boolean | null;
+                                mobile_photo_required: boolean | null;
+                                kiosk_pin_required: boolean | null;
+                                mobile_accuracy_threshold_meters: number | null;
+                                auto_checkout_enabled: boolean | null;
+                                auto_checkout_after_minutes: number | null;
+                                geofence_auto_checkin_enabled: boolean | null;
+                            };
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "branchAttendance.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The branch public id */
+                branch: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBranchAttendanceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        name: string;
+                        name_am: string | null;
+                        placed: boolean;
+                        overrides: {
+                            enabled_methods: string[] | null;
+                            geofence_required: boolean | null;
+                            mobile_photo_required: boolean | null;
+                            kiosk_pin_required: boolean | null;
+                            mobile_accuracy_threshold_meters: number | null;
+                            auto_checkout_enabled: boolean | null;
+                            auto_checkout_after_minutes: number | null;
+                            geofence_auto_checkin_enabled: boolean | null;
+                        };
+                        effective: {
+                            enabled_methods: string[] | null;
+                            geofence_required: boolean | null;
+                            mobile_photo_required: boolean | null;
+                            kiosk_pin_required: boolean | null;
+                            mobile_accuracy_threshold_meters: number | null;
+                            auto_checkout_enabled: boolean | null;
+                            auto_checkout_after_minutes: number | null;
+                            geofence_auto_checkin_enabled: boolean | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "teamMonitoring.attendanceToday": {
