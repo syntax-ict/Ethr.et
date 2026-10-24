@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Services\Dashboard;
 
 use App\Enums\AttendanceStatus;
+use App\Enums\ExpectedDay;
 use App\Enums\LeaveStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Services\Approval\DecidableApprovals;
+use App\Services\Attendance\ExpectedDays;
+use App\Services\CurrentTenant;
+use App\Support\TenantTime;
 use Carbon\Carbon;
 
 final class ManagerDashboardService
@@ -46,17 +50,29 @@ final class ManagerDashboardService
             return ['present' => 0, 'absent' => 0, 'late' => 0];
         }
 
+        $today = TenantTime::today(app(CurrentTenant::class)->get());
+
         $records = AttendanceRecord::query()
             ->whereIn('employee_id', $teamIds)
-            ->whereDate('date', Carbon::today())
+            ->whereDate('date', $today->format('Y-m-d'))
             ->get();
 
         $present = $records->count();
         $late = $records->where('status', AttendanceStatus::LATE)->count();
 
+        // Team size minus present counted leavers, approved leave, holidays
+        // and rest days as absent. Only a workday with no record is one.
+        $checkedIn = array_flip($records->pluck('employee_id')->all());
+        $absent = 0;
+        foreach (app(ExpectedDays::class)->onDate(Employee::query()->whereIn('id', $teamIds)->get(), $today) as $id => $kind) {
+            if ($kind === ExpectedDay::WORKDAY && ! isset($checkedIn[$id])) {
+                $absent++;
+            }
+        }
+
         return [
             'present' => $present,
-            'absent' => (int) (count($teamIds) - $present),
+            'absent' => $absent,
             'late' => $late,
         ];
     }

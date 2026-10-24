@@ -7930,7 +7930,7 @@ export interface components {
         /** GenerateReportRequest */
         GenerateReportRequest: {
             /** @enum {string} */
-            source: "employees" | "attendance" | "leave" | "payroll";
+            source: "employees" | "attendance" | "absences" | "leave" | "payroll";
             columns?: string[];
             filters?: string[];
             group_by?: string | null;
@@ -8790,7 +8790,7 @@ export interface components {
             name: string;
             config: {
                 /** @enum {string} */
-                source: "employees" | "attendance" | "leave" | "payroll";
+                source: "employees" | "attendance" | "absences" | "leave" | "payroll";
             };
         };
         /** SaveSmsGatewayRequest */
@@ -15099,6 +15099,17 @@ export interface operations {
                                     "status",
                                     "source",
                                     "worked_minutes"
+                                ];
+                            };
+                            absences: {
+                                /** @constant */
+                                label: "Absences";
+                                fields: [
+                                    "employee_name",
+                                    "employee_code",
+                                    "department",
+                                    "branch",
+                                    "date"
                                 ];
                             };
                             leave: {

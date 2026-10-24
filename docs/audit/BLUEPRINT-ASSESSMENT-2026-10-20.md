@@ -349,8 +349,11 @@ calculation-log step and the register's `absences`), and pay is never reduced
 for them: decided under owner delegation the same day, because a day the
 system cannot explain may be unrecorded leave or a missed punch, and docking
 pay is a decision for a person. Nothing is flagged for an organisation that
-recorded no attendance in the period. Still open: `ABSENT` is never written
-as an attendance row, so reports do not count absences.)*
+recorded no attendance in the period. The report builder has an Absences
+source (one row per missed workday, by the same rule, at most 92 days), and
+the manager dashboard's team card counts absence the same way. `ABSENT` is
+still never written as an attendance row: absence is derived wherever it is
+shown, from one rule, rather than stored.)*
 
 ### IN. Integrations
 
