@@ -405,6 +405,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Plans",
     description: "Prices, limits and copy the public pricing page reads",
   },
+  "/admin/marketing": {
+    section: "Admin",
+    parent: { label: "Admin Console", href: "/admin" },
+    label: "Marketing site",
+    description: "Sections, rows and pictures the public landing page reads",
+  },
 
   // ── Profile & Notifications (personal, outside the section tree) ──
   "/profile": {

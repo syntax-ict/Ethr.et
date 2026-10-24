@@ -771,3 +771,185 @@ export function useUpdateTenantAddressMode() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "tenants"] }),
   });
 }
+
+// ── The public landing page's sections and rows ───────────────────────────
+
+export type AdminMarketingSection =
+  components["schemas"]["AdminMarketingSectionResource"];
+export type AdminMarketingItem =
+  components["schemas"]["AdminMarketingItemResource"];
+export type AdminMarketingSpec = AdminMarketingSection["spec"];
+
+export interface AdminMarketingContent {
+  sections: AdminMarketingSection[];
+  icons: string[];
+}
+
+/** Where a landing-page picture belongs: a row, or the hero section. */
+export type MarketingImageOwner =
+  { type: "item"; publicId: string } | { type: "section"; kind: string };
+
+export function useAdminMarketing() {
+  const isSuperAdmin = useIsSuperAdmin();
+
+  return useQuery<AdminMarketingContent>({
+    queryKey: ["admin", "marketing"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/admin/marketing");
+      return data.data as AdminMarketingContent;
+    },
+    enabled: isSuperAdmin,
+  });
+}
+
+/**
+ * Invalidates the public landing page too, not only this screen: `/en` and
+ * `/am` read `useMarketingContent()` under `["marketing-content"]`, and an
+ * operator who saves a heading and opens the public page in the next tab
+ * should see it there.
+ */
+function invalidateMarketingCaches(
+  qc: ReturnType<typeof useQueryClient>,
+): void {
+  qc.invalidateQueries({ queryKey: ["admin", "marketing"] });
+  qc.invalidateQueries({ queryKey: ["marketing-content"] });
+}
+
+export type UpdateMarketingSectionPayload = Partial<
+  Pick<
+    AdminMarketingSection,
+    "heading" | "heading_am" | "subheading" | "subheading_am" | "is_published"
+  >
+> & { image_alt?: string | null; image_alt_am?: string | null };
+
+export function useUpdateMarketingSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      kind,
+      ...payload
+    }: UpdateMarketingSectionPayload & { kind: string }) => {
+      const { data } = await apiClient.put(
+        `/admin/marketing/sections/${kind}`,
+        payload,
+      );
+      return data.data as AdminMarketingSection;
+    },
+    onSuccess: () => invalidateMarketingCaches(qc),
+  });
+}
+
+export type MarketingItemPayload = Partial<
+  Pick<
+    AdminMarketingItem,
+    | "title"
+    | "title_am"
+    | "body"
+    | "body_am"
+    | "detail"
+    | "detail_am"
+    | "icon"
+    | "link_path"
+    | "is_published"
+  >
+> & { image_alt?: string | null; image_alt_am?: string | null };
+
+export function useCreateMarketingItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      kind,
+      ...payload
+    }: MarketingItemPayload & { kind: string; slug: string }) => {
+      const { data } = await apiClient.post(
+        `/admin/marketing/sections/${kind}/items`,
+        payload,
+      );
+      return data.data as AdminMarketingItem;
+    },
+    onSuccess: () => invalidateMarketingCaches(qc),
+  });
+}
+
+export function useUpdateMarketingItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      ...payload
+    }: MarketingItemPayload & { publicId: string }) => {
+      const { data } = await apiClient.put(
+        `/admin/marketing/items/${publicId}`,
+        payload,
+      );
+      return data.data as AdminMarketingItem;
+    },
+    onSuccess: () => invalidateMarketingCaches(qc),
+  });
+}
+
+export function useDeleteMarketingItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (publicId: string) => {
+      await apiClient.delete(`/admin/marketing/items/${publicId}`);
+    },
+    onSuccess: () => invalidateMarketingCaches(qc),
+  });
+}
+
+export function useReorderMarketingItems() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ kind, order }: { kind: string; order: string[] }) => {
+      const { data } = await apiClient.put(
+        `/admin/marketing/sections/${kind}/order`,
+        { order },
+      );
+      return data.data as AdminMarketingSection;
+    },
+    onSuccess: () => invalidateMarketingCaches(qc),
+  });
+}
+
+function marketingImagePath(owner: MarketingImageOwner): string {
+  return owner.type === "item"
+    ? `/admin/marketing/items/${owner.publicId}/image`
+    : `/admin/marketing/sections/${owner.kind}/image`;
+}
+
+/**
+ * Upload a picture for a row or the hero. The server re-encodes it and
+ * serves it at a URL that changes with every upload.
+ */
+export function useUploadMarketingImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      owner,
+      file,
+    }: {
+      owner: MarketingImageOwner;
+      file: File;
+    }) => {
+      const body = new FormData();
+      body.append("image", file);
+      const { data } = await apiClient.post(marketingImagePath(owner), body, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return data.data as AdminMarketingItem | AdminMarketingSection;
+    },
+    onSuccess: () => invalidateMarketingCaches(qc),
+  });
+}
+
+export function useRemoveMarketingImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (owner: MarketingImageOwner) => {
+      const { data } = await apiClient.delete(marketingImagePath(owner));
+      return data.data as AdminMarketingItem | AdminMarketingSection;
+    },
+    onSuccess: () => invalidateMarketingCaches(qc),
+  });
+}
