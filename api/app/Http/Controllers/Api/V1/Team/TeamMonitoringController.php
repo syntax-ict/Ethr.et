@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Team;
 
+use App\Enums\AttendanceStatus;
+use App\Enums\ExpectedDay;
 use App\Enums\LeaveStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Services\Attendance\ExpectedDays;
+use App\Services\CurrentTenant;
 use App\Services\FileStorageService;
+use App\Support\TenantTime;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +23,10 @@ use Illuminate\Support\Facades\Gate;
 
 class TeamMonitoringController extends Controller
 {
-    public function __construct(private readonly FileStorageService $storage) {}
+    public function __construct(
+        private readonly FileStorageService $storage,
+        private readonly ExpectedDays $expectedDays,
+    ) {}
 
     public function attendanceToday(Request $request): JsonResponse
     {
@@ -30,34 +38,38 @@ class TeamMonitoringController extends Controller
             return response()->json(['employees' => [], 'summary' => ['present' => 0, 'absent' => 0, 'late' => 0, 'on_leave' => 0]]);
         }
 
+        $date = TenantTime::today(app(CurrentTenant::class)->get());
+
         $records = AttendanceRecord::query()
             ->whereIn('employee_id', $teamIds)
-            ->whereDate('date', Carbon::today())
+            ->whereDate('date', $date->format('Y-m-d'))
             ->with('employee:id,public_id,name,photo_path')
             ->get()
             ->keyBy('employee_id');
 
-        $onLeaveIds = LeaveRequest::query()
-            ->whereIn('employee_id', $teamIds)
-            ->where('status', LeaveStatus::APPROVED)
-            ->whereDate('start_date', '<=', Carbon::today())
-            ->whereDate('end_date', '>=', Carbon::today())
-            ->pluck('employee_id')
-            ->toArray();
-
-        $employees = Employee::query()
+        $team = Employee::query()
             ->whereIn('id', $teamIds)
             ->with('department:id,name')
-            ->get()
-            ->map(function (Employee $emp) use ($records, $onLeaveIds) {
-                $record = $records->get($emp->id);
+            ->get();
 
-                if (in_array($emp->id, $onLeaveIds)) {
+        // Someone who has left is no longer on the team, and a holiday or a
+        // rest day is not an absence. ExpectedDays decides both.
+        $expected = $this->expectedDays->onDate($team, $date);
+
+        $employees = $team
+            ->reject(fn (Employee $emp): bool => ($expected[$emp->id] ?? null) === ExpectedDay::NOT_EMPLOYED)
+            ->map(function (Employee $emp) use ($records, $expected) {
+                $record = $records->get($emp->id);
+                $kind = $expected[$emp->id] ?? ExpectedDay::WORKDAY;
+
+                if ($kind === ExpectedDay::ON_LEAVE) {
                     $status = 'on_leave';
                 } elseif ($record) {
                     $status = $record->status ?? ($record->check_out ? 'present' : 'checked_in');
-                } else {
+                } elseif ($kind === ExpectedDay::WORKDAY) {
                     $status = 'absent';
+                } else {
+                    $status = $kind->value;
                 }
 
                 return [
@@ -82,7 +94,7 @@ class TeamMonitoringController extends Controller
         return response()->json([
             'employees' => $employees->values(),
             'summary' => $summary,
-            'date' => Carbon::today()->format('Y-m-d'),
+            'date' => $date->format('Y-m-d'),
         ]);
     }
 
@@ -102,24 +114,52 @@ class TeamMonitoringController extends Controller
             default => [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()],
         };
 
+        $today = TenantTime::today(app(CurrentTenant::class)->get())->format('Y-m-d');
+
         $records = AttendanceRecord::query()
             ->whereIn('employee_id', $teamIds)
-            ->whereBetween('date', [$from, $to])
+            ->whereBetween('date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
             ->get();
+
+        $attended = [];
+        foreach ($records as $record) {
+            $attended[$record->date->format('Y-m-d')][$record->employee_id] = $record;
+        }
+
+        // Each member's own days: their shift's working week, the holidays of
+        // their branch, their leave and their employment dates.
+        $expected = [];
+        foreach (Employee::query()->whereIn('id', $teamIds)->get() as $member) {
+            foreach ($this->expectedDays->forEmployee($member, $from, $to) as $day => $kind) {
+                $expected[$day][$member->id] = $kind;
+            }
+        }
 
         $data = [];
         foreach (CarbonPeriod::create($from, $to) as $day) {
-            if ($day->isWeekend()) {
+            $key = $day->format('Y-m-d');
+
+            // A day not yet reached has no absences to report.
+            if ($key > $today) {
+                break;
+            }
+
+            $dayRecords = collect($attended[$key] ?? []);
+            $due = collect($expected[$key] ?? [])->filter(fn (ExpectedDay $kind): bool => $kind === ExpectedDay::WORKDAY);
+
+            if ($due->isEmpty() && $dayRecords->isEmpty()) {
                 continue;
             }
-            $dayRecords = $records->filter(fn ($r) => $r->date->isSameDay($day));
+
+            $absent = $due->keys()->reject(fn (int $id): bool => $dayRecords->has($id))->count();
+
             $data[] = [
-                'date' => $day->format('Y-m-d'),
+                'date' => $key,
                 'present' => $dayRecords->count(),
-                'absent' => (int) (count($teamIds) - $dayRecords->count()),
-                'late' => $dayRecords->where('status', 'late')->count(),
-                'rate' => count($teamIds) > 0
-                    ? round(($dayRecords->count() / count($teamIds)) * 100, 1)
+                'absent' => $absent,
+                'late' => $dayRecords->where('status', AttendanceStatus::LATE)->count(),
+                'rate' => $due->isNotEmpty()
+                    ? round((($due->count() - $absent) / $due->count()) * 100, 1)
                     : 0,
             ];
         }
