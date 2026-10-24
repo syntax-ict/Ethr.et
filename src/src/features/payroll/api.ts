@@ -174,6 +174,18 @@ export interface PayrollRegister {
   overtime_limits?: OvertimeLimits;
   /** Who missed workdays with no attendance, leave or holiday on record; pay was not reduced. */
   absences?: PayrollAbsences;
+  /** People with serious attendance findings in the period still open; pay is unchanged. */
+  integrity?: PayrollIntegrity;
+}
+
+export interface PayrollIntegrity {
+  count: number;
+  flags: number;
+  employees: {
+    employee_public_id: string | null;
+    employee_name: string | null;
+    flags: number;
+  }[];
 }
 
 export interface PayrollAbsences {

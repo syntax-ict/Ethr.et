@@ -31,6 +31,7 @@ class UpdateBranchAttendanceRequest extends FormRequest
             'overrides.auto_checkout_enabled' => ['nullable', 'boolean'],
             'overrides.auto_checkout_after_minutes' => ['nullable', 'integer', 'min:15', 'max:720'],
             'overrides.geofence_auto_checkin_enabled' => ['nullable', 'boolean'],
+            'overrides.risk_review_threshold' => ['nullable', 'integer', 'min:10', 'max:100'],
         ];
     }
 }

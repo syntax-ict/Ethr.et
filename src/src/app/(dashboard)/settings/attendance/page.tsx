@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Settings2, Loader2, Save, Clock } from "lucide-react";
+import { Settings2, Loader2, Save, Clock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -599,6 +599,70 @@ export default function AttendanceSettingsPage() {
                     onCheckedChange={(v) =>
                       setField("geofence_auto_checkin_enabled", v)
                     }
+                  />
+                </SettingRow>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ShieldCheck className="h-4 w-4" />
+                  {t(
+                    "attendance.settings_page.protection",
+                    "Cheating protection",
+                  )}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "attendance.settings_page.protection_desc",
+                    "Every punch gets a risk score from signals such as a shared phone, a simulated location or a reused selfie, each with its reason. Punches are never refused for it: those at or above the threshold go to Integrity for a person to decide.",
+                  )}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="risk-threshold" className="text-sm">
+                    {t(
+                      "attendance.settings_page.risk_threshold",
+                      "Send to review from a risk score of",
+                    )}
+                  </Label>
+                  <Input
+                    id="risk-threshold"
+                    type="number"
+                    min={10}
+                    max={100}
+                    value={form.risk_review_threshold}
+                    onChange={(e) =>
+                      setField(
+                        "risk_review_threshold",
+                        parseInt(e.target.value) || 40,
+                      )
+                    }
+                    className="mt-1 w-32"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t(
+                      "attendance.settings_page.risk_threshold_desc",
+                      "Lower sends more punches to review. 40 is recommended; a branch can set its own.",
+                    )}
+                  </p>
+                </div>
+                <SettingRow
+                  id="adaptive-selfie"
+                  title={t(
+                    "attendance.settings_page.adaptive_selfie",
+                    "Adaptive selfies",
+                  )}
+                  description={t(
+                    "attendance.settings_page.adaptive_selfie_desc",
+                    "When selfies are not required for everyone: ask staff with 90 clean days on about one day in five, and everyone else every time. Needs the photo consent of each employee.",
+                  )}
+                >
+                  <Switch
+                    checked={form.adaptive_selfie}
+                    onCheckedChange={(v) => setField("adaptive_selfie", v)}
                   />
                 </SettingRow>
               </CardContent>

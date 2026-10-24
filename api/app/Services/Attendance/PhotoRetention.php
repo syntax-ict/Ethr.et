@@ -163,6 +163,8 @@ class PhotoRetention
 
         $metadata = $record->metadata ?? [];
         unset($metadata['checkout_photo_path']);
+        // The photos' fingerprints go with them (AttendanceRiskScorer).
+        unset($metadata['photo_hash'], $metadata['checkout_photo_hash']);
 
         $record->update([
             'photo_path' => null,

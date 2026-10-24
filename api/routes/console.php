@@ -32,6 +32,10 @@ Schedule::command('devices:sync')->everyFiveMinutes()->withoutOverlapping();
 // and it is idempotent, so a late run closes the same records the same way.
 Schedule::command('attendance:auto-checkout')->everyFiveMinutes()->name('attendance-auto-checkout')->withoutOverlapping();
 
+// Cross-punch patterns (shared phones, arrivals always on the grace edge),
+// filed in the integrity queue. 16:00 UTC (19:00 EAT), after the day's punches.
+Schedule::command('attendance:pattern-scan')->dailyAt('16:00')->name('attendance-pattern-scan')->withoutOverlapping();
+
 // Punch reminders as web push, for phones where ETHR is closed (before the
 // shift, grace run out, shift ended). Every five minutes; each reminder is a
 // five-minute window and goes at most once per person per day.

@@ -34,6 +34,8 @@ class AttendanceSettingResource extends JsonResource
             'auto_checkout_after_minutes' => $this->auto_checkout_after_minutes,
             'geofence_auto_checkin_enabled' => $this->geofence_auto_checkin_enabled,
             'photo_retention_days' => $this->photo_retention_days,
+            'risk_review_threshold' => $this->risk_review_threshold,
+            'adaptive_selfie' => $this->adaptive_selfie,
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }

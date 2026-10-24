@@ -6956,6 +6956,12 @@
                                                         "boolean",
                                                         "null"
                                                     ]
+                                                },
+                                                "risk_review_threshold": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
                                                 }
                                             },
                                             "required": [
@@ -6966,7 +6972,8 @@
                                                 "mobile_accuracy_threshold_meters",
                                                 "auto_checkout_enabled",
                                                 "auto_checkout_after_minutes",
-                                                "geofence_auto_checkin_enabled"
+                                                "geofence_auto_checkin_enabled",
+                                                "risk_review_threshold"
                                             ]
                                         },
                                         "overridable": {
@@ -7003,10 +7010,14 @@
                                                 {
                                                     "type": "string",
                                                     "const": "geofence_auto_checkin_enabled"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "risk_review_threshold"
                                                 }
                                             ],
-                                            "minItems": 8,
-                                            "maxItems": 8,
+                                            "minItems": 9,
+                                            "maxItems": 9,
                                             "additionalItems": false
                                         },
                                         "branches": {
@@ -7082,6 +7093,12 @@
                                                                     "boolean",
                                                                     "null"
                                                                 ]
+                                                            },
+                                                            "risk_review_threshold": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
                                                             }
                                                         },
                                                         "required": [
@@ -7092,7 +7109,8 @@
                                                             "mobile_accuracy_threshold_meters",
                                                             "auto_checkout_enabled",
                                                             "auto_checkout_after_minutes",
-                                                            "geofence_auto_checkin_enabled"
+                                                            "geofence_auto_checkin_enabled",
+                                                            "risk_review_threshold"
                                                         ]
                                                     },
                                                     "effective": {
@@ -7148,6 +7166,12 @@
                                                                     "boolean",
                                                                     "null"
                                                                 ]
+                                                            },
+                                                            "risk_review_threshold": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
                                                             }
                                                         },
                                                         "required": [
@@ -7158,7 +7182,8 @@
                                                             "mobile_accuracy_threshold_meters",
                                                             "auto_checkout_enabled",
                                                             "auto_checkout_after_minutes",
-                                                            "geofence_auto_checkin_enabled"
+                                                            "geofence_auto_checkin_enabled",
+                                                            "risk_review_threshold"
                                                         ]
                                                     }
                                                 },
@@ -7299,6 +7324,12 @@
                                                         "boolean",
                                                         "null"
                                                     ]
+                                                },
+                                                "risk_review_threshold": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
                                                 }
                                             },
                                             "required": [
@@ -7309,7 +7340,8 @@
                                                 "mobile_accuracy_threshold_meters",
                                                 "auto_checkout_enabled",
                                                 "auto_checkout_after_minutes",
-                                                "geofence_auto_checkin_enabled"
+                                                "geofence_auto_checkin_enabled",
+                                                "risk_review_threshold"
                                             ]
                                         },
                                         "effective": {
@@ -7365,6 +7397,12 @@
                                                         "boolean",
                                                         "null"
                                                     ]
+                                                },
+                                                "risk_review_threshold": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
                                                 }
                                             },
                                             "required": [
@@ -7375,7 +7413,8 @@
                                                 "mobile_accuracy_threshold_meters",
                                                 "auto_checkout_enabled",
                                                 "auto_checkout_after_minutes",
-                                                "geofence_auto_checkin_enabled"
+                                                "geofence_auto_checkin_enabled",
+                                                "risk_review_threshold"
                                             ]
                                         }
                                     },
@@ -28711,6 +28750,80 @@
                                                 "days",
                                                 "employees"
                                             ]
+                                        },
+                                        "integrity": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "count": {
+                                                            "type": "integer"
+                                                        },
+                                                        "flags": {
+                                                            "type": "integer",
+                                                            "minimum": 0
+                                                        },
+                                                        "employees": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "employee_public_id": {
+                                                                        "type": [
+                                                                            "string",
+                                                                            "null"
+                                                                        ]
+                                                                    },
+                                                                    "employee_name": {
+                                                                        "type": [
+                                                                            "string",
+                                                                            "null"
+                                                                        ]
+                                                                    },
+                                                                    "flags": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "employee_public_id",
+                                                                    "employee_name",
+                                                                    "flags"
+                                                                ]
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "count",
+                                                        "flags",
+                                                        "employees"
+                                                    ]
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "count": {
+                                                            "type": "integer"
+                                                        },
+                                                        "flags": {
+                                                            "type": "integer"
+                                                        },
+                                                        "employees": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            },
+                                                            "minItems": 0,
+                                                            "maxItems": 0,
+                                                            "additionalItems": false
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "count",
+                                                        "flags",
+                                                        "employees"
+                                                    ]
+                                                }
+                                            ]
                                         }
                                     },
                                     "required": [
@@ -28722,7 +28835,8 @@
                                         "basis",
                                         "pension_exemptions",
                                         "overtime_limits",
-                                        "absences"
+                                        "absences",
+                                        "integrity"
                                     ]
                                 }
                             }
@@ -37033,6 +37147,19 @@
                                     "number",
                                     "null"
                                 ]
+                            },
+                            "risk_score": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "risk_reasons": {
+                                "type": "array",
+                                "items": []
+                            },
+                            "has_photo": {
+                                "type": "boolean"
                             }
                         },
                         "required": [
@@ -37044,8 +37171,15 @@
                             "status",
                             "shift_name",
                             "latitude",
-                            "longitude"
+                            "longitude",
+                            "risk_score",
+                            "risk_reasons",
+                            "has_photo"
                         ]
+                    },
+                    "employee_findings_90_days": {
+                        "type": "integer",
+                        "minimum": 0
                     }
                 },
                 "required": [
@@ -37060,7 +37194,8 @@
                     "review_note",
                     "reviewer_name",
                     "employee",
-                    "record"
+                    "record",
+                    "employee_findings_90_days"
                 ],
                 "title": "AttendanceIntegrityFlagResource"
             },
@@ -37556,6 +37691,12 @@
                     "photo_retention_days": {
                         "type": "integer"
                     },
+                    "risk_review_threshold": {
+                        "type": "integer"
+                    },
+                    "adaptive_selfie": {
+                        "type": "boolean"
+                    },
                     "updated_at": {
                         "type": [
                             "string",
@@ -37584,6 +37725,8 @@
                     "auto_checkout_after_minutes",
                     "geofence_auto_checkin_enabled",
                     "photo_retention_days",
+                    "risk_review_threshold",
+                    "adaptive_selfie",
                     "updated_at"
                 ],
                 "title": "AttendanceSettingResource"
@@ -45614,6 +45757,14 @@
                         "type": "integer",
                         "minimum": 1,
                         "maximum": 90
+                    },
+                    "risk_review_threshold": {
+                        "type": "integer",
+                        "minimum": 10,
+                        "maximum": 100
+                    },
+                    "adaptive_selfie": {
+                        "type": "boolean"
                     }
                 },
                 "title": "UpdateAttendanceSettingRequest"
@@ -45689,6 +45840,14 @@
                                     "boolean",
                                     "null"
                                 ]
+                            },
+                            "risk_review_threshold": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ],
+                                "minimum": 10,
+                                "maximum": 100
                             }
                         }
                     }

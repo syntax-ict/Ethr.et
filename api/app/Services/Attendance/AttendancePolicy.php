@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceMode;
+use App\Models\AttendanceIntegrityFlag;
+use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\BranchAttendanceOverride;
 use App\Models\Employee;
+use Illuminate\Support\Carbon;
 
 /**
  * The attendance rules that apply to one person: the organisation's settings,
@@ -35,6 +38,7 @@ final class AttendancePolicy
         'auto_checkout_enabled',
         'auto_checkout_after_minutes',
         'geofence_auto_checkin_enabled',
+        'risk_review_threshold',
     ];
 
     /**
@@ -85,6 +89,43 @@ final class AttendancePolicy
         }
 
         return $policy;
+    }
+
+    /**
+     * Whether this person must take a selfie to punch on $date (Y-m-d).
+     *
+     * Always when the rule says so. With adaptive selfies, someone with 90
+     * days of punches and no finding against them in that time is asked on
+     * about one day in five (the same days on the phone and the server,
+     * chosen from their id and the date, so it cannot be predicted from
+     * habit); anyone newer, or with a rejected or open serious finding, is
+     * asked every time. Less friction for the honest, more for the rest.
+     */
+    public function selfieRequired(Employee $employee, AttendanceSetting $policy, string $date): bool
+    {
+        if ((bool) $policy->mobile_photo_required) {
+            return true;
+        }
+        if (! (bool) $policy->adaptive_selfie) {
+            return false;
+        }
+
+        $since = Carbon::parse($date)->subDays(90);
+        $established = AttendanceRecord::query()
+            ->where('employee_id', $employee->id)
+            ->whereDate('date', '<=', $since->format('Y-m-d'))
+            ->exists();
+        $findings = AttendanceIntegrityFlag::query()
+            ->where('employee_id', $employee->id)
+            ->where('created_at', '>=', $since)
+            ->where(fn ($q) => $q->where('status', 'rejected')->orWhere(fn ($open) => $open->where('status', 'open')->where('severity', 'high')))
+            ->exists();
+
+        if (! $established || $findings) {
+            return true;
+        }
+
+        return crc32($employee->id.'|'.$date) % 5 === 0;
     }
 
     /** An employee's mode, office when none is recorded. */

@@ -69,6 +69,8 @@ class AttendanceRecord extends Model
     protected function casts(): array
     {
         return [
+            'risk_score' => 'integer',
+            'risk_reasons' => 'array',
             'source' => AttendanceSource::class,
             'status' => AttendanceStatus::class,
             'date' => 'date',

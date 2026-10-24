@@ -344,6 +344,7 @@ class PayrollController extends Controller
             'pension_exemptions' => $register['pension_exemptions'],
             'overtime_limits' => $register['overtime_limits'],
             'absences' => $register['absences'],
+            'integrity' => $register['integrity'],
         ]);
     }
 

@@ -33,6 +33,7 @@ return [
     // In-app notifications, rendered in the recipient's language when sent
     // (User::preferredLocale). Each carries a `url` the notification opens.
     'inapp' => [
+        'attendance_high_risk' => ':name punched with a risk score of :score. Review it before payroll.',
         'approval_reminder' => 'You have :count approvals waiting. The oldest has waited :hours hours.',
         'approval_escalated' => ':name\'s :type has waited :hours hours for :approver to decide it.',
         'attendance_anomaly' => 'Attendance anomaly for :name: :type',

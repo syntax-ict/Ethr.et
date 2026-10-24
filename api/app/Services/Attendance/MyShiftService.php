@@ -114,7 +114,7 @@ final class MyShiftService
                 'qr_enabled' => $policy->isMethodEnabled('qr'),
                 'attendance_mode' => $mode->value,
                 'geofence_required' => (bool) $policy->geofence_required,
-                'photo_required' => (bool) $policy->mobile_photo_required,
+                'photo_required' => $this->policy->selfieRequired($employee, $policy, $day->format('Y-m-d')),
                 'photo_consent' => PhotoConsent::given($user),
                 'accuracy_threshold_meters' => (int) $policy->mobile_accuracy_threshold_meters,
                 'offline_sync_enabled' => (bool) $policy->offline_sync_enabled,

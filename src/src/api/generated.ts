@@ -7408,7 +7408,11 @@ export interface components {
                 shift_name: string | null;
                 latitude: number | null;
                 longitude: number | null;
+                risk_score: number | null;
+                risk_reasons: unknown[];
+                has_photo: boolean;
             } | null;
+            employee_findings_90_days: number;
         };
         /** AttendancePhotoResource */
         AttendancePhotoResource: {
@@ -7515,6 +7519,8 @@ export interface components {
             auto_checkout_after_minutes: number;
             geofence_auto_checkin_enabled: boolean;
             photo_retention_days: number;
+            risk_review_threshold: number;
+            adaptive_selfie: boolean;
             updated_at: string | null;
         };
         /** AttendanceSiteResource */
@@ -10014,6 +10020,8 @@ export interface components {
             auto_checkout_after_minutes?: number;
             geofence_auto_checkin_enabled?: boolean;
             photo_retention_days?: number;
+            risk_review_threshold?: number;
+            adaptive_selfie?: boolean;
         };
         /**
          * UpdateBranchAttendanceRequest
@@ -10031,6 +10039,7 @@ export interface components {
                 auto_checkout_enabled?: boolean | null;
                 auto_checkout_after_minutes?: number | null;
                 geofence_auto_checkin_enabled?: boolean | null;
+                risk_review_threshold?: number | null;
             };
         };
         /** UpdateBranchRequest */
@@ -22119,6 +22128,7 @@ export interface operations {
                             auto_checkout_enabled: boolean | null;
                             auto_checkout_after_minutes: number | null;
                             geofence_auto_checkin_enabled: boolean | null;
+                            risk_review_threshold: number | null;
                         };
                         overridable: [
                             "enabled_methods",
@@ -22128,7 +22138,8 @@ export interface operations {
                             "mobile_accuracy_threshold_meters",
                             "auto_checkout_enabled",
                             "auto_checkout_after_minutes",
-                            "geofence_auto_checkin_enabled"
+                            "geofence_auto_checkin_enabled",
+                            "risk_review_threshold"
                         ];
                         branches: {
                             public_id: string;
@@ -22144,6 +22155,7 @@ export interface operations {
                                 auto_checkout_enabled: boolean | null;
                                 auto_checkout_after_minutes: number | null;
                                 geofence_auto_checkin_enabled: boolean | null;
+                                risk_review_threshold: number | null;
                             };
                             effective: {
                                 enabled_methods: string[] | null;
@@ -22154,6 +22166,7 @@ export interface operations {
                                 auto_checkout_enabled: boolean | null;
                                 auto_checkout_after_minutes: number | null;
                                 geofence_auto_checkin_enabled: boolean | null;
+                                risk_review_threshold: number | null;
                             };
                         }[];
                     };
@@ -22198,6 +22211,7 @@ export interface operations {
                             auto_checkout_enabled: boolean | null;
                             auto_checkout_after_minutes: number | null;
                             geofence_auto_checkin_enabled: boolean | null;
+                            risk_review_threshold: number | null;
                         };
                         effective: {
                             enabled_methods: string[] | null;
@@ -22208,6 +22222,7 @@ export interface operations {
                             auto_checkout_enabled: boolean | null;
                             auto_checkout_after_minutes: number | null;
                             geofence_auto_checkin_enabled: boolean | null;
+                            risk_review_threshold: number | null;
                         };
                     };
                 };
@@ -24248,6 +24263,19 @@ export interface operations {
                                 days: number;
                                 dates: string[];
                             }[];
+                        };
+                        integrity: {
+                            count: number;
+                            flags: number;
+                            employees: {
+                                employee_public_id: string | null;
+                                employee_name: string | null;
+                                flags: string;
+                            }[];
+                        } | {
+                            count: number;
+                            flags: number;
+                            employees: string[];
                         };
                     };
                 };

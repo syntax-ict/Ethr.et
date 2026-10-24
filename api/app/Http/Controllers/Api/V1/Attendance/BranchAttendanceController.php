@@ -90,7 +90,7 @@ class BranchAttendanceController extends Controller
      * The overridable keys of $setting, typed by the model's casts. With
      * $onlySet, a key the setting leaves unset is null (inherited).
      *
-     * @return array{enabled_methods: list<string>|null, geofence_required: bool|null, mobile_photo_required: bool|null, kiosk_pin_required: bool|null, mobile_accuracy_threshold_meters: int|null, auto_checkout_enabled: bool|null, auto_checkout_after_minutes: int|null, geofence_auto_checkin_enabled: bool|null}
+     * @return array{enabled_methods: list<string>|null, geofence_required: bool|null, mobile_photo_required: bool|null, kiosk_pin_required: bool|null, mobile_accuracy_threshold_meters: int|null, auto_checkout_enabled: bool|null, auto_checkout_after_minutes: int|null, geofence_auto_checkin_enabled: bool|null, risk_review_threshold: int|null}
      */
     private function overridable(AttendanceSetting $setting, bool $onlySet = false): array
     {
@@ -101,7 +101,7 @@ class BranchAttendanceController extends Controller
                 : null;
         }
 
-        /** @var array{enabled_methods: list<string>|null, geofence_required: bool|null, mobile_photo_required: bool|null, kiosk_pin_required: bool|null, mobile_accuracy_threshold_meters: int|null, auto_checkout_enabled: bool|null, auto_checkout_after_minutes: int|null, geofence_auto_checkin_enabled: bool|null} $out */
+        /** @var array{enabled_methods: list<string>|null, geofence_required: bool|null, mobile_photo_required: bool|null, kiosk_pin_required: bool|null, mobile_accuracy_threshold_meters: int|null, auto_checkout_enabled: bool|null, auto_checkout_after_minutes: int|null, geofence_auto_checkin_enabled: bool|null, risk_review_threshold: int|null} $out */
         return $out;
     }
 }

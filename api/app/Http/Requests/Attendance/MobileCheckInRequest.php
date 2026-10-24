@@ -6,9 +6,11 @@ namespace App\Http\Requests\Attendance;
 
 use App\Rules\Base64Image;
 use App\Services\Attendance\AttendancePolicy;
+use App\Services\CurrentTenant;
 use App\Services\FileStorageService;
 use App\Support\PhotoConsent;
 use App\Support\PunchSignals;
+use App\Support\TenantTime;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -59,11 +61,12 @@ class MobileCheckInRequest extends FormRequest
             }
 
             $employee = $this->user()?->employee;
-            $policy = $employee !== null
-                ? app(AttendancePolicy::class)->for($employee)
-                : app(AttendancePolicy::class)->organisation();
+            $policies = app(AttendancePolicy::class);
+            $required = $employee !== null
+                ? $policies->selfieRequired($employee, $policies->for($employee), TenantTime::today(app(CurrentTenant::class)->get())->format('Y-m-d'))
+                : (bool) $policies->organisation()->mobile_photo_required;
 
-            if ($policy->mobile_photo_required === true) {
+            if ($required) {
                 $v->errors()->add('photo', __('attendance.photo_required'));
             }
         });

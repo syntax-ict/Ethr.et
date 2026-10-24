@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import {
+  Camera,
   CheckCircle2,
   ExternalLink,
+  MapPin,
   Loader2,
   ShieldAlert,
   ShieldCheck,
@@ -34,6 +37,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { StatCard } from "@/components/dashboard";
 import {
+  useAttendancePhotoImage,
   useIntegrityFlags,
   useIntegritySummary,
   useReviewIntegrityFlag,
@@ -393,6 +397,35 @@ function useDescribeFlag() {
             "Your organisation requires a selfie and this offline punch had none.",
           ),
         };
+      case "high_risk":
+        return {
+          title: t("integrity.type.high_risk", "Risk score :score", {
+            score: n("score"),
+          }),
+          detail: t(
+            "integrity.detail.high_risk",
+            "Several signals together reached your review threshold of :threshold. The reasons are listed below.",
+            { threshold: n("threshold") },
+          ),
+        };
+      case "buddy_pattern":
+        return {
+          title: t("integrity.type.buddy_pattern", "One phone, two people"),
+          detail: t(
+            "integrity.detail.buddy_pattern",
+            "Punched in on the same phone as a colleague, within a minute, on :days days in two weeks.",
+            { days: n("days") },
+          ),
+        };
+      case "grace_edge":
+        return {
+          title: t("integrity.type.grace_edge", "Always on the grace edge"),
+          detail: t(
+            "integrity.detail.grace_edge",
+            ":count of the last 10 arrivals came in the last three minutes before counting as late.",
+            { count: n("at_edge") },
+          ),
+        };
       case "low_confidence":
         return {
           title: t("integrity.type.low_confidence", "Low confidence"),
@@ -406,6 +439,147 @@ function useDescribeFlag() {
         return { title: flag.type, detail: "" };
     }
   };
+}
+
+const LeafletMap = dynamic(
+  () => import("@/components/shared/map-picker/leaflet-map"),
+  { ssr: false, loading: () => <Skeleton className="h-full w-full" /> },
+);
+
+/**
+ * Why this punch scored as it did, how often this person has been flagged,
+ * and the evidence a reviewer needs to decide: the selfie (viewing it is
+ * audited) and where the punch was.
+ */
+function RiskDetails({ flag }: { flag: IntegrityFlag }) {
+  const { t } = useT();
+  const { can } = usePermissions();
+  const [photo, setPhoto] = useState(false);
+  const [map, setMap] = useState(false);
+  const record = flag.record;
+  const which = flag.punch === "check_out" ? "check-out" : "check-in";
+  const image = useAttendancePhotoImage(
+    photo && record ? record.public_id : null,
+    which,
+  );
+
+  const reason: Record<string, string> = {
+    outside_geofence: t("risk.outside_geofence", "Outside every allowed place"),
+    location_missing: t("risk.location_missing", "No location"),
+    suspect_location: t("risk.suspect_location", "Location looks simulated"),
+    low_accuracy: t("risk.low_accuracy", "Weak GPS"),
+    impossible_travel: t("risk.impossible_travel", "Impossible journey"),
+    branch_mismatch: t("risk.branch_mismatch", "Another branch"),
+    unverified_offline: t(
+      "risk.unverified_offline",
+      "Offline punch not vouched for",
+    ),
+    clock_suspect: t("risk.clock_suspect", "Phone clock out of range"),
+    late_sync: t("risk.late_sync", "Synced late"),
+    photo_missing: t("risk.photo_missing", "No selfie"),
+    device_clock_ahead: t("risk.device_clock_ahead", "Device clock ahead"),
+    low_confidence: t("risk.low_confidence", "Low confidence"),
+    shared_device: t("risk.shared_device", "Phone also used by someone else"),
+    ip_burst: t(
+      "risk.ip_burst",
+      "Same network as another punch, not an office one",
+    ),
+    stale_fix: t("risk.stale_fix", "Location was minutes old"),
+    automation: t("risk.automation", "Browser driven by automation"),
+    missing_fix_details: t(
+      "risk.missing_fix_details",
+      "GPS details missing that this phone usually sends",
+    ),
+    clock_skew: t("risk.clock_skew", "Phone clock far from the server's"),
+    photo_replayed: t("risk.photo_replayed", "Selfie repeats an earlier one"),
+    photo_of_someone_else: t(
+      "risk.photo_of_someone_else",
+      "Selfie matches someone else's photo",
+    ),
+    unusual_place: t("risk.unusual_place", "Far from where they usually punch"),
+    unusual_time: t("risk.unusual_time", "Far outside their usual time"),
+    device_switch: t("risk.device_switch", "Checked out on a different phone"),
+    no_face: t("risk.no_face", "No face in the selfie"),
+    liveness_failed: t("risk.liveness_failed", "Liveness check failed"),
+  };
+
+  const reasons = (record?.risk_reasons ?? []) as string[];
+  const hasPlace = record?.latitude != null && record?.longitude != null;
+
+  return (
+    <div className="space-y-2">
+      {record?.risk_score != null && record.risk_score > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant="secondary" className="tabular-nums">
+            {t("risk.score", "Risk :score", { score: record.risk_score })}
+          </Badge>
+          {reasons.map((r) => (
+            <Badge key={r} variant="outline" className="text-xs">
+              {reason[r] ?? r}
+            </Badge>
+          ))}
+        </div>
+      )}
+      {flag.employee_findings_90_days > 1 && (
+        <p className="text-xs text-muted-foreground">
+          {t("risk.history", ":count findings for this person in 90 days", {
+            count: flag.employee_findings_90_days,
+          })}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {record?.has_photo && can.viewAttendancePhotos && (
+          <Button size="sm" variant="outline" onClick={() => setPhoto(true)}>
+            <Camera className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+            {t("risk.view_selfie", "See the selfie")}
+          </Button>
+        )}
+        {hasPlace && (
+          <Button size="sm" variant="outline" onClick={() => setMap((v) => !v)}>
+            <MapPin className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+            {map
+              ? t("risk.hide_map", "Hide map")
+              : t("risk.show_map", "Show on map")}
+          </Button>
+        )}
+      </div>
+      {map && hasPlace && (
+        <div className="h-48 w-full overflow-hidden rounded-md border border-border sm:w-96">
+          <LeafletMap
+            point={{ lat: record!.latitude!, lng: record!.longitude! }}
+            radius={null}
+          />
+        </div>
+      )}
+      <Dialog open={photo} onOpenChange={setPhoto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{flag.employee?.name}</DialogTitle>
+            <DialogDescription>
+              {t(
+                "risk.selfie_audited",
+                "Viewing this selfie is recorded in the audit log.",
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {image.isLoading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : image.data ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={image.data}
+              alt={t("risk.selfie_alt", "Attendance selfie")}
+              className="mx-auto max-h-96 rounded-md"
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {t("risk.selfie_gone", "The selfie is no longer kept.")}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
 
 function FlagCard({
@@ -464,6 +638,7 @@ function FlagCard({
               {t("integrity.view_map", "See where on a map")}
             </a>
           )}
+          <RiskDetails flag={flag} />
           {flag.status !== "open" && (
             <p className="text-xs text-muted-foreground">
               {flag.status === "accepted"

@@ -31,6 +31,7 @@ final class AttendanceEngine
         private readonly IntegrityInspector $inspector,
         private readonly AttendancePolicy $policy,
         private readonly AttendancePlaces $places,
+        private readonly AttendanceRiskScorer $risk,
     ) {}
 
     public function record(AttendanceInput $input): AttendanceResult
@@ -279,7 +280,11 @@ final class AttendanceEngine
             $record = $record->fresh() ?? $record;
         }
 
-        $this->inspector->inspect($record, $input, $employee, $settings, 'check_in', $now);
+        $flags = $this->inspector->inspect($record, $input, $employee, $settings, 'check_in', $now);
+        if ($settings !== null) {
+            $this->risk->score($record, $input, $employee, $settings, 'check_in', $flags);
+            $record = $record->fresh() ?? $record;
+        }
 
         AttendanceRecorded::dispatch($record);
 
@@ -337,7 +342,11 @@ final class AttendanceEngine
             $record->update(['status' => AttendanceStatus::EARLY_LEAVE]);
         }
 
-        $this->inspector->inspect($record, $input, $employee, $settings, 'check_out', $now);
+        $flags = $this->inspector->inspect($record, $input, $employee, $settings, 'check_out', $now);
+        if ($settings !== null) {
+            $this->risk->score($record, $input, $employee, $settings, 'check_out', $flags);
+            $record = $record->fresh() ?? $record;
+        }
 
         AttendanceRecorded::dispatch($record);
 

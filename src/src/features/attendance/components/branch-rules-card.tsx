@@ -209,6 +209,7 @@ function BranchRulesDialog({
   }
 
   const accuracy = draft.mobile_accuracy_threshold_meters;
+  const threshold = draft.risk_review_threshold;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -292,6 +293,37 @@ function BranchRulesDialog({
                 setDraft({
                   ...draft,
                   mobile_accuracy_threshold_meters:
+                    e.target.value === "" ? null : parseInt(e.target.value, 10),
+                })
+              }
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label htmlFor="branch-risk" className="text-sm">
+              {t(
+                "branch_rules.risk_threshold",
+                "Send to review from risk score",
+              )}
+            </Label>
+            <Input
+              id="branch-risk"
+              type="number"
+              min={10}
+              max={100}
+              className="w-[210px]"
+              placeholder={t(
+                "branch_rules.inherit_value",
+                "Organisation (:value)",
+                {
+                  value: String(organisation.risk_review_threshold ?? ""),
+                },
+              )}
+              value={threshold ?? ""}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  risk_review_threshold:
                     e.target.value === "" ? null : parseInt(e.target.value, 10),
                 })
               }

@@ -33,6 +33,7 @@ return [
     // In-app notifications, rendered in the recipient's language when sent
     // (User::preferredLocale). Each carries a `url` the notification opens.
     'inapp' => [
+        'attendance_high_risk' => ':name በ:score የአደጋ ነጥብ ተመዝግቧል። ከደመወዝ በፊት ይገምግሙት።',
         'approval_reminder' => ':count የሚጠብቁ ማጽደቂያዎች አሉዎት። በጣም የቆየው :hours ሰዓት ጠብቋል።',
         'approval_escalated' => 'የ:name :type :approver እንዲወስኑት :hours ሰዓት ጠብቋል።',
         'attendance_anomaly' => 'የ:name የመገኘት ያልተለመደ ሁኔታ፦ :type',

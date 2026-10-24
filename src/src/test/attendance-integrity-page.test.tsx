@@ -29,6 +29,7 @@ vi.mock("sonner", () => ({
 
 function flag(overrides: Partial<IntegrityFlag>): IntegrityFlag {
   return {
+    employee_findings_90_days: 0,
     public_id: "f1",
     type: "outside_geofence",
     severity: "high",
@@ -50,6 +51,9 @@ function flag(overrides: Partial<IntegrityFlag>): IntegrityFlag {
       shift_name: null,
       latitude: 8.5,
       longitude: 39.3,
+      risk_score: null,
+      risk_reasons: [],
+      has_photo: false,
     },
     ...overrides,
   };
