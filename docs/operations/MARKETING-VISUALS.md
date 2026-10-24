@@ -78,6 +78,22 @@ node --test scripts/marketing-visuals/generate.test.mjs
 Costs are the published list prices on 2026-10-24, rounded; the whole set of
 twelve is under USD 3 on any provider, so regenerate freely and keep the best.
 
+**Recommended route, decided 2026-10-24:** Replicate with FLUX 1.1 pro for the
+eleven 16:10 scenes, and `--model black-forest-labs/flux-1.1-pro-ultra` for the
+hero alone, which is the one image shown full width. It is the only provider of
+the four that reaches 1440 wide at the right aspect, it follows a flat
+illustration brief most reliably, and the full set costs well under one dollar.
+Use Gemini or OpenAI only when no Replicate token exists. Treat Higgsfield as a
+web UI, and place its exports with `--import`.
+
+```bash
+REPLICATE_API_TOKEN=... node scripts/marketing-visuals/generate.mjs --provider replicate --slug all
+```
+
+```bash
+REPLICATE_API_TOKEN=... node scripts/marketing-visuals/generate.mjs --provider replicate --slug hero --force --model black-forest-labs/flux-1.1-pro-ultra
+```
+
 None of the four APIs produces 1920 wide at these aspect ratios from a single
 call, and three of them cannot produce 16:10 at all. The script therefore
 accepts an image that is at least 1024 wide, landscape, and within 15% of the
