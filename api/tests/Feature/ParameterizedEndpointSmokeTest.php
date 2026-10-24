@@ -22,6 +22,8 @@ use App\Models\Holiday;
 use App\Models\KioskSession;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\MarketingItem;
+use App\Models\MarketingSection;
 use App\Models\MigrationBatch;
 use App\Models\OrganizationTemplate;
 use App\Models\PayrollEntry;
@@ -113,7 +115,13 @@ test('parameterized GET api/v1 endpoints never 5xx with valid bound records', fu
         'description' => 'x', 'status' => 'new', 'anonymous' => false,
     ]);
 
+    // A landing-page row with no picture: the image route is a well-formed 404.
+    MarketingSection::query()->create(['kind' => 'problems', 'heading' => 'Smoke', 'sort_order' => 1]);
+    $marketingItem = MarketingItem::query()->create(['section_kind' => 'problems', 'slug' => 'smoke', 'title' => 'Smoke', 'sort_order' => 1]);
+
     $params = [
+        'owner' => $marketingItem->public_id,
+        'variant' => 'image-640',
         'concern' => $concern->public_id,
         'vacancy' => $vacancy->public_id,
         'payrollRun' => $run->public_id, 'branch' => $branch->public_id, 'department' => $dept->public_id,

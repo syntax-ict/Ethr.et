@@ -220,6 +220,10 @@ return [
     'landing_faq_answer' => 'Write the answer in English or Amharic.',
     'landing_service_title' => 'Give the service a name in English or Amharic.',
     'announcement_files_max' => 'A story can carry at most :max documents.',
+    // AppRulesPermittedMarketingClaim: the public site may not make this claim.
+    'marketing_claim' => 'This text makes a claim the public site may not make. See the marketing content guide for the list.',
+    'marketing_field_unused' => 'The :kind section does not use this field.',
+    'marketing_items_max' => 'The :kind section holds at most :max rows.',
 
     // App\Http\Requests\Admin\UpdateTenantDomainRequest: a host ETHR already owns.
     'custom_domain_reserved' => 'A custom domain must be the organisation\'s own domain, not one under :root.',

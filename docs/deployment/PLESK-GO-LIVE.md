@@ -253,6 +253,18 @@ server's 409 and sends the header wherever the hostname names no organisation.)*
 
 ## Every release after this
 
+0. Refresh the two build-time snapshots from production and commit whichever changed, before
+   merging to `main`:
+
+   ```bash
+   node scripts/fetch-marketing-snapshot.mjs --api https://www.ethr.et
+   node scripts/fetch-plans-snapshot.mjs --api https://www.ethr.et
+   ```
+
+   The frontend is a static export: each page's HTML is built once from these files, so a
+   crawler and a first visitor see whatever they held at build time until the live API answers
+   in the browser. Once the landing page or the plan catalog is edited in the console, the next
+   release must carry it (`docs/operations/MARKETING-SITE.md`).
 1. Merge to `main`, and wait for **Plesk release** to go green.
 2. Plesk Git → **Pull now → Deploy now**.
 3. Set `MAINTENANCE_TOKEN` in `.env`, then run `migrate`, `seed` (it picks up permissions a

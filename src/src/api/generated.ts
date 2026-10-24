@@ -4,42 +4,6 @@
  */
 
 export interface paths {
-    "/admin/plans": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List plans */
-        get: operations["adminPlan.index"];
-        put?: never;
-        /** Create plan */
-        post: operations["adminPlan.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/plans/{publicId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update plan */
-        put: operations["adminPlan.update"];
-        post?: never;
-        /** Withdraw a plan from sale */
-        delete: operations["adminPlan.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/admin/statutory-layouts": {
         parameters: {
             query?: never;
@@ -3589,6 +3553,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/marketing-content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The sections and rows the public landing page renders, in order */
+        get: operations["marketingContent.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/my-shift": {
         parameters: {
             query?: never;
@@ -5502,6 +5483,164 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List plans */
+        get: operations["adminPlan.index"];
+        put?: never;
+        /** Create plan */
+        post: operations["adminPlan.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/plans/{publicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update plan */
+        put: operations["adminPlan.update"];
+        post?: never;
+        /** Withdraw a plan from sale */
+        delete: operations["adminPlan.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/marketing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Marketing admin */
+        get: operations["adminMarketing.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/marketing/sections/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update section */
+        put: operations["adminMarketing.updateSection"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/marketing/sections/{kind}/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Order sections */
+        put: operations["adminMarketing.reorder"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/marketing/sections/{kind}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create item */
+        post: operations["adminMarketing.storeItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/marketing/sections/{kind}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Image sections */
+        post: operations["adminMarketing.uploadSectionImage"];
+        /** Image sections */
+        delete: operations["adminMarketing.destroySectionImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/marketing/items/{publicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update item */
+        put: operations["adminMarketing.updateItem"];
+        post?: never;
+        /** Delete item */
+        delete: operations["adminMarketing.destroyItem"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/marketing/items/{publicId}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Image items */
+        post: operations["adminMarketing.uploadItemImage"];
+        /** Image items */
+        delete: operations["adminMarketing.destroyItemImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ping": {
         parameters: {
             query?: never;
@@ -6929,6 +7068,55 @@ export interface components {
         AddRetirementNoteRequest: {
             note: string;
         };
+        /** AdminMarketingItemResource */
+        AdminMarketingItemResource: {
+            public_id: string;
+            slug: string;
+            sort_order: number;
+            is_published: boolean;
+            icon: string | null;
+            title: string;
+            title_am: string | null;
+            body: string | null;
+            body_am: string | null;
+            detail: string | null;
+            detail_am: string | null;
+            link_path: string | null;
+            image: {
+                url: string;
+                srcset: string;
+                width: number;
+                height: number;
+                alt: string | null;
+                alt_am: string | null;
+            } | null;
+        };
+        /** AdminMarketingSectionResource */
+        AdminMarketingSectionResource: {
+            public_id: string;
+            kind: string;
+            sort_order: number;
+            is_published: boolean;
+            heading: string;
+            heading_am: string | null;
+            subheading: string | null;
+            subheading_am: string | null;
+            image: {
+                url: string;
+                srcset: string;
+                width: number;
+                height: number;
+                alt: string | null;
+                alt_am: string | null;
+            } | null;
+            spec: {
+                fields: string[];
+                max_items: number;
+                images: boolean;
+                section_image: boolean;
+            };
+            items: components["schemas"]["AdminMarketingItemResource"][];
+        };
         /** AdminTenantResource */
         AdminTenantResource: {
             public_id: string;
@@ -8212,6 +8400,44 @@ export interface components {
             check_out?: string | null;
             reason: string;
         };
+        /** MarketingItemResource */
+        MarketingItemResource: {
+            public_id: string;
+            slug: string;
+            icon: string | null;
+            title: string;
+            title_am: string | null;
+            body: string | null;
+            body_am: string | null;
+            detail: string | null;
+            detail_am: string | null;
+            link_path: string | null;
+            image: {
+                url: string;
+                srcset: string;
+                width: number;
+                height: number;
+                alt: string | null;
+                alt_am: string | null;
+            } | null;
+        };
+        /** MarketingSectionResource */
+        MarketingSectionResource: {
+            kind: string;
+            heading: string;
+            heading_am: string | null;
+            subheading: string | null;
+            subheading_am: string | null;
+            image: {
+                url: string;
+                srcset: string;
+                width: number;
+                height: number;
+                alt: string | null;
+                alt_am: string | null;
+            } | null;
+            items: components["schemas"]["MarketingItemResource"][];
+        };
         /** MobileCheckInRequest */
         MobileCheckInRequest: {
             idempotency_key: string;
@@ -8679,6 +8905,14 @@ export interface components {
             end_date?: string | null;
             salary_cents?: number | null;
             terms?: string | null;
+        };
+        /**
+         * ReorderMarketingItemsRequest
+         * @description The new order of a section's rows: every row's public id, first to last.
+         *     An id from another section is refused.
+         */
+        ReorderMarketingItemsRequest: {
+            order: string[];
         };
         /**
          * ReplaceTaxBracketsRequest
@@ -9279,6 +9513,43 @@ export interface components {
             amount_cents: number;
             monthly_deduction_cents: number;
             reason?: string | null;
+        };
+        /**
+         * StoreMarketingItemRequest
+         * @description Create or edit one row of a landing-page section.
+         *
+         *     Used for both store and update, as StorePlanRequest is: `sometimes` on
+         *     every field makes the update partial, and `isMethod('post')` decides what
+         *     is mandatory on create. The rules carry no inline comments, because
+         *     Scramble publishes a comment beside a rule as that field's description.
+         *
+         *     What the rules do not say, because Scramble publishes one body schema per
+         *     endpoint and the registry varies by section: which fields a kind uses and
+         *     how many rows it may hold are enforced in withValidator(). A field a kind
+         *     does not use is refused rather than stored and ignored, so the console
+         *     cannot drift from the page.
+         *
+         *       slug        Stable identity for the seeder and for the drawn scene the
+         *                   page shows when a row has no picture. Set on create only.
+         *       icon        One of MarketingContent::ICONS; the page draws nothing for
+         *                   a name outside it.
+         *       link_path   An internal path only, so the public page never links off
+         *                   site from editable content.
+         */
+        StoreMarketingItemRequest: {
+            slug: string;
+            title: string;
+            title_am?: string | null;
+            body?: string | null;
+            body_am?: string | null;
+            detail?: string | null;
+            detail_am?: string | null;
+            /** @enum {string|null} */
+            icon?: "clock" | "wallet" | "calendar-days" | "wifi-off" | "building-2" | "languages" | "users" | "smartphone" | "bar-chart-3" | "shield" | "landmark" | "hospital" | "factory" | "graduation-cap" | "hotel" | "heart" | "briefcase" | "file-text" | "map-pin" | "lock" | "scroll-text" | "check-circle-2" | "receipt" | "qr-code" | "bell" | "clipboard-list" | "calculator" | "table" | "signal-zero" | "file-clock" | null;
+            link_path?: string | null;
+            image_alt?: string | null;
+            image_alt_am?: string | null;
+            is_published?: boolean;
         };
         /**
          * StoreOvertimeRequestRequest
@@ -9983,6 +10254,26 @@ export interface components {
             monthly_deduction_cents?: number;
             reason?: string | null;
         };
+        /**
+         * UpdateMarketingSectionRequest
+         * @description Edit a landing-page section's heading, subheading, visibility and, for
+         *     the hero, the words that describe its picture.
+         *
+         *     The rules carry no inline comments: Scramble publishes a comment beside
+         *     a rule as that field's description. Every text field takes
+         *     PermittedMarketingClaim, in both languages. The image alt fields are
+         *     accepted only for a kind whose registry entry allows a section image,
+         *     checked in withValidator(), which Scramble does not read.
+         */
+        UpdateMarketingSectionRequest: {
+            heading?: string;
+            heading_am?: string | null;
+            subheading?: string | null;
+            subheading_am?: string | null;
+            is_published?: boolean;
+            image_alt?: string | null;
+            image_alt_am?: string | null;
+        };
         /** UpdateNotificationTemplateRequest */
         UpdateNotificationTemplateRequest: {
             subject_en?: string | null;
@@ -10315,6 +10606,24 @@ export interface components {
             image: string;
         };
         /**
+         * UploadMarketingImageRequest
+         * @description A picture for a landing-page row or for the hero.
+         *
+         *     Raster only, as the organisation's brand images: SVG can carry script and
+         *     is refused. The content check reads the file's own bytes, and
+         *     FileStorageService::uploadMarketingImage() re-encodes what passes, so the
+         *     public copy is only pixels. 5 MB and 4096 px bound the decode; the live
+         *     host accepts 2 MB per request, so the console shrinks first. 640 by 360
+         *     is the smallest picture the page can draw without upscaling.
+         */
+        UploadMarketingImageRequest: {
+            /**
+             * Format: binary
+             * @description Maximum file size: 5120 kilobytes.
+             */
+            image: string;
+        };
+        /**
          * UploadProfilePhotoRequest
          * @description The photo has its own endpoint because PHP does not parse a multipart body on
          *     PUT — the `photo` field on `PUT /profile` could never have arrived, no matter
@@ -10513,112 +10822,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    "adminPlan.index": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Plan"][];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "adminPlan.store": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StorePlanRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Plan"];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "adminPlan.update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                publicId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StorePlanRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Plan"] | null;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "adminPlan.destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                publicId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Plan"] | null;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
     "adminStatutoryLayout.index": {
         parameters: {
             query?: never;
@@ -20088,6 +20291,33 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "marketingContent.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description The `data` envelope is spelled out because JsonResource::withoutWrapping()
+             *     is on for the whole application.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            sections: components["schemas"]["MarketingSectionResource"][];
+                        };
+                    };
+                };
+            };
+        };
+    };
     "attendance.myShift": {
         parameters: {
             query?: never;
@@ -25402,6 +25632,426 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminPlan.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Plan"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminPlan.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePlanRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Plan"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminPlan.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePlanRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Plan"] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminPlan.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Plan"] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminMarketing.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            sections: components["schemas"]["AdminMarketingSectionResource"][];
+                            icons: [
+                                "clock",
+                                "wallet",
+                                "calendar-days",
+                                "wifi-off",
+                                "building-2",
+                                "languages",
+                                "users",
+                                "smartphone",
+                                "bar-chart-3",
+                                "shield",
+                                "landmark",
+                                "hospital",
+                                "factory",
+                                "graduation-cap",
+                                "hotel",
+                                "heart",
+                                "briefcase",
+                                "file-text",
+                                "map-pin",
+                                "lock",
+                                "scroll-text",
+                                "check-circle-2",
+                                "receipt",
+                                "qr-code",
+                                "bell",
+                                "clipboard-list",
+                                "calculator",
+                                "table",
+                                "signal-zero",
+                                "file-clock"
+                            ];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminMarketing.updateSection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateMarketingSectionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminMarketingSectionResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminMarketing.reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReorderMarketingItemsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminMarketingSectionResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminMarketing.storeItem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreMarketingItemRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminMarketingItemResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminMarketing.uploadSectionImage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadMarketingImageRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminMarketingSectionResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminMarketing.destroySectionImage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminMarketingSectionResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminMarketing.updateItem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreMarketingItemRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminMarketingItemResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminMarketing.destroyItem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            deleted: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminMarketing.uploadItemImage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadMarketingImageRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminMarketingItemResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminMarketing.destroyItemImage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminMarketingItemResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "v1.health": {

@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import type { components } from "@/api/generated";
+import {
+  CONTENT_SNAPSHOT,
+  CONTENT_SNAPSHOT_GENERATED_AT,
+  type MarketingSection,
+} from "@/lib/marketing/content";
 
 /*
  * No static import of `@/api/client` in this module, on purpose. It is the
@@ -164,4 +169,37 @@ export async function sendContactMessage(
   // the fetch version of that cost — a 419 on every request, swallowed.
   const { apiClient } = await import("@/api/client");
   await apiClient.post("/contact", payload);
+}
+
+/**
+ * The landing page's sections and rows, owned by the platform operator.
+ *
+ * Seeded from the build-time snapshot so the prerendered HTML and the first
+ * paint both carry real content, and dated to when that snapshot was taken so
+ * the page refetches on mount and an operator's edit replaces it within a
+ * minute. The hook never returns undefined: there is no loading state on the
+ * page at any point, by design.
+ */
+export function useMarketingContent(): { sections: MarketingSection[] } {
+  const { data } = useQuery<{ sections: MarketingSection[] }>({
+    queryKey: ["marketing-content"],
+    // A plain public GET, like site-content: no axios on the landing page.
+    queryFn: async () => {
+      const response = await fetch("/api/v1/marketing-content", {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(`marketing-content answered ${response.status}`);
+      }
+      const body = (await response.json()) as {
+        data: { sections: MarketingSection[] };
+      };
+      return body.data;
+    },
+    initialData: CONTENT_SNAPSHOT,
+    initialDataUpdatedAt: CONTENT_SNAPSHOT_GENERATED_AT,
+    staleTime: 60_000,
+  });
+
+  return data ?? CONTENT_SNAPSHOT;
 }
