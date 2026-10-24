@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace App\Services\Report;
 
+use App\Enums\AttendanceStatus;
+use App\Enums\ExpectedDay;
 use App\Enums\OrgScope;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\LeaveBalance;
 use App\Models\PayrollEntry;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Attendance\ExpectedDays;
 use App\Support\Csv;
+use App\Support\TenantTime;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -34,6 +39,10 @@ final class ReportEngine
         'attendance' => [
             'label' => 'Attendance',
             'fields' => ['employee_name', 'date', 'check_in', 'check_out', 'status', 'source', 'worked_minutes'],
+        ],
+        'absences' => [
+            'label' => 'Absences',
+            'fields' => ['employee_name', 'employee_code', 'department', 'branch', 'date'],
         ],
         'leave' => [
             'label' => 'Leave Balances',
@@ -91,6 +100,7 @@ final class ReportEngine
         $data = match ($source) {
             'employees' => $this->queryEmployees($tenantId, $filters, $viewer),
             'attendance' => $this->queryAttendance($tenantId, $filters, $viewer),
+            'absences' => $this->queryAbsences($tenantId, $filters, $viewer),
             'leave' => $this->queryLeave($tenantId, $filters, $viewer),
             'payroll' => $this->permits($viewer, 'payroll') ? $this->queryPayroll($tenantId, $filters, $viewer) : [],
             default => [],
@@ -235,6 +245,94 @@ final class ReportEngine
             'source' => $r->source->value,
             'worked_minutes' => $r->worked_minutes ?? 0,
         ])->toArray();
+    }
+
+    /**
+     * The longest span an absences report covers. Each day is worked out for
+     * every employee in reach, a few queries a day, so the span is bounded
+     * rather than the rows.
+     */
+    public const ABSENCE_MAX_DAYS = 92;
+
+    /**
+     * One row per workday missed with no attendance, leave or holiday on
+     * record, by the same rule as the dashboards and the payroll run
+     * (ExpectedDays). Attendance rows are only written for days someone
+     * punched, so the attendance source cannot show an absence at all
+     * (blueprint RP6).
+     *
+     * `from` and `to` default to the 30 days before today and are clipped to
+     * yesterday, since today is not over, and to ABSENCE_MAX_DAYS. An
+     * organisation that recorded no attendance in the span is not using
+     * attendance and gets no rows, as on the payroll run, rather than every
+     * workday of every person.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return list<array<string, mixed>>
+     */
+    private function queryAbsences(int $tenantId, array $filters, User $viewer): array
+    {
+        $yesterday = TenantTime::today(Tenant::query()->find($tenantId))->subDay()->format('Y-m-d');
+        $to = Carbon::parse(min(empty($filters['to']) ? $yesterday : (string) $filters['to'], $yesterday));
+        $from = empty($filters['from']) ? $to->copy()->subDays(29) : Carbon::parse((string) $filters['from']);
+        if ($from->diffInDays($to) >= self::ABSENCE_MAX_DAYS) {
+            $from = $to->copy()->subDays(self::ABSENCE_MAX_DAYS - 1);
+        }
+
+        if ($from->greaterThan($to)) {
+            return [];
+        }
+
+        $employeeQuery = Employee::query()->where('tenant_id', $tenantId);
+        $viewer->scopeAccessibleEmployees($employeeQuery);
+        $employees = $employeeQuery->with(['department:id,name', 'branch:id,name'])->get();
+
+        $records = AttendanceRecord::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->whereDate('date', '>=', $from->format('Y-m-d'))
+            ->whereDate('date', '<=', $to->format('Y-m-d'))
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            ->where(fn ($q) => $q->whereNotNull('check_in')->orWhereNotNull('check_out'))
+            ->get(['employee_id', 'date']);
+
+        if ($employees->isEmpty() || $records->isEmpty()) {
+            return [];
+        }
+
+        $attended = [];
+        foreach ($records as $record) {
+            $attended[$record->date->format('Y-m-d')][$record->employee_id] = true;
+        }
+
+        $expectedDays = app(ExpectedDays::class);
+        $byId = $employees->keyBy('id');
+        $rows = [];
+
+        // Newest first, as the attendance source orders, so a cut keeps the
+        // recent days.
+        for ($day = $to->copy(); $day->greaterThanOrEqualTo($from); $day = $day->copy()->subDay()) {
+            $key = $day->format('Y-m-d');
+            foreach ($expectedDays->onDate($employees, $day) as $id => $kind) {
+                if ($kind !== ExpectedDay::WORKDAY || isset($attended[$key][$id])) {
+                    continue;
+                }
+                if (count($rows) === self::ROW_LIMIT) {
+                    $this->truncated = true;
+
+                    return $rows;
+                }
+                $employee = $byId[$id];
+                $rows[] = [
+                    'employee_name' => $employee->name,
+                    'employee_code' => $employee->employee_code,
+                    'department' => $employee->department->name ?? '',
+                    'branch' => $employee->branch->name ?? '',
+                    'date' => $key,
+                ];
+            }
+        }
+
+        return $rows;
     }
 
     private function queryLeave(int $tenantId, array $filters, User $viewer): array

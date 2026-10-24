@@ -28567,6 +28567,47 @@
                                                         "fields"
                                                     ]
                                                 },
+                                                "absences": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "label": {
+                                                            "type": "string",
+                                                            "const": "Absences"
+                                                        },
+                                                        "fields": {
+                                                            "type": "array",
+                                                            "prefixItems": [
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "employee_name"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "employee_code"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "department"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "branch"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "date"
+                                                                }
+                                                            ],
+                                                            "minItems": 5,
+                                                            "maxItems": 5,
+                                                            "additionalItems": false
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "label",
+                                                        "fields"
+                                                    ]
+                                                },
                                                 "leave": {
                                                     "type": "object",
                                                     "properties": {
@@ -28665,6 +28706,7 @@
                                             "required": [
                                                 "employees",
                                                 "attendance",
+                                                "absences",
                                                 "leave",
                                                 "payroll"
                                             ]
@@ -37960,6 +38002,7 @@
                         "enum": [
                             "employees",
                             "attendance",
+                            "absences",
                             "leave",
                             "payroll"
                         ]
@@ -40468,6 +40511,7 @@
                                 "enum": [
                                     "employees",
                                     "attendance",
+                                    "absences",
                                     "leave",
                                     "payroll"
                                 ]
