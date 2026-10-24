@@ -343,9 +343,14 @@ passed with no attendance. `GET /attendance/today`, the team view and summary,
 and the employee timeline all read it. Before, `/attendance/today` counted
 leavers, suspended staff, approved leave and holidays as absent (its
 `on_leave` read attendance rows nothing writes, so it was always 0), and the
-other two skipped Saturday and Sunday whatever the working week said. Still
-open: `ABSENT` is never written as a row, so payroll and reports do not see
-absences as records, and nothing deducts for them.)*
+other two skipped Saturday and Sunday whatever the working week said. The
+payroll run now lists each person's unexplained absences before approval (a
+calculation-log step and the register's `absences`), and pay is never reduced
+for them: decided under owner delegation the same day, because a day the
+system cannot explain may be unrecorded leave or a missed punch, and docking
+pay is a decision for a person. Nothing is flagged for an organisation that
+recorded no attendance in the period. Still open: `ABSENT` is never written
+as an attendance row, so reports do not count absences.)*
 
 ### IN. Integrations
 

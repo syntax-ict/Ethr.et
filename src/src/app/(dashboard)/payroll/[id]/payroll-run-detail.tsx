@@ -63,6 +63,7 @@ import {
 } from "@/features/payroll/api";
 import { CalculationLogDialog } from "@/features/payroll/components/calculation-log-dialog";
 import { OvertimeLimitsBanner } from "@/features/payroll/components/overtime-limits-banner";
+import { AbsencesBanner } from "@/features/payroll/components/absences-banner";
 import { PensionExemptionsBanner } from "@/features/payroll/components/pension-exemptions-banner";
 import {
   fetchPayrollJournal,
@@ -575,6 +576,10 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
 
       {register?.overtime_limits && run.status !== "voided" && (
         <OvertimeLimitsBanner limits={register.overtime_limits} />
+      )}
+
+      {register?.absences && run.status !== "voided" && (
+        <AbsencesBanner absences={register.absences} />
       )}
 
       {run.reprocessed_from_public_id && (

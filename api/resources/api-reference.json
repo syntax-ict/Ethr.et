@@ -26811,6 +26811,13 @@
                                                             "null"
                                                         ],
                                                         "items": []
+                                                    },
+                                                    "unexplained_absence_days": {
+                                                        "type": [
+                                                            "array",
+                                                            "null"
+                                                        ],
+                                                        "items": []
                                                     }
                                                 },
                                                 "required": [
@@ -26842,7 +26849,8 @@
                                                     "overtime_daily_limit_minutes",
                                                     "overtime_legal_daily_limit_minutes",
                                                     "overtime_legal_weekly_limit_minutes",
-                                                    "overtime_days_over_approved"
+                                                    "overtime_days_over_approved",
+                                                    "unexplained_absence_days"
                                                 ]
                                             }
                                         },
@@ -27005,6 +27013,51 @@
                                                 "legal_weekly_limit_minutes",
                                                 "employees"
                                             ]
+                                        },
+                                        "absences": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "days": {
+                                                    "type": "integer"
+                                                },
+                                                "employees": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_public_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "employee_name": {
+                                                                "type": "string"
+                                                            },
+                                                            "days": {
+                                                                "type": "integer"
+                                                            },
+                                                            "dates": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_public_id",
+                                                            "employee_name",
+                                                            "days",
+                                                            "dates"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "count",
+                                                "days",
+                                                "employees"
+                                            ]
                                         }
                                     },
                                     "required": [
@@ -27015,7 +27068,8 @@
                                         "pension_rates",
                                         "basis",
                                         "pension_exemptions",
-                                        "overtime_limits"
+                                        "overtime_limits",
+                                        "absences"
                                     ]
                                 }
                             }

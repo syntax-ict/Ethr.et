@@ -36,6 +36,7 @@ final class RunRegisterService
      *     pension_rates: array{employee: list<float>, employer: list<float>},
      *     basis: array{pension: list<array<string, mixed>>, tax: list<array<string, mixed>>},
      *     pension_exemptions: array{count: int, by_reason: array<string, int>, employees: list<array{employee_public_id: mixed, employee_name: mixed, reason: string}>},
+     *     absences: array{count: int, days: int, employees: list<array{employee_public_id: mixed, employee_name: mixed, days: int, dates: list<string>}>},
      *     overtime_limits: array{count: int, daily_limit_minutes: int|null, legal_daily_limit_minutes: int|null, legal_weekly_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, days_over_legal_daily_limit: int, weeks_over_legal_weekly_limit: int, longest_week_minutes: int, days_over_approved: int}>},
      * }
      */
@@ -64,7 +65,45 @@ final class RunRegisterService
             'basis' => self::basisUsed($rows),
             'pension_exemptions' => self::exemptions($rows),
             'overtime_limits' => self::overtimeLimits($rows),
+            'absences' => self::absences($rows),
         ];
+    }
+
+    /**
+     * Who missed workdays with no attendance, leave or holiday on record,
+     * from each entry's log. Shown on the run page before approval; pay was
+     * not reduced for any of it. Entries from before the step existed carry
+     * no list and count as none.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array{count: int, days: int, employees: list<array{employee_public_id: mixed, employee_name: mixed, days: int, dates: list<string>}>}
+     */
+    public static function absences(array $rows): array
+    {
+        $employees = [];
+        $days = 0;
+        foreach ($rows as $row) {
+            $dates = [];
+            foreach (is_array($row['unexplained_absence_days'] ?? null) ? $row['unexplained_absence_days'] : [] as $date) {
+                if (is_string($date)) {
+                    $dates[] = $date;
+                }
+            }
+
+            if ($dates === []) {
+                continue;
+            }
+
+            $days += count($dates);
+            $employees[] = [
+                'employee_public_id' => $row['employee_public_id'],
+                'employee_name' => $row['employee_name'],
+                'days' => count($dates),
+                'dates' => $dates,
+            ];
+        }
+
+        return ['count' => count($employees), 'days' => $days, 'employees' => $employees];
     }
 
     /**
@@ -334,6 +373,9 @@ final class RunRegisterService
                 : null,
             'overtime_days_over_approved' => is_array($steps['overtime']['limits']['days_over_approved'] ?? null)
                 ? array_values($steps['overtime']['limits']['days_over_approved'])
+                : null,
+            'unexplained_absence_days' => is_array($steps['absences']['unexplained_absence_days'] ?? null)
+                ? array_values($steps['absences']['unexplained_absence_days'])
                 : null,
         ];
     }
