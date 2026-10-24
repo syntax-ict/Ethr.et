@@ -374,6 +374,26 @@ shown, from one rule, rather than stored.)*
 | IN13 | Customer and support docs | Partial | No customer device-setup guide |
 | IN14 | Bank / Telebirr integrations | N/A | Not built and not claimed (C12) |
 
+*(2026-10-24: the attendance upgrade, PRs #412–#421 plus this documentation
+PR. AT8 and S3 stay Verified; the night-shift case they missed is now tested
+too: a 00:30 punch on a 22:00 shift was rated present and dated the next day,
+and is now dated the night it started and rated late (`EngineCorrectnessTest`).
+The rotation day offset was one day off in Addis Ababa and is fixed. AT27
+moves to **Verified** for punching places: an organisation-wide rule with a
+branch override, work sites assigned to people or departments, and office,
+field and remote modes (`AttendancePolicyTest`, `AttendanceSitesTest`). New,
+outside the register: a zero-configuration baseline for every organisation
+(`AttendanceBaselineTest`), a setup status (`AttendanceHealthTest`), field
+visits (`FieldVisitsAndSignalsTest`), web push reminders (`WebPushTest`), an
+explainable risk score with buddy-punching, reused-photo and pattern checks
+(`AttendanceRiskTest`), and an on-device liveness check (`LivenessTest`).
+Decisions made under the owner's 2026-10-24 instruction to implement without
+check-ins: a risky punch is recorded and flagged, never refused; the liveness
+model loads at runtime only where the check is on, rather than shipping 3.6 MB
+in every deploy and to every phone; no face matching. Not done and still
+open: AT28 (CSV import bypasses the engine), leave counted on each person's
+own schedule, and `AttendanceIntelligence` reading UTC `now()`.)*
+
 ### S. Scheduling and shifts
 
 | ID | Item | Status | Evidence / gap |

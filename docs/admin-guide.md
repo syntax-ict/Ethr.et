@@ -79,14 +79,53 @@ When an employee updates sensitive fields (name, TIN, date of birth, bank detail
 
 ## Attendance Configuration
 
+### What is set up for you
+
+A new organisation can take attendance from its first punch. At sign-up, and
+again every hour for any organisation still missing it, ETHR creates the
+**baseline** for the organisation's industry: the attendance settings, a
+default schedule, the working week, and this year's and next year's public
+holidays. The schedule comes from the industry's usual workforce profile
+(see [`INDUSTRY_TEMPLATES.md`](INDUSTRY_TEMPLATES.md)); an organisation with
+no industry gets `standard_office`, 08:30–17:30 Monday to Friday.
+
+The baseline only creates what is missing and never changes what you set.
+Applying a different profile later replaces the baseline schedule only while
+nobody has punched against it and nothing is assigned to it.
+
+**Settings → Attendance Rules** opens with a **setup status** panel that lists
+what still needs you, most serious first, each with a link to fix it:
+
+| Check | Severity |
+|---|---|
+| No default schedule | Blocker |
+| Location required while a branch has no coordinates | Blocker |
+| A crew rotation nobody is assigned to | Blocker for 24/7 and three-shift profiles, warning otherwise |
+| Mobile check-in on with no branch placed on the map | Warning |
+| Punches left *pending* (no shift to rate them) in the last 7 days | Warning |
+| A device silent for more than 24 hours | Warning |
+| Kiosk PIN required while employees have none | Warning |
+| Field staff with no work site | Warning |
+| Holidays missing for this year or next | Warning |
+| Working week differs from the default schedule | Information |
+
 ### Shift Setup
 
-Settings → Shift Rules (or Operations → Shifts & Schedules) → create shifts with:
-- Start and end time (supports overnight shifts)
-- Grace period (minutes before marking late)
+Operations → Shifts & Schedules → create shifts with:
+- Start and end time. A shift whose end is at or before its start runs past
+  midnight, and a punch after midnight belongs to the night it started.
+- Grace period (minutes before marking late). Grace lives on the shift; a new
+  shift starts with the default schedule's values.
 - Working days
 
-Assign shifts to individual employees, departments, or branches.
+There is always exactly one active **default** schedule, used for anyone with
+no assignment. It cannot be deleted, deactivated or un-defaulted until another
+shift takes its place. For a six-day week the default can be a **rotation**
+(five weekdays, a Saturday half day, Sunday off), anchored on a Monday.
+
+Assign shifts or rotations to individual employees, departments, or branches.
+Crews on a 24/7 or three-shift rotation each need their own assignment and
+start date: the setup status reminds you, it does not guess.
 
 ### Attendance Methods
 
@@ -100,6 +139,105 @@ Settings → Attendance Rules → enable/disable sources per your organization:
 | Kiosk | Reception desks |
 | Web | Office workers |
 | Manual | Manual correction by HR |
+
+A method you turn off disappears from the employee's menu and is refused by
+the server.
+
+### Locations: branches, work sites and the map
+
+Each branch has a location and a radius. Set it on the map in the branch form
+(Organization → Branches): drag the pin, search an address, press **Use my
+current location** while standing there, or paste a Google Maps link or a
+`9.0108, 38.7613` pair. The map is OpenStreetMap; it switches to Google Maps
+once a platform administrator adds a Google Maps key in the platform console.
+
+**Work sites** (Settings → Attendance Rules → Work sites) are extra places
+people may punch at: a project site, a client's premises, a warehouse. Assign a
+site to employees or to a whole department.
+
+A phone's GPS is rarely exact, so a punch counts as inside when it is within
+the radius after allowing for the phone's reported accuracy, up to 50 m.
+With **location required** on, a punch outside every allowed place is
+refused; with it off, the punch is recorded and flagged. A branch with no
+coordinates never refuses anyone: the punch is recorded and flagged *location
+not configured*, and the setup status asks you to place the branch.
+
+### How each person works
+
+On the employee's profile, **Attendance mode** is one of:
+
+| Mode | Where they may punch |
+|---|---|
+| Office (default) | Their branch, and any site assigned to them |
+| Field | Any site assigned to them or their department. Outside every site is flagged, not refused |
+| Remote | Anywhere. The location is recorded; no geofence applies |
+
+### Branch rules
+
+Settings → Attendance Rules → **Branch rules** lets one branch differ from the
+organisation: which methods are on, location required, selfie required, kiosk
+PIN, the GPS accuracy limit, automatic check-out, arrival check-in and the
+review threshold. A branch shows how many rules it changes; everything else is
+inherited. Photo retention, the confidence threshold and overtime rules stay
+organisation-wide, because they are legal and payroll matters.
+
+The order is always organisation, then branch, then the employee's mode.
+
+### Field visits
+
+Field staff log each visit from the attendance page on their phone: the place,
+an optional note and, with consent, a photo. A visit records where someone
+was; it never changes worked hours. Managers see them under Attendance →
+Visits. Visits taken offline are queued and sent when the phone reconnects.
+
+### Reminders on the phone
+
+Once the platform administrator has set the push keys (see
+[`deployment/PLESK-GO-LIVE.md`](deployment/PLESK-GO-LIVE.md)), employees can
+turn on **Even when ETHR is closed** on the mobile attendance page. ETHR then sends a
+notification when a shift is about to start, when a check-in is missed after
+the grace period, and when an approval is waiting, even with the app closed.
+Reminders can arrive up to about five minutes late, because the host has no
+background worker. On iPhone the app must be installed to the home screen
+(iOS 16.4 or later).
+
+### Cheating protection
+
+Every punch gets a **risk score** from 0 to 100, with the reasons that make it
+up shown to reviewers. It is a fixed, explainable scoring rather than a black
+box: each reason has a set weight, and the comparison is against your own
+records and each person's own habits. Nothing is sent to an outside service.
+
+The reasons include: outside the allowed place, a location that looks faked,
+impossible travel between two punches, an offline punch that cannot be
+verified, a phone clock far from the server's, **one phone used by two
+employees** (buddy punching), several employees from one address within two
+minutes (your office's usual addresses are learned and excluded), a
+**reused photo** (the same selfie again, or a photo of someone else's),
+automation, and a place or arrival time far outside the person's usual
+pattern.
+
+- At or above the **review threshold** (40 by default, adjustable per branch)
+  the punch opens a *high risk* item in Attendance → Integrity and reviewers
+  are notified. **The punch is still recorded**: nobody is refused for a score.
+- A payroll run lists any high-risk items still open before it is approved.
+- Each night ETHR looks for pairs of employees who repeatedly punch within a
+  minute of each other on the same phone or address, and for people who
+  always arrive on the last minute of grace, and opens items for them.
+- In Integrity, a reviewer sees the score broken down, the selfie, and the
+  punch on a map with the allowed place and the GPS accuracy.
+
+Settings → Attendance Rules → **Cheating protection**:
+
+| Setting | What it does |
+|---|---|
+| Review threshold | The score at which a punch is sent for review |
+| Adaptive selfies | With selfies not otherwise required: someone with 90 clean days is asked on about one day in five, chosen unpredictably; anyone newer, or with an open or rejected serious finding, every time |
+| Live face check | Before a selfie, the phone asks for a blink or a head turn. It runs entirely on the phone and only the result is sent. A failed check is one reason among many, a phone that cannot run it counts for nothing, and nobody is refused for it |
+
+Photos, their fingerprints and device identifiers follow the organisation's
+photo retention period. See
+[`operations/ATTENDANCE-PHOTO-CONSENT.md`](operations/ATTENDANCE-PHOTO-CONSENT.md).
 
 ### Biometric Devices
 

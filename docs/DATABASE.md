@@ -394,14 +394,39 @@ Standard CRUD tables with tenant_id, employee_id FK. See full column details in 
 | start_time, end_time | TIME | |
 | break_minutes | INT DEFAULT 60 | |
 | grace_period_minutes | INT DEFAULT 15 | |
-| is_overnight | BOOLEAN | |
+| crosses_midnight | BOOLEAN | Derived on save: `end_time <= start_time` |
 | is_active | BOOLEAN DEFAULT TRUE | **Factories must set TRUE** |
-| is_default | BOOLEAN DEFAULT FALSE | |
-| working_days | JSON DEFAULT '[1,2,3,4,5,6]' | 0=Sun |
+| is_default | BOOLEAN DEFAULT FALSE | Exactly one active default per tenant (enforced by `ShiftController`) |
+| working_days | VARCHAR(20) DEFAULT '1,2,3,4,5' | ISO days, 1=Mon … 7=Sun |
 | deleted_at | TIMESTAMP NULL | Soft delete |
 
 ### shift_assignments
 Polymorphic: assigns shift to Employee, Department, or Branch with date range.
+
+### shift_rotations
+A repeating cycle of shifts and rest days. `is_default` makes a rotation the
+organisation's default schedule (the `six_day_week` profile's), counted from
+`anchor_date`, a Monday.
+
+### branch_attendance_overrides
+One row per branch (`branch_id` unique): `overrides` JSON holding only the keys
+in `AttendancePolicy::OVERRIDABLE`. Resolution is organisation, then branch,
+then `employees.attendance_mode` (`office`, `field`, `remote`).
+
+### attendance_sites, attendance_site_assignments
+Extra places to punch at: name, `latitude`, `longitude`, `radius_meters`,
+optional `branch_id`, `is_active`, soft delete. Assignments are polymorphic to
+an employee or a department.
+
+### attendance_visits
+Field visits: `employee_id`, optional `attendance_site_id`, position and
+accuracy, `occurred_at`, note, `photo_path` (retention as selfies),
+`idempotency_key` unique per tenant, `metadata`. Never affects worked hours.
+
+### push_subscriptions
+Web push endpoints per user: `endpoint` and its `endpoint_hash` (unique),
+the browser's public key and auth secret, `last_used_at`. Removed when the
+push service reports the endpoint gone.
 
 ### attendance_records
 | Column | Type | Notes |
@@ -421,19 +446,31 @@ Polymorphic: assigns shift to Employee, Department, or Branch with date range.
 | selfie_path | VARCHAR(500) NULL | EXIF stripped |
 | idempotency_key | VARCHAR(255) UNIQUE NULL | |
 | offline_token | VARCHAR(500) NULL | HMAC |
+| risk_score | TINYINT 0-100 NULL | `AttendanceRiskScorer` |
+| risk_reasons | JSON NULL | Reason → points |
+| device_hash | CHAR(32) NULL | Keyed hash of the per-install id; the id itself is never stored |
 
 **NEVER DELETE attendance records.**
 
-**Indexes:** (tenant_id, employee_id, date), (tenant_id, date), idempotency_key
+**Indexes:** (tenant_id, employee_id, date), (tenant_id, date), idempotency_key, (tenant_id, device_hash, created_at)
 
 ### attendance_corrections
-4-step approval chain: pending_supervisor → pending_dept_head → pending_hr → approved/rejected. Includes original and corrected timestamps, reason, attachment, approval chain JSON.
+Single-step approval: `status` is pending, approved or rejected. Holds the reason, `proposed_check_in` and `proposed_check_out`, and the decision in `approval_chain` JSON. The record keeps its original punch times.
 
 ### attendance_conflicts
 Formal conflict resolution tracking: record_a_id, record_b_id, conflict_type, resolution status.
 
 ### attendance_settings
-Per-tenant method configuration: method name, is_enabled, config JSON. Unique (tenant_id, method).
+One row per tenant. `enabled_methods` JSON; geofence, selfie, kiosk PIN, QR and
+GPS-accuracy rules; offline sync; reminders and automatic check-out;
+`photo_retention_days`; `confidence_threshold`; overtime rules;
+`risk_review_threshold` (default 40), `adaptive_selfie` and `liveness_check`.
+`grace_period_minutes` is kept but no longer rates a punch: grace lives on the
+shift. A branch may override the keys in `AttendancePolicy::OVERRIDABLE`.
+
+### attendance_integrity_flags
+Findings on a record (rule-based checks, `high_risk` from the risk score, and
+the nightly pattern scan) with a review status. Index (tenant_id, employee_id, created_at).
 
 ### devices
 Biometric device management: type (hikvision/zkteco/suprema), connection details (IP, port, credentials 🔒), status (online/offline/error), last sync. Soft delete.
