@@ -178,18 +178,17 @@ describe("the landing page editor", () => {
     expect(within(hero).getByText("Opening picture")).toBeInTheDocument();
 
     // Industries rows have a title and an icon, nothing to write under them.
-    const industries =
-      screen.getByText("Industries").closest("[data-slot=card]") ??
-      screen.getByText("Industries").parentElement!.parentElement!
-        .parentElement!;
+    const industries = screen.getByTestId("marketing-section-industries");
     const government = within(industries)
       .getByText(/Government/)
-      .closest("li")!;
+      .closest("li") as HTMLElement;
     expect(field(government, "Text")).toBeNull();
     expect(field(government, "Icon")).toBeInTheDocument();
 
     // A problem row has text, detail, a link and a picture.
-    const paper = screen.getByText(/Attendance on paper/).closest("li")!;
+    const paper = screen
+      .getByText(/Attendance on paper/)
+      .closest("li") as HTMLElement;
     expect(field(paper, "Text")).toBeInTheDocument();
     expect(field(paper, "Detail")).toBeInTheDocument();
     expect(field(paper, "Link")).toBeInTheDocument();
@@ -220,10 +219,7 @@ describe("the landing page editor", () => {
     renderPage();
     await screen.findByText("Opening");
 
-    const trust =
-      screen.getByText("Data and safeguards").closest("[data-slot=card]") ??
-      screen.getByText("Data and safeguards").parentElement!.parentElement!
-        .parentElement!;
+    const trust = screen.getByTestId("marketing-section-trust");
     fireEvent.click(within(trust).getByText("Save section"));
 
     expect(await within(trust).findByRole("alert")).toHaveTextContent(
@@ -236,7 +232,9 @@ describe("the landing page editor", () => {
     renderPage();
     await screen.findByText("Opening");
 
-    const register = screen.getByText(/Create your account/).closest("li")!;
+    const register = screen
+      .getByText(/Create your account/)
+      .closest("li") as HTMLElement;
     fireEvent.click(register.querySelector('button[aria-label="Move down"]')!);
 
     const orders = () => sent.filter((s) => s.url.includes("/order"));
@@ -260,7 +258,9 @@ describe("the landing page editor", () => {
     renderPage();
     await screen.findByText("Opening");
 
-    const government = screen.getByText(/Government/).closest("li")!;
+    const government = screen
+      .getByText(/Government/)
+      .closest("li") as HTMLElement;
     fireEvent.click(within(government).getByText("Save"));
 
     const saves = () => sent.filter((s) => s.url.includes("/items/"));
