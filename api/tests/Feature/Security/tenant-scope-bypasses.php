@@ -11,6 +11,11 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-24, readiness: one more. `Services/Onboarding/ReadinessScorer`
+ * reads the organisation's attendance settings to count phone, QR, web or
+ * kiosk punching as an attendance source, as it already reads devices:
+ * stating `tenant_id` from the scored tenant on the same chain. 170/66.)
+ *
  * (2026-10-24, web push: one more. `Listeners/PushDatabaseNotification` asks
  * whether a notified user has a push subscription. It runs inside queued
  * notifications, where no tenant may be resolved, so it drops the scope and
@@ -239,7 +244,7 @@ return [
     'Services/Leave/LeaveDayCalculator.php' => 1,
     'Services/Migration/WorkforceMigrationService.php' => 1,
     'Services/Onboarding/OrganizationProvisioner.php' => 2,
-    'Services/Onboarding/ReadinessScorer.php' => 10,
+    'Services/Onboarding/ReadinessScorer.php' => 11,
     'Services/Payroll/AllowanceService.php' => 1,
     'Services/Payroll/OvertimeCalculator.php' => 1,
     'Services/Payroll/PayrollEngine.php' => 4,

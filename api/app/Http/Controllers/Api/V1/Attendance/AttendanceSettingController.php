@@ -9,6 +9,7 @@ use App\Http\Requests\Attendance\UpdateAttendanceSettingRequest;
 use App\Http\Resources\AttendanceSettingResource;
 use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
+use App\Services\Attendance\AttendanceHealth;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -46,5 +47,21 @@ class AttendanceSettingController extends Controller
         AuditLog::record('attendance.settings_updated', $setting, $request->validated());
 
         return (new AttendanceSettingResource($setting->fresh()))->response()->setStatusCode(200);
+    }
+
+    /**
+     * What is keeping attendance from working here, each with where it is
+     * fixed (AttendanceHealth). `ready` is false while any blocker remains.
+     */
+    public function setupStatus(AttendanceHealth $health): JsonResponse
+    {
+        Gate::authorize('attendance.manage');
+
+        $checks = $health->checks(app(CurrentTenant::class)->get());
+
+        return response()->json([
+            'ready' => ! collect($checks)->contains('severity', 'blocker'),
+            'checks' => $checks,
+        ]);
     }
 }

@@ -532,6 +532,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/setup-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What is keeping attendance from working here, each with where it is
+         *     fixed (AttendanceHealth). `ready` is false while any blocker remains
+         */
+        get: operations["attendanceSetting.setupStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/map-config": {
         parameters: {
             query?: never;
@@ -12358,6 +12378,121 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceSetting.setupStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ready: boolean;
+                        checks: ({
+                            /** @constant */
+                            id: "no_default_schedule";
+                            /** @constant */
+                            severity: "blocker";
+                            /** @constant */
+                            count: 1;
+                            /** @constant */
+                            fix_route: "/shifts";
+                        } | {
+                            /** @constant */
+                            id: "geofence_unplaced";
+                            /** @constant */
+                            severity: "blocker";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/organization?tab=branches";
+                        } | {
+                            /** @constant */
+                            id: "nothing_on_map";
+                            /** @constant */
+                            severity: "warning";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/organization?tab=branches";
+                        } | {
+                            /** @constant */
+                            id: "crews_unassigned";
+                            /** @enum {string} */
+                            severity: "blocker" | "warning";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/shifts/rotations";
+                        } | {
+                            /** @constant */
+                            id: "pending_punches";
+                            /** @constant */
+                            severity: "warning";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/shifts/assignments";
+                        } | {
+                            /** @constant */
+                            id: "devices_silent";
+                            /** @constant */
+                            severity: "warning";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/devices";
+                        } | {
+                            /** @constant */
+                            id: "kiosk_pins_missing";
+                            /** @constant */
+                            severity: "warning";
+                            count: string;
+                            /** @constant */
+                            fix_route: "/employees";
+                        } | {
+                            /** @constant */
+                            id: "field_without_sites";
+                            /** @constant */
+                            severity: "warning";
+                            count: string;
+                            /** @constant */
+                            fix_route: "/settings/attendance";
+                        } | {
+                            /** @constant */
+                            id: "holidays_missing";
+                            /** @constant */
+                            severity: "warning";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/settings/holidays";
+                        } | {
+                            /** @constant */
+                            id: "working_week_mismatch";
+                            /** @constant */
+                            severity: "info";
+                            /** @constant */
+                            count: 1;
+                            /** @constant */
+                            fix_route: "/settings/leave-types";
+                        } | {
+                            /** @constant */
+                            id: "kiosk_none";
+                            /** @constant */
+                            severity: "info";
+                            /** @constant */
+                            count: 1;
+                            /** @constant */
+                            fix_route: "/attendance/kiosks";
+                        })[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "attendanceSite.mapConfig": {

@@ -7406,6 +7406,350 @@
                 }
             }
         },
+        "/attendance/setup-status": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendanceSetting.setupStatus",
+                "summary": "What is keeping attendance from working here, each with where it is\nfixed (AttendanceHealth). `ready` is false while any blocker remains",
+                "tags": [
+                    "Attendance"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "ready": {
+                                            "type": "boolean"
+                                        },
+                                        "checks": {
+                                            "type": "array",
+                                            "items": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "no_default_schedule"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "blocker"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "const": 1
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/shifts"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "geofence_unplaced"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "blocker"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "minimum": 0
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/organization?tab=branches"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "nothing_on_map"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "minimum": 0
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/organization?tab=branches"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "crews_unassigned"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "blocker",
+                                                                    "warning"
+                                                                ]
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "minimum": 0
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/shifts/rotations"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "pending_punches"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "minimum": 0
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/shifts/assignments"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "devices_silent"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "minimum": 0
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/devices"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "kiosk_pins_missing"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "string"
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/employees"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "field_without_sites"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "string"
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/settings/attendance"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "holidays_missing"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/settings/holidays"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "working_week_mismatch"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "info"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "const": 1
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/settings/leave-types"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "kiosk_none"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "info"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "const": 1
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/attendance/kiosks"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "ready",
+                                        "checks"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/attendance/sites": {
             "get": {
                 "x-abilities": [

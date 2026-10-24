@@ -117,6 +117,7 @@ const keys = {
   sites: ["attendance", "sites"] as const,
   mapConfig: ["attendance", "map-config"] as const,
   visits: ["attendance", "visits"] as const,
+  setupStatus: ["attendance", "setup-status"] as const,
   myShift: ["attendance", "my-shift"] as const,
 };
 
@@ -782,6 +783,23 @@ export function useDeleteAttendanceSite() {
     },
     [keys.sites],
   );
+}
+
+export interface AttendanceSetupCheck {
+  id: string;
+  severity: "blocker" | "warning" | "info";
+  count: number;
+  fix_route: string;
+}
+
+/** What is keeping attendance from working here (AttendanceHealth). */
+export function useAttendanceSetupStatus(enabled = true) {
+  return useQuery<{ checks: AttendanceSetupCheck[]; ready: boolean }>({
+    queryKey: keys.setupStatus,
+    queryFn: async () => (await apiClient.get("/attendance/setup-status")).data,
+    enabled,
+    staleTime: 60 * 1000,
+  });
 }
 
 export type AttendanceVisit = components["schemas"]["AttendanceVisitResource"];

@@ -409,6 +409,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
 
         Route::get('/settings', [AttendanceSettingController::class, 'show']);
         Route::put('/settings', [AttendanceSettingController::class, 'update']);
+        Route::get('/setup-status', [AttendanceSettingController::class, 'setupStatus']);
         Route::get('/settings/branches', [BranchAttendanceController::class, 'index']);
         Route::put('/settings/branches/{branch}', [BranchAttendanceController::class, 'update']);
         Route::get('/map-config', [AttendanceSiteController::class, 'mapConfig']);

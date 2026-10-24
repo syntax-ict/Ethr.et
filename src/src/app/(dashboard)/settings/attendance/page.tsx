@@ -22,6 +22,7 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
 import { BranchRulesCard } from "@/features/attendance/components/branch-rules-card";
 import { WorkSitesCard } from "@/features/attendance/components/work-sites-card";
+import { SetupStatusPanel } from "@/features/attendance/components/setup-status-panel";
 
 type Method = AttendanceSettings["enabled_methods"][number];
 
@@ -132,6 +133,8 @@ export default function AttendanceSettingsPage() {
             </Button>
           }
         />
+
+        <SetupStatusPanel />
 
         {isError ? (
           <ErrorState onRetry={() => refetch()} />

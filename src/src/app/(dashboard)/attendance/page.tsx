@@ -1,5 +1,6 @@
 "use client";
 
+import { SetupStatusPanel } from "@/features/attendance/components/setup-status-panel";
 import { punchSignals } from "@/lib/attendance/punch-signals";
 import { useState } from "react";
 import Link from "next/link";
@@ -291,6 +292,8 @@ export default function AttendancePage() {
           </SubNavGroup>
         )}
       </nav>
+
+      {can.manageAttendance && <SetupStatusPanel compact />}
 
       {/* Filters */}
       <div className="space-y-3">
