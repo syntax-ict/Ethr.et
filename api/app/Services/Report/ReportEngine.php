@@ -287,7 +287,10 @@ final class ReportEngine
         $viewer->scopeAccessibleEmployees($employeeQuery);
         $employees = $employeeQuery->with(['department:id,name', 'branch:id,name'])->get();
 
-        $records = AttendanceRecord::withoutGlobalScope('tenant')
+        // Scoped, not bypassed: ExpectedDays reads shifts and leave through
+        // the tenant scope too, so this source needs the tenant resolved
+        // (the request does it, and RunScheduledReportsJob sets it first).
+        $records = AttendanceRecord::query()
             ->where('tenant_id', $tenantId)
             ->whereDate('date', '>=', $from->format('Y-m-d'))
             ->whereDate('date', '<=', $to->format('Y-m-d'))
