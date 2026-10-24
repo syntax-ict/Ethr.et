@@ -2,32 +2,42 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EMPTY_SITE_CONTENT, type SiteContent } from "@/features/marketing/api";
+import type { MarketingSection } from "@/lib/marketing/content";
 import { LandingContent } from "@/app/(marketing)/[locale]/landing-content";
 import { PricingContent } from "@/app/(marketing)/[locale]/pricing/pricing-content";
 import { FaqContent } from "@/app/(marketing)/[locale]/faq/faq-content";
+import { marketingFixture } from "./fixtures/marketing-content";
 
 // FAQ is still a pure presentational client component: it depends only on the
 // i18n layer (en is registered in the test setup) and next/link.
 //
 // Landing and Pricing are not. Pricing reads the plan catalog and Landing reads
-// the published site metrics, so both need a QueryClient. Neither test stubs a
-// request: the point is that the page renders correctly with no network at all,
-// which is what a crawler gets and what an operator who has published nothing
-// gets.
-function withQuery(ui: React.ReactElement, siteContent?: Partial<SiteContent>) {
+// its sections and the published site metrics, so both need a QueryClient.
+// Neither test stubs a request: the point is that the page renders correctly
+// with no network at all, which is what a crawler gets and what an operator
+// who has published nothing gets.
+function withQuery(
+  ui: React.ReactElement,
+  siteContent?: Partial<SiteContent>,
+  sections: MarketingSection[] = marketingFixture().sections,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
 
   // Seeded into the cache rather than stubbed over the network: `useSiteContent`
-  // reads this key, and the point of these tests is what the component renders
-  // for a given payload, not how the payload arrives.
+  // and `useMarketingContent` read these keys, and the point of these tests is
+  // what the component renders for a given payload, not how the payload
+  // arrives. The landing fixture is a stable copy of the first-run content,
+  // never the committed snapshot, whose values change whenever the platform
+  // operator edits the page.
   if (siteContent) {
     queryClient.setQueryData("site-content".split(" "), {
       ...EMPTY_SITE_CONTENT,
       ...siteContent,
     });
   }
+  queryClient.setQueryData("marketing-content".split(" "), { sections });
 
   return render(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
@@ -35,32 +45,77 @@ function withQuery(ui: React.ReactElement, siteContent?: Partial<SiteContent>) {
 }
 
 describe("Landing page", () => {
-  it("renders every headline section (S06)", () => {
+  it("renders every section the operator published (S06)", () => {
     withQuery(<LandingContent />);
 
-    // Hero
+    // Hero, from the database rather than a translation key.
     expect(
       screen.getByRole("heading", {
-        name: "The Complete HR Platform for Ethiopian Organizations",
+        name: "Attendance, payroll and HR, built for Ethiopian organisations",
       }),
     ).toBeInTheDocument();
 
-    // Feature highlights
-    expect(screen.getByText("Everything You Need")).toBeInTheDocument();
-    expect(screen.getByText("Attendance Tracking")).toBeInTheDocument();
-    expect(screen.getByText("Payroll Management")).toBeInTheDocument();
-
-    // Industry showcase
+    // The problems ledger replaced the six-tile features grid.
     expect(
-      screen.getByText("Built for Ethiopian Industries"),
+      screen.getByRole("heading", {
+        name: "The work that fills an HR office, and what ETHR does with it",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Everything You Need")).not.toBeInTheDocument();
+
+    // Industry chips
+    expect(
+      screen.getByText("Built for Ethiopian industries"),
     ).toBeInTheDocument();
     expect(screen.getByText("Government")).toBeInTheDocument();
     expect(screen.getByText("Banking")).toBeInTheDocument();
     expect(screen.getByText("Manufacturing")).toBeInTheDocument();
 
-    // CTA banner
+    // Call to action
     expect(
-      screen.getByText("Start Your 6-Month Free Trial"),
+      screen.getByText("Start your 6-month free trial"),
+    ).toBeInTheDocument();
+  });
+
+  it("sets the problems beside what ETHR does with them", () => {
+    withQuery(<LandingContent />);
+
+    const section = screen.getByRole("region", {
+      name: "The work that fills an HR office, and what ETHR does with it",
+    });
+    const rows = section.querySelectorAll("ol > li");
+    expect(rows).toHaveLength(6);
+    expect(section).toHaveTextContent("Attendance on paper");
+    expect(section).toHaveTextContent(
+      "Staff check in from a phone, a shared kiosk, a QR code or the web",
+    );
+    // Every row carries a picture: a drawn scene when nothing was uploaded.
+    expect(section.querySelectorAll("[data-scene]")).toHaveLength(6);
+    expect(
+      section.querySelector('[data-scene="problems/paper_attendance"]'),
+    ).not.toBeNull();
+  });
+
+  it("leaves out a section the operator unpublished, and one with no rows", () => {
+    const sections = marketingFixture().sections.filter(
+      (s) => s.kind !== "industries",
+    );
+    const trust = sections.find((s) => s.kind === "problems");
+    if (trust) trust.items = [];
+
+    withQuery(<LandingContent />, undefined, sections);
+
+    expect(
+      screen.queryByText("Built for Ethiopian industries"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", {
+        name: "The work that fills an HR office, and what ETHR does with it",
+      }),
+    ).not.toBeInTheDocument();
+    // The rest still renders.
+    expect(
+      screen.getByText("What ETHR does for your organisation"),
     ).toBeInTheDocument();
   });
 
@@ -76,11 +131,10 @@ describe("Landing page", () => {
     withQuery(<LandingContent />);
 
     // Five filled stars, an invented quote, and "Abebe Kebede, HR Director,
-    // Addis Manufacturing PLC" — a person who does not exist, attributed a
-    // claim about a product they have not used. It survived this branch's
-    // whole audit because two documents said it had already been deleted and
-    // nobody read the built page; it was still in .next/server/app/en.html
-    // and am.html when that was finally checked.
+    // Addis Manufacturing PLC", a person who does not exist, attributed a
+    // claim about a product they have not used. It survived a whole audit
+    // because two documents said it had already been deleted and nobody read
+    // the built page.
     expect(screen.queryByText(/Abebe Kebede/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Addis Manufacturing/)).not.toBeInTheDocument();
     expect(
@@ -89,7 +143,7 @@ describe("Landing page", () => {
   });
 
   it("renders a testimonial once a real one is published", () => {
-    // The section is data now. An operator who has a customer on the record
+    // The section is data. An operator who has a customer on the record
     // enters the quote, who said it, and the date they agreed; the API refuses
     // to publish it without all three, so this payload is the only shape the
     // page ever sees.
@@ -101,7 +155,7 @@ describe("Landing page", () => {
     });
 
     expect(
-      screen.getByText(/It replaced three separate systems for us\./),
+      screen.getByText(/It replaced three separate systems for us./),
     ).toBeInTheDocument();
     expect(screen.getByText("A named customer")).toBeInTheDocument();
     expect(
@@ -110,9 +164,6 @@ describe("Landing page", () => {
   });
 
   it("shows no star rating, because nothing collects one", () => {
-    // The invented version had five filled stars. A rating is a score, and no
-    // part of this product asks a customer for one — putting them back would be
-    // inventing a number on top of a quote that is finally true.
     const { container } = withQuery(<LandingContent />, {
       testimonial_quote: "It replaced three separate systems for us.",
       testimonial_author: "A named customer",
@@ -124,8 +175,8 @@ describe("Landing page", () => {
   it("renders no chrome of its own", () => {
     // The marketing layout supplies the header, <main> and footer for every
     // public page. This component carried its own set from when it lived at
-    // app/page.tsx, outside the route group — and phase 7 moving it inside gave
-    // the landing page two of each until the built HTML was read.
+    // app/page.tsx, outside the route group, and the landing page had two of
+    // each until the built HTML was read.
     const { container } = withQuery(<LandingContent />);
 
     expect(container.querySelector("header")).toBeNull();
@@ -136,12 +187,6 @@ describe("Landing page", () => {
   it("describes the isolation mechanism instead of promising an absolute", () => {
     withQuery(<LandingContent />);
 
-    // "No cross-tenant access is possible" is a claim about impossibility,
-    // published by a codebase whose own CLAUDE.md records 123 scope bypasses
-    // that were never individually audited and five isolation defects already
-    // found. The mechanism is genuinely good — it fails closed — and saying so
-    // is both true and more persuasive than an absolute nobody can stand
-    // behind.
     expect(
       screen.queryByText(/No cross-tenant access is possible/i),
     ).not.toBeInTheDocument();
@@ -154,7 +199,7 @@ describe("Landing page", () => {
     const section = screen.getByRole("region", {
       name: "What ETHR does for your organisation",
     });
-    const rows = section.querySelectorAll("li");
+    const rows = section.querySelectorAll("ol > li");
     expect(rows).toHaveLength(5);
     for (const value of [
       "Establishes reliable workforce data",
@@ -168,7 +213,9 @@ describe("Landing page", () => {
 
     // The 2026-10-17 capability audit found no performance reviews, goals,
     // training or certifications in the code, and no device verified on real
-    // hardware. The page names none of them until they exist.
+    // hardware. The page names none of them until they exist. The same list
+    // is now a validation rule on the console, so an operator cannot type
+    // them back in either.
     expect(section).not.toHaveTextContent(
       /performance review|appraisal|training|certif|goals|OKR/i,
     );
@@ -179,14 +226,8 @@ describe("Landing page", () => {
   it("says where data is stored, and claims no compliance on the customer's behalf", () => {
     withQuery(<LandingContent />);
 
-    // Proclamation 1321/2024, Art. 22: personal data collected in Ethiopia is
-    // stored on servers in Ethiopia. ETHR's hosting does that (www.ethr.et
-    // resolves to Ethio Telecom, Addis Ababa, measured 2026-10-17), so the page
-    // says it. It does not say "full compliance": registration with the
-    // Authority (Art. 33) and a lawful basis are the employer's duties as data
-    // controller, and nothing measures that every byte stays in the country.
     expect(
-      screen.getByText("Your Data, Stored in Ethiopia"),
+      screen.getByText("Your data, stored in Ethiopia"),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Personal Data Protection Proclamation No\. 1321\/2024/),
@@ -199,29 +240,32 @@ describe("Landing page", () => {
     expect(
       screen.queryByText(/Every action is logged/i),
     ).not.toBeInTheDocument();
-    // No device is verified on real hardware yet.
     expect(screen.queryByText(/Biometric devices/i)).not.toBeInTheDocument();
   });
 
   it("states no figure it cannot substantiate", () => {
     withQuery(<LandingContent />);
 
-    // The page carried "500+ organizations", "50,000+ employees", "1M+ payrolls
-    // processed" and "99.9% uptime", all written into the component. ethr.et
-    // serves nothing yet, so none of them were true — and "99.9%" reads as an
-    // SLA the terms page says does not exist.
-    //
-    // They are columns now, and empty. With nothing published the band is not
-    // rendered at all, which is what this pins: the failure mode to guard
-    // against is someone reintroducing a default.
+    // "500+ organizations", "50,000+ employees", "1M+ payrolls processed" and
+    // "99.9% uptime" were all written into the component once. They are
+    // columns now, and empty: with nothing published the band is not rendered.
     expect(screen.queryByText("99.9%")).not.toBeInTheDocument();
     expect(screen.queryByText("500+")).not.toBeInTheDocument();
     expect(screen.queryByText("50,000+")).not.toBeInTheDocument();
     expect(screen.queryByText("1M+")).not.toBeInTheDocument();
     expect(screen.queryByText("Organizations")).not.toBeInTheDocument();
-
-    // And the hero badge that counted them is gone with them.
     expect(screen.queryByText(/Now serving/i)).not.toBeInTheDocument();
+  });
+
+  it("renders the published figures when there are any", () => {
+    withQuery(<LandingContent />, {
+      metric_organisations: 12,
+      metric_employees: 1480,
+    });
+
+    expect(screen.getByText("Organizations")).toBeInTheDocument();
+    expect(screen.getByText("Employees Managed")).toBeInTheDocument();
+    expect(screen.getByText(/Now serving 12 Ethiopian/)).toBeInTheDocument();
   });
 });
 
