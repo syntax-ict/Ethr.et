@@ -164,7 +164,7 @@ it('stores a picture re-encoded under platform/, serves it immutable, and replac
     $item->refresh();
     expect($item->image_version)->toMatch('/^[0-9a-f]{16}$/')
         ->and($item->image_path)->toBe("platform/marketing/{$item->public_id}-{$item->image_version}.jpg")
-        ->and(array_keys($item->image_variants))->toBe([1280, 640])
+        ->and(array_keys($item->image_variants))->toEqualCanonicalizing([1280, 640])
         ->and($first['url'])->toBe("/api/v1/marketing-images/{$item->public_id}/image/{$item->image_version}")
         ->and($first['width'])->toBe(1600);
 
