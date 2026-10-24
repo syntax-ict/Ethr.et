@@ -274,7 +274,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'title' => 'Validation Failed',
                 'status' => 422,
                 'detail' => $e->getMessage(),
-            ], 422);
+            ], 422, ['Content-Type' => 'application/problem+json']);
         });
 
         // A payroll approval or void the engine refused under its lock: the
@@ -314,7 +314,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'title' => 'Bad Gateway',
                 'status' => 502,
                 'detail' => __('device.read_failed'),
-            ], 502);
+            ], 502, ['Content-Type' => 'application/problem+json']);
         });
 
         // Handle validation exceptions (422)
@@ -329,7 +329,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'status' => 422,
                 'detail' => 'The given data was invalid.',
                 'errors' => $e->errors(),
-            ], 422);
+            ], 422, ['Content-Type' => 'application/problem+json']);
         });
 
         // Handle authentication exceptions (401)
@@ -346,7 +346,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 401, ['Content-Type' => 'application/problem+json']);
         });
 
-        // Handle authorization exceptions (403)
+        // Handle authorization exceptions (403). Laravel's prepareException()
+        // turns every AuthorizationException into an HttpException before
+        // these callbacks run, so a denial is answered by the HttpException
+        // renderer above; this one stays in step with it in case that changes.
         $exceptions->render(function (AuthorizationException $e, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
@@ -357,6 +360,6 @@ return Application::configure(basePath: dirname(__DIR__))
                 'title' => 'Unauthorized',
                 'status' => 403,
                 'detail' => __($e->getMessage() ?: 'You are not authorized to perform this action.'),
-            ], 403);
+            ], 403, ['Content-Type' => 'application/problem+json']);
         });
     })->create();

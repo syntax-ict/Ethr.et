@@ -183,6 +183,7 @@ describe('a device that cannot be read', function () {
         // device with nobody enrolled.
         test()->getJson("{$host}/devices/{$device->public_id}/enrollments")
             ->assertStatus(502)
+            ->assertHeader('Content-Type', 'application/problem+json')
             ->assertJsonPath('status', 502)
             ->assertJsonPath('type', 'https://ethr.et/errors/device-unreachable')
             ->assertJsonPath('detail', __('device.read_failed'))
