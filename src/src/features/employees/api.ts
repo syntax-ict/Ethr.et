@@ -101,6 +101,22 @@ export function useSetAttendanceMode(publicId: string) {
   });
 }
 
+/** Let this employee punch without their registered phone until a date (null ends it). */
+export function useSetDeviceExemption(publicId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (until: string | null) => {
+      const { data } = await apiClient.put(
+        `/employees/${publicId}/attendance-device-exemption`,
+        { until },
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["employees", publicId] }),
+  });
+}
+
 export function useEmployee(publicId: string) {
   return useQuery<Employee>({
     queryKey: ["employees", publicId],

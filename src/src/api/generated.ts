@@ -536,6 +536,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/device": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /attendance/device: the caller's phone and the rule that applies to them */
+        get: operations["attendanceDevice.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/device/register-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /attendance/device/register-options: what the phone needs to create its passkey */
+        post: operations["attendanceDevice.registerOptions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/device/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /attendance/device/register: keep the passkey the phone created */
+        post: operations["attendanceDevice.register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/device/challenge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /attendance/device/challenge: a single-use challenge for signing one punch */
+        post: operations["attendanceDevice.challenge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /attendance/devices: registered and waiting phones, with how many people have one */
+        get: operations["attendanceDevice.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/devices/{device}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve devices */
+        post: operations["attendanceDevice.approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/devices/{device}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject devices */
+        post: operations["attendanceDevice.reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/devices/{device}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete device */
+        delete: operations["attendanceDevice.revoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/visits": {
         parameters: {
             query?: never;
@@ -897,6 +1033,23 @@ export interface paths {
         /** Timeline attendance */
         get: operations["employee.employeeAttendanceTimeline"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/attendance-device-exemption": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** PUT /employees/{employee}/attendance-device-exemption */
+        put: operations["attendanceDevice.exempt"];
         post?: never;
         delete?: never;
         options?: never;
@@ -7544,6 +7697,22 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** AttendanceDeviceResource */
+        AttendanceDeviceResource: {
+            public_id: string;
+            status: string;
+            label: string | null;
+            synced_passkey: boolean;
+            enrolled_inside_geofence: boolean;
+            created_at: string | null;
+            last_used_at: string | null;
+            approved_at: string | null;
+            employee?: {
+                public_id: string;
+                name: string;
+                employee_code: string | null;
+            };
+        };
         /** AttendanceImportCommitRequest */
         AttendanceImportCommitRequest: {
             import_key: string;
@@ -7710,6 +7879,9 @@ export interface components {
             risk_review_threshold: number;
             adaptive_selfie: boolean;
             liveness_check: boolean;
+            /** @enum {string} */
+            device_binding: "flag" | "enforce" | "off";
+            office_networks: unknown[];
             updated_at: string | null;
         };
         /** AttendanceSiteResource */
@@ -7843,6 +8015,18 @@ export interface components {
             /** Format: date-time */
             client_time?: string | null;
             webdriver?: boolean | null;
+            device_proof?: {
+                id?: string;
+                rawId?: string | null;
+                /** @enum {string|null} */
+                type?: "public-key" | null;
+                response?: {
+                    clientDataJSON?: string;
+                    authenticatorData?: string;
+                    signature?: string;
+                    userHandle?: string | null;
+                };
+            };
         };
         /** CheckOutRequest */
         CheckOutRequest: {
@@ -7855,6 +8039,18 @@ export interface components {
             /** Format: date-time */
             client_time?: string | null;
             webdriver?: boolean | null;
+            device_proof?: {
+                id?: string;
+                rawId?: string | null;
+                /** @enum {string|null} */
+                type?: "public-key" | null;
+                response?: {
+                    clientDataJSON?: string;
+                    authenticatorData?: string;
+                    signature?: string;
+                    userHandle?: string | null;
+                };
+            };
         };
         /** CloseDisciplinaryCaseRequest */
         CloseDisciplinaryCaseRequest: {
@@ -8224,6 +8420,7 @@ export interface components {
             badge_number: string | null;
             has_kiosk_pin: boolean;
             attendance_mode: string;
+            attendance_device_exempt_until: string | null;
             gender: string | null;
             date_of_birth: string | null;
             nationality: string | null;
@@ -8710,6 +8907,18 @@ export interface components {
             /** Format: date-time */
             client_time?: string | null;
             webdriver?: boolean | null;
+            device_proof?: {
+                id?: string;
+                rawId?: string | null;
+                /** @enum {string|null} */
+                type?: "public-key" | null;
+                response?: {
+                    clientDataJSON?: string;
+                    authenticatorData?: string;
+                    signature?: string;
+                    userHandle?: string | null;
+                };
+            };
             /** @enum {string|null} */
             liveness?: "passed" | "failed" | "no_face" | "unavailable" | null;
         };
@@ -8728,6 +8937,18 @@ export interface components {
             /** Format: date-time */
             client_time?: string | null;
             webdriver?: boolean | null;
+            device_proof?: {
+                id?: string;
+                rawId?: string | null;
+                /** @enum {string|null} */
+                type?: "public-key" | null;
+                response?: {
+                    clientDataJSON?: string;
+                    authenticatorData?: string;
+                    signature?: string;
+                    userHandle?: string | null;
+                };
+            };
             /** @enum {string|null} */
             liveness?: "passed" | "failed" | "no_face" | "unavailable" | null;
         };
@@ -8766,6 +8987,8 @@ export interface components {
                 offline_token: string;
                 accuracy?: number | null;
                 photo?: string | null;
+                /** @enum {string|null} */
+                liveness?: "passed" | "failed" | "no_face" | "unavailable" | null;
                 altitude?: number | null;
                 speed?: number | null;
                 heading?: number | null;
@@ -8774,6 +8997,18 @@ export interface components {
                 /** Format: date-time */
                 client_time?: string | null;
                 webdriver?: boolean | null;
+                device_proof?: {
+                    id?: string;
+                    rawId?: string | null;
+                    /** @enum {string|null} */
+                    type?: "public-key" | null;
+                    response?: {
+                        clientDataJSON?: string;
+                        authenticatorData?: string;
+                        signature?: string;
+                        userHandle?: string | null;
+                    };
+                } | null;
             }[];
         };
         /** OnboardingProgress */
@@ -9121,6 +9356,18 @@ export interface components {
             /** Format: date-time */
             client_time?: string | null;
             webdriver?: boolean | null;
+            device_proof?: {
+                id?: string;
+                rawId?: string | null;
+                /** @enum {string|null} */
+                type?: "public-key" | null;
+                response?: {
+                    clientDataJSON?: string;
+                    authenticatorData?: string;
+                    signature?: string;
+                    userHandle?: string | null;
+                };
+            };
         };
         /** RecordDisciplinaryDecisionRequest */
         RecordDisciplinaryDecisionRequest: {
@@ -9130,6 +9377,30 @@ export interface components {
             sanction_details?: string | null;
             /** Format: date-time */
             sanction_effective_date?: string | null;
+        };
+        /**
+         * RegisterAttendanceDeviceRequest
+         * @description The passkey a phone just created (the browser's RegistrationResponseJSON),
+         *     with where the phone is: the first phone registers by itself only at work.
+         */
+        RegisterAttendanceDeviceRequest: {
+            credential: {
+                id: string;
+                rawId?: string | null;
+                /** @enum {string|null} */
+                type?: "public-key" | null;
+                authenticatorAttachment?: string | null;
+                response: {
+                    clientDataJSON: string;
+                    attestationObject: string;
+                    transports?: string[] | null;
+                };
+            };
+            latitude?: number | null;
+            longitude?: number | null;
+            accuracy?: number | null;
+            device_id?: string | null;
+            label?: string | null;
         };
         /** RegisterKioskRequest */
         RegisterKioskRequest: {
@@ -9570,6 +9841,18 @@ export interface components {
             /** Format: date-time */
             client_time?: string | null;
             webdriver?: boolean | null;
+            device_proof?: {
+                id?: string;
+                rawId?: string | null;
+                /** @enum {string|null} */
+                type?: "public-key" | null;
+                response?: {
+                    clientDataJSON?: string;
+                    authenticatorData?: string;
+                    signature?: string;
+                    userHandle?: string | null;
+                };
+            };
         };
         /** StoreBankDetailRequest */
         StoreBankDetailRequest: {
@@ -10270,6 +10553,16 @@ export interface components {
                 sla_hours?: number | null;
             }[];
         };
+        /**
+         * UpdateAttendanceDeviceExemptionRequest
+         * @description Until when an employee may punch without their registered phone (a phone
+         *     that cannot hold a passkey, a broken phone awaiting replacement). Null ends
+         *     the exemption. Their punches are still flagged for review meanwhile.
+         */
+        UpdateAttendanceDeviceExemptionRequest: {
+            /** Format: date-time */
+            until: string | null;
+        };
         /** UpdateAttendanceModeRequest */
         UpdateAttendanceModeRequest: {
             /** @enum {string} */
@@ -10299,6 +10592,9 @@ export interface components {
             risk_review_threshold?: number;
             adaptive_selfie?: boolean;
             liveness_check?: boolean;
+            /** @enum {string} */
+            device_binding?: "off" | "flag" | "enforce";
+            office_networks?: string[] | null;
         };
         /**
          * UpdateBranchAttendanceRequest
@@ -10317,6 +10613,9 @@ export interface components {
                 auto_checkout_after_minutes?: number | null;
                 geofence_auto_checkin_enabled?: boolean | null;
                 risk_review_threshold?: number | null;
+                /** @enum {string|null} */
+                device_binding?: "off" | "flag" | "enforce" | null;
+                office_networks?: string[] | null;
             };
         };
         /** UpdateBranchRequest */
@@ -12374,6 +12673,9 @@ export interface operations {
                         grant: string;
                         issued_at: string;
                         expires_at: string;
+                        device_nonce: string | null;
+                        credential_id: string;
+                        rp_id: string;
                     };
                 };
             };
@@ -12439,7 +12741,7 @@ export interface operations {
                             /** @enum {string} */
                             status: "duplicate" | "created";
                             public_id: string;
-                        })[];
+                        } | unknown[])[];
                         summary: {
                             created: number;
                             duplicate: number;
@@ -12734,6 +13036,381 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceDevice.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        binding: string;
+                        rp_id: string;
+                        host_allowed: boolean;
+                        canonical_url: string | null;
+                        device: unknown[] | null;
+                        pending: unknown[] | null;
+                        exempt_until: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
+        };
+    };
+    "attendanceDevice.registerOptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        options: {
+                            rp: {
+                                name: string;
+                                id: string;
+                            };
+                            user: {
+                                id: string;
+                                name: string;
+                                displayName: string;
+                            };
+                            challenge: string;
+                            pubKeyCredParams: [
+                                {
+                                    /** @constant */
+                                    type: "public-key";
+                                    alg: string;
+                                },
+                                {
+                                    /** @constant */
+                                    type: "public-key";
+                                    alg: string;
+                                }
+                            ];
+                            /** @constant */
+                            timeout: 60000;
+                            /** @constant */
+                            attestation: "none";
+                            authenticatorSelection: {
+                                /** @constant */
+                                authenticatorAttachment: "platform";
+                                /** @constant */
+                                residentKey: "preferred";
+                                requireResidentKey: boolean;
+                                /** @constant */
+                                userVerification: "required";
+                            };
+                            excludeCredentials: unknown[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
+        };
+    };
+    "attendanceDevice.register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterAttendanceDeviceRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendanceDeviceResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceDeviceResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceDevice.challenge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        options: {
+                            challenge: string;
+                            rpId: string;
+                            /** @constant */
+                            timeout: 60000;
+                            /** @constant */
+                            userVerification: "required";
+                            allowCredentials: unknown[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
+        };
+    };
+    "attendanceDevice.index": {
+        parameters: {
+            query?: {
+                status?: "active" | "pending" | "revoked" | "rejected" | null;
+                search?: string | null;
+                per_page?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `AttendanceDeviceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AttendanceDeviceResource"][];
+                        coverage: {
+                            employees: number;
+                            registered: number;
+                            pending: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceDevice.approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `AttendanceDeviceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceDeviceResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This phone is not waiting for approval.
+                         */
+                        message: string;
+                    };
+                };
+            };
+        };
+    };
+    "attendanceDevice.reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `AttendanceDeviceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceDeviceResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This phone is not waiting for approval.
+                         */
+                        message: string;
+                    };
+                };
+            };
+        };
+    };
+    "attendanceDevice.revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `AttendanceDeviceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceDeviceResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "attendanceVisit.index": {
@@ -13822,6 +14499,39 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "attendanceDevice.exempt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAttendanceDeviceExemptionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        exempt_until: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "kioskSession.index": {
@@ -22366,6 +23076,8 @@ export interface operations {
                             auto_checkout_after_minutes: number | null;
                             geofence_auto_checkin_enabled: boolean | null;
                             risk_review_threshold: number | null;
+                            device_binding: string | null;
+                            office_networks: string[] | null;
                         };
                         overridable: [
                             "enabled_methods",
@@ -22376,7 +23088,9 @@ export interface operations {
                             "auto_checkout_enabled",
                             "auto_checkout_after_minutes",
                             "geofence_auto_checkin_enabled",
-                            "risk_review_threshold"
+                            "risk_review_threshold",
+                            "device_binding",
+                            "office_networks"
                         ];
                         branches: {
                             public_id: string;
@@ -22393,6 +23107,8 @@ export interface operations {
                                 auto_checkout_after_minutes: number | null;
                                 geofence_auto_checkin_enabled: boolean | null;
                                 risk_review_threshold: number | null;
+                                device_binding: string | null;
+                                office_networks: string[] | null;
                             };
                             effective: {
                                 enabled_methods: string[] | null;
@@ -22404,6 +23120,8 @@ export interface operations {
                                 auto_checkout_after_minutes: number | null;
                                 geofence_auto_checkin_enabled: boolean | null;
                                 risk_review_threshold: number | null;
+                                device_binding: string | null;
+                                office_networks: string[] | null;
                             };
                         }[];
                     };
@@ -22449,6 +23167,8 @@ export interface operations {
                             auto_checkout_after_minutes: number | null;
                             geofence_auto_checkin_enabled: boolean | null;
                             risk_review_threshold: number | null;
+                            device_binding: string | null;
+                            office_networks: string[] | null;
                         };
                         effective: {
                             enabled_methods: string[] | null;
@@ -22460,6 +23180,8 @@ export interface operations {
                             auto_checkout_after_minutes: number | null;
                             geofence_auto_checkin_enabled: boolean | null;
                             risk_review_threshold: number | null;
+                            device_binding: string | null;
+                            office_networks: string[] | null;
                         };
                     };
                 };

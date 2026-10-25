@@ -16,8 +16,10 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  useAttendanceDevice,
   useLogVisit,
   useMyVisits,
+  usePunchSigner,
   type LogVisit,
 } from "@/features/attendance/api";
 import { currentFix, punchSignals } from "@/lib/attendance/punch-signals";
@@ -66,6 +68,8 @@ export function VisitLogCard({ photoConsent }: { photoConsent: boolean }) {
   const { t } = useT();
   const { isOnline } = useOfflineStatus();
   const log = useLogVisit();
+  const { data: deviceState } = useAttendanceDevice();
+  const signPunch = usePunchSigner(deviceState);
   const visits = useMyVisits(isOnline);
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -144,17 +148,33 @@ export function VisitLogCard({ photoConsent }: { photoConsent: boolean }) {
       return;
     }
 
-    log.mutate(visit, {
-      onSuccess: () => {
-        toast.success(t("visits.logged", "Visit logged"));
-        reset();
-      },
-      onError: (err) =>
-        toast.error(
-          apiErrorDetail(err) ?? t("visits.failed", "Couldn't log the visit"),
+    // A live visit is signed by the registered phone, like a punch.
+    const signed = await signPunch();
+    if (signed.stop) {
+      setBusy(false);
+      toast.error(
+        t(
+          "device.sign_cancelled",
+          "Unlock your phone when it asks, to confirm it is you.",
         ),
-      onSettled: () => setBusy(false),
-    });
+      );
+      return;
+    }
+
+    log.mutate(
+      { ...visit, ...(signed.proof ? { device_proof: signed.proof } : {}) },
+      {
+        onSuccess: () => {
+          toast.success(t("visits.logged", "Visit logged"));
+          reset();
+        },
+        onError: (err) =>
+          toast.error(
+            apiErrorDetail(err) ?? t("visits.failed", "Couldn't log the visit"),
+          ),
+        onSettled: () => setBusy(false),
+      },
+    );
   }
 
   function reset() {

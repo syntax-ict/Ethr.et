@@ -423,6 +423,16 @@ Field visits: `employee_id`, optional `attendance_site_id`, position and
 accuracy, `occurred_at`, note, `photo_path` (retention as selfies),
 `idempotency_key` unique per tenant, `metadata`. Never affects worked hours.
 
+### attendance_devices, attendance_device_challenges
+The phone each employee punches with: a passkey's `credential_id` (and its
+SHA-256 `credential_id_hash`, unique with `rp_id`), its PEM `public_key`,
+`sign_count`, backup flags, the install and device-cookie hashes it was
+registered from, and `status` (active, pending, revoked or rejected). At most
+one active device per employee. Challenges are single use, three minutes, only
+their hash kept, purged daily. Settings: `device_binding` (off, flag or
+enforce, branch-overridable), `attendance_rp_id`, `office_networks`;
+`employees.attendance_device_exempt_until`.
+
 ### push_subscriptions
 Web push endpoints per user: `endpoint` and its `endpoint_hash` (unique),
 the browser's public key and auth secret, `last_used_at`. Removed when the

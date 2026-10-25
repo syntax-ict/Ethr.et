@@ -7,6 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -616,11 +623,83 @@ export default function AttendanceSettingsPage() {
                 <p className="text-sm text-muted-foreground">
                   {t(
                     "attendance.settings_page.protection_desc",
-                    "Every punch gets a risk score from signals such as a shared phone, a simulated location or a reused selfie, each with its reason. Punches are never refused for it: those at or above the threshold go to Integrity for a person to decide.",
+                    "Every punch gets a risk score from signals such as a shared phone, a simulated location or a reused selfie, each with its reason. A score never refuses a punch: those at or above the threshold go to Integrity for a person to decide. Only the registered phone rule below can refuse one.",
                   )}
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="device-binding" className="text-sm">
+                    {t(
+                      "attendance.settings_page.device_binding",
+                      "Registered phone",
+                    )}
+                  </Label>
+                  <Select
+                    value={form.device_binding ?? "off"}
+                    onValueChange={(v) =>
+                      setField(
+                        "device_binding",
+                        v as AttendanceSettings["device_binding"],
+                      )
+                    }
+                  >
+                    <SelectTrigger
+                      id="device-binding"
+                      className="mt-1 w-full sm:w-80"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="off">
+                        {t("device_binding.off", "Off")}
+                      </SelectItem>
+                      <SelectItem value="flag">
+                        {t("device_binding.flag", "Check and review")}
+                      </SelectItem>
+                      <SelectItem value="enforce">
+                        {t(
+                          "device_binding.enforce",
+                          "Only the registered phone",
+                        )}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t(
+                      "attendance.settings_page.device_binding_desc",
+                      "Each person registers the phone they punch with, at work, and confirms each punch with its fingerprint, face or PIN. A friend's phone, a second phone or another browser cannot punch for them. Start with Check and review while staff register, then choose Only the registered phone.",
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="office-networks" className="text-sm">
+                    {t(
+                      "attendance.settings_page.office_networks",
+                      "Office networks for computer punches",
+                    )}
+                  </Label>
+                  <Input
+                    id="office-networks"
+                    value={(form.office_networks ?? []).join(", ")}
+                    placeholder="196.188.10.0/24"
+                    onChange={(e) =>
+                      setField(
+                        "office_networks",
+                        e.target.value
+                          .split(/[\s,]+/)
+                          .filter((part) => part !== ""),
+                      )
+                    }
+                    className="mt-1"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t(
+                      "attendance.settings_page.office_networks_desc",
+                      "Only if your office has its own fixed internet address. A web punch from these addresses needs no phone and is marked for review. Leave empty otherwise.",
+                    )}
+                  </p>
+                </div>
                 <div>
                   <Label htmlFor="risk-threshold" className="text-sm">
                     {t(

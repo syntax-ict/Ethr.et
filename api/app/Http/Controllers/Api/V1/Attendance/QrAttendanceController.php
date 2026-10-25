@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Attendance;
 
 use App\Enums\AttendanceSource;
+use App\Exceptions\AttendanceRefused;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\GenerateQrRequest;
 use App\Http\Requests\Attendance\QrAttendanceRequest;
@@ -15,6 +16,7 @@ use App\Models\Branch;
 use App\Models\Shift;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\Attendance\Device\AttendanceDeviceGate;
 use App\Services\Attendance\QrCodeService;
 use App\Services\CurrentTenant;
 use App\Support\PunchSignals;
@@ -27,6 +29,7 @@ class QrAttendanceController extends Controller
     public function __construct(
         private readonly AttendanceEngine $engine,
         private readonly QrCodeService $qrService,
+        private readonly AttendanceDeviceGate $devices,
     ) {}
 
     public function generate(GenerateQrRequest $request): JsonResponse
@@ -126,7 +129,11 @@ class QrAttendanceController extends Controller
                     'accuracy' => $request->validated('accuracy'),
                     ...PunchSignals::from($request->validated(), $request->userAgent()),
                 ], fn ($v) => $v !== null),
+                device: $this->devices->verdict($employee, $request, $request->validated('device_proof'), AttendanceSource::QR),
             ));
+        } catch (AttendanceRefused $e) {
+            // Rendered by bootstrap/app.php, so a device refusal keeps its own type.
+            throw $e;
         } catch (\RuntimeException $e) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/validation',

@@ -13,6 +13,10 @@ interface StoredGrant {
   grant: string;
   issued_at: string;
   expires_at: string;
+  /** With a registered phone: what an offline punch is signed with (passkey.ts). */
+  device_nonce?: string | null;
+  credential_id?: string | null;
+  rp_id?: string | null;
 }
 
 const PREFIX = "ethr.offline_grant.";
@@ -36,12 +40,33 @@ export function currentOfflineGrant(employeePublicId: string): string | null {
   return Date.parse(stored.expires_at) > Date.now() ? stored.grant : null;
 }
 
-/** Fetch a fresh grant when the stored one is missing or close to expiry. */
+/** The registered phone's signing details from the current grant, or null. */
+export function currentOfflineDevice(
+  employeePublicId: string,
+): { device_nonce: string; credential_id: string; rp_id: string } | null {
+  const stored = read(employeePublicId);
+  if (!stored || Date.parse(stored.expires_at) <= Date.now()) return null;
+  return stored.device_nonce && stored.credential_id && stored.rp_id
+    ? {
+        device_nonce: stored.device_nonce,
+        credential_id: stored.credential_id,
+        rp_id: stored.rp_id,
+      }
+    : null;
+}
+
+/**
+ * Fetch a fresh grant when the stored one is missing or close to expiry, or
+ * when the phone has just been registered and the grant does not name it.
+ */
 export async function refreshOfflineGrant(
   employeePublicId: string,
+  hasRegisteredPhone = false,
 ): Promise<void> {
   const stored = read(employeePublicId);
-  if (stored && Date.parse(stored.expires_at) - Date.now() > RENEW_BEFORE_MS) {
+  const fresh =
+    stored && Date.parse(stored.expires_at) - Date.now() > RENEW_BEFORE_MS;
+  if (fresh && (!hasRegisteredPhone || stored.device_nonce)) {
     return;
   }
 

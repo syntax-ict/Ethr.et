@@ -208,6 +208,13 @@ function BranchRulesDialog({
     );
   }
 
+  const bindingLabel = (value: string | null | undefined) =>
+    value === "enforce"
+      ? t("device_binding.enforce", "Only the registered phone")
+      : value === "flag"
+        ? t("device_binding.flag", "Check and review")
+        : t("device_binding.off", "Off");
+
   const accuracy = draft.mobile_accuracy_threshold_meters;
   const threshold = draft.risk_review_threshold;
 
@@ -328,6 +335,44 @@ function BranchRulesDialog({
                 })
               }
             />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label className="text-sm">
+              {t("branch_rules.device_binding", "Registered phone")}
+            </Label>
+            <Select
+              value={draft.device_binding ?? "inherit"}
+              onValueChange={(v) =>
+                setDraft({
+                  ...draft,
+                  device_binding:
+                    v === "inherit" ? null : (v as "off" | "flag" | "enforce"),
+                })
+              }
+            >
+              <SelectTrigger
+                className="w-[210px]"
+                aria-label={t(
+                  "branch_rules.device_binding",
+                  "Registered phone",
+                )}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="inherit">
+                  {t("branch_rules.inherit_value", "Organisation (:value)", {
+                    value: bindingLabel(organisation.device_binding),
+                  })}
+                </SelectItem>
+                <SelectItem value="off">{bindingLabel("off")}</SelectItem>
+                <SelectItem value="flag">{bindingLabel("flag")}</SelectItem>
+                <SelectItem value="enforce">
+                  {bindingLabel("enforce")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

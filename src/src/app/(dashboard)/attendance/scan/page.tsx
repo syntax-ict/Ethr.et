@@ -16,7 +16,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useMyShift, useScanQr } from "@/features/attendance/api";
+import {
+  usePunchSigner,
+  useAttendanceDevice,
+  useMyShift,
+  useScanQr,
+} from "@/features/attendance/api";
+import type { DeviceProof } from "@/lib/attendance/passkey";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -38,6 +44,26 @@ export default function QrScanPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scannerRef = useRef<any>(null);
   const scan = useScanQr();
+  const { data: deviceState } = useAttendanceDevice();
+  const signPunch = usePunchSigner(deviceState);
+  // Signed when the person taps to scan: the phone shows its prompt only after
+  // a tap, and the camera finding the code is not one. The challenge lasts
+  // three minutes, long enough to point the camera.
+  const proofRef = useRef<DeviceProof | undefined>(undefined);
+
+  async function signFirst(): Promise<boolean> {
+    const signed = await signPunch();
+    proofRef.current = signed.proof;
+    if (signed.stop) {
+      toast.error(
+        t(
+          "device.sign_cancelled",
+          "Unlock your phone when it asks, to confirm it is you.",
+        ),
+      );
+    }
+    return !signed.stop;
+  }
 
   // Teardown reads the ref directly instead of calling the component-scoped
   // `stopScanner()` declared further down. That worked only through function
@@ -66,6 +92,7 @@ export default function QrScanPage() {
   }, []);
 
   async function startScanner() {
+    if (!(await signFirst())) return;
     setStatus("scanning");
     try {
       const { Html5Qrcode } = await import("html5-qrcode");
@@ -106,6 +133,7 @@ export default function QrScanPage() {
     e.preventDefault();
     const token = manualToken.trim();
     if (!token) return;
+    if (!(await signFirst())) return;
     await verifyToken(token);
   }
 
@@ -128,7 +156,9 @@ export default function QrScanPage() {
             }
           : {}),
         ...punchSignals(fix),
+        ...(proofRef.current ? { device_proof: proofRef.current } : {}),
       });
+      proofRef.current = undefined;
       const empName = data.employee?.name ?? t("attendance.employee");
       setStatus("success");
       setMessage(

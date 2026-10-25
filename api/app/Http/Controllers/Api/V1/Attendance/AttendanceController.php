@@ -16,6 +16,7 @@ use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\Attendance\Device\AttendanceDeviceGate;
 use App\Services\Attendance\ExpectedDays;
 use App\Services\CurrentTenant;
 use App\Support\PunchSignals;
@@ -30,6 +31,7 @@ class AttendanceController extends Controller
     public function __construct(
         private readonly AttendanceEngine $engine,
         private readonly ExpectedDays $expectedDays,
+        private readonly AttendanceDeviceGate $devices,
     ) {}
 
     public function checkIn(CheckInRequest $request): JsonResponse
@@ -61,6 +63,7 @@ class AttendanceController extends Controller
                 'accuracy' => $request->validated('accuracy'),
                 ...PunchSignals::from($request->validated(), $request->userAgent()),
             ], fn ($v) => $v !== null),
+            device: $this->devices->verdict($employee, $request, $request->validated('device_proof'), AttendanceSource::WEB),
         ));
 
         $result->record->load('employee', 'shift');
@@ -98,6 +101,7 @@ class AttendanceController extends Controller
             idempotencyKey: $request->validated('idempotency_key'),
             ipAddress: $request->ip(),
             metadata: PunchSignals::from($request->validated(), $request->userAgent()),
+            device: $this->devices->verdict($employee, $request, $request->validated('device_proof'), AttendanceSource::WEB),
         ));
 
         $result->record->load('employee', 'shift');

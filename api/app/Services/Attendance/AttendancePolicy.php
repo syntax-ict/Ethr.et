@@ -39,6 +39,8 @@ final class AttendancePolicy
         'auto_checkout_after_minutes',
         'geofence_auto_checkin_enabled',
         'risk_review_threshold',
+        'device_binding',
+        'office_networks',
     ];
 
     /**

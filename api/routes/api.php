@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\Approval\ApprovalWorkflowController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceConflictController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceCorrectionController;
+use App\Http\Controllers\Api\V1\Attendance\AttendanceDeviceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceImportController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntegrityController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntelligenceController;
@@ -425,6 +426,14 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/settings/branches', [BranchAttendanceController::class, 'index']);
         Route::put('/settings/branches/{branch}', [BranchAttendanceController::class, 'update']);
         Route::get('/map-config', [AttendanceSiteController::class, 'mapConfig']);
+        Route::get('/device', [AttendanceDeviceController::class, 'show']);
+        Route::post('/device/register-options', [AttendanceDeviceController::class, 'registerOptions']);
+        Route::post('/device/register', [AttendanceDeviceController::class, 'register']);
+        Route::post('/device/challenge', [AttendanceDeviceController::class, 'challenge']);
+        Route::get('/devices', [AttendanceDeviceController::class, 'index']);
+        Route::post('/devices/{device}/approve', [AttendanceDeviceController::class, 'approve']);
+        Route::post('/devices/{device}/reject', [AttendanceDeviceController::class, 'reject']);
+        Route::delete('/devices/{device}', [AttendanceDeviceController::class, 'revoke']);
         Route::post('/visits', [AttendanceVisitController::class, 'store']);
         Route::get('/visits/mine', [AttendanceVisitController::class, 'mine']);
         Route::get('/visits', [AttendanceVisitController::class, 'index']);
@@ -558,6 +567,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/attendance/timeline', EmployeeAttendanceTimelineController::class);
         Route::put('/kiosk-pin', EmployeeKioskPinController::class);
         Route::put('/attendance-mode', EmployeeAttendanceModeController::class);
+        Route::put('/attendance-device-exemption', [AttendanceDeviceController::class, 'exempt']);
 
         Route::get('/emergency-contacts', [EmergencyContactController::class, 'index']);
         Route::post('/emergency-contacts', [EmergencyContactController::class, 'store']);

@@ -32,6 +32,10 @@ export interface OfflineAttendanceRecord {
   device_id?: string;
   client_time?: string;
   webdriver?: boolean;
+  /** The on-device liveness outcome, when the selfie was checked. */
+  liveness?: string | null;
+  /** The registered phone's signature over this punch (passkey.ts). */
+  device_proof?: unknown;
 }
 
 function openDB(): Promise<IDBDatabase> {

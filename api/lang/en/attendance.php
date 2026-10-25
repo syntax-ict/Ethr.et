@@ -46,4 +46,10 @@ return [
     'push_reminder_before_start' => 'Your shift starts at :time.',
     'push_reminder_not_checked_in' => 'You have not checked in yet. Your shift started at :time.',
     'push_reminder_shift_end' => 'Your shift ended at :time. Remember to check out.',
+    'device_not_registered' => 'This phone is not registered for your attendance. Register it from the attendance page while you are at work, or ask HR.',
+    'device_pending_approval' => 'Your new phone is waiting for approval. Use your registered phone until it is approved.',
+    'device_belongs_to_another' => 'This phone is registered to another employee. Punch from your own registered phone.',
+    'device_proof_invalid' => 'We could not confirm this is your registered phone. Try again, and unlock the phone when it asks.',
+    'device_wrong_host' => 'Open the ETHR address of your own organisation to punch with your registered phone.',
+    'device_not_pending' => 'This phone is not waiting for approval.',
 ];

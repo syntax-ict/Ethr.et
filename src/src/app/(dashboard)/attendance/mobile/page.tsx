@@ -31,7 +31,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMobilePunch, useMyShift } from "@/features/attendance/api";
+import {
+  usePunchSigner,
+  useAttendanceDevice,
+  useMobilePunch,
+  useMyShift,
+} from "@/features/attendance/api";
+import { DeviceCard } from "@/features/attendance/components/device-card";
+import { fixedCoordinate, signOfflinePunch } from "@/lib/attendance/passkey";
 import { useCurrentUser } from "@/features/auth/api";
 import {
   useGivePhotoConsent,
@@ -46,6 +53,7 @@ import {
   type Fix,
 } from "@/lib/attendance/punch-signals";
 import {
+  currentOfflineDevice,
   currentOfflineGrant,
   refreshOfflineGrant,
 } from "@/lib/attendance/offline-grant";
@@ -98,6 +106,10 @@ export default function MobilePunchPage() {
   const shift = shiftQuery.data;
   const { isOnline, pendingCount, syncing, syncNow } = useOfflineSync();
   const punch = useMobilePunch();
+  const deviceQuery = useAttendanceDevice(hasEmployee);
+  const deviceState = deviceQuery.data;
+  const hasRegisteredPhone = Boolean(deviceState?.device);
+  const signPunch = usePunchSigner(deviceState);
   const updatePrefs = useUpdatePreferences();
   const giveConsent = useGivePhotoConsent();
   const [consentOpen, setConsentOpen] = useState(false);
@@ -126,8 +138,8 @@ export default function MobilePunchPage() {
   const employeePublicId = user?.employee_public_id ?? null;
   useEffect(() => {
     if (!isOnline || !employeePublicId) return;
-    void refreshOfflineGrant(employeePublicId);
-  }, [isOnline, employeePublicId]);
+    void refreshOfflineGrant(employeePublicId, hasRegisteredPhone);
+  }, [isOnline, employeePublicId, hasRegisteredPhone]);
 
   useEffect(() => {
     locate();
@@ -284,6 +296,34 @@ export default function MobilePunchPage() {
         setError(t("attendance.mobile_page.cannot_determine_identity"));
         return;
       }
+      // Signed on the registered phone over the punch's own fields, so it
+      // cannot be edited before it is sent (passkey.ts).
+      const capturedAt = new Date().toISOString();
+      const latitude = fixedCoordinate(position.latitude);
+      const longitude = fixedCoordinate(position.longitude);
+      const offlineDevice = currentOfflineDevice(user.employee_public_id);
+      let offlineProof: unknown = null;
+      if (offlineDevice) {
+        try {
+          offlineProof = await signOfflinePunch(offlineDevice, {
+            idempotency_key: idempotencyKey,
+            type,
+            captured_at: capturedAt,
+            latitude,
+            longitude,
+          });
+        } catch {
+          if (deviceState?.binding === "enforce") {
+            setError(
+              t(
+                "device.sign_cancelled",
+                "Unlock your phone when it asks, to confirm it is you.",
+              ),
+            );
+            return;
+          }
+        }
+      }
       try {
         await enqueueOfflineRecord({
           employee_public_id: user.employee_public_id,
@@ -294,12 +334,14 @@ export default function MobilePunchPage() {
           offline_token:
             currentOfflineGrant(user.employee_public_id) ??
             `offline-${Date.now()}`,
-          latitude: position.latitude,
-          longitude: position.longitude,
+          latitude,
+          longitude,
           accuracy: position.accuracy,
           photo: photo ?? null,
-          captured_at: new Date().toISOString(),
+          captured_at: capturedAt,
           ...punchSignals(position),
+          liveness: photo && liveness ? liveness : null,
+          device_proof: offlineProof,
           tenant: tenantHeaderValue(),
           locale,
         });
@@ -313,6 +355,20 @@ export default function MobilePunchPage() {
       return;
     }
 
+    // The registered phone's signature. An automatic punch has no tap, and a
+    // passkey can only be used after one, so it goes unsigned.
+    const signed = auto ? { stop: false } : await signPunch();
+    if (signed.stop) {
+      setError(
+        t(
+          "device.sign_cancelled",
+          "Unlock your phone when it asks, to confirm it is you.",
+        ),
+      );
+      return;
+    }
+    const proof = "proof" in signed ? signed.proof : undefined;
+
     punch.mutate(
       {
         type,
@@ -321,6 +377,7 @@ export default function MobilePunchPage() {
         longitude: position.longitude,
         accuracy: position.accuracy,
         ...punchSignals(position),
+        ...(proof ? { device_proof: proof } : {}),
         ...(photo && liveness ? { liveness } : {}),
         // The selfie goes with the check-out too: until 2026-10-24 only the
         // check-in carried one, so a check-out was never evidenced.
@@ -431,6 +488,7 @@ export default function MobilePunchPage() {
 
   return (
     <div className="mx-auto max-w-md space-y-4">
+      {hasEmployee && <DeviceCard />}
       {shift && !shift.policy.mobile_enabled && (
         <div
           role="status"

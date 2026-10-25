@@ -3254,6 +3254,886 @@
                 }
             }
         },
+        "/attendance/device": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendanceDevice.show",
+                "summary": "GET /attendance/device: the caller's phone and the rule that applies to them",
+                "tags": [
+                    "Attendance"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "binding": {
+                                            "type": "string"
+                                        },
+                                        "rp_id": {
+                                            "type": "string"
+                                        },
+                                        "host_allowed": {
+                                            "type": "boolean"
+                                        },
+                                        "canonical_url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "device": {
+                                            "type": [
+                                                "array",
+                                                "null"
+                                            ],
+                                            "items": []
+                                        },
+                                        "pending": {
+                                            "type": [
+                                                "array",
+                                                "null"
+                                            ],
+                                            "items": []
+                                        },
+                                        "exempt_until": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "binding",
+                                        "rp_id",
+                                        "host_allowed",
+                                        "canonical_url",
+                                        "device",
+                                        "pending",
+                                        "exempt_until"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string",
+                                            "const": "https://ethr.et/errors/not-found"
+                                        },
+                                        "title": {
+                                            "type": "string",
+                                            "const": "Not Found"
+                                        },
+                                        "status": {
+                                            "type": "integer",
+                                            "const": 404
+                                        },
+                                        "detail": {
+                                            "type": "string",
+                                            "const": "No employee profile linked to your account."
+                                        }
+                                    },
+                                    "required": [
+                                        "type",
+                                        "title",
+                                        "status",
+                                        "detail"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/device/challenge": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceDevice.challenge",
+                "summary": "POST /attendance/device/challenge: a single-use challenge for signing one punch",
+                "tags": [
+                    "Attendance"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "options": {
+                                            "type": "object",
+                                            "properties": {
+                                                "challenge": {
+                                                    "type": "string"
+                                                },
+                                                "rpId": {
+                                                    "type": "string"
+                                                },
+                                                "timeout": {
+                                                    "type": "integer",
+                                                    "const": 60000
+                                                },
+                                                "userVerification": {
+                                                    "type": "string",
+                                                    "const": "required"
+                                                },
+                                                "allowCredentials": {
+                                                    "type": "array",
+                                                    "items": []
+                                                }
+                                            },
+                                            "required": [
+                                                "challenge",
+                                                "rpId",
+                                                "timeout",
+                                                "userVerification",
+                                                "allowCredentials"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "options"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string",
+                                            "const": "https://ethr.et/errors/not-found"
+                                        },
+                                        "title": {
+                                            "type": "string",
+                                            "const": "Not Found"
+                                        },
+                                        "status": {
+                                            "type": "integer",
+                                            "const": 404
+                                        },
+                                        "detail": {
+                                            "type": "string",
+                                            "const": "No employee profile linked to your account."
+                                        }
+                                    },
+                                    "required": [
+                                        "type",
+                                        "title",
+                                        "status",
+                                        "detail"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/device/register": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceDevice.register",
+                "summary": "POST /attendance/device/register: keep the passkey the phone created",
+                "tags": [
+                    "Attendance"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterAttendanceDeviceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`AttendanceDeviceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttendanceDeviceResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string",
+                                            "const": "https://ethr.et/errors/not-found"
+                                        },
+                                        "title": {
+                                            "type": "string",
+                                            "const": "Not Found"
+                                        },
+                                        "status": {
+                                            "type": "integer",
+                                            "const": 404
+                                        },
+                                        "detail": {
+                                            "type": "string",
+                                            "const": "No employee profile linked to your account."
+                                        }
+                                    },
+                                    "required": [
+                                        "type",
+                                        "title",
+                                        "status",
+                                        "detail"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/attendance/device/register-options": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceDevice.registerOptions",
+                "summary": "POST /attendance/device/register-options: what the phone needs to create its passkey",
+                "tags": [
+                    "Attendance"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "options": {
+                                            "type": "object",
+                                            "properties": {
+                                                "rp": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "id": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "name",
+                                                        "id"
+                                                    ]
+                                                },
+                                                "user": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "string"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "displayName": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "id",
+                                                        "name",
+                                                        "displayName"
+                                                    ]
+                                                },
+                                                "challenge": {
+                                                    "type": "string"
+                                                },
+                                                "pubKeyCredParams": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "type": {
+                                                                    "type": "string",
+                                                                    "const": "public-key"
+                                                                },
+                                                                "alg": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "type",
+                                                                "alg"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "type": {
+                                                                    "type": "string",
+                                                                    "const": "public-key"
+                                                                },
+                                                                "alg": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "type",
+                                                                "alg"
+                                                            ]
+                                                        }
+                                                    ],
+                                                    "minItems": 2,
+                                                    "maxItems": 2,
+                                                    "additionalItems": false
+                                                },
+                                                "timeout": {
+                                                    "type": "integer",
+                                                    "const": 60000
+                                                },
+                                                "attestation": {
+                                                    "type": "string",
+                                                    "const": "none"
+                                                },
+                                                "authenticatorSelection": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "authenticatorAttachment": {
+                                                            "type": "string",
+                                                            "const": "platform"
+                                                        },
+                                                        "residentKey": {
+                                                            "type": "string",
+                                                            "const": "preferred"
+                                                        },
+                                                        "requireResidentKey": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "userVerification": {
+                                                            "type": "string",
+                                                            "const": "required"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "authenticatorAttachment",
+                                                        "residentKey",
+                                                        "requireResidentKey",
+                                                        "userVerification"
+                                                    ]
+                                                },
+                                                "excludeCredentials": {
+                                                    "type": "array",
+                                                    "items": []
+                                                }
+                                            },
+                                            "required": [
+                                                "rp",
+                                                "user",
+                                                "challenge",
+                                                "pubKeyCredParams",
+                                                "timeout",
+                                                "attestation",
+                                                "authenticatorSelection",
+                                                "excludeCredentials"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "options"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string",
+                                            "const": "https://ethr.et/errors/not-found"
+                                        },
+                                        "title": {
+                                            "type": "string",
+                                            "const": "Not Found"
+                                        },
+                                        "status": {
+                                            "type": "integer",
+                                            "const": 404
+                                        },
+                                        "detail": {
+                                            "type": "string",
+                                            "const": "No employee profile linked to your account."
+                                        }
+                                    },
+                                    "required": [
+                                        "type",
+                                        "title",
+                                        "status",
+                                        "detail"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/devices": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendanceDevice.index",
+                "summary": "GET /attendance/devices: registered and waiting phones, with how many people have one",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "active",
+                                "pending",
+                                "revoked",
+                                "rejected",
+                                null
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 100
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `AttendanceDeviceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/AttendanceDeviceResource"
+                                            }
+                                        },
+                                        "coverage": {
+                                            "type": "object",
+                                            "properties": {
+                                                "employees": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "registered": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "pending": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "employees",
+                                                "registered",
+                                                "pending"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "coverage"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/attendance/devices/{device}": {
+            "delete": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceDevice.revoke",
+                "summary": "Delete device",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "required": true,
+                        "description": "The device public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`AttendanceDeviceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/AttendanceDeviceResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "employee": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "employee_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "name",
+                                                        "employee_code"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "employee"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/devices/{device}/approve": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceDevice.approve",
+                "summary": "Approve devices",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "required": true,
+                        "description": "The device public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`AttendanceDeviceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/AttendanceDeviceResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "employee": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "employee_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "name",
+                                                        "employee_code"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "employee"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "This phone is not waiting for approval."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/devices/{device}/reject": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceDevice.reject",
+                "summary": "Reject devices",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "required": true,
+                        "description": "The device public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`AttendanceDeviceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/AttendanceDeviceResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "employee": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "employee_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "name",
+                                                        "employee_code"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "employee"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "This phone is not waiting for approval."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/attendance/import/commit": {
             "post": {
                 "x-abilities": [
@@ -5223,12 +6103,27 @@
                                         },
                                         "expires_at": {
                                             "type": "string"
+                                        },
+                                        "device_nonce": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "credential_id": {
+                                            "type": "string"
+                                        },
+                                        "rp_id": {
+                                            "type": "string"
                                         }
                                     },
                                     "required": [
                                         "grant",
                                         "issued_at",
-                                        "expires_at"
+                                        "expires_at",
+                                        "device_nonce",
+                                        "credential_id",
+                                        "rp_id"
                                     ]
                                 }
                             }
@@ -6966,6 +7861,21 @@
                                                         "integer",
                                                         "null"
                                                     ]
+                                                },
+                                                "device_binding": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "office_networks": {
+                                                    "type": [
+                                                        "array",
+                                                        "null"
+                                                    ],
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
                                                 }
                                             },
                                             "required": [
@@ -6977,7 +7887,9 @@
                                                 "auto_checkout_enabled",
                                                 "auto_checkout_after_minutes",
                                                 "geofence_auto_checkin_enabled",
-                                                "risk_review_threshold"
+                                                "risk_review_threshold",
+                                                "device_binding",
+                                                "office_networks"
                                             ]
                                         },
                                         "overridable": {
@@ -7018,10 +7930,18 @@
                                                 {
                                                     "type": "string",
                                                     "const": "risk_review_threshold"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "device_binding"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "office_networks"
                                                 }
                                             ],
-                                            "minItems": 9,
-                                            "maxItems": 9,
+                                            "minItems": 11,
+                                            "maxItems": 11,
                                             "additionalItems": false
                                         },
                                         "branches": {
@@ -7103,6 +8023,21 @@
                                                                     "integer",
                                                                     "null"
                                                                 ]
+                                                            },
+                                                            "device_binding": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "office_networks": {
+                                                                "type": [
+                                                                    "array",
+                                                                    "null"
+                                                                ],
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
                                                             }
                                                         },
                                                         "required": [
@@ -7114,7 +8049,9 @@
                                                             "auto_checkout_enabled",
                                                             "auto_checkout_after_minutes",
                                                             "geofence_auto_checkin_enabled",
-                                                            "risk_review_threshold"
+                                                            "risk_review_threshold",
+                                                            "device_binding",
+                                                            "office_networks"
                                                         ]
                                                     },
                                                     "effective": {
@@ -7176,6 +8113,21 @@
                                                                     "integer",
                                                                     "null"
                                                                 ]
+                                                            },
+                                                            "device_binding": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "office_networks": {
+                                                                "type": [
+                                                                    "array",
+                                                                    "null"
+                                                                ],
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
                                                             }
                                                         },
                                                         "required": [
@@ -7187,7 +8139,9 @@
                                                             "auto_checkout_enabled",
                                                             "auto_checkout_after_minutes",
                                                             "geofence_auto_checkin_enabled",
-                                                            "risk_review_threshold"
+                                                            "risk_review_threshold",
+                                                            "device_binding",
+                                                            "office_networks"
                                                         ]
                                                     }
                                                 },
@@ -7334,6 +8288,21 @@
                                                         "integer",
                                                         "null"
                                                     ]
+                                                },
+                                                "device_binding": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "office_networks": {
+                                                    "type": [
+                                                        "array",
+                                                        "null"
+                                                    ],
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
                                                 }
                                             },
                                             "required": [
@@ -7345,7 +8314,9 @@
                                                 "auto_checkout_enabled",
                                                 "auto_checkout_after_minutes",
                                                 "geofence_auto_checkin_enabled",
-                                                "risk_review_threshold"
+                                                "risk_review_threshold",
+                                                "device_binding",
+                                                "office_networks"
                                             ]
                                         },
                                         "effective": {
@@ -7407,6 +8378,21 @@
                                                         "integer",
                                                         "null"
                                                     ]
+                                                },
+                                                "device_binding": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "office_networks": {
+                                                    "type": [
+                                                        "array",
+                                                        "null"
+                                                    ],
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
                                                 }
                                             },
                                             "required": [
@@ -7418,7 +8404,9 @@
                                                 "auto_checkout_enabled",
                                                 "auto_checkout_after_minutes",
                                                 "geofence_auto_checkin_enabled",
-                                                "risk_review_threshold"
+                                                "risk_review_threshold",
+                                                "device_binding",
+                                                "office_networks"
                                             ]
                                         }
                                     },
@@ -8080,6 +9068,10 @@
                                                             "status",
                                                             "public_id"
                                                         ]
+                                                    },
+                                                    {
+                                                        "type": "array",
+                                                        "items": []
                                                     }
                                                 ]
                                             }
@@ -15038,6 +16030,79 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/{employee}/attendance-device-exemption": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "attendanceDevice.exempt",
+                "summary": "PUT /employees/{employee}/attendance-device-exemption",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAttendanceDeviceExemptionRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "exempt_until": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "exempt_until"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -36967,6 +38032,80 @@
                 ],
                 "title": "AttendanceCorrectionResource"
             },
+            "AttendanceDeviceResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "synced_passkey": {
+                        "type": "boolean"
+                    },
+                    "enrolled_inside_geofence": {
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "last_used_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "approved_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "employee": {
+                        "type": "object",
+                        "properties": {
+                            "public_id": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "employee_code": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "public_id",
+                            "name",
+                            "employee_code"
+                        ]
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "status",
+                    "label",
+                    "synced_passkey",
+                    "enrolled_inside_geofence",
+                    "created_at",
+                    "last_used_at",
+                    "approved_at"
+                ],
+                "title": "AttendanceDeviceResource"
+            },
             "AttendanceImportCommitRequest": {
                 "type": "object",
                 "properties": {
@@ -37704,6 +38843,18 @@
                     "liveness_check": {
                         "type": "boolean"
                     },
+                    "device_binding": {
+                        "type": "string",
+                        "enum": [
+                            "flag",
+                            "enforce",
+                            "off"
+                        ]
+                    },
+                    "office_networks": {
+                        "type": "array",
+                        "items": []
+                    },
                     "updated_at": {
                         "type": [
                             "string",
@@ -37735,6 +38886,8 @@
                     "risk_review_threshold",
                     "adaptive_selfie",
                     "liveness_check",
+                    "device_binding",
+                    "office_networks",
                     "updated_at"
                 ],
                 "title": "AttendanceSettingResource"
@@ -38274,6 +39427,62 @@
                             "boolean",
                             "null"
                         ]
+                    },
+                    "device_proof": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "rawId": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "type": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "enum": [
+                                    "public-key",
+                                    null
+                                ]
+                            },
+                            "response": {
+                                "type": "object",
+                                "properties": {
+                                    "clientDataJSON": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "authenticatorData": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "signature": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 2048
+                                    },
+                                    "userHandle": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 1024
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 "required": [
@@ -38340,6 +39549,62 @@
                             "boolean",
                             "null"
                         ]
+                    },
+                    "device_proof": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "rawId": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "type": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "enum": [
+                                    "public-key",
+                                    null
+                                ]
+                            },
+                            "response": {
+                                "type": "object",
+                                "properties": {
+                                    "clientDataJSON": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "authenticatorData": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "signature": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 2048
+                                    },
+                                    "userHandle": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 1024
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 "required": [
@@ -39683,6 +40948,12 @@
                     "attendance_mode": {
                         "type": "string"
                     },
+                    "attendance_device_exempt_until": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "gender": {
                         "type": [
                             "string",
@@ -39880,6 +41151,7 @@
                     "badge_number",
                     "has_kiosk_pin",
                     "attendance_mode",
+                    "attendance_device_exempt_until",
                     "gender",
                     "date_of_birth",
                     "nationality",
@@ -41290,6 +42562,62 @@
                             "null"
                         ]
                     },
+                    "device_proof": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "rawId": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "type": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "enum": [
+                                    "public-key",
+                                    null
+                                ]
+                            },
+                            "response": {
+                                "type": "object",
+                                "properties": {
+                                    "clientDataJSON": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "authenticatorData": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "signature": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 2048
+                                    },
+                                    "userHandle": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 1024
+                                    }
+                                }
+                            }
+                        }
+                    },
                     "liveness": {
                         "type": [
                             "string",
@@ -41400,6 +42728,62 @@
                             "boolean",
                             "null"
                         ]
+                    },
+                    "device_proof": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "rawId": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "type": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "enum": [
+                                    "public-key",
+                                    null
+                                ]
+                            },
+                            "response": {
+                                "type": "object",
+                                "properties": {
+                                    "clientDataJSON": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "authenticatorData": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "signature": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 2048
+                                    },
+                                    "userHandle": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 1024
+                                    }
+                                }
+                            }
+                        }
                     },
                     "liveness": {
                         "type": [
@@ -41527,6 +42911,19 @@
                                         "null"
                                     ]
                                 },
+                                "liveness": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "enum": [
+                                        "passed",
+                                        "failed",
+                                        "no_face",
+                                        "unavailable",
+                                        null
+                                    ]
+                                },
                                 "altitude": {
                                     "type": [
                                         "number",
@@ -41579,6 +42976,65 @@
                                         "boolean",
                                         "null"
                                     ]
+                                },
+                                "device_proof": {
+                                    "type": [
+                                        "object",
+                                        "null"
+                                    ],
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "pattern": "^[A-Za-z0-9_\\-]*$",
+                                            "maxLength": 1024
+                                        },
+                                        "rawId": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ],
+                                            "pattern": "^[A-Za-z0-9_\\-]*$",
+                                            "maxLength": 1024
+                                        },
+                                        "type": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ],
+                                            "enum": [
+                                                "public-key",
+                                                null
+                                            ]
+                                        },
+                                        "response": {
+                                            "type": "object",
+                                            "properties": {
+                                                "clientDataJSON": {
+                                                    "type": "string",
+                                                    "pattern": "^[A-Za-z0-9_\\-]*$",
+                                                    "maxLength": 4096
+                                                },
+                                                "authenticatorData": {
+                                                    "type": "string",
+                                                    "pattern": "^[A-Za-z0-9_\\-]*$",
+                                                    "maxLength": 4096
+                                                },
+                                                "signature": {
+                                                    "type": "string",
+                                                    "pattern": "^[A-Za-z0-9_\\-]*$",
+                                                    "maxLength": 2048
+                                                },
+                                                "userHandle": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "pattern": "^[A-Za-z0-9_\\-]*$",
+                                                    "maxLength": 1024
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             },
                             "required": [
@@ -42529,6 +43985,62 @@
                             "boolean",
                             "null"
                         ]
+                    },
+                    "device_proof": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "rawId": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "type": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "enum": [
+                                    "public-key",
+                                    null
+                                ]
+                            },
+                            "response": {
+                                "type": "object",
+                                "properties": {
+                                    "clientDataJSON": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "authenticatorData": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "signature": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 2048
+                                    },
+                                    "userHandle": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 1024
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 "required": [
@@ -42580,6 +44092,124 @@
                     "decision"
                 ],
                 "title": "RecordDisciplinaryDecisionRequest"
+            },
+            "RegisterAttendanceDeviceRequest": {
+                "type": "object",
+                "description": "The passkey a phone just created (the browser's RegistrationResponseJSON),\nwith where the phone is: the first phone registers by itself only at work.",
+                "properties": {
+                    "credential": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "rawId": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "type": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "enum": [
+                                    "public-key",
+                                    null
+                                ]
+                            },
+                            "authenticatorAttachment": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 32
+                            },
+                            "response": {
+                                "type": "object",
+                                "properties": {
+                                    "clientDataJSON": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "attestationObject": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 16384
+                                    },
+                                    "transports": {
+                                        "type": [
+                                            "array",
+                                            "null"
+                                        ],
+                                        "items": {
+                                            "type": "string",
+                                            "maxLength": 16
+                                        },
+                                        "maxItems": 8
+                                    }
+                                },
+                                "required": [
+                                    "clientDataJSON",
+                                    "attestationObject"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "response"
+                        ]
+                    },
+                    "latitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "longitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -180,
+                        "maximum": 180
+                    },
+                    "accuracy": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 100000
+                    },
+                    "device_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^[A-Za-z0-9\\-]+$",
+                        "maxLength": 64
+                    },
+                    "label": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 120
+                    }
+                },
+                "required": [
+                    "credential"
+                ],
+                "title": "RegisterAttendanceDeviceRequest"
             },
             "RegisterKioskRequest": {
                 "type": "object",
@@ -43684,6 +45314,62 @@
                             "boolean",
                             "null"
                         ]
+                    },
+                    "device_proof": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "rawId": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "type": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "enum": [
+                                    "public-key",
+                                    null
+                                ]
+                            },
+                            "response": {
+                                "type": "object",
+                                "properties": {
+                                    "clientDataJSON": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "authenticatorData": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "signature": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 2048
+                                    },
+                                    "userHandle": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 1024
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 "required": [
@@ -45684,6 +47370,23 @@
                 },
                 "title": "UpdateAnnouncementRequest"
             },
+            "UpdateAttendanceDeviceExemptionRequest": {
+                "type": "object",
+                "description": "Until when an employee may punch without their registered phone (a phone\nthat cannot hold a passkey, a broken phone awaiting replacement). Null ends\nthe exemption. Their punches are still flagged for review meanwhile.",
+                "properties": {
+                    "until": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "until"
+                ],
+                "title": "UpdateAttendanceDeviceExemptionRequest"
+            },
             "UpdateAttendanceModeRequest": {
                 "type": "object",
                 "properties": {
@@ -45802,6 +47505,24 @@
                     },
                     "liveness_check": {
                         "type": "boolean"
+                    },
+                    "device_binding": {
+                        "type": "string",
+                        "enum": [
+                            "off",
+                            "flag",
+                            "enforce"
+                        ]
+                    },
+                    "office_networks": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        },
+                        "maxItems": 20
                     }
                 },
                 "title": "UpdateAttendanceSettingRequest"
@@ -45885,6 +47606,28 @@
                                 ],
                                 "minimum": 10,
                                 "maximum": 100
+                            },
+                            "device_binding": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "enum": [
+                                    "off",
+                                    "flag",
+                                    "enforce",
+                                    null
+                                ]
+                            },
+                            "office_networks": {
+                                "type": [
+                                    "array",
+                                    "null"
+                                ],
+                                "items": {
+                                    "type": "string"
+                                },
+                                "maxItems": 20
                             }
                         }
                     }

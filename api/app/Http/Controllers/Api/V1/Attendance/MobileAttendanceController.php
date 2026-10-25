@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Attendance;
 
 use App\Enums\AttendanceSource;
+use App\Exceptions\AttendanceRefused;
 use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\MobileCheckInRequest;
@@ -16,6 +17,7 @@ use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\AttendancePlaces;
 use App\Services\Attendance\AttendancePolicy;
+use App\Services\Attendance\Device\AttendanceDeviceGate;
 use App\Services\FileStorageService;
 use App\Support\PunchSignals;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +29,7 @@ class MobileAttendanceController extends Controller
     public function __construct(
         private readonly AttendanceEngine $engine,
         private readonly FileStorageService $storage,
+        private readonly AttendanceDeviceGate $devices,
     ) {}
 
     public function checkIn(MobileCheckInRequest $request): JsonResponse
@@ -80,7 +83,11 @@ class MobileAttendanceController extends Controller
                     ...PunchSignals::from($request->validated(), $request->userAgent()),
                     'liveness' => $request->validated('liveness'),
                 ], fn ($v) => $v !== null),
+                device: $this->devices->verdict($employee, $request, $request->validated('device_proof'), AttendanceSource::MOBILE),
             ));
+        } catch (AttendanceRefused $e) {
+            // Rendered by bootstrap/app.php, so a device refusal keeps its own type.
+            throw $e;
         } catch (\RuntimeException $e) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/validation',
@@ -132,6 +139,7 @@ class MobileAttendanceController extends Controller
                 ...PunchSignals::from($request->validated(), $request->userAgent()),
                 'liveness' => $request->validated('liveness'),
             ], fn ($v) => $v !== null),
+            device: $this->devices->verdict($employee, $request, $request->validated('device_proof'), AttendanceSource::MOBILE),
         ));
 
         $result->record->load('employee', 'shift');
