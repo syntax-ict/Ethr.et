@@ -4,12 +4,12 @@ import { useRef, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ChevronsUpDown,
-  Command,
   CreditCard,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  ShieldCheck,
 } from "lucide-react";
 import { SidebarNav } from "./sidebar-nav";
 import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
@@ -21,6 +21,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAppLayout } from "./layout-context";
 import {
   useCurrentUser,
@@ -28,8 +33,7 @@ import {
   useLogout,
 } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import { useShortcutLabel } from "@/lib/hooks/usePlatformShortcut";
-import { openCommandPalette } from "@/components/shared/command-palette";
+import { SITE_URL } from "@/lib/site-url";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 
@@ -146,8 +150,13 @@ export function AppSidebar() {
   // ref read (react-hooks/refs). Pulling them apart lets it see the state values
   // for what they are.
   const { ref: scrollRef, canScrollUp, canScrollDown } = useScrollFades();
-  const paletteShortcut = useShortcutLabel("K");
-  const collapseShortcut = useShortcutLabel("B");
+  // No shortcut chips and no palette trigger down here: the header's search
+  // opens the palette, and the shortcuts sheet (press ?) lists both keys. The
+  // footer is the product mark and one icon, nothing a user has to read.
+  const poweredBy = t("auth.powered_by", "Powered by ETHR");
+  const toggleLabel = collapsed
+    ? t("sidebar.expand", "Expand sidebar")
+    : t("sidebar.collapse", "Collapse sidebar");
 
   const roleName = user?.role
     ? t(`role.${user.role}`, user.role.replace(/_/g, " "))
@@ -231,7 +240,11 @@ export function AppSidebar() {
         </div>
       </div>
 
-      {/* Footer — shrink-0 keeps it pinned at the bottom */}
+      {/* Footer — shrink-0 keeps it pinned at the bottom. One row, not two:
+          the search trigger fills it and the collapse toggle is a square icon
+          button beside it, named by its tooltip (the pattern Notion, Slack and
+          the shadcn sidebar settle on). The old stack of two labelled rows
+          cost 95px of a column that already scrolls at 1000px tall. */}
       <div className="shrink-0 border-t border-sidebar-border">
         {/* Ethiopian tibeb pattern accent — the design system's signature
             element (CLAUDE.md, Visual Identity).
@@ -242,61 +255,81 @@ export function AppSidebar() {
             `var(--sidebar-foreground)/.15 0px`, which is invalid CSS, so every
             browser discarded the whole gradient and the pattern never rendered
             at all. `color-mix` is the same technique globals.css already uses
-            for `::selection`. */}
+            for `::selection`. The mix is 25% foreground and 60% gold: at
+            15%/35% the line measured as a flat border on the dark surface, so
+            a signature element was invisible in the one place it lives. */}
         <div
           aria-hidden="true"
-          className="h-0.5 w-full bg-[repeating-linear-gradient(90deg,color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)_0px,color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)_6px,color-mix(in_srgb,var(--brand-accent)_35%,transparent)_6px,color-mix(in_srgb,var(--brand-accent)_35%,transparent)_12px,color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)_12px,color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)_18px,transparent_18px,transparent_24px)]"
+          className="h-0.5 w-full bg-[repeating-linear-gradient(90deg,color-mix(in_srgb,var(--sidebar-foreground)_25%,transparent)_0px,color-mix(in_srgb,var(--sidebar-foreground)_25%,transparent)_6px,color-mix(in_srgb,var(--brand-accent)_60%,transparent)_6px,color-mix(in_srgb,var(--brand-accent)_60%,transparent)_12px,color-mix(in_srgb,var(--sidebar-foreground)_25%,transparent)_12px,color-mix(in_srgb,var(--sidebar-foreground)_25%,transparent)_18px,transparent_18px,transparent_24px)]"
         />
 
-        <div className={cn("p-2", collapsed && "flex flex-col items-center")}>
-          {!collapsed && (
-            <button
-              type="button"
-              // `openCommandPalette()`, not a synthesised KeyboardEvent. The
-              // palette exports this exact function and its own source calls
-              // faking a keypress out as the thing to avoid; the synthetic
-              // event also depended on the listener living on `document` and
-              // on `metaKey` specifically.
-              onClick={openCommandPalette}
-              className="flex h-9 w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/40 px-3 text-xs text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        <div
+          className={cn(
+            "flex gap-1 p-2",
+            collapsed ? "flex-col items-center" : "items-center",
+          )}
+        >
+          {/* The product mark. The header above names the organisation, so
+              the foot of the column is where ETHR signs its work, the same
+              line and icon the sign-in pages carry. It links to the public
+              site in a new tab, so an organisation's own page is never
+              navigated away from. */}
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href={SITE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={poweredBy}
+                  className={railButtonClass}
+                >
+                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent side="right">{poweredBy}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <a
+              href={SITE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 text-[11px] font-medium tracking-wide text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <Command className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{t("sidebar.command_palette", "Command Palette")}</span>
-              <kbd className="ml-auto rounded border border-sidebar-border bg-sidebar px-1.5 py-0.5 font-mono text-[10px] leading-none text-sidebar-foreground/70">
-                {paletteShortcut}
-              </kbd>
-            </button>
+              <ShieldCheck
+                className="h-3.5 w-3.5 shrink-0"
+                aria-hidden="true"
+              />
+              <span className="min-w-0 flex-1 truncate">{poweredBy}</span>
+            </a>
           )}
 
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            title={
-              collapsed
-                ? t("sidebar.expand", "Expand sidebar")
-                : t("sidebar.collapse", "Collapse sidebar")
-            }
-            className={cn(
-              "flex h-9 items-center gap-2 rounded-md px-3 text-xs font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              collapsed ? "mt-0 w-10 justify-center px-0" : "mt-1 w-full",
-            )}
-          >
-            {collapsed ? (
-              <PanelLeftOpen className="h-4 w-4" />
-            ) : (
-              <>
-                <PanelLeftClose className="h-4 w-4" />
-                <span className="flex-1 text-left">
-                  {t("sidebar.collapse", "Collapse")}
-                </span>
-                <kbd className="rounded border border-sidebar-border bg-sidebar px-1.5 py-0.5 font-mono text-[10px] leading-none text-sidebar-foreground/70">
-                  {collapseShortcut}
-                </kbd>
-              </>
-            )}
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-keyshortcuts="Control+B Meta+B"
+                aria-label={toggleLabel}
+                className={railButtonClass}
+              >
+                {collapsed ? (
+                  <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side={collapsed ? "right" : "top"}>
+              {toggleLabel}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </aside>
   );
 }
+
+/** The square icon control of the footer, the same size as a rail row. */
+const railButtonClass =
+  "flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
