@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Attendance;
 
+use App\Enums\EmployeeStatus;
 use App\Exceptions\DeviceBindingRefused;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\ListAttendanceDevicesRequest;
@@ -128,7 +129,7 @@ class AttendanceDeviceController extends Controller
             ->latest('id')
             ->paginate((int) ($request->validated('per_page') ?? 25));
 
-        $employees = Employee::query()->where('status', 'active')->count();
+        $employees = Employee::query()->whereIn('status', EmployeeStatus::current())->count();
         $registered = AttendanceDevice::query()->where('status', AttendanceDevice::ACTIVE)->distinct()->count('employee_id');
         $pending = AttendanceDevice::query()->where('status', AttendanceDevice::PENDING)->count();
 

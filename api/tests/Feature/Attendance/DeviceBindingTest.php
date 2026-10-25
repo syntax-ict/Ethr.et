@@ -291,6 +291,7 @@ test('HR approves a replacement phone, and the old one stops working', function 
 
     test()->actingAs(createUser(['role' => UserRole::HR_ADMIN], $tenant));
     test()->getJson(dbUrl($tenant, 'attendance/devices'))->assertOk()
+        ->assertJsonPath('coverage.employees', 1)
         ->assertJsonPath('coverage.registered', 1)
         ->assertJsonPath('coverage.pending', 1);
     test()->postJson(dbUrl($tenant, "attendance/devices/{$pending}/approve"))->assertOk()->assertJsonPath('status', 'active');
