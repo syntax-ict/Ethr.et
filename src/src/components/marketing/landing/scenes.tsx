@@ -1,33 +1,22 @@
 /**
- * The drawn scenes: one per capability row and one for the hero, shown
- * when a row has no uploaded picture. The problems ledger's rows are
- * animated stories instead, in `problem-stories.tsx`.
+ * The drawn scenes: one per capability row, shown when a row has no
+ * uploaded picture. The problems ledger's rows and the hero are animated
+ * stories instead, in `problem-stories.tsx` and `hero-story.tsx`.
  *
  * Flat, in the page's own tokens (`fill-primary`, `fill-muted`, and so on),
  * so they repaint for light, dark and high-contrast for free, carry no
  * licence, and can never garble a script because they carry no text. Each is
  * `aria-hidden`: the words beside it say everything the picture says.
- *
- * Every element that animates in the hero scene ends in its settled state
- * and plays once (the ProductFlow contract); `globals.css` zeroes the
- * delays under reduced motion so the scene arrives complete.
+
  */
 
 const VIEW = "0 0 480 300";
 
-function Frame({
-  children,
-  wide = false,
-  animated = false,
-}: {
-  children: React.ReactNode;
-  wide?: boolean;
-  animated?: boolean;
-}) {
+function Frame({ children }: { children: React.ReactNode }) {
   return (
     <svg
-      viewBox={wide ? "0 0 640 360" : VIEW}
-      className={animated ? "ethr-scene h-full w-full" : "h-full w-full"}
+      viewBox={VIEW}
+      className="h-full w-full"
       aria-hidden="true"
       focusable="false"
     >
@@ -516,155 +505,12 @@ export function AnalyticsScene() {
   );
 }
 
-/**
- * The hero scene: an office with a wall screen, assembling once. Parts carry
- * `ethr-scene-part`, which `globals.css` animates with staggered delays and
- * zeroes under reduced motion.
- */
-export function HeroScene() {
-  return (
-    <Frame wide animated>
-      <rect
-        x="40"
-        y="40"
-        width="560"
-        height="190"
-        rx="8"
-        className="fill-card/70"
-      />
-      <g className="ethr-scene-part">
-        <rect
-          x="200"
-          y="56"
-          width="240"
-          height="140"
-          rx="10"
-          className="fill-foreground/80"
-        />
-        <rect
-          x="208"
-          y="64"
-          width="224"
-          height="124"
-          rx="6"
-          className="fill-card"
-        />
-        {[40, 70, 52, 90, 64].map((h, i) => (
-          <rect
-            key={i}
-            x={226 + i * 30}
-            y={170 - h}
-            width="18"
-            height={h}
-            rx="3"
-            className="fill-primary/40"
-          />
-        ))}
-        <polyline
-          points="384,150 400,120 416,130"
-          className="stroke-status-success"
-          strokeWidth="3"
-          fill="none"
-          strokeLinecap="round"
-        />
-        <rect
-          x="380"
-          y="80"
-          width="40"
-          height="24"
-          rx="5"
-          className="fill-muted"
-        />
-      </g>
-      <g className="ethr-scene-part">
-        <rect
-          x="60"
-          y="232"
-          width="170"
-          height="14"
-          rx="4"
-          className="fill-primary/30"
-        />
-        <rect
-          x="70"
-          y="246"
-          width="10"
-          height="70"
-          className="fill-foreground/30"
-        />
-        <rect
-          x="210"
-          y="246"
-          width="10"
-          height="70"
-          className="fill-foreground/30"
-        />
-        <Person x={145} y={250} scale={1.1} tone="fill-primary/85" />
-      </g>
-      <g className="ethr-scene-part">
-        <rect
-          x="410"
-          y="232"
-          width="170"
-          height="14"
-          rx="4"
-          className="fill-primary/30"
-        />
-        <rect
-          x="420"
-          y="246"
-          width="10"
-          height="70"
-          className="fill-foreground/30"
-        />
-        <rect
-          x="560"
-          y="246"
-          width="10"
-          height="70"
-          className="fill-foreground/30"
-        />
-        <Person x={470} y={250} scale={1.1} tone="fill-primary/70" />
-        <Person x={530} y={252} scale={1} tone="fill-primary/85" />
-      </g>
-      <g className="ethr-scene-part">
-        <Person x={330} y={300} scale={1.3} tone="fill-primary" />
-        <rect
-          x="300"
-          y="310"
-          width="60"
-          height="26"
-          rx="4"
-          className="fill-card stroke-border"
-          strokeWidth="2"
-        />
-      </g>
-      <g className="ethr-scene-part">
-        <circle cx="90" cy="110" r="28" className="fill-primary/15" />
-        <path
-          d="M90 80 q16 10 10 34 q-14 -4 -10 -34z"
-          className="fill-status-success/60"
-        />
-        <rect
-          x="80"
-          y="138"
-          width="20"
-          height="26"
-          rx="4"
-          className="fill-foreground/40"
-        />
-      </g>
-    </Frame>
-  );
-}
-
 const SCENES: Record<string, () => React.ReactElement> = {
   "capabilities/records": RecordsScene,
   "capabilities/time": TimeScene,
   "capabilities/payroll": PayrollScene,
   "capabilities/self_service": SelfServiceScene,
   "capabilities/analytics": AnalyticsScene,
-  "hero/hero": HeroScene,
 };
 
 /** The slugs a scene exists for, so a test can check every seeded row has one. */

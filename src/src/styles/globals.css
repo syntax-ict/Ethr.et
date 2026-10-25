@@ -1199,14 +1199,13 @@
 }
 
 /* ============================================================================
-   Landing page: the problems ledger and the hero scene
+   Landing page: the problems ledger's reveal
    (components/marketing/landing/).
 
-   The ledger's right column reveals once when its row scrolls into view, and
-   the hero scene assembles once on load. Both keyframes END in the settled
-   state, so the global reduced-motion block (0.01ms, one iteration) lands
-   them complete, and the block below zeroes their delays for the same reason
-   .ethr-flow needs it. `useRevealOnce` only ever adds .ethr-reveal-hidden
+   The ledger's right column reveals once when its row scrolls into view.
+   The keyframe ENDS in the settled state, so the global reduced-motion
+   block (0.01ms, one iteration) lands it complete, and the block below
+   zeroes its delay for the same reason .ethr-flow needs it. `useRevealOnce` only ever adds .ethr-reveal-hidden
    after hydration, when motion is allowed, so the prerendered HTML and a
    reduced-motion reader never see anything hidden.
    ========================================================================= */
@@ -1230,36 +1229,6 @@
   animation: ethr-reveal-in 0.45s var(--ease-out-quart) both;
 }
 
-@keyframes ethr-scene-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.ethr-scene .ethr-scene-part {
-  animation: ethr-scene-rise 0.5s var(--ease-out-quart) both;
-}
-.ethr-scene .ethr-scene-part:nth-of-type(1) {
-  animation-delay: 80ms;
-}
-.ethr-scene .ethr-scene-part:nth-of-type(2) {
-  animation-delay: 240ms;
-}
-.ethr-scene .ethr-scene-part:nth-of-type(3) {
-  animation-delay: 400ms;
-}
-.ethr-scene .ethr-scene-part:nth-of-type(4) {
-  animation-delay: 560ms;
-}
-.ethr-scene .ethr-scene-part:nth-of-type(5) {
-  animation-delay: 720ms;
-}
-
 /* The global reduced-motion block above collapses `animation-duration` and
    `animation-iteration-count` — but NOT `animation-delay`, and this sequence is
    built almost entirely out of delays. With `fill-mode: both`, an element holds
@@ -1271,7 +1240,6 @@
   .ethr-flow *,
   .ethr-flow *::before,
   .ethr-flow *::after,
-  .ethr-scene *,
   .ethr-reveal-in,
   .ethr-reveal-in * {
     animation-delay: 0ms !important;
@@ -1279,11 +1247,13 @@
 }
 
 /* ============================================================================
-   Landing page: the problems ledger's animated stories
-   (components/marketing/landing/problem-stories.tsx).
+   Landing page: the animated stories, the problems ledger's six and the
+   hero's one (components/marketing/landing/problem-stories.tsx,
+   hero-story.tsx, framed by story-frame.tsx).
 
-   Unlike everything above, these LOOP: each row's story plays its "Today"
-   half and its "With ETHR" half every 12 s while it is on screen. The step
+   Unlike everything above, these LOOP: each ledger row's story plays its
+   "Today" half and its "With ETHR" half every 12 s while it is on screen,
+   and the hero's working day every 16 s. The step
    clock lives in `useStoryClock`; this block only says how a part moves
    when its step comes and goes, plus a handful of small loops that run
    inside one step (a clock hand, a scan line, a ringing bell).

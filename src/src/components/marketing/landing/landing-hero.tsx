@@ -9,17 +9,18 @@ import type { MarketingSection } from "@/lib/marketing/content";
 import { useLocaleHref } from "@/lib/i18n/route-locale";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
-import { HeroScene } from "./scenes";
+import { HeroStory } from "./hero-story";
 import { ItemPicture } from "./item-picture";
 
 /**
  * The hero: the heading and sentence the platform operator wrote, two
  * buttons whose labels are interface chrome, and a picture on the right.
  *
- * When the operator has uploaded a hero picture it takes the right column
- * and the product sequence becomes a strip below; otherwise the drawn office
- * scene takes the column. The product sequence is always on the page: it is
- * the one place the page shows the offline claim rather than stating it.
+ * When the operator has uploaded a hero picture it takes the right column;
+ * otherwise the looping office story (`hero-story.tsx`) takes it, by the
+ * owner's decision of 2026-10-25 that every illustration on the page moves.
+ * The product sequence below is always on the page and still plays once: it
+ * is the one place the page shows the offline claim rather than stating it.
  */
 export function LandingHero({
   section,
@@ -120,7 +121,7 @@ export function LandingHero({
                   className="h-full rounded-none"
                 />
               ) : (
-                <HeroScene />
+                <HeroStory />
               )}
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LandingContent } from "@/app/(marketing)/[locale]/landing-content";
 import { CapabilitiesSection } from "@/components/marketing/landing/capabilities-section";
@@ -82,9 +82,9 @@ describe("landing sections", () => {
     expect(document.body.textContent).not.toMatch(/marketing\.[a-z_.]+/);
   });
 
-  it("has a drawn scene for every seeded capability and the hero, and a story for every problem", () => {
+  it("has a drawn scene for every seeded capability, and a story for every problem", () => {
     const sections = marketingFixture().sections;
-    const expected = ["hero/hero"];
+    const expected: string[] = [];
     for (const section of sections) {
       if (section.kind === "capabilities") {
         for (const item of section.items)
@@ -96,6 +96,23 @@ describe("landing sections", () => {
       }
     }
     for (const key of expected) expect(SCENE_KEYS).toContain(key);
+  });
+
+  it("plays the hero story when no hero picture is uploaded, and the picture when one is", () => {
+    withSections(<LandingContent />, marketingFixture().sections);
+    expect(
+      document.querySelector('.ethr-story[data-scene="hero/hero"]'),
+    ).not.toBeNull();
+    cleanup();
+
+    const sections = marketingFixture().sections;
+    const hero = sections.find((s) => s.kind === "hero")!;
+    hero.image = fixtureImage("hero");
+    withSections(<LandingContent />, sections);
+    expect(document.querySelector('[data-scene="hero/hero"]')).toBeNull();
+    expect(
+      document.querySelector('img[src="' + hero.image.url + '"]'),
+    ).not.toBeNull();
   });
 
   it("plays a plain story for a row added later that no story was drawn for", () => {

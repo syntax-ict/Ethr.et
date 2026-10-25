@@ -34,7 +34,10 @@ story of its own. An uploaded or seeded picture still replaces the story for
 that slug, because an upload is the operator's deliberate choice, and that row
 then stops moving. So the six problems prompts below are kept for reference but
 **should not be seeded or uploaded**, or the section loses the animation the
-owner asked for.
+owner asked for. **The hero is the same** (owner, later the same day): its
+picture is a looping working day in `hero-story.tsx`, sixteen seconds a loop,
+and a seeded or uploaded hero image would replace it. The product sequence
+below the hero still plays once.
 
 The script is an authoring tool. Nothing in the product calls it, no provider
 key is read at runtime, and no dependency was added for it: Node 24, `fetch`
