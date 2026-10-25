@@ -44,6 +44,7 @@ class DatabaseSeeder extends Seeder
             PlanSeeder::class,
             TaxBracketSeeder::class,
             OrganizationTemplateSeeder::class,
+            MarketingContentSeeder::class,
         ]);
 
         $superAdmin = User::withoutGlobalScopes()

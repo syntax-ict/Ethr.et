@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\Accounting\AccountingController;
 use App\Http\Controllers\Api\V1\Admin\AdminDashboardController;
+use App\Http\Controllers\Api\V1\Admin\AdminMarketingController;
 use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
 use App\Http\Controllers\Api\V1\Admin\AdminStatutoryLayoutController;
 use App\Http\Controllers\Api\V1\Admin\AdminTenantController;
@@ -87,6 +88,7 @@ use App\Http\Controllers\Api\V1\Kiosk\KioskSessionController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSyncController;
 use App\Http\Controllers\Api\V1\Leave\LeaveRequestController;
 use App\Http\Controllers\Api\V1\Leave\LeaveTypeController;
+use App\Http\Controllers\Api\V1\MarketingContentController;
 use App\Http\Controllers\Api\V1\Notification\NotificationController;
 use App\Http\Controllers\Api\V1\Notification\NotificationPreferencesController;
 use App\Http\Controllers\Api\V1\Offboarding\ExitClearanceController;
@@ -145,6 +147,7 @@ use App\Http\Controllers\Api\V1\Voice\ConcernController;
 use App\Http\Controllers\Api\V1\Voice\PulseController;
 use App\Http\Controllers\Api\V1\Voice\RecognitionController;
 use App\Http\Controllers\Api\V1\Webhook\WebhookController;
+use App\Http\Controllers\MarketingImageController;
 use App\Http\Controllers\NewsCoverController;
 use App\Http\Controllers\NewsFileController;
 use App\Http\Controllers\OrganisationAssetController;
@@ -201,6 +204,9 @@ Route::get('/plans', [PlanController::class, 'index'])->middleware('throttle:pub
 Route::get('/site-content', [SiteContentController::class, 'index'])->middleware('throttle:public-catalogue');
 // Organisations that agreed to be named on the public site (TrustedByController).
 Route::get('/trusted-by', [TrustedByController::class, 'index'])->middleware('throttle:public-catalogue');
+// The landing page's sections and rows, owned by the platform operator and
+// edited in the console; published rows only (MarketingContentController).
+Route::get('/marketing-content', [MarketingContentController::class, 'index'])->middleware('throttle:public-catalogue');
 Route::get('/templates', [TemplateController::class, 'index'])->middleware('throttle:public-catalogue');
 Route::get('/templates/{slug}', [TemplateController::class, 'show'])->middleware('throttle:public-catalogue');
 Route::post('/contact', ContactController::class)->middleware('throttle:auth');
@@ -255,6 +261,12 @@ Route::get('/organisation-assets/{publicId}/{kind}/{version}', OrganisationAsset
 Route::get('/news-covers/{publicId}/{story}/{size}/{version}', NewsCoverController::class)
     ->where(['publicId' => '[0-9A-HJKMNP-TV-Z]{26}', 'story' => '[0-9A-HJKMNP-TV-Z]{26}', 'size' => 'cover|cover-1280|cover-640', 'version' => '[0-9a-f]{16}'])
     ->name('organisation.news-cover');
+
+// A landing-page picture, for a row or the hero, on the same terms: only the
+// re-encoded JPEG, keyed by the owner's public id and a content hash.
+Route::get('/marketing-images/{owner}/{variant}/{version}', MarketingImageController::class)
+    ->where(['owner' => '[0-9A-HJKMNP-TV-Z]{26}', 'variant' => 'image|image-1280|image-640', 'version' => '[0-9a-f]{16}'])
+    ->name('marketing.image');
 
 // A document attached to a news story, while the story is public.
 Route::get('/news-files/{publicId}/{story}/{file}', NewsFileController::class)
@@ -942,6 +954,27 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::post('/plans', [AdminPlanController::class, 'store']);
             Route::put('/plans/{publicId}', [AdminPlanController::class, 'update']);
             Route::delete('/plans/{publicId}', [AdminPlanController::class, 'destroy']);
+
+            // The public landing page: sections, rows, order, visibility and
+            // pictures. The kinds are fixed in App\Support\MarketingContent;
+            // the image upload rides the uploads limiter like every other.
+            Route::get('/marketing', [AdminMarketingController::class, 'index']);
+            Route::put('/marketing/sections/{kind}', [AdminMarketingController::class, 'updateSection'])
+                ->where('kind', '[a-z_]+');
+            Route::put('/marketing/sections/{kind}/order', [AdminMarketingController::class, 'reorder'])
+                ->where('kind', '[a-z_]+');
+            Route::post('/marketing/sections/{kind}/items', [AdminMarketingController::class, 'storeItem'])
+                ->where('kind', '[a-z_]+');
+            Route::post('/marketing/sections/{kind}/image', [AdminMarketingController::class, 'uploadSectionImage'])
+                ->where('kind', '[a-z_]+')
+                ->middleware('throttle:uploads');
+            Route::delete('/marketing/sections/{kind}/image', [AdminMarketingController::class, 'destroySectionImage'])
+                ->where('kind', '[a-z_]+');
+            Route::put('/marketing/items/{publicId}', [AdminMarketingController::class, 'updateItem']);
+            Route::delete('/marketing/items/{publicId}', [AdminMarketingController::class, 'destroyItem']);
+            Route::post('/marketing/items/{publicId}/image', [AdminMarketingController::class, 'uploadItemImage'])
+                ->middleware('throttle:uploads');
+            Route::delete('/marketing/items/{publicId}/image', [AdminMarketingController::class, 'destroyItemImage']);
 
             // Dated layouts of the monthly statutory schedules: a new form
             // version is a row, not a deploy.

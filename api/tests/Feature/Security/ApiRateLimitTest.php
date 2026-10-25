@@ -61,7 +61,7 @@ test('the public catalogue is limited to 120 requests a minute per address', fun
     }
 
     test()->getJson("http://ethr.test/api/v1/{$path}")->assertStatus(429);
-})->with(['plans', 'site-content', 'templates']);
+})->with(['plans', 'site-content', 'templates', 'marketing-content']);
 
 test('an office behind one address can sign in more than ten people a minute', function () {
     // Every login counted against the address before, successful ones too, so

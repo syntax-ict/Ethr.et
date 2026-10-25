@@ -10,6 +10,7 @@ import {
   ArrowRight,
   ScrollText,
   Layers,
+  Megaphone,
   RefreshCw,
   AlertTriangle,
   Loader2,
@@ -206,6 +207,12 @@ export default function AdminConsolePage() {
             <Link href="/admin/plans">
               <Layers className="mr-1.5 h-3.5 w-3.5" />
               {t("admin_console_page.plans", "Plans")}
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/admin/marketing">
+              <Megaphone className="mr-1.5 h-3.5 w-3.5" />
+              {t("admin_console_page.marketing", "Marketing site")}
             </Link>
           </Button>
           <Button

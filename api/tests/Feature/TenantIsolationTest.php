@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Models\FeatureFlag;
 use App\Models\Lead;
+use App\Models\MarketingItem;
+use App\Models\MarketingSection;
 use App\Models\OrganizationTemplate;
 use App\Models\OtpCode;
 use App\Models\Permission;
@@ -56,6 +58,11 @@ const GLOBAL_MODELS = [
     // The layouts of the national statutory schedules (MoR, POESSA, PSSSA):
     // one set for every organisation, edited only from the platform console.
     StatutoryLayout::class,
+    // The public landing page: one marketing site read by every visitor and
+    // owned by the platform operator, like Plan and PlatformSetting. Nothing
+    // in either table belongs to a tenant.
+    MarketingSection::class,
+    MarketingItem::class,
 ];
 
 /**
