@@ -35,19 +35,60 @@ export function distanceMeters(
 
 export type GeofenceState =
   | { kind: "none" }
-  | { kind: "inside"; distance: number }
-  | { kind: "outside"; distance: number };
+  | { kind: "inside"; distance: number; place: string | null }
+  | { kind: "outside"; distance: number; place: string | null };
 
+/** As the server's AttendancePlaces::MAX_ACCURACY_SLACK_METERS. */
+const MAX_ACCURACY_SLACK_METERS = 50;
+
+/**
+ * Inside the branch or any of the person's work sites, giving the fix the
+ * benefit of its accuracy up to 50 m, by the same rule the server applies.
+ * The distance reported is to the nearest place's centre.
+ */
 export function geofenceState(
   shift: MyShift,
   position: Position | null,
 ): GeofenceState {
-  const fence = shift.policy.geofence;
-  if (!fence || !position) return { kind: "none" };
-  const distance = distanceMeters(position, fence);
-  return distance <= fence.radius_meters
-    ? { kind: "inside", distance }
-    : { kind: "outside", distance };
+  const places =
+    shift.policy.places && shift.policy.places.length > 0
+      ? shift.policy.places.map((p) => ({
+          latitude: p.latitude,
+          longitude: p.longitude,
+          radius: p.radius_meters,
+          name: p.name as string | null,
+        }))
+      : shift.policy.geofence
+        ? [
+            {
+              latitude: shift.policy.geofence.latitude,
+              longitude: shift.policy.geofence.longitude,
+              radius: shift.policy.geofence.radius_meters,
+              name: null,
+            },
+          ]
+        : [];
+  if (places.length === 0 || !position) return { kind: "none" };
+
+  const slack = Math.min(
+    Math.max(position.accuracy || 0, 0),
+    MAX_ACCURACY_SLACK_METERS,
+  );
+  let best: { distance: number; pastEdge: number; name: string | null } | null =
+    null;
+  let inside = false;
+  for (const place of places) {
+    const distance = distanceMeters(position, place);
+    if (distance - slack <= place.radius) inside = true;
+    const pastEdge = distance - place.radius;
+    if (!best || pastEdge < best.pastEdge) {
+      best = { distance, pastEdge, name: place.name };
+    }
+  }
+
+  return inside
+    ? { kind: "inside", distance: best!.distance, place: best!.name }
+    : { kind: "outside", distance: best!.distance, place: best!.name };
 }
 
 export type ReminderKind = "before_start" | "not_checked_in" | "shift_end";
@@ -162,12 +203,12 @@ export function autoCheckInDecision(
   }
   if (!position) return { ok: false, reason: "no_position" };
 
-  const fence = shift.policy.geofence;
   const maxAccuracy = Math.max(shift.policy.accuracy_threshold_meters, 50);
   if (position.accuracy > maxAccuracy) {
     return { ok: false, reason: "imprecise" };
   }
-  if (!fence || distanceMeters(position, fence) > fence.radius_meters) {
+  // The branch or any of the person's sites, as the server checks it.
+  if (geofenceState(shift, position).kind !== "inside") {
     return { ok: false, reason: "outside_area" };
   }
 

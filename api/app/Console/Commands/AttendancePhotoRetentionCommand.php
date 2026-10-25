@@ -41,6 +41,7 @@ class AttendancePhotoRetentionCommand extends Command
 
             try {
                 $deleted += $retention->deleteDue($now);
+                $deleted += $retention->deleteVisitPhotos($now);
 
                 $due = $retention->startReviews($now);
                 if ($due->isEmpty()) {

@@ -37,11 +37,21 @@ Click **Check In** on the attendance page. Click **Check Out** when leaving.
 
 ### Mobile (GPS)
 
-Open the app on your phone → Attendance → Check In. Your location is verified against your branch's geofence. Works offline — the record syncs automatically when you reconnect.
+Open the app on your phone → Attendance → Check In. Your location is checked against your branch, or the work sites you are assigned to. Works offline — the record syncs automatically when you reconnect.
+
+If your organisation asks for a selfie, the phone may first ask you to **blink** or **turn your head**. This check runs on your phone; no picture of your face is used for it beyond the selfie itself, and only whether it passed is sent. If it does not pass, face the camera in good light and try again. Your check-in is still recorded either way.
+
+### Field visits
+
+If you work in the field, log each visit from the attendance page on your phone: tap **Log a visit**, add a note and, if asked, a photo. A visit shows where you were; it does not change your hours. With no signal, the visit is saved and sent later.
+
+### Reminders
+
+Turn on **Even when ETHR is closed** on the mobile attendance page to get a notification when your shift is about to start or when you have not checked in yet, even with the app closed. On iPhone, install the app to your home screen first.
 
 ### QR Code
 
-Scan the QR code displayed at your branch entrance using the camera button on the Attendance page.
+Scan the QR code displayed at your branch entrance using the camera button on the Attendance page. Your location is sent with the scan.
 
 ### Biometric Device
 

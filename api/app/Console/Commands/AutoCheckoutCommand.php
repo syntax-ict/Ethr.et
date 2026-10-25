@@ -7,9 +7,11 @@ namespace App\Console\Commands;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
+use App\Models\BranchAttendanceOverride;
 use App\Models\Tenant;
 use App\Notifications\AttendanceAutoCheckedOutNotification;
 use App\Services\Attendance\AttendanceEngine;
+use App\Services\Attendance\AttendancePolicy;
 use App\Services\Attendance\MyShiftService;
 use App\Services\CurrentTenant;
 use App\Support\TenantTime;
@@ -37,16 +39,25 @@ class AutoCheckoutCommand extends Command
 
     protected $description = 'Close check-ins left open past the end of the shift (where enabled)';
 
-    public function handle(CurrentTenant $currentTenant, AttendanceEngine $engine): int
+    private AttendancePolicy $policy;
+
+    public function handle(CurrentTenant $currentTenant, AttendanceEngine $engine, AttendancePolicy $policy): int
     {
+        $this->policy = $policy;
         $closed = 0;
 
         Tenant::operational()->each(function (Tenant $tenant) use ($currentTenant, $engine, &$closed): void {
             $currentTenant->set($tenant);
 
             try {
+                // Off at the organisation can still be on at a branch
+                // (AttendancePolicy), so a tenant is skipped only when neither
+                // turns it on.
                 $settings = AttendanceSetting::query()->first();
-                if ($settings === null || ! $settings->auto_checkout_enabled) {
+                $anyBranch = BranchAttendanceOverride::query()
+                    ->where('overrides->auto_checkout_enabled', true)
+                    ->exists();
+                if ($settings === null || (! $settings->auto_checkout_enabled && ! $anyBranch)) {
                     return;
                 }
 
@@ -86,11 +97,19 @@ class AutoCheckoutCommand extends Command
                         continue;
                     }
 
+                    // The rules for this person: their branch may differ.
+                    $policy = $record->employee !== null
+                        ? $this->policy->for($record->employee, $settings)
+                        : $settings;
+                    if (! $policy->auto_checkout_enabled) {
+                        continue;
+                    }
+
                     $day = Carbon::parse($record->date->format('Y-m-d'), $zone);
                     [, $end] = MyShiftService::window($record->shift, $day);
                     $endUtc = $end->copy()->utc();
 
-                    if ($endUtc->copy()->addMinutes($settings->auto_checkout_after_minutes)->gt($now)) {
+                    if ($endUtc->copy()->addMinutes($policy->auto_checkout_after_minutes)->gt($now)) {
                         continue;
                     }
                     if ($endUtc->lte($record->check_in)) {

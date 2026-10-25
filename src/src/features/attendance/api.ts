@@ -3,6 +3,7 @@ import { apiClient } from "@/api/client";
 import { fetchAllPages } from "@/api/fetch-all-pages";
 import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
+import type { PunchSignals } from "@/lib/attendance/punch-signals";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 // Shapes come from the generated contract, so a renamed resource field fails
@@ -112,6 +113,11 @@ const keys = {
   conflicts: ["attendance", "conflicts"] as const,
   kiosks: ["attendance", "kiosks"] as const,
   settings: ["attendance", "settings"] as const,
+  branchRules: ["attendance", "settings", "branches"] as const,
+  sites: ["attendance", "sites"] as const,
+  mapConfig: ["attendance", "map-config"] as const,
+  visits: ["attendance", "visits"] as const,
+  setupStatus: ["attendance", "setup-status"] as const,
   myShift: ["attendance", "my-shift"] as const,
 };
 
@@ -177,10 +183,12 @@ export function useTeamAttendance(params: {
 
 export function useCheckIn() {
   return useAttendanceMutation(
-    async (payload: {
-      idempotency_key: string;
-      source?: string;
-    }): Promise<PunchResult> =>
+    async (
+      payload: {
+        idempotency_key: string;
+        source?: string;
+      } & Partial<PunchSignals>,
+    ): Promise<PunchResult> =>
       (
         await apiClient.post("/attendance/check-in", payload, {
           headers: { "Idempotency-Key": payload.idempotency_key },
@@ -192,7 +200,9 @@ export function useCheckIn() {
 
 export function useCheckOut() {
   return useAttendanceMutation(
-    async (payload: { idempotency_key: string }): Promise<PunchResult> =>
+    async (
+      payload: { idempotency_key: string } & Partial<PunchSignals>,
+    ): Promise<PunchResult> =>
       (
         await apiClient.post("/attendance/check-out", payload, {
           headers: { "Idempotency-Key": payload.idempotency_key },
@@ -205,17 +215,21 @@ export function useCheckOut() {
 /** Check in or out from the mobile page, with location and an optional selfie. */
 export function useMobilePunch() {
   return useAttendanceMutation(
-    async (vars: {
-      type: "check_in" | "check_out";
-      idempotency_key: string;
-      latitude: number;
-      longitude: number;
-      /** GPS accuracy in metres; a perfect 0 is a sign of a simulated location. */
-      accuracy?: number;
-      photo?: string;
-      /** Made by the assistant on arrival, not by a tap (check-in only). */
-      auto?: boolean;
-    }): Promise<PunchResult> => {
+    async (
+      vars: {
+        type: "check_in" | "check_out";
+        idempotency_key: string;
+        latitude: number;
+        longitude: number;
+        /** GPS accuracy in metres; a perfect 0 is a sign of a simulated location. */
+        accuracy?: number;
+        photo?: string;
+        /** Made by the assistant on arrival, not by a tap (check-in only). */
+        auto?: boolean;
+        /** The on-device liveness outcome, when the selfie was checked. */
+        liveness?: "passed" | "failed" | "no_face" | "unavailable";
+      } & Partial<PunchSignals>,
+    ): Promise<PunchResult> => {
       const { type, ...payload } = vars;
       const path =
         type === "check_in"
@@ -230,11 +244,16 @@ export function useMobilePunch() {
 /** Check in or out by presenting a QR token generated for a branch. */
 export function useScanQr() {
   return useAttendanceMutation(
-    async (payload: {
-      qr_token: string;
-      type: "check_in" | "check_out";
-      idempotency_key: string;
-    }): Promise<PunchResult> =>
+    async (
+      payload: {
+        qr_token: string;
+        type: "check_in" | "check_out";
+        idempotency_key: string;
+        latitude?: number;
+        longitude?: number;
+        accuracy?: number;
+      } & Partial<PunchSignals>,
+    ): Promise<PunchResult> =>
       (await apiClient.post("/attendance/qr", payload)).data,
     [keys.all, ["dashboard"]],
   );
@@ -680,6 +699,146 @@ export function useUpdateAttendanceSettings() {
       (await apiClient.put("/attendance/settings", payload)).data,
     [keys.settings],
   );
+}
+
+export type BranchAttendanceRules =
+  operations["branchAttendance.index"]["responses"][200]["content"]["application/json"];
+export type BranchAttendanceRow = BranchAttendanceRules["branches"][number];
+export type BranchOverrides = NonNullable<
+  operations["branchAttendance.update"]["requestBody"]
+>["content"]["application/json"]["overrides"];
+
+/** Each branch's attendance overrides and the rules that apply there. */
+export function useBranchAttendanceRules() {
+  return useQuery<BranchAttendanceRules>({
+    queryKey: keys.branchRules,
+    queryFn: async () =>
+      (await apiClient.get("/attendance/settings/branches")).data,
+  });
+}
+
+export function useUpdateBranchAttendanceRules() {
+  return useAttendanceMutation(
+    async ({
+      branch,
+      overrides,
+    }: {
+      branch: string;
+      overrides: BranchOverrides;
+    }): Promise<BranchAttendanceRow> =>
+      (
+        await apiClient.put(`/attendance/settings/branches/${branch}`, {
+          overrides,
+        })
+      ).data,
+    [keys.branchRules],
+  );
+}
+
+export type AttendanceSite = components["schemas"]["AttendanceSiteResource"];
+export type SaveAttendanceSite = NonNullable<
+  operations["attendanceSite.store"]["requestBody"]
+>["content"]["application/json"];
+
+/** The map settings a picker needs: the platform's optional Google key. */
+export function useMapConfig() {
+  return useQuery<
+    operations["attendanceSite.mapConfig"]["responses"][200]["content"]["application/json"]
+  >({
+    queryKey: keys.mapConfig,
+    queryFn: async () => (await apiClient.get("/attendance/map-config")).data,
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/** Work sites: places besides the branch where people may punch. */
+export function useAttendanceSites() {
+  return useQuery<AttendanceSite[]>({
+    queryKey: keys.sites,
+    queryFn: async () =>
+      (await apiClient.get("/attendance/sites")).data as AttendanceSite[],
+  });
+}
+
+export function useSaveAttendanceSite() {
+  return useAttendanceMutation(
+    async ({
+      publicId,
+      payload,
+    }: {
+      publicId?: string;
+      payload: SaveAttendanceSite;
+    }): Promise<AttendanceSite> =>
+      (publicId
+        ? await apiClient.put(`/attendance/sites/${publicId}`, payload)
+        : await apiClient.post("/attendance/sites", payload)
+      ).data,
+    [keys.sites],
+  );
+}
+
+export function useDeleteAttendanceSite() {
+  return useAttendanceMutation(
+    async (publicId: string): Promise<void> => {
+      await apiClient.delete(`/attendance/sites/${publicId}`);
+    },
+    [keys.sites],
+  );
+}
+
+export interface AttendanceSetupCheck {
+  id: string;
+  severity: "blocker" | "warning" | "info";
+  count: number;
+  fix_route: string;
+}
+
+/** What is keeping attendance from working here (AttendanceHealth). */
+export function useAttendanceSetupStatus(enabled = true) {
+  return useQuery<{ checks: AttendanceSetupCheck[]; ready: boolean }>({
+    queryKey: keys.setupStatus,
+    queryFn: async () => (await apiClient.get("/attendance/setup-status")).data,
+    enabled,
+    staleTime: 60 * 1000,
+  });
+}
+
+export type AttendanceVisit = components["schemas"]["AttendanceVisitResource"];
+export type LogVisit = NonNullable<
+  operations["attendanceVisit.store"]["requestBody"]
+>["content"]["application/json"];
+
+/** Log a field visit: a stop during the day, never a punch. */
+export function useLogVisit() {
+  return useAttendanceMutation(
+    async (payload: LogVisit): Promise<AttendanceVisit> =>
+      (await apiClient.post("/attendance/visits", payload)).data,
+    [keys.visits],
+  );
+}
+
+/** The signed-in employee's recent visits. */
+export function useMyVisits(enabled = true) {
+  return useQuery<PaginatedResponse<AttendanceVisit>>({
+    queryKey: [...keys.visits, "mine"],
+    queryFn: async () =>
+      (
+        await apiClient.get("/attendance/visits/mine", {
+          params: { per_page: 5 },
+        })
+      ).data,
+    enabled,
+  });
+}
+
+/** Visits of the people the caller may see, by day. */
+export function useTeamVisits(params: { date?: string; page?: number }) {
+  return useQuery<PaginatedResponse<AttendanceVisit>>({
+    queryKey: [...keys.visits, "team", params],
+    queryFn: async () =>
+      (await apiClient.get("/attendance/visits", { params })).data,
+  });
 }
 
 /**

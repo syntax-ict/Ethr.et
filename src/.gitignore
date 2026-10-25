@@ -1,0 +1,3 @@
+
+# MediaPipe WASM, copied from node_modules on postinstall (scripts/copy-mediapipe.mjs)
+/public/mediapipe/

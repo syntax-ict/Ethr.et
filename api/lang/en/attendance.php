@@ -43,4 +43,7 @@ return [
         'correct_it' => 'If this is a mistake, file a correction with the right times and your approver will review it.',
         'action' => 'Open corrections',
     ],
+    'push_reminder_before_start' => 'Your shift starts at :time.',
+    'push_reminder_not_checked_in' => 'You have not checked in yet. Your shift started at :time.',
+    'push_reminder_shift_end' => 'Your shift ended at :time. Remember to check out.',
 ];

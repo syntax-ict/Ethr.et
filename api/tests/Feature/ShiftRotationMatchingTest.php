@@ -300,3 +300,24 @@ test('the queued job deducts an active loan', function () {
 
     expect($step['loan_deduction_cents'])->toBe(25000);
 });
+
+/**
+ * The anchor is a date cast (UTC midnight) and the engine asks with the punch
+ * in the tenant's zone, whose midnight in Addis Ababa is 21:00 UTC the day
+ * before. The gap came out as 3.875 days and was truncated to 3, so a punch
+ * was matched one rotation day behind what payroll (asking with UTC dates)
+ * and the roster said for the same date.
+ */
+test('a punch in the tenant zone lands on the same rotation day payroll uses', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [$rotation] = threeDayRotation($tenant);
+    assignRotation($tenant, $rotation, Employee::class, $employee->id, '2026-09-05');
+
+    $matcher = app(ShiftMatcher::class);
+    $zoned = $matcher->match($employee, Carbon::parse('2026-09-06 07:55', 'Africa/Addis_Ababa'));
+    $utcDate = $matcher->match($employee, Carbon::parse('2026-09-06'));
+
+    expect($zoned?->name)->toBe('Night')
+        ->and($utcDate?->name)->toBe('Night');
+});

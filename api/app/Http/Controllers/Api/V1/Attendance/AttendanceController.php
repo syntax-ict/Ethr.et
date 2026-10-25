@@ -18,6 +18,7 @@ use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\ExpectedDays;
 use App\Services\CurrentTenant;
+use App\Support\PunchSignals;
 use App\Support\TenantTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -56,7 +57,10 @@ class AttendanceController extends Controller
             latitude: $request->validated('latitude'),
             longitude: $request->validated('longitude'),
             ipAddress: $request->ip(),
-            metadata: array_filter(['accuracy' => $request->validated('accuracy')], fn ($v) => $v !== null),
+            metadata: array_filter([
+                'accuracy' => $request->validated('accuracy'),
+                ...PunchSignals::from($request->validated(), $request->userAgent()),
+            ], fn ($v) => $v !== null),
         ));
 
         $result->record->load('employee', 'shift');
@@ -93,6 +97,7 @@ class AttendanceController extends Controller
             type: 'check_out',
             idempotencyKey: $request->validated('idempotency_key'),
             ipAddress: $request->ip(),
+            metadata: PunchSignals::from($request->validated(), $request->userAgent()),
         ));
 
         $result->record->load('employee', 'shift');
@@ -230,10 +235,16 @@ class AttendanceController extends Controller
         $checkedIn = array_flip($records->whereNotNull('check_in')->pluck('employee_id')->all());
         $kinds = collect($expected);
 
+        // Present is everyone who checked in, counted once. Counting only
+        // the rated statuses left out a PENDING punch (no shift to rate it
+        // against), so a new organisation's first check-ins showed nobody
+        // present and nobody absent.
+        $attended = $records->where('status', '!=', AttendanceStatus::VOIDED)->whereNotNull('check_in');
+
         return response()->json([
             'date' => $today,
             'total_employees' => $kinds->reject(fn (ExpectedDay $kind): bool => $kind === ExpectedDay::NOT_EMPLOYED)->count(),
-            'present' => $records->whereIn('status', [AttendanceStatus::PRESENT, AttendanceStatus::LATE, AttendanceStatus::EARLY_LEAVE])->count(),
+            'present' => $attended->pluck('employee_id')->unique()->count(),
             'absent' => $kinds->filter(fn (ExpectedDay $kind, int $id): bool => $kind === ExpectedDay::WORKDAY && ! isset($checkedIn[$id]))->count(),
             'late' => $records->where('status', AttendanceStatus::LATE)->count(),
             'early_leave' => $records->where('status', AttendanceStatus::EARLY_LEAVE)->count(),

@@ -52,12 +52,16 @@ function shift(
     policy: {
       mobile_enabled: true,
       web_enabled: true,
+      qr_enabled: true,
+      attendance_mode: "office",
       geofence_required: false,
       photo_required: overrides.photo ?? false,
+      liveness_required: false,
       photo_consent: false,
       accuracy_threshold_meters: 100,
       offline_sync_enabled: true,
       geofence: overrides.geofence === undefined ? BRANCH : overrides.geofence,
+      places: [],
     },
     assistant: {
       reminders: overrides.reminders ?? true,

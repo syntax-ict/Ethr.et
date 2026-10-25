@@ -3,25 +3,37 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
-use App\Models\AttendanceSetting;
 use App\Models\Branch;
 use App\Models\Device;
 use App\Models\Employee;
+use App\Models\Shift;
 use App\Services\CurrentTenant;
 
 /**
  * Two settings the attendance QA found stored and shown but used by nothing
  * (docs/audit/QA-ATTENDANCE-PRODUCTION-2026-10-12.md, H7 and H10).
  */
-it('gives a new shift the organisation grace period when it sets none of its own', function () {
+/*
+ * The organisation-wide grace setting was retired on 2026-10-24: grace is a
+ * property of a shift, and only the shift's value ever rated a punch. A new
+ * shift now starts from the default shift's rules instead.
+ */
+it('gives a new shift the grace, break and days of the default shift when it sets none of its own', function () {
     $tenant = createTenant();
-    AttendanceSetting::create([...AttendanceSetting::defaults(), 'tenant_id' => $tenant->id, 'grace_period_minutes' => 7]);
+    Shift::factory()->default()->create([
+        'tenant_id' => $tenant->id,
+        'grace_minutes' => 7,
+        'break_minutes' => 45,
+        'working_days' => '1,2,3,4,5,6',
+    ]);
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
     $url = "http://{$tenant->subdomain}.ethr.test/api/v1/shifts";
 
     test()->postJson($url, ['name' => 'Morning', 'start_time' => '08:00', 'end_time' => '17:00'])
         ->assertCreated()
-        ->assertJsonPath('grace_minutes', 7);
+        ->assertJsonPath('grace_minutes', 7)
+        ->assertJsonPath('break_minutes', 45)
+        ->assertJsonPath('working_days', '1,2,3,4,5,6');
 
     // The shift's own value still wins.
     test()->postJson($url, ['name' => 'Night', 'start_time' => '22:00', 'end_time' => '06:00', 'grace_minutes' => 20])

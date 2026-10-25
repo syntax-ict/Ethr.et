@@ -496,6 +496,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/setup-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What is keeping attendance from working here, each with where it is
+         *     fixed (AttendanceHealth). `ready` is false while any blocker remains
+         */
+        get: operations["attendanceSetting.setupStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/map-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The map settings a picker needs: the platform's Google Maps key, if the
+         *     platform has one. It is a browser key by Google's design
+         */
+        get: operations["attendanceSite.mapConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/visits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Visits of the people the caller may see, filtered by person and day */
+        get: operations["attendanceVisit.index"];
+        put?: never;
+        /** Create visit */
+        post: operations["attendanceVisit.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/visits/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in employee's own visits, newest first */
+        get: operations["attendanceVisit.mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/sites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List sites */
+        get: operations["attendanceSite.index"];
+        put?: never;
+        /** Create site */
+        post: operations["attendanceSite.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/sites/{site}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update site */
+        put: operations["attendanceSite.update"];
+        post?: never;
+        /** Delete site */
+        delete: operations["attendanceSite.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/photos": {
         parameters: {
             query?: never;
@@ -2645,6 +2756,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{employee}/attendance-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Where this employee is expected to punch: at their branch, at any of
+         *     their sites (field), or from anywhere (remote). See AttendancePolicy
+         */
+        put: operations["attendance.employeeAttendanceMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{employee}/emergency-contacts": {
         parameters: {
             query?: never;
@@ -4001,6 +4132,40 @@ export interface paths {
         put?: never;
         /** Commit batches */
         post: operations["migration.commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/settings/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List branches */
+        get: operations["branchAttendance.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/settings/branches/{branch}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update branch */
+        put: operations["branchAttendance.update"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5749,6 +5914,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/push/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether push is available here, and the key a browser subscribes with */
+        get: operations["pushSubscription.config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/push/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How many devices the caller receives push on */
+        get: operations["pushSubscription.index"];
+        put?: never;
+        /** Create subscription */
+        post: operations["pushSubscription.store"];
+        /** Delete subscription */
+        delete: operations["pushSubscription.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/voice/recognitions": {
         parameters: {
             query?: never;
@@ -7395,7 +7596,11 @@ export interface components {
                 shift_name: string | null;
                 latitude: number | null;
                 longitude: number | null;
+                risk_score: number | null;
+                risk_reasons: unknown[];
+                has_photo: boolean;
             } | null;
+            employee_findings_90_days: number;
         };
         /** AttendancePhotoResource */
         AttendancePhotoResource: {
@@ -7493,7 +7698,6 @@ export interface components {
             mobile_accuracy_threshold_meters: number;
             offline_sync_enabled: boolean;
             kiosk_auto_reset_seconds: number;
-            grace_period_minutes: number;
             ot_daily_cap_minutes: number;
             overtime_requires_approval: boolean;
             confidence_threshold: number;
@@ -7503,7 +7707,37 @@ export interface components {
             auto_checkout_after_minutes: number;
             geofence_auto_checkin_enabled: boolean;
             photo_retention_days: number;
+            risk_review_threshold: number;
+            adaptive_selfie: boolean;
+            liveness_check: boolean;
             updated_at: string | null;
+        };
+        /** AttendanceSiteResource */
+        AttendanceSiteResource: {
+            public_id: string;
+            name: string;
+            name_am: string | null;
+            branch_public_id: string | null;
+            branch_name: string | null;
+            latitude: number;
+            longitude: number;
+            radius_meters: number;
+            is_active: boolean;
+            employee_public_ids: unknown[];
+            department_public_ids: unknown[];
+        };
+        /** AttendanceVisitResource */
+        AttendanceVisitResource: {
+            public_id: string;
+            employee_public_id: string | null;
+            employee_name: string | null;
+            site_name: string | null;
+            latitude: number;
+            longitude: number;
+            accuracy: number | null;
+            occurred_at: string;
+            note: string | null;
+            has_photo: boolean;
         };
         /** AuditLogResource */
         AuditLogResource: {
@@ -7601,10 +7835,26 @@ export interface components {
             latitude?: number | null;
             longitude?: number | null;
             accuracy?: number | null;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
         };
         /** CheckOutRequest */
         CheckOutRequest: {
             idempotency_key: string;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
         };
         /** CloseDisciplinaryCaseRequest */
         CloseDisciplinaryCaseRequest: {
@@ -7973,6 +8223,7 @@ export interface components {
             employee_code: string | null;
             badge_number: string | null;
             has_kiosk_pin: boolean;
+            attendance_mode: string;
             gender: string | null;
             date_of_birth: string | null;
             nationality: string | null;
@@ -8451,6 +8702,16 @@ export interface components {
              */
             photo?: string | null;
             auto?: boolean;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
+            /** @enum {string|null} */
+            liveness?: "passed" | "failed" | "no_face" | "unavailable" | null;
         };
         /** MobileCheckOutRequest */
         MobileCheckOutRequest: {
@@ -8459,6 +8720,16 @@ export interface components {
             longitude?: number | null;
             accuracy?: number | null;
             photo?: string | null;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
+            /** @enum {string|null} */
+            liveness?: "passed" | "failed" | "no_face" | "unavailable" | null;
         };
         /**
          * NationalityStatus
@@ -8495,6 +8766,14 @@ export interface components {
                 offline_token: string;
                 accuracy?: number | null;
                 photo?: string | null;
+                altitude?: number | null;
+                speed?: number | null;
+                heading?: number | null;
+                fix_age_ms?: number | null;
+                device_id?: string | null;
+                /** Format: date-time */
+                client_time?: string | null;
+                webdriver?: boolean | null;
             }[];
         };
         /** OnboardingProgress */
@@ -8742,6 +9021,7 @@ export interface components {
              */
             testimonial_consented_on: string | null;
             has_published_metrics: boolean;
+            google_maps_key: string | null;
             /** Format: date-time */
             updated_at: string | null;
         };
@@ -8830,6 +9110,17 @@ export interface components {
             qr_token: string;
             /** @enum {string} */
             type: "check_in" | "check_out";
+            latitude?: number | null;
+            longitude?: number | null;
+            accuracy?: number | null;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
         };
         /** RecordDisciplinaryDecisionRequest */
         RecordDisciplinaryDecisionRequest: {
@@ -9018,6 +9309,24 @@ export interface components {
             /** @enum {string} */
             action: "approve" | "reject";
             notes?: string | null;
+        };
+        /**
+         * SaveAttendanceSiteRequest
+         * @description A work site, created or edited. The branch, employees and departments are
+         *     named by public id and looked up in the current tenant's scope (in the
+         *     after-hook, so the contract Scramble reads from rules() stays plain): an id
+         *     from another organisation fails exactly like one that does not exist.
+         */
+        SaveAttendanceSiteRequest: {
+            name: string;
+            name_am?: string | null;
+            branch_public_id?: string | null;
+            latitude: number;
+            longitude: number;
+            radius_meters?: number;
+            is_active?: boolean;
+            employee_public_ids?: string[];
+            department_public_ids?: string[];
         };
         /** SaveReportRequest */
         SaveReportRequest: {
@@ -9242,6 +9551,25 @@ export interface components {
                 approver_ref?: string | null;
                 sla_hours?: number | null;
             }[];
+        };
+        /** StoreAttendanceVisitRequest */
+        StoreAttendanceVisitRequest: {
+            idempotency_key: string;
+            latitude: number;
+            longitude: number;
+            accuracy?: number | null;
+            /** Format: date-time */
+            occurred_at?: string | null;
+            note?: string | null;
+            photo?: string | null;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
         };
         /** StoreBankDetailRequest */
         StoreBankDetailRequest: {
@@ -9681,6 +10009,20 @@ export interface components {
             tags?: ("workload" | "manager" | "team" | "pay" | "growth" | "recognition" | "safety" | "facilities" | "tools" | "wellbeing")[];
             comment?: string | null;
         };
+        /**
+         * StorePushSubscriptionRequest
+         * @description A browser's PushSubscription, as `subscription.toJSON()` gives it.
+         */
+        StorePushSubscriptionRequest: {
+            /** Format: uri */
+            endpoint: string;
+            keys: {
+                p256dh: string;
+                auth: string;
+            };
+            /** @enum {string} */
+            content_encoding?: "aes128gcm" | "aesgcm";
+        };
         /** StoreRecognitionRequest */
         StoreRecognitionRequest: {
             to_employee_public_id: string;
@@ -9928,6 +10270,11 @@ export interface components {
                 sla_hours?: number | null;
             }[];
         };
+        /** UpdateAttendanceModeRequest */
+        UpdateAttendanceModeRequest: {
+            /** @enum {string} */
+            attendance_mode: "office" | "field" | "remote";
+        };
         /** UpdateAttendanceSettingRequest */
         UpdateAttendanceSettingRequest: {
             enabled_methods?: ("biometric" | "mobile" | "qr" | "kiosk" | "web" | "manual" | "csv")[];
@@ -9940,7 +10287,6 @@ export interface components {
             mobile_accuracy_threshold_meters?: number;
             offline_sync_enabled?: boolean;
             kiosk_auto_reset_seconds?: number;
-            grace_period_minutes?: number;
             ot_daily_cap_minutes?: number;
             overtime_requires_approval?: boolean;
             confidence_threshold?: number;
@@ -9950,6 +10296,28 @@ export interface components {
             auto_checkout_after_minutes?: number;
             geofence_auto_checkin_enabled?: boolean;
             photo_retention_days?: number;
+            risk_review_threshold?: number;
+            adaptive_selfie?: boolean;
+            liveness_check?: boolean;
+        };
+        /**
+         * UpdateBranchAttendanceRequest
+         * @description A branch's attendance overrides. Every key is optional and nullable: a key
+         *     left out or sent as null is inherited from the organisation. The limits
+         *     match UpdateAttendanceSettingRequest's.
+         */
+        UpdateBranchAttendanceRequest: {
+            overrides: {
+                enabled_methods?: ("biometric" | "mobile" | "qr" | "kiosk" | "web" | "manual" | "csv")[] | null;
+                geofence_required?: boolean | null;
+                mobile_photo_required?: boolean | null;
+                kiosk_pin_required?: boolean | null;
+                mobile_accuracy_threshold_meters?: number | null;
+                auto_checkout_enabled?: boolean | null;
+                auto_checkout_after_minutes?: number | null;
+                geofence_auto_checkin_enabled?: boolean | null;
+                risk_review_threshold?: number | null;
+            };
         };
         /** UpdateBranchRequest */
         UpdateBranchRequest: {
@@ -10362,6 +10730,7 @@ export interface components {
             testimonial_organisation?: string | null;
             /** Format: date-time */
             testimonial_consented_on?: string | null;
+            google_maps_key?: string | null;
         };
         /** UpdatePositionRequest */
         UpdatePositionRequest: {
@@ -12227,6 +12596,402 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceSetting.setupStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ready: boolean;
+                        checks: ({
+                            /** @constant */
+                            id: "no_default_schedule";
+                            /** @constant */
+                            severity: "blocker";
+                            /** @constant */
+                            count: 1;
+                            /** @constant */
+                            fix_route: "/shifts";
+                        } | {
+                            /** @constant */
+                            id: "geofence_unplaced";
+                            /** @constant */
+                            severity: "blocker";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/organization?tab=branches";
+                        } | {
+                            /** @constant */
+                            id: "nothing_on_map";
+                            /** @constant */
+                            severity: "warning";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/organization?tab=branches";
+                        } | {
+                            /** @constant */
+                            id: "crews_unassigned";
+                            /** @enum {string} */
+                            severity: "blocker" | "warning";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/shifts/rotations";
+                        } | {
+                            /** @constant */
+                            id: "pending_punches";
+                            /** @constant */
+                            severity: "warning";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/shifts/assignments";
+                        } | {
+                            /** @constant */
+                            id: "devices_silent";
+                            /** @constant */
+                            severity: "warning";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/devices";
+                        } | {
+                            /** @constant */
+                            id: "kiosk_pins_missing";
+                            /** @constant */
+                            severity: "warning";
+                            count: string;
+                            /** @constant */
+                            fix_route: "/employees";
+                        } | {
+                            /** @constant */
+                            id: "field_without_sites";
+                            /** @constant */
+                            severity: "warning";
+                            count: string;
+                            /** @constant */
+                            fix_route: "/settings/attendance";
+                        } | {
+                            /** @constant */
+                            id: "holidays_missing";
+                            /** @constant */
+                            severity: "warning";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/settings/holidays";
+                        } | {
+                            /** @constant */
+                            id: "working_week_mismatch";
+                            /** @constant */
+                            severity: "info";
+                            /** @constant */
+                            count: 1;
+                            /** @constant */
+                            fix_route: "/settings/leave-types";
+                        } | {
+                            /** @constant */
+                            id: "kiosk_none";
+                            /** @constant */
+                            severity: "info";
+                            /** @constant */
+                            count: 1;
+                            /** @constant */
+                            fix_route: "/attendance/kiosks";
+                        })[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceSite.mapConfig": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        google_maps_key: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceVisit.index": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AttendanceVisitResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AttendanceVisitResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceVisit.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreAttendanceVisitRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendanceVisitResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceVisitResource"];
+                };
+            };
+            /** @description `AttendanceVisitResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceVisitResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        type: string;
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceVisit.mine": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AttendanceVisitResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AttendanceVisitResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceSite.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `AttendanceSiteResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceSiteResource"][];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceSite.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveAttendanceSiteRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendanceSiteResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceSiteResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceSite.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The site public id */
+                site: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveAttendanceSiteRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendanceSiteResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceSiteResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceSite.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The site public id */
+                site: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "attendancePhoto.index": {
@@ -17466,6 +18231,39 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "attendance.employeeAttendanceMode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAttendanceModeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        attendance_mode: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "emergencyContact.index": {
         parameters: {
             query?: never;
@@ -20364,8 +21162,11 @@ export interface operations {
                         policy: {
                             mobile_enabled: boolean;
                             web_enabled: boolean;
+                            qr_enabled: boolean;
+                            attendance_mode: string;
                             geofence_required: boolean;
                             photo_required: boolean;
+                            liveness_required: boolean;
                             photo_consent: boolean;
                             accuracy_threshold_meters: number;
                             offline_sync_enabled: boolean;
@@ -20374,6 +21175,23 @@ export interface operations {
                                 longitude: number;
                                 radius_meters: number;
                             } | null;
+                            places: ({
+                                /** @constant */
+                                kind: "branch";
+                                public_id: string;
+                                name: string;
+                                latitude: number;
+                                longitude: number;
+                                radius_meters: number;
+                            } | {
+                                /** @constant */
+                                kind: "site";
+                                public_id: string;
+                                name: string;
+                                latitude: number;
+                                longitude: number;
+                                radius_meters: number;
+                            })[];
                         };
                         assistant: {
                             reminders: boolean;
@@ -21521,6 +22339,135 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "branchAttendance.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        organisation: {
+                            enabled_methods: string[] | null;
+                            geofence_required: boolean | null;
+                            mobile_photo_required: boolean | null;
+                            kiosk_pin_required: boolean | null;
+                            mobile_accuracy_threshold_meters: number | null;
+                            auto_checkout_enabled: boolean | null;
+                            auto_checkout_after_minutes: number | null;
+                            geofence_auto_checkin_enabled: boolean | null;
+                            risk_review_threshold: number | null;
+                        };
+                        overridable: [
+                            "enabled_methods",
+                            "geofence_required",
+                            "mobile_photo_required",
+                            "kiosk_pin_required",
+                            "mobile_accuracy_threshold_meters",
+                            "auto_checkout_enabled",
+                            "auto_checkout_after_minutes",
+                            "geofence_auto_checkin_enabled",
+                            "risk_review_threshold"
+                        ];
+                        branches: {
+                            public_id: string;
+                            name: string;
+                            name_am: string | null;
+                            placed: boolean;
+                            overrides: {
+                                enabled_methods: string[] | null;
+                                geofence_required: boolean | null;
+                                mobile_photo_required: boolean | null;
+                                kiosk_pin_required: boolean | null;
+                                mobile_accuracy_threshold_meters: number | null;
+                                auto_checkout_enabled: boolean | null;
+                                auto_checkout_after_minutes: number | null;
+                                geofence_auto_checkin_enabled: boolean | null;
+                                risk_review_threshold: number | null;
+                            };
+                            effective: {
+                                enabled_methods: string[] | null;
+                                geofence_required: boolean | null;
+                                mobile_photo_required: boolean | null;
+                                kiosk_pin_required: boolean | null;
+                                mobile_accuracy_threshold_meters: number | null;
+                                auto_checkout_enabled: boolean | null;
+                                auto_checkout_after_minutes: number | null;
+                                geofence_auto_checkin_enabled: boolean | null;
+                                risk_review_threshold: number | null;
+                            };
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "branchAttendance.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The branch public id */
+                branch: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBranchAttendanceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        name: string;
+                        name_am: string | null;
+                        placed: boolean;
+                        overrides: {
+                            enabled_methods: string[] | null;
+                            geofence_required: boolean | null;
+                            mobile_photo_required: boolean | null;
+                            kiosk_pin_required: boolean | null;
+                            mobile_accuracy_threshold_meters: number | null;
+                            auto_checkout_enabled: boolean | null;
+                            auto_checkout_after_minutes: number | null;
+                            geofence_auto_checkin_enabled: boolean | null;
+                            risk_review_threshold: number | null;
+                        };
+                        effective: {
+                            enabled_methods: string[] | null;
+                            geofence_required: boolean | null;
+                            mobile_photo_required: boolean | null;
+                            kiosk_pin_required: boolean | null;
+                            mobile_accuracy_threshold_meters: number | null;
+                            auto_checkout_enabled: boolean | null;
+                            auto_checkout_after_minutes: number | null;
+                            geofence_auto_checkin_enabled: boolean | null;
+                            risk_review_threshold: number | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "teamMonitoring.attendanceToday": {
@@ -23553,6 +24500,19 @@ export interface operations {
                                 days: number;
                                 dates: string[];
                             }[];
+                        };
+                        integrity: {
+                            count: number;
+                            flags: number;
+                            employees: {
+                                employee_public_id: string | null;
+                                employee_name: string | null;
+                                flags: string;
+                            }[];
+                        } | {
+                            count: number;
+                            flags: number;
+                            employees: string[];
                         };
                     };
                 };
@@ -26207,6 +27167,115 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "pushSubscription.config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        public_key: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "pushSubscription.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        devices: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "pushSubscription.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePushSubscriptionRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        subscribed: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example Phone notifications are not set up on this server yet.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "pushSubscription.destroy": {
+        parameters: {
+            query: {
+                endpoint: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "recognition.index": {

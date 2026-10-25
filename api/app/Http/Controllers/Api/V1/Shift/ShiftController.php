@@ -13,7 +13,6 @@ use App\Http\Requests\Shift\UpdateShiftRequest;
 use App\Http\Resources\ShiftAssignmentResource;
 use App\Http\Resources\ShiftResource;
 use App\Models\AttendanceRecord;
-use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Department;
@@ -27,6 +26,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class ShiftController extends Controller
 {
@@ -56,24 +56,31 @@ class ShiftController extends Controller
     {
         Gate::authorize('shift.create');
 
-        // A shift with no grace of its own takes the organisation's default
-        // (Attendance settings -> grace period), which until 2026-10-13 was
-        // stored and shown but read by nothing (attendance QA H7). The
-        // shift's own value is what rates a punch.
+        // A new shift starts from the default shift's rules: grace, early
+        // departure, break and days the shift does not set itself are copied
+        // from it. Grace is a property of a shift, and the shift's own value
+        // is the only one that rates a punch; the organisation-wide grace
+        // setting that used to seed it was dropped on 2026-10-24.
         $data = $request->validated();
-        if (! array_key_exists('grace_minutes', $data)) {
-            $default = AttendanceSetting::query()->value('grace_period_minutes');
-            $data['grace_minutes'] = min(120, is_numeric($default) ? (int) $default : 15);
+        $default = Shift::query()->where('is_default', true)->where('is_active', true)->first();
+        foreach (['grace_minutes', 'early_departure_minutes', 'break_minutes', 'working_days'] as $field) {
+            if (! array_key_exists($field, $data) && $default !== null) {
+                $data[$field] = $default->getAttribute($field);
+            }
+        }
+
+        if (($data['is_default'] ?? false) && ! ($data['is_active'] ?? true)) {
+            throw ValidationException::withMessages(['is_active' => __('shift.default_must_be_active')]);
         }
 
         $shift = Shift::create($data);
 
         if ($shift->is_default) {
-            Shift::where('id', '!=', $shift->id)
-                ->where('tenant_id', $shift->tenant_id)
-                ->where('is_default', true)
-                ->update(['is_default' => false]);
+            $this->clearOtherDefaults($shift);
         }
+
+        $this->ensureDefault();
+        $this->syncDefaultFlag($shift);
 
         AuditLog::record('shift.created', $shift);
 
@@ -95,14 +102,30 @@ class ShiftController extends Controller
     {
         Gate::authorize('shift.update');
 
-        $shift->update($request->validated());
+        $data = $request->validated();
+        $willBeDefault = (bool) ($data['is_default'] ?? $shift->is_default);
+        $willBeActive = (bool) ($data['is_active'] ?? $shift->is_active);
 
-        if ($shift->is_default) {
-            Shift::where('id', '!=', $shift->id)
-                ->where('tenant_id', $shift->tenant_id)
-                ->where('is_default', true)
-                ->update(['is_default' => false]);
+        if ($willBeDefault && ! $willBeActive && $this->otherActiveShifts($shift)) {
+            throw ValidationException::withMessages(['is_active' => __('shift.default_must_be_active')]);
         }
+
+        // Unticking the default, or switching it off, would leave people with
+        // no shift of their own rated against nothing: every punch PENDING.
+        // Another shift has to take the role first (by being saved as the
+        // default, which clears this one).
+        if ($shift->is_default && ! $willBeDefault && $this->otherActiveShifts($shift)) {
+            throw ValidationException::withMessages(['is_default' => __('shift.default_required')]);
+        }
+
+        $shift->update($data);
+
+        if ($shift->is_default && $shift->is_active) {
+            $this->clearOtherDefaults($shift);
+        }
+
+        $this->ensureDefault();
+        $this->syncDefaultFlag($shift);
 
         AuditLog::record('shift.updated', $shift);
 
@@ -127,8 +150,13 @@ class ShiftController extends Controller
             ->orderBy('name')
             ->pluck('name');
 
-        if ($inForce > 0 || $rotations->isNotEmpty()) {
+        $isDefault = $shift->is_default && $this->otherActiveShifts($shift);
+
+        if ($inForce > 0 || $rotations->isNotEmpty() || $isDefault) {
             $reasons = [];
+            if ($isDefault) {
+                $reasons[] = 'it is the default shift, used for everyone without a shift of their own (make another shift the default first)';
+            }
             if ($inForce > 0) {
                 $reasons[] = $inForce === 1
                     ? '1 assignment is current or upcoming'
@@ -148,10 +176,52 @@ class ShiftController extends Controller
         }
 
         $shift->delete();
+        $this->ensureDefault();
 
         AuditLog::record('shift.deleted', $shift);
 
         return response()->json(null, 204);
+    }
+
+    private function clearOtherDefaults(Shift $shift): void
+    {
+        Shift::where('id', '!=', $shift->id)
+            ->where('tenant_id', $shift->tenant_id)
+            ->where('is_default', true)
+            ->update(['is_default' => false]);
+    }
+
+    private function otherActiveShifts(Shift $shift): bool
+    {
+        return Shift::query()->where('id', '!=', $shift->id)->where('is_active', true)->exists();
+    }
+
+    /**
+     * Bring the in-memory default flag in line with the table after
+     * ensureDefault(). Only that column: a full refresh() re-reads the times
+     * as MySQL formats them (08:30:00), and the response echoes 08:30.
+     */
+    private function syncDefaultFlag(Shift $shift): void
+    {
+        $shift->is_default = (bool) Shift::query()->whereKey($shift->id)->value('is_default');
+        $shift->syncOriginalAttribute('is_default');
+    }
+
+    /**
+     * While any shift is active, one of them is the default. A tenant that
+     * reached a state with none (a default deleted before this rule, or an
+     * organisation's first shift saved without the box ticked) is healed on
+     * the next shift change: the oldest active shift takes the role.
+     */
+    private function ensureDefault(): void
+    {
+        $active = Shift::query()->where('is_active', true);
+
+        if ((clone $active)->where('is_default', true)->exists()) {
+            return;
+        }
+
+        (clone $active)->orderBy('id')->first()?->update(['is_default' => true]);
     }
 
     /**

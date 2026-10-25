@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Onboarding;
 
+use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\Branch;
 use App\Models\Department;
@@ -12,14 +13,17 @@ use App\Models\LeaveType;
 use App\Models\PayrollRule;
 use App\Models\Position;
 use App\Models\Shift;
+use App\Models\ShiftAssignment;
 use App\Models\ShiftRotation;
 use App\Models\ShiftRotationStep;
 use App\Models\Tenant;
 use App\Services\Holiday\HolidayService;
+use App\Support\TenantTime;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -171,11 +175,25 @@ final class OrganizationProvisioner
     /** @param array<int, mixed> $entries */
     private function provisionShifts(Tenant $tenant, array $entries, ProvisioningResult $result): void
     {
+        // A live, active default only. A deleted or switched-off one rates
+        // nobody, and counting it (withTrashed, until 2026-10-24) stopped the
+        // profile's first shift from becoming the default, so a re-applied
+        // template left the organisation with no default at all.
         $tenantHasDefault = Shift::withoutGlobalScope('tenant')
-            ->withTrashed()
             ->where('tenant_id', $tenant->id)
             ->where('is_default', true)
+            ->where('is_active', true)
             ->exists();
+
+        // The baseline every new organisation gets (AttendanceBaseline) is a
+        // stand-in. Applying a real profile over it replaces it, as long as
+        // nothing has used it yet; create-only would otherwise keep the
+        // stand-in as the default for good.
+        $replaceable = $entries === [] ? collect() : $this->replaceableBaseline($tenant, $entries);
+        if ($replaceable->contains(fn (Shift $shift): bool => $shift->is_default)) {
+            $tenantHasDefault = false;
+        }
+        $defaultCreated = false;
 
         foreach ($entries as $index => $entry) {
             $attributes = $this->normalizeNamed($entry, 'name');
@@ -203,6 +221,7 @@ final class OrganizationProvisioner
             }
 
             $isFirst = $index === 0;
+            $defaultCreated = $defaultCreated || ($isFirst && ! $tenantHasDefault);
 
             $this->createOrSkip($result, 'shifts', Shift::class, $tenant, 'name', $attributes['name'], function () use ($tenant, $attributes, $start, $end, $days, $isFirst, $tenantHasDefault) {
                 return [
@@ -221,6 +240,88 @@ final class OrganizationProvisioner
                 ];
             });
         }
+
+        if ($replaceable->isNotEmpty()) {
+            $this->retireBaseline($tenant, $replaceable, $defaultCreated);
+        }
+    }
+
+    /**
+     * The baseline's shifts that a profile being applied may replace: named
+     * in the tenant's `attendance_baseline`, not named again by the profile,
+     * and never used (no attendance, no assignment). Empty when the tenant
+     * has no baseline or anything in it has been used, in which case it is
+     * the organisation's real setup now and stays.
+     *
+     * @param  array<int, mixed>  $entries
+     * @return Collection<int, Shift>
+     */
+    private function replaceableBaseline(Tenant $tenant, array $entries): Collection
+    {
+        $names = (array) data_get($tenant->settings, 'attendance_baseline.shifts', []);
+        if ($names === []) {
+            return collect();
+        }
+
+        $planned = [];
+        foreach ($entries as $entry) {
+            $attributes = $this->normalizeNamed($entry, 'name');
+            if ($attributes !== null) {
+                $planned[] = $attributes['name'];
+            }
+        }
+
+        /** @var Collection<int, Shift> $shifts */
+        $shifts = $this->query(Shift::class, $tenant->id)
+            ->whereNull('deleted_at')
+            ->whereIn('name', array_values(array_diff($names, $planned)))
+            ->get();
+
+        if ($shifts->isEmpty()) {
+            return collect();
+        }
+
+        $ids = $shifts->pluck('id')->all();
+        $used = $this->query(AttendanceRecord::class, $tenant->id)->whereIn('shift_id', $ids)->exists()
+            || $this->query(ShiftAssignment::class, $tenant->id)->whereIn('shift_id', $ids)->exists();
+
+        return $used ? collect() : $shifts;
+    }
+
+    /**
+     * Retire the unused baseline once the profile has put its own default in
+     * place: its shifts and its default rotation are soft-deleted (history
+     * keeps them), and the marker goes.
+     *
+     * @param  Collection<int, Shift>  $shifts
+     */
+    private function retireBaseline(Tenant $tenant, Collection $shifts, bool $defaultCreated): void
+    {
+        if (! $defaultCreated) {
+            return;
+        }
+
+        $rotationNames = (array) data_get($tenant->settings, 'attendance_baseline.rotations', []);
+        if ($rotationNames !== []) {
+            $this->query(ShiftRotation::class, $tenant->id)
+                ->whereNull('deleted_at')
+                ->whereIn('name', $rotationNames)
+                ->whereDoesntHave('assignments')
+                ->get()
+                ->each(function (Model $rotation): void {
+                    $rotation->update(['is_default' => false]);
+                    $rotation->delete();
+                });
+        }
+
+        foreach ($shifts as $shift) {
+            $shift->update(['is_default' => false]);
+            $shift->delete();
+        }
+
+        $tenant->update([
+            'settings' => array_diff_key((array) ($tenant->settings ?? []), ['attendance_baseline' => true]),
+        ]);
     }
 
     /**
@@ -289,6 +390,17 @@ final class OrganizationProvisioner
                 continue;
             }
 
+            // A rotation the whole organisation works (a six-day week of two
+            // shifts) becomes the default schedule, anchored on this week's
+            // Monday in the tenant's zone, unless one is already the default.
+            // Crew rotations never do: each crew needs its own anchor.
+            $makeDefault = ($attributes['default'] ?? false) === true
+                && ! $this->query(ShiftRotation::class, $tenant->id)
+                    ->whereNull('deleted_at')
+                    ->where('is_default', true)
+                    ->where('is_active', true)
+                    ->exists();
+
             $rotation = new ShiftRotation;
             $rotation->fill([
                 'tenant_id' => $tenant->id,
@@ -297,6 +409,10 @@ final class OrganizationProvisioner
                 'description' => $attributes['description'] ?? null,
                 'cycle_days' => $cycle,
                 'is_active' => true,
+                'is_default' => $makeDefault,
+                'anchor_date' => $makeDefault
+                    ? Carbon::now(TenantTime::zone($tenant))->startOfWeek(Carbon::MONDAY)->format('Y-m-d')
+                    : null,
             ]);
             $rotation->save();
 

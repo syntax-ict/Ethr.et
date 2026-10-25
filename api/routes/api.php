@@ -25,6 +25,10 @@ use App\Http\Controllers\Api\V1\Attendance\AttendanceIntegrityController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntelligenceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendancePhotoController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceSettingController;
+use App\Http\Controllers\Api\V1\Attendance\AttendanceSiteController;
+use App\Http\Controllers\Api\V1\Attendance\AttendanceVisitController;
+use App\Http\Controllers\Api\V1\Attendance\BranchAttendanceController;
+use App\Http\Controllers\Api\V1\Attendance\EmployeeAttendanceModeController;
 use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
 use App\Http\Controllers\Api\V1\Attendance\KioskAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\ManualAttendanceController;
@@ -117,6 +121,7 @@ use App\Http\Controllers\Api\V1\Profile\ProfileLetterController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePhotoController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
 use App\Http\Controllers\Api\V1\Profile\ProfileUpdateRequestController;
+use App\Http\Controllers\Api\V1\Push\PushSubscriptionController;
 use App\Http\Controllers\Api\V1\Report\ReportController;
 use App\Http\Controllers\Api\V1\Role\CustomRoleController;
 use App\Http\Controllers\Api\V1\Scim\ScimGroupController;
@@ -416,6 +421,17 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
 
         Route::get('/settings', [AttendanceSettingController::class, 'show']);
         Route::put('/settings', [AttendanceSettingController::class, 'update']);
+        Route::get('/setup-status', [AttendanceSettingController::class, 'setupStatus']);
+        Route::get('/settings/branches', [BranchAttendanceController::class, 'index']);
+        Route::put('/settings/branches/{branch}', [BranchAttendanceController::class, 'update']);
+        Route::get('/map-config', [AttendanceSiteController::class, 'mapConfig']);
+        Route::post('/visits', [AttendanceVisitController::class, 'store']);
+        Route::get('/visits/mine', [AttendanceVisitController::class, 'mine']);
+        Route::get('/visits', [AttendanceVisitController::class, 'index']);
+        Route::get('/sites', [AttendanceSiteController::class, 'index']);
+        Route::post('/sites', [AttendanceSiteController::class, 'store']);
+        Route::put('/sites/{site}', [AttendanceSiteController::class, 'update']);
+        Route::delete('/sites/{site}', [AttendanceSiteController::class, 'destroy']);
 
         Route::prefix('photos')->group(function () {
             Route::get('/', [AttendancePhotoController::class, 'index']);
@@ -541,6 +557,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/contracts/{contract}/end', [EmployeeContractController::class, 'end']);
         Route::get('/attendance/timeline', EmployeeAttendanceTimelineController::class);
         Route::put('/kiosk-pin', EmployeeKioskPinController::class);
+        Route::put('/attendance-mode', EmployeeAttendanceModeController::class);
 
         Route::get('/emergency-contacts', [EmergencyContactController::class, 'index']);
         Route::post('/emergency-contacts', [EmergencyContactController::class, 'store']);
@@ -815,6 +832,13 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/approvals/batch', [ApprovalController::class, 'batch']);
 
     // Notifications
+    Route::prefix('push')->group(function () {
+        Route::get('/config', [PushSubscriptionController::class, 'config']);
+        Route::get('/subscriptions', [PushSubscriptionController::class, 'index']);
+        Route::post('/subscriptions', [PushSubscriptionController::class, 'store']);
+        Route::delete('/subscriptions', [PushSubscriptionController::class, 'destroy']);
+    });
+
     Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
         Route::get('/unread-count', [NotificationController::class, 'unreadCount']);

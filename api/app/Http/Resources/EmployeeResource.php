@@ -7,6 +7,7 @@ namespace App\Http\Resources;
 use App\Enums\NationalityStatus;
 use App\Http\Resources\Concerns\ExposesPhotoUrls;
 use App\Models\Employee;
+use App\Services\Attendance\AttendancePolicy;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -37,6 +38,7 @@ class EmployeeResource extends JsonResource
             'employee_code' => $this->employee_code,
             'badge_number' => $this->badge_number,
             'has_kiosk_pin' => $this->kiosk_pin !== null,
+            'attendance_mode' => AttendancePolicy::modeOf($this->resource)->value,
             'gender' => $this->gender,
             'date_of_birth' => $this->date_of_birth?->format('Y-m-d'),
             'nationality' => $this->nationality,

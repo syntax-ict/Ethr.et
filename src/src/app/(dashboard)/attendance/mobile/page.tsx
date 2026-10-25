@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  checkLiveness,
+  randomPrompt,
+  type LivenessPrompt,
+  type LivenessResult,
+} from "@/lib/attendance/liveness";
+import { PushToggle } from "@/features/notifications/components/push-toggle";
+import { VisitLogCard } from "@/features/attendance/components/visit-log-card";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -33,6 +41,11 @@ import { PhotoConsentDialog } from "@/features/attendance/components/photo-conse
 import { useOfflineSync } from "@/lib/hooks/useOfflineSync";
 import { enqueueOfflineRecord } from "@/lib/offline-queue";
 import {
+  fixFrom,
+  punchSignals,
+  type Fix,
+} from "@/lib/attendance/punch-signals";
+import {
   currentOfflineGrant,
   refreshOfflineGrant,
 } from "@/lib/attendance/offline-grant";
@@ -45,7 +58,6 @@ import {
   autoCheckInDecision,
   geofenceState,
   type GeofenceState,
-  type Position,
 } from "@/lib/attendance/punch-assistant";
 import { cn } from "@/lib/utils";
 
@@ -91,7 +103,7 @@ export default function MobilePunchPage() {
   const [consentOpen, setConsentOpen] = useState(false);
 
   const [now, setNow] = useState(() => new Date());
-  const [position, setPosition] = useState<Position | null>(null);
+  const [position, setPosition] = useState<Fix | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
@@ -132,11 +144,7 @@ export default function MobilePunchPage() {
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setPosition({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-        });
+        setPosition(fixFrom(pos));
         setLocating(false);
       },
       (err) => {
@@ -207,6 +215,35 @@ export default function MobilePunchPage() {
     stopCamera();
   }
 
+  // On-device liveness, where the organisation turned it on: a random blink
+  // or head turn before the photo. The outcome goes with the punch; a failed
+  // check never blocks it (the reviewer sees it), and a phone that cannot run
+  // the check sends "unavailable", which counts for nothing.
+  const livenessRequired = Boolean(shift?.policy.liveness_required);
+  const [livenessPrompt, setLivenessPrompt] = useState<LivenessPrompt | null>(
+    null,
+  );
+  const [liveness, setLiveness] = useState<LivenessResult | null>(null);
+
+  async function checkThenSnap() {
+    const video = videoRef.current;
+    if (!video) return;
+    const prompt = randomPrompt();
+    setLivenessPrompt(prompt);
+    const result = await checkLiveness(video, prompt);
+    setLivenessPrompt(null);
+    setLiveness(result);
+    if (result === "failed" || result === "no_face") {
+      toast.error(
+        t(
+          "liveness.retry",
+          "We could not confirm a live face. Face the camera in good light and try again.",
+        ),
+      );
+    }
+    snapPhoto();
+  }
+
   // What the button does: the server's answer when it has one.
   const status = shift?.attendance.status;
   const type: PunchType = shift
@@ -260,8 +297,9 @@ export default function MobilePunchPage() {
           latitude: position.latitude,
           longitude: position.longitude,
           accuracy: position.accuracy,
-          photo: photo && type === "check_in" ? photo : null,
+          photo: photo ?? null,
           captured_at: new Date().toISOString(),
+          ...punchSignals(position),
           tenant: tenantHeaderValue(),
           locale,
         });
@@ -282,7 +320,11 @@ export default function MobilePunchPage() {
         latitude: position.latitude,
         longitude: position.longitude,
         accuracy: position.accuracy,
-        ...(photo && type === "check_in" ? { photo } : {}),
+        ...punchSignals(position),
+        ...(photo && liveness ? { liveness } : {}),
+        // The selfie goes with the check-out too: until 2026-10-24 only the
+        // check-in carried one, so a check-out was never evidenced.
+        ...(photo ? { photo } : {}),
         ...(auto ? { auto: true } : {}),
       },
       {
@@ -389,6 +431,17 @@ export default function MobilePunchPage() {
 
   return (
     <div className="mx-auto max-w-md space-y-4">
+      {shift && !shift.policy.mobile_enabled && (
+        <div
+          role="status"
+          className="rounded-lg border border-warning-edge bg-warning-soft px-3 py-2 text-sm text-warning-on-soft"
+        >
+          {t(
+            "attendance.punch.mobile_off",
+            "Phone check-in is turned off where you work. Use the device, kiosk or web check-in your organisation provides.",
+          )}
+        </div>
+      )}
       {!isOnline && (
         <div className="flex items-center gap-2 rounded-lg border border-warning-edge bg-warning-soft px-3 py-2 text-sm text-warning-on-soft">
           <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -675,8 +728,18 @@ export default function MobilePunchPage() {
           )}
           <div className="mt-3 flex gap-2">
             {cameraOn ? (
-              <Button className="flex-1" onClick={snapPhoto}>
-                {t("attendance.mobile_page.capture")}
+              <Button
+                className="flex-1"
+                disabled={livenessPrompt !== null}
+                onClick={() =>
+                  livenessRequired ? void checkThenSnap() : snapPhoto()
+                }
+              >
+                {livenessPrompt === "blink"
+                  ? t("liveness.blink", "Blink once")
+                  : livenessPrompt === "turn"
+                    ? t("liveness.turn", "Turn your head to one side")
+                    : t("attendance.mobile_page.capture")}
               </Button>
             ) : (
               <Button variant="outline" className="flex-1" onClick={takeSelfie}>
@@ -720,6 +783,12 @@ export default function MobilePunchPage() {
               })
             }
           />
+        )}
+
+      {shift &&
+        shift.policy.mobile_enabled &&
+        shift.policy.attendance_mode !== "office" && (
+          <VisitLogCard photoConsent={shift.policy.photo_consent} />
         )}
 
       <div className="flex justify-center gap-4 pb-2 text-sm">
@@ -821,6 +890,8 @@ function AssistantCard({
           />
         </div>
       )}
+
+      {shift.assistant.reminders_allowed && <PushToggle />}
 
       {shift.assistant.auto_check_in_allowed && (
         <div className="flex items-start justify-between gap-3">

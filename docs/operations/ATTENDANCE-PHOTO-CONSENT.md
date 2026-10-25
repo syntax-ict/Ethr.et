@@ -55,6 +55,26 @@ again. That happened once, the same day the feature shipped: `2026-10-17.2`
 came with the retention policy, which narrowed the audience to HR and the
 department manager and limited how long a selfie is kept.
 
+## Checks made with the photo and the phone (2026-10-24)
+
+Cheating protection (`AttendanceRiskScorer`) uses two things alongside the
+photo, both inside the purpose the employee agreed to (confirming the punch
+is theirs), so no new consent version was issued:
+
+- **A photo fingerprint.** A 64-bit hash of the picture's light and shade
+  (`ImageHash`), compared with recent selfies to catch one that repeats an
+  earlier photo or copies a colleague's. It describes the picture, not a
+  face: it cannot identify anyone or be turned back into the image. It is
+  deleted with the photo at the end of the retention period.
+- **An install id.** A random value the app keeps on the phone, stored only
+  as a keyed hash, to tell that two people punched on one phone. It is not
+  the phone's hardware identity and identifies nothing outside ETHR.
+
+Optional on-device face checks (liveness) run entirely on the phone: no
+image, landmark or face template leaves it, only whether the check passed.
+Matching a selfie to a person's face is **not** done; it would need its own
+legal review and consent.
+
 ## What ETHR does not decide
 
 The employer is the data controller. Whether it also relies on another lawful

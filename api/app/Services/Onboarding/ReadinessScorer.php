@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Onboarding;
 
 use App\Enums\UserRole;
+use App\Models\AttendanceSetting;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Device;
@@ -87,7 +88,16 @@ final class ReadinessScorer
 
         $hasEmployees = (clone $employees)->exists();
         $hasDepartmentAssigned = (clone $employees)->whereNotNull('department_id')->exists();
-        $hasAttendanceSource = Device::withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->exists();
+        // A device, or any way to punch without one. Until 2026-10-24 only a
+        // device counted, so an organisation punching by phone, QR or kiosk
+        // could never pass a check whose label says "device or method".
+        $settings = AttendanceSetting::withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->first();
+        $methods = $settings instanceof AttendanceSetting
+            ? (array) $settings->enabled_methods
+            : AttendanceSetting::defaults()['enabled_methods'];
+        $selfService = array_intersect(['mobile', 'web', 'qr', 'kiosk'], $methods);
+        $hasAttendanceSource = $selfService !== []
+            || Device::withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->exists();
 
         return [
             $this->check('has_employees', 'Employees added', 'data', '/employees', $hasEmployees, 3),

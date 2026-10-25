@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class Shift extends Model
 {
@@ -47,6 +48,45 @@ class Shift extends Model
             'is_default' => 'boolean',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * `crosses_midnight` is read from the times, never trusted as typed. The
+     * flag was an independent input, so a 22:00-06:00 shift saved without it
+     * was read as ending at 06:00 the same morning by the engine and payroll
+     * while MyShiftService, which also looked at the times, disagreed.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Shift $shift): void {
+            $shift->crosses_midnight = $shift->crossesMidnight();
+        });
+    }
+
+    /** An end at or before the start is on the next day. */
+    public function crossesMidnight(): bool
+    {
+        return substr((string) $this->end_time, 0, 5) <= substr((string) $this->start_time, 0, 5);
+    }
+
+    /**
+     * The shift's start and end when worked on $date (Y-m-d), as instants in
+     * $zone. The one place a shift's times become moments: lateness, early
+     * departure, overtime and the punch assistant all ask this, so they agree
+     * about the day a night shift ends.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    public function windowOn(string $date, string $zone): array
+    {
+        $start = Carbon::parse($date.' '.substr((string) $this->start_time, 0, 5), $zone);
+        $end = Carbon::parse($date.' '.substr((string) $this->end_time, 0, 5), $zone);
+
+        if ($this->crossesMidnight()) {
+            $end->addDay();
+        }
+
+        return [$start, $end];
     }
 
     /** @return HasMany<ShiftAssignment, $this> */

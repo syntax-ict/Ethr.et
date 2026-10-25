@@ -113,7 +113,8 @@ test('overtime running into the night splits normal and night pay', function () 
 /**
  * Art. 68(1)(c): work on a weekly rest day is paid at 2x for the whole span.
  * A rest day is a day the record's shift does not work (working_days, ISO
- * 1-7); with no shift it is Sunday. Until 2026-10-01 rest days did not exist
+ * 1-7); with no shift it is a day outside the organisation's working week
+ * (Sunday only, until 2026-10-24). Until 2026-10-01 rest days did not exist
  * in payroll: a Sunday worked under a Monday-Friday shift paid only time past
  * 17:30, at the weekday rate.
  */
@@ -178,4 +179,23 @@ test('with no shift, Sunday is the weekly rest day', function () {
     $entry = runDayPayroll($tenant->id, $user->id, '2026-06-14', '10:00', '12:00', null);
 
     expect(otStep($entry)['by_type']['rest_day']['minutes'])->toBe(120);
+});
+
+test('with no shift, a Saturday at a Monday-Friday organisation is a rest day', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    // 2026-06-13 is a Saturday; the default working week is Monday-Friday.
+    $entry = runDayPayroll($tenant->id, $user->id, '2026-06-13', '10:00', '12:00', null);
+
+    expect(otStep($entry)['by_type']['rest_day']['minutes'])->toBe(120);
+});
+
+test('with no shift, a Sunday at an organisation that works Sundays is not a rest day', function () {
+    $tenant = createTenant(['settings' => ['working_days' => [1, 2, 3, 4, 5, 6, 7]]]);
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    $entry = runDayPayroll($tenant->id, $user->id, '2026-06-14', '10:00', '12:00', null);
+
+    expect(otStep($entry)['by_type']['rest_day']['minutes'] ?? 0)->toBe(0);
 });

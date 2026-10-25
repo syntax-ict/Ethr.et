@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services\Attendance;
 
+use App\Enums\AttendanceMode;
 use App\Enums\LeaveStatus;
 use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
 use App\Models\AttendanceRecord;
-use App\Models\AttendanceSetting;
 use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\LeaveRequest;
 use App\Models\Shift;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\AttendanceRules;
 use App\Support\PhotoConsent;
 use App\Support\TenantTime;
 use Carbon\Carbon;
@@ -30,10 +31,11 @@ use Carbon\CarbonInterface;
  */
 final class MyShiftService
 {
-    /** How long after a check-in a check-out may still close it (as the engine). */
-    private const MAX_OPEN_HOURS = 14;
-
-    public function __construct(private readonly ShiftMatcher $shiftMatcher) {}
+    public function __construct(
+        private readonly ShiftMatcher $shiftMatcher,
+        private readonly AttendancePolicy $policy,
+        private readonly AttendancePlaces $places,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -49,7 +51,7 @@ final class MyShiftService
             ->where('employee_id', $employee->id)
             ->whereNotNull('check_in')
             ->whereNull('check_out')
-            ->where('check_in', '>=', Carbon::now('UTC')->subHours(self::MAX_OPEN_HOURS))
+            ->where('check_in', '>=', Carbon::now('UTC')->subHours(AttendanceRules::MAX_OPEN_HOURS))
             ->with('shift')
             ->latest('check_in')
             ->first();
@@ -67,15 +69,20 @@ final class MyShiftService
             ->latest('check_in')
             ->first();
 
-        $settings = AttendanceSetting::query()->first();
-        $policy = $settings ?? new AttendanceSetting(AttendanceSetting::defaults());
+        // This person's rules: their branch and mode may differ.
+        $policy = $this->policy->for($employee);
         $prefs = ProfilePreferencesController::present($user);
 
         $holiday = $this->holiday($employee, $day);
         $onLeave = $this->onLeave($employee, $day);
         $working = (bool) ($shift !== null && $shift->isWorkingDay($day) && $holiday === null && ! $onLeave);
 
-        $branch = $employee->branch;
+        // A selfie today: always where required, sometimes where adaptive.
+        $selfie = $this->policy->selfieRequired($employee, $policy, $day->format('Y-m-d'));
+
+        // A remote worker has no place to be shown or measured against.
+        $mode = AttendancePolicy::modeOf($employee);
+        $branch = $mode === AttendanceMode::REMOTE ? null : $employee->branch;
         $geofence = $branch !== null && $branch->latitude !== null && $branch->longitude !== null
             ? [
                 'latitude' => (float) $branch->latitude,
@@ -83,6 +90,9 @@ final class MyShiftService
                 'radius_meters' => (int) $branch->geofence_radius_meters,
             ]
             : null;
+        // Every place this person may punch: the branch and their work
+        // sites, so the phone can show the nearest and check against all.
+        $places = $mode === AttendanceMode::REMOTE ? [] : $this->places->for($employee);
 
         return [
             'date' => $day->format('Y-m-d'),
@@ -104,19 +114,23 @@ final class MyShiftService
             'policy' => [
                 'mobile_enabled' => $policy->isMethodEnabled('mobile'),
                 'web_enabled' => $policy->isMethodEnabled('web'),
+                'qr_enabled' => $policy->isMethodEnabled('qr'),
+                'attendance_mode' => $mode->value,
                 'geofence_required' => (bool) $policy->geofence_required,
-                'photo_required' => (bool) $policy->mobile_photo_required,
+                'photo_required' => $selfie,
+                'liveness_required' => (bool) ($selfie && $policy->liveness_check),
                 'photo_consent' => PhotoConsent::given($user),
                 'accuracy_threshold_meters' => (int) $policy->mobile_accuracy_threshold_meters,
                 'offline_sync_enabled' => (bool) $policy->offline_sync_enabled,
                 'geofence' => $geofence,
+                'places' => $places,
             ],
             'assistant' => [
                 'reminders' => (bool) ($policy->reminders_enabled && $prefs['punch_reminders']),
                 'reminders_allowed' => (bool) $policy->reminders_enabled,
                 'reminder_lead_minutes' => (int) $policy->reminder_lead_minutes,
-                'auto_check_in' => (bool) ($policy->geofence_auto_checkin_enabled && $prefs['auto_check_in'] && $geofence !== null),
-                'auto_check_in_allowed' => (bool) ($policy->geofence_auto_checkin_enabled && $geofence !== null),
+                'auto_check_in' => (bool) ($policy->geofence_auto_checkin_enabled && $prefs['auto_check_in'] && $places !== []),
+                'auto_check_in_allowed' => (bool) ($policy->geofence_auto_checkin_enabled && $places !== []),
                 'auto_checkout' => (bool) $policy->auto_checkout_enabled,
                 'auto_checkout_after_minutes' => (int) $policy->auto_checkout_after_minutes,
             ],
@@ -150,14 +164,7 @@ final class MyShiftService
      */
     public static function window(Shift $shift, CarbonInterface $day): array
     {
-        $start = Carbon::instance($day)->setTimeFromTimeString((string) $shift->start_time);
-        $end = Carbon::instance($day)->setTimeFromTimeString((string) $shift->end_time);
-
-        if ($shift->crosses_midnight || $end->lte($start)) {
-            $end->addDay();
-        }
-
-        return [$start, $end];
+        return $shift->windowOn($day->format('Y-m-d'), $day->getTimezone()->getName());
     }
 
     /** @return array{name: string, name_am: string|null}|null */

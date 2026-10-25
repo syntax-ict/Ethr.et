@@ -99,6 +99,28 @@ salary scales that ETHR does not load, allowances created off, grade bands that
 are illustrative, tax and pension left to the payroll engine, flexible time being
 a grace period, seasonal contracts, and the crews a 2-2-2-2 rotation needs.
 
+## The attendance baseline
+
+An organisation does not need to run the wizard to take attendance.
+`AttendanceBaseline::ensure()` runs when the tenant is provisioned and from
+`attendance:baseline` every hour, and creates, only where missing:
+
+- the attendance settings row;
+- a default schedule from the industry's default workforce profile
+  (`standard_office` when the industry is unknown). For `six_day_week` the
+  default is the profile's **rotation**, anchored on a Monday, so Saturday
+  punches are rated against the Saturday half day, not paid as rest-day work;
+- the working week, matching that schedule;
+- this year's and next year's public holidays.
+
+The baseline's shift and rotation names are recorded in `settings.attendance_baseline`.
+Applying a profile later replaces it only while it is unused (no attendance,
+no assignment); after that, applying adds the profile's shifts beside it and
+leaves the default alone. Crew rotations (`rotating_three_shift`,
+`continuous_24_7`, `extended_hours_two_shift`) are never assigned
+automatically: each crew needs its own start date, and the attendance setup
+status reports the rotation as unassigned.
+
 ## What applying creates
 
 `OrganizationProvisioner` writes, create-only and soft-delete aware (an existing

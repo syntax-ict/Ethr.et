@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\AttendanceMode;
 use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
 use App\Traits\BelongsToTenant;
@@ -36,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property-read Employee|null $supervisor
  * @property-read User|null $user
  * @property EmployeeStatus $status
+ * @property AttendanceMode|null $attendance_mode
  * @property Carbon|null $probation_end_date
  * @property Carbon|null $confirmation_date
  * @property Carbon|null $termination_date
@@ -79,6 +81,7 @@ class Employee extends Model
         'photo_path',
         'tin',
         'import_key',
+        'attendance_mode',
     ];
 
     // The two `*_normalized` entries are derived, like `national_id_hash` —
@@ -109,6 +112,7 @@ class Employee extends Model
             'nationality_status' => NationalityStatus::class,
             'nationality_needs_review' => 'boolean',
             'national_id' => 'encrypted',
+            'attendance_mode' => AttendanceMode::class,
         ];
     }
 

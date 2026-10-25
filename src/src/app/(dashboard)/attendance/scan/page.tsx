@@ -1,5 +1,6 @@
 "use client";
 
+import { currentFix, punchSignals } from "@/lib/attendance/punch-signals";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -15,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useScanQr } from "@/features/attendance/api";
+import { useMyShift, useScanQr } from "@/features/attendance/api";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -26,6 +27,7 @@ type Status =
 
 export default function QrScanPage() {
   const { t } = useT();
+  const { data: shift } = useMyShift();
   const router = useRouter();
   const [type, setType] = useState<"check_in" | "check_out">("check_in");
   const [status, setStatus] = useState<Status>("idle");
@@ -110,10 +112,22 @@ export default function QrScanPage() {
   async function verifyToken(qrToken: string) {
     setStatus("verifying");
     try {
+      // Where the code was scanned: a photographed or forwarded code works
+      // from anywhere until it expires, so the phone's own location is what
+      // shows it was scanned at the branch. Sent when the phone gives one.
+      const fix = await currentFix();
       const data = await scan.mutateAsync({
         qr_token: qrToken,
         type,
         idempotency_key: crypto.randomUUID(),
+        ...(fix
+          ? {
+              latitude: fix.latitude,
+              longitude: fix.longitude,
+              accuracy: fix.accuracy,
+            }
+          : {}),
+        ...punchSignals(fix),
       });
       const empName = data.employee?.name ?? t("attendance.employee");
       setStatus("success");
@@ -156,6 +170,17 @@ export default function QrScanPage() {
   return (
     <div className="space-y-6">
       <div className="mx-auto max-w-md space-y-4">
+        {shift && !shift.policy.qr_enabled && (
+          <div
+            role="status"
+            className="rounded-lg border border-warning-edge bg-warning-soft px-3 py-2 text-sm text-warning-on-soft"
+          >
+            {t(
+              "attendance.punch.qr_off",
+              "QR check-in is turned off where you work. Use the check-in your organisation provides.",
+            )}
+          </div>
+        )}
         {/* Type selector */}
         <div className="flex rounded-xl border-2 p-1">
           <button

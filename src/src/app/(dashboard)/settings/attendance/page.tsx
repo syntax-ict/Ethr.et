@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Settings2, Loader2, Save, Clock } from "lucide-react";
+import { Settings2, Loader2, Save, Clock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,9 @@ import { toast } from "sonner";
 import { SettingRow } from "@/components/patterns/SettingRow";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
+import { BranchRulesCard } from "@/features/attendance/components/branch-rules-card";
+import { WorkSitesCard } from "@/features/attendance/components/work-sites-card";
+import { SetupStatusPanel } from "@/features/attendance/components/setup-status-panel";
 
 type Method = AttendanceSettings["enabled_methods"][number];
 
@@ -131,6 +134,8 @@ export default function AttendanceSettingsPage() {
           }
         />
 
+        <SetupStatusPanel />
+
         {isError ? (
           <ErrorState onRetry={() => refetch()} />
         ) : isLoading || !form ? (
@@ -198,34 +203,6 @@ export default function AttendanceSettingsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <Label htmlFor="grace-period" className="text-sm">
-                    {t(
-                      "attendance.settings_page.grace_period",
-                      "Grace period (minutes)",
-                    )}
-                  </Label>
-                  <Input
-                    id="grace-period"
-                    type="number"
-                    value={form.grace_period_minutes}
-                    onChange={(e) =>
-                      setField(
-                        "grace_period_minutes",
-                        parseInt(e.target.value) || 0,
-                      )
-                    }
-                    min={0}
-                    max={240}
-                    className="mt-1 w-32"
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t(
-                      "attendance.settings_page.grace_period_desc",
-                      "Default for new shifts. Each shift keeps its own grace, which is what decides lateness.",
-                    )}
-                  </p>
-                </div>
                 <div>
                   <Label htmlFor="ot-daily-cap" className="text-sm">
                     {t(
@@ -626,6 +603,89 @@ export default function AttendanceSettingsPage() {
                 </SettingRow>
               </CardContent>
             </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ShieldCheck className="h-4 w-4" />
+                  {t(
+                    "attendance.settings_page.protection",
+                    "Cheating protection",
+                  )}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "attendance.settings_page.protection_desc",
+                    "Every punch gets a risk score from signals such as a shared phone, a simulated location or a reused selfie, each with its reason. Punches are never refused for it: those at or above the threshold go to Integrity for a person to decide.",
+                  )}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="risk-threshold" className="text-sm">
+                    {t(
+                      "attendance.settings_page.risk_threshold",
+                      "Send to review from a risk score of",
+                    )}
+                  </Label>
+                  <Input
+                    id="risk-threshold"
+                    type="number"
+                    min={10}
+                    max={100}
+                    value={form.risk_review_threshold}
+                    onChange={(e) =>
+                      setField(
+                        "risk_review_threshold",
+                        parseInt(e.target.value) || 40,
+                      )
+                    }
+                    className="mt-1 w-32"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t(
+                      "attendance.settings_page.risk_threshold_desc",
+                      "Lower sends more punches to review. 40 is recommended; a branch can set its own.",
+                    )}
+                  </p>
+                </div>
+                <SettingRow
+                  id="liveness-check"
+                  title={t(
+                    "attendance.settings_page.liveness_check",
+                    "Live face check before selfies",
+                  )}
+                  description={t(
+                    "attendance.settings_page.liveness_check_desc",
+                    "The phone asks for a blink or a head turn before the photo, to catch a photo of a photo. It runs on the phone; no face data leaves it. A failed check is sent for review, never refused.",
+                  )}
+                >
+                  <Switch
+                    checked={form.liveness_check}
+                    onCheckedChange={(v) => setField("liveness_check", v)}
+                  />
+                </SettingRow>
+                <SettingRow
+                  id="adaptive-selfie"
+                  title={t(
+                    "attendance.settings_page.adaptive_selfie",
+                    "Adaptive selfies",
+                  )}
+                  description={t(
+                    "attendance.settings_page.adaptive_selfie_desc",
+                    "When selfies are not required for everyone: ask staff with 90 clean days on about one day in five, and everyone else every time. Needs the photo consent of each employee.",
+                  )}
+                >
+                  <Switch
+                    checked={form.adaptive_selfie}
+                    onCheckedChange={(v) => setField("adaptive_selfie", v)}
+                  />
+                </SettingRow>
+              </CardContent>
+            </Card>
+
+            <WorkSitesCard />
+            <BranchRulesCard />
           </div>
         )}
       </div>

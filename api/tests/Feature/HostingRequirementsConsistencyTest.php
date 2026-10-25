@@ -183,6 +183,8 @@ it('keeps the shared-hosting env template from dropping a key', function () {
         'SMS_DAILY_LIMIT_PER_USER',
         'SMS_DRIVER',
         'TENANCY_SUBDOMAINS',
+        'WEBPUSH_PRIVATE_KEY',
+        'WEBPUSH_PUBLIC_KEY',
     ];
 
     expect(ethrEnvKeys(base_path('.env.shared-hosting.example')))->toBe(

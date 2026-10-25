@@ -97,18 +97,6 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Employee/EmployeeDocumentController.php
 
 		-
-			message: '#^Using nullsafe property access "\?\-\>kiosk_auto_reset_seconds" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Http/Controllers/Api/V1/Kiosk/KioskSessionController.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>kiosk_pin_required" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Http/Controllers/Api/V1/Kiosk/KioskSessionController.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>account_number" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
@@ -401,6 +389,36 @@ parameters:
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/AlertThreshold.php
+
+		-
+			message: '#^Method App\\Models\\BranchAttendanceOverride\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/BranchAttendanceOverride.php
+
+		-
+			message: '#^Method App\\Models\\AttendanceSite\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AttendanceSite.php
+
+		-
+			message: '#^Method App\\Models\\AttendanceSiteAssignment\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AttendanceSiteAssignment.php
+
+		-
+			message: '#^Method App\\Models\\AttendanceVisit\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AttendanceVisit.php
+
+		-
+			message: '#^Method App\\Models\\PushSubscription\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/PushSubscription.php
 
 		-
 			message: '#^Class App\\Models\\Announcement uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
@@ -1560,12 +1578,6 @@ parameters:
 			identifier: property.onlyWritten
 			count: 1
 			path: app/Services/Attendance/AttendanceIntelligence.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between int\<0, max\> and null will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: app/Services/Attendance/ConfidenceScorer.php
 
 		-
 			message: '#^Call to function method_exists\(\) with Laravel\\Sanctum\\PersonalAccessToken and ''delete'' will always evaluate to true\.$#'

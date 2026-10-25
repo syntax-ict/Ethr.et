@@ -1,5 +1,7 @@
 "use client";
 
+import { SetupStatusPanel } from "@/features/attendance/components/setup-status-panel";
+import { punchSignals } from "@/lib/attendance/punch-signals";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -21,6 +23,7 @@ import {
   Monitor,
   GitMerge,
   AlertTriangle,
+  Route,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -155,7 +158,11 @@ export default function AttendancePage() {
 
   function handleCheckIn() {
     checkIn.mutate(
-      { idempotency_key: crypto.randomUUID(), source: "web" },
+      {
+        idempotency_key: crypto.randomUUID(),
+        source: "web",
+        ...punchSignals(null),
+      },
       {
         onSuccess: () =>
           toast.success(t("attendance.checked_in", "Checked in successfully")),
@@ -172,7 +179,7 @@ export default function AttendancePage() {
 
   function handleCheckOut() {
     checkOut.mutate(
-      { idempotency_key: crypto.randomUUID() },
+      { idempotency_key: crypto.randomUUID(), ...punchSignals(null) },
       {
         onSuccess: () =>
           toast.success(
@@ -257,6 +264,11 @@ export default function AttendancePage() {
               {t("attendance.overtime", "Overtime")}
             </SubNav>
           )}
+          {can.viewAllAttendance && (
+            <SubNav href="/attendance/visits" icon={Route}>
+              {t("visits.title", "Visits")}
+            </SubNav>
+          )}
           {can.viewAttendancePhotos && (
             <SubNav href="/attendance/photos" icon={Camera}>
               {t("nav.attendance_photos", "Photos")}
@@ -280,6 +292,8 @@ export default function AttendancePage() {
           </SubNavGroup>
         )}
       </nav>
+
+      {can.manageAttendance && <SetupStatusPanel compact />}
 
       {/* Filters */}
       <div className="space-y-3">

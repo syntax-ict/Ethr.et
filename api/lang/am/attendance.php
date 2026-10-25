@@ -43,4 +43,7 @@ return [
         'correct_it' => 'ስህተት ከሆነ ትክክለኛውን ሰዓት የያዘ እርማት ያስገቡ፤ አጽዳቂዎ ይገመግመዋል።',
         'action' => 'እርማቶችን ክፈት',
     ],
+    'push_reminder_before_start' => 'ፈረቃዎ በ:time ይጀምራል።',
+    'push_reminder_not_checked_in' => 'እስካሁን አልገቡም። ፈረቃዎ በ:time ጀምሯል።',
+    'push_reminder_shift_end' => 'ፈረቃዎ በ:time አብቅቷል። መውጣትዎን አይርሱ።',
 ];
