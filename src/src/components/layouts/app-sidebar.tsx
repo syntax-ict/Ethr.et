@@ -294,7 +294,7 @@ export function AppSidebar() {
               href={SITE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 text-[11px] font-medium tracking-wide text-sidebar-foreground/55 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 text-[11px] font-medium tracking-wide text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <ShieldCheck
                 className="h-3.5 w-3.5 shrink-0"
