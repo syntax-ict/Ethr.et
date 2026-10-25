@@ -2897,6 +2897,8 @@
   "marketing.hero.trial_note": "6-month free trial · No credit card required",
   "marketing.landing.learn_more": "Read more",
   "marketing.landing.step_label": "Step :number",
+  "marketing.landing.story_pause": "Pause the animation",
+  "marketing.landing.story_play": "Play the animation",
   "marketing.landing.today_label": "Today",
   "marketing.landing.with_ethr_label": "With ETHR",
   "marketing.legal.contents": "Contents",

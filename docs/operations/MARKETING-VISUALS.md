@@ -24,6 +24,18 @@ half-generated set is a valid state: seven rasters and five drawings read
 fine because the prompt pack and the drawn scenes share one palette and one
 composition rule.
 
+**The problems rows are animated, not drawn (owner, 2026-10-25).** Each of the
+six rows in "The work that fills an HR office" plays a short looping story in
+`components/marketing/landing/problem-stories.tsx`: the "Today" pain for six
+seconds, then the "With ETHR" answer for six, in SVG moved by CSS, paused off
+screen and behind a pause control, and held on its last frame for a reader who
+prefers reduced motion. A row added later in the console gets a plain animated
+story of its own. An uploaded or seeded picture still replaces the story for
+that slug, because an upload is the operator's deliberate choice, and that row
+then stops moving. So the six problems prompts below are kept for reference but
+**should not be seeded or uploaded**, or the section loses the animation the
+owner asked for.
+
 The script is an authoring tool. Nothing in the product calls it, no provider
 key is read at runtime, and no dependency was added for it: Node 24, `fetch`
 and core modules only.
