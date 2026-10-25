@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Payroll;
 
+use App\Models\AttendanceIntegrityFlag;
 use App\Models\Employee;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
@@ -37,6 +38,7 @@ final class RunRegisterService
      *     basis: array{pension: list<array<string, mixed>>, tax: list<array<string, mixed>>},
      *     pension_exemptions: array{count: int, by_reason: array<string, int>, employees: list<array{employee_public_id: mixed, employee_name: mixed, reason: string}>},
      *     absences: array{count: int, days: int, employees: list<array{employee_public_id: mixed, employee_name: mixed, days: int, dates: list<string>}>},
+     *     integrity: array{count: int, flags: int, employees: list<array{employee_public_id: string|null, employee_name: string|null, flags: int}>},
      *     overtime_limits: array{count: int, daily_limit_minutes: int|null, legal_daily_limit_minutes: int|null, legal_weekly_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, days_over_legal_daily_limit: int, weeks_over_legal_weekly_limit: int, longest_week_minutes: int, days_over_approved: int}>},
      * }
      */
@@ -66,7 +68,46 @@ final class RunRegisterService
             'pension_exemptions' => self::exemptions($rows),
             'overtime_limits' => self::overtimeLimits($rows),
             'absences' => self::absences($rows),
+            'integrity' => $this->openIntegrity($run, $entries->pluck('employee_id')->all()),
         ];
+    }
+
+    /**
+     * Punches in the run's period still waiting in the integrity queue at a
+     * serious level: a high flag, or a high risk score. Listed before
+     * approval like unexplained absences; pay is never changed by them, the
+     * reviewer decides each one.
+     *
+     * @param  list<int>  $employeeIds
+     * @return array{count: int, flags: int, employees: list<array{employee_public_id: string|null, employee_name: string|null, flags: int}>}
+     */
+    private function openIntegrity(PayrollRun $run, array $employeeIds): array
+    {
+        if ($employeeIds === [] || $run->period_start === null || $run->period_end === null) {
+            return ['count' => 0, 'flags' => 0, 'employees' => []];
+        }
+
+        $flags = AttendanceIntegrityFlag::query()
+            ->whereIn('employee_id', $employeeIds)
+            ->where('status', 'open')
+            ->where(fn ($q) => $q->where('severity', 'high')->orWhere('type', 'high_risk'))
+            ->whereHas('record', fn ($q) => $q
+                ->whereDate('date', '>=', $run->period_start->format('Y-m-d'))
+                ->whereDate('date', '<=', $run->period_end->format('Y-m-d')))
+            ->with('employee:id,public_id,name')
+            ->get(['id', 'employee_id']);
+
+        $employees = [];
+        foreach ($flags->groupBy('employee_id') as $group) {
+            $employee = $group->first()?->employee;
+            $employees[] = [
+                'employee_public_id' => $employee?->public_id,
+                'employee_name' => $employee?->name,
+                'flags' => $group->count(),
+            ];
+        }
+
+        return ['count' => count($employees), 'flags' => $flags->count(), 'employees' => $employees];
     }
 
     /**

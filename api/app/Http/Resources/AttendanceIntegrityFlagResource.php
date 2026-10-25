@@ -41,7 +41,14 @@ class AttendanceIntegrityFlagResource extends JsonResource
                 'shift_name' => $record->shift?->name,
                 'latitude' => $record->latitude === null ? null : (float) $record->latitude,
                 'longitude' => $record->longitude === null ? null : (float) $record->longitude,
+                'risk_score' => $record->risk_score === null ? null : (int) $record->risk_score,
+                'risk_reasons' => array_keys((array) ($record->risk_reasons ?? [])),
+                'has_photo' => (bool) ($record->photo_path !== null || data_get($record->metadata, 'checkout_photo_path') !== null),
             ],
+            'employee_findings_90_days' => AttendanceIntegrityFlag::query()
+                ->where('employee_id', $this->employee_id)
+                ->where('created_at', '>=', now()->subDays(90))
+                ->count(),
         ];
     }
 }

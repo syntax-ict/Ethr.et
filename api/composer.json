@@ -16,6 +16,7 @@
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0.2",
         "league/flysystem-aws-s3-v3": "^3.35",
+        "minishlink/web-push": "^9.0",
         "pragmarx/google2fa": "^9.0",
         "sentry/sentry-laravel": "^4.27"
     },

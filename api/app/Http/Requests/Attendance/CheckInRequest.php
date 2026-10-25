@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Attendance;
 
+use App\Support\PunchSignals;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CheckInRequest extends FormRequest
@@ -20,6 +21,7 @@ class CheckInRequest extends FormRequest
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            ...PunchSignals::rules(),
         ];
     }
 }

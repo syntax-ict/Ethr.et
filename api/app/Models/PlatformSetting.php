@@ -48,6 +48,7 @@ class PlatformSetting extends Model
         'testimonial_role_am',
         'testimonial_organisation',
         'testimonial_consented_on',
+        'google_maps_key',
     ];
 
     protected $hidden = [

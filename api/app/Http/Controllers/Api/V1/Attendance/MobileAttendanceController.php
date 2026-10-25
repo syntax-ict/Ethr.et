@@ -11,12 +11,13 @@ use App\Http\Requests\Attendance\MobileCheckInRequest;
 use App\Http\Requests\Attendance\MobileCheckOutRequest;
 use App\Http\Resources\AttendancePunchResource;
 use App\Http\Resources\AttendanceRecordResource;
-use App\Models\AttendanceSetting;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
-use App\Services\Attendance\ConfidenceScorer;
+use App\Services\Attendance\AttendancePlaces;
+use App\Services\Attendance\AttendancePolicy;
 use App\Services\FileStorageService;
+use App\Support\PunchSignals;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -76,6 +77,8 @@ class MobileAttendanceController extends Controller
                 metadata: array_filter([
                     'auto_punch' => $auto ?: null,
                     'accuracy' => $request->validated('accuracy'),
+                    ...PunchSignals::from($request->validated(), $request->userAgent()),
+                    'liveness' => $request->validated('liveness'),
                 ], fn ($v) => $v !== null),
             ));
         } catch (\RuntimeException $e) {
@@ -124,7 +127,11 @@ class MobileAttendanceController extends Controller
             longitude: $request->validated('longitude'),
             photoPath: $this->storeSelfie($request),
             ipAddress: $request->ip(),
-            metadata: array_filter(['accuracy' => $request->validated('accuracy')], fn ($v) => $v !== null),
+            metadata: array_filter([
+                'accuracy' => $request->validated('accuracy'),
+                ...PunchSignals::from($request->validated(), $request->userAgent()),
+                'liveness' => $request->validated('liveness'),
+            ], fn ($v) => $v !== null),
         ));
 
         $result->record->load('employee', 'shift');
@@ -151,19 +158,25 @@ class MobileAttendanceController extends Controller
 
     private function autoCheckInRefusal(MobileCheckInRequest $request, Employee $employee): ?string
     {
-        $settings = AttendanceSetting::query()->first();
+        $settings = app(AttendancePolicy::class)->for($employee);
         $optedIn = ProfilePreferencesController::present($request->user())['auto_check_in'];
 
-        if ($settings?->geofence_auto_checkin_enabled !== true || ! $optedIn) {
+        if ($settings->geofence_auto_checkin_enabled !== true || ! $optedIn) {
             return __('attendance.auto_check_in_not_allowed');
         }
 
-        $branch = $employee->branch;
-        if ($branch === null || ! app(ConfidenceScorer::class)->verifyGeofence(
+        // Only a confirmed inside the branch or one of the person's sites: a
+        // place with no circle cannot vouch for where the phone is, so it
+        // never punches anyone in by itself.
+        $places = app(AttendancePlaces::class);
+        $accuracy = $request->input('accuracy');
+        $inside = $places->check(
+            $places->for($employee),
             (float) $request->validated('latitude'),
             (float) $request->validated('longitude'),
-            $branch,
-        )) {
+            is_numeric($accuracy) ? (float) $accuracy : null,
+        )['inside'];
+        if ($inside !== true) {
             return __('attendance.auto_check_in_outside');
         }
 

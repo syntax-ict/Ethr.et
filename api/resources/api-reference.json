@@ -4396,6 +4396,48 @@
                 }
             }
         },
+        "/attendance/map-config": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendanceSite.mapConfig",
+                "summary": "The map settings a picker needs: the platform's Google Maps key, if the\nplatform has one. It is a browser key by Google's design",
+                "tags": [
+                    "Attendance"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "google_maps_key": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "google_maps_key"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/attendance/mobile/check-in": {
             "post": {
                 "x-abilities": [
@@ -4927,10 +4969,19 @@
                                                 "web_enabled": {
                                                     "type": "boolean"
                                                 },
+                                                "qr_enabled": {
+                                                    "type": "boolean"
+                                                },
+                                                "attendance_mode": {
+                                                    "type": "string"
+                                                },
                                                 "geofence_required": {
                                                     "type": "boolean"
                                                 },
                                                 "photo_required": {
+                                                    "type": "boolean"
+                                                },
+                                                "liveness_required": {
                                                     "type": "boolean"
                                                 },
                                                 "photo_consent": {
@@ -4963,17 +5014,92 @@
                                                         "longitude",
                                                         "radius_meters"
                                                     ]
+                                                },
+                                                "places": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "kind": {
+                                                                        "type": "string",
+                                                                        "const": "branch"
+                                                                    },
+                                                                    "public_id": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "latitude": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "longitude": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "radius_meters": {
+                                                                        "type": "integer"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "kind",
+                                                                    "public_id",
+                                                                    "name",
+                                                                    "latitude",
+                                                                    "longitude",
+                                                                    "radius_meters"
+                                                                ]
+                                                            },
+                                                            {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "kind": {
+                                                                        "type": "string",
+                                                                        "const": "site"
+                                                                    },
+                                                                    "public_id": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "latitude": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "longitude": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "radius_meters": {
+                                                                        "type": "integer"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "kind",
+                                                                    "public_id",
+                                                                    "name",
+                                                                    "latitude",
+                                                                    "longitude",
+                                                                    "radius_meters"
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
                                                 }
                                             },
                                             "required": [
                                                 "mobile_enabled",
                                                 "web_enabled",
+                                                "qr_enabled",
+                                                "attendance_mode",
                                                 "geofence_required",
                                                 "photo_required",
+                                                "liveness_required",
                                                 "photo_consent",
                                                 "accuracy_threshold_meters",
                                                 "offline_sync_enabled",
-                                                "geofence"
+                                                "geofence",
+                                                "places"
                                             ]
                                         },
                                         "assistant": {
@@ -6762,6 +6888,1081 @@
                 }
             }
         },
+        "/attendance/settings/branches": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "branchAttendance.index",
+                "summary": "List branches",
+                "tags": [
+                    "Organization"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "organisation": {
+                                            "type": "object",
+                                            "properties": {
+                                                "enabled_methods": {
+                                                    "type": [
+                                                        "array",
+                                                        "null"
+                                                    ],
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "geofence_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "mobile_photo_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "kiosk_pin_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "mobile_accuracy_threshold_meters": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "auto_checkout_enabled": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "auto_checkout_after_minutes": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "geofence_auto_checkin_enabled": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "risk_review_threshold": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "enabled_methods",
+                                                "geofence_required",
+                                                "mobile_photo_required",
+                                                "kiosk_pin_required",
+                                                "mobile_accuracy_threshold_meters",
+                                                "auto_checkout_enabled",
+                                                "auto_checkout_after_minutes",
+                                                "geofence_auto_checkin_enabled",
+                                                "risk_review_threshold"
+                                            ]
+                                        },
+                                        "overridable": {
+                                            "type": "array",
+                                            "prefixItems": [
+                                                {
+                                                    "type": "string",
+                                                    "const": "enabled_methods"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "geofence_required"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "mobile_photo_required"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "kiosk_pin_required"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "mobile_accuracy_threshold_meters"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "auto_checkout_enabled"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "auto_checkout_after_minutes"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "geofence_auto_checkin_enabled"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "risk_review_threshold"
+                                                }
+                                            ],
+                                            "minItems": 9,
+                                            "maxItems": 9,
+                                            "additionalItems": false
+                                        },
+                                        "branches": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "name_am": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "placed": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "overrides": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "enabled_methods": {
+                                                                "type": [
+                                                                    "array",
+                                                                    "null"
+                                                                ],
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "geofence_required": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "mobile_photo_required": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "kiosk_pin_required": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "mobile_accuracy_threshold_meters": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "auto_checkout_enabled": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "auto_checkout_after_minutes": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "geofence_auto_checkin_enabled": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "risk_review_threshold": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "enabled_methods",
+                                                            "geofence_required",
+                                                            "mobile_photo_required",
+                                                            "kiosk_pin_required",
+                                                            "mobile_accuracy_threshold_meters",
+                                                            "auto_checkout_enabled",
+                                                            "auto_checkout_after_minutes",
+                                                            "geofence_auto_checkin_enabled",
+                                                            "risk_review_threshold"
+                                                        ]
+                                                    },
+                                                    "effective": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "enabled_methods": {
+                                                                "type": [
+                                                                    "array",
+                                                                    "null"
+                                                                ],
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "geofence_required": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "mobile_photo_required": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "kiosk_pin_required": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "mobile_accuracy_threshold_meters": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "auto_checkout_enabled": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "auto_checkout_after_minutes": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "geofence_auto_checkin_enabled": {
+                                                                "type": [
+                                                                    "boolean",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "risk_review_threshold": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "enabled_methods",
+                                                            "geofence_required",
+                                                            "mobile_photo_required",
+                                                            "kiosk_pin_required",
+                                                            "mobile_accuracy_threshold_meters",
+                                                            "auto_checkout_enabled",
+                                                            "auto_checkout_after_minutes",
+                                                            "geofence_auto_checkin_enabled",
+                                                            "risk_review_threshold"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "name",
+                                                    "name_am",
+                                                    "placed",
+                                                    "overrides",
+                                                    "effective"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "organisation",
+                                        "overridable",
+                                        "branches"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/settings/branches/{branch}": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "branchAttendance.update",
+                "summary": "Update branch",
+                "tags": [
+                    "Organization"
+                ],
+                "parameters": [
+                    {
+                        "name": "branch",
+                        "in": "path",
+                        "required": true,
+                        "description": "The branch public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateBranchAttendanceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "name_am": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "placed": {
+                                            "type": "boolean"
+                                        },
+                                        "overrides": {
+                                            "type": "object",
+                                            "properties": {
+                                                "enabled_methods": {
+                                                    "type": [
+                                                        "array",
+                                                        "null"
+                                                    ],
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "geofence_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "mobile_photo_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "kiosk_pin_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "mobile_accuracy_threshold_meters": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "auto_checkout_enabled": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "auto_checkout_after_minutes": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "geofence_auto_checkin_enabled": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "risk_review_threshold": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "enabled_methods",
+                                                "geofence_required",
+                                                "mobile_photo_required",
+                                                "kiosk_pin_required",
+                                                "mobile_accuracy_threshold_meters",
+                                                "auto_checkout_enabled",
+                                                "auto_checkout_after_minutes",
+                                                "geofence_auto_checkin_enabled",
+                                                "risk_review_threshold"
+                                            ]
+                                        },
+                                        "effective": {
+                                            "type": "object",
+                                            "properties": {
+                                                "enabled_methods": {
+                                                    "type": [
+                                                        "array",
+                                                        "null"
+                                                    ],
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "geofence_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "mobile_photo_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "kiosk_pin_required": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "mobile_accuracy_threshold_meters": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "auto_checkout_enabled": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "auto_checkout_after_minutes": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "geofence_auto_checkin_enabled": {
+                                                    "type": [
+                                                        "boolean",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "risk_review_threshold": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "enabled_methods",
+                                                "geofence_required",
+                                                "mobile_photo_required",
+                                                "kiosk_pin_required",
+                                                "mobile_accuracy_threshold_meters",
+                                                "auto_checkout_enabled",
+                                                "auto_checkout_after_minutes",
+                                                "geofence_auto_checkin_enabled",
+                                                "risk_review_threshold"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "name",
+                                        "name_am",
+                                        "placed",
+                                        "overrides",
+                                        "effective"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/attendance/setup-status": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendanceSetting.setupStatus",
+                "summary": "What is keeping attendance from working here, each with where it is\nfixed (AttendanceHealth). `ready` is false while any blocker remains",
+                "tags": [
+                    "Attendance"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "ready": {
+                                            "type": "boolean"
+                                        },
+                                        "checks": {
+                                            "type": "array",
+                                            "items": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "no_default_schedule"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "blocker"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "const": 1
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/shifts"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "geofence_unplaced"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "blocker"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "minimum": 0
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/organization?tab=branches"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "nothing_on_map"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "minimum": 0
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/organization?tab=branches"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "crews_unassigned"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "blocker",
+                                                                    "warning"
+                                                                ]
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "minimum": 0
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/shifts/rotations"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "pending_punches"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "minimum": 0
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/shifts/assignments"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "devices_silent"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "minimum": 0
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/devices"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "kiosk_pins_missing"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "string"
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/employees"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "field_without_sites"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "string"
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/settings/attendance"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "holidays_missing"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/settings/holidays"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "working_week_mismatch"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "info"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "const": 1
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/settings/leave-types"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "kiosk_none"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "info"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer",
+                                                                "const": 1
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/attendance/kiosks"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "ready",
+                                        "checks"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/sites": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendanceSite.index",
+                "summary": "List sites",
+                "tags": [
+                    "Attendance"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `AttendanceSiteResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/AttendanceSiteResource"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceSite.store",
+                "summary": "Create site",
+                "tags": [
+                    "Attendance"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveAttendanceSiteRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`AttendanceSiteResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttendanceSiteResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/attendance/sites/{site}": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceSite.update",
+                "summary": "Update site",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "site",
+                        "in": "path",
+                        "required": true,
+                        "description": "The site public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveAttendanceSiteRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`AttendanceSiteResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttendanceSiteResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceSite.destroy",
+                "summary": "Delete site",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "site",
+                        "in": "path",
+                        "required": true,
+                        "description": "The site public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/attendance/sync": {
             "post": {
                 "x-abilities": [
@@ -7188,6 +8389,431 @@
                                         "late",
                                         "early_leave",
                                         "on_leave"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/visits": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceVisit.store",
+                "summary": "Create visit",
+                "tags": [
+                    "Attendance"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreAttendanceVisitRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`AttendanceVisitResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttendanceVisitResource"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "`AttendanceVisitResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttendanceVisitResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string"
+                                        },
+                                        "title": {
+                                            "type": "string",
+                                            "const": "Not Found"
+                                        },
+                                        "status": {
+                                            "type": "integer",
+                                            "const": 404
+                                        },
+                                        "detail": {
+                                            "type": "string",
+                                            "const": "No employee profile linked to your account."
+                                        }
+                                    },
+                                    "required": [
+                                        "type",
+                                        "title",
+                                        "status",
+                                        "detail"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendanceVisit.index",
+                "summary": "Visits of the people the caller may see, filtered by person and day",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 25
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `AttendanceVisitResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/AttendanceVisitResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/attendance/visits/mine": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendanceVisit.mine",
+                "summary": "The signed-in employee's own visits, newest first",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 25
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `AttendanceVisitResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/AttendanceVisitResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
                                     ]
                                 }
                             }
@@ -13412,6 +15038,76 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/{employee}/attendance-mode": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "attendance.employeeAttendanceMode",
+                "summary": "Where this employee is expected to punch: at their branch, at any of\ntheir sites (field), or from anywhere (remote). See AttendancePolicy",
+                "tags": [
+                    "Employees"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAttendanceModeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "attendance_mode": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "attendance_mode"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -27058,6 +28754,80 @@
                                                 "days",
                                                 "employees"
                                             ]
+                                        },
+                                        "integrity": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "count": {
+                                                            "type": "integer"
+                                                        },
+                                                        "flags": {
+                                                            "type": "integer",
+                                                            "minimum": 0
+                                                        },
+                                                        "employees": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "employee_public_id": {
+                                                                        "type": [
+                                                                            "string",
+                                                                            "null"
+                                                                        ]
+                                                                    },
+                                                                    "employee_name": {
+                                                                        "type": [
+                                                                            "string",
+                                                                            "null"
+                                                                        ]
+                                                                    },
+                                                                    "flags": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "employee_public_id",
+                                                                    "employee_name",
+                                                                    "flags"
+                                                                ]
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "count",
+                                                        "flags",
+                                                        "employees"
+                                                    ]
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "count": {
+                                                            "type": "integer"
+                                                        },
+                                                        "flags": {
+                                                            "type": "integer"
+                                                        },
+                                                        "employees": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            },
+                                                            "minItems": 0,
+                                                            "maxItems": 0,
+                                                            "additionalItems": false
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "count",
+                                                        "flags",
+                                                        "employees"
+                                                    ]
+                                                }
+                                            ]
                                         }
                                     },
                                     "required": [
@@ -27069,7 +28839,8 @@
                                         "basis",
                                         "pension_exemptions",
                                         "overtime_limits",
-                                        "absences"
+                                        "absences",
+                                        "integrity"
                                     ]
                                 }
                             }
@@ -27915,6 +29686,184 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/push/config": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "pushSubscription.config",
+                "summary": "Whether push is available here, and the key a browser subscribes with",
+                "tags": [
+                    "Push Subscription"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "enabled": {
+                                            "type": "boolean"
+                                        },
+                                        "public_key": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "enabled",
+                                        "public_key"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/push/subscriptions": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "pushSubscription.index",
+                "summary": "How many devices the caller receives push on",
+                "tags": [
+                    "Push Subscription"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "devices": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                        }
+                                    },
+                                    "required": [
+                                        "devices"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "pushSubscription.store",
+                "summary": "Create subscription",
+                "tags": [
+                    "Push Subscription"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StorePushSubscriptionRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "subscribed": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "subscribed"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "Phone notifications are not set up on this server yet."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "pushSubscription.destroy",
+                "summary": "Delete subscription",
+                "tags": [
+                    "Push Subscription"
+                ],
+                "parameters": [
+                    {
+                        "name": "endpoint",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 2000
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -35202,6 +37151,19 @@
                                     "number",
                                     "null"
                                 ]
+                            },
+                            "risk_score": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "risk_reasons": {
+                                "type": "array",
+                                "items": []
+                            },
+                            "has_photo": {
+                                "type": "boolean"
                             }
                         },
                         "required": [
@@ -35213,8 +37175,15 @@
                             "status",
                             "shift_name",
                             "latitude",
-                            "longitude"
+                            "longitude",
+                            "risk_score",
+                            "risk_reasons",
+                            "has_photo"
                         ]
+                    },
+                    "employee_findings_90_days": {
+                        "type": "integer",
+                        "minimum": 0
                     }
                 },
                 "required": [
@@ -35229,7 +37198,8 @@
                     "review_note",
                     "reviewer_name",
                     "employee",
-                    "record"
+                    "record",
+                    "employee_findings_90_days"
                 ],
                 "title": "AttendanceIntegrityFlagResource"
             },
@@ -35698,9 +37668,6 @@
                     "kiosk_auto_reset_seconds": {
                         "type": "integer"
                     },
-                    "grace_period_minutes": {
-                        "type": "integer"
-                    },
                     "ot_daily_cap_minutes": {
                         "type": "integer"
                     },
@@ -35728,6 +37695,15 @@
                     "photo_retention_days": {
                         "type": "integer"
                     },
+                    "risk_review_threshold": {
+                        "type": "integer"
+                    },
+                    "adaptive_selfie": {
+                        "type": "boolean"
+                    },
+                    "liveness_check": {
+                        "type": "boolean"
+                    },
                     "updated_at": {
                         "type": [
                             "string",
@@ -35747,7 +37723,6 @@
                     "mobile_accuracy_threshold_meters",
                     "offline_sync_enabled",
                     "kiosk_auto_reset_seconds",
-                    "grace_period_minutes",
                     "ot_daily_cap_minutes",
                     "overtime_requires_approval",
                     "confidence_threshold",
@@ -35757,9 +37732,138 @@
                     "auto_checkout_after_minutes",
                     "geofence_auto_checkin_enabled",
                     "photo_retention_days",
+                    "risk_review_threshold",
+                    "adaptive_selfie",
+                    "liveness_check",
                     "updated_at"
                 ],
                 "title": "AttendanceSettingResource"
+            },
+            "AttendanceSiteResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "name_am": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "branch_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "branch_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "latitude": {
+                        "type": "number"
+                    },
+                    "longitude": {
+                        "type": "number"
+                    },
+                    "radius_meters": {
+                        "type": "integer"
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "employee_public_ids": {
+                        "type": "array",
+                        "items": []
+                    },
+                    "department_public_ids": {
+                        "type": "array",
+                        "items": []
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "name",
+                    "name_am",
+                    "branch_public_id",
+                    "branch_name",
+                    "latitude",
+                    "longitude",
+                    "radius_meters",
+                    "is_active",
+                    "employee_public_ids",
+                    "department_public_ids"
+                ],
+                "title": "AttendanceSiteResource"
+            },
+            "AttendanceVisitResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "employee_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "employee_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "site_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "latitude": {
+                        "type": "number"
+                    },
+                    "longitude": {
+                        "type": "number"
+                    },
+                    "accuracy": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "occurred_at": {
+                        "type": "string"
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "has_photo": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "employee_public_id",
+                    "employee_name",
+                    "site_name",
+                    "latitude",
+                    "longitude",
+                    "accuracy",
+                    "occurred_at",
+                    "note",
+                    "has_photo"
+                ],
+                "title": "AttendanceVisitResource"
             },
             "AuditLogResource": {
                 "type": "object",
@@ -36117,6 +38221,59 @@
                         ],
                         "minimum": 0,
                         "maximum": 100000
+                    },
+                    "altitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -500,
+                        "maximum": 9000
+                    },
+                    "speed": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 500
+                    },
+                    "heading": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 360
+                    },
+                    "fix_age_ms": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 86400000
+                    },
+                    "device_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^[A-Za-z0-9\\-]+$",
+                        "maxLength": 64
+                    },
+                    "client_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "webdriver": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
                     }
                 },
                 "required": [
@@ -36130,6 +38287,59 @@
                     "idempotency_key": {
                         "type": "string",
                         "maxLength": 64
+                    },
+                    "altitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -500,
+                        "maximum": 9000
+                    },
+                    "speed": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 500
+                    },
+                    "heading": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 360
+                    },
+                    "fix_age_ms": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 86400000
+                    },
+                    "device_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^[A-Za-z0-9\\-]+$",
+                        "maxLength": 64
+                    },
+                    "client_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "webdriver": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
                     }
                 },
                 "required": [
@@ -37470,6 +39680,9 @@
                     "has_kiosk_pin": {
                         "type": "boolean"
                     },
+                    "attendance_mode": {
+                        "type": "string"
+                    },
                     "gender": {
                         "type": [
                             "string",
@@ -37666,6 +39879,7 @@
                     "employee_code",
                     "badge_number",
                     "has_kiosk_pin",
+                    "attendance_mode",
                     "gender",
                     "date_of_birth",
                     "nationality",
@@ -39022,6 +41236,72 @@
                     },
                     "auto": {
                         "type": "boolean"
+                    },
+                    "altitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -500,
+                        "maximum": 9000
+                    },
+                    "speed": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 500
+                    },
+                    "heading": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 360
+                    },
+                    "fix_age_ms": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 86400000
+                    },
+                    "device_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^[A-Za-z0-9\\-]+$",
+                        "maxLength": 64
+                    },
+                    "client_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "webdriver": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "liveness": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "passed",
+                            "failed",
+                            "no_face",
+                            "unavailable",
+                            null
+                        ]
                     }
                 },
                 "required": [
@@ -39066,6 +41346,72 @@
                         "type": [
                             "string",
                             "null"
+                        ]
+                    },
+                    "altitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -500,
+                        "maximum": 9000
+                    },
+                    "speed": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 500
+                    },
+                    "heading": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 360
+                    },
+                    "fix_age_ms": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 86400000
+                    },
+                    "device_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^[A-Za-z0-9\\-]+$",
+                        "maxLength": 64
+                    },
+                    "client_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "webdriver": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "liveness": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "passed",
+                            "failed",
+                            "no_face",
+                            "unavailable",
+                            null
                         ]
                     }
                 },
@@ -39178,6 +41524,59 @@
                                 "photo": {
                                     "type": [
                                         "string",
+                                        "null"
+                                    ]
+                                },
+                                "altitude": {
+                                    "type": [
+                                        "number",
+                                        "null"
+                                    ],
+                                    "minimum": -500,
+                                    "maximum": 9000
+                                },
+                                "speed": {
+                                    "type": [
+                                        "number",
+                                        "null"
+                                    ],
+                                    "minimum": 0,
+                                    "maximum": 500
+                                },
+                                "heading": {
+                                    "type": [
+                                        "number",
+                                        "null"
+                                    ],
+                                    "minimum": 0,
+                                    "maximum": 360
+                                },
+                                "fix_age_ms": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "minimum": 0,
+                                    "maximum": 86400000
+                                },
+                                "device_id": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "pattern": "^[A-Za-z0-9\\-]+$",
+                                    "maxLength": 64
+                                },
+                                "client_time": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "format": "date-time"
+                                },
+                                "webdriver": {
+                                    "type": [
+                                        "boolean",
                                         "null"
                                     ]
                                 }
@@ -40053,6 +42452,83 @@
                             "check_in",
                             "check_out"
                         ]
+                    },
+                    "latitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "longitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -180,
+                        "maximum": 180
+                    },
+                    "accuracy": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 100000
+                    },
+                    "altitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -500,
+                        "maximum": 9000
+                    },
+                    "speed": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 500
+                    },
+                    "heading": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 360
+                    },
+                    "fix_age_ms": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 86400000
+                    },
+                    "device_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^[A-Za-z0-9\\-]+$",
+                        "maxLength": 64
+                    },
+                    "client_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "webdriver": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
                     }
                 },
                 "required": [
@@ -40495,6 +42971,73 @@
                     "action"
                 ],
                 "title": "ReviewProfileUpdateRequest"
+            },
+            "SaveAttendanceSiteRequest": {
+                "type": "object",
+                "description": "A work site, created or edited. The branch, employees and departments are\nnamed by public id and looked up in the current tenant's scope (in the\nafter-hook, so the contract Scramble reads from rules() stays plain): an id\nfrom another organisation fails exactly like one that does not exist.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "name_am": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 120
+                    },
+                    "branch_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 26,
+                        "maxLength": 26
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                    },
+                    "radius_meters": {
+                        "type": "integer",
+                        "minimum": 10,
+                        "maximum": 10000
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "employee_public_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 26,
+                            "maxLength": 26
+                        },
+                        "maxItems": 2000
+                    },
+                    "department_public_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 26,
+                            "maxLength": 26
+                        },
+                        "maxItems": 500
+                    }
+                },
+                "required": [
+                    "name",
+                    "latitude",
+                    "longitude"
+                ],
+                "title": "SaveAttendanceSiteRequest"
             },
             "SaveReportRequest": {
                 "type": "object",
@@ -41043,6 +43586,112 @@
                     "body"
                 ],
                 "title": "StoreAnnouncementRequest"
+            },
+            "StoreAttendanceVisitRequest": {
+                "type": "object",
+                "properties": {
+                    "idempotency_key": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                    },
+                    "accuracy": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 100000
+                    },
+                    "occurred_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 500
+                    },
+                    "photo": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "altitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -500,
+                        "maximum": 9000
+                    },
+                    "speed": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 500
+                    },
+                    "heading": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 360
+                    },
+                    "fix_age_ms": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 86400000
+                    },
+                    "device_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^[A-Za-z0-9\\-]+$",
+                        "maxLength": 64
+                    },
+                    "client_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "webdriver": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "idempotency_key",
+                    "latitude",
+                    "longitude"
+                ],
+                "title": "StoreAttendanceVisitRequest"
             },
             "StoreBankDetailRequest": {
                 "type": "object",
@@ -42459,6 +45108,46 @@
                 ],
                 "title": "StorePulseRequest"
             },
+            "StorePushSubscriptionRequest": {
+                "type": "object",
+                "description": "A browser's PushSubscription, as `subscription.toJSON()` gives it.",
+                "properties": {
+                    "endpoint": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 2000
+                    },
+                    "keys": {
+                        "type": "object",
+                        "properties": {
+                            "p256dh": {
+                                "type": "string",
+                                "maxLength": 255
+                            },
+                            "auth": {
+                                "type": "string",
+                                "maxLength": 255
+                            }
+                        },
+                        "required": [
+                            "p256dh",
+                            "auth"
+                        ]
+                    },
+                    "content_encoding": {
+                        "type": "string",
+                        "enum": [
+                            "aes128gcm",
+                            "aesgcm"
+                        ]
+                    }
+                },
+                "required": [
+                    "endpoint",
+                    "keys"
+                ],
+                "title": "StorePushSubscriptionRequest"
+            },
             "StoreRecognitionRequest": {
                 "type": "object",
                 "properties": {
@@ -42995,6 +45684,23 @@
                 },
                 "title": "UpdateAnnouncementRequest"
             },
+            "UpdateAttendanceModeRequest": {
+                "type": "object",
+                "properties": {
+                    "attendance_mode": {
+                        "type": "string",
+                        "enum": [
+                            "office",
+                            "field",
+                            "remote"
+                        ]
+                    }
+                },
+                "required": [
+                    "attendance_mode"
+                ],
+                "title": "UpdateAttendanceModeRequest"
+            },
             "UpdateAttendanceSettingRequest": {
                 "type": "object",
                 "properties": {
@@ -43049,11 +45755,6 @@
                         "minimum": 2,
                         "maximum": 30
                     },
-                    "grace_period_minutes": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 240
-                    },
                     "ot_daily_cap_minutes": {
                         "type": "integer",
                         "minimum": 0,
@@ -43090,9 +45791,108 @@
                         "type": "integer",
                         "minimum": 1,
                         "maximum": 90
+                    },
+                    "risk_review_threshold": {
+                        "type": "integer",
+                        "minimum": 10,
+                        "maximum": 100
+                    },
+                    "adaptive_selfie": {
+                        "type": "boolean"
+                    },
+                    "liveness_check": {
+                        "type": "boolean"
                     }
                 },
                 "title": "UpdateAttendanceSettingRequest"
+            },
+            "UpdateBranchAttendanceRequest": {
+                "type": "object",
+                "description": "A branch's attendance overrides. Every key is optional and nullable: a key\nleft out or sent as null is inherited from the organisation. The limits\nmatch UpdateAttendanceSettingRequest's.",
+                "properties": {
+                    "overrides": {
+                        "type": "object",
+                        "properties": {
+                            "enabled_methods": {
+                                "type": [
+                                    "array",
+                                    "null"
+                                ],
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "biometric",
+                                        "mobile",
+                                        "qr",
+                                        "kiosk",
+                                        "web",
+                                        "manual",
+                                        "csv"
+                                    ]
+                                },
+                                "minItems": 1
+                            },
+                            "geofence_required": {
+                                "type": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            },
+                            "mobile_photo_required": {
+                                "type": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            },
+                            "kiosk_pin_required": {
+                                "type": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            },
+                            "mobile_accuracy_threshold_meters": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ],
+                                "minimum": 10,
+                                "maximum": 5000
+                            },
+                            "auto_checkout_enabled": {
+                                "type": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            },
+                            "auto_checkout_after_minutes": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ],
+                                "minimum": 15,
+                                "maximum": 720
+                            },
+                            "geofence_auto_checkin_enabled": {
+                                "type": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            },
+                            "risk_review_threshold": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ],
+                                "minimum": 10,
+                                "maximum": 100
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "overrides"
+                ],
+                "title": "UpdateBranchAttendanceRequest"
             },
             "UpdateBranchRequest": {
                 "type": "object",

@@ -26,6 +26,7 @@ use App\Services\Calendar\EthiopianCalendar;
 use App\Services\Holiday\HolidayService;
 use App\Services\Leave\LeaveDayCalculator;
 use App\Support\TenantTime;
+use App\Support\WorkingWeek;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -869,6 +870,11 @@ final class PayrollEngine
         // Asked once for the period, not per record.
         $rotationRestDays = $this->shiftMatcher->rotationRestDays($employee, $windowStart, $windowEnd);
 
+        // A record with no shift rests on the organisation's own week, not on
+        // Sunday: a Saturday at a Monday-Friday organisation was paid as a
+        // normal day, and a Sunday at a six-day one as a rest day.
+        $workingWeek = WorkingWeek::of(Tenant::query()->find($employee->tenant_id));
+
         foreach ($records as $record) {
             $date = Carbon::parse($record->date);
             $day = $date->format('Y-m-d');
@@ -877,7 +883,7 @@ final class PayrollEngine
             $isRestDay = $rotationRestDays[$date->format('Y-m-d')]
                 ?? ($record->shift !== null
                     ? ! $record->shift->isWorkingDay($date)
-                    : $date->isSunday());
+                    : ! in_array($date->dayOfWeekIso, $workingWeek, true));
 
             foreach ($this->overtimeClassifier->classify($record, $isHoliday, $isRestDay) as $type => $minutes) {
                 if ($paid) {

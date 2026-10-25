@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Attendance;
 
-use App\Models\AttendanceSetting;
 use App\Rules\Base64Image;
+use App\Services\Attendance\AttendancePolicy;
+use App\Services\CurrentTenant;
 use App\Services\FileStorageService;
 use App\Support\PhotoConsent;
+use App\Support\PunchSignals;
+use App\Support\TenantTime;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -30,6 +33,8 @@ class MobileCheckInRequest extends FormRequest
             // never supply `photo_path` themselves.
             'photo' => ['nullable', 'string', new Base64Image(FileStorageService::SELFIE_UPLOAD_MAX_BYTES)],
             'auto' => ['sometimes', 'boolean'],
+            ...PunchSignals::rules(),
+            'liveness' => ['nullable', 'string', 'in:passed,failed,no_face,unavailable'],
         ];
     }
 
@@ -56,7 +61,13 @@ class MobileCheckInRequest extends FormRequest
                 return;
             }
 
-            if (AttendanceSetting::query()->first()?->mobile_photo_required === true) {
+            $employee = $this->user()?->employee;
+            $policies = app(AttendancePolicy::class);
+            $required = $employee !== null
+                ? $policies->selfieRequired($employee, $policies->for($employee), TenantTime::today(app(CurrentTenant::class)->get())->format('Y-m-d'))
+                : (bool) $policies->organisation()->mobile_photo_required;
+
+            if ($required) {
                 $v->errors()->add('photo', __('attendance.photo_required'));
             }
         });
