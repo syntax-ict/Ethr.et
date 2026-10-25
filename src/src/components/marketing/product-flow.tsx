@@ -25,9 +25,12 @@ import { useT } from "@/lib/i18n/useT";
  * applies `animation-duration: 0.01ms` and `animation-iteration-count: 1` under
  * `prefers-reduced-motion`, which snaps every animation to its FINAL keyframe.
  * So every keyframe below ends in the completed state and the sequence plays
- * once and settles, rather than looping back to empty. That also rules out a
- * looping hero, which reads as restless on an enterprise page and competes
- * with the call to action.
+ * once and settles, rather than looping back to empty. This sequence still
+ * does not loop. The picture beside the heading does (`landing/hero-story.tsx`),
+ * by the owner's decision of 2026-10-25 that every illustration on the page
+ * moves; it is kept slow (two seconds a step) and holds its finished frame
+ * under reduced motion, so the restlessness this paragraph warned of is
+ * bounded rather than ignored.
  *
  * The global block is NOT sufficient on its own, which a screenshot caught and
  * reading did not: it collapses duration but leaves `animation-delay` intact,

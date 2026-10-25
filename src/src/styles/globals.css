@@ -1199,14 +1199,13 @@
 }
 
 /* ============================================================================
-   Landing page: the problems ledger and the hero scene
+   Landing page: the problems ledger's reveal
    (components/marketing/landing/).
 
-   The ledger's right column reveals once when its row scrolls into view, and
-   the hero scene assembles once on load. Both keyframes END in the settled
-   state, so the global reduced-motion block (0.01ms, one iteration) lands
-   them complete, and the block below zeroes their delays for the same reason
-   .ethr-flow needs it. `useRevealOnce` only ever adds .ethr-reveal-hidden
+   The ledger's right column reveals once when its row scrolls into view.
+   The keyframe ENDS in the settled state, so the global reduced-motion
+   block (0.01ms, one iteration) lands it complete, and the block below
+   zeroes its delay for the same reason .ethr-flow needs it. `useRevealOnce` only ever adds .ethr-reveal-hidden
    after hydration, when motion is allowed, so the prerendered HTML and a
    reduced-motion reader never see anything hidden.
    ========================================================================= */
@@ -1230,36 +1229,6 @@
   animation: ethr-reveal-in 0.45s var(--ease-out-quart) both;
 }
 
-@keyframes ethr-scene-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.ethr-scene .ethr-scene-part {
-  animation: ethr-scene-rise 0.5s var(--ease-out-quart) both;
-}
-.ethr-scene .ethr-scene-part:nth-of-type(1) {
-  animation-delay: 80ms;
-}
-.ethr-scene .ethr-scene-part:nth-of-type(2) {
-  animation-delay: 240ms;
-}
-.ethr-scene .ethr-scene-part:nth-of-type(3) {
-  animation-delay: 400ms;
-}
-.ethr-scene .ethr-scene-part:nth-of-type(4) {
-  animation-delay: 560ms;
-}
-.ethr-scene .ethr-scene-part:nth-of-type(5) {
-  animation-delay: 720ms;
-}
-
 /* The global reduced-motion block above collapses `animation-duration` and
    `animation-iteration-count` — but NOT `animation-delay`, and this sequence is
    built almost entirely out of delays. With `fill-mode: both`, an element holds
@@ -1271,10 +1240,237 @@
   .ethr-flow *,
   .ethr-flow *::before,
   .ethr-flow *::after,
-  .ethr-scene *,
   .ethr-reveal-in,
   .ethr-reveal-in * {
     animation-delay: 0ms !important;
+  }
+}
+
+/* ============================================================================
+   Landing page: the animated stories, the problems ledger's six and the
+   hero's one (components/marketing/landing/problem-stories.tsx,
+   hero-story.tsx, framed by story-frame.tsx).
+
+   Unlike everything above, these LOOP: each ledger row's story plays its
+   "Today" half and its "With ETHR" half every 12 s while it is on screen,
+   and the hero's working day every 16 s. The step
+   clock lives in `useStoryClock`; this block only says how a part moves
+   when its step comes and goes, plus a handful of small loops that run
+   inside one step (a clock hand, a scan line, a ringing bell).
+
+   Reduced motion is handled by not starting the clock at all, so the
+   settled last step is all a reader ever sees. The block at the end also
+   switches every transition and loop off, rather than relying on the global
+   0.01ms collapse, because a loop collapsed to one iteration ends wherever
+   its last keyframe is, which for a spinning hand is not the drawn frame.
+   ========================================================================= */
+
+.ethr-story-part {
+  transition:
+    opacity 0.5s var(--ease-out-quart),
+    transform 0.7s var(--ease-out-quart);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.ethr-story-part[data-on="false"] {
+  opacity: 0;
+}
+.ethr-story-part[data-on="false"][data-from="up"] {
+  transform: translateY(16px);
+}
+.ethr-story-part[data-on="false"][data-from="down"] {
+  transform: translateY(-16px);
+}
+.ethr-story-part[data-on="false"][data-from="left"] {
+  transform: translateX(-22px);
+}
+.ethr-story-part[data-on="false"][data-from="right"] {
+  transform: translateX(22px);
+}
+.ethr-story-part[data-on="false"][data-from="pop"] {
+  transform: scale(0.4);
+}
+.ethr-story-part[data-on="false"][data-from="drop"] {
+  transform: translateY(-46px) scale(1.25);
+}
+
+.ethr-story-move {
+  transition: transform 1s var(--ease-out-quart);
+  transform-box: view-box;
+  transform-origin: 0 0;
+}
+.ethr-story-draw {
+  transition:
+    stroke-dashoffset 1s var(--ease-out-quart),
+    opacity 0.3s linear;
+}
+.ethr-story-grow {
+  transition: transform 0.9s var(--ease-out-quart);
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+.ethr-story-ring {
+  transition: stroke-dasharray 1.1s var(--ease-out-quart);
+}
+.ethr-story-tint,
+.ethr-story-chip {
+  transition:
+    opacity 0.6s linear,
+    background-color 0.4s linear,
+    color 0.4s linear;
+}
+
+/* The small loops. Each runs only while its step is on, and every one is
+   held still while the story is off screen or paused. */
+.ethr-story-spin,
+.ethr-story-flip,
+.ethr-story-shake,
+.ethr-story-ripple,
+.ethr-story-press {
+  transform-box: view-box;
+}
+.ethr-story-spin {
+  animation: ethr-story-spin 1.5s linear infinite;
+}
+.ethr-story-flip {
+  animation: ethr-story-flip 1.5s var(--ease-out-quart) infinite;
+}
+.ethr-story-shake {
+  animation: ethr-story-shake 0.75s ease-in-out infinite;
+}
+.ethr-story-ripple {
+  animation: ethr-story-ripple 1.5s var(--ease-out-quart) infinite;
+}
+.ethr-story-press {
+  animation: ethr-story-press 1.5s ease-in-out infinite;
+}
+.ethr-story-scan {
+  animation: ethr-story-scan 0.75s ease-in-out infinite alternate;
+}
+.ethr-story-blink {
+  animation: ethr-story-blink 0.5s steps(1) infinite alternate;
+}
+.ethr-story-flow {
+  animation: ethr-story-flow 0.9s linear infinite;
+}
+.ethr-story-toggle {
+  animation: ethr-story-toggle 1.5s var(--ease-out-quart) both;
+}
+.ethr-story-jitter {
+  animation: ethr-story-jitter 1.2s ease-in-out infinite alternate;
+}
+.ethr-story-progress {
+  width: 100%;
+  transform-origin: left center;
+  animation-name: ethr-story-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+.ethr-story:not([data-playing]) * {
+  animation-play-state: paused !important;
+}
+
+@keyframes ethr-story-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ethr-story-flip {
+  0%,
+  55% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(180deg);
+  }
+}
+@keyframes ethr-story-shake {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(14deg);
+  }
+  75% {
+    transform: rotate(-14deg);
+  }
+}
+@keyframes ethr-story-ripple {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+@keyframes ethr-story-press {
+  0%,
+  40%,
+  100% {
+    transform: scale(1);
+  }
+  55% {
+    transform: scale(0.9);
+  }
+}
+@keyframes ethr-story-scan {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(36px);
+  }
+}
+@keyframes ethr-story-blink {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes ethr-story-flow {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+@keyframes ethr-story-toggle {
+  0%,
+  35% {
+    transform: translateX(0);
+  }
+  70%,
+  100% {
+    transform: translateX(44px);
+  }
+}
+@keyframes ethr-story-jitter {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(3px, -4px);
+  }
+}
+@keyframes ethr-story-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ethr-story *,
+  .ethr-story *::before,
+  .ethr-story *::after {
+    animation: none !important;
+    transition: none !important;
   }
 }
 

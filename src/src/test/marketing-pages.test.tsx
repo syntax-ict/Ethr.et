@@ -89,8 +89,9 @@ describe("Landing page", () => {
     expect(section).toHaveTextContent(
       "Staff check in from a phone, a shared kiosk, a QR code or the web",
     );
-    // Every row carries a picture: a drawn scene when nothing was uploaded.
+    // Every row carries a picture: an animated story when nothing was uploaded.
     expect(section.querySelectorAll("[data-scene]")).toHaveLength(6);
+    expect(section.querySelectorAll(".ethr-story")).toHaveLength(6);
     expect(
       section.querySelector('[data-scene="problems/paper_attendance"]'),
     ).not.toBeNull();
@@ -169,7 +170,13 @@ describe("Landing page", () => {
       testimonial_author: "A named customer",
     });
 
-    expect(container.querySelector(".fill-brand-accent")).toBeNull();
+    // Gold fill was what the stars were drawn in. The problems ledger's
+    // stories use gold too, for overtime and Pagume, so look outside them.
+    const gold = [...container.querySelectorAll(".fill-brand-accent")].filter(
+      (element) => !element.closest(".ethr-story"),
+    );
+    expect(gold).toHaveLength(0);
+    expect(container.querySelector(".lucide-star")).toBeNull();
   });
 
   it("renders no chrome of its own", () => {
