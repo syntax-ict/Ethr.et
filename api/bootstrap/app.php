@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Exceptions\AttendanceRefused;
+use App\Exceptions\DeviceBindingRefused;
 use App\Exceptions\DeviceRequestFailed;
 use App\Exceptions\PayrollRunRefused;
 use App\Http\Controllers\Api\V1\Device\AdmsController;
@@ -264,6 +265,23 @@ return Application::configure(basePath: dirname(__DIR__))
         // the geofence, employee has left) is the caller's mistake, not a
         // server fault: 422 from every endpoint, not 500 from the ones that
         // did not catch it.
+        // A punch from a phone that is not the employee's registered device.
+        // Its own type per reason, so the app can tell the person what to do.
+        $exceptions->render(function (DeviceBindingRefused $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json(array_filter([
+                'type' => 'https://ethr.et/errors/'.$e->type,
+                'title' => 'Device Not Accepted',
+                'status' => 422,
+                'detail' => $e->getMessage(),
+                'code' => $e->type,
+                'canonical_url' => $e->canonicalUrl,
+            ], static fn (mixed $value): bool => $value !== null), 422, ['Content-Type' => 'application/problem+json']);
+        });
+
         $exceptions->render(function (AttendanceRefused $e, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Attendance;
 
+use App\Rules\IpOrCidr;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateAttendanceSettingRequest extends FormRequest
@@ -39,6 +40,9 @@ class UpdateAttendanceSettingRequest extends FormRequest
             'risk_review_threshold' => ['sometimes', 'integer', 'min:10', 'max:100'],
             'adaptive_selfie' => ['sometimes', 'boolean'],
             'liveness_check' => ['sometimes', 'boolean'],
+            'device_binding' => ['sometimes', 'string', 'in:off,flag,enforce'],
+            'office_networks' => ['sometimes', 'nullable', 'array', 'max:20'],
+            'office_networks.*' => ['string', new IpOrCidr],
         ];
     }
 }

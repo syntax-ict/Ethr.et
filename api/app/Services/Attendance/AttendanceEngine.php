@@ -8,12 +8,15 @@ use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
 use App\Events\AttendanceRecorded;
 use App\Exceptions\AttendanceRefused;
+use App\Exceptions\DeviceBindingRefused;
 use App\Exceptions\NoOpenCheckIn;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Tenant;
+use App\Services\Attendance\Device\AttendanceDeviceGate;
+use App\Services\Attendance\Device\DeviceVerdict;
 use App\Support\AttendanceRules;
 use App\Support\AttendanceWebhookPayload;
 use App\Support\TenantTime;
@@ -74,6 +77,8 @@ final class AttendanceEngine
             throw new AttendanceRefused(__('attendance.method_disabled'));
         }
 
+        $input = $this->enforceDevice($input, $settings);
+
         $zone = TenantTime::zone(Tenant::query()->find($input->tenantId));
 
         // Someone who has left records nothing dated after they left. Nothing
@@ -98,6 +103,29 @@ final class AttendanceEngine
         }
 
         return $this->processCheckIn($input, $employee, $zone, $settings);
+    }
+
+    /**
+     * Whether a self-service punch came from the employee's registered phone.
+     * Under `enforce` anything else is refused, including a punch that reached
+     * here with no verdict at all: an endpoint that forgot to ask the gate
+     * fails closed. Under `flag` it is kept, and the verdict goes on the punch
+     * for the risk score. Kiosk, biometric, manual and import punches never
+     * carry a phone and are never checked.
+     */
+    private function enforceDevice(AttendanceInput $input, AttendanceSetting $settings): AttendanceInput
+    {
+        $binding = (string) ($settings->device_binding ?? 'off');
+        if (! in_array($input->source, AttendanceDeviceGate::SELF_SERVICE, true) || ! in_array($binding, ['flag', 'enforce'], true)) {
+            return $input;
+        }
+
+        $verdict = $input->device ?? new DeviceVerdict(DeviceVerdict::INVALID, $binding);
+        if ($binding === 'enforce' && ! $verdict->allowed()) {
+            throw DeviceBindingRefused::from($verdict);
+        }
+
+        return $input->withMetadata($verdict->metadata());
     }
 
     /**
@@ -324,6 +352,7 @@ final class AttendanceEngine
         $signals = array_intersect_key($input->metadata, array_flip([
             'accuracy', 'altitude', 'speed', 'heading', 'fix_age_ms', 'device',
             'client_offset_seconds', 'webdriver', 'user_agent',
+            'device_verdict', 'device_public_id', 'device_install_changed',
         ]));
         $metadata = array_filter([
             'checkout_photo_path' => $input->photoPath,

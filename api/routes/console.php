@@ -46,6 +46,7 @@ Schedule::command('attendance:push-reminders')->everyFiveMinutes()->name('attend
 // or made in the platform console), and the default back for one that lost
 // it. Hourly; idempotent, so the first run after a deploy is the backfill.
 Schedule::command('attendance:baseline')->hourly()->name('attendance-baseline')->withoutOverlapping();
+Schedule::command('attendance:purge-device-challenges')->daily()->name('attendance-purge-device-challenges')->withoutOverlapping();
 
 // Attendance selfie retention: delete photos whose 48-hour review ended, then
 // announce the ones past the organisation's retention period. Hourly, so a

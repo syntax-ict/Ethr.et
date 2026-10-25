@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
+class ComposerStaticInitcd20a0b0516b29aba68fc2f568b49bfc
 {
     public static $files = array (
         '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
@@ -130,6 +130,10 @@ class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
         'v' =>
         array (
             'voku\\' => 5,
+        ),
+        'l' =>
+        array (
+            'lbuchs\\WebAuthn\\' => 16,
         ),
         'T' =>
         array (
@@ -287,6 +291,10 @@ class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
         'voku\\' =>
         array (
             0 => __DIR__ . '/..' . '/voku/portable-ascii/src/voku',
+        ),
+        'lbuchs\\WebAuthn\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/lbuchs/webauthn/src',
         ),
         'TijsVerkoyen\\CssToInlineStyles\\' =>
         array (
@@ -750,6 +758,7 @@ class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
         'App\\Console\\Commands\\GenerateVapidKeysCommand' => __DIR__ . '/../..' . '/app/Console/Commands/GenerateVapidKeysCommand.php',
         'App\\Console\\Commands\\HealthCheckCommand' => __DIR__ . '/../..' . '/app/Console/Commands/HealthCheckCommand.php',
         'App\\Console\\Commands\\MailProbeCommand' => __DIR__ . '/../..' . '/app/Console/Commands/MailProbeCommand.php',
+        'App\\Console\\Commands\\PurgeDeviceChallengesCommand' => __DIR__ . '/../..' . '/app/Console/Commands/PurgeDeviceChallengesCommand.php',
         'App\\Console\\Commands\\PushPunchRemindersCommand' => __DIR__ . '/../..' . '/app/Console/Commands/PushPunchRemindersCommand.php',
         'App\\Console\\Commands\\QueueCheckCommand' => __DIR__ . '/../..' . '/app/Console/Commands/QueueCheckCommand.php',
         'App\\Console\\Commands\\RecheckCustomDomainsCommand' => __DIR__ . '/../..' . '/app/Console/Commands/RecheckCustomDomainsCommand.php',
@@ -809,6 +818,7 @@ class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
         'App\\Events\\PayrollRunFailed' => __DIR__ . '/../..' . '/app/Events/PayrollRunFailed.php',
         'App\\Events\\TenantCreated' => __DIR__ . '/../..' . '/app/Events/TenantCreated.php',
         'App\\Exceptions\\AttendanceRefused' => __DIR__ . '/../..' . '/app/Exceptions/AttendanceRefused.php',
+        'App\\Exceptions\\DeviceBindingRefused' => __DIR__ . '/../..' . '/app/Exceptions/DeviceBindingRefused.php',
         'App\\Exceptions\\DeviceCommandRejected' => __DIR__ . '/../..' . '/app/Exceptions/DeviceCommandRejected.php',
         'App\\Exceptions\\DeviceRequestFailed' => __DIR__ . '/../..' . '/app/Exceptions/DeviceRequestFailed.php',
         'App\\Exceptions\\InvalidEmployeeTransition' => __DIR__ . '/../..' . '/app/Exceptions/InvalidEmployeeTransition.php',
@@ -832,6 +842,7 @@ class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
         'App\\Http\\Controllers\\Api\\V1\\Attendance\\AttendanceConflictController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Attendance/AttendanceConflictController.php',
         'App\\Http\\Controllers\\Api\\V1\\Attendance\\AttendanceController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Attendance/AttendanceController.php',
         'App\\Http\\Controllers\\Api\\V1\\Attendance\\AttendanceCorrectionController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Attendance/AttendanceCorrectionController.php',
+        'App\\Http\\Controllers\\Api\\V1\\Attendance\\AttendanceDeviceController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Attendance/AttendanceDeviceController.php',
         'App\\Http\\Controllers\\Api\\V1\\Attendance\\AttendanceImportController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Attendance/AttendanceImportController.php',
         'App\\Http\\Controllers\\Api\\V1\\Attendance\\AttendanceIntegrityController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Attendance/AttendanceIntegrityController.php',
         'App\\Http\\Controllers\\Api\\V1\\Attendance\\AttendanceIntelligenceController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Attendance/AttendanceIntelligenceController.php',
@@ -1032,11 +1043,13 @@ class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
         'App\\Http\\Requests\\Attendance\\HoldAttendancePhotoRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/HoldAttendancePhotoRequest.php',
         'App\\Http\\Requests\\Attendance\\ImportAttendanceRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/ImportAttendanceRequest.php',
         'App\\Http\\Requests\\Attendance\\KioskAttendanceRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/KioskAttendanceRequest.php',
+        'App\\Http\\Requests\\Attendance\\ListAttendanceDevicesRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/ListAttendanceDevicesRequest.php',
         'App\\Http\\Requests\\Attendance\\ManualAttendanceRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/ManualAttendanceRequest.php',
         'App\\Http\\Requests\\Attendance\\MobileCheckInRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/MobileCheckInRequest.php',
         'App\\Http\\Requests\\Attendance\\MobileCheckOutRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/MobileCheckOutRequest.php',
         'App\\Http\\Requests\\Attendance\\OfflineSyncRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/OfflineSyncRequest.php',
         'App\\Http\\Requests\\Attendance\\QrAttendanceRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/QrAttendanceRequest.php',
+        'App\\Http\\Requests\\Attendance\\RegisterAttendanceDeviceRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/RegisterAttendanceDeviceRequest.php',
         'App\\Http\\Requests\\Attendance\\RejectCorrectionRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/RejectCorrectionRequest.php',
         'App\\Http\\Requests\\Attendance\\RejectOvertimeRequestRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/RejectOvertimeRequestRequest.php',
         'App\\Http\\Requests\\Attendance\\ResolveConflictRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/ResolveConflictRequest.php',
@@ -1045,6 +1058,7 @@ class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
         'App\\Http\\Requests\\Attendance\\StoreAttendanceVisitRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/StoreAttendanceVisitRequest.php',
         'App\\Http\\Requests\\Attendance\\StoreCorrectionRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/StoreCorrectionRequest.php',
         'App\\Http\\Requests\\Attendance\\StoreOvertimeRequestRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/StoreOvertimeRequestRequest.php',
+        'App\\Http\\Requests\\Attendance\\UpdateAttendanceDeviceExemptionRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/UpdateAttendanceDeviceExemptionRequest.php',
         'App\\Http\\Requests\\Attendance\\UpdateAttendanceModeRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/UpdateAttendanceModeRequest.php',
         'App\\Http\\Requests\\Attendance\\UpdateAttendanceSettingRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/UpdateAttendanceSettingRequest.php',
         'App\\Http\\Requests\\Attendance\\UpdateBranchAttendanceRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Attendance/UpdateBranchAttendanceRequest.php',
@@ -1213,6 +1227,7 @@ class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
         'App\\Http\\Resources\\ApprovalWorkflowStepResource' => __DIR__ . '/../..' . '/app/Http/Resources/ApprovalWorkflowStepResource.php',
         'App\\Http\\Resources\\AttendanceConflictResource' => __DIR__ . '/../..' . '/app/Http/Resources/AttendanceConflictResource.php',
         'App\\Http\\Resources\\AttendanceCorrectionResource' => __DIR__ . '/../..' . '/app/Http/Resources/AttendanceCorrectionResource.php',
+        'App\\Http\\Resources\\AttendanceDeviceResource' => __DIR__ . '/../..' . '/app/Http/Resources/AttendanceDeviceResource.php',
         'App\\Http\\Resources\\AttendanceIntegrityFlagResource' => __DIR__ . '/../..' . '/app/Http/Resources/AttendanceIntegrityFlagResource.php',
         'App\\Http\\Resources\\AttendancePhotoResource' => __DIR__ . '/../..' . '/app/Http/Resources/AttendancePhotoResource.php',
         'App\\Http\\Resources\\AttendancePunchResource' => __DIR__ . '/../..' . '/app/Http/Resources/AttendancePunchResource.php',
@@ -1320,6 +1335,8 @@ class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
         'App\\Models\\ApprovalWorkflowStep' => __DIR__ . '/../..' . '/app/Models/ApprovalWorkflowStep.php',
         'App\\Models\\AttendanceConflict' => __DIR__ . '/../..' . '/app/Models/AttendanceConflict.php',
         'App\\Models\\AttendanceCorrection' => __DIR__ . '/../..' . '/app/Models/AttendanceCorrection.php',
+        'App\\Models\\AttendanceDevice' => __DIR__ . '/../..' . '/app/Models/AttendanceDevice.php',
+        'App\\Models\\AttendanceDeviceChallenge' => __DIR__ . '/../..' . '/app/Models/AttendanceDeviceChallenge.php',
         'App\\Models\\AttendanceIntegrityFlag' => __DIR__ . '/../..' . '/app/Models/AttendanceIntegrityFlag.php',
         'App\\Models\\AttendanceRecord' => __DIR__ . '/../..' . '/app/Models/AttendanceRecord.php',
         'App\\Models\\AttendanceSetting' => __DIR__ . '/../..' . '/app/Models/AttendanceSetting.php',
@@ -1502,6 +1519,11 @@ class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
         'App\\Services\\Attendance\\ConflictResolution' => __DIR__ . '/../..' . '/app/Services/Attendance/ConflictResolution.php',
         'App\\Services\\Attendance\\ConflictResolver' => __DIR__ . '/../..' . '/app/Services/Attendance/ConflictResolver.php',
         'App\\Services\\Attendance\\CorrectionDecisionService' => __DIR__ . '/../..' . '/app/Services/Attendance/CorrectionDecisionService.php',
+        'App\\Services\\Attendance\\Device\\AttendanceDeviceGate' => __DIR__ . '/../..' . '/app/Services/Attendance/Device/AttendanceDeviceGate.php',
+        'App\\Services\\Attendance\\Device\\DeviceChallenges' => __DIR__ . '/../..' . '/app/Services/Attendance/Device/DeviceChallenges.php',
+        'App\\Services\\Attendance\\Device\\DeviceVerdict' => __DIR__ . '/../..' . '/app/Services/Attendance/Device/DeviceVerdict.php',
+        'App\\Services\\Attendance\\Device\\PasskeyRejected' => __DIR__ . '/../..' . '/app/Services/Attendance/Device/PasskeyRejected.php',
+        'App\\Services\\Attendance\\Device\\PasskeyVerifier' => __DIR__ . '/../..' . '/app/Services/Attendance/Device/PasskeyVerifier.php',
         'App\\Services\\Attendance\\ExpectedDays' => __DIR__ . '/../..' . '/app/Services/Attendance/ExpectedDays.php',
         'App\\Services\\Attendance\\IntegrityInspector' => __DIR__ . '/../..' . '/app/Services/Attendance/IntegrityInspector.php',
         'App\\Services\\Attendance\\MyShiftService' => __DIR__ . '/../..' . '/app/Services/Attendance/MyShiftService.php',
@@ -1625,6 +1647,7 @@ class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
         'App\\Support\\CopyName' => __DIR__ . '/../..' . '/app/Support/CopyName.php',
         'App\\Support\\Csv' => __DIR__ . '/../..' . '/app/Support/Csv.php',
         'App\\Support\\DeviceClock' => __DIR__ . '/../..' . '/app/Support/DeviceClock.php',
+        'App\\Support\\DeviceProof' => __DIR__ . '/../..' . '/app/Support/DeviceProof.php',
         'App\\Support\\DeviceSimulator' => __DIR__ . '/../..' . '/app/Support/DeviceSimulator.php',
         'App\\Support\\DeviceTime' => __DIR__ . '/../..' . '/app/Support/DeviceTime.php',
         'App\\Support\\DocumentDownload' => __DIR__ . '/../..' . '/app/Support/DocumentDownload.php',
@@ -9246,16 +9269,30 @@ class ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f
         'TijsVerkoyen\\CssToInlineStyles\\Css\\Rule\\Rule' => __DIR__ . '/..' . '/tijsverkoyen/css-to-inline-styles/src/Css/Rule/Rule.php',
         'UnhandledMatchError' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/UnhandledMatchError.php',
         'ValueError' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/ValueError.php',
+        'lbuchs\\WebAuthn\\Attestation\\AttestationObject' => __DIR__ . '/..' . '/lbuchs/webauthn/src/Attestation/AttestationObject.php',
+        'lbuchs\\WebAuthn\\Attestation\\AuthenticatorData' => __DIR__ . '/..' . '/lbuchs/webauthn/src/Attestation/AuthenticatorData.php',
+        'lbuchs\\WebAuthn\\Attestation\\Format\\AndroidKey' => __DIR__ . '/..' . '/lbuchs/webauthn/src/Attestation/Format/AndroidKey.php',
+        'lbuchs\\WebAuthn\\Attestation\\Format\\AndroidSafetyNet' => __DIR__ . '/..' . '/lbuchs/webauthn/src/Attestation/Format/AndroidSafetyNet.php',
+        'lbuchs\\WebAuthn\\Attestation\\Format\\Apple' => __DIR__ . '/..' . '/lbuchs/webauthn/src/Attestation/Format/Apple.php',
+        'lbuchs\\WebAuthn\\Attestation\\Format\\FormatBase' => __DIR__ . '/..' . '/lbuchs/webauthn/src/Attestation/Format/FormatBase.php',
+        'lbuchs\\WebAuthn\\Attestation\\Format\\None' => __DIR__ . '/..' . '/lbuchs/webauthn/src/Attestation/Format/None.php',
+        'lbuchs\\WebAuthn\\Attestation\\Format\\Packed' => __DIR__ . '/..' . '/lbuchs/webauthn/src/Attestation/Format/Packed.php',
+        'lbuchs\\WebAuthn\\Attestation\\Format\\Tpm' => __DIR__ . '/..' . '/lbuchs/webauthn/src/Attestation/Format/Tpm.php',
+        'lbuchs\\WebAuthn\\Attestation\\Format\\U2f' => __DIR__ . '/..' . '/lbuchs/webauthn/src/Attestation/Format/U2f.php',
+        'lbuchs\\WebAuthn\\Binary\\ByteBuffer' => __DIR__ . '/..' . '/lbuchs/webauthn/src/Binary/ByteBuffer.php',
+        'lbuchs\\WebAuthn\\CBOR\\CborDecoder' => __DIR__ . '/..' . '/lbuchs/webauthn/src/CBOR/CborDecoder.php',
+        'lbuchs\\WebAuthn\\WebAuthn' => __DIR__ . '/..' . '/lbuchs/webauthn/src/WebAuthn.php',
+        'lbuchs\\WebAuthn\\WebAuthnException' => __DIR__ . '/..' . '/lbuchs/webauthn/src/WebAuthnException.php',
         'voku\\helper\\ASCII' => __DIR__ . '/..' . '/voku/portable-ascii/src/voku/helper/ASCII.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInitdcb91414ec6dbfc02fe08f3f64d6a10f::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInitcd20a0b0516b29aba68fc2f568b49bfc::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInitcd20a0b0516b29aba68fc2f568b49bfc::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInitcd20a0b0516b29aba68fc2f568b49bfc::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInitcd20a0b0516b29aba68fc2f568b49bfc::$classMap;
 
         }, null, ClassLoader::class);
     }

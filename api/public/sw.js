@@ -210,6 +210,10 @@ async function flushQueue() {
           fix_age_ms: r.fix_age_ms,
           device_id: r.device_id,
           webdriver: r.webdriver,
+          liveness: r.liveness ?? null,
+          device_proof: r.device_proof ?? null,
+          // When the batch is sent, so the server can see the phone's clock.
+          client_time: new Date().toISOString(),
         })),
       }),
     });

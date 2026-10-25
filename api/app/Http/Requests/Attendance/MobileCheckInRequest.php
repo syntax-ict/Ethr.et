@@ -8,6 +8,7 @@ use App\Rules\Base64Image;
 use App\Services\Attendance\AttendancePolicy;
 use App\Services\CurrentTenant;
 use App\Services\FileStorageService;
+use App\Support\DeviceProof;
 use App\Support\PhotoConsent;
 use App\Support\PunchSignals;
 use App\Support\TenantTime;
@@ -34,6 +35,7 @@ class MobileCheckInRequest extends FormRequest
             'photo' => ['nullable', 'string', new Base64Image(FileStorageService::SELFIE_UPLOAD_MAX_BYTES)],
             'auto' => ['sometimes', 'boolean'],
             ...PunchSignals::rules(),
+            ...DeviceProof::rules(),
             'liveness' => ['nullable', 'string', 'in:passed,failed,no_face,unavailable'],
         ];
     }

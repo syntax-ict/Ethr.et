@@ -65,6 +65,9 @@ final class AttendanceRiskScorer
         'device_switch' => 10,
         'no_face' => 20,
         'liveness_failed' => 25,
+        'device_unverified' => 35,
+        'device_install_changed' => 15,
+        'device_unverified_office_pc' => 5,
     ];
 
     /** A fix older than this was not taken for this punch. */
@@ -154,6 +157,18 @@ final class AttendanceRiskScorer
 
         if ($punch === 'check_out' && $device !== null && $record->device_hash !== null && $record->device_hash !== $device) {
             $reasons['device_switch'] = self::WEIGHTS['device_switch'];
+        }
+
+        // The device gate's verdict (AttendanceDeviceGate): a punch from a phone
+        // that is not the employee's registered device, kept under `flag`.
+        $verdict = $meta['device_verdict'] ?? null;
+        if (in_array($verdict, ['unregistered', 'pending', 'foreign', 'invalid', 'wrong_host', 'exempt'], true)) {
+            $reasons['device_unverified'] = self::WEIGHTS['device_unverified'];
+        } elseif ($verdict === 'office_pc') {
+            $reasons['device_unverified_office_pc'] = self::WEIGHTS['device_unverified_office_pc'];
+        }
+        if (($meta['device_install_changed'] ?? false) === true) {
+            $reasons['device_install_changed'] = self::WEIGHTS['device_install_changed'];
         }
 
         $liveness = $meta['liveness'] ?? null;
