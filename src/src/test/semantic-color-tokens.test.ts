@@ -8,6 +8,11 @@ import { join } from "node:path";
  * palette class (or a hardcoded `text-white` over a themed surface) reappears.
  *
  * See DESIGN_SYSTEM.md → "Status Soft Containers" for the replacement utilities.
+ *
+ * The tree is read once and each file matched whole, with the line worked out
+ * from the match offset. It used to be walked and split into lines once per
+ * pattern, which on a loaded Windows disk under the full suite crossed the
+ * 20 s test timeout (2026-10-25) while reporting nothing wrong.
  */
 
 const SRC = join(process.cwd(), "src");
@@ -67,17 +72,30 @@ function walk(dir: string): string[] {
   return out;
 }
 
+let sources: Array<{ file: string; text: string }> | null = null;
+
+function readSources(): Array<{ file: string; text: string }> {
+  sources ??= walk(SRC)
+    // This spec quotes the banned patterns in its own source; skip itself.
+    .filter((file) => !file.endsWith("semantic-color-tokens.test.ts"))
+    .map((file) => ({ file, text: readFileSync(file, "utf8") }));
+  return sources;
+}
+
+function lineOf(text: string, index: number): number {
+  let line = 1;
+  for (let i = 0; i < index; i++) if (text.charCodeAt(i) === 10) line++;
+  return line;
+}
+
 function findViolations(pattern: RegExp): string[] {
   const hits: string[] = [];
-  for (const file of walk(SRC)) {
-    const lines = readFileSync(file, "utf8").split("\n");
-    lines.forEach((line, i) => {
-      // This spec quotes the banned patterns in its own source; skip itself.
-      if (file.endsWith("semantic-color-tokens.test.ts")) return;
-      for (const match of line.matchAll(pattern)) {
-        hits.push(`${file.replace(SRC, "src")}:${i + 1}  ${match[0]}`);
-      }
-    });
+  for (const { file, text } of readSources()) {
+    for (const match of text.matchAll(pattern)) {
+      hits.push(
+        `${file.replace(SRC, "src")}:${lineOf(text, match.index)}  ${match[0]}`,
+      );
+    }
   }
   return hits;
 }
