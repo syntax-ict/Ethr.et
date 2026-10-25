@@ -49,6 +49,15 @@ If you work in the field, log each visit from the attendance page on your phone:
 
 Turn on **Even when ETHR is closed** on the mobile attendance page to get a notification when your shift is about to start or when you have not checked in yet, even with the app closed. On iPhone, install the app to your home screen first.
 
+### Your registered phone
+
+Your organisation may ask you to punch only from your own phone. The first
+time, open the attendance page on your phone **while you are at work** and tap
+**Register**. The phone asks for your fingerprint, face or PIN, and from then
+on each punch asks for it again. A punch from any other phone or browser is
+not accepted. If you register away from work, or get a new phone, a manager
+approves it first.
+
 ### QR Code
 
 Scan the QR code displayed at your branch entrance using the camera button on the Attendance page. Your location is sent with the scan.

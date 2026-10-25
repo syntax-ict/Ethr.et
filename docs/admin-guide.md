@@ -201,6 +201,55 @@ Reminders can arrive up to about five minutes late, because the host has no
 background worker. On iPhone the app must be installed to the home screen
 (iOS 16.4 or later).
 
+### Registered phones
+
+Settings → Attendance Rules → Cheating protection → **Registered phone** stops
+buddy punching: one employee punching for another from a friend's phone, a
+second phone or another browser.
+
+Each person registers the one phone they punch with. The phone keeps a
+**passkey**: a key held in its secure hardware that cannot be copied, unlocked
+by the phone's own fingerprint, face or PIN. Every punch from the phone, the
+web page, a QR scan or a field visit carries a fresh signature from it, which
+the server checks before recording anything. A different phone, a second
+browser or a private window holds no passkey for that person.
+
+| Setting | What happens to a punch from a phone that is not the person's registered one |
+|---|---|
+| Off | Nothing is checked |
+| Check and review | It is recorded and scored `device_unverified` for review |
+| Only the registered phone | It is refused, and the person is told why |
+
+A branch can choose differently from the organisation (Branch rules).
+
+- **Registering.** The first phone registers by itself only when the person is
+  at work, inside their branch or a work site. Registering anywhere else, or
+  replacing a phone, waits for approval under Attendance → Devices.
+  Approving a replacement retires the old phone at the same moment.
+- **One phone, one person.** A phone or browser already registered to a
+  colleague cannot be registered again, and a passkey belonging to someone
+  else is refused.
+- **Computers.** On a computer, the person's phone confirms the punch through
+  the phone prompt the browser shows. If your office has its own fixed
+  internet address, list it under **Office networks for computer punches**: web
+  punches from it need no phone and are marked for review.
+- **Exemptions.** A person whose phone cannot hold a passkey, or is broken, can
+  be exempted until a date (up to three months) from their profile. Their
+  punches are accepted meanwhile and still sent for review.
+- **Offline.** A punch made with no signal is signed by the registered phone
+  over its own time and place, and checked when it syncs, so it cannot be
+  edited or made on another phone.
+- **Automatic check-in** cannot use the passkey, because the phone only shows
+  its prompt after a tap. With **Only the registered phone**, the person taps
+  to check in.
+- **Kiosk, biometric devices and manual entries** are never asked for a phone.
+
+**Rolling it out:** choose **Check and review**, let staff register as they
+punch at work, watch the count under Attendance → Devices, then choose **Only
+the registered phone**. What it cannot stop is a person handing their own
+unlocked phone to a friend; the selfie, the live face check and the review
+queue cover that.
+
 ### Cheating protection
 
 Every punch gets a **risk score** from 0 to 100, with the reasons that make it

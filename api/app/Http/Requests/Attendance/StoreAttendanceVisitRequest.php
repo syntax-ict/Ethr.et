@@ -6,6 +6,7 @@ namespace App\Http\Requests\Attendance;
 
 use App\Rules\Base64Image;
 use App\Services\FileStorageService;
+use App\Support\DeviceProof;
 use App\Support\PhotoConsent;
 use App\Support\PunchSignals;
 use Illuminate\Foundation\Http\FormRequest;
@@ -29,6 +30,7 @@ class StoreAttendanceVisitRequest extends FormRequest
             'note' => ['nullable', 'string', 'max:500'],
             'photo' => ['nullable', 'string', new Base64Image(FileStorageService::SELFIE_UPLOAD_MAX_BYTES)],
             ...PunchSignals::rules(),
+            ...DeviceProof::rules(),
         ];
     }
 

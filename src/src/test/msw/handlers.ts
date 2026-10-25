@@ -18,6 +18,7 @@ export function buildEmployee(
     nationality_needs_review: false,
     has_kiosk_pin: false,
     attendance_mode: "office",
+    attendance_device_exempt_until: null,
     gender: "male",
     date_of_birth: "1990-01-01",
     nationality: "Ethiopian",

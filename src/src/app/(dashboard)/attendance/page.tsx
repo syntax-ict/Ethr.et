@@ -52,6 +52,8 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import {
+  usePunchSigner,
+  useAttendanceDevice,
   useAttendanceList,
   useCheckIn,
   useCheckOut,
@@ -113,6 +115,10 @@ export default function AttendancePage() {
   const [manualOpen, setManualOpen] = useState(false);
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
+  // The registered phone signs a web punch too: on a phone directly, on a
+  // computer through the phone's prompt.
+  const { data: deviceState } = useAttendanceDevice();
+  const signPunch = usePunchSigner(deviceState);
   const { can } = usePermissions();
   const { data: granted } = useCurrentPermissions();
 
@@ -156,12 +162,28 @@ export default function AttendancePage() {
     setPage(1);
   }
 
-  function handleCheckIn() {
+  async function signedOrStop() {
+    const signed = await signPunch();
+    if (signed.stop) {
+      toast.error(
+        t(
+          "device.sign_cancelled",
+          "Unlock your phone when it asks, to confirm it is you.",
+        ),
+      );
+    }
+    return signed;
+  }
+
+  async function handleCheckIn() {
+    const signed = await signedOrStop();
+    if (signed.stop) return;
     checkIn.mutate(
       {
         idempotency_key: crypto.randomUUID(),
         source: "web",
         ...punchSignals(null),
+        ...(signed.proof ? { device_proof: signed.proof } : {}),
       },
       {
         onSuccess: () =>
@@ -177,9 +199,15 @@ export default function AttendancePage() {
     );
   }
 
-  function handleCheckOut() {
+  async function handleCheckOut() {
+    const signed = await signedOrStop();
+    if (signed.stop) return;
     checkOut.mutate(
-      { idempotency_key: crypto.randomUUID(), ...punchSignals(null) },
+      {
+        idempotency_key: crypto.randomUUID(),
+        ...punchSignals(null),
+        ...(signed.proof ? { device_proof: signed.proof } : {}),
+      },
       {
         onSuccess: () =>
           toast.success(

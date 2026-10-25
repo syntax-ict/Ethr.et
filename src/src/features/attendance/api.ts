@@ -1,9 +1,19 @@
+import { useCallback, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { fetchAllPages } from "@/api/fetch-all-pages";
 import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
-import type { PunchSignals } from "@/lib/attendance/punch-signals";
+import {
+  currentFix,
+  deviceId,
+  type PunchSignals,
+} from "@/lib/attendance/punch-signals";
+import {
+  registerPasskey,
+  signWithPasskey,
+  type DeviceProof,
+} from "@/lib/attendance/passkey";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 // Shapes come from the generated contract, so a renamed resource field fails
@@ -60,9 +70,10 @@ export type CorrectionPayrollImpact =
  */
 export type AttendanceSettings = Omit<
   components["schemas"]["AttendanceSettingResource"],
-  "enabled_methods"
+  "enabled_methods" | "office_networks"
 > & {
   enabled_methods: NonNullable<AttendanceSettingsUpdate["enabled_methods"]>;
+  office_networks: string[];
 };
 
 /**
@@ -118,6 +129,8 @@ const keys = {
   mapConfig: ["attendance", "map-config"] as const,
   visits: ["attendance", "visits"] as const,
   setupStatus: ["attendance", "setup-status"] as const,
+  device: ["attendance", "device"] as const,
+  devices: ["attendance", "devices"] as const,
   myShift: ["attendance", "my-shift"] as const,
 };
 
@@ -856,5 +869,181 @@ export function useMyShift(enabled = true) {
     refetchInterval: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
     retry: false,
+  });
+}
+
+// ── Registered phone (passkey) ────────────────────────────────────────────────
+
+export interface AttendanceDeviceInfo {
+  public_id: string;
+  status: "active" | "pending" | "revoked" | "rejected";
+  label: string | null;
+  synced_passkey: boolean;
+  enrolled_inside_geofence: boolean;
+  created_at: string | null;
+  last_used_at: string | null;
+  approved_at: string | null;
+  employee?: { public_id: string; name: string; employee_code: string | null };
+}
+
+export interface AttendanceDeviceState {
+  binding: "off" | "flag" | "enforce";
+  rp_id: string;
+  host_allowed: boolean;
+  canonical_url: string | null;
+  device: AttendanceDeviceInfo | null;
+  pending: AttendanceDeviceInfo | null;
+  exempt_until: string | null;
+}
+
+/** The signed-in employee's registered phone and the rule that applies to them. */
+export function useAttendanceDevice(enabled = true) {
+  return useQuery<AttendanceDeviceState>({
+    queryKey: keys.device,
+    queryFn: async () => (await apiClient.get("/attendance/device")).data,
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+/** A short name for this phone, shown to the people who approve phones. */
+function phoneLabel(): string {
+  const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
+  const os = /iPhone|iPad/.test(ua)
+    ? "iPhone"
+    : /Android/.test(ua)
+      ? "Android"
+      : /Windows/.test(ua)
+        ? "Windows"
+        : /Mac/.test(ua)
+          ? "Mac"
+          : "Device";
+  const browser = /Edg\//.test(ua)
+    ? "Edge"
+    : /Chrome\//.test(ua)
+      ? "Chrome"
+      : /Safari\//.test(ua)
+        ? "Safari"
+        : /Firefox\//.test(ua)
+          ? "Firefox"
+          : "";
+  return browser ? `${os}, ${browser}` : os;
+}
+
+/** Register this phone: the phone creates a passkey and the server keeps its public key. */
+export function useRegisterDevice() {
+  const queryClient = useQueryClient();
+  return useMutation<AttendanceDeviceInfo, unknown, void>({
+    mutationFn: async () => {
+      const fix = await currentFix();
+      const { data } = await apiClient.post(
+        "/attendance/device/register-options",
+      );
+      const credential = await registerPasskey(data.options);
+      return (
+        await apiClient.post("/attendance/device/register", {
+          credential,
+          latitude: fix?.latitude ?? null,
+          longitude: fix?.longitude ?? null,
+          accuracy: fix?.accuracy ?? null,
+          device_id: deviceId(),
+          label: phoneLabel(),
+        })
+      ).data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: keys.device });
+    },
+  });
+}
+
+/**
+ * Signs punches with the registered phone. The challenge is fetched ahead of
+ * the tap and kept fresh (it lasts three minutes on the server), because a
+ * phone shows its passkey prompt only for a moment after a tap, and a network
+ * round trip first can outlast that on iPhone.
+ *
+ * `sign()` resolves to the proof, or to nothing where phones are not checked
+ * or this employee has none (the server decides what that means); `stop` is
+ * true when phones are enforced and the person dismissed the prompt.
+ */
+export function usePunchSigner(state: AttendanceDeviceState | undefined) {
+  const cached = useRef<{ options: unknown; at: number } | null>(null);
+  const active = Boolean(state && state.binding !== "off" && state.device);
+  const enforced = state?.binding === "enforce";
+
+  const refresh = useCallback(async () => {
+    try {
+      const { data } = await apiClient.post("/attendance/device/challenge");
+      cached.current = { options: data.options, at: Date.now() };
+    } catch {
+      cached.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!active) return;
+    void refresh();
+    const id = window.setInterval(() => void refresh(), 120_000);
+    return () => window.clearInterval(id);
+  }, [active, refresh]);
+
+  return useCallback(async (): Promise<{
+    proof?: DeviceProof;
+    stop: boolean;
+  }> => {
+    if (!active) return { stop: false };
+    let entry = cached.current;
+    cached.current = null;
+    try {
+      if (!entry || Date.now() - entry.at > 150_000) {
+        const { data } = await apiClient.post("/attendance/device/challenge");
+        entry = { options: data.options, at: Date.now() };
+      }
+      const proof = await signWithPasskey(
+        entry.options as Parameters<typeof signWithPasskey>[0],
+      );
+      return { proof, stop: false };
+    } catch {
+      return { stop: enforced };
+    } finally {
+      void refresh();
+    }
+  }, [active, enforced, refresh]);
+}
+
+export interface AttendanceDevicesPage extends PaginatedResponse<AttendanceDeviceInfo> {
+  coverage: { employees: number; registered: number; pending: number };
+}
+
+/** Registered and waiting phones, for the people who manage attendance. */
+export function useAttendanceDevices(params: {
+  status?: string;
+  search?: string;
+  page: number;
+}) {
+  return useQuery<AttendanceDevicesPage>({
+    queryKey: [...keys.devices, params],
+    queryFn: async () =>
+      (await apiClient.get("/attendance/devices", { params })).data,
+  });
+}
+
+/** Approve, reject or revoke a phone. */
+export function useDecideDevice() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    AttendanceDeviceInfo,
+    unknown,
+    { publicId: string; action: "approve" | "reject" | "revoke" }
+  >({
+    mutationFn: async ({ publicId, action }) =>
+      action === "revoke"
+        ? (await apiClient.delete(`/attendance/devices/${publicId}`)).data
+        : (await apiClient.post(`/attendance/devices/${publicId}/${action}`))
+            .data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: keys.devices });
+    },
   });
 }

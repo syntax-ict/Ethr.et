@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Attendance;
 
+use App\Support\DeviceProof;
 use App\Support\PunchSignals;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -24,6 +25,7 @@ class QrAttendanceRequest extends FormRequest
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             ...PunchSignals::rules(),
+            ...DeviceProof::rules(),
         ];
     }
 }

@@ -37,6 +37,12 @@ class AttendanceSettingResource extends JsonResource
             'risk_review_threshold' => $this->risk_review_threshold,
             'adaptive_selfie' => $this->adaptive_selfie,
             'liveness_check' => $this->liveness_check,
+            'device_binding' => match ($this->device_binding) {
+                'flag' => 'flag',
+                'enforce' => 'enforce',
+                default => 'off',
+            },
+            'office_networks' => array_map(static fn (string $network): string => $network, (array) ($this->office_networks ?? [])),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }

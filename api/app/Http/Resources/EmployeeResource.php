@@ -39,6 +39,7 @@ class EmployeeResource extends JsonResource
             'badge_number' => $this->badge_number,
             'has_kiosk_pin' => $this->kiosk_pin !== null,
             'attendance_mode' => AttendancePolicy::modeOf($this->resource)->value,
+            'attendance_device_exempt_until' => $this->attendance_device_exempt_until?->format('Y-m-d'),
             'gender' => $this->gender,
             'date_of_birth' => $this->date_of_birth?->format('Y-m-d'),
             'nationality' => $this->nationality,

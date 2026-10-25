@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  *
  * @property Carbon|null $date_of_birth
  * @property Carbon|null $hire_date
+ * @property Carbon|null $attendance_device_exempt_until
  * @property NationalityStatus|null $nationality_status
  * @property bool $nationality_needs_review
  * @property-read Department|null $department
@@ -82,6 +83,7 @@ class Employee extends Model
         'tin',
         'import_key',
         'attendance_mode',
+        'attendance_device_exempt_until',
     ];
 
     // The two `*_normalized` entries are derived, like `national_id_hash` —
@@ -113,6 +115,7 @@ class Employee extends Model
             'nationality_needs_review' => 'boolean',
             'national_id' => 'encrypted',
             'attendance_mode' => AttendanceMode::class,
+            'attendance_device_exempt_until' => 'date',
         ];
     }
 

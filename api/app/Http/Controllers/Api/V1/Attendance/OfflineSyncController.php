@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Attendance;
 
 use App\Enums\AttendanceSource;
+use App\Exceptions\DeviceBindingRefused;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\OfflineSyncRequest;
+use App\Models\AttendanceDevice;
+use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\Attendance\Device\AttendanceDeviceGate;
+use App\Services\Attendance\Device\DeviceVerdict;
 use App\Services\Attendance\OfflineGrant;
 use App\Services\FileStorageService;
 use App\Support\PhotoConsent;
@@ -25,6 +30,7 @@ class OfflineSyncController extends Controller
         private readonly AttendanceEngine $engine,
         private readonly OfflineGrant $grants,
         private readonly FileStorageService $storage,
+        private readonly AttendanceDeviceGate $devices,
     ) {}
 
     /**
@@ -45,7 +51,7 @@ class OfflineSyncController extends Controller
             ], 404)->header('Content-Type', 'application/problem+json');
         }
 
-        return response()->json($this->grants->issue($employee));
+        return response()->json($this->grants->issue($employee, $this->devices->deviceFor($employee, AttendanceDevice::ACTIVE)));
     }
 
     public function sync(OfflineSyncRequest $request): JsonResponse
@@ -105,6 +111,13 @@ class OfflineSyncController extends Controller
                 continue;
             }
 
+            $grant = $this->grants->payload($record['offline_token']);
+            $nonce = is_array($grant) && is_string($grant['n'] ?? null) ? $grant['n'] : null;
+            $fingerprint = OfflineGrant::fingerprint($record['offline_token']);
+            $device = $nonce !== null && AttendanceRecord::query()->where('offline_token', $fingerprint)->count() >= OfflineGrant::MAX_PUNCHES
+                ? new DeviceVerdict(DeviceVerdict::INVALID, $this->devices->binding($employee))
+                : $this->devices->offlineVerdict($employee, $record, $grant, OfflineGrant::proofChallenge((string) $nonce, $record));
+
             try {
                 $result = $this->engine->record(new AttendanceInput(
                     employeeId: $employee->id,
@@ -126,11 +139,18 @@ class OfflineSyncController extends Controller
                         ...PunchSignals::from($record, $request->userAgent(), online: false),
                         'accuracy' => $record['accuracy'] ?? null,
                         'offline_grant' => $this->grants->check($record['offline_token'], $employee, $capturedAt->copy()->utc()),
+                        'liveness' => $record['liveness'] ?? null,
+                        // The phone's clock against ours when the batch was sent:
+                        // a phone set hours wrong dated its punches wrong too.
+                        'sync_clock_offset_seconds' => isset($record['client_time'])
+                            ? (int) round(Carbon::parse($record['client_time'])->diffInSeconds(now('UTC'), false))
+                            : null,
                     ], fn ($v) => $v !== null),
                     // The punch happened on the device while offline; record it at
                     // that time, not at sync time. The field is already required
                     // and validated by OfflineSyncRequest.
                     occurredAt: $record['timestamp'],
+                    device: $device,
                 ));
 
                 $results[] = [
@@ -139,11 +159,12 @@ class OfflineSyncController extends Controller
                     'public_id' => $result->record->public_id,
                 ];
             } catch (\Throwable $e) {
-                $results[] = [
+                $results[] = array_filter([
                     'idempotency_key' => $record['idempotency_key'],
                     'status' => 'error',
                     'detail' => $e->getMessage(),
-                ];
+                    'code' => $e instanceof DeviceBindingRefused ? $e->type : null,
+                ], fn ($v) => $v !== null);
             }
         }
 

@@ -49,6 +49,7 @@ import {
   Webhook,
   type LucideIcon,
   Route,
+  Smartphone,
 } from "lucide-react";
 import type { CanFlag } from "@/lib/hooks/usePermissions";
 
@@ -402,6 +403,15 @@ const TENANT_SECTIONS: NavSectionDef[] = [
             labelFallback: "Overtime",
             icon: TrendingUp,
             show: (c) => c.can.viewAllAttendance,
+          },
+          {
+            // The phones people punch with: approvals and revocations.
+            id: "attendance_devices",
+            href: "/attendance/devices",
+            labelKey: "devices.title",
+            labelFallback: "Phones",
+            icon: Smartphone,
+            show: (c) => c.can.manageAttendance,
           },
           {
             // Stops field staff logged during the day; never a punch.

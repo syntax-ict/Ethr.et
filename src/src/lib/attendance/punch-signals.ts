@@ -7,6 +7,8 @@
  * The install id is random and stays on this device; the server keeps only a
  * keyed hash of it, enough to tell that two punches came from one install.
  */
+import type { DeviceProof } from "@/lib/attendance/passkey";
+
 const DEVICE_KEY = "ethr-device-id";
 
 export interface PunchSignals {
@@ -17,6 +19,8 @@ export interface PunchSignals {
   device_id?: string;
   client_time: string;
   webdriver?: boolean;
+  /** The registered phone's signature for this punch (passkey.ts). */
+  device_proof?: DeviceProof;
 }
 
 /** A position as the Geolocation API reports it, kept whole. */

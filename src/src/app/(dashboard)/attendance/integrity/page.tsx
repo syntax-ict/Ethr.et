@@ -480,6 +480,18 @@ function RiskDetails({ flag }: { flag: IntegrityFlag }) {
     device_clock_ahead: t("risk.device_clock_ahead", "Device clock ahead"),
     low_confidence: t("risk.low_confidence", "Low confidence"),
     shared_device: t("risk.shared_device", "Phone also used by someone else"),
+    device_unverified: t(
+      "risk.device_unverified",
+      "Not from the employee's registered phone",
+    ),
+    device_install_changed: t(
+      "risk.device_install_changed",
+      "Registered phone, different app install",
+    ),
+    device_unverified_office_pc: t(
+      "risk.device_unverified_office_pc",
+      "Office computer, no phone",
+    ),
     ip_burst: t(
       "risk.ip_burst",
       "Same network as another punch, not an office one",

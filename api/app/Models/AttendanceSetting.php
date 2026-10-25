@@ -39,6 +39,9 @@ class AttendanceSetting extends Model
         'risk_review_threshold',
         'adaptive_selfie',
         'liveness_check',
+        'device_binding',
+        'attendance_rp_id',
+        'office_networks',
     ];
 
     protected function casts(): array
@@ -67,6 +70,7 @@ class AttendanceSetting extends Model
             'risk_review_threshold' => 'integer',
             'adaptive_selfie' => 'boolean',
             'liveness_check' => 'boolean',
+            'office_networks' => 'array',
         ];
     }
 
@@ -96,6 +100,9 @@ class AttendanceSetting extends Model
             'risk_review_threshold' => 40,
             'adaptive_selfie' => false,
             'liveness_check' => false,
+            'device_binding' => 'off',
+            'attendance_rp_id' => null,
+            'office_networks' => null,
         ];
     }
 

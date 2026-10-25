@@ -11,6 +11,12 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-25, registered phones: one more. `Services/Attendance/Device/
+ * DeviceChallenges::purge()` deletes passkey challenges an hour after they
+ * expired, for every organisation at once from the scheduler: a sweep with
+ * no tenant to state, like the other retention sweeps. It reads and returns
+ * nothing. 171/67.)
+ *
  * (2026-10-24, readiness: one more. `Services/Onboarding/ReadinessScorer`
  * reads the organisation's attendance settings to count phone, QR, web or
  * kiosk punching as an attendance source, as it already reads devices:
@@ -219,6 +225,9 @@ return [
     'Services/Analytics/DepartmentAnalyticsService.php' => 5,
     'Services/Analytics/ExecutiveDashboardService.php' => 22,
     'Services/Attendance/AttendanceEngine.php' => 2,
+    // Retention sweep: deletes expired passkey challenges across every
+    // organisation from the scheduler; selects and returns nothing.
+    'Services/Attendance/Device/DeviceChallenges.php' => 1,
     'Services/Attendance/AttendanceImporter.php' => 1,
     'Services/Attendance/ConflictResolver.php' => 1,
     'Services/Auth/AuthIdentifierResolver.php' => 7,

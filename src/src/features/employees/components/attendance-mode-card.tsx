@@ -10,7 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useSetAttendanceMode } from "@/features/employees/api";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  useSetAttendanceMode,
+  useSetDeviceExemption,
+} from "@/features/employees/api";
 import type { Employee } from "@/features/employees/types";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { useT } from "@/lib/i18n/useT";
@@ -28,6 +34,26 @@ const MODES: Mode[] = ["office", "field", "remote"];
 export function AttendanceModeCard({ employee }: { employee: Employee }) {
   const { t } = useT();
   const setMode = useSetAttendanceMode(employee.public_id);
+  const setExemption = useSetDeviceExemption(employee.public_id);
+  const [exemptUntil, setExemptUntil] = useState(
+    employee.attendance_device_exempt_until ?? "",
+  );
+
+  function saveExemption(until: string | null) {
+    setExemption.mutate(until, {
+      onSuccess: () => {
+        setExemptUntil(until ?? "");
+        toast.success(t("attendance_mode.saved", "Saved"));
+      },
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t("device_exemption.failed", "Couldn't change the exemption"),
+          ),
+        ),
+    });
+  }
 
   const label: Record<Mode, string> = {
     office: t("attendance_mode.office", "At their branch"),
@@ -101,6 +127,52 @@ export function AttendanceModeCard({ employee }: { employee: Employee }) {
             ))}
           </SelectContent>
         </Select>
+        <div className="flex w-full flex-wrap items-end justify-between gap-2 border-t border-border pt-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              {t(
+                "device_exemption.title",
+                "Punch without the registered phone",
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "device_exemption.hint",
+                "Until this date, for a phone that cannot hold a passkey or is broken. Their punches are still sent for review.",
+              )}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              className="w-40"
+              aria-label={t(
+                "device_exemption.title",
+                "Punch without the registered phone",
+              )}
+              value={exemptUntil}
+              onChange={(e) => setExemptUntil(e.target.value)}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={setExemption.isPending || exemptUntil === ""}
+              onClick={() => saveExemption(exemptUntil)}
+            >
+              {t("device_exemption.save", "Save")}
+            </Button>
+            {employee.attendance_device_exempt_until && (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={setExemption.isPending}
+                onClick={() => saveExemption(null)}
+              >
+                {t("device_exemption.end", "End")}
+              </Button>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

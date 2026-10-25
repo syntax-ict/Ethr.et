@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Attendance;
 
+use App\Enums\AttendanceSource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\StoreAttendanceVisitRequest;
 use App\Http\Resources\AttendanceVisitResource;
@@ -12,6 +13,7 @@ use App\Models\AttendanceVisit;
 use App\Models\Employee;
 use App\Services\Attendance\AttendancePlaces;
 use App\Services\Attendance\AttendancePolicy;
+use App\Services\Attendance\Device\AttendanceDeviceGate;
 use App\Services\FileStorageService;
 use App\Support\PunchSignals;
 use Carbon\Carbon;
@@ -30,6 +32,7 @@ class AttendanceVisitController extends Controller
         private readonly AttendancePolicy $policy,
         private readonly AttendancePlaces $places,
         private readonly FileStorageService $storage,
+        private readonly AttendanceDeviceGate $devices,
     ) {}
 
     public function store(StoreAttendanceVisitRequest $request): JsonResponse
@@ -50,6 +53,13 @@ class AttendanceVisitController extends Controller
         if (! $this->policy->for($employee)->isMethodEnabled('mobile')) {
             return $this->problem(422, 'Method Disabled', __('attendance.method_disabled'));
         }
+
+        // A live visit must come from the employee's registered phone under
+        // `enforce`. One logged offline cannot answer a fresh challenge, so it
+        // is kept with its verdict for review instead.
+        $verdict = $request->filled('occurred_at')
+            ? $this->devices->verdict($employee, $request, $request->validated('device_proof'), AttendanceSource::MOBILE)
+            : $this->devices->enforce($employee, $request, $request->validated('device_proof'), AttendanceSource::MOBILE);
 
         // A visit logged offline arrives later, dated when it happened, inside
         // the same window offline punches are held to.
@@ -87,6 +97,7 @@ class AttendanceVisitController extends Controller
             'metadata' => array_filter([
                 'ip_address' => $request->ip(),
                 ...PunchSignals::from($request->validated(), $request->userAgent(), online: ! $request->filled('occurred_at')),
+                ...$verdict->metadata(),
             ], fn ($v) => $v !== null),
         ]);
 

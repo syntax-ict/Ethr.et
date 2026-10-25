@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceSource;
+use App\Services\Attendance\Device\DeviceVerdict;
 
 final readonly class AttendanceInput
 {
@@ -29,5 +30,21 @@ final readonly class AttendanceInput
          * timestamp string; the engine resolves it via Carbon.
          */
         public ?string $occurredAt = null,
+        /**
+         * What the device gate found for a self-service punch: whether it came
+         * from the employee's registered phone (AttendanceDeviceGate). Null for
+         * sources that never carry one.
+         */
+        public ?DeviceVerdict $device = null,
     ) {}
+
+    /** The same punch with extra metadata. */
+    public function withMetadata(array $extra): self
+    {
+        return new self(
+            $this->employeeId, $this->tenantId, $this->source, $this->type, $this->idempotencyKey,
+            $this->latitude, $this->longitude, $this->photoPath, $this->deviceId, $this->offlineToken,
+            $this->ipAddress, [...$this->metadata, ...$extra], $this->occurredAt, $this->device,
+        );
+    }
 }
