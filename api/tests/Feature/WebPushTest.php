@@ -132,6 +132,30 @@ test('nothing is pushed while push is not configured', function () {
     Queue::assertNotPushed(SendWebPush::class);
 });
 
+test('builds the real push client from the VAPID keys, not a mock', function () {
+    // Every other push test replaces client() with a mock, so a constructor
+    // the library no longer accepts only failed in production: web-push 11
+    // takes a PSR-18 client where 9 took a timeout in seconds (2026-10-26).
+    // Keys of the shape VAPID expects (an uncompressed P-256 point and a
+    // 32-byte scalar), built without OpenSSL, which a Windows PHP without
+    // openssl.cnf cannot use to generate a key.
+    $b64url = fn (string $bytes): string => rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
+    config([
+        'webpush.subject' => 'mailto:noreply@ethr.et',
+        'webpush.public_key' => $b64url(''.random_bytes(64)),
+        'webpush.private_key' => $b64url(random_bytes(32)),
+    ]);
+    $sender = new class extends WebPushSender
+    {
+        public function realClient(): WebPush
+        {
+            return $this->client();
+        }
+    };
+
+    expect($sender->realClient())->toBeInstanceOf(WebPush::class);
+});
+
 test('an endpoint the push service reports gone is forgotten', function () {
     wpConfigure();
     $tenant = createTenant();
