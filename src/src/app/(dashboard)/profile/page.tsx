@@ -67,7 +67,7 @@ function ProfileOverview({
   const employee = profile.employee;
   const user = profile.user;
   const pendingUpdates = profile.pending_updates ?? [];
-  const displayName = employee?.name ?? user.email.split("@")[0];
+  const displayName = employee?.name ?? user.email?.split("@")[0] ?? "";
 
   return (
     <div className="space-y-6">
@@ -170,7 +170,7 @@ function ProfileOverview({
             <InfoRow
               icon={Mail}
               label={t("common.email", "Email")}
-              value={user.email}
+              value={user.email ?? "—"}
             />
             <InfoRow
               icon={Phone}

@@ -29,7 +29,9 @@ class MfaService
     {
         return $this->google2fa->getQRCodeUrl(
             config('app.name'),
-            $user->email,
+            // An employee activated in person has no email; the authenticator
+            // entry is labelled with the sign-in handle they do have.
+            $user->email ?? $user->username ?? $user->public_id,
             $secret
         );
     }

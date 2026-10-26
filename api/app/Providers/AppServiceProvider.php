@@ -239,6 +239,19 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by('kiosk-exit:'.hash('sha256', (string) $request->input('token')));
         });
 
+        // Redeeming an in-person activation code. Per address, so one office
+        // NAT is not locked out by a stranger, and per organisation and
+        // employee code, so a guess at one person's code cannot be spread
+        // across many addresses. The code itself locks after five wrong tries.
+        RateLimiter::for('activation', function (Request $request) {
+            $who = hash('sha256', mb_strtolower(trim((string) $request->input('tenant', $request->header('X-Tenant', '')))).'|'.mb_strtolower(trim((string) $request->input('employee_code'))));
+
+            return [
+                Limit::perMinute(20)->by('activation-ip:'.$request->ip()),
+                Limit::perMinute(10)->by('activation-who:'.$who),
+            ];
+        });
+
         // The organisation sign-in page asks for its branding once per view.
         // Under the shared `api` limiter (60/min per guest IP) an office behind
         // one NAT address — the norm here — ran out at shift change, and the

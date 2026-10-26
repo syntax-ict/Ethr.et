@@ -97,6 +97,42 @@ class UserProvisioningService
     }
 
     /**
+     * Provision a login for an employee with no email and no phone. The row has
+     * a null email and an unusable password; it is activated in person with a
+     * code HR issues (ActivationCodeService), so nothing is sent from here.
+     */
+    public function provisionWithoutContact(Employee $employee, ?int $invitedBy = null): User
+    {
+        $tenant = $this->currentTenant->get();
+        if ($tenant === null) {
+            throw new \RuntimeException('Cannot provision a user without a resolved tenant.');
+        }
+
+        $user = User::create([
+            'tenant_id' => $tenant->id,
+            'employee_id' => $employee->id,
+            'email' => null,
+            'password' => Hash::make(Str::random(40)),
+            'role' => UserRole::EMPLOYEE,
+            'status' => 'invited',
+            'invited_by' => $invitedBy,
+            'invited_at' => now(),
+            'locale' => $tenant->default_locale ?? 'en',
+        ]);
+
+        if ($employee->user_id === null) {
+            $employee->update(['user_id' => $user->id]);
+        }
+
+        AuditLog::record('user.provisioned_no_contact', $user, [
+            'employee_id' => $employee->public_id,
+            'invited_by' => $invitedBy,
+        ]);
+
+        return $user;
+    }
+
+    /**
      * (Re)send the activation / set-password link to an invited user.
      */
     public function sendActivationLink(User $user): bool

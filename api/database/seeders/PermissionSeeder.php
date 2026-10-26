@@ -179,6 +179,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'users.invite', 'module' => 'users', 'action' => 'invite', 'description' => 'Invite and provision login accounts'],
             ['name' => 'users.update', 'module' => 'users', 'action' => 'update', 'description' => 'Update user roles, status and access'],
             ['name' => 'users.delete', 'module' => 'users', 'action' => 'delete', 'description' => 'Deactivate login accounts'],
+            ['name' => 'users.issueActivationCode', 'module' => 'users', 'action' => 'issueActivationCode', 'description' => 'Issue a one-time activation code in person to an employee with no email or phone'],
             ['name' => 'users.resetMfa', 'module' => 'users', 'action' => 'resetMfa', 'description' => 'Reset two-factor authentication for someone who lost their device'],
 
             // Announcement
@@ -292,6 +293,8 @@ class PermissionSeeder extends Seeder
             'voice.manage',
             // Inviting/activating people is part of HR onboarding.
             'users.viewAny', 'users.invite', 'users.update',
+            // Face-to-face activation for staff with no email or phone.
+            'users.issueActivationCode',
         ];
 
         // Finance Admin: the payroll side. Approving, voiding and reprocessing a

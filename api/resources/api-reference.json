@@ -10118,7 +10118,10 @@
                                                     ]
                                                 },
                                                 "email": {
-                                                    "type": "string"
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
                                                 },
                                                 "phone": {
                                                     "type": [
@@ -16021,6 +16024,152 @@
                 "responses": {
                     "204": {
                         "description": "No content"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/{employee}/activation-code": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "employees"
+                ],
+                "operationId": "activationCode.show",
+                "description": "Never carries the code: it is shown once, when it is issued.",
+                "summary": "Where this employee's in-person activation stands",
+                "tags": [
+                    "Activation Code"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "activationCode.store",
+                "description": "HR does this in person, after checking the employee's identity. The code\nis returned once, as typed characters and as a link for a QR, and cannot\nbe read back; issuing another withdraws it. The employee redeems it on\ntheir own device and chooses their own password.",
+                "summary": "Issue a one-time activation code for an employee with no email or phone",
+                "tags": [
+                    "Activation Code"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IssueActivationCodeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "activationCode.destroy",
+                "summary": "Withdraw the employee's live activation code",
+                "tags": [
+                    "Activation Code"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
@@ -41991,6 +42140,55 @@
                     "file"
                 ],
                 "title": "ImportPreviewRequest"
+            },
+            "IssueActivationCodeRequest": {
+                "type": "object",
+                "description": "HR attests they checked the person's identity face to face, names the\ndocument (never its number), and proves it is really them at the keyboard:\ntheir password, and their authenticator code when they have one.\n\nThe step-up lives in `withValidator()` so a wrong password and a wrong code\nread as the same 422 as any other field, and `rules()` stays plain for the\ngenerated API contract.",
+                "properties": {
+                    "attested": {
+                        "enum": [
+                            "yes",
+                            "on",
+                            "1",
+                            1,
+                            "true",
+                            true
+                        ]
+                    },
+                    "document_type": {
+                        "type": "string",
+                        "enum": [
+                            "national_id",
+                            "kebele_id",
+                            "passport",
+                            "driving_licence",
+                            "employer_id"
+                        ]
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "current_password": {
+                        "type": "string"
+                    },
+                    "mfa_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 12
+                    }
+                },
+                "required": [
+                    "attested",
+                    "document_type",
+                    "current_password"
+                ],
+                "title": "IssueActivationCodeRequest"
             },
             "KioskAttendanceRequest": {
                 "type": "object",

@@ -11,6 +11,13 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-26, in-person activation: one more. `Services/Auth/
+ * ActivationCodeService::purge()` deletes activation codes a month after they
+ * expired, for every organisation at once from the scheduler: a sweep with no
+ * tenant to state, like `DeviceChallenges::purge()`. It reads and returns
+ * nothing. Redemption itself adds none: the tenant comes from the request and
+ * every lookup states it. 174/68, after the address rename's 173/67.)
+ *
  * (2026-10-26, address rename: three in, one out. A tenant admin can rename
  * the organisation's address, and the old name is kept in
  * `tenant_subdomain_aliases` so it keeps resolving to the organisation and no
@@ -243,6 +250,7 @@ return [
     'Services/Attendance/Device/DeviceChallenges.php' => 1,
     'Services/Attendance/AttendanceImporter.php' => 1,
     'Services/Attendance/ConflictResolver.php' => 1,
+    'Services/Auth/ActivationCodeService.php' => 1,
     'Services/Auth/AuthIdentifierResolver.php' => 7,
     // "Find my organisation" on the apex login (2026-10-04). Pre-authentication,
     // on the apex where no tenant resolves, and cross-tenant by its nature: the

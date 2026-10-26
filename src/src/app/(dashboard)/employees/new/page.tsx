@@ -204,7 +204,7 @@ export default function NewEmployeePage() {
       supervisor_id: form.supervisor_id || null,
       team_id: form.team_id || null,
       cost_center_id: form.cost_center_id || null,
-      ...(sendLogin && form.email
+      ...(sendLogin && (form.email || !form.phone)
         ? { create_login: true, user_role: "employee" as const }
         : {}),
     };
@@ -551,17 +551,22 @@ export default function NewEmployeePage() {
             <div className="flex items-start gap-3 rounded-md border border-border-default p-4 sm:col-span-2">
               <Checkbox
                 id="send_login"
-                checked={sendLogin && !!form.email}
+                checked={sendLogin && (!!form.email || !form.phone)}
                 onCheckedChange={(v) => setSendLogin(v === true)}
-                disabled={!form.email}
+                disabled={!form.email && !!form.phone}
                 aria-describedby="send_login-hint"
               />
               <div className="space-y-1">
                 <Label htmlFor="send_login" className="text-sm font-medium">
-                  {t(
-                    "employee.send_login",
-                    "Send a login invitation to this email",
-                  )}
+                  {form.email || form.phone
+                    ? t(
+                        "employee.send_login",
+                        "Send a login invitation to this email",
+                      )
+                    : t(
+                        "employee.create_login_in_person",
+                        "Create a login to activate in person",
+                      )}
                 </Label>
                 <p
                   id="send_login-hint"
@@ -572,10 +577,15 @@ export default function NewEmployeePage() {
                         "employee.send_login_hint",
                         "They set a password from the email and can then request leave, see payslips and check in.",
                       )
-                    : t(
-                        "employee.login_needs_email",
-                        "Add an email to send a login invitation.",
-                      )}
+                    : !form.phone
+                      ? t(
+                          "employee.create_login_in_person_hint",
+                          "With no email or phone, nothing can be sent. HR activates the login face to face with a one-time code from their profile.",
+                        )
+                      : t(
+                          "employee.login_needs_email",
+                          "Add an email to send a login invitation.",
+                        )}
                 </p>
               </div>
             </div>
