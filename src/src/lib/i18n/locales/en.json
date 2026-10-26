@@ -4421,7 +4421,7 @@
   "settings.landing_link_website": "Website",
   "settings.landing_links_help": "https links only. Each network link must be on that network's own site. Privacy and terms fall back to ETHR's when empty.",
   "settings.landing_listed": "List this page in search engines",
-  "settings.landing_listed_help": "Off by default. When on, search engines may index your page; nothing behind sign-in is ever listed.",
+  "settings.landing_listed_help": "On by default while your organisation is active, so people who search for its name find this page. Turn it off to keep the page out of search results. Nothing behind sign-in is ever listed.",
   "settings.landing_longitude": "Longitude",
   "settings.landing_message": "Welcome message",
   "settings.landing_move_down": "Move :section down",

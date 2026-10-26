@@ -4421,7 +4421,7 @@
   "settings.landing_link_website": "ድረ-ገጽ",
   "settings.landing_links_help": "https ሊንኮች ብቻ። እያንዳንዱ የአውታረ መረብ ሊንክ በዚያ አውታረ መረብ የራሱ ድረ-ገጽ ላይ መሆን አለበት። ግላዊነት እና ውሎች ባዶ ሲሆኑ የETHR ይጠቀማሉ።",
   "settings.landing_listed": "ይህን ገጽ በፍለጋ ሞተሮች ውስጥ ዘርዝር",
-  "settings.landing_listed_help": "በነባሪ ጠፍቷል። ሲበራ የፍለጋ ሞተሮች ገጽዎን ሊያመለክቱ ይችላሉ፤ ከመግቢያ በስተጀርባ ያለ ምንም ነገር አይዘረዘርም።",
+  "settings.landing_listed_help": "ድርጅትዎ ንቁ እስከሆነ ድረስ በነባሪ በርቷል፤ የድርጅትዎን ስም የሚፈልጉ ሰዎች ይህን ገጽ ያገኛሉ። ገጹን ከፍለጋ ውጤቶች ውጭ ለማድረግ ያጥፉት። ከመግቢያ በስተጀርባ ያለ ምንም ነገር አይዘረዘርም።",
   "settings.landing_longitude": "ኬንትሮስ",
   "settings.landing_message": "የእንኳን ደህና መጡ መልእክት",
   "settings.landing_move_down": ":section ወደ ታች ውሰድ",

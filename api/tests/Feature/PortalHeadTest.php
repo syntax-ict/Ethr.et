@@ -15,7 +15,7 @@ use Illuminate\Testing\TestResponse;
  * The server-rendered head of an organisation's portal (organisation portal,
  * PR 4 of 4): what a search result, a shared link and a crawler see at
  * ethr.et/{slug}. These pin that it says what the page shows anyone and
- * nothing else, that it is escaped, that listing is opt-in, that the preview
+ * nothing else, that it is escaped, that every organisation in use is listed unless it opted out, that the preview
  * image and the sitemap exist on the same terms as the other brand images.
  */
 
@@ -80,16 +80,26 @@ it('renders the organisation into the page head, with its own title, description
         ->toContain('<main id="login">');
 });
 
-it('keeps the page out of search results until listing is on, in the header and the head alike', function () {
-    $tenant = portalTenant();
+it('lists an organisation in use by default, in the header and the head alike', function () {
+    portalTenant();
+
+    $html = servePortal()->assertHeader('X-Robots-Tag', 'index, follow')->getContent();
+    expect($html)->toContain('<meta name="robots" content="index, follow">')
+        ->not->toContain('noindex');
+});
+
+it('keeps the page out of search results once listing is switched off, or the organisation is not in use', function (array $landing, array $attributes) {
+    portalTenant($landing, $attributes);
 
     $html = servePortal()->assertHeader('X-Robots-Tag', 'noindex, nofollow')->getContent();
-    expect($html)->toContain('<meta name="robots" content="noindex, nofollow">');
-
-    $tenant->update(['landing' => ['background' => 'brand', 'listed' => true]]);
-    $html = servePortal()->assertHeader('X-Robots-Tag', 'index, follow')->getContent();
-    expect($html)->toContain('<meta name="robots" content="index, follow">');
-});
+    expect($html)->toContain('<meta name="robots" content="noindex, nofollow">')
+        ->not->toContain('content="index, follow"');
+})->with([
+    'switched off' => [['listed' => false], []],
+    'a hand-edited value' => [['listed' => 'yes'], []],
+    'suspended' => [[], ['status' => TenantStatus::SUSPENDED]],
+    'an ended trial' => [[], ['status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->subDay()]],
+]);
 
 it('describes the organisation and its public vacancies as structured data, and nothing internal', function () {
     $tenant = portalTenant([
@@ -183,10 +193,12 @@ it('draws a preview image once per version and serves it immutable, and refuses 
     test()->get("http://ethr.et/organisation-previews/{$tenant->public_id}/".PortalPreviewImage::version($tenant->fresh()))->assertNotFound();
 });
 
-it('lists only listed organisations in use in the portals sitemap, at their canonical address', function () {
-    portalTenant(['listed' => true]);
-    Tenant::factory()->create(['subdomain' => 'quiet', 'landing' => ['background' => 'brand']]);
+it('lists every organisation in use in the portals sitemap unless it switched listing off, at its canonical address', function () {
+    portalTenant();
+    Tenant::factory()->create(['subdomain' => 'trialco', 'status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->addWeek(), 'landing' => null]);
+    Tenant::factory()->create(['subdomain' => 'quiet', 'landing' => ['background' => 'brand', 'listed' => false]]);
     Tenant::factory()->create(['subdomain' => 'gone', 'status' => TenantStatus::SUSPENDED, 'landing' => ['background' => 'brand', 'listed' => true]]);
+    Tenant::factory()->create(['subdomain' => 'lapsed', 'status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->subDay(), 'landing' => ['background' => 'brand']]);
 
     $response = test()->get('http://ethr.et/sitemap-organisations.xml')->assertOk();
     $xml = (string) $response->getContent();
@@ -194,8 +206,11 @@ it('lists only listed organisations in use in the portals sitemap, at their cano
     expect($response->headers->get('Content-Type'))->toStartWith('application/xml')
         ->and($xml)->toContain('<loc>https://www.ethr.et/acme</loc>')
         ->toContain('hreflang="am" href="https://www.ethr.et/acme?lang=am"')
+        // A current trial with no portal settings saved yet is listed too.
+        ->toContain('<loc>https://www.ethr.et/trialco</loc>')
         ->not->toContain('quiet')
-        ->not->toContain('gone');
+        ->not->toContain('gone')
+        ->not->toContain('lapsed');
 });
 
 // Organisation portal, PR 5: the same head on the organisation's own host.
