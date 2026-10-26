@@ -783,12 +783,12 @@ function TenantDetail({ id }: { id: string }) {
                     {!tenant.showcase_consented_at
                       ? t(
                           "admin_tenant_detail_page.showcase_not_agreed",
-                          "Has not agreed to be named",
+                          "Opted out of being named",
                         )
                       : tenant.showcase_hidden
                         ? t(
                             "admin_tenant_detail_page.showcase_hidden",
-                            "Agreed, hidden by the platform",
+                            "Hidden by the platform",
                           )
                         : !(
                               tenant.status === "active" ||
@@ -798,7 +798,7 @@ function TenantDetail({ id }: { id: string }) {
                             )
                           ? t(
                               "admin_tenant_detail_page.showcase_inactive",
-                              "Agreed, shown once active",
+                              "Shown once active",
                             )
                           : t(
                               "admin_tenant_detail_page.showcase_shown",

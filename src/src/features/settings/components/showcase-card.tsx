@@ -17,8 +17,9 @@ import { ErrorState } from "@/components/shared/error-state";
 
 /**
  * Whether ETHR may name this organisation on its public site, under "Trusted
- * by": its name, its logo and a link to its public page, nothing else. Off
- * until an administrator turns it on; who agreed and when is recorded.
+ * by": its name, its logo and a link to its public page, nothing else. On
+ * from the start (owner decision 2026-10-26) until an administrator turns it
+ * off; when it was listed is recorded.
  */
 export function ShowcaseCard() {
   const { t } = useT();
@@ -76,7 +77,7 @@ export function ShowcaseCard() {
                 <p className="text-sm text-muted-foreground">
                   {t(
                     "settings.showcase.description",
-                    "Under Trusted by on ethr.et: your organisation's name, its logo and a link to its public page. Nothing else is shown, and you can turn it off at any time.",
+                    "On by default. Under Trusted by on ethr.et: your organisation's name, its logo and a link to its public page. Nothing else is shown, and you can turn it off at any time.",
                   )}
                 </p>
               </div>
@@ -89,7 +90,7 @@ export function ShowcaseCard() {
             </div>
             {data.listed && data.consented_at && (
               <p className="text-xs text-muted-foreground">
-                {t("settings.showcase.since", "Agreed on :date.", {
+                {t("settings.showcase.since", "Listed since :date.", {
                   date: formatDate(new Date(data.consented_at)),
                 })}{" "}
                 {data.shown
