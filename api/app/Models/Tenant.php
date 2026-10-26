@@ -84,6 +84,9 @@ class Tenant extends Model
      */
     public const PLATFORM_SUBDOMAIN = 'admin';
 
+    /** What every address must look like: lower-case letters, digits and inner hyphens. */
+    public const SUBDOMAIN_REGEX = '/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/';
+
     protected $fillable = [
         'public_id',
         'name',
@@ -217,6 +220,83 @@ class Tenant extends Model
     public static function subdomainsServed(): bool
     {
         return TenancyDomain::root() !== null && (bool) config('tenancy.subdomains');
+    }
+
+    /**
+     * The organisation an address names: the one using it now, else the one
+     * that used to (a retired name, TenantSubdomainAlias). Every lookup that
+     * turns a slug into an organisation goes through here, so a renamed
+     * organisation is still reached by the links, bookmarks, stored X-Tenant
+     * values and SSO addresses that carry its old name. A deleted
+     * organisation is found by neither.
+     */
+    public static function findBySlug(string $slug): ?self
+    {
+        $current = static::query()->where('subdomain', $slug)->first();
+        if ($current !== null) {
+            return $current;
+        }
+
+        $owner = self::aliasOwner($slug);
+
+        return $owner === null ? null : static::query()->whereKey($owner)->first();
+    }
+
+    /**
+     * Whether `$slug` can become `$tenant`'s address, or a new organisation's
+     * when `$tenant` is null. Not when it is reserved, another organisation's
+     * address (a deleted one's included: deleting never releases a name), or
+     * a name another organisation used to have. An organisation may always
+     * take back a name it retired itself. Format is the caller's rule.
+     */
+    public static function slugAvailableFor(string $slug, ?self $tenant = null): bool
+    {
+        if (in_array($slug, self::RESERVED_SUBDOMAINS, true)) {
+            return false;
+        }
+
+        $holder = static::withTrashed()->where('subdomain', $slug)->value('id');
+        if ($holder !== null && (int) $holder !== $tenant?->id) {
+            return false;
+        }
+
+        $owner = self::aliasOwner($slug);
+
+        return $owner === null || $owner === $tenant?->id;
+    }
+
+    /**
+     * The addresses this organisation used to have, oldest first. They keep
+     * forwarding here and stay reserved for it.
+     *
+     * @return list<string>
+     */
+    public function retiredSubdomains(): array
+    {
+        // The console asks about organisations other than the one resolved,
+        // so the scope is dropped and this organisation is stated instead.
+        return TenantSubdomainAlias::withoutGlobalScopes()
+            ->where('tenant_id', $this->id)
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->pluck('subdomain')
+            ->map(static fn (mixed $name): string => (string) $name)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The organisation that used to be reached at `$slug`. Pre-resolution,
+     * like the subdomain lookup in findBySlug: the slug is the selector, so
+     * there is no tenant to state yet, and only the tenant id comes back.
+     */
+    private static function aliasOwner(string $slug): ?int
+    {
+        $owner = TenantSubdomainAlias::withoutGlobalScopes()
+            ->where('subdomain', $slug)
+            ->value('tenant_id');
+
+        return $owner === null ? null : (int) $owner;
     }
 
     public function users(): HasMany

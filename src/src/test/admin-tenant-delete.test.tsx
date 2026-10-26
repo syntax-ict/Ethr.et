@@ -88,8 +88,9 @@ const deleteButton = () =>
   screen.findByRole("button", { name: /delete organisation/i });
 
 // 2026-10-19: deleting an organisation from the platform console. It is the
-// second of two deliberate steps, and asks for a reason, the address typed out
-// and an authenticator code before anything is sent.
+// second of two deliberate steps, and asks for a reason and an authenticator
+// code before anything is sent. Typing the address out was dropped on
+// 2026-10-26 by owner decision.
 describe("deleting an organisation from the console", () => {
   it("is offered only once the organisation is cancelled", async () => {
     serveTenant({ status: "active" });
@@ -101,7 +102,7 @@ describe("deleting an organisation from the console", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("says what deleting does and keeps, and sends nothing until all three are given", async () => {
+  it("says what deleting does and keeps, and sends nothing until both are given", async () => {
     serveTenant({});
     const bodies = captureDelete();
     renderPage();
@@ -121,17 +122,18 @@ describe("deleting an organisation from the console", () => {
       within(dialog).getByLabelText(/reason/i),
       "Duplicate registration",
     );
-    // A near miss is not the address.
-    await userEvent.type(within(dialog).getByLabelText(/type acme/i), "acm");
-    await userEvent.type(within(dialog).getByLabelText(/code/i), "123456");
+    // No field asks for the address to be typed out.
+    expect(within(dialog).queryByLabelText(/type acme/i)).toBeNull();
+    // Five digits are not a code.
+    await userEvent.type(within(dialog).getByLabelText(/code/i), "12345");
     expect(submit).toBeDisabled();
 
-    await userEvent.type(within(dialog).getByLabelText(/type acme/i), "e");
+    await userEvent.type(within(dialog).getByLabelText(/code/i), "6");
     expect(submit).toBeEnabled();
     await userEvent.click(submit);
 
     expect(bodies).toEqual([
-      { confirm: "acme", code: "123456", reason: "Duplicate registration" },
+      { code: "123456", reason: "Duplicate registration" },
     ]);
   });
 
@@ -158,7 +160,6 @@ describe("deleting an organisation from the console", () => {
       within(dialog).getByLabelText(/reason/i),
       "Closing it",
     );
-    await userEvent.type(within(dialog).getByLabelText(/type acme/i), "acme");
     await userEvent.type(within(dialog).getByLabelText(/code/i), "000000");
     await userEvent.click(
       within(dialog).getByRole("button", { name: /delete organisation/i }),

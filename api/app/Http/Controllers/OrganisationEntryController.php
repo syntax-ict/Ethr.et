@@ -27,7 +27,8 @@ use Illuminate\Http\Response;
  * exists (`next dev`), it falls back to `/login?org={slug}` as before.
  *
  * An unknown or reserved name gets a real 404: the static site's own 404
- * page, with a 404 status, not a soft one.
+ * page, with a 404 status, not a soft one. A name the organisation used to
+ * have is redirected to the address it has now.
  *
  * Only single-segment paths with no file behind them reach this; .htaccess
  * serves every real page and asset before it. The answer is the same for an
@@ -42,13 +43,21 @@ final class OrganisationEntryController
 
         $tenant = in_array($slug, Tenant::RESERVED_SUBDOMAINS, true)
             ? null
-            : Tenant::query()->where('subdomain', $slug)->first();
+            : Tenant::findBySlug($slug);
 
         if ($tenant === null) {
             return $this->notFound();
         }
 
         $origin = FrontendUrl::canonicalOrigin($tenant);
+
+        // A name the organisation retired (a rename, 2026-10-26) forwards to
+        // its address now. A 302, not a 301: the organisation may take the
+        // name back, and a browser that cached a permanent redirect would
+        // then bounce between the two.
+        if ($tenant->subdomain !== $slug && $origin === null) {
+            return redirect(FrontendUrl::to($tenant->subdomain));
+        }
         if ($origin !== null) {
             return redirect($origin.'/login');
         }

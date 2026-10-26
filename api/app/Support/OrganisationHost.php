@@ -34,7 +34,7 @@ final class OrganisationHost
             if ($label === '' || str_contains($label, '.') || in_array($label, Tenant::RESERVED_SUBDOMAINS, true)) {
                 return null;
             }
-            $tenant = Cache::remember("tenant:{$label}", 300, fn () => Tenant::where('subdomain', $label)->first());
+            $tenant = Cache::remember("tenant:{$label}", 300, fn () => Tenant::findBySlug($label));
         } else {
             $found = Cache::remember(
                 "tenant-domain:{$host}",
@@ -45,5 +45,21 @@ final class OrganisationHost
         }
 
         return $tenant instanceof Tenant && $tenant->isActive() ? $tenant : null;
+    }
+
+    /**
+     * Whether the host is a subdomain the organisation used to have, from
+     * before a rename: `tenant()` still finds the organisation there, and a
+     * page should send the visitor on to the address it has now.
+     */
+    public static function isRetiredName(string $rawHost, Tenant $tenant): bool
+    {
+        $root = TenancyDomain::root();
+        $host = Tenant::normaliseDomain($rawHost);
+        if ($root === null || $host === null || ! str_ends_with($host, '.'.$root)) {
+            return false;
+        }
+
+        return substr($host, 0, -strlen('.'.$root)) !== $tenant->subdomain;
     }
 }

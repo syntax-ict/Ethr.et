@@ -21,6 +21,7 @@ function address(overrides: Partial<TenantAddress> = {}): TenantAddress {
     entry_url: "https://ethr.et/abay",
     subdomain: "abay",
     subdomain_url: "https://abay.ethr.et",
+    retired_subdomains: [],
     subdomains_served: false,
     custom_domain: null,
     custom_domain_status: null,

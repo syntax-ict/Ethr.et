@@ -9,13 +9,16 @@ use App\Enums\TenantAddressMode;
 use App\Models\AuditLog;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Models\TenantSubdomainAlias;
 use App\Support\FrontendUrl;
 use App\Support\TenancyDomain;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * An organisation's address: the mode it chose, its custom domain and that
- * domain's verification. One implementation behind two doors, the platform
+ * An organisation's address: its name (the slug), the mode it chose, its
+ * custom domain and that domain's verification. One implementation behind two doors, the platform
  * console (AdminTenantController) and the organisation's own settings
  * (SettingsController), so neither can drift from the other on what a
  * domain is, when it counts, or what the plan allows.
@@ -37,6 +40,7 @@ final class TenantAddressService
      *     entry_url: string,
      *     subdomain: string,
      *     subdomain_url: string|null,
+     *     retired_subdomains: list<string>,
      *     subdomains_served: bool,
      *     custom_domain: string|null,
      *     custom_domain_status: string|null,
@@ -56,6 +60,7 @@ final class TenantAddressService
             'entry_url' => FrontendUrl::to($tenant->subdomain),
             'subdomain' => $tenant->subdomain,
             'subdomain_url' => $root === null ? null : $this->hostedOrigin("{$tenant->subdomain}.{$root}"),
+            'retired_subdomains' => $tenant->retiredSubdomains(),
             'subdomains_served' => Tenant::subdomainsServed(),
             'custom_domain' => $tenant->custom_domain,
             'custom_domain_status' => $this->domainStatus($tenant),
@@ -77,6 +82,63 @@ final class TenantAddressService
             'old_mode' => $old->value,
             'new_mode' => $mode->value,
             'effective_mode' => $tenant->effectiveAddressMode()->value,
+        ]);
+    }
+
+    /**
+     * Rename the organisation's address: ethr.et/{old} becomes ethr.et/{new},
+     * and {old}.ethr.et becomes {new}.ethr.et. A custom domain is untouched.
+     *
+     * The old name is retired, not released. It keeps resolving to this
+     * organisation (Tenant::findBySlug), which forwards it, so every link
+     * already sent and every browser still holding the old name keeps
+     * working, and no other organisation can take it and receive them. A
+     * name this organisation retired before is simply taken back. Format and
+     * availability are the request's rule (UpdateSubdomainRequest); this
+     * checks availability again inside the transaction, so two organisations
+     * racing for one name cannot both win.
+     *
+     * @throws ValidationException under `subdomain` when the name is not available
+     */
+    public function changeSubdomain(Tenant $tenant, string $subdomain, string $auditAction): void
+    {
+        $old = $tenant->subdomain;
+        if ($subdomain === $old) {
+            return;
+        }
+
+        DB::transaction(function () use ($tenant, $subdomain, $old): void {
+            if (! Tenant::slugAvailableFor($subdomain, $tenant)) {
+                throw ValidationException::withMessages([
+                    'subdomain' => [__('validation.subdomain_taken')],
+                ]);
+            }
+
+            // Taking back a name it retired: that row goes, and the name is
+            // the address again. Stated by tenant, because the console door
+            // asks about organisations other than the one resolved.
+            TenantSubdomainAlias::withoutGlobalScopes()
+                ->where('tenant_id', $tenant->id)
+                ->where('subdomain', $subdomain)
+                ->delete();
+
+            TenantSubdomainAlias::query()->create([
+                'tenant_id' => $tenant->id,
+                'subdomain' => $old,
+            ]);
+
+            $tenant->update(['subdomain' => $subdomain]);
+        });
+
+        // The saved hook clears the old and new names' resolver caches; names
+        // retired before then may still hold this model with its last name.
+        foreach ($tenant->retiredSubdomains() as $retired) {
+            Cache::forget("tenant:{$retired}");
+        }
+
+        AuditLog::record($auditAction, $tenant, [
+            'old_subdomain' => $old,
+            'new_subdomain' => $subdomain,
         ]);
     }
 

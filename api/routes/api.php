@@ -1005,6 +1005,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::put('/settings/organization', [SettingsController::class, 'updateOrganization']);
     Route::put('/settings/address', [SettingsController::class, 'updateAddress']);
     Route::post('/settings/address/verify', [SettingsController::class, 'verifyAddress']);
+    Route::get('/settings/address/subdomain/check', [SettingsController::class, 'checkSubdomain']);
+    Route::put('/settings/address/subdomain', [SettingsController::class, 'updateSubdomain'])->middleware('throttle:address-rename');
     Route::put('/settings/branding', [SettingsController::class, 'updateBranding']);
     Route::post('/settings/branding/logo', [TenantLogoController::class, 'store'])->middleware('throttle:uploads');
     Route::delete('/settings/branding/logo', [TenantLogoController::class, 'destroy']);

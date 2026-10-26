@@ -334,6 +334,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perHour(5)->by('tenant:'.($request->user()?->tenant_id ?: $request->ip()));
         });
 
+        // Every rename keeps the old name reserved for the organisation, so an
+        // unbounded loop could hoard names. Five an hour is plenty for a typo.
+        RateLimiter::for('address-rename', function (Request $request) {
+            return Limit::perHour(5)->by('tenant:'.($request->user()?->tenant_id ?: $request->ip()));
+        });
+
         RateLimiter::for('dashboard', function (Request $request) {
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });

@@ -37,7 +37,7 @@ class SsoController extends Controller
 
     public function initiate(Request $request, string $subdomain): JsonResponse
     {
-        $tenant = Tenant::where('subdomain', $subdomain)->firstOrFail();
+        $tenant = Tenant::findBySlug($subdomain) ?? abort(404);
 
         if (! $this->sso->isConfigured($tenant)) {
             return response()->json([
@@ -70,7 +70,7 @@ class SsoController extends Controller
         // This answered the provider's form POST with JSON until 2026-10-07,
         // so a user signing in through SSO was left on a raw JSON page and
         // never reached the app (audit N60).
-        $tenant = Tenant::where('subdomain', $subdomain)->firstOrFail();
+        $tenant = Tenant::findBySlug($subdomain) ?? abort(404);
         $this->currentTenant->set($tenant);
 
         // The callback runs on the API host, where ResolveTenant's suspension
@@ -175,7 +175,7 @@ class SsoController extends Controller
 
     public function metadata(string $subdomain): Response
     {
-        $tenant = Tenant::where('subdomain', $subdomain)->firstOrFail();
+        $tenant = Tenant::findBySlug($subdomain) ?? abort(404);
 
         $xml = $this->sso->getMetadataXml($tenant);
 
