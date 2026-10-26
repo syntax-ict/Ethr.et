@@ -1,10 +1,14 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Globe, Landmark, Save } from "lucide-react";
+import { Globe, Landmark, PanelLeft, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { EthrLogoTile } from "@/components/shared/ethr-logo";
+import { pickLocalised } from "@/features/marketing/site-content";
+import { SITE_URL } from "@/lib/site-url";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +48,7 @@ export default function PlatformSettingsPage() {
             <div className="space-y-6">
               <PaymentForm settings={settings} />
               <SiteContentForm settings={settings} />
+              <ProductMarkForm settings={settings} />
             </div>
           )}
         </QueryBoundary>
@@ -513,6 +518,186 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
                   "No figures published. The site states none.",
                 )}
           </p>
+          <Button onClick={save} disabled={update.isPending}>
+            <Save className="mr-2 h-4 w-4" />
+            {t("common.save_changes", "Save Changes")}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * The "Powered by ETHR" mark at the foot of every organisation's sidebar.
+ *
+ * The platform's mark inside organisations that do not own it, so it is
+ * decided here and nowhere an organisation can reach. Blank wording and a
+ * blank link mean the built-in "Powered by ETHR", in the reader's language,
+ * and the public site, so an operator who only wants it off never has to type
+ * either.
+ */
+function ProductMarkForm({ settings }: { settings: PlatformSettings }) {
+  const { t, locale } = useT();
+  const update = useUpdatePlatformSettings();
+  const switchId = useId();
+
+  const seed = (s: PlatformSettings) => ({
+    // A string, like every other field here, so the unsaved-edits check in
+    // useSeededForm compares it the same way. Anything but "off" is on, which
+    // is also what a payload from before this column existed means.
+    product_mark_enabled: s.product_mark_enabled === false ? "off" : "on",
+    product_mark_label: s.product_mark_label ?? "",
+    product_mark_label_am: s.product_mark_label_am ?? "",
+    product_mark_url: s.product_mark_url ?? "",
+  });
+
+  const [form, setForm] = useSeededForm(settings, seed);
+
+  const set = (key: keyof typeof form) => (value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  const enabled = form.product_mark_enabled !== "off";
+  const defaultLabel = t("auth.powered_by", "Powered by ETHR");
+  const previewLabel =
+    pickLocalised(
+      locale,
+      form.product_mark_label_am.trim() || null,
+      form.product_mark_label.trim() || null,
+    ) ?? defaultLabel;
+
+  function save() {
+    update.mutate(
+      {
+        product_mark_enabled: enabled,
+        product_mark_label: form.product_mark_label.trim() || null,
+        product_mark_label_am: form.product_mark_label_am.trim() || null,
+        product_mark_url: form.product_mark_url.trim() || null,
+      },
+      {
+        onSuccess: () =>
+          toast.success(
+            t("product_mark.saved", "Sidebar product mark updated"),
+          ),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("product_mark.save_failed", "Could not save the product mark"),
+            ),
+          ),
+      },
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <PanelLeft className="h-4 w-4 text-status-info" />
+          {t("product_mark.title", "Sidebar product mark")}
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          {t(
+            "product_mark.description",
+            "The ETHR mark at the foot of every organisation's sidebar. Organisations cannot change it. Changes are recorded in the audit log.",
+          )}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-4">
+          <div className="space-y-1">
+            <Label htmlFor={switchId} className="text-sm font-medium">
+              {t("product_mark.show", "Show the mark")}
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              {enabled
+                ? t(
+                    "product_mark.shown_hint",
+                    "Shown in every organisation, expanded and on the collapsed rail.",
+                  )
+                : t(
+                    "product_mark.hidden_hint",
+                    "Hidden in every organisation. The sidebar keeps only its collapse button.",
+                  )}
+            </p>
+          </div>
+          <Switch
+            id={switchId}
+            checked={enabled}
+            onCheckedChange={(checked) =>
+              set("product_mark_enabled")(checked ? "on" : "off")
+            }
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label={t("product_mark.label", "Wording")}
+            value={form.product_mark_label}
+            onChange={set("product_mark_label")}
+            placeholder="Powered by ETHR"
+          />
+          <Field
+            label={t("product_mark.label_am", "Wording (Amharic)")}
+            value={form.product_mark_label_am}
+            onChange={set("product_mark_label_am")}
+            placeholder="በETHR የሚሰራ"
+          />
+        </div>
+        <Field
+          label={t("product_mark.url", "Link (https)")}
+          value={form.product_mark_url}
+          onChange={set("product_mark_url")}
+          placeholder={SITE_URL}
+        />
+        <p className="text-xs text-muted-foreground">
+          {t(
+            "product_mark.blank_hint",
+            "Leave the wording or the link blank to use the standard wording, in the reader's language, and the public site.",
+          )}
+        </p>
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">
+            {t("product_mark.preview", "Preview")}
+          </p>
+          {/* The sidebar's own surface and the same tile, so the operator
+              sees the mark as organisations will, not on the console's page
+              colour. */}
+          <div className="flex items-center gap-3 rounded-lg bg-sidebar p-2 text-sidebar-foreground">
+            {enabled ? (
+              <>
+                <div className="flex h-9 min-w-0 flex-1 items-center gap-2.5 px-2">
+                  <EthrLogoTile
+                    logoUrl={settings.logo_url}
+                    className="h-5 w-5 rounded ring-1 ring-sidebar-foreground/25"
+                    letterClassName="text-[11px]"
+                  />
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-sidebar-foreground/75">
+                    {previewLabel}
+                  </span>
+                </div>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center">
+                  <EthrLogoTile
+                    logoUrl={settings.logo_url}
+                    className="h-6 w-6 ring-1 ring-sidebar-foreground/25"
+                    letterClassName="text-xs"
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="px-2 py-2.5 text-xs text-sidebar-foreground/75">
+                {t(
+                  "product_mark.preview_hidden",
+                  "No mark. Organisations see only the collapse button here.",
+                )}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end border-t pt-4">
           <Button onClick={save} disabled={update.isPending}>
             <Save className="mr-2 h-4 w-4" />
             {t("common.save_changes", "Save Changes")}
