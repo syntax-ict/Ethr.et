@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Support\FrontendUrl;
 use App\Support\OrganisationHost;
 use App\Support\PortalPage;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -30,7 +32,7 @@ use Illuminate\Http\Response;
  */
 final class OrganisationLoginPageController
 {
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request): RedirectResponse|Response
     {
         $page = public_path('login.html');
         if (! is_file($page)) {
@@ -41,6 +43,13 @@ final class OrganisationLoginPageController
 
         if ($tenant === null) {
             return PortalPage::plain($page);
+        }
+
+        // The organisation renamed its address: the old subdomain forwards to
+        // the sign-in page at the new one. A 302, since the name can be taken
+        // back (OrganisationEntryController says why that matters).
+        if (OrganisationHost::isRetiredName($request->getHost(), $tenant)) {
+            return redirect(FrontendUrl::at($tenant, '/login'));
         }
 
         return PortalPage::respond($tenant, $page);

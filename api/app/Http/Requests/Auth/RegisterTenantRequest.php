@@ -57,6 +57,7 @@ class RegisterTenantRequest extends FormRequest
                 'regex:/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/',
                 Rule::notIn(Tenant::RESERVED_SUBDOMAINS),
                 'unique:tenants,subdomain',
+                'unique:tenant_subdomain_aliases,subdomain',
             ],
             'admin_name' => ['required', 'string', 'min:2', 'max:255'],
             'admin_email' => ['required', 'string', 'email', 'max:255'],

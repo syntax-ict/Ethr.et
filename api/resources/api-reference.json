@@ -32036,6 +32036,13 @@
                                                         "null"
                                                     ]
                                                 },
+                                                "retired_subdomains": {
+                                                    "type": "array",
+                                                    "description": "The console asks about organisations other than the one resolved,\nso the scope is dropped and this organisation is stated instead.",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
                                                 "subdomains_served": {
                                                     "type": "boolean"
                                                 },
@@ -32099,6 +32106,7 @@
                                                 "entry_url",
                                                 "subdomain",
                                                 "subdomain_url",
+                                                "retired_subdomains",
                                                 "subdomains_served",
                                                 "custom_domain",
                                                 "custom_domain_status",
@@ -32676,6 +32684,55 @@
                                         "display",
                                         "employees",
                                         "sso"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/settings/address/subdomain/check": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "settings.checkSubdomain",
+                "summary": "Whether a name could become the organisation's address, by the same\nrules a rename is held to. Always a 200: `available` answers, and\n`message` says why not, ready to show under the field",
+                "tags": [
+                    "Settings"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "subdomain": {
+                                            "type": "string"
+                                        },
+                                        "available": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "subdomain",
+                                        "available",
+                                        "message"
                                     ]
                                 }
                             }
