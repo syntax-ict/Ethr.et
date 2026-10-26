@@ -855,7 +855,7 @@ export function LandingCard({
               )}
               help={t(
                 "settings.landing_listed_help",
-                "Off by default. When on, search engines may index your page; nothing behind sign-in is ever listed.",
+                "On by default while your organisation is active, so people who search for its name find this page. Turn it off to keep the page out of search results. Nothing behind sign-in is ever listed.",
               )}
               checked={form.listed}
               onCheckedChange={(v) => set("listed", v)}

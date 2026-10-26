@@ -136,10 +136,12 @@ class Tenant extends Model
     public const SHOWCASE_CACHE_TTL = 600;
 
     /**
-     * Organisations ETHR may name on its public site: operational ones (active,
+     * Organisations ETHR names on its public site: operational ones (active,
      * or in a free trial that has not ended; owner decision 2026-10-18) that
-     * agreed to be named, and that the platform has not hidden. An expired
-     * trial, a suspension or a cancellation takes the name down.
+     * have not switched it off, and that the platform has not hidden. Every
+     * organisation is listed from creation (owner decision 2026-10-26), so a
+     * null `showcase_consented_at` now means it opted out. An expired trial, a
+     * suspension or a cancellation takes the name down.
      *
      * @param  Builder<Tenant>  $query
      * @return Builder<Tenant>
@@ -443,6 +445,15 @@ class Tenant extends Model
 
     protected static function booted(): void
     {
+        // Named under "Trusted by" from the start (owner decision 2026-10-26):
+        // `showcase_consented_at` is when it was listed, set here for every
+        // new organisation whatever creates it. An administrator can switch it
+        // off in its settings and the platform can hide it, as before.
+        static::creating(function (self $tenant): void {
+            $tenant->showcase_consented_at ??= now();
+        });
+        static::created(fn () => Cache::forget(self::SHOWCASE_CACHE_KEY));
+
         // Any change of domain starts verification over: a fresh token, and
         // pending until the new name is checked. Here rather than in the
         // controller so no path (console, tinker, a seeder) can carry one

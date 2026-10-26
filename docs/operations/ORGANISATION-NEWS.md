@@ -109,8 +109,9 @@ tenant-scope bypass, pinned in
 
 ## Search engines
 
-Listing is the organisation's choice (Settings → Sign-in page → listing, off by
-default). When it is on and the organisation has its own host, the news page and
+Every organisation in use (active, or a trial not yet ended) is listed unless it
+switched listing off (Settings → Sign-in page → listing, on by default since
+2026-10-26). When it is listed and has its own host, the news page and
 its 50 newest public stories are in `/sitemap-organisations.xml` and their pages
 say `index, follow`. Otherwise they say `noindex, nofollow`. Organisations on the
 shared host keep their sign-in entry in the sitemap and no news entries, because

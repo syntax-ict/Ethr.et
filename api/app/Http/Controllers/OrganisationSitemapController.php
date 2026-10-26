@@ -15,13 +15,19 @@ use Illuminate\Http\Response;
 
 /**
  * The sitemap of organisation portals, named beside the site's own in
- * robots.txt: one entry per organisation that is in use and switched
- * listing on, at its canonical sign-in address, with its English and
- * Amharic alternates. An organisation that did not opt in is absent, as its
- * page is `noindex`; nothing about any organisation but its address leaves.
+ * robots.txt: one entry per organisation that is in use and has not
+ * switched listing off (TenantLanding::indexable, owner decision
+ * 2026-10-26), at its canonical sign-in address, with its English and
+ * Amharic alternates. An organisation that switched it off, or is no longer
+ * in use, is absent, as its page is `noindex`; nothing about any
+ * organisation but its address leaves.
+ *
+ * Every host serves the same robots.txt naming this file, so a crawler
+ * accepts the entries on organisation subdomains and custom domains here,
+ * not only those on the shared host.
  *
  * `Tenant` is a global model (no tenant scope to bypass): this is the one
- * place that lists across organisations, and only those that asked to be.
+ * place that lists across organisations.
  */
 class OrganisationSitemapController extends Controller
 {
@@ -33,9 +39,11 @@ class OrganisationSitemapController extends Controller
     {
         $entries = Tenant::query()
             ->operational()
-            ->where('landing->listed', true)
             ->orderBy('subdomain')
-            ->get()
+            ->cursor()
+            // The listing switch is read as the page reads it: a missing
+            // value is on, which a JSON path in SQL cannot say portably.
+            ->filter(fn (Tenant $tenant): bool => TenantLanding::present($tenant)['listed'])
             ->map(fn (Tenant $tenant): string => implode("\n", array_map(
                 self::entry(...),
                 [FrontendUrl::at($tenant, 'login'), ...self::news($tenant)],

@@ -41,7 +41,7 @@ final class PortalPage
             return [PortalHead::render($tenant, $vacancies), $tenant->brandAssetUrl('mark') !== null];
         });
 
-        return self::send($file, $head, $ownIcon, $landing['listed'], 200);
+        return self::send($file, $head, $ownIcon, TenantLanding::indexable($tenant), 200);
     }
 
     /**
@@ -59,7 +59,7 @@ final class PortalPage
 
         $head = PortalHead::news($tenant);
 
-        return self::send($file, $head, $tenant->brandAssetUrl('mark') !== null, $landing['listed'], 200);
+        return self::send($file, $head, $tenant->brandAssetUrl('mark') !== null, TenantLanding::indexable($tenant), 200);
     }
 
     /**
@@ -84,7 +84,7 @@ final class PortalPage
             return self::plain($file, 404);
         }
 
-        return self::send($file, $head, $tenant->brandAssetUrl('mark') !== null, $landing['listed'], 200);
+        return self::send($file, $head, $tenant->brandAssetUrl('mark') !== null, TenantLanding::indexable($tenant), 200);
     }
 
     /**
@@ -99,7 +99,7 @@ final class PortalPage
             ->header('X-Robots-Tag', 'noindex, nofollow');
     }
 
-    private static function send(string $file, string $head, bool $ownIcon, bool $listed, int $status): Response
+    private static function send(string $file, string $head, bool $ownIcon, bool $indexable, int $status): Response
     {
         $html = PortalHead::inject((string) file_get_contents($file), $head, $ownIcon);
 
@@ -108,9 +108,9 @@ final class PortalPage
             // The page is the same for every organisation and every release
             // changes it; the content comes from the API, not this response.
             ->header('Cache-Control', 'no-cache')
-            // Out of search results unless the organisation switched listing
-            // on in its portal settings (default off): listing is its choice.
-            ->header('X-Robots-Tag', $listed ? 'index, follow' : 'noindex, nofollow');
+            // In search results while the organisation is in use, unless it
+            // switched listing off in its portal settings (default on).
+            ->header('X-Robots-Tag', $indexable ? 'index, follow' : 'noindex, nofollow');
     }
 
     /**

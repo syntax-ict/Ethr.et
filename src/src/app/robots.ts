@@ -51,8 +51,11 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    // The site's own pages, and the organisation portals that switched
-    // listing on (served by the API: OrganisationSitemapController).
+    // The site's own pages, and every organisation portal in use that has
+    // not switched listing off (served by the API:
+    // OrganisationSitemapController). Every host serves this file, so naming
+    // the portals' sitemap here is what lets a crawler accept its entries on
+    // organisation subdomains and custom domains.
     sitemap: [
       `${SITE_URL}/sitemap.xml`,
       `${SITE_URL}/sitemap-organisations.xml`,
