@@ -49,11 +49,37 @@ class PlatformSetting extends Model
         'testimonial_organisation',
         'testimonial_consented_on',
         'google_maps_key',
+        'product_mark_enabled',
+        'product_mark_label',
+        'product_mark_label_am',
+        'product_mark_url',
     ];
 
     protected $hidden = [
         'id',
     ];
+
+    /**
+     * Mirrors the column default. `current()` creates the row on first read,
+     * and a model that was just inserted holds only what it was given, so
+     * without this the first response would report the mark as null rather
+     * than on.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'product_mark_enabled' => true,
+    ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'product_mark_enabled' => 'boolean',
+        ];
+    }
 
     /**
      * Cache key for the public site content.

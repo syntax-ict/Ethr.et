@@ -55,6 +55,10 @@ class PlatformSettingResource extends JsonResource
             'testimonial_consented_on' => $this->testimonial_consented_on,
             'has_published_metrics' => $this->hasPublishedMetrics(),
             'google_maps_key' => $this->google_maps_key,
+            'product_mark_enabled' => (bool) $this->product_mark_enabled,
+            'product_mark_label' => $this->product_mark_label,
+            'product_mark_label_am' => $this->product_mark_label_am,
+            'product_mark_url' => $this->product_mark_url,
 
             'updated_at' => $this->updated_at,
         ];

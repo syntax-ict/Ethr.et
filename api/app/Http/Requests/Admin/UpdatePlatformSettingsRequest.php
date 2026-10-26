@@ -58,6 +58,12 @@ class UpdatePlatformSettingsRequest extends FormRequest
      *                       `testimonial_quote` is present, and an absent key
      *                       never reaches `validated()`, so updating some
      *                       unrelated field cannot blank these.
+     *   product_mark_*      The sidebar's "Powered by ETHR" mark in every
+     *                       organisation. A blank label or link is stored as
+     *                       null and means the built-in wording and the public
+     *                       site, not an empty mark. 60 characters because the
+     *                       label shares one sidebar row with the collapse
+     *                       button; `url:https` for the reason the logo has it.
      *
      * @return array<string, list<string>>
      */
@@ -103,6 +109,11 @@ class UpdatePlatformSettingsRequest extends FormRequest
             'testimonial_organisation' => ['sometimes', 'nullable', 'string', 'max:150'],
             'testimonial_consented_on' => ['nullable', 'required_with:testimonial_quote', 'date', 'before_or_equal:today'],
             'google_maps_key' => ['sometimes', 'nullable', 'string', 'max:120', 'regex:/^AIza[0-9A-Za-z_\-]{30,}$/'],
+
+            'product_mark_enabled' => ['sometimes', 'boolean'],
+            'product_mark_label' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'product_mark_label_am' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'product_mark_url' => ['sometimes', 'nullable', 'url:https', 'max:500'],
         ];
     }
 
