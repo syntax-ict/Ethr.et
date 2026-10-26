@@ -14,9 +14,10 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * Whether the organisation agrees to be named on ETHR's public site. Off
- * until an administrator turns it on; the time and who agreed are kept, and
- * each change is audited.
+ * Whether the organisation is named on ETHR's public site. On from creation
+ * (owner decision 2026-10-26) until an administrator turns it off; the time
+ * it was listed and who turned it back on are kept, and each change is
+ * audited.
  */
 class ShowcaseConsentController extends Controller
 {
