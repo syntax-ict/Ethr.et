@@ -17,6 +17,7 @@ function listingDefaultMigration(): object
     return require database_path('migrations/2026_10_26_000001_list_organisation_portals_by_default.php');
 }
 
+/** MySQL 8 stores JSON with its own key order, so rows are compared as maps (toEqual), not in order. */
 function storedLanding(?array $landing): Tenant
 {
     $tenant = Tenant::factory()->create();
@@ -33,7 +34,7 @@ it('turns a stored false into the default, keeping every other portal field', fu
     listingDefaultMigration()->up();
 
     $tenant->refresh();
-    expect($tenant->landing)->toBe(['headline' => 'Welcome', 'headline_am' => 'እንኳን ደህና መጡ'])
+    expect($tenant->landing)->toEqual(['headline' => 'Welcome', 'headline_am' => 'እንኳን ደህና መጡ'])
         ->and(TenantLanding::present($tenant)['listed'])->toBeTrue()
         ->and(TenantLanding::indexable($tenant))->toBeTrue();
 });
@@ -45,8 +46,8 @@ it('leaves a stored true, a row with no switch and a row with no settings as the
 
     listingDefaultMigration()->up();
 
-    expect($listed->refresh()->landing)->toBe(['background' => 'brand', 'listed' => true])
-        ->and($silent->refresh()->landing)->toBe(['background' => 'gradient'])
+    expect($listed->refresh()->landing)->toEqual(['background' => 'brand', 'listed' => true])
+        ->and($silent->refresh()->landing)->toEqual(['background' => 'gradient'])
         ->and($empty->refresh()->landing)->toBeNull();
 });
 
@@ -56,5 +57,5 @@ it('is idempotent', function () {
     listingDefaultMigration()->up();
     listingDefaultMigration()->up();
 
-    expect($tenant->refresh()->landing)->toBe(['message' => 'Hi']);
+    expect($tenant->refresh()->landing)->toEqual(['message' => 'Hi']);
 });
