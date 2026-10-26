@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Push;
 
 use App\Models\PushSubscription;
+use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Minishlink\WebPush\Subscription;
@@ -80,6 +81,11 @@ class WebPushSender
         return $sent;
     }
 
+    /**
+     * Since web-push 11 the third argument is a PSR-18 client, not a timeout
+     * in seconds: the 10-second limit is set on the Guzzle client instead.
+     * Passing the old integer is a TypeError on every send.
+     */
     protected function client(): WebPush
     {
         return new WebPush([
@@ -88,6 +94,6 @@ class WebPushSender
                 'publicKey' => (string) config('webpush.public_key'),
                 'privateKey' => (string) config('webpush.private_key'),
             ],
-        ], ['TTL' => 3600, 'urgency' => 'normal'], 10);
+        ], ['TTL' => 3600, 'urgency' => 'normal'], new GuzzleClient(['timeout' => 10]));
     }
 }
