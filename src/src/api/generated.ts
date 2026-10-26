@@ -9257,6 +9257,10 @@ export interface components {
             testimonial_consented_on: string | null;
             has_published_metrics: boolean;
             google_maps_key: string | null;
+            product_mark_enabled: boolean;
+            product_mark_label: string | null;
+            product_mark_label_am: string | null;
+            product_mark_url: string | null;
             /** Format: date-time */
             updated_at: string | null;
         };
@@ -9734,6 +9738,10 @@ export interface components {
             testimonial_role: string | null;
             testimonial_role_am: string | null;
             testimonial_organisation: string | null;
+            product_mark_enabled: boolean;
+            product_mark_label: string | null;
+            product_mark_label_am: string | null;
+            product_mark_url: string | null;
         };
         /** StageRowsRequest */
         StageRowsRequest: {
@@ -11030,6 +11038,11 @@ export interface components {
             /** Format: date-time */
             testimonial_consented_on?: string | null;
             google_maps_key?: string | null;
+            product_mark_enabled?: boolean;
+            product_mark_label?: string | null;
+            product_mark_label_am?: string | null;
+            /** Format: uri */
+            product_mark_url?: string | null;
         };
         /** UpdatePositionRequest */
         UpdatePositionRequest: {

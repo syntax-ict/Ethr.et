@@ -9,7 +9,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-  ShieldCheck,
 } from "lucide-react";
 import { SidebarNav } from "./sidebar-nav";
 import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
@@ -34,6 +33,8 @@ import {
 } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { SITE_URL } from "@/lib/site-url";
+import { useProductMark } from "@/features/marketing/site-content";
+import { EthrLogoTile } from "@/components/shared/ethr-logo";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 
@@ -143,7 +144,7 @@ export function AppSidebar() {
   const { collapsed, toggleCollapsed } = useAppLayout();
   const { data: user } = useCurrentUser();
   const { data: tenant } = useCurrentTenant();
-  const { t } = useT();
+  const { t, locale } = useT();
   // Destructured rather than held as a `scroll` object: the hook returns a ref
   // alongside two pieces of state, and reading `canScrollUp` in the render
   // body made the compiler treat every property access on that object as a
@@ -153,7 +154,14 @@ export function AppSidebar() {
   // No shortcut chips and no palette trigger down here: the header's search
   // opens the palette, and the shortcuts sheet (press ?) lists both keys. The
   // footer is the product mark and one icon, nothing a user has to read.
-  const poweredBy = t("auth.powered_by", "Powered by ETHR");
+  //
+  // The mark is the platform's, not the organisation's: whether it shows, what
+  // it says and where it goes are set in the platform console and arrive on
+  // the public site-content payload. Null while it should not be drawn.
+  const productMark = useProductMark(locale);
+  const poweredBy =
+    productMark?.label ?? t("auth.powered_by", "Powered by ETHR");
+  const productMarkHref = productMark?.url ?? SITE_URL;
   const toggleLabel = collapsed
     ? t("sidebar.expand", "Expand sidebar")
     : t("sidebar.collapse", "Collapse sidebar");
@@ -270,39 +278,55 @@ export function AppSidebar() {
           )}
         >
           {/* The product mark. The header above names the organisation, so
-              the foot of the column is where ETHR signs its work, the same
-              line and icon the sign-in pages carry. It links to the public
-              site in a new tab, so an organisation's own page is never
-              navigated away from. */}
-          {collapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  href={SITE_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={poweredBy}
-                  className={railButtonClass}
-                >
-                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                </a>
-              </TooltipTrigger>
-              <TooltipContent side="right">{poweredBy}</TooltipContent>
-            </Tooltip>
-          ) : (
-            <a
-              href={SITE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 text-[11px] font-medium tracking-wide text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <ShieldCheck
-                className="h-3.5 w-3.5 shrink-0"
-                aria-hidden="true"
-              />
-              <span className="min-w-0 flex-1 truncate">{poweredBy}</span>
-            </a>
-          )}
+              the foot of the column is where ETHR signs its work, with the
+              logo tile the public site and the sign-in pages carry. It links
+              to the public site in a new tab, so an organisation's own page is
+              never navigated away from.
+
+              The label is 12px at 75% foreground: 7.0:1 on the navy surface,
+              7.8:1 on the dark one, and solid black on high contrast's white,
+              measured in the browser (#426 found 55% short of AA at 4.48:1). The tile's letter is 9.1:1,
+              6.2:1 and 12.6:1; its hairline ring is what separates the brand
+              blue from the navy behind it. */}
+          {productMark &&
+            (collapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    href={productMarkHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={poweredBy}
+                    data-testid="product-mark"
+                    className={railButtonClass}
+                  >
+                    <EthrLogoTile
+                      logoUrl={productMark.logoUrl}
+                      className="h-6 w-6 ring-1 ring-sidebar-foreground/25"
+                      letterClassName="text-xs"
+                    />
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent side="right">{poweredBy}</TooltipContent>
+              </Tooltip>
+            ) : (
+              <a
+                href={productMarkHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="product-mark"
+                className="group flex h-9 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 transition-colors hover:bg-sidebar-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <EthrLogoTile
+                  logoUrl={productMark.logoUrl}
+                  className="h-5 w-5 rounded ring-1 ring-sidebar-foreground/25"
+                  letterClassName="text-[11px]"
+                />
+                <span className="min-w-0 flex-1 truncate text-xs font-medium text-sidebar-foreground/75 transition-colors group-hover:text-sidebar-foreground">
+                  {poweredBy}
+                </span>
+              </a>
+            ))}
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -311,7 +335,7 @@ export function AppSidebar() {
                 onClick={toggleCollapsed}
                 aria-keyshortcuts="Control+B Meta+B"
                 aria-label={toggleLabel}
-                className={railButtonClass}
+                className={cn(railButtonClass, !collapsed && "ml-auto")}
               >
                 {collapsed ? (
                   <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />

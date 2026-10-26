@@ -48,6 +48,29 @@ class SiteContentResource extends JsonResource
             'metric_uptime_note' => $this->metric_uptime_note,
             'metric_uptime_note_am' => $this->metric_uptime_note_am,
             ...$this->testimonial(),
+            ...$this->productMark(),
+        ];
+    }
+
+    /**
+     * The "Powered by ETHR" mark every organisation's sidebar carries.
+     *
+     * Published here, on the endpoint every host already reads, because it is
+     * platform data that each organisation displays and none of them owns: the
+     * operator decides it in the console, and nothing on a tenant's own
+     * settings can write these columns. A null label or link means the
+     * built-in wording and the public site, resolved by the client so that
+     * the wording follows the reader's language.
+     *
+     * @return array{product_mark_enabled: bool, product_mark_label: string|null, product_mark_label_am: string|null, product_mark_url: string|null}
+     */
+    private function productMark(): array
+    {
+        return [
+            'product_mark_enabled' => (bool) $this->product_mark_enabled,
+            'product_mark_label' => $this->product_mark_label,
+            'product_mark_label_am' => $this->product_mark_label_am,
+            'product_mark_url' => $this->product_mark_url,
         ];
     }
 

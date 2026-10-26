@@ -616,6 +616,13 @@ export interface PlatformSettings {
   // A browser key for the map pickers (Google's design: restricted by
   // referrer, not secret). Empty means OpenStreetMap only.
   google_maps_key: string | null;
+  // The "Powered by ETHR" mark at the foot of every organisation's sidebar.
+  // On unless turned off here; a null label or link means the built-in
+  // wording and the public site.
+  product_mark_enabled: boolean;
+  product_mark_label: string | null;
+  product_mark_label_am: string | null;
+  product_mark_url: string | null;
 
   updated_at: string | null;
 }
