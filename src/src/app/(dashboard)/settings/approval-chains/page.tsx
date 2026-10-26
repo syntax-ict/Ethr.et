@@ -294,7 +294,7 @@ export default function ApprovalChainsPage() {
     () =>
       (users.data ?? []).map((u) => ({
         value: u.public_id,
-        label: u.employee?.name ?? u.email,
+        label: u.employee?.name ?? u.email ?? u.public_id,
       })),
     [users.data],
   );

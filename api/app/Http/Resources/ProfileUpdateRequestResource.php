@@ -61,7 +61,7 @@ class ProfileUpdateRequestResource extends JsonResource
         $user->loadMissing('employee');
         $employee = $user->employee;
 
-        return $employee instanceof Employee ? $employee->name : $user->email;
+        return $employee instanceof Employee ? $employee->name : (string) $user->email;
     }
 
     /**

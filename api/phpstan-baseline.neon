@@ -427,6 +427,12 @@ parameters:
 			path: app/Models/AttendanceDeviceChallenge.php
 
 		-
+			message: '#^Method App\\Models\\AccountActivationCode\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AccountActivationCode.php
+
+		-
 			message: '#^Method App\\Models\\TenantSubdomainAlias\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1

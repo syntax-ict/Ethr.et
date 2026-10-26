@@ -49,6 +49,7 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 import { AttendanceModeCard } from "@/features/employees/components/attendance-mode-card";
 import { KioskPinCard } from "@/features/employees/components/kiosk-pin-card";
 import { InviteToEthrButton } from "@/features/employees/components/invite-to-ethr-button";
+import { IssueActivationCodeButton } from "@/features/employees/components/issue-activation-code-button";
 import { EnrolOnDevicesButton } from "@/features/devices/components/enrol-on-devices-button";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useEmployeeOptions } from "@/features/attendance/api";
@@ -209,6 +210,14 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
             <InviteToEthrButton
               employeeId={employee.public_id}
               email={employee.email}
+            />
+          )}
+          {!editing && (
+            <IssueActivationCodeButton
+              employeeId={employee.public_id}
+              employeeName={employee.name}
+              email={employee.email}
+              phone={employee.phone}
             />
           )}
           {!editing && <EnrolOnDevicesButton employeeId={employee.public_id} />}

@@ -59,7 +59,7 @@ class OtpService
     public function issue(User $user, string $purpose = OtpCode::PURPOSE_LOGIN, string $channel = self::CHANNEL_SMS): bool
     {
         $reachable = $channel === self::CHANNEL_EMAIL
-            ? $user->email !== ''
+            ? $user->email !== null && $user->email !== ''
             : $user->phone !== null && SmsNumber::isValid($user->phone);
 
         if (! $reachable) {

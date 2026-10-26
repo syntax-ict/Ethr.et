@@ -102,7 +102,8 @@ class User extends Authenticatable implements HasLocalePreference
      * `users` carries no display name column of its own — every name in the
      * product is read through the linked Employee — so fall back to the
      * login email for an account with no employee record (an HR-only login,
-     * e.g. a super admin). loadMissing rather than a bare relation read:
+     * e.g. a super admin). `email` is null for an employee activated in
+     * person, who always has an employee record to read a name from. loadMissing rather than a bare relation read:
      * `preventLazyLoading` is on outside production, so a caller that forgot
      * to eager-load `employee` would 500 here instead of just costing a query.
      *
@@ -115,7 +116,7 @@ class User extends Authenticatable implements HasLocalePreference
                 $this->loadMissing('employee');
                 $employee = $this->employee;
 
-                return $employee instanceof Employee ? $employee->name : $this->email;
+                return $employee instanceof Employee ? $employee->name : (string) $this->email;
             },
         );
     }

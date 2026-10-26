@@ -215,11 +215,11 @@ class ScimUserController extends Controller
         return [
             'schemas' => ['urn:ietf:params:scim:schemas:core:2.0:User'],
             'id' => $user->public_id,
-            'userName' => $user->email,
+            'userName' => $user->email ?? $employee->employee_code ?? $user->public_id,
             'name' => [
                 'givenName' => $nameParts[0] ?? '',
                 'familyName' => $nameParts[1] ?? '',
-                'formatted' => $employee?->name ?? $user->email,
+                'formatted' => $employee?->name ?? $user->email ?? $user->public_id,
             ],
             'emails' => [
                 [

@@ -318,6 +318,7 @@ class ResolveTenant
             || $request->is('api/v1/auth/otp/verify')
             || $request->is('api/v1/auth/password/forgot')
             || $request->is('api/v1/auth/password/reset')
+            || $request->is('api/v1/auth/activation/redeem')
         );
     }
 
