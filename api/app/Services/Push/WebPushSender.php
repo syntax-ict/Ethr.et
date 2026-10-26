@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Push;
 
 use App\Models\PushSubscription;
+use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Minishlink\WebPush\Subscription;
@@ -80,6 +81,11 @@ class WebPushSender
         return $sent;
     }
 
+    /**
+     * web-push 11 takes a PSR-18 client where 9 took a timeout in seconds, so
+     * the timeout now lives on the client. Guzzle is already installed and
+     * implements PSR-18; passing it keeps discovery from choosing a client.
+     */
     protected function client(): WebPush
     {
         return new WebPush([
@@ -88,6 +94,6 @@ class WebPushSender
                 'publicKey' => (string) config('webpush.public_key'),
                 'privateKey' => (string) config('webpush.private_key'),
             ],
-        ], ['TTL' => 3600, 'urgency' => 'normal'], 10);
+        ], ['TTL' => 3600, 'urgency' => 'normal'], new GuzzleClient(['timeout' => 10]));
     }
 }

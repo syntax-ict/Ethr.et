@@ -160,6 +160,29 @@ test('an endpoint the push service reports gone is forgotten', function () {
         ->and($live->fresh()->last_used_at)->not->toBeNull();
 });
 
+test('the real push client builds with real VAPID keys', function () {
+    // Every other test here replaces client() with a fake, so a library
+    // upgrade that changes the WebPush constructor (web-push 11 took a
+    // PSR-18 client where 9 took a timeout) passed them all while every real
+    // send threw. This one builds the client the way production does. The
+    // pair is a throwaway made for this test, fixed rather than generated
+    // because key generation on Windows PHP needs OPENSSL_CONF set.
+    config([
+        'webpush.subject' => 'mailto:support@ethr.et',
+        'webpush.public_key' => 'BM0njQKmQ2DRMx1buCPUQuFHWtw136udNxC0WHsuh8LQjfXAqs-QsOcTzziQfksBZOOUxcgfB4Sxb9wObr8kSlE',
+        'webpush.private_key' => '-70dx5Toi2lpQGyd1KVhRQCq3Nmu5BXFY3TohckVek0',
+    ]);
+    $sender = new class extends WebPushSender
+    {
+        public function build(): WebPush
+        {
+            return $this->client();
+        }
+    };
+
+    expect($sender->build())->toBeInstanceOf(WebPush::class);
+});
+
 test('punch reminders are pushed once, in their window, to subscribed staff', function () {
     wpConfigure();
     $sender = new RecordingWebPushSender;
