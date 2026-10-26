@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Enums\EmployeeStatus;
 use App\Models\Employee;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * What "this employee's record is incomplete" means, once.
@@ -43,6 +46,31 @@ final class EmployeeGaps
     public static function financial(): array
     {
         return [self::TIN, self::BANK];
+    }
+
+    /**
+     * The "records to fix" filter of the employees list and its export: current
+     * staff with the one gap `filter[missing]` names, or the query untouched
+     * for a value that is not a gap. Pay data needs the permission that edits
+     * pay data, so the list cannot be used to learn who has no TIN or bank
+     * account.
+     *
+     * @param  Builder<Employee>  $query
+     * @return Builder<Employee>
+     */
+    public static function restrict(Builder $query, Request $request): Builder
+    {
+        $gap = $request->input('filter.missing');
+
+        if (! is_string($gap) || ! in_array($gap, self::keys(), true)) {
+            return $query;
+        }
+
+        if (in_array($gap, self::financial(), true)) {
+            Gate::authorize('employee.updateFinancial');
+        }
+
+        return self::apply($query->whereIn('status', EmployeeStatus::current()), $gap);
     }
 
     /**

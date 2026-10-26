@@ -206,6 +206,19 @@ test('an unknown missing filter is ignored rather than trusted', function () {
         ->assertJsonPath('meta.total', 3);
 });
 
+test('the export holds exactly the records the missing filter lists', function () {
+    $tenant = createTenant();
+    nsPerson($tenant, UserRole::HR_ADMIN);
+    Employee::factory()->count(2)->create(['tenant_id' => $tenant->id, 'phone' => null]);
+    $base = "http://{$tenant->subdomain}.ethr.test/api/v1/employees";
+
+    test()->getJson("{$base}/export?filter[missing]=phone")->assertOk()->assertJsonPath('count', 2);
+    test()->getJson("{$base}?filter[missing]=phone")->assertOk()->assertJsonPath('meta.total', 2);
+
+    nsPerson($tenant, UserRole::SUPERVISOR);
+    test()->getJson("{$base}/export?filter[missing]=tin")->assertForbidden();
+});
+
 test('who has no TIN or bank account is pay data and needs the permission that edits it', function () {
     $tenant = createTenant();
     nsPerson($tenant, UserRole::SUPERVISOR);

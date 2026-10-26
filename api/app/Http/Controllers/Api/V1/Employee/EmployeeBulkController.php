@@ -15,6 +15,7 @@ use App\Models\Employee;
 use App\Models\Position;
 use App\Services\EmployeeTransitionService;
 use App\Support\Csv;
+use App\Support\EmployeeGaps;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -230,6 +231,8 @@ class EmployeeBulkController extends Controller
         if ($request->boolean('filter.nationality_needs_review')) {
             $query->where('nationality_needs_review', true);
         }
+
+        EmployeeGaps::restrict($query, $request);
 
         if ($request->has('filter.department_id')) {
             $dept = Department::where('public_id', $request->input('filter.department_id'))->first();

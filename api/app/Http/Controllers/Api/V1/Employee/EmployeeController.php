@@ -86,19 +86,9 @@ class EmployeeController extends Controller
             $query->where('nationality_needs_review', true);
         }
 
-        // The "records to fix" list a Next Steps row opens. It is the set the
-        // row counted: current staff with this one gap, through EmployeeGaps.
-        // Pay data needs the permission that edits pay data, so the list
-        // cannot be used to learn who has no TIN or bank account.
-        $missing = $request->input('filter.missing');
-        if (is_string($missing) && in_array($missing, EmployeeGaps::keys(), true)) {
-            if (in_array($missing, EmployeeGaps::financial(), true)) {
-                Gate::authorize('employee.updateFinancial');
-            }
-
-            $query->whereIn('status', EmployeeStatus::current());
-            EmployeeGaps::apply($query, $missing);
-        }
+        // The "records to fix" list a Next Steps row opens: the set the row
+        // counted, through EmployeeGaps.
+        EmployeeGaps::restrict($query, $request);
 
         if ($request->has('filter.department_id')) {
             $dept = Department::where('public_id', $request->input('filter.department_id'))->first();
