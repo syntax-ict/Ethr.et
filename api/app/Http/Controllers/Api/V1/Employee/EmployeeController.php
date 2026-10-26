@@ -21,6 +21,7 @@ use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
 use App\Services\PlanLimitService;
 use App\Services\UserProvisioningService;
+use App\Support\EmployeeGaps;
 use App\Support\EmployeeRelations;
 use App\Support\EthiopianPhone;
 use App\Traits\DispatchesWebhooks;
@@ -83,6 +84,20 @@ class EmployeeController extends Controller
         // mapped to foreign from a free-text value nobody has confirmed.
         if ($request->boolean('filter.nationality_needs_review')) {
             $query->where('nationality_needs_review', true);
+        }
+
+        // The "records to fix" list a Next Steps row opens. It is the set the
+        // row counted: current staff with this one gap, through EmployeeGaps.
+        // Pay data needs the permission that edits pay data, so the list
+        // cannot be used to learn who has no TIN or bank account.
+        $missing = $request->input('filter.missing');
+        if (is_string($missing) && in_array($missing, EmployeeGaps::keys(), true)) {
+            if (in_array($missing, EmployeeGaps::financial(), true)) {
+                Gate::authorize('employee.updateFinancial');
+            }
+
+            $query->whereIn('status', EmployeeStatus::current());
+            EmployeeGaps::apply($query, $missing);
         }
 
         if ($request->has('filter.department_id')) {

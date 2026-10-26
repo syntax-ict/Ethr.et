@@ -138,6 +138,13 @@ parameters:
         - message: '#^Method App\\Models\\ShiftRotationStep\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
 
+        # Same larastan limitation for next_step_dismissals (2026-10-26). Checked
+        # against a fully migrated database: the error persists, so it is the
+        # limitation and not a schema gap. The model is correct and covered by
+        # NextStepsTest. Scoped to the trait file, model-named exact.
+        - message: '#^Method App\\Models\\NextStepDismissal\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+          path: app/Traits/BelongsToTenant.php
+
         # Same larastan limitation for disciplinary_cases — its JSON
         # `investigation_notes` column stops larastan introspecting the table,
         # so the trait generics resolve to false positives "in context of"

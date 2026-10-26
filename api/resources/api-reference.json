@@ -14011,6 +14011,14 @@
                         }
                     },
                     {
+                        "name": "filter[missing]",
+                        "in": "query",
+                        "description": "The \"records to fix\" list a Next Steps row opens. It is the set the\n row counted: current staff with this one gap, through EmployeeGaps.\n Pay data needs the permission that edits pay data, so the list\n cannot be used to learn who has no TIN or bank account.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
                         "name": "filter[department_id]",
                         "in": "query",
                         "schema": {
@@ -22075,6 +22083,104 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/next-steps": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "nextSteps.index",
+                "description": "Built from who they are: their own profile, requests waiting on them, the\nemployee records they keep, the setup they can finish. Each source checks\nits own permission, org scope and plan, so this route has no single\npermission. A platform super admin belongs to no organisation and gets an\nempty list.",
+                "summary": "The things this person should do next, in the order to do them",
+                "tags": [
+                    "Dashboards & Reporting"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`NextStepsResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NextStepsResource"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/next-steps/dismissals": {
+            "delete": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "nextSteps.restore",
+                "summary": "Bring back every step this person put away",
+                "tags": [
+                    "Dashboards & Reporting"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/next-steps/{step}/dismiss": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "nextSteps.dismiss",
+                "summary": "Put a step away until it changes, or for a number of days. A blocker can\nonly be snoozed",
+                "tags": [
+                    "Dashboards & Reporting"
+                ],
+                "parameters": [
+                    {
+                        "name": "step",
+                        "in": "path",
+                        "required": true,
+                        "description": "The step ID",
+                        "schema": {
+                            "$ref": "#/components/schemas/NextStepId"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DismissNextStepRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -40433,6 +40539,27 @@
                 ],
                 "title": "DisciplinarySanctionType"
             },
+            "DismissNextStepRequest": {
+                "type": "object",
+                "properties": {
+                    "signature": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "snooze_days": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 1,
+                        "maximum": 30
+                    }
+                },
+                "required": [
+                    "signature"
+                ],
+                "title": "DismissNextStepRequest"
+            },
             "DismissUnmatchedBadgeRequest": {
                 "type": "object",
                 "properties": {
@@ -42813,6 +42940,155 @@
                     "foreign"
                 ],
                 "title": "NationalityStatus"
+            },
+            "NextStepGroup": {
+                "type": "string",
+                "description": "What kind of help a next step is: the frontend groups and labels by it.\n",
+                "enum": [
+                    "profile",
+                    "approvals",
+                    "records",
+                    "setup",
+                    "operations"
+                ],
+                "title": "NextStepGroup"
+            },
+            "NextStepId": {
+                "type": "string",
+                "description": "Every step `GET /next-steps` can return. The case order is the tie-break order inside one severity: the steps that hold up other people's work come before configuration, and configuration before housekeeping. The frontend registry is keyed by this enum, which Scramble publishes as a union type, so a case added here without copy there fails the TypeScript build rather than rendering a blank row.  Severity is a property of the step, not of a moment, so a step that cannot be dismissed for good (a blocker) is known from its id alone.\n",
+                "enum": [
+                    "attendance_blockers",
+                    "payroll_failed",
+                    "setup_admin_present",
+                    "setup_admin_active",
+                    "integrity",
+                    "payroll_approve",
+                    "approvals",
+                    "contracts_ending",
+                    "setup_wizard",
+                    "setup_branch",
+                    "setup_departments",
+                    "setup_positions",
+                    "setup_shifts",
+                    "setup_leave_types",
+                    "setup_holidays",
+                    "setup_employees",
+                    "setup_employee_departments",
+                    "setup_attendance_source",
+                    "records_missing_tin",
+                    "records_missing_bank",
+                    "nationality_review",
+                    "complete_profile",
+                    "records_missing_emergency_contact",
+                    "records_missing_phone",
+                    "unmatched_badges",
+                    "team_absent"
+                ],
+                "title": "NextStepId"
+            },
+            "NextStepResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "$ref": "#/components/schemas/NextStepId"
+                    },
+                    "group": {
+                        "$ref": "#/components/schemas/NextStepGroup"
+                    },
+                    "severity": {
+                        "$ref": "#/components/schemas/NextStepSeverity"
+                    },
+                    "count": {
+                        "type": "integer"
+                    },
+                    "total": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "items": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "subject": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "href": {
+                        "type": "string"
+                    },
+                    "signature": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "group",
+                    "severity",
+                    "count",
+                    "total",
+                    "items",
+                    "subject",
+                    "href",
+                    "signature"
+                ],
+                "title": "NextStepResource"
+            },
+            "NextStepSeverity": {
+                "type": "string",
+                "description": "How much a step matters. A blocker keeps somebody from working and may be snoozed but never dismissed for good; a warning is work waiting for a decision or setup that is unfinished; info is worth doing and holds nobody up.\n",
+                "enum": [
+                    "blocker",
+                    "warning",
+                    "info"
+                ],
+                "title": "NextStepSeverity"
+            },
+            "NextStepsResource": {
+                "type": "object",
+                "properties": {
+                    "steps": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/NextStepResource"
+                        }
+                    },
+                    "setup": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "done": {
+                                "type": "integer"
+                            },
+                            "total": {
+                                "type": "integer"
+                            },
+                            "complete": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "done",
+                            "total",
+                            "complete"
+                        ]
+                    }
+                },
+                "required": [
+                    "steps",
+                    "setup"
+                ],
+                "title": "NextStepsResource"
             },
             "NotificationResource": {
                 "type": "object",

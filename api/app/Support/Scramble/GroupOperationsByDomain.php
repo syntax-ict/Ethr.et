@@ -102,6 +102,7 @@ class GroupOperationsByDomain
 
         // Insight.
         'Dashboard' => 'Dashboards & Reporting',
+        'NextSteps' => 'Dashboards & Reporting',
         'ExecutiveDashboard' => 'Dashboards & Reporting',
         'Analytics' => 'Dashboards & Reporting',
         'Report' => 'Dashboards & Reporting',

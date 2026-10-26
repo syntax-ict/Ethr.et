@@ -35,6 +35,23 @@ enum OnboardingStep: int
         };
     }
 
+    /**
+     * The steps the guided wizard walks through. The others are recorded but
+     * never shown as a step, so progress counts only these; the frontend's
+     * `GUIDED_STEP_IDS` is the same list.
+     *
+     * @return list<int>
+     */
+    public static function guided(): array
+    {
+        return [
+            self::SMART_CONFIGURATION->value,
+            self::WORKFORCE_MIGRATION->value,
+            self::ACCESS_IDENTITY->value,
+            self::READINESS_GO_LIVE->value,
+        ];
+    }
+
     public static function first(): self
     {
         return self::WELCOME_COMPANY;

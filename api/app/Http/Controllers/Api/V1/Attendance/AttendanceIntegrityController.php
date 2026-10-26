@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Attendance;
 
 use App\Enums\AttendanceStatus;
-use App\Enums\OrgScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\ReviewIntegrityFlagRequest;
 use App\Http\Resources\AttendanceIntegrityFlagResource;
@@ -146,13 +145,7 @@ class AttendanceIntegrityController extends Controller
     /** @return Builder<AttendanceIntegrityFlag> */
     private function visible(User $user): Builder
     {
-        $query = AttendanceIntegrityFlag::query();
-
-        if ($user->orgScope() !== OrgScope::ALL) {
-            $query->whereHas('employee', fn ($q) => $user->scopeAccessibleEmployees($q));
-        }
-
-        return $query;
+        return AttendanceIntegrityFlag::query()->visibleTo($user);
     }
 
     private function problem(int $status, string $title, string $detail): JsonResponse
