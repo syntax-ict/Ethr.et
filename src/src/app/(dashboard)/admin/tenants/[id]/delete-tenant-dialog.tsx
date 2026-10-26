@@ -20,7 +20,7 @@ import { apiErrorDetail } from "@/lib/api/error-message";
 import { useT } from "@/lib/i18n/useT";
 
 type Props = {
-  tenant: { public_id: string; name: string; subdomain: string };
+  tenant: { public_id: string; name: string };
   /** Where the organisation is reached, as the page prints it. */
   address: string;
   open: boolean;
@@ -29,10 +29,12 @@ type Props = {
 
 /**
  * Deleting an organisation, the second of two deliberate steps (it must be
- * cancelled first). Three things are asked for, and the server checks each
- * again: the reason, which goes into the audit log; the organisation's address
- * typed out, so the right organisation is named rather than clicked; and a
- * current authenticator code, so an unattended console session is not enough.
+ * cancelled first). Two things are asked for, and the server checks each
+ * again: the reason, which goes into the audit log, and a current
+ * authenticator code, so an unattended console session is not enough. The
+ * dialog names the organisation and its address, so the right one is in
+ * front of the person deleting it. Typing the address out was dropped on
+ * 2026-10-26 by owner decision.
  *
  * The dialog says plainly what deleting does and does not do: it closes the
  * organisation and keeps its records, and it can be undone.
@@ -46,20 +48,16 @@ export function DeleteTenantDialog({
   const { t } = useT();
   const remove = useDeleteTenant();
   const [reason, setReason] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [code, setCode] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const confirmMatches = confirm.trim() === tenant.subdomain;
-  const ready =
-    reason.trim().length >= 5 && confirmMatches && /^\d{6}$/.test(code);
+  const ready = reason.trim().length >= 5 && /^\d{6}$/.test(code);
 
   function close(next: boolean) {
     if (remove.isPending) return;
     onOpenChange(next);
     if (!next) {
       setReason("");
-      setConfirm("");
       setCode("");
       setFieldErrors({});
     }
@@ -72,7 +70,6 @@ export function DeleteTenantDialog({
     remove.mutate(
       {
         publicId: tenant.public_id,
-        confirm: confirm.trim(),
         code,
         reason: reason.trim(),
       },
@@ -200,29 +197,6 @@ export function DeleteTenantDialog({
             </p>
             {fieldErrors.reason && (
               <p className="text-xs text-destructive">{fieldErrors.reason}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="delete-confirm">
-              {t(
-                "admin_tenant_detail_page.delete_confirm_label",
-                "Type :subdomain to confirm",
-                { subdomain: tenant.subdomain },
-              )}
-            </Label>
-            <Input
-              id="delete-confirm"
-              autoComplete="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              className="font-mono"
-              aria-invalid={fieldErrors.confirm ? true : undefined}
-            />
-            {fieldErrors.confirm && (
-              <p className="text-xs text-destructive">{fieldErrors.confirm}</p>
             )}
           </div>
 

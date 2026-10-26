@@ -274,6 +274,50 @@ export function useVerifyAddress() {
   });
 }
 
+export type SubdomainCheck =
+  operations["settings.checkSubdomain"]["responses"][200]["content"]["application/json"];
+export type SubdomainResult =
+  operations["settings.updateSubdomain"]["responses"][200]["content"]["application/json"];
+
+/**
+ * Whether a name could become the organisation's address, by the rules a
+ * rename is held to. Always answers: `available`, and `message` saying why
+ * not. Asked only for a well-formed name that differs from the current one.
+ */
+export function useSubdomainCheck(subdomain: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [...keys.all, "subdomain-check", subdomain] as const,
+    queryFn: async () =>
+      (
+        await apiClient.get<SubdomainCheck>(
+          "/settings/address/subdomain/check",
+          {
+            params: { subdomain },
+          },
+        )
+      ).data,
+    enabled,
+    staleTime: 10_000,
+  });
+}
+
+/**
+ * Rename the organisation's address. The old name keeps working and forwards
+ * to the new one; a 422 on `subdomain` is shown under the field.
+ */
+export function useUpdateSubdomain() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (subdomain: string) =>
+      (
+        await apiClient.put<SubdomainResult>("/settings/address/subdomain", {
+          subdomain,
+        })
+      ).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.all }),
+  });
+}
+
 /**
  * Whether the organisation agrees to be named on ETHR's public site
  * ("Trusted by"). `shown` is whether it actually is: also needs an active
