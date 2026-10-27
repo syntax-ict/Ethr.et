@@ -332,6 +332,39 @@ export default function AttendanceSettingsPage() {
                     {t("attendance.settings_page.lateness_basis_hint")}
                   </p>
                 </div>
+                <SettingRow
+                  id="reconciliation-mode"
+                  title={t("attendance.settings_page.reconciliation_mode")}
+                  description={t(
+                    "attendance.settings_page.reconciliation_mode_desc",
+                  )}
+                >
+                  <Select
+                    value={form.reconciliation_mode}
+                    disabled={!can.managePayrollConfig}
+                    onValueChange={(v) =>
+                      setField(
+                        "reconciliation_mode",
+                        v as AttendanceSettings["reconciliation_mode"],
+                      )
+                    }
+                  >
+                    <SelectTrigger className="w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="off">
+                        {t("attendance.settings_page.reconciliation_off")}
+                      </SelectItem>
+                      <SelectItem value="advisory">
+                        {t("attendance.settings_page.reconciliation_advisory")}
+                      </SelectItem>
+                      <SelectItem value="required">
+                        {t("attendance.settings_page.reconciliation_required")}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </SettingRow>
               </CardContent>
             </Card>
 
