@@ -429,6 +429,19 @@ final class OrganizationProvisioner
         }
     }
 
+    /**
+     * The leave types attendance reconciliation settles an absence through,
+     * for an organisation that has not had them yet: sign-up applies no
+     * template, so a new organisation would otherwise have none. Idempotent.
+     */
+    public function ensureSettlingLeaveTypes(Tenant $tenant): ProvisioningResult
+    {
+        $result = new ProvisioningResult;
+        $this->provisionLeaveTypes($tenant, [], $result);
+
+        return $result;
+    }
+
     /** @param array<int, mixed> $entries */
     private function provisionLeaveTypes(Tenant $tenant, array $entries, ProvisioningResult $result): void
     {
@@ -440,6 +453,15 @@ final class OrganizationProvisioner
             if (! in_array($code, $listed, true)) {
                 $entries[] = $code;
             }
+        }
+        // And a way to record a day unpaid, unless the organisation already
+        // has one of its own or the template lists it.
+        $hasUnpaid = $this->query(LeaveType::class, $tenant->id)
+            ->where('kind', LeaveType::KIND_LEAVE)
+            ->where('is_paid', false)
+            ->exists();
+        if (! $hasUnpaid && ! in_array(LeaveTypeCatalog::UNPAID, $listed, true)) {
+            $entries[] = LeaveTypeCatalog::UNPAID;
         }
 
         foreach ($entries as $entry) {

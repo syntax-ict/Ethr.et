@@ -157,6 +157,9 @@ final class LeaveTypeCatalog
      */
     public const ALWAYS = ['official_duty', 'excused'];
 
+    /** Provisioned too, for an organisation with no unpaid type of its own. */
+    public const UNPAID = 'unpaid';
+
     /**
      * Resolve a template entry — a bare code string, or an object that overrides
      * catalog fields — into a full leave-type definition.

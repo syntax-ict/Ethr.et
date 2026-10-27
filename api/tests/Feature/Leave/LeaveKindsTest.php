@@ -142,6 +142,26 @@ describe('a business trip', function () {
     });
 });
 
+it('gives an organisation that signed up with no template the types that settle an absence', function () {
+    $tenant = createTenant();
+
+    app(OrganizationProvisioner::class)->ensureSettlingLeaveTypes($tenant);
+    app(OrganizationProvisioner::class)->ensureSettlingLeaveTypes($tenant);
+
+    expect(LeaveType::query()->pluck('kind', 'code')->all())
+        ->toEqual(['official_duty' => 'duty', 'excused' => 'excused', 'unpaid' => 'leave']);
+});
+
+it('adds no unpaid type to an organisation that has its own', function () {
+    $tenant = createTenant();
+    leaveKindsType($tenant, ['code' => 'lwop', 'is_paid' => false]);
+
+    app(OrganizationProvisioner::class)->ensureSettlingLeaveTypes($tenant);
+
+    expect(LeaveType::query()->pluck('code')->sort()->values()->all())
+        ->toBe(['excused', 'lwop', 'official_duty']);
+});
+
 it('gives every new organisation the trip and excused-absence types', function () {
     $tenant = createTenant();
 

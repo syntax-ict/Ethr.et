@@ -21,8 +21,9 @@ use Illuminate\Support\Str;
  * Duty and excused days are not counted as leave taken and draw on no balance.
  *
  * Every organisation gets the two catalog types, `official_duty` and
- * `excused`, unless it already has a type with that code. Nothing an
- * organisation created is changed.
+ * `excused`, unless it already has a type with that code, and the catalog's
+ * `unpaid` type when it has no unpaid type at all: that is how an absence is
+ * recorded as unpaid. Nothing an organisation created is changed.
  */
 return new class extends Migration
 {
@@ -42,6 +43,16 @@ return new class extends Migration
         ],
     ];
 
+    /** The catalog's own (LeaveTypeCatalog `unpaid`). */
+    private const UNPAID = [
+        'name' => 'Unpaid Leave',
+        'name_am' => 'ያለክፍያ ፈቃድ',
+        'kind' => 'leave',
+        'is_paid' => false,
+        'min_notice_days' => 14,
+        'sort_order' => 110,
+    ];
+
     public function up(): void
     {
         Schema::table('leave_types', function (Blueprint $table): void {
@@ -51,7 +62,16 @@ return new class extends Migration
         $now = now();
 
         foreach (DB::table('tenants')->pluck('id') as $tenantId) {
-            foreach (self::TYPES as $code => $type) {
+            $types = self::TYPES;
+            $hasUnpaid = DB::table('leave_types')
+                ->where('tenant_id', $tenantId)
+                ->where('is_paid', false)
+                ->exists();
+            if (! $hasUnpaid) {
+                $types['unpaid'] = self::UNPAID;
+            }
+
+            foreach ($types as $code => $type) {
                 $exists = DB::table('leave_types')
                     ->where('tenant_id', $tenantId)
                     ->where('code', $code)
@@ -62,6 +82,8 @@ return new class extends Migration
                 }
 
                 DB::table('leave_types')->insert([
+                    'is_paid' => true,
+                    'min_notice_days' => 0,
                     ...$type,
                     'public_id' => (string) Str::ulid(),
                     'tenant_id' => $tenantId,
@@ -71,8 +93,6 @@ return new class extends Migration
                     'carry_forward' => false,
                     'requires_approval' => true,
                     'requires_attachment' => false,
-                    'min_notice_days' => 0,
-                    'is_paid' => true,
                     'is_active' => true,
                     'created_at' => $now,
                     'updated_at' => $now,
