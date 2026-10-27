@@ -39,8 +39,11 @@ describe('OrganizationProvisioner', function () {
         expect(Position::where('tenant_id', $tenant->id)->pluck('title')->all())
             ->toEqualCanonicalizing(['Director General', 'Expert']);
         expect(Shift::where('tenant_id', $tenant->id)->count())->toBe(1);
+        // Plus the two every organisation gets whatever its template lists
+        // (LeaveTypeCatalog::ALWAYS): reconciliation settles business trips
+        // and excused absences through them.
         expect(LeaveType::where('tenant_id', $tenant->id)->pluck('code')->all())
-            ->toEqualCanonicalizing(['annual', 'maternity']);
+            ->toEqualCanonicalizing(['annual', 'maternity', 'official_duty', 'excused']);
 
         expect($result['resources']['departments']['created'])->toBe(2);
         expect($result['resources']['positions']['created'])->toBe(2);
@@ -98,7 +101,7 @@ describe('OrganizationProvisioner', function () {
 
         expect(Department::where('tenant_id', $tenant->id)->count())->toBe(2);
         expect(Position::where('tenant_id', $tenant->id)->count())->toBe(2);
-        expect(LeaveType::where('tenant_id', $tenant->id)->count())->toBe(2);
+        expect(LeaveType::where('tenant_id', $tenant->id)->count())->toBe(4);
         expect(Shift::where('tenant_id', $tenant->id)->count())->toBe(1);
     });
 
