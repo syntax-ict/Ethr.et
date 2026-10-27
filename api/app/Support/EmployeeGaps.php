@@ -7,7 +7,6 @@ namespace App\Support;
 use App\Enums\EmployeeStatus;
 use App\Models\Employee;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -55,13 +54,14 @@ final class EmployeeGaps
      * pay data, so the list cannot be used to learn who has no TIN or bank
      * account.
      *
+     * The callers read `filter[missing]` themselves and pass it in, so the
+     * parameter stays visible to Scramble and in the published API reference.
+     *
      * @param  Builder<Employee>  $query
      * @return Builder<Employee>
      */
-    public static function restrict(Builder $query, Request $request): Builder
+    public static function restrict(Builder $query, mixed $gap): Builder
     {
-        $gap = $request->input('filter.missing');
-
         if (! is_string($gap) || ! in_array($gap, self::keys(), true)) {
             return $query;
         }

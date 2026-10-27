@@ -232,7 +232,7 @@ class EmployeeBulkController extends Controller
             $query->where('nationality_needs_review', true);
         }
 
-        EmployeeGaps::restrict($query, $request);
+        EmployeeGaps::restrict($query, $request->input('filter.missing'));
 
         if ($request->has('filter.department_id')) {
             $dept = Department::where('public_id', $request->input('filter.department_id'))->first();

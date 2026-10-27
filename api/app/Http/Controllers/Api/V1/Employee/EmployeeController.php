@@ -86,9 +86,12 @@ class EmployeeController extends Controller
             $query->where('nationality_needs_review', true);
         }
 
-        // The "records to fix" list a Next Steps row opens: the set the row
-        // counted, through EmployeeGaps.
-        EmployeeGaps::restrict($query, $request);
+        // The "records to fix" list a Next Steps row opens. It is the set the
+        // row counted, through EmployeeGaps.
+        // Pay data needs the permission that edits pay data, so the list
+        // cannot be used to learn who has no TIN or bank account.
+        $missing = $request->input('filter.missing');
+        EmployeeGaps::restrict($query, $missing);
 
         if ($request->has('filter.department_id')) {
             $dept = Department::where('public_id', $request->input('filter.department_id'))->first();

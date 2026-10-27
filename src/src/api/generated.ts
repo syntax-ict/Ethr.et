@@ -18645,6 +18645,7 @@ export interface operations {
             query?: {
                 search?: string;
                 "filter[status]"?: string;
+                "filter[missing]"?: string;
                 "filter[department_id]"?: string;
                 "filter[branch_id]"?: string;
                 "filter[position_id]"?: string;
@@ -18978,7 +18979,7 @@ export interface operations {
                 "filter[status]"?: string;
                 /**
                  * @description The "records to fix" list a Next Steps row opens. It is the set the
-                 *      row counted: current staff with this one gap, through EmployeeGaps.
+                 *      row counted, through EmployeeGaps.
                  *      Pay data needs the permission that edits pay data, so the list
                  *      cannot be used to learn who has no TIN or bank account.
                  */

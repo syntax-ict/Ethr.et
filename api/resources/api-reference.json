@@ -14016,7 +14016,7 @@
                     {
                         "name": "filter[missing]",
                         "in": "query",
-                        "description": "The \"records to fix\" list a Next Steps row opens. It is the set the\n row counted: current staff with this one gap, through EmployeeGaps.\n Pay data needs the permission that edits pay data, so the list\n cannot be used to learn who has no TIN or bank account.",
+                        "description": "The \"records to fix\" list a Next Steps row opens. It is the set the\n row counted, through EmployeeGaps.\n Pay data needs the permission that edits pay data, so the list\n cannot be used to learn who has no TIN or bank account.",
                         "schema": {
                             "type": "string"
                         }
@@ -14849,6 +14849,13 @@
                     },
                     {
                         "name": "filter[status]",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "filter[missing]",
                         "in": "query",
                         "schema": {
                             "type": "string"
