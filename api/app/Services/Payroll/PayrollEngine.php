@@ -25,6 +25,7 @@ use App\Services\Attendance\ShiftMatcher;
 use App\Services\Calendar\EthiopianCalendar;
 use App\Services\Holiday\HolidayService;
 use App\Services\Leave\LeaveDayCalculator;
+use App\Support\Cents;
 use App\Support\TenantTime;
 use App\Support\WorkingWeek;
 use Carbon\Carbon;
@@ -189,7 +190,10 @@ final class PayrollEngine
             StatutorySchedules::setting($tenant, 'pension_scheme') ?? 'private',
             $periodStart,
         );
-        $taxBasis = $this->taxCalculator->basis($tenantId, $periodStart);
+        // Since 1.4 the ladder itself travels with its basis, so a month can be
+        // re-taxed from its own log even if a tenant's rows were replaced.
+        $taxBasis = $this->taxCalculator->basis($tenantId, $periodStart)
+            + ['brackets' => $this->taxCalculator->ladder($tenantId, $periodStart)];
 
         $pagume = $this->calendar->pagumeDaysInRange($periodStart, $periodEnd);
 
@@ -427,8 +431,11 @@ final class PayrollEngine
         }
 
         $log = [
-            'version' => '1.3',
+            'version' => '1.4',
             'calculated_at' => now()->toIso8601String(),
+            // Since 1.4: every amount is an exact fraction rounded once, half
+            // away from zero (App\Support\Cents), not a float passed to round().
+            'rounding' => Cents::ROUNDING,
             // Since 1.3: the loan and cost-sharing deductions below are what
             // the payslip withholds, and PayrollBalanceService draws the
             // balances down by exactly those figures when the run is approved.
@@ -452,7 +459,7 @@ final class PayrollEngine
         // or left before it ended, is paid only for the days of the period
         // they were employed. A termination date outside the period changes
         // nothing.
-        $totalPeriodDays = $periodStart->diffInDays($periodEnd) + 1;
+        $totalPeriodDays = (int) $periodStart->diffInDays($periodEnd) + 1;
         $hireDate = $employee->hire_date;
         $terminationDate = $employee->termination_date;
         $firstDay = $hireDate && $hireDate->gt($periodStart) ? $hireDate->copy()->startOfDay() : $periodStart->copy()->startOfDay();
@@ -460,8 +467,10 @@ final class PayrollEngine
             ? $terminationDate->copy()->startOfDay()
             : $periodEnd->copy()->startOfDay();
         $hireProrationFactor = 1.0;
+        $workedDays = $totalPeriodDays;
         if ($firstDay->gt($periodStart) || $lastDay->lt($periodEnd->copy()->startOfDay())) {
-            $workedDays = $lastDay->lt($firstDay) ? 0 : $firstDay->diffInDays($lastDay) + 1;
+            $workedDays = $lastDay->lt($firstDay) ? 0 : (int) $firstDay->diffInDays($lastDay) + 1;
+            // For the log only; the amount below is the exact fraction.
             $hireProrationFactor = $workedDays / $totalPeriodDays;
         }
 
@@ -477,19 +486,19 @@ final class PayrollEngine
         if ($pagumenApplied) {
             $nonPagumeDays = $totalPeriodDays - $pagumeDaysInPeriod;
             // Pagume days: annual (12 x monthly) / 365, per actual Pagume day.
-            $pagumeBasic = (int) round($basicSalary * 12 * $pagumeDaysInPeriod / 365);
+            $pagumeBasic = Cents::mulDiv($basicSalary * 12, $pagumeDaysInPeriod, 365);
             // Any non-Pagume days in the same run (uncommon — Pagume normally
             // has its own boundaried run) keep the monthly basis, scaled to
             // their share of the period.
             $nonPagumeBasic = $nonPagumeDays > 0
-                ? (int) round($basicSalary * $nonPagumeDays / $totalPeriodDays)
+                ? Cents::mulDiv($basicSalary, $nonPagumeDays, $totalPeriodDays)
                 : 0;
             $periodBasic = $pagumeBasic + $nonPagumeBasic;
         } else {
             $periodBasic = $basicSalary;
         }
 
-        $proratedBasic = (int) round($periodBasic * $hireProrationFactor);
+        $proratedBasic = Cents::mulDiv($periodBasic, $workedDays, $totalPeriodDays);
 
         $log['steps'][] = [
             'step' => 'proration',
@@ -513,9 +522,11 @@ final class PayrollEngine
         // the contractual daily rate (full monthly basic / working days) for each
         // unpaid working day in the period. Paid leave has no effect on pay.
         $unpaidLeaveDays = $this->gatherUnpaidLeaveDays($employee, $periodStart, $periodEnd);
-        $dailyRate = (int) round($basicSalary / self::WORKING_DAYS_PER_MONTH);
+        $dailyRate = Cents::mulDiv($basicSalary, 1, self::WORKING_DAYS_PER_MONTH);
+        // Leave days are counted in halves and occasionally finer; thousandths
+        // carry any of them exactly.
         $unpaidLeaveDeduction = $unpaidLeaveDays > 0
-            ? min((int) round($dailyRate * $unpaidLeaveDays), $proratedBasic)
+            ? min(Cents::mulDiv($dailyRate, (int) round($unpaidLeaveDays * 1000), 1000), $proratedBasic)
             : 0;
         $proratedBasic -= $unpaidLeaveDeduction;
 

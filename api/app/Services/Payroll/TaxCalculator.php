@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Payroll;
 
 use App\Models\TaxBracket;
+use App\Support\Cents;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
@@ -90,15 +91,28 @@ final class TaxCalculator
             $deduction = $bracket['deduction'];
 
             if ($max === null && $grossTaxableCents >= $min) {
-                return (int) round($grossTaxableCents * $rate / 100 - $deduction);
+                return Cents::percentOf($grossTaxableCents, $rate) - $deduction;
             }
 
             if ($grossTaxableCents >= $min && $grossTaxableCents <= $max) {
-                return (int) round($grossTaxableCents * $rate / 100 - $deduction);
+                return Cents::percentOf($grossTaxableCents, $rate) - $deduction;
             }
         }
 
         return 0;
+    }
+
+    /**
+     * The ladder `calculate()` applies for this tenant and date, band by band.
+     * Written into each entry's calculation_log since version 1.4, so a past
+     * month can be re-taxed from its own log even if the rows it was read
+     * from are gone.
+     *
+     * @return list<array{min: int, max: int|null, rate: float|int, deduction: int}>
+     */
+    public function ladder(?int $tenantId, CarbonInterface $asOf): array
+    {
+        return $this->getBrackets($tenantId, $asOf);
     }
 
     /**

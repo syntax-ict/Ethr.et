@@ -7,6 +7,7 @@ namespace App\Services\Payroll;
 use App\Enums\NationalityStatus;
 use App\Models\Employee;
 use App\Models\PensionRule;
+use App\Support\Cents;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
@@ -46,8 +47,8 @@ final class PensionCalculator
     public function calculate(int $basicSalaryCents): array
     {
         return [
-            'employee_cents' => (int) round($basicSalaryCents * $this->employeeRate / 100),
-            'employer_cents' => (int) round($basicSalaryCents * $this->employerRate / 100),
+            'employee_cents' => Cents::percentOf($basicSalaryCents, $this->employeeRate),
+            'employer_cents' => Cents::percentOf($basicSalaryCents, $this->employerRate),
         ];
     }
 
@@ -117,8 +118,8 @@ final class PensionCalculator
         }
 
         return [
-            'employee_cents' => (int) round($contributory * $rule->employeeRate / 100),
-            'employer_cents' => (int) round($contributory * $rule->employerRate / 100),
+            'employee_cents' => Cents::percentOf($contributory, $rule->employeeRate),
+            'employer_cents' => Cents::percentOf($contributory, $rule->employerRate),
             'exempt' => false,
             'exempt_reason' => null,
             'pensionable_cents' => $pensionable,

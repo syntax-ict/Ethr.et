@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Payroll;
 
 use App\Models\PayrollRule;
+use App\Support\Cents;
 
 final class OvertimeCalculator
 {
@@ -57,13 +58,16 @@ final class OvertimeCalculator
             return 0;
         }
 
-        $hourlyRate = $basicSalaryCents / ($workingDaysPerMonth * $hoursPerDay);
-        $overtimeHours = $overtimeMinutes / 60;
-
         $rates = $this->ratesFor($tenantId);
         $multiplier = $rates[$type] ?? $rates['normal'];
 
-        return (int) round($hourlyRate * $overtimeHours * $multiplier);
+        // basic ÷ (days × hours) an hour, × minutes ÷ 60, × the multiplier:
+        // one exact fraction, rounded once.
+        return Cents::mulDiv(
+            $basicSalaryCents,
+            $overtimeMinutes * Cents::scaledRate($multiplier),
+            $workingDaysPerMonth * $hoursPerDay * 60 * Cents::RATE_SCALE,
+        );
     }
 
     /**
