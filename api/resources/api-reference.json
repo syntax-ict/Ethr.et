@@ -30383,6 +30383,64 @@
                 }
             }
         },
+        "/payroll/runs/{payrollRun}/paid": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "payroll"
+                ],
+                "operationId": "payroll.markPaid",
+                "summary": "Record that an approved run has been paid: the date the money left and\nthe bank's reference. A paid run cannot be voided; a mistake in it is\ncorrected in the next run",
+                "tags": [
+                    "Payroll"
+                ],
+                "parameters": [
+                    {
+                        "name": "payrollRun",
+                        "in": "path",
+                        "required": true,
+                        "description": "The payroll run public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MarkPayrollRunPaidRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PayrollRunResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PayrollRunResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/payroll/runs/{payrollRun}/register": {
             "get": {
                 "x-abilities": [
@@ -31089,6 +31147,7 @@
                                                 "status": {
                                                     "type": "string",
                                                     "enum": [
+                                                        "Approved and paid",
                                                         "Approved",
                                                         "NOT APPROVED — draft figures"
                                                     ]
@@ -44290,6 +44349,33 @@
                 ],
                 "title": "ManualAttendanceRequest"
             },
+            "MarkPayrollRunPaidRequest": {
+                "type": "object",
+                "properties": {
+                    "paid_on": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "payment_reference": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 120
+                    },
+                    "payment_note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "paid_on"
+                ],
+                "title": "MarkPayrollRunPaidRequest"
+            },
             "MobileCheckInRequest": {
                 "type": "object",
                 "properties": {
@@ -45406,6 +45492,25 @@
                             "null"
                         ]
                     },
+                    "paid_on": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "paid_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "payment_reference": {
+                        "type": "string"
+                    },
+                    "payment_note": {
+                        "type": "string"
+                    },
                     "reprocessed_from_public_id": {
                         "type": [
                             "string",
@@ -45435,6 +45540,10 @@
                     "approved_at",
                     "voided_at",
                     "void_reason",
+                    "paid_on",
+                    "paid_at",
+                    "payment_reference",
+                    "payment_note",
                     "created_at"
                 ],
                 "title": "PayrollRunResource"
@@ -51001,6 +51110,7 @@
         "payroll.processed",
         "payroll.approved",
         "payroll.voided",
+        "payroll.paid",
         "payroll.reprocessed",
         "attendance.checked_in",
         "attendance.checked_out",

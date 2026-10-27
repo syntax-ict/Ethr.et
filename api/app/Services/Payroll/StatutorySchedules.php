@@ -344,8 +344,12 @@ final class StatutorySchedules
             'employer_tin' => $tenant === null ? null : self::setting($tenant, 'employer_tin'),
             'tax_center' => $tenant === null ? null : self::setting($tenant, 'tax_center'),
             'period' => (string) $run->period_label,
-            'status' => $run->status === 'approved' ? 'Approved' : 'NOT APPROVED — draft figures',
-            'approved' => $run->status === 'approved',
+            'status' => match ($run->status) {
+                'paid' => 'Approved and paid',
+                'approved' => 'Approved',
+                default => 'NOT APPROVED — draft figures',
+            },
+            'approved' => $run->isReleased(),
             'basis' => self::basisLine($basis),
             'notice' => $layout['note']
                 ?? 'Layout prepared by ETHR; to be confirmed with the agency before filing (owner action O3).',

@@ -5141,6 +5141,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll/runs/{payrollRun}/paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Record that an approved run has been paid: the date the money left and
+         *     the bank's reference. A paid run cannot be voided; a mistake in it is
+         *     corrected in the next run
+         */
+        put: operations["payroll.markPaid"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/runs/{payrollRun}/reprocess": {
         parameters: {
             query?: never;
@@ -9237,6 +9258,13 @@ export interface components {
             check_out?: string | null;
             reason: string;
         };
+        /** MarkPayrollRunPaidRequest */
+        MarkPayrollRunPaidRequest: {
+            /** Format: date */
+            paid_on: string;
+            payment_reference?: string | null;
+            payment_note?: string | null;
+        };
         /** MarketingItemResource */
         MarketingItemResource: {
             public_id: string;
@@ -9555,6 +9583,11 @@ export interface components {
             /** Format: date-time */
             voided_at: string | null;
             void_reason: string | null;
+            paid_on: string | null;
+            /** Format: date-time */
+            paid_at: string | null;
+            payment_reference: string;
+            payment_note: string;
             reprocessed_from_public_id?: string | null;
             /** Format: date-time */
             created_at: string | null;
@@ -10887,7 +10920,7 @@ export interface components {
         StoreWebhookRequest: {
             /** Format: uri */
             url: string;
-            events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
+            events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
         };
         /** TaxBracketResource */
         TaxBracketResource: {
@@ -11727,7 +11760,7 @@ export interface components {
         UpdateWebhookRequest: {
             /** Format: uri */
             url?: string;
-            events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
+            events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
             is_active?: boolean;
         };
         /**
@@ -26115,6 +26148,37 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "payroll.markPaid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkPayrollRunPaidRequest"];
+            };
+        };
+        responses: {
+            /** @description `PayrollRunResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollRunResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "payroll.reprocess": {
         parameters: {
             query?: never;
@@ -26380,7 +26444,7 @@ export interface operations {
                             tax_center: string | null;
                             period: string;
                             /** @enum {string} */
-                            status: "Approved" | "NOT APPROVED — draft figures";
+                            status: "Approved and paid" | "Approved" | "NOT APPROVED — draft figures";
                             approved: boolean;
                             basis: string;
                             notice: string | "Layout prepared by ETHR; to be confirmed with the agency before filing (owner action O3).";

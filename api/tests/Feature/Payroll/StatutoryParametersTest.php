@@ -222,3 +222,25 @@ it('infers the kind of organisation at registration and asks the admin to confir
     'a charity' => ['ngo', 'ngo'],
     'a bank' => ['bank', 'private'],
 ]);
+
+it('moves no existing organisation\'s pension scheme or fiscal year when it guesses the type', function () {
+    // A government tenant with no settings was paid on the private scheme with
+    // a Meskerem fiscal year until this migration; the type's own defaults
+    // (public, Hamle) must not take over on deploy.
+    $ministry = createTenant(['type' => 'government', 'settings' => []]);
+    $chosen = createTenant(['type' => 'government', 'settings' => ['pension_scheme' => 'public', 'fiscal_year_start_month' => 11]]);
+
+    $migration = require database_path('migrations/2026_10_27_000002_create_organization_types_and_statutory_parameters.php');
+    (fn () => self::backfillTenants())->call($migration);
+
+    $ministry = $ministry->fresh();
+    $rules = app(StatutoryRules::class)->for($ministry, Carbon::parse('2026-10-15'));
+    expect($ministry->organization_type)->toBe('government')
+        ->and($ministry->organization_type_needs_review)->toBeTrue()
+        ->and($rules->string('pension.default_scheme'))->toBe('private')
+        ->and($rules->int('fiscal_year.start_month'))->toBe(1);
+
+    $rules = app(StatutoryRules::class)->for($chosen->fresh(), Carbon::parse('2026-10-15'));
+    expect($rules->string('pension.default_scheme'))->toBe('public')
+        ->and($rules->int('fiscal_year.start_month'))->toBe(11);
+});

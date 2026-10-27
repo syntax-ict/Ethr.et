@@ -43,6 +43,15 @@ An organisation chooses its type at registration or in Settings; every
 organisation that existed before 2026-10-27 was given the type its settings
 suggested and asked to confirm it (`organization_type_needs_review`).
 
+A guessed type moves no pay. Before 2026-10-27 an organisation with no
+setting was paid on the private pension scheme with a Meskerem fiscal year,
+whatever it was, so the migration wrote those two values into the settings
+of every existing organisation that had not chosen its own. Without that, an
+organisation guessed to be `government` would have moved to the public scheme
+and a Hamle fiscal year on deploy. Each can still be changed in payroll
+settings; organisations registered after the migration get their type's
+defaults.
+
 | Code | Meaning |
 |---|---|
 | `private` | Companies, banks, private schools and clinics, other private employers |

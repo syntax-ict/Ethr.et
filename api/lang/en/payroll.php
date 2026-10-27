@@ -5,6 +5,8 @@ declare(strict_types=1);
 return [
     'not_completed' => 'Payroll run has not been completed yet.',
     'cannot_void' => 'Only a completed or approved payroll run can be voided.',
+    'paid_cannot_void' => 'This payroll run has been paid, so it cannot be voided. Correct it in the next payroll run.',
+    'payment_not_approved' => 'Payment can only be recorded for an approved payroll run.',
     'cannot_reprocess' => 'Only a voided payroll run can be reprocessed.',
     'balances_changed' => 'Loan or cost-sharing balances changed after this run was calculated. Void the run and reprocess the period.',
     'no_rule_in_force' => 'No statutory rule is in force for :code on this date. A platform administrator must add one before payroll can run.',

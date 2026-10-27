@@ -190,9 +190,19 @@ return new class extends Migration
                     default => 'private',
                 };
 
+                // The type is a guess, and a guess must not move pay. Before
+                // this migration a tenant with no setting was paid on the
+                // private scheme with a Meskerem fiscal year, whatever it was;
+                // the type's own defaults (public, Hamle) would otherwise take
+                // over on deploy. So what the engine used is written down as
+                // the tenant's setting, which it can change in payroll settings.
+                $settings['pension_scheme'] ??= 'private';
+                $settings['fiscal_year_start_month'] ??= 1;
+
                 DB::table('tenants')->where('id', $tenant->id)->update([
                     'organization_type' => $organizationType,
                     'organization_type_needs_review' => true,
+                    'settings' => json_encode($settings),
                 ]);
             }
         });

@@ -18,10 +18,22 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $period_start
  * @property Carbon|null $period_end
  * @property-read PayrollRun|null $reprocessedFrom
+ * @property Carbon|null $paid_on
+ * @property Carbon|null $paid_at
  */
 class PayrollRun extends Model
 {
     use BelongsToTenant, HasFactory, HasPublicId, NeverDelete;
+
+    /**
+     * A released run is one whose payslips employees can see and whose amounts
+     * are frozen: approved, and then paid once the money has left. Every check
+     * that asked for `approved` asks for one of these, so recording payment
+     * hides nothing.
+     *
+     * @var list<string>
+     */
+    public const RELEASED_STATUSES = ['approved', 'paid'];
 
     protected $fillable = [
         'public_id',
@@ -44,6 +56,11 @@ class PayrollRun extends Model
         'voided_by',
         'void_reason',
         'reprocessed_from_id',
+        'paid_on',
+        'paid_at',
+        'paid_by',
+        'payment_reference',
+        'payment_note',
     ];
 
     protected $hidden = [
@@ -64,6 +81,8 @@ class PayrollRun extends Model
             'processed_at' => 'datetime',
             'approved_at' => 'datetime',
             'voided_at' => 'datetime',
+            'paid_on' => 'date',
+            'paid_at' => 'datetime',
         ];
     }
 
@@ -85,6 +104,17 @@ class PayrollRun extends Model
     public function voidedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'voided_by');
+    }
+
+    public function isReleased(): bool
+    {
+        return in_array($this->status, self::RELEASED_STATUSES, true);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function paidByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'paid_by');
     }
 
     public function reprocessedFrom(): BelongsTo

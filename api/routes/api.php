@@ -678,6 +678,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             ->middleware(RequiresPlanFeature::class.':payroll');
         Route::post('/runs/{payrollRun}/void', [PayrollController::class, 'void'])
             ->middleware(RequiresPlanFeature::class.':payroll');
+        Route::put('/runs/{payrollRun}/paid', [PayrollController::class, 'markPaid'])
+            ->middleware(RequiresPlanFeature::class.':payroll');
         Route::post('/runs/{payrollRun}/reprocess', [PayrollController::class, 'reprocess'])
             ->middleware(['throttle:payroll-process', RequiresPlanFeature::class.':payroll']);
         Route::get('/runs/{payrollRun}/export/bank', [PayrollController::class, 'bankExport']);

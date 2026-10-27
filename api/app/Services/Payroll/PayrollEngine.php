@@ -294,6 +294,36 @@ final class PayrollEngine
     }
 
     /**
+     * Record that an approved run's money has left: the date, the bank's
+     * reference and who confirmed it. The run's last state.
+     *
+     * A paid run cannot be voided (owner decision Q6): the money is in
+     * employees' accounts, so a mistake is corrected in the next run, where it
+     * shows, rather than by rewriting this one.
+     */
+    public function markPaid(PayrollRun $run, int $paidBy, string $paidOn, ?string $reference, ?string $note): PayrollRun
+    {
+        return DB::transaction(function () use ($run, $paidBy, $paidOn, $reference, $note): PayrollRun {
+            $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== 'approved') {
+                throw PayrollRunRefused::notApprovedForPaymentRecord();
+            }
+
+            $locked->update([
+                'status' => 'paid',
+                'paid_on' => $paidOn,
+                'paid_at' => now(),
+                'paid_by' => $paidBy,
+                'payment_reference' => $reference,
+                'payment_note' => $note,
+            ]);
+
+            return $locked;
+        });
+    }
+
+    /**
      * Void a completed or approved run.
      *
      * A completed run never moved a balance, so voiding it gives nothing
@@ -306,6 +336,10 @@ final class PayrollEngine
     {
         return DB::transaction(function () use ($run, $voidedBy, $reason): PayrollRun {
             $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($locked->status === 'paid') {
+                throw PayrollRunRefused::paidCannotVoid();
+            }
 
             if (! in_array($locked->status, ['completed', 'approved'], true)) {
                 throw PayrollRunRefused::cannotVoid();
