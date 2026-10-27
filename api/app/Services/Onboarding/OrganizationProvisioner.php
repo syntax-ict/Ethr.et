@@ -432,6 +432,16 @@ final class OrganizationProvisioner
     /** @param array<int, mixed> $entries */
     private function provisionLeaveTypes(Tenant $tenant, array $entries, ProvisioningResult $result): void
     {
+        $listed = array_map(
+            static fn (mixed $entry): ?string => is_string($entry) ? strtolower(trim($entry)) : (is_array($entry) && is_string($entry['code'] ?? null) ? strtolower(trim($entry['code'])) : null),
+            $entries,
+        );
+        foreach (LeaveTypeCatalog::ALWAYS as $code) {
+            if (! in_array($code, $listed, true)) {
+                $entries[] = $code;
+            }
+        }
+
         foreach ($entries as $entry) {
             if (! is_string($entry) && ! is_array($entry)) {
                 continue;

@@ -124,7 +124,38 @@ final class LeaveTypeCatalog
             'min_notice_days' => 14,
             'sort_order' => 110,
         ],
+        // Not time off: away on the organisation's business. Draws on no
+        // balance, and explains the days it covers like any approved leave.
+        'official_duty' => [
+            'name' => 'Official Duty / Business Trip',
+            'name_am' => 'የሥራ ጉዞ / ተልዕኮ',
+            'kind' => 'duty',
+            'default_days' => 0,
+            'accrual_type' => 'annual',
+            'is_paid' => true,
+            'sort_order' => 120,
+        ],
+        // An absence the organisation excuses, paid. How a reviewed absence is
+        // closed without deducting it.
+        'excused' => [
+            'name' => 'Excused Absence',
+            'name_am' => 'የተፈቀደ መቅረት',
+            'kind' => 'excused',
+            'default_days' => 0,
+            'accrual_type' => 'annual',
+            'is_paid' => true,
+            'sort_order' => 130,
+        ],
     ];
+
+    /**
+     * Provisioned for every organisation whatever its template lists:
+     * attendance reconciliation resolves trips and excused absences through
+     * them.
+     *
+     * @var list<string>
+     */
+    public const ALWAYS = ['official_duty', 'excused'];
 
     /**
      * Resolve a template entry — a bare code string, or an object that overrides
@@ -157,6 +188,7 @@ final class LeaveTypeCatalog
 
         return array_merge([
             'code' => substr($code, 0, 30),
+            'kind' => 'leave',
             'name_am' => null,
             'carry_forward' => false,
             'max_carry_days' => null,
