@@ -38294,6 +38294,21 @@
                             "null"
                         ]
                     },
+                    "kind": {
+                        "type": "string"
+                    },
+                    "date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "deduct_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
                     "reason": {
                         "type": "string"
                     },
@@ -38341,6 +38356,9 @@
                     "public_id",
                     "attendance_record_public_id",
                     "employee_public_id",
+                    "kind",
+                    "date",
+                    "deduct_minutes",
                     "reason",
                     "proposed_check_in",
                     "proposed_check_out",
@@ -39132,6 +39150,15 @@
                     "overtime_requires_approval": {
                         "type": "boolean"
                     },
+                    "lateness_deduction_enabled": {
+                        "type": "boolean"
+                    },
+                    "lateness_deduction_basis": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "confidence_threshold": {
                         "type": "integer"
                     },
@@ -39195,6 +39222,8 @@
                     "kiosk_auto_reset_seconds",
                     "ot_daily_cap_minutes",
                     "overtime_requires_approval",
+                    "lateness_deduction_enabled",
+                    "lateness_deduction_basis",
                     "confidence_threshold",
                     "reminders_enabled",
                     "reminder_lead_minutes",
@@ -46068,8 +46097,32 @@
             "StoreCorrectionRequest": {
                 "type": "object",
                 "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "correction",
+                            "missed_punch",
+                            "lateness"
+                        ]
+                    },
                     "attendance_record_public_id": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "employee_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date"
                     },
                     "reason": {
                         "type": "string",
@@ -46088,10 +46141,17 @@
                             "null"
                         ],
                         "format": "date-time"
+                    },
+                    "deduct_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 1440
                     }
                 },
                 "required": [
-                    "attendance_record_public_id",
                     "reason"
                 ],
                 "title": "StoreCorrectionRequest"
@@ -48003,6 +48063,16 @@
                     },
                     "overtime_requires_approval": {
                         "type": "boolean"
+                    },
+                    "lateness_deduction_enabled": {
+                        "type": "boolean"
+                    },
+                    "lateness_deduction_basis": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 500
                     },
                     "confidence_threshold": {
                         "type": "integer",

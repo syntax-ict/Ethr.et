@@ -231,9 +231,7 @@ class AttendanceCorrectionController extends Controller
         // Integers, but the API contract cannot type arithmetic and published
         // all three as strings until the casts said otherwise.
         // A lateness decision moves no punch; what it changes is the minutes deducted.
-        $diffMinutes = $correction->kind === CorrectionKind::LATENESS
-            ? -1 * (int) $correction->deduct_minutes
-            : (int) ($proposedMinutes - $originalMinutes);
+        $diffMinutes = self::differenceMinutes($correction, $originalMinutes, $proposedMinutes);
         $impactCents = (int) ($minuteRateCents * $diffMinutes);
         $hourlyRateCents = (int) ($minuteRateCents * 60);
         // Until 2026-10-20 this answered `true` for every correction.
@@ -268,6 +266,16 @@ class AttendanceCorrectionController extends Controller
         $correction->load('attendanceRecord', 'employee', 'approvalInstance.actions.actor');
 
         return response()->json(new AttendanceCorrectionResource($correction));
+    }
+
+    /** Typed so the contract publishes an integer, which an inline ternary did not. */
+    private static function differenceMinutes(AttendanceCorrection $correction, int $originalMinutes, int $proposedMinutes): int
+    {
+        if ($correction->kind === CorrectionKind::LATENESS) {
+            return -1 * (int) $correction->deduct_minutes;
+        }
+
+        return $proposedMinutes - $originalMinutes;
     }
 
     /**

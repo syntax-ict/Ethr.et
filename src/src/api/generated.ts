@@ -7848,6 +7848,9 @@ export interface components {
             attendance_record_public_id: string | null;
             employee?: components["schemas"]["EmployeeResource"] | null;
             employee_public_id: string | null;
+            kind: string;
+            date: string | null;
+            deduct_minutes: number | null;
             reason: string;
             proposed_check_in: string | null;
             proposed_check_out: string | null;
@@ -8031,6 +8034,8 @@ export interface components {
             kiosk_auto_reset_seconds: number;
             ot_daily_cap_minutes: number;
             overtime_requires_approval: boolean;
+            lateness_deduction_enabled: boolean;
+            lateness_deduction_basis: string | null;
             confidence_threshold: number;
             reminders_enabled: boolean;
             reminder_lead_minutes: number;
@@ -10130,12 +10135,18 @@ export interface components {
         };
         /** StoreCorrectionRequest */
         StoreCorrectionRequest: {
-            attendance_record_public_id: string;
+            /** @enum {string} */
+            kind?: "correction" | "missed_punch" | "lateness";
+            attendance_record_public_id?: string | null;
+            employee_public_id?: string | null;
+            /** Format: date */
+            date?: string | null;
             reason: string;
             /** Format: date-time */
             proposed_check_in?: string | null;
             /** Format: date-time */
             proposed_check_out?: string | null;
+            deduct_minutes?: number | null;
         };
         /** StoreCostCenterRequest */
         StoreCostCenterRequest: {
@@ -10828,6 +10839,8 @@ export interface components {
             kiosk_auto_reset_seconds?: number;
             ot_daily_cap_minutes?: number;
             overtime_requires_approval?: boolean;
+            lateness_deduction_enabled?: boolean;
+            lateness_deduction_basis?: string | null;
             confidence_threshold?: number;
             reminders_enabled?: boolean;
             reminder_lead_minutes?: number;
