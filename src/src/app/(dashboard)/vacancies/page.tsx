@@ -58,6 +58,7 @@ import {
 } from "@/features/vacancies/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
+import { ApplicantsPanel } from "@/features/recruitment/components/applicants-panel";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 const NONE = "__none__";
@@ -125,6 +126,7 @@ export default function VacanciesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [viewing, setViewing] = useState<Vacancy | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Vacancy | null>(null);
+  const [recruiting, setRecruiting] = useState<Vacancy | null>(null);
 
   const vacancies = useMemo(() => data ?? [], [data]);
   const counts = useMemo(
@@ -303,46 +305,61 @@ export default function VacanciesPage() {
                         })
                       : t("vacancies.open_until_filled", "Open until filled")}
                   </p>
-                  {can.manageVacancies && (
-                    <div className="flex gap-1">
-                      {v.status === "open" ? (
+                  {(can.manageVacancies || can.manageRecruitment) && (
+                    <div className="flex flex-wrap gap-1">
+                      {can.manageRecruitment && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setStatus(v, "closed")}
+                          onClick={() => setRecruiting(v)}
                         >
-                          {t("vacancies.close", "Close")}
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setStatus(v, "open")}
-                        >
-                          {v.status === "draft"
-                            ? t("vacancies.publish", "Publish")
-                            : t("vacancies.reopen", "Reopen")}
+                          <Users className="mr-1 h-4 w-4" aria-hidden="true" />
+                          {t("recruitment.applicants", "Applicants")}
                         </Button>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={t("common.edit", "Edit")}
-                        onClick={() => {
-                          setEditing(v);
-                          setFormOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={t("common.delete", "Delete")}
-                        onClick={() => setPendingDelete(v)}
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                      {can.manageVacancies &&
+                        (v.status === "open" ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setStatus(v, "closed")}
+                          >
+                            {t("vacancies.close", "Close")}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setStatus(v, "open")}
+                          >
+                            {v.status === "draft"
+                              ? t("vacancies.publish", "Publish")
+                              : t("vacancies.reopen", "Reopen")}
+                          </Button>
+                        ))}
+                      {can.manageVacancies && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={t("common.edit", "Edit")}
+                            onClick={() => {
+                              setEditing(v);
+                              setFormOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={t("common.delete", "Delete")}
+                            onClick={() => setPendingDelete(v)}
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -353,6 +370,11 @@ export default function VacanciesPage() {
       )}
 
       <VacancyDetail vacancy={viewing} onClose={() => setViewing(null)} />
+
+      <ApplicantsPanel
+        vacancy={recruiting}
+        onClose={() => setRecruiting(null)}
+      />
 
       {formOpen && (
         <VacancyForm

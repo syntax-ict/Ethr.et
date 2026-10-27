@@ -20335,6 +20335,729 @@
                 }
             }
         },
+        "/job-applications/{application}": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "jobApplication.show",
+                "summary": "Get job application",
+                "tags": [
+                    "Job Application"
+                ],
+                "parameters": [
+                    {
+                        "name": "application",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`JobApplicationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/JobApplicationResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "vacancy": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "title": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "title"
+                                                    ]
+                                                },
+                                                "offer": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "start_date": {
+                                                            "type": "string"
+                                                        },
+                                                        "salary_cents": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "notes": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "made_by": [],
+                                                        "made_by_me": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "approved_by": [],
+                                                        "approved_at": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "start_date",
+                                                        "salary_cents",
+                                                        "notes",
+                                                        "made_by_me",
+                                                        "approved_at"
+                                                    ]
+                                                },
+                                                "employee": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "employee_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "name",
+                                                        "employee_code"
+                                                    ]
+                                                },
+                                                "events": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/JobApplicationEventResource"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "vacancy",
+                                                "offer",
+                                                "employee",
+                                                "events"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/job-applications/{application}/approve-offer": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "jobApplication.approveOffer",
+                "summary": "Approve offer job applications",
+                "tags": [
+                    "Job Application"
+                ],
+                "parameters": [
+                    {
+                        "name": "application",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApproveOfferRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`JobApplicationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/JobApplicationResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "vacancy": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "title": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "title"
+                                                    ]
+                                                },
+                                                "offer": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "start_date": {
+                                                            "type": "string"
+                                                        },
+                                                        "salary_cents": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "notes": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "made_by": [],
+                                                        "made_by_me": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "approved_by": [],
+                                                        "approved_at": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "start_date",
+                                                        "salary_cents",
+                                                        "notes",
+                                                        "made_by_me",
+                                                        "approved_at"
+                                                    ]
+                                                },
+                                                "employee": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "employee_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "name",
+                                                        "employee_code"
+                                                    ]
+                                                },
+                                                "events": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/JobApplicationEventResource"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "vacancy",
+                                                "offer",
+                                                "employee",
+                                                "events"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/job-applications/{application}/erase": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "jobApplication.erase",
+                "summary": "Erase job applications",
+                "tags": [
+                    "Job Application"
+                ],
+                "parameters": [
+                    {
+                        "name": "application",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`JobApplicationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/JobApplicationResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "vacancy": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "title": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "title"
+                                                    ]
+                                                },
+                                                "offer": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "start_date": {
+                                                            "type": "string"
+                                                        },
+                                                        "salary_cents": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "notes": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "made_by": [],
+                                                        "made_by_me": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "approved_by": [],
+                                                        "approved_at": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "start_date",
+                                                        "salary_cents",
+                                                        "notes",
+                                                        "made_by_me",
+                                                        "approved_at"
+                                                    ]
+                                                },
+                                                "employee": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "employee_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "name",
+                                                        "employee_code"
+                                                    ]
+                                                },
+                                                "events": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/JobApplicationEventResource"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "vacancy",
+                                                "offer",
+                                                "employee",
+                                                "events"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/job-applications/{application}/events": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "jobApplication.record",
+                "summary": "Create event",
+                "tags": [
+                    "Job Application"
+                ],
+                "parameters": [
+                    {
+                        "name": "application",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RecordApplicationEventRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`JobApplicationEventResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/JobApplicationEventResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "actor": []
+                                            },
+                                            "required": [
+                                                "actor"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/job-applications/{application}/hire": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "jobApplication.hire",
+                "summary": "Hire job applications",
+                "tags": [
+                    "Job Application"
+                ],
+                "parameters": [
+                    {
+                        "name": "application",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/HireApplicationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/job-applications/{application}/stage": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "jobApplication.move",
+                "summary": "Stage job applications",
+                "tags": [
+                    "Job Application"
+                ],
+                "parameters": [
+                    {
+                        "name": "application",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MoveJobApplicationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`JobApplicationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/JobApplicationResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "vacancy": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "title": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "title"
+                                                    ]
+                                                },
+                                                "offer": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "start_date": {
+                                                            "type": "string"
+                                                        },
+                                                        "salary_cents": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "notes": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "made_by": [],
+                                                        "made_by_me": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "approved_by": [],
+                                                        "approved_at": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "start_date",
+                                                        "salary_cents",
+                                                        "notes",
+                                                        "made_by_me",
+                                                        "approved_at"
+                                                    ]
+                                                },
+                                                "employee": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "employee_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "name",
+                                                        "employee_code"
+                                                    ]
+                                                },
+                                                "events": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/JobApplicationEventResource"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "vacancy",
+                                                "offer",
+                                                "employee",
+                                                "events"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/kiosk-sessions": {
             "get": {
                 "x-abilities": [
@@ -35621,6 +36344,425 @@
                 }
             }
         },
+        "/vacancies/{vacancy}/applications": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "jobApplication.index",
+                "summary": "List applications",
+                "tags": [
+                    "Job Application"
+                ],
+                "parameters": [
+                    {
+                        "name": "vacancy",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "stage",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 25
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `JobApplicationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/JobApplicationResource"
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "offer": {
+                                                                "type": [
+                                                                    "object",
+                                                                    "null"
+                                                                ],
+                                                                "properties": {
+                                                                    "start_date": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "salary_cents": {
+                                                                        "type": [
+                                                                            "integer",
+                                                                            "null"
+                                                                        ]
+                                                                    },
+                                                                    "notes": {
+                                                                        "type": [
+                                                                            "string",
+                                                                            "null"
+                                                                        ]
+                                                                    },
+                                                                    "made_by": [],
+                                                                    "made_by_me": {
+                                                                        "type": "boolean"
+                                                                    },
+                                                                    "approved_by": [],
+                                                                    "approved_at": {
+                                                                        "type": [
+                                                                            "string",
+                                                                            "null"
+                                                                        ]
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "start_date",
+                                                                    "salary_cents",
+                                                                    "notes",
+                                                                    "made_by_me",
+                                                                    "approved_at"
+                                                                ]
+                                                            },
+                                                            "employee": {
+                                                                "type": [
+                                                                    "object",
+                                                                    "null"
+                                                                ],
+                                                                "properties": {
+                                                                    "public_id": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "employee_code": {
+                                                                        "type": [
+                                                                            "string",
+                                                                            "null"
+                                                                        ]
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "public_id",
+                                                                    "name",
+                                                                    "employee_code"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "offer",
+                                                            "employee"
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "jobApplication.store",
+                "summary": "Create application",
+                "tags": [
+                    "Job Application"
+                ],
+                "parameters": [
+                    {
+                        "name": "vacancy",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreJobApplicationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`JobApplicationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/JobApplicationResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "vacancy": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "title": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "title"
+                                                    ]
+                                                },
+                                                "offer": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "start_date": {
+                                                            "type": "string"
+                                                        },
+                                                        "salary_cents": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "notes": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "made_by": [],
+                                                        "made_by_me": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "approved_by": [],
+                                                        "approved_at": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "start_date",
+                                                        "salary_cents",
+                                                        "notes",
+                                                        "made_by_me",
+                                                        "approved_at"
+                                                    ]
+                                                },
+                                                "employee": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "public_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "employee_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "public_id",
+                                                        "name",
+                                                        "employee_code"
+                                                    ]
+                                                },
+                                                "events": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/JobApplicationEventResource"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "vacancy",
+                                                "offer",
+                                                "employee",
+                                                "events"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/voice/concerns": {
             "post": {
                 "x-abilities": [
@@ -38000,6 +39142,19 @@
                     "sla_hours"
                 ],
                 "title": "ApprovalWorkflowStepResource"
+            },
+            "ApproveOfferRequest": {
+                "type": "object",
+                "properties": {
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 1000
+                    }
+                },
+                "title": "ApproveOfferRequest"
             },
             "ApprovePayrollRunRequest": {
                 "type": "object",
@@ -41952,6 +43107,38 @@
                 ],
                 "title": "GradeSalaryStepResource"
             },
+            "HireApplicationRequest": {
+                "type": "object",
+                "description": "Hiring from an approved offer. The start date defaults to the offer's.\nProbation is chosen by HR, never assumed: whether and how long it applies\ndepends on the organisation's employment framework.",
+                "properties": {
+                    "hire_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date"
+                    },
+                    "status": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "hired",
+                            "probation",
+                            null
+                        ]
+                    },
+                    "probation_end_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date"
+                    }
+                },
+                "title": "HireApplicationRequest"
+            },
             "HoldAttendancePhotoRequest": {
                 "type": "object",
                 "properties": {
@@ -42323,6 +43510,236 @@
                     "current_password"
                 ],
                 "title": "IssueActivationCodeRequest"
+            },
+            "JobApplicationEventResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "from_stage": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "to_stage": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "score": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "scheduled_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "actor": [],
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "type",
+                    "from_stage",
+                    "to_stage",
+                    "note",
+                    "score",
+                    "scheduled_at",
+                    "created_at"
+                ],
+                "title": "JobApplicationEventResource"
+            },
+            "JobApplicationResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "cover_note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "stage": {
+                        "type": "string"
+                    },
+                    "vacancy": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "public_id": {
+                                "type": "string"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "public_id",
+                            "title"
+                        ]
+                    },
+                    "offer": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "start_date": {
+                                "type": "string"
+                            },
+                            "salary_cents": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "notes": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "made_by": [],
+                            "made_by_me": {
+                                "type": "boolean"
+                            },
+                            "approved_by": [],
+                            "approved_at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "start_date",
+                            "salary_cents",
+                            "notes",
+                            "made_by_me",
+                            "approved_at"
+                        ]
+                    },
+                    "employee": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "public_id": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "employee_code": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "public_id",
+                            "name",
+                            "employee_code"
+                        ]
+                    },
+                    "hired_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "closed_reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "closed_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "erased": {
+                        "type": "boolean"
+                    },
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/JobApplicationEventResource"
+                        }
+                    },
+                    "possible_duplicates": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "name",
+                    "email",
+                    "phone",
+                    "source",
+                    "cover_note",
+                    "stage",
+                    "offer",
+                    "hired_at",
+                    "closed_reason",
+                    "closed_at",
+                    "erased",
+                    "created_at"
+                ],
+                "title": "JobApplicationResource"
             },
             "KioskAttendanceRequest": {
                 "type": "object",
@@ -43192,6 +44609,45 @@
                     "idempotency_key"
                 ],
                 "title": "MobileCheckOutRequest"
+            },
+            "MoveJobApplicationRequest": {
+                "type": "object",
+                "description": "Moving an application to its next stage. An offer needs a start date;\nrejecting or withdrawing needs a reason, kept on the selection record.",
+                "properties": {
+                    "stage": {
+                        "type": "string",
+                        "enum": [
+                            "screening",
+                            "interview",
+                            "offer",
+                            "rejected",
+                            "withdrawn"
+                        ]
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 500
+                    },
+                    "offer_start_date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "offer_salary_cents": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "offer_notes": {
+                        "type": "string",
+                        "maxLength": 2000
+                    }
+                },
+                "required": [
+                    "stage"
+                ],
+                "title": "MoveJobApplicationRequest"
             },
             "NationalityStatus": {
                 "type": "string",
@@ -44587,6 +46043,37 @@
                     "type"
                 ],
                 "title": "QrAttendanceRequest"
+            },
+            "RecordApplicationEventRequest": {
+                "type": "object",
+                "description": "A note, or an interview: when it is or was, and the panel's assessment out\nof 100 if they gave one.",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "note",
+                            "interview"
+                        ]
+                    },
+                    "note": {
+                        "type": "string",
+                        "maxLength": 5000
+                    },
+                    "score": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100
+                    },
+                    "scheduled_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "type",
+                    "note"
+                ],
+                "title": "RecordApplicationEventRequest"
             },
             "RecordDisciplinaryDecisionRequest": {
                 "type": "object",
@@ -46822,6 +48309,56 @@
                     "date"
                 ],
                 "title": "StoreHolidayRequest"
+            },
+            "StoreJobApplicationRequest": {
+                "type": "object",
+                "description": "Recording someone who applied. Only what a selection needs: a name, a way\nto reach them, where the application came from and what they sent.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 150
+                    },
+                    "email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "email",
+                        "maxLength": 150
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^\\+?[0-9 ()-]{6,20}$",
+                        "maxLength": 20
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": [
+                            "email",
+                            "walk_in",
+                            "referral",
+                            "internal",
+                            "agency",
+                            "website",
+                            "other"
+                        ]
+                    },
+                    "cover_note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    }
+                },
+                "required": [
+                    "name",
+                    "source"
+                ],
+                "title": "StoreJobApplicationRequest"
             },
             "StoreLeaveRequestRequest": {
                 "type": "object",

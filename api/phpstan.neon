@@ -76,6 +76,12 @@ parameters:
         - message: '#^Method App\\Models\\TenantExport\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
 
+        # Same larastan limitation for job applications and their history
+        # (2026-10-27). The models are correct and covered by RecruitmentTest.
+        # Scoped to the trait file, model-named exact.
+        - message: '#^Method App\\Models\\JobApplication(Event)?\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+          path: app/Traits/BelongsToTenant.php
+
         # Same larastan limitation for the approval engine's four tables
         # (2026-10-21), overtime requests and exit clearances (2026-10-22). The models are
         # correct and covered by ApprovalEngineTest, OvertimeRequestTest and ExitClearanceTest.

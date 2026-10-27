@@ -102,7 +102,7 @@ treated as an allowed upgrade, not a conflict.
 | C1 | Approval chains | Configurable multilevel chains, delegation, escalation | `docs/PERMISSIONS.md` and `docs/INDUSTRY_TEMPLATES.md`: single-step. `docs/ENTERPRISE_ROADMAP.md` 10.1: "owner decision pending". `docs/PRD.md` FR-06.4 lists chains as P0 | **Single-step stays the current truth.** Payroll maker-checker is added now as P0 (it is a safety fix, not a workflow engine). The shared multilevel engine is the next P1 upgrade, built on the unused `leave_requests.current_approver_id` |
 | C2 | Attendance photo retention | "Do not implement a blanket weekly deletion rule" | Owner decision 2026-10-17: 7-day default, tenant-configurable 1–90 days, 48h review, holds with reason, audited deletion (`docs/operations/ATTENDANCE-PHOTO-RETENTION.md`) | **Owner decision stands.** It already is what the blueprint asks for: configurable, documented, reviewable, with dispute holds. Not blanket |
 | C3 | Income-tax amendment | "Proclamation No. 1395/2024" | `docs/payroll/STATUTORY-RULES-RESEARCH.md` reads the Gazette as 1395/2025, start date disputed (1, 7 or 8 July 2025; code uses 7 July) | **Keep 1395/2025.** Add Directive 1087/2025 (private pension), which the repo never cites, to the accountant's open questions |
-| C4 | Recruitment, performance, learning | P2/P3 modules | `docs/PRODUCT_VISION.md` §20 defers ATS, performance/OKRs and learning to v2.0 | **No conflict** — the blueprint also says "after validating demand". Stays deferred |
+| C4 | Recruitment, performance, learning | P2/P3 modules | `docs/PRODUCT_VISION.md` §20 defers ATS, performance/OKRs and learning to v2.0 | **No conflict** — the blueprint also says "after validating demand". Stays deferred. *(2026-10-27: the owner asked for the full employee lifecycle; recruitment is built and the rest is planned in [`EMPLOYEE-LIFECYCLE.md`](../EMPLOYEE-LIFECYCLE.md).)* |
 | C5 | Account closure and erasure | Controlled offboarding | `docs/operations/TENANT-DELETION.md`: delete means reversible closure, never erasure | **Closure stands.** Customer self-service *export* is the missing half and is added (P1). Employee-level data-subject erasure is a separate feature needing its own owner decision |
 | C6 | Organization activation | "Controlled activation" | Self-service sign-up with an immediate 6-month trial (`AuthService.php:51`); console can suspend | **Self-service stands.** Platform suspension is the control |
 | C7 | Device integrations | "Supported biometric devices" | `docs/DEVICE_INTEGRATION.md`: unproven on hardware until field test O1. Marketing must not name device brands (PR #288/#293). Bridge is design-only (`docs/BRIDGE-DESIGN.md`) | **No device path is Verified until O1.** Internal docs may list adapters; the public site may not claim brands |
@@ -239,7 +239,7 @@ followed**: no tenant-specific code paths exist.
 
 | ID | Item | Status | Evidence / gap |
 |---|---|---|---|
-| L1 | Candidate handoff to onboarding | Missing | Deferred with ATS (C4) |
+| L1 | Candidate handoff to onboarding | Partial (2026-10-27) | `RecruitmentTest`: an approved offer becomes exactly one employee, department and branch from the vacancy, salary from the offer. No contract or new-hire checklist started yet ([`EMPLOYEE-LIFECYCLE.md`](../EMPLOYEE-LIFECYCLE.md) steps 2–3) |
 | L2 | New-hire onboarding checklist | Missing | `OnboardingProgress` is org setup, not new hires |
 | L3 | Document collection and verification | Partial | No verified status, no required-documents list |
 | L4 | Probation tracking | Partial | Overdue flag only; probationers cannot resign |
@@ -546,8 +546,8 @@ No statutory compliance may be claimed until O2 and O3 are complete.
 |---|---|---|---|
 | R1 | Requisitions | Missing | — |
 | R2 | Vacancies | **Verified** | `VacancyTest` |
-| R3–R6 | Applicants, interviews, offers, conversion | Missing | — |
-| R7 | Applicant data access | N/A | No applicant data stored |
+| R3–R6 | Applicants, interviews, offers, conversion | **Verified** (2026-10-27) | `RecruitmentTest`, `recruitment-applicants.test.tsx`: validated stages, interview records, offer approved by someone other than its maker, single hire. No public apply form or applicant messages |
+| R7 | Applicant data access | Partial (2026-10-27) | `recruitment.manage` only; offered salary needs `employee.viewFinancial`; closed applications erasable. Reads not audited; no retention period (owner decision) |
 | R8 | Probation assessments | Partial | Status only |
 | R9–R10 | Review cycles, objectives | Missing | — |
 | R11 | Feedback | Partial | Engagement voice module, not performance |
