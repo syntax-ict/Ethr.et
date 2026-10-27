@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Attendance;
 
+use App\Enums\CorrectionKind;
 use App\Enums\CorrectionStatus;
 use App\Enums\OrgScope;
 use App\Http\Controllers\Controller;
@@ -51,27 +52,44 @@ class AttendanceCorrectionController extends Controller
 
     public function store(StoreCorrectionRequest $request): JsonResponse
     {
-        $record = AttendanceRecord::where('public_id', $request->validated('attendance_record_public_id'))->firstOrFail();
+        $kind = $request->kind();
+        $record = null;
 
-        Gate::authorize('file', [AttendanceCorrection::class, $record]);
-        app(PayrollPeriodLock::class)->assertOpen($record->employee_id, $record->date);
+        if ($kind === CorrectionKind::MISSED_PUNCH) {
+            // No record to point at: the claim is for a person and a day.
+            $employee = $request->claimant();
+            Gate::authorize('fileFor', [AttendanceCorrection::class, $employee]);
+            $employeeId = (int) $employee?->id;
+            app(PayrollPeriodLock::class)->assertOpen($employeeId, (string) $request->validated('date'));
+        } else {
+            $record = AttendanceRecord::where('public_id', $request->validated('attendance_record_public_id'))->firstOrFail();
+            Gate::authorize('file', [AttendanceCorrection::class, $record]);
+            $employeeId = $record->employee_id;
+            app(PayrollPeriodLock::class)->assertOpen($record->employee_id, $record->date);
+        }
 
         // The correction belongs to the employee whose punches it changes. It
         // used to take the filer's own employee id first, so HR filing on
         // someone's behalf produced a correction "by" HR against another
         // person's record — routed to HR's supervisor and approved as HR's.
+        // A lateness decision changes no punch, so it proposes none.
         $correction = AttendanceCorrection::create([
-            'attendance_record_id' => $record->id,
-            'employee_id' => $record->employee_id,
+            'attendance_record_id' => $record?->id,
+            'employee_id' => $employeeId,
+            'kind' => $kind,
+            'date' => $record !== null ? $record->date : $request->validated('date'),
             'reason' => $request->validated('reason'),
-            'proposed_check_in' => $request->validated('proposed_check_in'),
-            'proposed_check_out' => $request->validated('proposed_check_out'),
+            'proposed_check_in' => $kind === CorrectionKind::LATENESS ? null : $request->validated('proposed_check_in'),
+            'proposed_check_out' => $kind === CorrectionKind::LATENESS ? null : $request->validated('proposed_check_out'),
+            'deduct_minutes' => $kind === CorrectionKind::LATENESS ? (int) $request->validated('deduct_minutes') : null,
             'status' => CorrectionStatus::PENDING,
             'approval_chain' => [CorrectionDecisionService::submittedEntry($request->user())],
         ]);
 
         AuditLog::record('correction.submitted', $correction, [
-            'attendance_record_public_id' => $record->public_id,
+            'attendance_record_public_id' => $record?->public_id,
+            'kind' => $kind->value,
+            'date' => $correction->date?->format('Y-m-d'),
         ]);
 
         // The person the chain's first step names, else the supervisor.
@@ -212,12 +230,16 @@ class AttendanceCorrectionController extends Controller
 
         // Integers, but the API contract cannot type arithmetic and published
         // all three as strings until the casts said otherwise.
-        $diffMinutes = (int) ($proposedMinutes - $originalMinutes);
+        // A lateness decision moves no punch; what it changes is the minutes deducted.
+        $diffMinutes = $correction->kind === CorrectionKind::LATENESS
+            ? -1 * (int) $correction->deduct_minutes
+            : (int) ($proposedMinutes - $originalMinutes);
         $impactCents = (int) ($minuteRateCents * $diffMinutes);
         $hourlyRateCents = (int) ($minuteRateCents * 60);
         // Until 2026-10-20 this answered `true` for every correction.
-        $inOpenPeriod = $record === null
-            || ! app(PayrollPeriodLock::class)->isClosed($record->employee_id, $record->date);
+        $day = $record !== null ? $record->date : $correction->date;
+        $inOpenPeriod = $day === null
+            || ! app(PayrollPeriodLock::class)->isClosed($correction->employee_id, $day);
 
         return response()->json([
             'original_hours' => round($originalMinutes / 60, 2),

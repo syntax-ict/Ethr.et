@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Attendance;
 
+use App\Models\AttendanceSetting;
 use App\Rules\IpOrCidr;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UpdateAttendanceSettingRequest extends FormRequest
 {
@@ -30,6 +32,8 @@ class UpdateAttendanceSettingRequest extends FormRequest
             'kiosk_auto_reset_seconds' => ['sometimes', 'integer', 'min:2', 'max:30'],
             'ot_daily_cap_minutes' => ['sometimes', 'integer', 'min:0', 'max:1440'],
             'overtime_requires_approval' => ['sometimes', 'boolean'],
+            'lateness_deduction_enabled' => ['sometimes', 'boolean'],
+            'lateness_deduction_basis' => ['sometimes', 'nullable', 'string', 'max:500'],
             'confidence_threshold' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'reminders_enabled' => ['sometimes', 'boolean'],
             'reminder_lead_minutes' => ['sometimes', 'integer', 'min:0', 'max:120'],
@@ -44,5 +48,29 @@ class UpdateAttendanceSettingRequest extends FormRequest
             'office_networks' => ['sometimes', 'nullable', 'array', 'max:20'],
             'office_networks.*' => ['string', new IpOrCidr],
         ];
+    }
+
+    /**
+     * Lateness deductions take pay, which Proclamation 1156/2019 Art. 59
+     * allows only on a stated basis (law, a collective agreement, the work
+     * rules, or the worker's written consent). Switching them on therefore
+     * needs that basis in writing, either sent now or already saved. A hook,
+     * so `rules()`, which Scramble publishes, stays as it is.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if (! $this->boolean('lateness_deduction_enabled')) {
+                return;
+            }
+
+            $basis = $this->has('lateness_deduction_basis')
+                ? $this->input('lateness_deduction_basis')
+                : AttendanceSetting::query()->value('lateness_deduction_basis');
+
+            if (! is_string($basis) || trim($basis) === '') {
+                $validator->errors()->add('lateness_deduction_basis', __('attendance.lateness_basis_required'));
+            }
+        });
     }
 }

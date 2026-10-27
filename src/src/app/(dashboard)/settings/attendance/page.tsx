@@ -23,6 +23,7 @@ import {
   type AttendanceSettings,
 } from "@/features/attendance/api";
 import { useT } from "@/lib/i18n/useT";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
 import { SettingRow } from "@/components/patterns/SettingRow";
 import { apiErrorMessage } from "@/lib/api/error-message";
@@ -77,6 +78,7 @@ const ALL_METHODS: {
 
 export default function AttendanceSettingsPage() {
   const { t } = useT();
+  const { can } = usePermissions();
   const [form, setForm] = useState<AttendanceSettings | null>(null);
 
   const { data, isLoading, isError, refetch } = useAttendanceSettings();
@@ -282,6 +284,52 @@ export default function AttendanceSettingsPage() {
                       "attendance.settings_page.confidence_threshold_desc",
                       "Minimum confidence score for attendance records",
                     )}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Lateness deductions: a payroll decision, so only someone
+                who may change payroll configuration can switch it. */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {t("attendance.settings_page.lateness_title")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <SettingRow
+                  id="lateness-deduction-enabled"
+                  title={t("attendance.settings_page.lateness_enabled")}
+                  description={t("attendance.settings_page.lateness_desc")}
+                >
+                  <Switch
+                    checked={form.lateness_deduction_enabled}
+                    disabled={!can.managePayrollConfig}
+                    onCheckedChange={(v) =>
+                      setField("lateness_deduction_enabled", v)
+                    }
+                  />
+                </SettingRow>
+                <div>
+                  <Label htmlFor="lateness-deduction-basis" className="text-sm">
+                    {t("attendance.settings_page.lateness_basis")}
+                  </Label>
+                  <Input
+                    id="lateness-deduction-basis"
+                    value={form.lateness_deduction_basis ?? ""}
+                    disabled={!can.managePayrollConfig}
+                    maxLength={500}
+                    onChange={(e) =>
+                      setField(
+                        "lateness_deduction_basis",
+                        e.target.value === "" ? null : e.target.value,
+                      )
+                    }
+                    className="mt-1"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("attendance.settings_page.lateness_basis_hint")}
                   </p>
                 </div>
               </CardContent>

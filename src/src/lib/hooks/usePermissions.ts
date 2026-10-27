@@ -39,6 +39,7 @@ const CAN_ABILITIES = {
   viewPayrollRuns: "payroll.viewAll",
   manageLoans: "payroll.manageLoan",
   manageCostSharing: "payroll.manageCostSharing",
+  managePayrollConfig: "payroll.manageConfig",
   approveLeave: "leave.approve",
   requestOvertime: "overtime.request",
   approveOvertime: "overtime.approve",

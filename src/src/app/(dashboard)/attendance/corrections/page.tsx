@@ -54,6 +54,7 @@ import {
 import type { PaginatedResponse } from "@/api/types";
 import { zonedWallTimeToUtcIso } from "@/features/attendance/time";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -75,6 +76,12 @@ export default function CorrectionsPage() {
   const { t } = useT();
   const { can } = usePermissions();
   const [requestOpen, setRequestOpen] = useState(false);
+  // `?claim=YYYY-MM-DD` opens the request for that day: the attendance
+  // timeline links an absent day here so the employee can say they were at work.
+  const address = useQueryFilters({ claim: "" });
+  const claimDate = /^\d{4}-\d{2}-\d{2}$/.test(address.values.claim)
+    ? address.values.claim
+    : "";
 
   const showOwn = can.viewOwnCorrections;
   const showAll = can.viewAllCorrections;
@@ -129,7 +136,14 @@ export default function CorrectionsPage() {
         </Tabs>
       )}
 
-      <RequestDialog open={requestOpen} onClose={() => setRequestOpen(false)} />
+      <RequestDialog
+        open={requestOpen || !!claimDate}
+        initialDate={claimDate}
+        onClose={() => {
+          setRequestOpen(false);
+          if (claimDate) address.clear();
+        }}
+      />
     </div>
   );
 }
@@ -137,7 +151,8 @@ export default function CorrectionsPage() {
 /** Proposed punches fall back to the record's own when left unchanged. */
 function punchPair(c: AttendanceCorrection) {
   return {
-    date: c.attendance_record?.date ?? null,
+    // A missed-punch claim has no record: its own date is the day.
+    date: c.attendance_record?.date ?? c.date ?? null,
     originalIn: c.attendance_record?.check_in ?? null,
     originalOut: c.attendance_record?.check_out ?? null,
     proposedIn: c.proposed_check_in,
@@ -285,6 +300,26 @@ function CorrectionsList({
   );
 }
 
+/** What a correction asks for, when it is not a plain change of times. */
+function KindBadge({ kind }: { kind: AttendanceCorrection["kind"] }) {
+  const { t } = useT();
+  if (kind === "missed_punch") {
+    return (
+      <Badge variant="secondary" className="text-[10px]">
+        {t("attendance.corrections.kind_missed_punch")}
+      </Badge>
+    );
+  }
+  if (kind === "lateness") {
+    return (
+      <Badge variant="secondary" className="text-[10px]">
+        {t("attendance.corrections.kind_lateness")}
+      </Badge>
+    );
+  }
+  return null;
+}
+
 // ── PAYROLL IMPACT BADGE ────────────────────────────────────────
 
 function PayrollImpactBadge({ correctionId }: { correctionId: string }) {
@@ -424,6 +459,7 @@ function PendingReviewsTab({ canDecide }: { canDecide: boolean }) {
                           {p.date}
                         </Badge>
                       )}
+                      <KindBadge kind={c.kind} />
                     </div>
                     <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
                       <div className="flex items-baseline gap-2">
@@ -434,14 +470,29 @@ function PendingReviewsTab({ canDecide }: { canDecide: boolean }) {
                           {time(p.originalIn)} → {time(p.originalOut)}
                         </span>
                       </div>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-muted-foreground">
-                          {t("attendance.corrections.requested")}:
-                        </span>
-                        <span className="font-mono font-medium text-foreground">
-                          {time(p.proposedIn)} → {time(p.proposedOut)}
-                        </span>
-                      </div>
+                      {c.kind === "lateness" ? (
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-muted-foreground">
+                            {t("attendance.corrections.deduct")}:
+                          </span>
+                          <span className="font-mono font-medium text-foreground">
+                            {t(
+                              "attendance.corrections.deduct_minutes",
+                              undefined,
+                              { minutes: String(c.deduct_minutes ?? 0) },
+                            )}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-muted-foreground">
+                            {t("attendance.corrections.requested")}:
+                          </span>
+                          <span className="font-mono font-medium text-foreground">
+                            {time(p.proposedIn)} → {time(p.proposedOut)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="mt-2 flex items-start gap-2 rounded-lg bg-muted/30 p-2">
                       <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
@@ -523,7 +574,9 @@ const EMPTY_FORM = {
 };
 
 /**
- * A correction targets one of the caller's own attendance records. The dialog
+ * A correction targets one of the caller's own attendance records, or, for a
+ * day with no record at all, claims the employee was at work (a missed-punch
+ * claim: approving it creates the record). The dialog
  * posted `{date, corrected_check_in, corrected_check_out, reason}`, but
  * StoreCorrectionRequest requires `attendance_record_public_id` and reads
  * `proposed_check_in`/`proposed_check_out` — so every request was a 422 and no
@@ -532,14 +585,22 @@ const EMPTY_FORM = {
  */
 function RequestDialog({
   open,
+  initialDate = "",
   onClose,
 }: {
   open: boolean;
+  initialDate?: string;
   onClose: () => void;
 }) {
   const { t } = useT();
   const { timeZone, formatTime } = useDateFormatters();
   const [form, setForm] = useState(EMPTY_FORM);
+  // A day handed in by the address fills the form once, when it changes.
+  const [seededDate, setSeededDate] = useState("");
+  if (initialDate && initialDate !== seededDate) {
+    setSeededDate(initialDate);
+    setForm({ ...EMPTY_FORM, date: initialDate });
+  }
 
   const dayRecords = useMyAttendance(
     { date_from: form.date, date_to: form.date },
@@ -552,7 +613,7 @@ function RequestDialog({
   const submit = useSubmitCorrection();
 
   function handleSubmit() {
-    if (!recordId) return;
+    if (!recordId && !noRecord) return;
 
     const proposedIn = form.check_in
       ? zonedWallTimeToUtcIso(form.date, form.check_in, timeZone)
@@ -568,12 +629,20 @@ function RequestDialog({
       : null;
 
     submit.mutate(
-      {
-        attendance_record_public_id: recordId,
-        proposed_check_in: proposedIn,
-        proposed_check_out: proposedOut,
-        reason: form.reason,
-      },
+      noRecord
+        ? {
+            kind: "missed_punch",
+            date: form.date,
+            proposed_check_in: proposedIn,
+            proposed_check_out: proposedOut,
+            reason: form.reason,
+          }
+        : {
+            attendance_record_public_id: recordId,
+            proposed_check_in: proposedIn,
+            proposed_check_out: proposedOut,
+            reason: form.reason,
+          },
       {
         onSuccess: () => {
           toast.success(t("attendance.corrections.submitted"));
@@ -612,8 +681,8 @@ function RequestDialog({
               className="mt-1"
             />
             {noRecord && (
-              <p role="alert" className="mt-1 text-xs text-destructive">
-                {t("attendance.empty_title", "No attendance records")}
+              <p role="status" className="mt-1 text-xs text-muted-foreground">
+                {t("attendance.corrections.missed_punch_hint")}
               </p>
             )}
           </div>
@@ -649,6 +718,7 @@ function RequestDialog({
                 onChange={(e) =>
                   setForm((p) => ({ ...p, check_in: e.target.value }))
                 }
+                required={noRecord}
                 className="mt-1"
               />
             </div>
@@ -686,7 +756,10 @@ function RequestDialog({
             <Button type="button" variant="outline" onClick={onClose}>
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={submit.isPending || !recordId}>
+            <Button
+              type="submit"
+              disabled={submit.isPending || (!recordId && !noRecord)}
+            >
               {submit.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}

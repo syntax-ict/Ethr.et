@@ -423,6 +423,31 @@ final class AttendanceEngine
         }
     }
 
+    /**
+     * The minutes a `late` or `early_leave` record missed of its shift, read
+     * from the same shift window the status was rated against: from the
+     * shift's start to the check-in, or from the check-out to the shift's end.
+     * Grace decides whether a punch is late, not how late it is. Zero for any
+     * other status or a record with no shift.
+     */
+    public function missedMinutes(AttendanceRecord $record): int
+    {
+        if (! $record->shift || ! $record->check_in) {
+            return 0;
+        }
+
+        $zone = TenantTime::zone(Tenant::query()->find($record->tenant_id));
+        [$shiftStart, $shiftEnd] = $record->shift->windowOn($record->workDate($zone), $zone);
+
+        return match ($record->status) {
+            AttendanceStatus::LATE => max(0, (int) $shiftStart->diffInMinutes($record->check_in, false)),
+            AttendanceStatus::EARLY_LEAVE => $record->check_out === null
+                ? 0
+                : max(0, (int) $record->check_out->diffInMinutes($shiftEnd, false)),
+            default => 0,
+        };
+    }
+
     /** Whether the record's check-out came before its shift's early-departure threshold. */
     private function leftEarly(AttendanceRecord $record, string $zone): bool
     {
