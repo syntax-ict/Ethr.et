@@ -34,6 +34,9 @@ class ApprovalAction extends Model
 
     public const REJECT = 'reject';
 
+    /** Filed for someone else; the actor is the filer, who may not approve it. */
+    public const FILED_FOR = 'filed_for';
+
     protected $fillable = [
         'tenant_id',
         'approval_instance_id',

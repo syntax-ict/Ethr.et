@@ -62,7 +62,7 @@ class PlanSeeder extends Seeder
                 'slug' => 'enterprise',
                 'description' => 'For an organisation that needs no ceiling and its own integrations.',
                 'description_am' => 'ጣሪያ የሌለውና የራሱ ውህደቶች ለሚያስፈልገው ድርጅት።',
-                'price_cents' => 299900,
+                'price_cents' => 899900,
                 // null, not a 999999 sentinel: PlanLimitService:53 returns
                 // null for "no ceiling" and every caller already honours it, so
                 // the sentinel was never enforcement — just a number large

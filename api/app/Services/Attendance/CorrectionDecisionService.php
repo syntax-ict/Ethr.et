@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Attendance;
 
+use App\Enums\CorrectionKind;
 use App\Enums\CorrectionStatus;
 use App\Models\AttendanceCorrection;
+use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\AttendanceCorrectionApprovedNotification;
@@ -29,6 +31,7 @@ class CorrectionDecisionService
 
     public function __construct(
         private readonly AttendanceEngine $engine,
+        private readonly EnteredAttendance $entered,
         private readonly PayrollPeriodLock $periodLock,
         private readonly ApprovalEngine $approvals,
     ) {}
@@ -60,14 +63,23 @@ class CorrectionDecisionService
             return ApprovalRefusal::selfApproval(__('correction.cannot_approve_filed'));
         }
 
+        // A lateness decision changes pay, not punches. Whoever approves
+        // corrections (a supervisor, usually) may still reject one, but the
+        // approval that lets payroll deduct belongs to payroll.
+        if ($approving && $correction->kind === CorrectionKind::LATENESS && ! $by->hasPermission('payroll.process')) {
+            return ApprovalRefusal::missingPermission(__('correction.lateness_needs_payroll'));
+        }
+
         if (! $this->approvals->isCurrentApprover($correction, $by, $approving)) {
             return ApprovalRefusal::notCurrentApprover(__('approval.not_current_approver'));
         }
 
         // A day already paid in an approved run is not rewritten (PayrollPeriodLock).
+        // A missed-punch claim has no record, so its own date is the day.
         $record = $correction->attendanceRecord;
-        if ($approving && $record !== null) {
-            return $this->periodLock->refusal($record->employee_id, $record->date);
+        $day = $record !== null ? $record->date : $correction->date;
+        if ($approving && $day !== null) {
+            return $this->periodLock->refusal($correction->employee_id, $day);
         }
 
         return null;
@@ -122,9 +134,19 @@ class CorrectionDecisionService
             'status' => CorrectionStatus::APPROVED,
         ]);
 
-        $record = $correction->attendanceRecord;
+        $record = match ($correction->kind) {
+            CorrectionKind::MISSED_PUNCH => $this->createClaimedRecord($correction, $by),
+            default => $correction->attendanceRecord,
+        };
         $before = null;
-        if ($record) {
+        if ($record && $correction->kind === CorrectionKind::LATENESS) {
+            // Moves no punch: payroll reads what was decided from the record.
+            $before = ['status' => $record->status->value];
+            $record->update(['metadata' => array_merge($record->metadata ?? [], [
+                'pay_deduct_minutes' => (int) $correction->deduct_minutes,
+                'lateness_correction_id' => $correction->public_id,
+            ])]);
+        } elseif ($record && $correction->kind === CorrectionKind::CORRECTION) {
             // The punches as they stood, kept: approving wrote the proposed
             // times over them and the audit row named only the approver, so
             // the original record of when someone clocked in was gone
@@ -175,6 +197,40 @@ class CorrectionDecisionService
         }
 
         $this->notify($this->userOf($correction->employee), new AttendanceCorrectionApprovedNotification($correction, true));
+    }
+
+    /**
+     * The record a missed-punch claim says should have existed, entered by
+     * the same steps HR's manual entry takes (EnteredAttendance), and linked
+     * back to the claim so the correction points at the record it made.
+     */
+    private function createClaimedRecord(AttendanceCorrection $correction, User $by): ?AttendanceRecord
+    {
+        $employee = $correction->employee;
+
+        if ($employee === null || $correction->date === null || $correction->proposed_check_in === null) {
+            return null;
+        }
+
+        $record = $this->entered->enter(
+            $employee,
+            $correction->date->format('Y-m-d'),
+            $correction->proposed_check_in,
+            $correction->proposed_check_out,
+            [
+                'reason' => $correction->reason,
+                'entered_by' => $by->id,
+                'is_corrected' => true,
+                'correction_id' => $correction->public_id,
+                'missed_punch' => true,
+            ],
+            'missed-punch:'.$correction->public_id,
+        )->record;
+
+        $correction->update(['attendance_record_id' => $record->id]);
+        $correction->setRelation('attendanceRecord', $record);
+
+        return $record;
     }
 
     public function reject(AttendanceCorrection $correction, User $by, string $reason): void

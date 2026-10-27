@@ -59,6 +59,26 @@ class PayrollRunRefused extends RuntimeException
         return new self('https://ethr.et/errors/payroll-self-approval', 'Second approver required', __('payroll.self_approval'));
     }
 
+    /** Attendance reconciliation is required and the period still has exceptions open or pending. */
+    public static function reconciliationOpen(int $count): self
+    {
+        return new self(
+            'https://ethr.et/errors/reconciliation-open',
+            'Attendance not reconciled',
+            __('payroll.reconciliation_open', ['count' => $count]),
+        );
+    }
+
+    /** A decision about the period's attendance was made after the run was calculated. */
+    public static function reconciliationMoved(): self
+    {
+        return new self(
+            'https://ethr.et/errors/reconciliation-moved',
+            'Attendance changed since processing',
+            __('payroll.reconciliation_moved'),
+        );
+    }
+
     /** No statutory row is in force for a code the run needs; the code names which. */
     public static function noRuleInForce(string $code): self
     {

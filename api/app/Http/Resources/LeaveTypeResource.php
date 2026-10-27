@@ -18,6 +18,7 @@ class LeaveTypeResource extends JsonResource
             'name' => $this->name,
             'name_am' => $this->name_am,
             'code' => $this->code,
+            'kind' => $this->kind ?? 'leave',
             'default_days' => (float) $this->default_days,
             'accrual_type' => $this->accrual_type?->value,
             'carry_forward' => $this->carry_forward,

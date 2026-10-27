@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
 use App\Http\Controllers\Api\V1\Attendance\KioskAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\ManualAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\MobileAttendanceController;
+use App\Http\Controllers\Api\V1\Attendance\MyAttendanceExceptionsController;
 use App\Http\Controllers\Api\V1\Attendance\MyShiftController;
 use App\Http\Controllers\Api\V1\Attendance\OfflineSyncController;
 use App\Http\Controllers\Api\V1\Attendance\OvertimeRequestController;
@@ -415,6 +416,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/check-in', [AttendanceController::class, 'checkIn']);
         Route::post('/check-out', [AttendanceController::class, 'checkOut']);
         Route::get('/my', [AttendanceController::class, 'my']);
+        Route::get('/my-exceptions', MyAttendanceExceptionsController::class);
         Route::get('/my-shift', MyShiftController::class);
         Route::get('/team', [AttendanceController::class, 'team']);
         Route::get('/today', [AttendanceController::class, 'today']);
@@ -685,6 +687,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/runs/{payrollRun}/export/bank', [PayrollController::class, 'bankExport']);
         Route::get('/runs/{payrollRun}/export/bank-csv', [PayrollController::class, 'downloadBankExport']);
         Route::get('/runs/{payrollRun}/register', [PayrollController::class, 'register']);
+        Route::get('/reconciliation', [PayrollController::class, 'reconciliation']);
         Route::get('/runs/{payrollRun}/register-csv', [PayrollController::class, 'downloadRegister']);
         Route::get('/runs/{payrollRun}/statutory/{schedule}', [PayrollController::class, 'statutory'])
             ->whereIn('schedule', StatutorySchedules::SCHEDULES);

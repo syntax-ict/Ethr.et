@@ -24,6 +24,7 @@ class UpdateLeaveTypeRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:100'],
             'name_am' => ['sometimes', 'nullable', 'string', 'max:100'],
             'code' => ['sometimes', 'string', 'max:30'],
+            'kind' => ['sometimes', 'string', 'in:leave,duty,excused'],
             'default_days' => ['sometimes', 'numeric', 'min:0', 'max:365'],
             'accrual_type' => ['sometimes', new Enum(AccrualType::class)],
             'carry_forward' => ['sometimes', 'boolean'],

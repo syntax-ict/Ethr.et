@@ -32,11 +32,24 @@ class AttendanceCorrectionPolicy
 {
     public function file(User $user, AttendanceRecord $record): bool
     {
-        if (! $user->hasPermission('correction.create')) {
+        if ($user->employee_id !== null && $record->employee_id === $user->employee_id) {
+            return $user->hasPermission('correction.create');
+        }
+
+        return $this->fileFor($user, $record->employee);
+    }
+
+    /**
+     * Filing for an employee rather than a record: a missed-punch claim has
+     * no record to point at, so the same rule is asked of the person.
+     */
+    public function fileFor(User $user, ?Employee $employee): bool
+    {
+        if (! $employee instanceof Employee || ! $user->hasPermission('correction.create')) {
             return false;
         }
 
-        if ($user->employee_id !== null && $record->employee_id === $user->employee_id) {
+        if ($user->employee_id !== null && $employee->id === $user->employee_id) {
             return true;
         }
 
@@ -44,7 +57,7 @@ class AttendanceCorrectionPolicy
             return false;
         }
 
-        return $this->reaches($user, $record->employee);
+        return $this->reaches($user, $employee);
     }
 
     public function decide(User $user, AttendanceCorrection $correction): bool

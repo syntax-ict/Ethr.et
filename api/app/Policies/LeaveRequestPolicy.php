@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Policies;
 
 use App\Enums\OrgScope;
+use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
 
@@ -13,6 +14,20 @@ class LeaveRequestPolicy
     public function request(User $user): bool
     {
         return $user->hasPermission('leave.request');
+    }
+
+    /**
+     * Filing for someone else: whoever administers leave balances (HR), for
+     * an employee inside their org scope. The approval engine never lets the
+     * filer approve what they filed.
+     */
+    public function requestFor(User $user, ?Employee $employee): bool
+    {
+        if (! $employee instanceof Employee || ! $user->hasPermission('leave.request') || ! $user->hasPermission('leave.adjustBalance')) {
+            return false;
+        }
+
+        return $user->orgScope() === OrgScope::ALL || $user->canAccessEmployee($employee);
     }
 
     public function viewTeam(User $user): bool

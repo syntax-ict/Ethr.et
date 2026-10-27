@@ -176,7 +176,12 @@ export interface PayrollRegister {
   absences?: PayrollAbsences;
   /** People with serious attendance findings in the period still open; pay is unchanged. */
   integrity?: PayrollIntegrity;
+  /** Live: where the period's attendance reconciliation stands now. */
+  reconciliation?: RegisterReconciliation;
 }
+
+export type RegisterReconciliation =
+  operations["payroll.register"]["responses"][200]["content"]["application/json"]["reconciliation"];
 
 export interface PayrollIntegrity {
   count: number;
