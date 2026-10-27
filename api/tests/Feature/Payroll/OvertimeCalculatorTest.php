@@ -15,7 +15,7 @@ dataset('overtime_types', [
 ]);
 
 test('applies correct multiplier for each overtime type', function (string $type, float $multiplier) {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
 
     $salary = 480_000;
     $workingDays = 26;
@@ -31,27 +31,27 @@ test('applies correct multiplier for each overtime type', function (string $type
 })->with('overtime_types');
 
 test('returns zero for zero overtime minutes', function () {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
     expect($calc->calculate(480_000, 26, 8, 0))->toBe(0);
 });
 
 test('returns zero for negative overtime minutes', function () {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
     expect($calc->calculate(480_000, 26, 8, -60))->toBe(0);
 });
 
 test('returns zero for zero working days', function () {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
     expect($calc->calculate(480_000, 0, 8, 60))->toBe(0);
 });
 
 test('returns zero for zero hours per day', function () {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
     expect($calc->calculate(480_000, 26, 0, 60))->toBe(0);
 });
 
 test('defaults to normal rate for unknown type', function () {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
 
     $normal = $calc->calculate(480_000, 26, 8, 120, 'normal');
     $unknown = $calc->calculate(480_000, 26, 8, 120, 'invalid_type');
@@ -60,7 +60,7 @@ test('defaults to normal rate for unknown type', function () {
 });
 
 test('handles partial hours correctly', function () {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
     $result = $calc->calculate(480_000, 26, 8, 90);
 
     $hourlyRate = 480_000 / (26 * 8);
@@ -70,7 +70,7 @@ test('handles partial hours correctly', function () {
 });
 
 test('public-holiday night pays the public-holiday rate', function () {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
 
     $normal = $calc->calculate(480_000, 26, 8, 120, 'normal');
     $holidayNight = $calc->calculate(480_000, 26, 8, 120, 'holiday_night');

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Payroll;
 
 use App\Enums\NationalityStatus;
+use App\Exceptions\PayrollRunRefused;
 use App\Models\Employee;
 use App\Models\PensionRule;
+use App\Models\Tenant;
 use App\Support\Cents;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -17,40 +19,21 @@ use Illuminate\Support\Carbon;
  * rule of its own time.
  *
  * Resolution mirrors TaxCalculator: the organisation's own rule for its
- * scheme, then the platform rule, then the fallback below — which exists only
- * for a database with no rule at all, as TaxCalculator's hard-coded ladder
- * does. The constructor rates are that fallback.
+ * scheme, then the platform rule for its organisation type, then the platform
+ * rule for every type. There is no fallback in code since 2026-10-27: a
+ * scheme with no rule in force refuses the run by name. The schemes
+ * themselves are the `pension.schemes` statutory parameter.
  */
 final class PensionCalculator
 {
-    public const SCHEMES = ['private', 'public', 'public_military'];
-
     /** basic: basic salary after proration; regular_salary: plus fixed allowances (research P7, open). */
     public const BASES = ['basic', 'regular_salary'];
-
-    public const FALLBACK_REFERENCE = 'ETHR fallback — no pension rule in force';
 
     /** @var array<string, PensionRuleSnapshot> */
     private array $ruleCache = [];
 
-    public function __construct(
-        private readonly float $employeeRate = 7.0,
-        private readonly float $employerRate = 11.0,
-    ) {}
-
-    /**
-     * The fallback rates applied to an amount, with no rule. Kept for callers
-     * that have no tenant or date.
-     *
-     * @return array{employee_cents: int, employer_cents: int}
-     */
-    public function calculate(int $basicSalaryCents): array
-    {
-        return [
-            'employee_cents' => Cents::percentOf($basicSalaryCents, $this->employeeRate),
-            'employer_cents' => Cents::percentOf($basicSalaryCents, $this->employerRate),
-        ];
-    }
+    /** @var array<int, string> tenant id => organisation type */
+    private array $types = [];
 
     /**
      * The rule in force on `$asOf` for the scheme — pass the payroll period
@@ -58,32 +41,23 @@ final class PensionCalculator
      */
     public function rule(?int $tenantId, string $scheme, CarbonInterface $asOf): PensionRuleSnapshot
     {
-        $scheme = in_array($scheme, self::SCHEMES, true) ? $scheme : 'private';
         $key = ($tenantId ?? 'platform').'|'.$scheme.'@'.$asOf->format('Y-m-d');
 
         if (isset($this->ruleCache[$key])) {
             return $this->ruleCache[$key];
         }
 
-        $row = ($tenantId !== null ? $this->inForce($tenantId, $scheme, $asOf) : null)
-            ?? $this->inForce(null, $scheme, $asOf);
+        $type = $tenantId === null ? null : $this->organizationType($tenantId);
 
-        return $this->ruleCache[$key] = $row !== null
-            ? PensionRuleSnapshot::fromModel($row)
-            : new PensionRuleSnapshot(
-                scheme: $scheme,
-                employeeRate: $this->employeeRate,
-                employerRate: $this->employerRate,
-                ceilingCents: null,
-                floorCents: null,
-                base: 'basic',
-                exemptNonNationals: true,
-                minServiceDays: null,
-                legalReference: self::FALLBACK_REFERENCE,
-                effectiveFrom: null,
-                source: 'fallback',
-                rulePublicId: null,
-            );
+        $row = ($tenantId !== null ? $this->inForce($tenantId, null, $scheme, $asOf) : null)
+            ?? ($type !== null ? $this->inForce(null, $type, $scheme, $asOf) : null)
+            ?? $this->inForce(null, null, $scheme, $asOf);
+
+        if ($row === null) {
+            throw PayrollRunRefused::noRuleInForce("pension.{$scheme}");
+        }
+
+        return $this->ruleCache[$key] = PensionRuleSnapshot::fromModel($row);
     }
 
     /**
@@ -168,7 +142,18 @@ final class PensionCalculator
         return $value === '' || in_array($value, ['ethiopian', 'ethiopia', 'et', 'eth', 'ኢትዮጵያዊ', 'ኢትዮጵያዊት', 'ኢትዮጵያ'], true);
     }
 
-    private function inForce(?int $tenantId, string $scheme, CarbonInterface $asOf): ?PensionRule
+    private function organizationType(int $tenantId): ?string
+    {
+        if (! array_key_exists($tenantId, $this->types)) {
+            $type = Tenant::query()->whereKey($tenantId)->value('organization_type');
+            $this->types[$tenantId] = is_string($type) ? $type : '';
+        }
+
+        return $this->types[$tenantId] !== '' ? $this->types[$tenantId] : null;
+    }
+
+    /** One owner's rule in force: an organisation's, a type's on the platform, or the platform's for every type. */
+    private function inForce(?int $tenantId, ?string $organizationType, string $scheme, CarbonInterface $asOf): ?PensionRule
     {
         $on = $asOf->format('Y-m-d');
 
@@ -176,7 +161,11 @@ final class PensionCalculator
             ->withoutGlobalScope('tenant')
             ->when(
                 $tenantId === null,
-                fn ($q) => $q->whereNull('tenant_id'),
+                fn ($q) => $q->whereNull('tenant_id')->when(
+                    $organizationType === null,
+                    fn ($q) => $q->whereNull('organization_type'),
+                    fn ($q) => $q->where('organization_type', $organizationType),
+                ),
                 fn ($q) => $q->where('tenant_id', $tenantId),
             )
             ->where('scheme', $scheme)

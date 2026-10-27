@@ -108,6 +108,7 @@ use App\Http\Controllers\Api\V1\Organization\GradeController;
 use App\Http\Controllers\Api\V1\Organization\GradeSalaryStepController;
 use App\Http\Controllers\Api\V1\Organization\PositionController;
 use App\Http\Controllers\Api\V1\Organization\TeamController;
+use App\Http\Controllers\Api\V1\OrganizationTypeController;
 use App\Http\Controllers\Api\V1\Payroll\CostSharingController;
 use App\Http\Controllers\Api\V1\Payroll\LoanController;
 use App\Http\Controllers\Api\V1\Payroll\OvertimeRateController;
@@ -213,6 +214,8 @@ Route::get('/trusted-by', [TrustedByController::class, 'index'])->middleware('th
 // edited in the console; published rows only (MarketingContentController).
 Route::get('/marketing-content', [MarketingContentController::class, 'index'])->middleware('throttle:public-catalogue');
 Route::get('/templates', [TemplateController::class, 'index'])->middleware('throttle:public-catalogue');
+// The kinds of organisation statutory rules are scoped by (OrganizationTypeController).
+Route::get('/organization-types', [OrganizationTypeController::class, 'index'])->middleware('throttle:public-catalogue');
 Route::get('/templates/{slug}', [TemplateController::class, 'show'])->middleware('throttle:public-catalogue');
 Route::post('/contact', ContactController::class)->middleware('throttle:auth');
 

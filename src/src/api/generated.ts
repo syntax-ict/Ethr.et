@@ -4901,6 +4901,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organization-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List organization types */
+        get: operations["organizationType.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/otp/request": {
         parameters: {
             query?: never;
@@ -10674,8 +10691,7 @@ export interface components {
          *     moved into a form.
          */
         StorePensionRuleRequest: {
-            /** @enum {string} */
-            scheme: "private" | "public" | "public_military";
+            scheme: string;
             employee_rate: number;
             employer_rate: number;
             ceiling_cents?: number | null;
@@ -10833,8 +10849,7 @@ export interface components {
         StoreStatutoryLayoutRequest: {
             /** @enum {string} */
             schedule: "income-tax" | "pension";
-            /** @enum {string|null} */
-            scheme?: "private" | "public" | "public_military" | null;
+            scheme?: string | null;
             agency: string;
             title: string;
             note?: string | null;
@@ -11424,16 +11439,17 @@ export interface components {
         UpdateOrganizationRequest: {
             name?: string;
             type?: string | null;
+            organization_type?: string;
             timezone?: string;
             /** @enum {string} */
             locale?: "en" | "am" | "om" | "ti" | "so";
         };
         /**
          * UpdateOvertimeRatesRequest
-         * @description Tenant overtime multipliers. The lower bounds are Labour Proclamation
-         *     1156/2019 Art. 68(1) — a tenant may pay above them, never below.
-         *     (They were the repealed 377/2003 rates until 2026-10-01.) `rest_day` is
-         *     optional so a client that predates it keeps working; the default applies.
+         * @description Tenant overtime multipliers. A tenant may pay above the statutory floor
+         *     for its organisation type (Labour Proclamation 1156/2019 Art. 68(1)), never
+         *     below it. `rest_day` is optional so a client that predates it keeps
+         *     working; the floor applies.
          */
         UpdateOvertimeRatesRequest: {
             normal: number;
@@ -11580,8 +11596,7 @@ export interface components {
                 run_day?: number;
                 employer_tin?: string | null;
                 tax_center?: string | null;
-                /** @enum {string} */
-                pension_scheme?: "private" | "public" | "public_military";
+                pension_scheme?: string;
                 working_days?: number[];
                 /** @enum {string} */
                 mfa_policy?: "disabled" | "optional" | "required";
@@ -25528,6 +25543,32 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "organizationType.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            code: string;
+                            name: string;
+                            name_am: string;
+                            description: string | null;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
     "otp.request": {
         parameters: {
             query?: never;
@@ -29485,6 +29526,8 @@ export interface operations {
                              */
                             timezone: string;
                             locale: string;
+                            organization_type: string;
+                            organization_type_needs_review: boolean;
                         };
                         address: {
                             mode: string;
@@ -29603,7 +29646,8 @@ export interface operations {
                             /** @description The header of the statutory schedules (StatutorySchedules). */
                             employer_tin: string | null;
                             tax_center: string | null;
-                            pension_scheme: string | null;
+                            pension_scheme: string;
+                            pension_schemes: unknown[];
                         };
                         security: {
                             mfa_policy: string;
@@ -29700,6 +29744,8 @@ export interface operations {
                             type: string;
                             timezone: string;
                             locale: string;
+                            organization_type: string;
+                            organization_type_needs_review: boolean;
                         };
                     };
                 };

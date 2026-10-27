@@ -32984,6 +32984,12 @@
                                                 },
                                                 "locale": {
                                                     "type": "string"
+                                                },
+                                                "organization_type": {
+                                                    "type": "string"
+                                                },
+                                                "organization_type_needs_review": {
+                                                    "type": "boolean"
                                                 }
                                             },
                                             "required": [
@@ -32991,7 +32997,9 @@
                                                 "subdomain",
                                                 "type",
                                                 "timezone",
-                                                "locale"
+                                                "locale",
+                                                "organization_type",
+                                                "organization_type_needs_review"
                                             ]
                                         },
                                         "address": {
@@ -33513,10 +33521,11 @@
                                                     ]
                                                 },
                                                 "pension_scheme": {
-                                                    "type": [
-                                                        "string",
-                                                        "null"
-                                                    ]
+                                                    "type": "string"
+                                                },
+                                                "pension_schemes": {
+                                                    "type": "array",
+                                                    "items": []
                                                 }
                                             },
                                             "required": [
@@ -33527,7 +33536,8 @@
                                                 "retirement_age",
                                                 "employer_tin",
                                                 "tax_center",
-                                                "pension_scheme"
+                                                "pension_scheme",
+                                                "pension_schemes"
                                             ]
                                         },
                                         "security": {
@@ -48636,11 +48646,7 @@
                 "properties": {
                     "scheme": {
                         "type": "string",
-                        "enum": [
-                            "private",
-                            "public",
-                            "public_military"
-                        ]
+                        "maxLength": 30
                     },
                     "employee_rate": {
                         "type": "number",
@@ -50443,31 +50449,31 @@
             },
             "UpdateOvertimeRatesRequest": {
                 "type": "object",
-                "description": "Tenant overtime multipliers. The lower bounds are Labour Proclamation\n1156/2019 Art. 68(1) — a tenant may pay above them, never below.\n(They were the repealed 377/2003 rates until 2026-10-01.) `rest_day` is\noptional so a client that predates it keeps working; the default applies.",
+                "description": "Tenant overtime multipliers. A tenant may pay above the statutory floor\nfor its organisation type (Labour Proclamation 1156/2019 Art. 68(1)), never\nbelow it. `rest_day` is optional so a client that predates it keeps\nworking; the floor applies.",
                 "properties": {
                     "normal": {
                         "type": "number",
-                        "minimum": 1.5,
+                        "minimum": 1,
                         "maximum": 10
                     },
                     "night": {
                         "type": "number",
-                        "minimum": 1.75,
+                        "minimum": 1,
                         "maximum": 10
                     },
                     "rest_day": {
                         "type": "number",
-                        "minimum": 2,
+                        "minimum": 1,
                         "maximum": 10
                     },
                     "holiday": {
                         "type": "number",
-                        "minimum": 2.5,
+                        "minimum": 1,
                         "maximum": 10
                     },
                     "holiday_night": {
                         "type": "number",
-                        "minimum": 2.5,
+                        "minimum": 1,
                         "maximum": 10
                     }
                 },

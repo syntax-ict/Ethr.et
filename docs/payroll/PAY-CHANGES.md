@@ -24,3 +24,11 @@ by hand from the law and do not move at all.
 - The income-tax step's `rule` carries `brackets`, the whole ladder applied.
   Retro pay (upgrade 12) re-taxes a past month from its own log, and a
   tenant's ladder could be deleted until upgrade 4 kept its history.
+
+## Also in calculation log 1.5 (2026-10-27)
+
+- `statutory_rules`: every statutory parameter applied, the organisation type it was
+  resolved for, and for each its value, source (`platform`, `platform_type`, `tenant`,
+  `tenant_setting`), legal reference, whether confirmed, and the row it came from.
+- No figure moved: the parameters were seeded with the values the constants held, and
+  G1 to G7 and C1 to C6 are unchanged.

@@ -111,17 +111,23 @@ test('tax calculator: a mid-month raise crossing a band boundary taxes only the 
 
 // ── Pension Calculator ──
 
+function privatePension(int $basicCents): array
+{
+    $calc = app(PensionCalculator::class);
+    $employee = Employee::factory()->make(['hire_date' => '2020-01-01']);
+
+    return $calc->apply($calc->rule(null, 'private', Carbon::parse('2026-10-01')), $employee, $basicCents, 0, Carbon::parse('2026-10-31'));
+}
+
 test('pension calculates 7% employee and 11% employer', function () {
-    $calc = new PensionCalculator;
-    $result = $calc->calculate(500000); // 5000 ETB
+    $result = privatePension(500000); // 5000 ETB
 
     expect($result['employee_cents'])->toBe(35000); // 7%
     expect($result['employer_cents'])->toBe(55000); // 11%
 });
 
 test('pension calculates correctly for low salary', function () {
-    $calc = new PensionCalculator;
-    $result = $calc->calculate(100000); // 1000 ETB
+    $result = privatePension(100000); // 1000 ETB
 
     expect($result['employee_cents'])->toBe(7000);
     expect($result['employer_cents'])->toBe(11000);
@@ -130,7 +136,7 @@ test('pension calculates correctly for low salary', function () {
 // ── Overtime Calculator ──
 
 test('overtime normal rate 1.5x (Art. 68(1)(a))', function () {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
     // 5000 ETB basic, 22 working days, 8 hours/day
     // Hourly = 500000 / (22 * 8) = 2841 (approx)
     // 120 min = 2 hours overtime
@@ -141,25 +147,25 @@ test('overtime normal rate 1.5x (Art. 68(1)(a))', function () {
 });
 
 test('overtime night rate 1.75x (Art. 68(1)(b))', function () {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
     $amount = $calc->calculate(500000, 22, 8, 120, 'night');
     expect($amount)->toBe((int) round(500000 / (22 * 8) * 2 * 1.75));
 });
 
 test('overtime public holiday rate 2.5x (Art. 68(1)(d))', function () {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
     $amount = $calc->calculate(500000, 22, 8, 120, 'holiday');
     expect($amount)->toBe((int) round(500000 / (22 * 8) * 2 * 2.5));
 });
 
 test('overtime holiday night rate 2.5x', function () {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
     $amount = $calc->calculate(500000, 22, 8, 120, 'holiday_night');
     expect($amount)->toBe((int) round(500000 / (22 * 8) * 2 * 2.5));
 });
 
 test('overtime with zero minutes returns 0', function () {
-    $calc = new OvertimeCalculator;
+    $calc = app(OvertimeCalculator::class);
     expect($calc->calculate(500000, 22, 8, 0))->toBe(0);
 });
 

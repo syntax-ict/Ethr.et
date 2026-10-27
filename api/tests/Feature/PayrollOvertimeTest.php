@@ -63,7 +63,7 @@ test('daytime overtime on an ordinary day is paid at the normal rate', function 
     $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
 
     $entry = runOvertimePayroll($tenant->id, $user->id, '2026-06-15 19:30', holiday: false);
-    $expected = (new OvertimeCalculator)->calculate(500000, 22, 8, 120, 'normal');
+    $expected = app(OvertimeCalculator::class)->calculate(500000, 22, 8, 120, 'normal');
 
     $step = otStep($entry);
     expect($step['by_type']['normal']['minutes'])->toBe(120);
@@ -80,8 +80,8 @@ test('a day worked on a public holiday is paid at 2.5x from check-in', function 
     $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
 
     $entry = runOvertimePayroll($tenant->id, $user->id, '2026-06-15 19:30', holiday: true);
-    $expectedHoliday = (new OvertimeCalculator)->calculate(500000, 22, 8, 660, 'holiday');
-    $expectedNormal = (new OvertimeCalculator)->calculate(500000, 22, 8, 660, 'normal');
+    $expectedHoliday = app(OvertimeCalculator::class)->calculate(500000, 22, 8, 660, 'holiday');
+    $expectedNormal = app(OvertimeCalculator::class)->calculate(500000, 22, 8, 660, 'normal');
 
     $step = otStep($entry);
     expect($step['by_type']['holiday']['minutes'])->toBe(660);
@@ -100,8 +100,8 @@ test('overtime running into the night splits normal and night pay', function () 
     // 17:30 -> 23:30: 270 day min + 90 night min.
     $entry = runOvertimePayroll($tenant->id, $user->id, '2026-06-15 23:30', holiday: false);
 
-    $normal = (new OvertimeCalculator)->calculate(500000, 22, 8, 270, 'normal');
-    $night = (new OvertimeCalculator)->calculate(500000, 22, 8, 90, 'night');
+    $normal = app(OvertimeCalculator::class)->calculate(500000, 22, 8, 270, 'normal');
+    $night = app(OvertimeCalculator::class)->calculate(500000, 22, 8, 90, 'night');
 
     $step = otStep($entry);
     expect($step['by_type']['normal']['minutes'])->toBe(270);
@@ -159,7 +159,7 @@ test('a Sunday worked under a Monday-Friday shift is paid at 2x from check-in', 
     $step = otStep($entry);
     expect($step['by_type']['rest_day']['minutes'])->toBe(240)
         ->and((float) $step['by_type']['rest_day']['rate'])->toBe(2.0)
-        ->and($step['overtime_amount_cents'])->toBe((new OvertimeCalculator)->calculate(500000, 22, 8, 240, 'rest_day'));
+        ->and($step['overtime_amount_cents'])->toBe(app(OvertimeCalculator::class)->calculate(500000, 22, 8, 240, 'rest_day'));
 });
 
 test('a Saturday is an ordinary day for a six-day shift', function () {

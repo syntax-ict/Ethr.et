@@ -7,6 +7,7 @@ return [
     'cannot_void' => 'Only a completed or approved payroll run can be voided.',
     'cannot_reprocess' => 'Only a voided payroll run can be reprocessed.',
     'balances_changed' => 'Loan or cost-sharing balances changed after this run was calculated. Void the run and reprocess the period.',
+    'no_rule_in_force' => 'No statutory rule is in force for :code on this date. A platform administrator must add one before payroll can run.',
     'bank_export_not_approved' => 'A bank file can only be exported for an approved payroll run.',
     'self_approval' => 'You processed this payroll run, so another approver in your organisation must approve it.',
     'fiscal_year_start_month' => 'Fiscal Year Start Month',

@@ -169,7 +169,7 @@ it('records the rounding rule and the whole tax ladder it applied (log 1.4)', fu
     $log = characterise($this->tenant, $this->user->id, '2026-06-01', '2026-06-30')->calculation_log;
     $tax = collect($log['steps'])->firstWhere('step', 'income_tax');
 
-    expect($log['version'])->toBe('1.4')
+    expect(version_compare($log['version'], '1.4', '>='))->toBeTrue()
         ->and($log['rounding'])->toBe('integer_half_up')
         ->and($tax['rule']['brackets'])->toHaveCount(6)
         ->and($tax['rule']['brackets'][1])->toMatchArray(['min' => 200001, 'max' => 400000, 'deduction' => 30000])

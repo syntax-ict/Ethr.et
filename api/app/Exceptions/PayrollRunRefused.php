@@ -48,6 +48,12 @@ class PayrollRunRefused extends RuntimeException
         return new self('https://ethr.et/errors/payroll-self-approval', 'Second approver required', __('payroll.self_approval'));
     }
 
+    /** No statutory row is in force for a code the run needs; the code names which. */
+    public static function noRuleInForce(string $code): self
+    {
+        return new self('https://ethr.et/errors/payroll-no-rule-in-force', 'Statutory rule missing', __('payroll.no_rule_in_force', ['code' => $code]));
+    }
+
     /** @param  list<string>  $employees */
     public static function balancesChanged(array $employees): self
     {

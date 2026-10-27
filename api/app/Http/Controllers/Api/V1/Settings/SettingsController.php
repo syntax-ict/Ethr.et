@@ -20,7 +20,7 @@ use App\Models\SsoSetting;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
-use App\Services\Payroll\PensionCalculator;
+use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\StatutorySchedules;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
@@ -30,6 +30,7 @@ use App\Support\TenantSecurityPolicy;
 use App\Support\WorkingWeek;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -48,6 +49,11 @@ class SettingsController extends Controller
         // middleware does another.
         $security = TenantSecurityPolicy::forTenant($tenant);
 
+        // The payroll values as the engine resolves them today: the
+        // organisation's own setting where it has one, else the platform's for
+        // its organisation type (StatutoryRules).
+        $rules = app(StatutoryRules::class)->for($tenant, Carbon::today());
+
         return response()->json([
             'organization' => [
                 'name' => $tenant->name,
@@ -63,6 +69,8 @@ class SettingsController extends Controller
                 // 2026_08_22_000001_backfill_tenant_timezone_and_locale.
                 'timezone' => $tenant->timezone,
                 'locale' => $tenant->default_locale,
+                'organization_type' => $tenant->organization_type,
+                'organization_type_needs_review' => (bool) $tenant->organization_type_needs_review,
             ],
             'address' => $addresses->describe($tenant),
             'branding' => [
@@ -82,8 +90,8 @@ class SettingsController extends Controller
             'payroll' => [
                 'pay_period' => (string) ($tenant->settings['pay_period'] ?? 'monthly'),
                 'run_day' => (int) ($tenant->settings['run_day'] ?? 25),
-                'fiscal_year_start_month' => (int) ($tenant->settings['fiscal_year_start_month'] ?? 1),
-                'pagumen_proration_strategy' => (string) ($tenant->settings['pagumen_proration_strategy'] ?? 'full_month'),
+                'fiscal_year_start_month' => (int) $rules->int('fiscal_year.start_month'),
+                'pagumen_proration_strategy' => (string) $rules->string('pagume.proration'),
                 // Retirement-case eligibility dates are computed against this.
                 // No single figure is authoritative across every Ethiopian
                 // sector, so it defaults to 60 but stays tenant-overridable
@@ -93,9 +101,8 @@ class SettingsController extends Controller
                 // The header of the statutory schedules (StatutorySchedules).
                 'employer_tin' => StatutorySchedules::setting($tenant, 'employer_tin'),
                 'tax_center' => StatutorySchedules::setting($tenant, 'tax_center'),
-                'pension_scheme' => in_array(StatutorySchedules::setting($tenant, 'pension_scheme'), PensionCalculator::SCHEMES, true)
-                    ? StatutorySchedules::setting($tenant, 'pension_scheme')
-                    : 'private',
+                'pension_scheme' => $rules->string('pension.default_scheme'),
+                'pension_schemes' => array_values(array_map(strval(...), $rules->list('pension.schemes'))),
             ],
             'security' => [
                 'mfa_policy' => $security->mfaPolicy(),
@@ -149,6 +156,14 @@ class SettingsController extends Controller
         $tenant = app(CurrentTenant::class)->get();
 
         $tenantFields = array_intersect_key($validated, ['name' => 1, 'type' => 1, 'timezone' => 1]);
+        $typeBefore = $tenant->organization_type;
+
+        // Choosing the organisation type, even the one it already had, is the
+        // confirmation the migration asked existing organisations for.
+        if (array_key_exists('organization_type', $validated)) {
+            $tenantFields['organization_type'] = $validated['organization_type'];
+            $tenantFields['organization_type_needs_review'] = false;
+        }
 
         // `locale` is the API-facing name; the column is `default_locale`, which
         // is what UserProvisioningService gives every newly provisioned user.
@@ -168,7 +183,9 @@ class SettingsController extends Controller
             $tenant->update(['settings' => array_merge($tenant->settings ?? [], $settingsFields)]);
         }
 
-        AuditLog::record('settings.organization_updated', $tenant);
+        AuditLog::record('settings.organization_updated', $tenant, array_key_exists('organization_type', $validated)
+            ? ['organization_type' => ['from' => $typeBefore, 'to' => $validated['organization_type']]]
+            : []);
 
         $tenant->refresh();
 
@@ -180,6 +197,8 @@ class SettingsController extends Controller
                 'type' => $tenant->type,
                 'timezone' => $tenant->timezone,
                 'locale' => $tenant->default_locale,
+                'organization_type' => $tenant->organization_type,
+                'organization_type_needs_review' => (bool) $tenant->organization_type_needs_review,
             ],
         ]);
     }
