@@ -428,15 +428,16 @@ final class AttendanceEngine
      * from the same shift window the status was rated against: from the
      * shift's start to the check-in, or from the check-out to the shift's end.
      * Grace decides whether a punch is late, not how late it is. Zero for any
-     * other status or a record with no shift.
+     * other status or a record with no shift. $zone is the tenant's, when the
+     * caller already knows it and reads many records.
      */
-    public function missedMinutes(AttendanceRecord $record): int
+    public function missedMinutes(AttendanceRecord $record, ?string $zone = null): int
     {
         if (! $record->shift || ! $record->check_in) {
             return 0;
         }
 
-        $zone = TenantTime::zone(Tenant::query()->find($record->tenant_id));
+        $zone ??= TenantTime::zone(Tenant::query()->find($record->tenant_id));
         [$shiftStart, $shiftEnd] = $record->shift->windowOn($record->workDate($zone), $zone);
 
         return match ($record->status) {

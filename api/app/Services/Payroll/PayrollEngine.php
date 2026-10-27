@@ -29,6 +29,7 @@ use App\Support\TenantTime;
 use App\Support\WorkingWeek;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 final class PayrollEngine
@@ -851,6 +852,61 @@ final class PayrollEngine
         foreach ($this->expectedDays->forEmployee($employee, Carbon::parse($first), Carbon::parse($last)) as $day => $kind) {
             if ($kind === ExpectedDay::WORKDAY && ! isset($attended[$day])) {
                 $absent[] = $day;
+            }
+        }
+
+        return $absent;
+    }
+
+    /**
+     * unexplainedAbsences() for many employees of one organisation at once,
+     * by the same rule and the same two guards (only days already over; an
+     * organisation recording no attendance flags nothing). Each day is asked
+     * of ExpectedDays::onDate for everyone together, so the cost grows with
+     * the period's days rather than its people: attendance reconciliation
+     * reads a whole organisation inside one request. A run still asks per
+     * employee, as it always has.
+     *
+     * @param  Collection<int, Employee>  $employees  all of one tenant
+     * @return array<int, list<string>> employee id => Y-m-d
+     */
+    public function unexplainedAbsencesFor(Collection $employees, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $first = $employees->first();
+
+        if ($first === null) {
+            return [];
+        }
+
+        $tenantId = $first->tenant_id;
+        $yesterday = TenantTime::today(Tenant::query()->find($tenantId))->subDay()->format('Y-m-d');
+        $from = $periodStart->format('Y-m-d');
+        $last = min($periodEnd->format('Y-m-d'), $yesterday);
+
+        if ($last < $from || ! $this->attendanceInUse($tenantId, $from, $last)) {
+            return [];
+        }
+
+        $attended = [];
+        AttendanceRecord::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('employee_id', $employees->pluck('id')->all())
+            ->whereDate('date', '>=', $from)
+            ->whereDate('date', '<=', $last)
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            ->where(fn ($q) => $q->whereNotNull('check_in')->orWhereNotNull('check_out'))
+            ->get(['employee_id', 'date'])
+            ->each(function (AttendanceRecord $record) use (&$attended): void {
+                $attended[$record->employee_id][Carbon::parse($record->date)->format('Y-m-d')] = true;
+            });
+
+        $absent = [];
+        for ($day = Carbon::parse($from); $day->format('Y-m-d') <= $last; $day->addDay()) {
+            $key = $day->format('Y-m-d');
+            foreach ($this->expectedDays->onDate($employees, $day) as $employeeId => $kind) {
+                if ($kind === ExpectedDay::WORKDAY && ! isset($attended[$employeeId][$key])) {
+                    $absent[$employeeId][] = $key;
+                }
             }
         }
 

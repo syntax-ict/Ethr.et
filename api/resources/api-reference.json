@@ -29048,9 +29048,6 @@
                                                 "resolved": {
                                                     "type": "integer"
                                                 },
-                                                "info": {
-                                                    "type": "integer"
-                                                },
                                                 "blocking": {
                                                     "type": "integer"
                                                 }
@@ -29059,7 +29056,6 @@
                                                 "open",
                                                 "pending",
                                                 "resolved",
-                                                "info",
                                                 "blocking"
                                             ]
                                         },
@@ -30524,9 +30520,6 @@
                                                         "resolved": {
                                                             "type": "integer"
                                                         },
-                                                        "info": {
-                                                            "type": "integer"
-                                                        },
                                                         "blocking": {
                                                             "type": "integer"
                                                         }
@@ -30535,7 +30528,6 @@
                                                         "open",
                                                         "pending",
                                                         "resolved",
-                                                        "info",
                                                         "blocking"
                                                     ]
                                                 },

@@ -10,6 +10,9 @@ use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\Employee;
+use App\Models\Holiday;
+use App\Models\LeaveRequest;
+use App\Models\LeaveType;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Shift;
@@ -236,6 +239,35 @@ describe('the reconciliation', function () {
             ->assertOk()
             ->assertJsonPath('employees', []);
     });
+});
+
+it('finds for everyone at once exactly the absences payroll finds person by person', function () {
+    $tenant = createTenant();
+    $finance = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+    $absent = reconEmployee($tenant, absent: ['2026-06-03', '2026-06-04', '2026-06-11', '2026-06-15']);
+    $hiredLate = reconEmployee($tenant, absent: ['2026-06-02', '2026-06-22']);
+    $hiredLate->update(['hire_date' => '2026-06-15']);
+    $present = reconEmployee($tenant);
+    $paid = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'is_paid' => true]);
+    LeaveRequest::factory()->approved()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $absent->id, 'leave_type_id' => $paid->id,
+        'start_date' => '2026-06-04', 'end_date' => '2026-06-04', 'days' => 1,
+    ]);
+    Holiday::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => null, 'date' => '2026-06-11', 'is_active' => true]);
+
+    $engine = app(PayrollEngine::class);
+    $start = Carbon::parse('2026-06-01');
+    $end = Carbon::parse('2026-06-30');
+    $employees = Employee::query()->whereIn('id', [$absent->id, $hiredLate->id, $present->id])->get();
+
+    $batch = $engine->unexplainedAbsencesFor($employees, $start, $end);
+
+    foreach ($employees as $employee) {
+        expect($batch[$employee->id] ?? [])->toBe($engine->unexplainedAbsences($employee->fresh(), $start, $end));
+    }
+    expect($batch[$absent->id])->toBe(['2026-06-03', '2026-06-15'])
+        ->and($batch[$hiredLate->id])->toBe(['2026-06-22'])
+        ->and($batch)->not->toHaveKey($present->id);
 });
 
 describe('an employee', function () {

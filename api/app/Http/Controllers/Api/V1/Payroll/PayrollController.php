@@ -370,7 +370,7 @@ class PayrollController extends Controller
      * acted on it (AttendanceReconciliation), for the employees the caller
      * reaches. What payroll staff settle before a run is approved.
      *
-     * @response array{period: array{start: string, end: string}, mode: string, lateness_deduction_enabled: bool, totals: array{open: int, pending: int, resolved: int, info: int, blocking: int}, by_type: list<array{type: string, count: int}>, unmatched_punches: int, employees: list<array{employee_public_id: string, employee_name: string, employee_code: string|null, exceptions: list<array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null}>}>}
+     * @response array{period: array{start: string, end: string}, mode: string, lateness_deduction_enabled: bool, totals: array{open: int, pending: int, resolved: int, blocking: int}, by_type: list<array{type: string, count: int}>, unmatched_punches: int, employees: list<array{employee_public_id: string, employee_name: string, employee_code: string|null, exceptions: list<array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null}>}>}
      */
     public function reconciliation(ReconcileAttendanceRequest $request, AttendanceReconciliation $reconciliation): JsonResponse
     {
@@ -521,7 +521,7 @@ class PayrollController extends Controller
     }
 
     /**
-     * @return array{mode: string, lateness_deduction_enabled: bool, totals: array{open: int, pending: int, resolved: int, info: int, blocking: int}, by_type: list<array{type: string, count: int}>, unmatched_punches: int}
+     * @return array{mode: string, lateness_deduction_enabled: bool, totals: array{open: int, pending: int, resolved: int, blocking: int}, by_type: list<array{type: string, count: int}>, unmatched_punches: int}
      */
     private function reconciliationSummary(PayrollRun $run, AttendanceReconciliation $reconciliation): array
     {

@@ -50,8 +50,8 @@ use Illuminate\Support\Facades\Cache;
  * their own screens. An exception's state is derived from what it points at,
  * never stored, so this cannot disagree with the requests: `open` (nothing
  * filed, or filed and rejected), `pending` (filed, undecided), `resolved`
- * (approved). Overtime over a limit is `info`: overtime worked is paid
- * (Art. 68), so there is nothing to decide and it never blocks a run.
+ * (approved). Overtime over a limit is not an exception: overtime worked is
+ * paid (Art. 68), and the run already lists it.
  */
 final class AttendanceReconciliation
 {
@@ -67,8 +67,6 @@ final class AttendanceReconciliation
 
     public const TYPE_OVERTIME_UNAPPROVED = 'overtime_unapproved';
 
-    public const TYPE_OVERTIME_OVER_LIMIT = 'overtime_over_limit';
-
     public const TYPE_INTEGRITY = 'integrity_flag';
 
     public const TYPE_CONFLICT = 'unresolved_conflict';
@@ -78,8 +76,6 @@ final class AttendanceReconciliation
     public const STATE_PENDING = 'pending';
 
     public const STATE_RESOLVED = 'resolved';
-
-    public const STATE_INFO = 'info';
 
     /** Ten minutes; any change to what it reads invalidates it sooner (forget()). */
     private const CACHE_SECONDS = 600;
@@ -112,7 +108,7 @@ final class AttendanceReconciliation
      *     period: array{start: string, end: string},
      *     mode: string,
      *     lateness_deduction_enabled: bool,
-     *     totals: array{open: int, pending: int, resolved: int, info: int, blocking: int},
+     *     totals: array{open: int, pending: int, resolved: int, blocking: int},
      *     by_type: list<array{type: string, count: int}>,
      *     unmatched_punches: int,
      *     employees: list<array{employee_public_id: string, employee_name: string, employee_code: string|null, exceptions: list<array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null}>}>,
@@ -145,8 +141,7 @@ final class AttendanceReconciliation
     /**
      * One employee's own exceptions in the period, what they are shown so
      * they can say a recorded absence is wrong (a missed-punch claim) before
-     * payroll settles it. Overtime over a limit is left out: it is paid, and
-     * there is nothing for them to do about it.
+     * payroll settles it.
      *
      * @return list<array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null}>
      */
@@ -154,10 +149,7 @@ final class AttendanceReconciliation
     {
         $rows = $this->build($tenant, $start, $end, null, $employee->id)['employees'];
 
-        return array_values(array_filter(
-            $rows[0]['exceptions'] ?? [],
-            fn (array $exception): bool => $exception['state'] !== self::STATE_INFO,
-        ));
+        return $rows[0]['exceptions'] ?? [];
     }
 
     /**
@@ -209,7 +201,7 @@ final class AttendanceReconciliation
      *     period: array{start: string, end: string},
      *     mode: string,
      *     lateness_deduction_enabled: bool,
-     *     totals: array{open: int, pending: int, resolved: int, info: int, blocking: int},
+     *     totals: array{open: int, pending: int, resolved: int, blocking: int},
      *     by_type: list<array{type: string, count: int}>,
      *     unmatched_punches: int,
      *     employees: list<array{employee_public_id: string, employee_name: string, employee_code: string|null, exceptions: list<array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null}>}>,
@@ -221,6 +213,7 @@ final class AttendanceReconciliation
         $first = $start->format('Y-m-d');
         $last = $end->format('Y-m-d');
         $today = TenantTime::today($tenant)->format('Y-m-d');
+        $zone = TenantTime::zone($tenant);
         $lateness = (bool) AttendanceSetting::query()->where('tenant_id', $tenantId)->value('lateness_deduction_enabled');
 
         $query = $this->payroll->payableEmployees($tenantId, $start, $end)
@@ -240,13 +233,26 @@ final class AttendanceReconciliation
         $conflicts = $this->openConflicts($tenantId, $ids, $first, $last);
 
         $rows = [];
-        $totals = ['open' => 0, 'pending' => 0, 'resolved' => 0, 'info' => 0, 'blocking' => 0];
+        $totals = ['open' => 0, 'pending' => 0, 'resolved' => 0, 'blocking' => 0];
         $byType = [];
+
+        // Asked for everyone at once: by day, not by person (see
+        // PayrollEngine::unexplainedAbsencesFor), so an organisation of any
+        // size is read inside one request.
+        $absences = [];
+        foreach ($employees->chunk(200) as $chunk) {
+            $absences += $this->payroll->unexplainedAbsencesFor($chunk->values(), $start, $end);
+        }
+
+        // Overtime is an exception only where it must be approved before it
+        // is worked. Days over a limit are paid either way and already listed
+        // on the run (OvertimeLimitsBanner), so they are not repeated here.
+        $overtimeApproval = (bool) AttendanceSetting::query()->where('tenant_id', $tenantId)->value('overtime_requires_approval');
 
         foreach ($employees as $employee) {
             $exceptions = [];
 
-            foreach ($this->payroll->unexplainedAbsences($employee, $start, $end) as $day) {
+            foreach ($absences[$employee->id] ?? [] as $day) {
                 $claim = $claims['by_day'][$employee->id][$day] ?? null;
                 $request = $claim !== null && $claim->status === CorrectionStatus::PENDING
                     ? ['correction', $claim->public_id]
@@ -256,10 +262,12 @@ final class AttendanceReconciliation
             }
 
             foreach ($records[$employee->id] ?? [] as $record) {
-                $exceptions[] = $this->recordException($record, $claims['by_record'][$record->id] ?? [], $lateness);
+                $exceptions[] = $this->recordException($record, $claims['by_record'][$record->id] ?? [], $lateness, $zone);
             }
 
-            ['by_day' => $byDay] = $this->payroll->gatherOvertimeByType($employee, $start, $end);
+            ['by_day' => $byDay] = $overtimeApproval
+                ? $this->payroll->gatherOvertimeByType($employee, $start, $end)
+                : ['by_day' => []];
             if ($byDay !== []) {
                 $limits = $this->payroll->overtimeLimits($employee, $byDay, $start, $end);
                 foreach ($limits['days_over_approved'] as $over) {
@@ -272,9 +280,6 @@ final class AttendanceReconciliation
                         null,
                         $pending === null ? null : ['overtime', $pending],
                     );
-                }
-                foreach (array_unique([...$limits['days_over_daily_limit'], ...$limits['days_over_legal_daily_limit']]) as $day) {
-                    $exceptions[] = self::item(self::TYPE_OVERTIME_OVER_LIMIT, $day, self::STATE_INFO, isset($byDay[$day]) ? (int) $byDay[$day] : null, null, null);
                 }
             }
 
@@ -338,7 +343,7 @@ final class AttendanceReconciliation
      * @param  list<AttendanceCorrection>  $corrections  newest first
      * @return array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null}
      */
-    private function recordException(AttendanceRecord $record, array $corrections, bool $lateness): array
+    private function recordException(AttendanceRecord $record, array $corrections, bool $lateness, string $zone): array
     {
         $day = $record->date->format('Y-m-d');
         $autoClosed = ! empty($record->metadata['auto_checkout']) && empty($record->metadata['is_corrected']);
@@ -360,7 +365,7 @@ final class AttendanceReconciliation
             default => self::STATE_OPEN,
         };
 
-        $minutes = in_array($type, [self::TYPE_LATE, self::TYPE_EARLY], true) ? $this->attendance->missedMinutes($record) : null;
+        $minutes = in_array($type, [self::TYPE_LATE, self::TYPE_EARLY], true) ? $this->attendance->missedMinutes($record, $zone) : null;
 
         return self::item(
             $type,

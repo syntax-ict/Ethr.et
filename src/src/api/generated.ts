@@ -25801,7 +25801,6 @@ export interface operations {
                                 open: number;
                                 pending: number;
                                 resolved: number;
-                                info: number;
                                 blocking: number;
                             };
                             by_type: {
@@ -25846,7 +25845,6 @@ export interface operations {
                             open: number;
                             pending: number;
                             resolved: number;
-                            info: number;
                             blocking: number;
                         };
                         by_type: {
