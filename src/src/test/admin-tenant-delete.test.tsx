@@ -88,9 +88,9 @@ const deleteButton = () =>
   screen.findByRole("button", { name: /delete organisation/i });
 
 // 2026-10-19: deleting an organisation from the platform console. It is the
-// second of two deliberate steps, and asks for a reason and an authenticator
-// code before anything is sent. Typing the address out was dropped on
-// 2026-10-26 by owner decision.
+// second of two deliberate steps, and asks for a reason before anything is
+// sent. By owner decision, typing the address out was dropped on 2026-10-26
+// and the authenticator code on 2026-10-27.
 describe("deleting an organisation from the console", () => {
   it("is offered only once the organisation is cancelled", async () => {
     serveTenant({ status: "active" });
@@ -102,7 +102,7 @@ describe("deleting an organisation from the console", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("says what deleting does and keeps, and sends nothing until both are given", async () => {
+  it("says what deleting does and keeps, and asks only for a reason", async () => {
     serveTenant({});
     const bodies = captureDelete();
     renderPage();
@@ -113,40 +113,39 @@ describe("deleting an organisation from the console", () => {
     expect(dialog).toHaveTextContent(/records are kept/i);
     expect(dialog).toHaveTextContent("acme.ethr.et");
 
+    // Neither the address typed out nor an authenticator code is asked for.
+    expect(within(dialog).queryByLabelText(/type acme/i)).toBeNull();
+    expect(within(dialog).queryByLabelText(/code/i)).toBeNull();
+
     const submit = within(dialog).getByRole("button", {
       name: /delete organisation/i,
     });
     expect(submit).toBeDisabled();
 
-    await userEvent.type(
-      within(dialog).getByLabelText(/reason/i),
-      "Duplicate registration",
-    );
-    // No field asks for the address to be typed out.
-    expect(within(dialog).queryByLabelText(/type acme/i)).toBeNull();
-    // Five digits are not a code.
-    await userEvent.type(within(dialog).getByLabelText(/code/i), "12345");
+    // Four characters are not a reason.
+    await userEvent.type(within(dialog).getByLabelText(/reason/i), "Dupe");
     expect(submit).toBeDisabled();
 
-    await userEvent.type(within(dialog).getByLabelText(/code/i), "6");
+    await userEvent.type(
+      within(dialog).getByLabelText(/reason/i),
+      " registration",
+    );
     expect(submit).toBeEnabled();
     await userEvent.click(submit);
 
-    expect(bodies).toEqual([
-      { code: "123456", reason: "Duplicate registration" },
-    ]);
+    expect(bodies).toEqual([{ reason: "Dupe registration" }]);
   });
 
-  it("shows a wrong code under the code field and keeps the dialog open", async () => {
+  it("shows a refused reason under the reason field and keeps the dialog open", async () => {
     serveTenant({});
     server.use(
       http.post(`*/api/v1/admin/tenants/${ID}/delete`, () =>
         HttpResponse.json(
           {
-            type: "https://ethr.et/errors/invalid-mfa-code",
-            title: "Invalid Code",
-            status: 422,
-            detail: "Invalid verification code.",
+            message: "The reason field must be at least 5 characters.",
+            errors: {
+              reason: ["The reason field must be at least 5 characters."],
+            },
           },
           { status: 422 },
         ),
@@ -160,13 +159,14 @@ describe("deleting an organisation from the console", () => {
       within(dialog).getByLabelText(/reason/i),
       "Closing it",
     );
-    await userEvent.type(within(dialog).getByLabelText(/code/i), "000000");
     await userEvent.click(
       within(dialog).getByRole("button", { name: /delete organisation/i }),
     );
 
     expect(
-      await within(dialog).findByText("Invalid verification code."),
+      await within(dialog).findByText(
+        "The reason field must be at least 5 characters.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });

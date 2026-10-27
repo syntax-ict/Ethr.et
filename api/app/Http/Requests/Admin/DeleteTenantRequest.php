@@ -7,14 +7,13 @@ namespace App\Http\Requests\Admin;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Deleting an organisation asks for two things at once: a current
- * authenticator code and the reason. The code is checked in the controller,
- * once the organisation is known to be cancelled.
+ * Deleting an organisation asks for one thing: the reason, recorded in the
+ * audit log. The organisation must already be cancelled (checked in the
+ * controller), and the route is behind RequirePlatformMfa.
  *
- * Until 2026-10-26 it also asked for the address typed out. The owner took
- * that step away: the dialog names the organisation and its address, it must
- * already be cancelled, and the code is what proves a person is at the
- * console. A client still sending `confirm` is not refused for it.
+ * Owner decisions took two earlier steps away: the address typed out on
+ * 2026-10-26, and a fresh authenticator code on 2026-10-27. A client still
+ * sending `confirm` or `code` is not refused for it; both are ignored.
  */
 class DeleteTenantRequest extends FormRequest
 {
@@ -27,7 +26,6 @@ class DeleteTenantRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'size:6'],
             'reason' => ['required', 'string', 'min:5', 'max:500'],
         ];
     }

@@ -13,7 +13,6 @@ use App\Models\Invoice;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Admin\PlatformAnalyticsService;
-use PragmaRX\Google2FA\Google2FA;
 
 /**
  * Deleting an organisation from the platform console (2026-10-19).
@@ -21,23 +20,23 @@ use PragmaRX\Google2FA\Google2FA;
  * Delete is a reversible closure: the tenant row is soft-deleted and nothing
  * else is removed, because payroll and attendance are NeverDelete and the audit
  * log is append-only. It is the second of two steps (cancel, then delete), and
- * asks for a current authenticator code and a reason. Typing the address out
- * was dropped on 2026-10-26, by owner decision.
+ * asks for a reason. By owner decision, typing the address out was dropped on
+ * 2026-10-26 and a fresh authenticator code on 2026-10-27; the console route
+ * itself stays behind RequirePlatformMfa.
  */
+/** A platform admin with MFA set up, as RequirePlatformMfa demands of the console. */
 function deletionConsole(): array
 {
-    $secret = 'JBSWY3DPEHPK3PXP';
     $home = createTenant();
     $admin = createUser([
         'role' => UserRole::SUPER_ADMIN,
         'mfa_enabled' => true,
-        'mfa_secret' => $secret,
+        'mfa_secret' => 'JBSWY3DPEHPK3PXP',
     ], $home);
 
     return [
         "http://{$home->subdomain}.ethr.test/api/v1/admin/tenants",
         $admin->createToken('auth', ['*'])->plainTextToken,
-        (new Google2FA)->getCurrentOtp($secret),
         $admin,
     ];
 }
@@ -48,7 +47,7 @@ function cancelledOrganisation(): Tenant
 }
 
 test('a cancelled organisation is deleted, its records kept and its sessions ended', function () {
-    [$base, $token, $code, $admin] = deletionConsole();
+    [$base, $token, $admin] = deletionConsole();
     $target = cancelledOrganisation();
     $person = User::factory()->create(['tenant_id' => $target->id, 'role' => UserRole::TENANT_ADMIN]);
     $person->createToken('auth');
@@ -56,7 +55,6 @@ test('a cancelled organisation is deleted, its records kept and its sessions end
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
-            'code' => $code,
             'reason' => 'Duplicate registration',
         ])
         ->assertOk()
@@ -77,12 +75,11 @@ test('a cancelled organisation is deleted, its records kept and its sessions end
 });
 
 test('an organisation that is not cancelled cannot be deleted', function (TenantStatus $status) {
-    [$base, $token, $code] = deletionConsole();
+    [$base, $token] = deletionConsole();
     $target = Tenant::factory()->create(['status' => $status]);
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
-            'code' => $code,
             'reason' => 'Closing it',
         ])
         ->assertStatus(409)
@@ -95,58 +92,43 @@ test('an organisation that is not cancelled cannot be deleted', function (Tenant
     'suspended' => [TenantStatus::SUSPENDED],
 ]);
 
-test('the address is not typed out, and a client still sending it is not refused', function () {
-    [$base, $token, $code] = deletionConsole();
+test('no address or authenticator code is asked for, and a client still sending them is not refused', function () {
+    [$base, $token] = deletionConsole();
     $target = cancelledOrganisation();
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
             'confirm' => 'anything',
-            'code' => $code,
+            'code' => '000000',
             'reason' => 'Closing it',
         ])
         ->assertOk();
 
-    expect(Tenant::withTrashed()->find($target->id)->trashed())->toBeTrue();
+    expect(Tenant::withTrashed()->find($target->id)->trashed())->toBeTrue()
+        ->and(AuditLog::withoutGlobalScopes()->where('action', 'admin.tenant.delete_mfa_failed')->exists())->toBeFalse();
 });
 
-test('an authenticator code is still required', function () {
-    [$base, $token] = deletionConsole();
+test('a platform admin who has not set up MFA still cannot delete', function () {
+    $home = createTenant();
+    $admin = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => false], $home);
     $target = cancelledOrganisation();
 
-    test()->withToken($token)
-        ->postJson("{$base}/{$target->public_id}/delete", [
+    test()->withToken($admin->createToken('auth', ['*'])->plainTextToken)
+        ->postJson("http://{$home->subdomain}.ethr.test/api/v1/admin/tenants/{$target->public_id}/delete", [
             'reason' => 'Closing it',
         ])
-        ->assertStatus(422)
-        ->assertJsonValidationErrors(['code']);
+        ->assertForbidden()
+        ->assertJsonPath('type', 'https://ethr.et/errors/mfa-required');
 
     expect(Tenant::query()->whereKey($target->id)->exists())->toBeTrue();
 });
 
-test('a wrong authenticator code deletes nothing and is recorded', function () {
+test('a reason is required', function () {
     [$base, $token] = deletionConsole();
     $target = cancelledOrganisation();
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
-            'code' => '000000',
-            'reason' => 'Closing it',
-        ])
-        ->assertStatus(422)
-        ->assertJsonPath('type', 'https://ethr.et/errors/invalid-mfa-code');
-
-    expect(Tenant::query()->whereKey($target->id)->exists())->toBeTrue()
-        ->and(AuditLog::withoutGlobalScopes()->where('action', 'admin.tenant.delete_mfa_failed')->exists())->toBeTrue();
-});
-
-test('a reason is required', function () {
-    [$base, $token, $code] = deletionConsole();
-    $target = cancelledOrganisation();
-
-    test()->withToken($token)
-        ->postJson("{$base}/{$target->public_id}/delete", [
-            'code' => $code,
         ])
         ->assertStatus(422)
         ->assertJsonValidationErrors(['reason']);
@@ -158,7 +140,6 @@ test('only the platform can delete an organisation', function () {
 
     test()->actingAs($tenantAdmin)
         ->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/tenants/{$tenant->public_id}/delete", [
-            'code' => '123456',
             'reason' => 'Closing it',
         ])
         ->assertForbidden();
@@ -167,7 +148,7 @@ test('only the platform can delete an organisation', function () {
 });
 
 test('a deleted organisation stops resolving at once, cached or not', function () {
-    [$base, $token, $code] = deletionConsole();
+    [$base, $token] = deletionConsole();
     $target = cancelledOrganisation();
 
     // Warm ResolveTenant's five-minute cache for the organisation's host.
@@ -176,7 +157,6 @@ test('a deleted organisation stops resolving at once, cached or not', function (
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
-            'code' => $code,
             'reason' => 'Closing it',
         ])
         ->assertOk();
@@ -187,12 +167,11 @@ test('a deleted organisation stops resolving at once, cached or not', function (
 });
 
 test('the console lists a deleted organisation only when asked, and can restore it', function () {
-    [$base, $token, $code] = deletionConsole();
+    [$base, $token] = deletionConsole();
     $target = cancelledOrganisation();
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
-            'code' => $code,
             'reason' => 'Closing it',
         ])
         ->assertOk();

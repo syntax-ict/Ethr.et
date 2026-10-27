@@ -326,7 +326,6 @@
   "admin_tenant_detail_page.custom_domain_verify_title": "የራስ ጎራውን አረጋግጥ",
   "admin_tenant_detail_page.days_count": ":count ቀናት",
   "admin_tenant_detail_page.delete_backup_hint": "ድርጅቱ የውሂቡን ቅጂ ሊጠይቅ የሚችል ከሆነ መጀመሪያ «ውሂብ ምትኬ»ን ይጠቀሙ።",
-  "admin_tenant_detail_page.delete_code_invalid": "ልክ ያልሆነ ኮድ",
   "admin_tenant_detail_page.delete_description": "ይህ ድርጅቱን ይዘጋል። መዛግብቱን አይደመስስም።",
   "admin_tenant_detail_page.delete_done": ":name ጠፍቷል። መዛግብቱ ተቀምጠዋል፣ መመለስም ይቻላል።",
   "admin_tenant_detail_page.delete_effect_address": ":address መሥራቱን ያቆማል፤ ሌላ ማንም እንዳይወስደው ተይዞ ይቆያል።",

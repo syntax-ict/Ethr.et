@@ -712,11 +712,13 @@ class AdminTenantController extends Controller
      * request. `restore()` undoes it.
      *
      * Only a cancelled organisation can be deleted, so it is always the
-     * second of two deliberate steps. A current authenticator code and a
-     * reason are asked for at the moment of deletion, because a platform
-     * session left open is otherwise all it would take.
+     * second of two deliberate steps, and a reason is recorded with it.
+     * Since 2026-10-27 no fresh authenticator code is asked for at the
+     * moment of deletion (owner decision): the route is behind
+     * RequirePlatformMfa, so only a platform admin who signed in with MFA
+     * reaches it, and restore() undoes it.
      */
-    public function destroy(DeleteTenantRequest $request, string $publicId, MfaService $mfaService): JsonResponse
+    public function destroy(DeleteTenantRequest $request, string $publicId): JsonResponse
     {
         Gate::authorize('admin.manage');
 
@@ -733,26 +735,6 @@ class AdminTenantController extends Controller
                 'status' => 409,
                 'detail' => __('general.tenant_delete_requires_cancelled'),
             ], 409)->header('Content-Type', 'application/problem+json');
-        }
-
-        if (! $actor->mfa_enabled) {
-            return response()->json([
-                'type' => 'https://ethr.et/errors/mfa-required',
-                'title' => 'MFA Required',
-                'status' => 409,
-                'detail' => __('auth.mfa_required'),
-            ], 409)->header('Content-Type', 'application/problem+json');
-        }
-
-        if (! $mfaService->verify($actor->mfa_secret, $request->validated('code'))) {
-            AuditLog::record('admin.tenant.delete_mfa_failed', $tenant);
-
-            return response()->json([
-                'type' => 'https://ethr.et/errors/invalid-mfa-code',
-                'title' => 'Invalid Code',
-                'status' => 422,
-                'detail' => __('auth.mfa_invalid'),
-            ], 422)->header('Content-Type', 'application/problem+json');
         }
 
         // The query builder, not the User model: with no tenant resolved the
