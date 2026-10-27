@@ -67,9 +67,12 @@ Another organisation's vacancy or application is a 404 on every route (the tenan
 
 ### Deploying it
 
-1. `php artisan migrate` (two new tables).
-2. `php artisan db:seed --class=PermissionSeeder` so the two permissions exist and reach HR Admin and Tenant Admin. Until then every recruitment route answers 403 and the Applicants button does not appear.
-3. Clear and rebuild caches as usual (route cache: a stale one 404s the new routes).
+The usual release steps after Plesk Git **Deploy**, through the maintenance endpoint ([`deployment/PLESK-GO-LIVE.md`](deployment/PLESK-GO-LIVE.md), *Every release after this*), with `MAINTENANCE_TOKEN` set only while they run:
+
+1. `backup`, since the release migrates.
+2. `migrate` (two new tables). Until it runs, opening the Applicants panel fails.
+3. `seed`. It runs `ProductionSeeder`, which calls `PermissionSeeder`, so the two permissions exist and reach HR Admin and Tenant Admin. Until then every recruitment route answers 403 and the Applicants button does not appear.
+4. `optimize` last. A route cache from before the deploy answers 404 on the new routes.
 
 Rollback: `migrate:rollback --step=1` drops both tables (applicant data with them). Employees already hired stay; only their link to the application goes. Checked on MariaDB 2026-10-27 (up, down, up).
 

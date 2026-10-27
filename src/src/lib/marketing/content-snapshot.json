@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-24T13:17:51.353Z",
-  "source": "http://localhost:8012/api/v1/marketing-content",
+  "generated_at": "2026-10-27T16:50:48.613Z",
+  "source": "https://www.ethr.et/api/v1/marketing-content",
   "data": {
     "sections": [
       {
@@ -21,7 +21,7 @@
         "image": null,
         "items": [
           {
-            "public_id": "01M5Q0YJ62GFPMAAW4HEDGNRV8",
+            "public_id": "01M5SCJ3KTH7JRPK3GTJG6B6W1",
             "slug": "paper_attendance",
             "icon": "clipboard-list",
             "title": "Attendance on paper",
@@ -34,7 +34,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJ68447BX8MDB1X1AZHG",
+            "public_id": "01M5SCJ3KZP72QSGPMFVH8AKX6",
             "slug": "manual_payroll",
             "icon": "calculator",
             "title": "Payroll recomputed by hand",
@@ -47,7 +47,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJ6KRN5HPA6QD3T46ANG",
+            "public_id": "01M5SCJ3M48EAH3C5EQWZJBGQD",
             "slug": "leave_spreadsheets",
             "icon": "table",
             "title": "Leave balances in spreadsheets",
@@ -60,7 +60,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJ6SG5CXPP1TE14ZPPZP",
+            "public_id": "01M5SCJ3M9524QX8NZA7V0PRPY",
             "slug": "branches_offline",
             "icon": "signal-zero",
             "title": "Branches without a connection",
@@ -73,7 +73,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJ71JGKA8H4A9NKYYGD4",
+            "public_id": "01M5SCJ3MEK59KR4Z5A2XZBBTQ",
             "slug": "bilingual_staff",
             "icon": "languages",
             "title": "One system, two languages",
@@ -86,7 +86,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJ7817GV4E7XHXMEPB3J",
+            "public_id": "01M5SCJ3MKJ786BTY5FW075CF1",
             "slug": "contracts_expiring",
             "icon": "file-clock",
             "title": "Contracts that expire unnoticed",
@@ -109,7 +109,7 @@
         "image": null,
         "items": [
           {
-            "public_id": "01M5Q0YJ7QVD5WPWMQY814FJWB",
+            "public_id": "01M5SCJ3MX3X0BBN6KFBWDGW7Z",
             "slug": "records",
             "icon": "users",
             "title": "Employee records and organisational structure",
@@ -122,7 +122,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJ7XCWE4789E9NQG1THV",
+            "public_id": "01M5SCJ3N2FZ8F9H0NKHDABBV4",
             "slug": "time",
             "icon": "clock",
             "title": "Attendance, shifts and leave",
@@ -135,7 +135,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJ87GFSBPCN873E3E76R",
+            "public_id": "01M5SCJ3N6XTGNFHRXHWKJ0P6F",
             "slug": "payroll",
             "icon": "wallet",
             "title": "Payroll and payslips",
@@ -148,7 +148,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJ8DSNPS4AQ2Q80Q456Q",
+            "public_id": "01M5SCJ3NBB8K75VRQ167F47YY",
             "slug": "self_service",
             "icon": "smartphone",
             "title": "Employee self-service and approvals",
@@ -161,7 +161,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJ8MKRPR10C0XEEGP9AF",
+            "public_id": "01M5SCJ3NG74K5DYN5M9EFBXE9",
             "slug": "analytics",
             "icon": "bar-chart-3",
             "title": "Workforce analytics",
@@ -184,7 +184,7 @@
         "image": null,
         "items": [
           {
-            "public_id": "01M5Q0YJ921R81QBY6AAWRDDDJ",
+            "public_id": "01M5SCJ3NS5G2BT78MQN3Q4MRA",
             "slug": "register",
             "icon": null,
             "title": "Create your account",
@@ -197,7 +197,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJ99K44PP0ZK6MS57NY4",
+            "public_id": "01M5SCJ3NXT97Y8M244WSX4DE5",
             "slug": "configure",
             "icon": null,
             "title": "Configure your workspace",
@@ -210,7 +210,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJ9FN3NSR08KQJQCFZK5",
+            "public_id": "01M5SCJ3P1JN91MK8NS4EVSMCB",
             "slug": "go_live",
             "icon": null,
             "title": "Go live",
@@ -233,7 +233,7 @@
         "image": null,
         "items": [
           {
-            "public_id": "01M5Q0YJ9X4ZV0TVDZPDH2NNYQ",
+            "public_id": "01M5SCJ3PA49B5M1TX6GF49RJY",
             "slug": "government",
             "icon": "landmark",
             "title": "Government",
@@ -246,7 +246,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJA6P001YQTPJ28EMBNB",
+            "public_id": "01M5SCJ3PEPPSY8PNTKM20WKD6",
             "slug": "banking",
             "icon": "landmark",
             "title": "Banking",
@@ -259,7 +259,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJAB8AMJZD94E5QGC822",
+            "public_id": "01M5SCJ3PJ8K1YH3N4S0VYN1A4",
             "slug": "healthcare",
             "icon": "hospital",
             "title": "Healthcare",
@@ -272,7 +272,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJAGBAXBQ5P0GX55D5K1",
+            "public_id": "01M5SCJ3PQNX65Y5HDVBQ3C1MA",
             "slug": "manufacturing",
             "icon": "factory",
             "title": "Manufacturing",
@@ -285,7 +285,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJASBYQGTMND5FR3XCZK",
+            "public_id": "01M5SCJ3PX2AJR3B6WZSZZM0M7",
             "slug": "ngo",
             "icon": "heart",
             "title": "NGO",
@@ -298,7 +298,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJB0C5MKG1SRFXN0XB7W",
+            "public_id": "01M5SCJ3Q26EFY2RJ8WVH4HZWJ",
             "slug": "hospitality",
             "icon": "hotel",
             "title": "Hospitality",
@@ -311,7 +311,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJB8EZ77ZMA0SYJ8NW8Z",
+            "public_id": "01M5SCJ3Q7KSC4SQ9KYW79HAMT",
             "slug": "education",
             "icon": "graduation-cap",
             "title": "Education",
@@ -324,7 +324,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJBET7ENF6ZX9A620V70",
+            "public_id": "01M5SCJ3QC1KP493KFKV5PBD0J",
             "slug": "general",
             "icon": "briefcase",
             "title": "General",
@@ -347,7 +347,7 @@
         "image": null,
         "items": [
           {
-            "public_id": "01M5Q0YJBYYM397X0F6BRR310R",
+            "public_id": "01M5SCJ3QQZRZ2HD7YTSM4SN56",
             "slug": "data_residency",
             "icon": "map-pin",
             "title": "Data residency",
@@ -360,7 +360,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJC5NWR6ZS97KJRTRQEZ",
+            "public_id": "01M5SCJ3QWTR5NDKC71J3PFXQV",
             "slug": "encryption",
             "icon": "lock",
             "title": "Encryption at rest",
@@ -373,7 +373,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJCCDC9K6AVEWEBXE7PX",
+            "public_id": "01M5SCJ3R37CBX3RG46HA4E7F1",
             "slug": "isolation",
             "icon": "shield",
             "title": "Tenant isolation",
@@ -386,7 +386,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJCJ80HTPRPXR5AMDFX9",
+            "public_id": "01M5SCJ3R8KJ7JDKARES4YKB5S",
             "slug": "audit",
             "icon": "scroll-text",
             "title": "Audit trail",
@@ -409,7 +409,7 @@
         "image": null,
         "items": [
           {
-            "public_id": "01M5Q0YJD1MK35QVY4QSRWBFD6",
+            "public_id": "01M5SCJ3RHSMRT2YQECXJ21BG1",
             "slug": "trial",
             "icon": null,
             "title": "6-month free trial",
@@ -422,7 +422,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJDAEFNQHRNHAJF091AF",
+            "public_id": "01M5SCJ3RNWG5GGXCPS1C02C6B",
             "slug": "no_card",
             "icon": null,
             "title": "No credit card",
@@ -435,7 +435,7 @@
             "image": null
           },
           {
-            "public_id": "01M5Q0YJDGPQX8DDCDYFVB09D6",
+            "public_id": "01M5SCJ3RTC5VT8M22R3WFHDDA",
             "slug": "cancel",
             "icon": null,
             "title": "Cancel anytime",
