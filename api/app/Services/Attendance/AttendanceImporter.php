@@ -17,7 +17,11 @@ use Illuminate\Http\UploadedFile;
 
 final class AttendanceImporter
 {
-    public function __construct(private readonly PayrollPeriodLock $periodLock) {}
+    public function __construct(
+        private readonly PayrollPeriodLock $periodLock,
+        private readonly ShiftMatcher $shifts,
+        private readonly AttendanceEngine $engine,
+    ) {}
 
     public function templateCsv(): string
     {
@@ -144,11 +148,27 @@ final class AttendanceImporter
                 continue;
             }
             $checkIn = TenantTime::wallClockToUtc($date, $row['check_in'], $zone);
-            $checkOut = ! empty($row['check_out']) ? TenantTime::wallClockToUtc($date, $row['check_out'], $zone) : null;
 
-            AttendanceRecord::create([
+            // A check-out earlier on the clock than the check-in is the next
+            // morning: a night shift crossing midnight, as on manual entry.
+            // Until 2026-10-27 it was stored on the row's own date, before
+            // the check-in, and the night's overtime was never paid.
+            $checkOut = null;
+            if (! empty($row['check_out'])) {
+                $outDate = $row['check_out'] < $row['check_in'] ? Carbon::parse($date)->addDay()->format('Y-m-d') : $date;
+                $checkOut = TenantTime::wallClockToUtc($outDate, $row['check_out'], $zone);
+            }
+
+            // The shift the row's day is worked on, so it is rated and its
+            // overtime counted as a live punch's is. Every imported row was
+            // `present` with no shift until 2026-10-27: a late arrival was
+            // on time and a workday's overtime was nothing.
+            $shift = $this->shifts->match($employee, Carbon::parse($date));
+
+            $record = AttendanceRecord::create([
                 'tenant_id' => $tenant->id,
                 'employee_id' => $employee->id,
+                'shift_id' => $shift?->id,
                 'date' => $date,
                 'check_in' => $checkIn,
                 'check_out' => $checkOut,
@@ -158,6 +178,8 @@ final class AttendanceImporter
                 'idempotency_key' => $idempotencyKey,
                 'metadata' => ['import_key' => $importKey],
             ]);
+
+            $this->engine->reclassify($record);
 
             $created++;
         }
