@@ -15,6 +15,7 @@ import {
   useVerifyAddress,
   type TenantAddress,
 } from "@/features/settings/api";
+import { AddressNameSection } from "./address-name-section";
 
 /**
  * How the organisation is reached: the shared address (ethr.et/{slug}), its
@@ -182,6 +183,8 @@ export function AddressCard({ address }: AddressCardProps) {
             </p>
           )}
         </div>
+
+        <AddressNameSection address={address} />
 
         <fieldset className="space-y-3">
           <legend className="sr-only">

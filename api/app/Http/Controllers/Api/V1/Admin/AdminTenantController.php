@@ -712,9 +712,9 @@ class AdminTenantController extends Controller
      * request. `restore()` undoes it.
      *
      * Only a cancelled organisation can be deleted, so it is always the
-     * second of two deliberate steps. The address typed out and a current
-     * authenticator code are asked for at the moment of deletion, because a
-     * platform session left open is otherwise all it would take.
+     * second of two deliberate steps. A current authenticator code and a
+     * reason are asked for at the moment of deletion, because a platform
+     * session left open is otherwise all it would take.
      */
     public function destroy(DeleteTenantRequest $request, string $publicId, MfaService $mfaService): JsonResponse
     {
@@ -733,12 +733,6 @@ class AdminTenantController extends Controller
                 'status' => 409,
                 'detail' => __('general.tenant_delete_requires_cancelled'),
             ], 409)->header('Content-Type', 'application/problem+json');
-        }
-
-        if (trim((string) $request->validated('confirm')) !== $tenant->subdomain) {
-            throw ValidationException::withMessages([
-                'confirm' => [__('general.tenant_delete_confirm_mismatch')],
-            ]);
         }
 
         if (! $actor->mfa_enabled) {

@@ -70,7 +70,8 @@ it('returns the host-resolved tenant display info', function () {
                     'services' => [],
                     'sections' => ['about' => true, 'services' => true, 'announcements' => true, 'vacancies' => true, 'holidays' => false, 'faq' => true, 'contact' => true],
                     'order' => ['about', 'services', 'announcements', 'vacancies', 'holidays', 'faq', 'contact'],
-                    'listed' => false,
+                    // Listed by default while the organisation is in use (2026-10-26).
+                    'listed' => true,
                 ],
                 // Which ways in to offer: SSO only once configured.
                 'sign_in' => [

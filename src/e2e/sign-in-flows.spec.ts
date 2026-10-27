@@ -116,6 +116,46 @@ test.describe("Sign-in flows", () => {
     await expect(page).toHaveURL(/\/login\/reset/);
   });
 
+  test("an activation link that names no organisation is refused", async ({
+    page,
+  }) => {
+    await page.goto("/login/activate");
+
+    await expect(
+      page.getByRole("heading", { name: "Invalid activation link" }),
+    ).toBeVisible();
+    await expect(page.getByLabel("Activation code")).toHaveCount(0);
+  });
+
+  test("a forged activation code changes nothing, takes the code out of the address bar, and says so", async ({
+    page,
+  }) => {
+    await page.goto(
+      `/login/activate?tenant=${DEMO_TENANT}#c=ABCDEFGHJKMN&e=EMP-9999`,
+    );
+    await expect(
+      page.getByRole("heading", { name: "Activate your account" }),
+    ).toBeVisible();
+    await page.waitForLoadState("networkidle");
+
+    // Read from the fragment once, then gone from the address.
+    await expect(page.getByLabel("Activation code")).toHaveValue(
+      "ABCDEFGHJKMN",
+    );
+    await expect(page.getByLabel("Employee code")).toHaveValue("EMP-9999");
+    expect(page.url()).not.toContain("#");
+
+    const password = "Correct-Horse-Battery-9";
+    await page.getByLabel("New password").fill(password);
+    await page.getByLabel("Confirm password").fill(password);
+    await page.getByRole("button", { name: "Activate account" }).click();
+
+    await expect(page.getByText(/not valid or has expired/)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Your account is ready" }),
+    ).toHaveCount(0);
+  });
+
   test("SMS sign-in says plainly when the organisation has no SMS delivery", async ({
     page,
   }) => {

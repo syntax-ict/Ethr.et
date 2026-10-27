@@ -13,6 +13,7 @@ use App\Http\Requests\Settings\UpdateLandingRequest;
 use App\Http\Requests\Settings\UpdateOrganizationRequest;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Http\Requests\Settings\UpdateSsoRequest;
+use App\Http\Requests\Settings\UpdateSubdomainRequest;
 use App\Models\ApiKey;
 use App\Models\AuditLog;
 use App\Models\SsoSetting;
@@ -28,7 +29,9 @@ use App\Support\TenantLanding;
 use App\Support\TenantSecurityPolicy;
 use App\Support\WorkingWeek;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class SettingsController extends Controller
@@ -358,6 +361,56 @@ class SettingsController extends Controller
 
         return response()->json([
             'address' => $addresses->describe($tenant->refresh()),
+        ]);
+    }
+
+    /**
+     * Rename the organisation's address: the `{slug}` in ethr.et/{slug} and
+     * {slug}.ethr.et. Tenant admins only (`settings.manage`).
+     *
+     * The old name keeps working and forwards to the new one, and stays
+     * reserved for this organisation, so links already sent keep reaching
+     * it and no one else can take the name. A name retired earlier can be
+     * taken back. People signed in on the organisation's own subdomain sign
+     * in again at the new one, since sessions belong to a host. Recorded as
+     * `settings.subdomain_changed`.
+     */
+    public function updateSubdomain(UpdateSubdomainRequest $request, TenantAddressService $addresses): JsonResponse
+    {
+        Gate::authorize('settings.manage');
+
+        $tenant = app(CurrentTenant::class)->get();
+
+        $addresses->changeSubdomain($tenant, (string) $request->validated('subdomain'), 'settings.subdomain_changed');
+
+        return response()->json([
+            'address' => $addresses->describe($tenant->refresh()),
+        ]);
+    }
+
+    /**
+     * Whether a name could become the organisation's address, by the same
+     * rules a rename is held to. Always a 200: `available` answers, and
+     * `message` says why not, ready to show under the field.
+     */
+    public function checkSubdomain(Request $request): JsonResponse
+    {
+        Gate::authorize('settings.manage');
+
+        $tenant = app(CurrentTenant::class)->get();
+        $subdomain = strtolower(trim((string) $request->query('subdomain', '')));
+
+        $form = new UpdateSubdomainRequest;
+        $validator = Validator::make(['subdomain' => $subdomain], $form->rules(), $form->messages());
+
+        $message = $validator->fails()
+            ? $validator->errors()->first('subdomain')
+            : (Tenant::slugAvailableFor($subdomain, $tenant) ? null : __('validation.subdomain_taken'));
+
+        return response()->json([
+            'subdomain' => $subdomain,
+            'available' => $message === null,
+            'message' => $message,
         ]);
     }
 

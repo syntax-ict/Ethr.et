@@ -11,6 +11,26 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-26, in-person activation: one more. `Services/Auth/
+ * ActivationCodeService::purge()` deletes activation codes a month after they
+ * expired, for every organisation at once from the scheduler: a sweep with no
+ * tenant to state, like `DeviceChallenges::purge()`. It reads and returns
+ * nothing. Redemption itself adds none: the tenant comes from the request and
+ * every lookup states it. 174/68, after the address rename's 173/67.)
+ *
+ * (2026-10-26, address rename: three in, one out. A tenant admin can rename
+ * the organisation's address, and the old name is kept in
+ * `tenant_subdomain_aliases` so it keeps resolving to the organisation and no
+ * one else can take it. `Models/Tenant.php` gains two: `aliasOwner()`, the
+ * pre-resolution lookup of a retired name, keyed on the slug exactly as the
+ * subdomain lookup beside it and returning only the tenant id; and
+ * `retiredSubdomains()`, which states `tenant_id` from the tenant in hand.
+ * `Services/TenantAddressService` gains one: taking a retired name back
+ * deletes that row, stating `tenant_id` on the same chain. And
+ * `SubdomainCheckController` loses its one, because availability moved into
+ * `Tenant::slugAvailableFor()`, which reads deleted tenants through
+ * `withTrashed()` rather than by dropping every scope. 173/67.)
+ *
  * (2026-10-25, registered phones: one more. `Services/Attendance/Device/
  * DeviceChallenges::purge()` deletes passkey challenges an hour after they
  * expired, for every organisation at once from the scheduler: a sweep with
@@ -163,7 +183,6 @@ return [
     // chain, as AuthIdentifierResolver does for password sign-in.
     'Http/Controllers/Api/V1/Auth/OtpController.php' => 2,
     'Http/Controllers/Api/V1/Auth/PasswordResetController.php' => 2,
-    'Http/Controllers/Api/V1/Auth/SubdomainCheckController.php' => 1,
     // Two device lookups in resolveWebhookDevice() (token; serial + IP
     // allowlist) and, until 2026-10-14, one employee lookup in webhookEmployee(), which states
     // `tenant_id` from the authenticated device. The employee lookup was written
@@ -218,6 +237,7 @@ return [
     // kiosk terminal has no login to name the tenant otherwise (N47).
     'Models/KioskSession.php' => 1,
     'Models/PersonalAccessToken.php' => 1,
+    'Models/Tenant.php' => 2,
     'Notifications/Concerns/RespectsNotificationPreferences.php' => 1,
     'Services/Accounting/AccountingExportService.php' => 1,
     'Services/Admin/PlatformAnalyticsService.php' => 3,
@@ -230,6 +250,7 @@ return [
     'Services/Attendance/Device/DeviceChallenges.php' => 1,
     'Services/Attendance/AttendanceImporter.php' => 1,
     'Services/Attendance/ConflictResolver.php' => 1,
+    'Services/Auth/ActivationCodeService.php' => 1,
     'Services/Auth/AuthIdentifierResolver.php' => 7,
     // "Find my organisation" on the apex login (2026-10-04). Pre-authentication,
     // on the apex where no tenant resolves, and cross-tenant by its nature: the
@@ -263,7 +284,7 @@ return [
     // effectiveBrackets() and basis() (2026-10-14), each stating tenant_id.
     'Services/Payroll/TaxCalculator.php' => 2,
     'Services/Report/ReportEngine.php' => 4,
-    'Services/TenantAddressService.php' => 1,
+    'Services/TenantAddressService.php' => 2,
     'Services/UserProvisioningService.php' => 1,
     'Services/Webhook/WebhookDispatcher.php' => 1,
     'Support/AuditSubjects.php' => 3,

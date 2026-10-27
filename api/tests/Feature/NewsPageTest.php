@@ -140,9 +140,14 @@ it('decides the organisation from the host alone', function () {
         ->not->toContain('Acme');
 });
 
-it('keeps the news page out of search until listing is on, and has none with the section off', function () {
+it('lists the news page by default, keeps it out once listing is off, and has none with the section off', function () {
     newsTenant('acme', 'Acme Manufacturing');
     serveNewsPage('http://acme.ethr.et/news', 'news.html')
+        ->assertOk()
+        ->assertHeader('X-Robots-Tag', 'index, follow');
+
+    newsTenant('hidden', 'Hidden Ltd', ['listed' => false]);
+    serveNewsPage('http://hidden.ethr.et/news', 'news.html')
         ->assertOk()
         ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
 

@@ -318,13 +318,16 @@ class ResolveTenant
             || $request->is('api/v1/auth/otp/verify')
             || $request->is('api/v1/auth/password/forgot')
             || $request->is('api/v1/auth/password/reset')
+            || $request->is('api/v1/auth/activation/redeem')
         );
     }
 
     private function lookupTenant(string $subdomain): Tenant|Response
     {
-        // Cache tenant for 5 minutes to avoid a DB hit on every request
-        $tenant = Cache::remember("tenant:{$subdomain}", 300, fn () => Tenant::where('subdomain', $subdomain)->first());
+        // Cache tenant for 5 minutes to avoid a DB hit on every request. A name
+        // the organisation retired resolves to it too (Tenant::findBySlug), so
+        // a browser still sending the old name keeps working after a rename.
+        $tenant = Cache::remember("tenant:{$subdomain}", 300, fn () => Tenant::findBySlug($subdomain));
 
         if (! $tenant) {
             return response()->json([

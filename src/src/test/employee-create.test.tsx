@@ -240,10 +240,34 @@ describe("New employee form — login invitation", () => {
     });
   });
 
-  it("cannot be ticked without an email", () => {
+  it("cannot be ticked with a phone but no email", () => {
     renderPage();
+    fireEvent.change(screen.getByLabelText(/^Phone/), {
+      target: { value: "+251911223344" },
+    });
 
     expect(screen.getByLabelText(/Send a login invitation/)).toBeDisabled();
+  });
+
+  it("offers an in-person login when there is neither an email nor a phone", async () => {
+    const seen = capture();
+    const { container } = renderPage();
+    fillBasics();
+    fireEvent.change(screen.getByLabelText(/^Email/), {
+      target: { value: "" },
+    });
+
+    const box = screen.getByLabelText(/Create a login to activate in person/);
+    expect(box).toBeEnabled();
+
+    fireEvent.click(box);
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() => expect(seen.body).toBeDefined());
+    expect(seen.body).toMatchObject({
+      create_login: true,
+      user_role: "employee",
+    });
   });
 });
 

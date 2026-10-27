@@ -233,6 +233,10 @@ return [
     'custom_domain_txt_missing' => 'No TXT record :name with the value :value was found.',
     'custom_domain_cname_missing' => ':domain is not a CNAME for :target.',
     'custom_domain_none' => 'This organisation has no custom domain to verify.',
+    // UpdateSubdomainRequest and TenantAddressService::changeSubdomain: renaming the address.
+    'subdomain_format' => 'Use lower-case letters, numbers and hyphens, starting and ending with a letter or number.',
+    'subdomain_reserved' => 'That name is reserved by ETHR. Please choose another.',
+    'subdomain_taken' => 'That name is already in use. Please choose another.',
 
     'employee_minimum_age' => 'The employee must be at least 15 years old on the hire date.',
     'holiday_duplicate' => 'This holiday is already on the calendar for that date.',

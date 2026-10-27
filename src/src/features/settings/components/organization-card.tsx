@@ -154,7 +154,10 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
               <TenantAddressAffix side="suffix" />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {t("settings.contact_support", "Contact support to change")}
+              {t(
+                "settings.subdomain_change_hint",
+                "Change it under Address, below.",
+              )}
             </p>
           </div>
           <div>

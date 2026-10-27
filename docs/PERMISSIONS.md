@@ -162,6 +162,7 @@ approval engine, so an organisation's `overtime` chain applies.
 | `users.viewAny` | View login accounts |
 | `users.invite` | Invite and provision login accounts |
 | `users.update` | Update user roles, status and access |
+| `users.issueActivationCode` | Issue a one-time activation code in person to an employee with no email or phone |
 | `users.delete` | Deactivate login accounts |
 
 ### dashboard
@@ -253,7 +254,8 @@ personnel_action.create,
 disciplinary_case.manage,
 retirement_case.manage,
 announcement.manage,
-users.viewAny, users.invite, users.update
+users.viewAny, users.invite, users.update,
+users.issueActivationCode
 ```
 
 ### Finance set

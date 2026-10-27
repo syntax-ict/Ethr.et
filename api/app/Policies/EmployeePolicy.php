@@ -49,6 +49,12 @@ class EmployeePolicy
             && $user->canAccessEmployee($employee);
     }
 
+    public function issueActivationCode(User $user, Employee $employee): bool
+    {
+        return $user->hasPermission('users.issueActivationCode')
+            && $user->canAccessEmployee($employee);
+    }
+
     public function transition(User $user, Employee $employee): bool
     {
         return $user->hasPermission('employee.transition')

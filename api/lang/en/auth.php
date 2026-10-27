@@ -77,4 +77,15 @@ return [
         'mail_action' => 'Sign in to :org',
         'mail_not_you' => 'If you did not create this organisation, tell us at :contact and we will remove it.',
     ],
+
+    // In-person activation (users with no email or phone)
+    'activation_refused' => [
+        'tenant' => 'That employee is not in this organisation.',
+        'document' => 'Choose the identity document you checked.',
+        'self' => 'You cannot issue an activation code for your own account.',
+        'role' => 'You cannot issue an activation code for an account at or above your own level.',
+        'status' => 'This account cannot be activated or recovered in its current state.',
+        'contact' => 'This employee has an email or a phone number. Use the normal invitation or password reset instead.',
+        'identifier' => 'This employee would have no way to sign in. Turn on employee code sign-in in settings first.',
+    ],
 ];

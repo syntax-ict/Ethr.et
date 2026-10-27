@@ -53,7 +53,7 @@ final class PortalHead
         $image = FrontendUrl::to(route('organisation.preview', [$tenant->public_id, PortalPreviewImage::version($tenant)], absolute: false));
         $icon = $brand['mark_url'] === null ? null : FrontendUrl::to($brand['mark_url']);
         $colour = $brand['primary_color'] ?? '#0F4C75';
-        $robots = $landing['listed'] ? 'index, follow' : 'noindex, nofollow';
+        $robots = TenantLanding::indexable($tenant) ? 'index, follow' : 'noindex, nofollow';
 
         $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
@@ -211,7 +211,7 @@ final class PortalHead
         ];
         $icon = $brand['mark_url'] === null ? null : FrontendUrl::to($brand['mark_url']);
         $colour = $brand['primary_color'] ?? '#0F4C75';
-        $robots = $landing['listed'] ? 'index, follow' : 'noindex, nofollow';
+        $robots = TenantLanding::indexable($tenant) ? 'index, follow' : 'noindex, nofollow';
         $joiner = str_contains($url, '?') ? '&' : '?';
 
         $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');

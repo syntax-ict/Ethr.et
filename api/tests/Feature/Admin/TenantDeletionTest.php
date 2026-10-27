@@ -21,7 +21,8 @@ use PragmaRX\Google2FA\Google2FA;
  * Delete is a reversible closure: the tenant row is soft-deleted and nothing
  * else is removed, because payroll and attendance are NeverDelete and the audit
  * log is append-only. It is the second of two steps (cancel, then delete), and
- * asks for the address typed out, a current authenticator code and a reason.
+ * asks for a current authenticator code and a reason. Typing the address out
+ * was dropped on 2026-10-26, by owner decision.
  */
 function deletionConsole(): array
 {
@@ -55,7 +56,6 @@ test('a cancelled organisation is deleted, its records kept and its sessions end
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
-            'confirm' => $target->subdomain,
             'code' => $code,
             'reason' => 'Duplicate registration',
         ])
@@ -82,7 +82,6 @@ test('an organisation that is not cancelled cannot be deleted', function (Tenant
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
-            'confirm' => $target->subdomain,
             'code' => $code,
             'reason' => 'Closing it',
         ])
@@ -96,18 +95,31 @@ test('an organisation that is not cancelled cannot be deleted', function (Tenant
     'suspended' => [TenantStatus::SUSPENDED],
 ]);
 
-test('the address must be typed exactly', function () {
+test('the address is not typed out, and a client still sending it is not refused', function () {
     [$base, $token, $code] = deletionConsole();
     $target = cancelledOrganisation();
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
-            'confirm' => strtoupper($target->subdomain).'x',
+            'confirm' => 'anything',
             'code' => $code,
             'reason' => 'Closing it',
         ])
+        ->assertOk();
+
+    expect(Tenant::withTrashed()->find($target->id)->trashed())->toBeTrue();
+});
+
+test('an authenticator code is still required', function () {
+    [$base, $token] = deletionConsole();
+    $target = cancelledOrganisation();
+
+    test()->withToken($token)
+        ->postJson("{$base}/{$target->public_id}/delete", [
+            'reason' => 'Closing it',
+        ])
         ->assertStatus(422)
-        ->assertJsonValidationErrors(['confirm']);
+        ->assertJsonValidationErrors(['code']);
 
     expect(Tenant::query()->whereKey($target->id)->exists())->toBeTrue();
 });
@@ -118,7 +130,6 @@ test('a wrong authenticator code deletes nothing and is recorded', function () {
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
-            'confirm' => $target->subdomain,
             'code' => '000000',
             'reason' => 'Closing it',
         ])
@@ -135,7 +146,6 @@ test('a reason is required', function () {
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
-            'confirm' => $target->subdomain,
             'code' => $code,
         ])
         ->assertStatus(422)
@@ -148,7 +158,6 @@ test('only the platform can delete an organisation', function () {
 
     test()->actingAs($tenantAdmin)
         ->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/tenants/{$tenant->public_id}/delete", [
-            'confirm' => $tenant->subdomain,
             'code' => '123456',
             'reason' => 'Closing it',
         ])
@@ -167,7 +176,6 @@ test('a deleted organisation stops resolving at once, cached or not', function (
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
-            'confirm' => $target->subdomain,
             'code' => $code,
             'reason' => 'Closing it',
         ])
@@ -184,7 +192,6 @@ test('the console lists a deleted organisation only when asked, and can restore 
 
     test()->withToken($token)
         ->postJson("{$base}/{$target->public_id}/delete", [
-            'confirm' => $target->subdomain,
             'code' => $code,
             'reason' => 'Closing it',
         ])

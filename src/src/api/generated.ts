@@ -4,6 +4,58 @@
  */
 
 export interface paths {
+    "/employees/{employee}/activation-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Where this employee's in-person activation stands
+         * @description Never carries the code: it is shown once, when it is issued.
+         */
+        get: operations["activationCode.show"];
+        put?: never;
+        /**
+         * Issue a one-time activation code for an employee with no email or phone
+         * @description HR does this in person, after checking the employee's identity. The code
+         *     is returned once, as typed characters and as a link for a QR, and cannot
+         *     be read back; issuing another withdraws it. The employee redeems it on
+         *     their own device and chooses their own password.
+         */
+        post: operations["activationCode.store"];
+        /** Withdraw the employee's live activation code */
+        delete: operations["activationCode.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/activation/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem an in-person activation code and choose a password
+         * @description For an employee with no email and no phone. Every failure, whether the
+         *     code is wrong, spent, expired, withdrawn or never existed, answers the
+         *     same, so nothing confirms that an employee or a code exists. It does not
+         *     sign anyone in: the employee then signs in with their employee code and
+         *     the new password.
+         */
+        post: operations["auth.activationRedeem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/statutory-layouts": {
         parameters: {
             query?: never;
@@ -5632,9 +5684,9 @@ export interface paths {
          *     request. `restore()` undoes it.
          *
          *     Only a cancelled organisation can be deleted, so it is always the
-         *     second of two deliberate steps. The address typed out and a current
-         *     authenticator code are asked for at the moment of deletion, because a
-         *     platform session left open is otherwise all it would take.
+         *     second of two deliberate steps. A current authenticator code and a
+         *     reason are asked for at the moment of deletion, because a platform
+         *     session left open is otherwise all it would take.
          */
         post: operations["adminTenant.destroy"];
         delete?: never;
@@ -6415,6 +6467,53 @@ export interface paths {
          *     found, under `txt` and `cname`
          */
         post: operations["settings.verifyAddress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/address/subdomain/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether a name could become the organisation's address, by the same
+         *     rules a rename is held to. Always a 200: `available` answers, and
+         *     `message` says why not, ready to show under the field
+         */
+        get: operations["settings.checkSubdomain"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/address/subdomain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Rename the organisation's address: the `{slug}` in ethr.et/{slug} and
+         *     {slug}.ethr.et. Tenant admins only (`settings.manage`)
+         * @description The old name keeps working and forwards to the new one, and stays
+         *     reserved for this organisation, so links already sent keep reaching
+         *     it and no one else can take the name. A name retired earlier can be
+         *     taken back. People signed in on the organisation's own subdomain sign
+         *     in again at the new one, since sessions belong to a host. Recorded as
+         *     `settings.subdomain_changed`.
+         */
+        put: operations["settings.updateSubdomain"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -8185,13 +8284,16 @@ export interface components {
         };
         /**
          * DeleteTenantRequest
-         * @description Deleting an organisation asks for three things at once: its address typed
-         *     out, a current authenticator code, and the reason. The typed address is
-         *     compared with the tenant in the controller, which is the only place that
-         *     knows which tenant the route names.
+         * @description Deleting an organisation asks for two things at once: a current
+         *     authenticator code and the reason. The code is checked in the controller,
+         *     once the organisation is known to be cancelled.
+         *
+         *     Until 2026-10-26 it also asked for the address typed out. The owner took
+         *     that step away: the dialog names the organisation and its address, it must
+         *     already be cancelled, and the code is what proves a person is at the
+         *     console. A client still sending `confirm` is not refused for it.
          */
         DeleteTenantRequest: {
-            confirm: string;
             code: string;
             reason: string;
         };
@@ -8759,6 +8861,25 @@ export interface components {
              * @description Maximum file size: 5120 kilobytes.
              */
             file: string;
+        };
+        /**
+         * IssueActivationCodeRequest
+         * @description HR attests they checked the person's identity face to face, names the
+         *     document (never its number), and proves it is really them at the keyboard:
+         *     their password, and their authenticator code when they have one.
+         *
+         *     The step-up lives in `withValidator()` so a wrong password and a wrong code
+         *     read as the same 422 as any other field, and `rules()` stays plain for the
+         *     generated API contract.
+         */
+        IssueActivationCodeRequest: {
+            /** @enum {unknown} */
+            attested: "yes" | "on" | "1" | 1 | "true" | true;
+            /** @enum {string} */
+            document_type: "national_id" | "kebele_id" | "passport" | "driving_licence" | "employer_id";
+            note?: string | null;
+            current_password: string;
+            mfa_code?: string | null;
         };
         /** KioskAttendanceRequest */
         KioskAttendanceRequest: {
@@ -9486,6 +9607,18 @@ export interface components {
             sanction_details?: string | null;
             /** Format: date-time */
             sanction_effective_date?: string | null;
+        };
+        /**
+         * RedeemActivationCodeRequest
+         * @description The employee's own redemption: their employee code, the one-time code HR
+         *     gave them, and the password they choose. The password may not be the
+         *     employee code, the one thing anyone who has seen their badge already knows.
+         */
+        RedeemActivationCodeRequest: {
+            employee_code: string;
+            code: string;
+            password: string;
+            password_confirmation: string;
         };
         /**
          * RegisterAttendanceDeviceRequest
@@ -11283,6 +11416,20 @@ export interface components {
              */
             employee_public_id?: string | null;
         };
+        /**
+         * UpdateSubdomainRequest
+         * @description A new name for the organisation's address: the `{slug}` in ethr.et/{slug}
+         *     and {slug}.ethr.et. Lower-cased and trimmed before it is checked.
+         *
+         *     The format and the reserved list are registration's own, so a name an
+         *     organisation can rename to is exactly a name it could have registered.
+         *     Availability is checked after the rules: not another organisation's
+         *     address, deleted or not, and not a name another organisation used to have.
+         *     A name this organisation retired itself is available to it.
+         */
+        UpdateSubdomainRequest: {
+            subdomain: string;
+        };
         /** UpdateTeamRequest */
         UpdateTeamRequest: {
             name?: string;
@@ -11442,7 +11589,7 @@ export interface components {
         /** UserResource */
         UserResource: {
             public_id: string;
-            email: string;
+            email: string | null;
             username: string | null;
             phone: string | null;
             role: components["schemas"]["UserRole"];
@@ -11564,6 +11711,18 @@ export interface components {
                 };
             };
         };
+        /** @description Not found */
+        ModelNotFoundException: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": {
+                    /** @description Error overview. */
+                    message: string;
+                };
+            };
+        };
         /** @description Unauthenticated */
         AuthenticationException: {
             headers: {
@@ -11588,18 +11747,6 @@ export interface components {
                 };
             };
         };
-        /** @description Not found */
-        ModelNotFoundException: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": {
-                    /** @description Error overview. */
-                    message: string;
-                };
-            };
-        };
     };
     parameters: never;
     requestBodies: never;
@@ -11608,6 +11755,113 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "activationCode.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "activationCode.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueActivationCodeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "activationCode.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "auth.activationRedeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RedeemActivationCodeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Your account is ready. Sign in with your employee code and your new password.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "adminStatutoryLayout.index": {
         parameters: {
             query?: never;
@@ -14857,7 +15111,7 @@ export interface operations {
                     "application/json": {
                         user: {
                             public_id: string;
-                            email: string;
+                            email: string | null;
                             role: components["schemas"]["UserRole"];
                         };
                         tenant: components["schemas"]["TenantResource"];
@@ -15036,7 +15290,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         subdomain: unknown;
-                        available: string;
+                        available: boolean;
                     };
                 };
             };
@@ -15066,6 +15320,7 @@ export interface operations {
                     };
                 };
             };
+            404: components["responses"]["ModelNotFoundException"];
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -15110,6 +15365,7 @@ export interface operations {
                     "application/json": Record<string, never>;
                 };
             };
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "sso.metadata": {
@@ -15131,6 +15387,7 @@ export interface operations {
                     "application/xml": string;
                 };
             };
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "auth.logout": {
@@ -15200,7 +15457,7 @@ export interface operations {
                             public_id: string;
                             name: string | null;
                             name_am: string | null;
-                            email: string;
+                            email: string | null;
                             phone: string | null;
                             role: components["schemas"]["UserRole"];
                             status: string;
@@ -20085,7 +20342,7 @@ export interface operations {
                             };
                             emails: [
                                 {
-                                    value: string;
+                                    value: string | null;
                                     /** @constant */
                                     type: "work";
                                     primary: boolean;
@@ -20163,7 +20420,7 @@ export interface operations {
                         };
                         emails: [
                             {
-                                value: string;
+                                value: string | null;
                                 /** @constant */
                                 type: "work";
                                 primary: boolean;
@@ -20264,7 +20521,7 @@ export interface operations {
                         };
                         emails: [
                             {
-                                value: string;
+                                value: string | null;
                                 /** @constant */
                                 type: "work";
                                 primary: boolean;
@@ -20319,7 +20576,7 @@ export interface operations {
                         };
                         emails: [
                             {
-                                value: string;
+                                value: string | null;
                                 /** @constant */
                                 type: "work";
                                 primary: boolean;
@@ -27418,7 +27675,7 @@ export interface operations {
                     "application/json": {
                         data: {
                             public_id: string;
-                            email: string;
+                            email: string | null;
                             phone: string | null;
                             role: string;
                             status: string;
@@ -28655,6 +28912,11 @@ export interface operations {
                             entry_url: string;
                             subdomain: string;
                             subdomain_url: string | null;
+                            /**
+                             * @description The console asks about organisations other than the one resolved,
+                             *     so the scope is dropped and this organisation is stated instead.
+                             */
+                            retired_subdomains: string[];
                             subdomains_served: boolean;
                             custom_domain: string | null;
                             /** @enum {string|null} */
@@ -28892,6 +29154,11 @@ export interface operations {
                             entry_url: string;
                             subdomain: string;
                             subdomain_url: string | null;
+                            /**
+                             * @description The console asks about organisations other than the one resolved,
+                             *     so the scope is dropped and this organisation is stated instead.
+                             */
+                            retired_subdomains: string[];
                             subdomains_served: boolean;
                             custom_domain: string | null;
                             /** @enum {string|null} */
@@ -28934,6 +29201,87 @@ export interface operations {
                             entry_url: string;
                             subdomain: string;
                             subdomain_url: string | null;
+                            /**
+                             * @description The console asks about organisations other than the one resolved,
+                             *     so the scope is dropped and this organisation is stated instead.
+                             */
+                            retired_subdomains: string[];
+                            subdomains_served: boolean;
+                            custom_domain: string | null;
+                            /** @enum {string|null} */
+                            custom_domain_status: "verified" | "pending" | null;
+                            custom_domain_allowed: boolean;
+                            custom_domain_dns: {
+                                txt_name: string;
+                                txt_value: string;
+                                cname_name: string | null;
+                                cname_target: string | null;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.checkSubdomain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        subdomain: string;
+                        available: boolean;
+                        message: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "settings.updateSubdomain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSubdomainRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        address: {
+                            mode: string;
+                            effective_mode: string;
+                            canonical_url: string | null;
+                            entry_url: string;
+                            subdomain: string;
+                            subdomain_url: string | null;
+                            /**
+                             * @description The console asks about organisations other than the one resolved,
+                             *     so the scope is dropped and this organisation is stated instead.
+                             */
+                            retired_subdomains: string[];
                             subdomains_served: boolean;
                             custom_domain: string | null;
                             /** @enum {string|null} */
@@ -31423,7 +31771,7 @@ export interface operations {
                     "application/json": {
                         user: {
                             public_id: string;
-                            email: string;
+                            email: string | null;
                             phone: string | null;
                             locale: string;
                             role: components["schemas"]["UserRole"];

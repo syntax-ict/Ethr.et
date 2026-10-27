@@ -195,6 +195,15 @@ class EmployeeController extends Controller
             }
         }
 
+        // Nothing to send an invitation to: the account is made now and HR
+        // activates it face to face (ActivationCodeController). No code is
+        // issued here, so one cannot exist without HR in front of the person.
+        $activationCodePending = false;
+        if ($createLogin && empty($employee->email) && empty($employee->phone)) {
+            $provisioning->provisionWithoutContact($employee, $request->user()->id);
+            $activationCodePending = true;
+        }
+
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
 
         AuditLog::record('employee.created', $employee, ['login_invited' => $loginInvited]);
@@ -204,7 +213,7 @@ class EmployeeController extends Controller
         // as a top-level `meta` key without re-introducing a `data` wrapper.
         $response = (new EmployeeResource($employee))->response()->setStatusCode(201);
         $payload = $response->getData(true);
-        $payload['meta'] = ['login_invited' => $loginInvited];
+        $payload['meta'] = ['login_invited' => $loginInvited, 'activation_code_pending' => $activationCodePending];
         $response->setData($payload);
 
         return $response;

@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\V1\Attendance\MyShiftController;
 use App\Http\Controllers\Api\V1\Attendance\OfflineSyncController;
 use App\Http\Controllers\Api\V1\Attendance\OvertimeRequestController;
 use App\Http\Controllers\Api\V1\Attendance\QrAttendanceController;
+use App\Http\Controllers\Api\V1\Auth\ActivationRedeemController;
 use App\Http\Controllers\Api\V1\Auth\FindOrganisationController;
 use App\Http\Controllers\Api\V1\Auth\LandingFeedController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
@@ -143,6 +144,7 @@ use App\Http\Controllers\Api\V1\Showcase\TrustedByController;
 use App\Http\Controllers\Api\V1\SiteContentController;
 use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use App\Http\Controllers\Api\V1\TemplateController;
+use App\Http\Controllers\Api\V1\User\ActivationCodeController;
 use App\Http\Controllers\Api\V1\User\UserController;
 use App\Http\Controllers\Api\V1\Vacancy\VacancyController;
 use App\Http\Controllers\Api\V1\Voice\ConcernController;
@@ -224,6 +226,11 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
 
     Route::post('/password/forgot', [PasswordResetController::class, 'forgot']);
     Route::post('/password/reset', [PasswordResetController::class, 'reset']);
+
+    // Redeem a code HR issued in person to an employee with no email or
+    // phone. The code is the credential; the dedicated `activation` limiter
+    // sits on top of this group's `auth` one.
+    Route::post('/activation/redeem', ActivationRedeemController::class)->middleware('throttle:activation');
 
     // "Find my organisation" on the apex login: emails an address the sign-in
     // link of each organisation it belongs to, and answers every request with
@@ -574,6 +581,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/contracts/{contract}/end', [EmployeeContractController::class, 'end']);
         Route::get('/attendance/timeline', EmployeeAttendanceTimelineController::class);
         Route::put('/kiosk-pin', EmployeeKioskPinController::class);
+        Route::get('/activation-code', [ActivationCodeController::class, 'show']);
+        Route::post('/activation-code', [ActivationCodeController::class, 'store']);
+        Route::delete('/activation-code', [ActivationCodeController::class, 'destroy']);
         Route::put('/attendance-mode', EmployeeAttendanceModeController::class);
         Route::put('/attendance-device-exemption', [AttendanceDeviceController::class, 'exempt']);
 
@@ -1013,6 +1023,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::put('/settings/organization', [SettingsController::class, 'updateOrganization']);
     Route::put('/settings/address', [SettingsController::class, 'updateAddress']);
     Route::post('/settings/address/verify', [SettingsController::class, 'verifyAddress']);
+    Route::get('/settings/address/subdomain/check', [SettingsController::class, 'checkSubdomain']);
+    Route::put('/settings/address/subdomain', [SettingsController::class, 'updateSubdomain'])->middleware('throttle:address-rename');
     Route::put('/settings/branding', [SettingsController::class, 'updateBranding']);
     Route::post('/settings/branding/logo', [TenantLogoController::class, 'store'])->middleware('throttle:uploads');
     Route::delete('/settings/branding/logo', [TenantLogoController::class, 'destroy']);
