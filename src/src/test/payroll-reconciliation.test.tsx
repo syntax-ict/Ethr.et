@@ -18,7 +18,7 @@ const RECONCILIATION = {
   period: { start: "2026-06-01", end: "2026-06-30" },
   mode: "required",
   lateness_deduction_enabled: true,
-  totals: { open: 2, pending: 1, resolved: 0, info: 0, blocking: 3 },
+  totals: { open: 2, pending: 1, resolved: 0, blocking: 3 },
   by_type: [
     { type: "late_arrival", count: 1 },
     { type: "unexplained_absence", count: 2 },
@@ -163,7 +163,7 @@ describe("<ReconciliationBanner>", () => {
         reconciliation={{
           mode: "required",
           lateness_deduction_enabled: false,
-          totals: { open: 2, pending: 1, resolved: 0, info: 0, blocking: 3 },
+          totals: { open: 2, pending: 1, resolved: 0, blocking: 3 },
           by_type: [],
           unmatched_punches: 0,
         }}
@@ -185,7 +185,7 @@ describe("<ReconciliationBanner>", () => {
         reconciliation={{
           mode: "off",
           lateness_deduction_enabled: false,
-          totals: { open: 5, pending: 0, resolved: 0, info: 0, blocking: 5 },
+          totals: { open: 5, pending: 0, resolved: 0, blocking: 5 },
           by_type: [],
           unmatched_punches: 0,
         }}
