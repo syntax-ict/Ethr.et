@@ -5623,9 +5623,11 @@ export interface paths {
          *     request. `restore()` undoes it.
          *
          *     Only a cancelled organisation can be deleted, so it is always the
-         *     second of two deliberate steps. A current authenticator code and a
-         *     reason are asked for at the moment of deletion, because a platform
-         *     session left open is otherwise all it would take.
+         *     second of two deliberate steps, and a reason is recorded with it.
+         *     Since 2026-10-27 no fresh authenticator code is asked for at the
+         *     moment of deletion (owner decision): the route is behind
+         *     RequirePlatformMfa, so only a platform admin who signed in with MFA
+         *     reaches it, and restore() undoes it.
          */
         post: operations["adminTenant.destroy"];
         delete?: never;
@@ -8223,17 +8225,15 @@ export interface components {
         };
         /**
          * DeleteTenantRequest
-         * @description Deleting an organisation asks for two things at once: a current
-         *     authenticator code and the reason. The code is checked in the controller,
-         *     once the organisation is known to be cancelled.
+         * @description Deleting an organisation asks for one thing: the reason, recorded in the
+         *     audit log. The organisation must already be cancelled (checked in the
+         *     controller), and the route is behind RequirePlatformMfa.
          *
-         *     Until 2026-10-26 it also asked for the address typed out. The owner took
-         *     that step away: the dialog names the organisation and its address, it must
-         *     already be cancelled, and the code is what proves a person is at the
-         *     console. A client still sending `confirm` is not refused for it.
+         *     Owner decisions took two earlier steps away: the address typed out on
+         *     2026-10-26, and a fresh authenticator code on 2026-10-27. A client still
+         *     sending `confirm` or `code` is not refused for it; both are ignored.
          */
         DeleteTenantRequest: {
-            code: string;
             reason: string;
         };
         /** DepartmentResource */
@@ -27075,15 +27075,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/mfa-required";
-                        /** @constant */
-                        title: "MFA Required";
-                        /** @constant */
-                        status: 409;
-                        /** @constant */
-                        detail: "Multi-factor authentication is required.";
-                    } | {
                         /** @constant */
                         type: "https://ethr.et/errors/tenant-not-cancelled";
                         /** @constant */

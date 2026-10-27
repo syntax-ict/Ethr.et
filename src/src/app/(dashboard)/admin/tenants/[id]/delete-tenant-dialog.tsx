@@ -4,7 +4,6 @@ import { useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -29,12 +28,12 @@ type Props = {
 
 /**
  * Deleting an organisation, the second of two deliberate steps (it must be
- * cancelled first). Two things are asked for, and the server checks each
- * again: the reason, which goes into the audit log, and a current
- * authenticator code, so an unattended console session is not enough. The
- * dialog names the organisation and its address, so the right one is in
- * front of the person deleting it. Typing the address out was dropped on
- * 2026-10-26 by owner decision.
+ * cancelled first). One thing is asked for, and the server checks it again:
+ * the reason, which goes into the audit log. The dialog names the
+ * organisation and its address, so the right one is in front of the person
+ * deleting it. By owner decision, typing the address out was dropped on
+ * 2026-10-26 and a fresh authenticator code on 2026-10-27; the console
+ * itself is reached only after signing in with MFA.
  *
  * The dialog says plainly what deleting does and does not do: it closes the
  * organisation and keeps its records, and it can be undone.
@@ -48,17 +47,15 @@ export function DeleteTenantDialog({
   const { t } = useT();
   const remove = useDeleteTenant();
   const [reason, setReason] = useState("");
-  const [code, setCode] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const ready = reason.trim().length >= 5 && /^\d{6}$/.test(code);
+  const ready = reason.trim().length >= 5;
 
   function close(next: boolean) {
     if (remove.isPending) return;
     onOpenChange(next);
     if (!next) {
       setReason("");
-      setCode("");
       setFieldErrors({});
     }
   }
@@ -70,7 +67,6 @@ export function DeleteTenantDialog({
     remove.mutate(
       {
         publicId: tenant.public_id,
-        code,
         reason: reason.trim(),
       },
       {
@@ -95,12 +91,6 @@ export function DeleteTenantDialog({
           const errors: Record<string, string> = {};
           for (const [field, messages] of Object.entries(data?.errors ?? {})) {
             if (messages[0]) errors[field] = messages[0];
-          }
-          if (data?.type === "https://ethr.et/errors/invalid-mfa-code") {
-            errors.code =
-              apiErrorDetail(err) ??
-              t("admin_tenant_detail_page.delete_code_invalid", "Invalid code");
-            setCode("");
           }
           if (Object.keys(errors).length > 0) {
             setFieldErrors(errors);
@@ -197,25 +187,6 @@ export function DeleteTenantDialog({
             </p>
             {fieldErrors.reason && (
               <p className="text-xs text-destructive">{fieldErrors.reason}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="delete-code">
-              {t("admin_tenant_detail_page.mfa_code_label")}
-            </Label>
-            <Input
-              id="delete-code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="000000"
-              aria-invalid={fieldErrors.code ? true : undefined}
-            />
-            {fieldErrors.code && (
-              <p className="text-xs text-destructive">{fieldErrors.code}</p>
             )}
           </div>
 

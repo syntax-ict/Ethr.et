@@ -339,26 +339,24 @@ export type AdminAuditLog = components["schemas"]["AuditLogResource"];
 /**
  * Delete an organisation. The server keeps every record and only closes it:
  * the organisation stops resolving, its sessions end, and `useRestoreTenant`
- * brings it back. It must be cancelled first, and the call carries a current
- * authenticator code and the reason, both checked again on the server.
+ * brings it back. It must be cancelled first, and the call carries the reason,
+ * checked again on the server and kept in the audit log.
  */
 export function useDeleteTenant() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
       publicId,
-      code,
       reason,
     }: {
       publicId: string;
-      code: string;
       reason: string;
     }) => {
-      // POST, not DELETE: the code and reason travel in a body, which some
+      // POST, not DELETE: the reason travels in a body, which some
       // proxies drop from a DELETE, and never in the URL.
       const { data } = await apiClient.post(
         `/admin/tenants/${publicId}/delete`,
-        { code, reason },
+        { reason },
       );
       return data as { public_id: string; deleted_at: string | null };
     },

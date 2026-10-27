@@ -326,7 +326,6 @@
   "admin_tenant_detail_page.custom_domain_verify_title": "Verify the custom domain",
   "admin_tenant_detail_page.days_count": ":count days",
   "admin_tenant_detail_page.delete_backup_hint": "If the organisation may ask for a copy of its data, use Backup Data first.",
-  "admin_tenant_detail_page.delete_code_invalid": "Invalid code",
   "admin_tenant_detail_page.delete_description": "This closes the organisation. It does not erase its records.",
   "admin_tenant_detail_page.delete_done": ":name was deleted. Its records are kept and it can be restored.",
   "admin_tenant_detail_page.delete_effect_address": ":address stops working, and stays reserved so no one else can take it.",

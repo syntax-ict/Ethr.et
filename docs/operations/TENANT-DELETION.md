@@ -40,21 +40,26 @@ piece of work. It is deliberately not in the console.
    is always the second of two deliberate steps. The server refuses anything
    else with 409 `tenant-not-cancelled`.
 2. **A reason.** Required, 5 to 500 characters, stored in the audit entry.
-3. **A current authenticator code.** Like impersonation: an unattended console
-   session is not enough. A wrong code is recorded as
-   `admin.tenant.delete_mfa_failed`.
-4. **The console's usual gates**: super admin, `admin.manage`, platform MFA
-   enabled, and the platform-admin rate limit.
+3. **The console's usual gates**: super admin, `admin.manage`, platform MFA
+   enabled (`RequirePlatformMfa`, so only an admin who signed in with a second
+   factor reaches the endpoint), and the platform-admin rate limit.
 
-Until 2026-10-26 the dialog also asked for the organisation's address typed
-out, sent as `confirm`. The owner removed that step: the dialog already names
-the organisation and its address, it must already be cancelled, and the code
-is what proves a person is at the console. A client still sending `confirm` is
-not refused for it; the field is ignored.
+Two earlier steps were removed by owner decision:
+
+- **The address typed out** (sent as `confirm`), on 2026-10-26. The dialog
+  already names the organisation and its address.
+- **A current authenticator code at the moment of deletion** (sent as `code`),
+  on 2026-10-27. What it protected against is a console session left open and
+  unattended. That risk is now carried by the sign-in MFA, the cancel-first
+  step, the audited reason, and Restore. `admin.tenant.delete_mfa_failed` is no
+  longer written.
+
+A client still sending `confirm` or `code` is not refused for it; both fields
+are ignored.
 
 The endpoint is `POST /api/v1/admin/tenants/{publicId}/delete`, not `DELETE`:
-the code and reason travel in a request body, which some proxies drop from a
-DELETE, and never in a URL. Restore is `POST …/restore`.
+the reason travels in a request body, which some proxies drop from a DELETE,
+and never in a URL. Restore is `POST …/restore`.
 
 ## Before you delete
 
