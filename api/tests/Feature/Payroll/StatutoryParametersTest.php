@@ -140,15 +140,22 @@ it('refuses a run when a rule it needs has no row in force, naming the rule', fu
 });
 
 it('carries no statutory number in the payroll services', function () {
+    // Numbers that are not law, each with the reason it may stay in code.
+    $notStatutory = [
+        'AttendanceReconciliation::CACHE_SECONDS', // how long a computed report is cached
+    ];
     $offenders = [];
 
     foreach (glob(app_path('Services/Payroll/*.php')) ?: [] as $file) {
         $source = (string) file_get_contents($file);
 
         // A constant assigned a number, or an array constant holding one.
-        if (preg_match('/const\s+\w+\s*=\s*-?\d/', $source) === 1
-            || preg_match('/const\s+\w+\s*=\s*\[[^;]*=>\s*-?\d[^;]*\];/s', $source) === 1) {
-            $offenders[] = basename($file);
+        preg_match_all('/const\s+(\w+)\s*=\s*(?:-?\d|\[[^;]*=>\s*-?\d[^;]*\];)/s', $source, $matches);
+        foreach ($matches[1] as $name) {
+            $constant = basename($file, '.php').'::'.$name;
+            if (! in_array($constant, $notStatutory, true)) {
+                $offenders[] = $constant;
+            }
         }
     }
 
