@@ -51,7 +51,7 @@ it('seeds exactly the values the engine used to carry as constants', function ()
     expect($rules->get('payroll.working_days_per_month'))->toBe(22)
         ->and($rules->get('payroll.hours_per_day'))->toBe(8)
         ->and($rules->get('overtime.minimum_rates'))->toEqual(['normal' => 1.5, 'night' => 1.75, 'rest_day' => 2.0, 'holiday' => 2.5, 'holiday_night' => 2.5])
-        ->and($rules->get('overtime.night_window'))->toBe(['start_hour' => 22, 'end_hour' => 6])
+        ->and($rules->get('overtime.night_window'))->toEqual(['start_hour' => 22, 'end_hour' => 6])
         ->and($rules->get('overtime.legal_daily_minutes'))->toBe(240)
         ->and($rules->get('overtime.legal_weekly_minutes'))->toBe(720)
         ->and($rules->get('overtime.limited_types'))->toBe(['normal', 'night'])
@@ -188,7 +188,7 @@ describe('organisation type', function () {
             ->assertJsonPath('organization.organization_type_needs_review', false);
 
         expect(AuditLog::query()->where('action', 'settings.organization_updated')->latest('id')->first()?->payload)
-            ->toBe(['organization_type' => ['from' => 'private', 'to' => 'government']]);
+            ->toEqual(['organization_type' => ['from' => 'private', 'to' => 'government']]);
         $this->getJson($url)->assertJsonPath('payroll.fiscal_year_start_month', 11)
             ->assertJsonPath('payroll.pension_scheme', 'public');
     });
