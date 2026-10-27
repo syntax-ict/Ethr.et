@@ -45954,10 +45954,16 @@
                         "format": "date-time"
                     },
                     "payment_reference": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "payment_note": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "reprocessed_from_public_id": {
                         "type": [

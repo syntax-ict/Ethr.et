@@ -9632,8 +9632,8 @@ export interface components {
             paid_on: string | null;
             /** Format: date-time */
             paid_at: string | null;
-            payment_reference: string;
-            payment_note: string;
+            payment_reference: string | null;
+            payment_note: string | null;
             reprocessed_from_public_id?: string | null;
             /** Format: date-time */
             created_at: string | null;
