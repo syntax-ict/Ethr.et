@@ -62,7 +62,11 @@ class PlanSeeder extends Seeder
                 'slug' => 'enterprise',
                 'description' => 'For an organisation that needs no ceiling and its own integrations.',
                 'description_am' => 'ጣሪያ የሌለውና የራሱ ውህደቶች ለሚያስፈልገው ድርጅት።',
-                'price_cents' => 299900,
+                // The price the platform console set in production on or
+                // before 2026-10-27. This is first-run content, so it reaches
+                // only a fresh install, and it must equal the committed pricing
+                // snapshot (PricingSnapshotFreshnessTest).
+                'price_cents' => 899900,
                 // null, not a 999999 sentinel: PlanLimitService:53 returns
                 // null for "no ceiling" and every caller already honours it, so
                 // the sentinel was never enforcement — just a number large
