@@ -305,14 +305,14 @@ function KindBadge({ kind }: { kind: AttendanceCorrection["kind"] }) {
   const { t } = useT();
   if (kind === "missed_punch") {
     return (
-      <Badge variant="secondary" className="text-[10px]">
+      <Badge variant="secondary" className="text-xs">
         {t("attendance.corrections.kind_missed_punch")}
       </Badge>
     );
   }
   if (kind === "lateness") {
     return (
-      <Badge variant="secondary" className="text-[10px]">
+      <Badge variant="secondary" className="text-xs">
         {t("attendance.corrections.kind_lateness")}
       </Badge>
     );
