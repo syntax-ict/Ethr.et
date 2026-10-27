@@ -114,7 +114,9 @@ function reconLateness(Tenant $tenant, Employee $employee, string $day, int $min
         'date' => $day,
         'proposed_check_in' => null,
         'proposed_check_out' => null,
-        'deduct_minutes' => $minutes,
+        // The request allows at most a day's minutes; the cap test puts a larger
+        // total on the record, which is what payroll reads.
+        'deduct_minutes' => min($minutes, 1440),
         'status' => $status,
     ]);
 }
