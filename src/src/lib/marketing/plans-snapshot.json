@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-09-17T05:22:27.064Z",
-  "source": "http://localhost:8123/api/v1/plans",
+  "generated_at": "2026-10-27T18:32:03.249Z",
+  "source": "https://www.ethr.et/api/v1/plans",
   "data": [
     {
-      "public_id": "01M2PW66EDMQHM260AJ8D72EMW",
+      "public_id": "01M4JY7E338YSJQJY5VT809SPH",
       "name": "Starter",
       "slug": "starter",
       "description": "For a single office getting attendance and leave onto a system.",
@@ -25,7 +25,7 @@
       "sort_order": 1
     },
     {
-      "public_id": "01M2PW66EFXNJJTAP5JBW6H4XW",
+      "public_id": "01M4JY7E3882YMXN4S06F44C3J",
       "name": "Professional",
       "slug": "professional",
       "description": "For an organisation running payroll across several branches.",
@@ -58,12 +58,12 @@
       "sort_order": 2
     },
     {
-      "public_id": "01M2PW66EH3NA2JZDW63AJGRYK",
+      "public_id": "01M4JY7E3CHNQECRB1CTYEKNXH",
       "name": "Enterprise",
       "slug": "enterprise",
       "description": "For an organisation that needs no ceiling and its own integrations.",
       "description_am": "ጣሪያ የሌለውና የራሱ ውህደቶች ለሚያስፈልገው ድርጅት።",
-      "price_cents": 299900,
+      "price_cents": 899900,
       "currency": "ETB",
       "billing_interval": "monthly",
       "max_employees": null,
