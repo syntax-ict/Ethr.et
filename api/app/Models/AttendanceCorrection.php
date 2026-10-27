@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\CorrectionKind;
 use App\Enums\CorrectionStatus;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasApprovalInstance;
@@ -15,6 +16,9 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property CorrectionStatus $status
+ * @property CorrectionKind $kind
+ * @property Carbon|null $date
+ * @property int|null $deduct_minutes
  * @property-read AttendanceRecord|null $attendanceRecord
  * @property-read Employee|null $employee
  * @property Carbon|null $proposed_check_in
@@ -29,11 +33,19 @@ class AttendanceCorrection extends Model
         'tenant_id',
         'attendance_record_id',
         'employee_id',
+        'kind',
+        'date',
         'reason',
         'proposed_check_in',
         'proposed_check_out',
+        'deduct_minutes',
         'status',
         'approval_chain',
+    ];
+
+    /** The column's default, so a correction created in this request has its kind before it is reloaded. */
+    protected $attributes = [
+        'kind' => 'correction',
     ];
 
     protected $hidden = [
@@ -47,6 +59,9 @@ class AttendanceCorrection extends Model
     {
         return [
             'status' => CorrectionStatus::class,
+            'kind' => CorrectionKind::class,
+            'date' => 'date',
+            'deduct_minutes' => 'integer',
             'proposed_check_in' => 'datetime',
             'proposed_check_out' => 'datetime',
             'approval_chain' => 'array',

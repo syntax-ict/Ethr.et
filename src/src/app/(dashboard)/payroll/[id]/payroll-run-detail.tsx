@@ -64,6 +64,7 @@ import {
 import { CalculationLogDialog } from "@/features/payroll/components/calculation-log-dialog";
 import { OvertimeLimitsBanner } from "@/features/payroll/components/overtime-limits-banner";
 import { AbsencesBanner } from "@/features/payroll/components/absences-banner";
+import { ReconciliationBanner } from "@/features/payroll/components/reconciliation-banner";
 import { IntegrityBanner } from "@/features/payroll/components/integrity-banner";
 import { PensionExemptionsBanner } from "@/features/payroll/components/pension-exemptions-banner";
 import {
@@ -573,6 +574,10 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
 
       {register?.pension_exemptions && run.status !== "voided" && (
         <PensionExemptionsBanner exemptions={register.pension_exemptions} />
+      )}
+
+      {register?.reconciliation && run.status === "completed" && (
+        <ReconciliationBanner reconciliation={register.reconciliation} />
       )}
 
       {register?.overtime_limits && run.status !== "voided" && (

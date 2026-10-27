@@ -363,6 +363,7 @@ final class ExecutiveDashboardService
         $balances = LeaveBalance::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
             ->where('year', $year)
+            ->whereIn('leave_type_id', self::timeOffTypes($tenantId))
             ->when($branchId !== null, fn ($q) => $q->whereHas(
                 'employee',
                 fn ($eq) => $eq->where('branch_id', $branchId),
@@ -856,6 +857,7 @@ final class ExecutiveDashboardService
             ->where('year', $year)
             ->where('used_days', 0)
             ->where('entitled_days', '>', 0)
+            ->whereIn('leave_type_id', self::timeOffTypes($tenantId))
             ->when($branchId !== null, fn ($q) => $q->whereHas(
                 'employee',
                 fn ($eq) => $eq->where('branch_id', $branchId),
@@ -866,5 +868,19 @@ final class ExecutiveDashboardService
             'count' => $count,
             'applicable' => true,
         ];
+    }
+
+    /**
+     * The organisation's leave types that are time off. Trips and excused
+     * absences (`duty`, `excused`) are not leave taken, so they stay out of
+     * leave utilisation. A builder subquery stating `tenant_id`, because these
+     * balance queries run without the tenant scope.
+     */
+    private static function timeOffTypes(int $tenantId): \Closure
+    {
+        return fn ($q) => $q->select('id')
+            ->from('leave_types')
+            ->where('tenant_id', $tenantId)
+            ->where('kind', 'leave');
     }
 }

@@ -6,11 +6,15 @@ namespace App\Listeners;
 
 use App\Events\TenantCreated;
 use App\Services\Attendance\AttendanceBaseline;
+use App\Services\Onboarding\OrganizationProvisioner;
 use Illuminate\Support\Facades\Log;
 
 class ProvisionTenant
 {
-    public function __construct(private readonly AttendanceBaseline $baseline) {}
+    public function __construct(
+        private readonly AttendanceBaseline $baseline,
+        private readonly OrganizationProvisioner $provisioner,
+    ) {}
 
     public function handle(TenantCreated $event): void
     {
@@ -33,5 +37,9 @@ class ProvisionTenant
         // schedule, working week and holidays, before anyone opens a
         // settings page.
         $this->baseline->ensure($tenant);
+
+        // An absence can be settled as unpaid, excused or a business trip
+        // from the first payroll, whether or not a template is applied.
+        $this->provisioner->ensureSettlingLeaveTypes($tenant);
     }
 }

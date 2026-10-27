@@ -72,6 +72,7 @@ import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
+import { MyExceptionsCard } from "@/features/attendance/components/my-exceptions-card";
 
 // The values the address may carry; anything else falls back to "all".
 const SOURCES = [
@@ -252,6 +253,8 @@ export default function AttendancePage() {
           </div>
         }
       />
+
+      <MyExceptionsCard />
 
       {/* Sub-nav — each link gated on the ability its page's API checks.
           Grouped by what the person is there to do: twelve links in one
