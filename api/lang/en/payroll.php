@@ -24,4 +24,7 @@ return [
     'pension_rule_not_after_latest' => 'A new rule must start after :date, the start of your latest rule for this scheme.',
     'pension_exemptions_unacknowledged' => 'This run exempts :count employee(s) from pension. Review them, then approve with that count.',
     'period_overlaps' => 'A payroll run already covers :start to :end (:label). Void that run first if this period must be computed again.',
+    'reconciliation_open' => 'Attendance for this period is not reconciled yet: :count exceptions are still open or waiting for a decision. Settle them on the Reconcile tab first.',
+    'reconciliation_moved' => 'Attendance for this period was decided after the run was calculated. Reprocess the run so it pays from the decisions.',
+    'reconciliation_range' => 'Reconcile at most 92 days at a time.',
 ];

@@ -34,6 +34,7 @@ class UpdateAttendanceSettingRequest extends FormRequest
             'overtime_requires_approval' => ['sometimes', 'boolean'],
             'lateness_deduction_enabled' => ['sometimes', 'boolean'],
             'lateness_deduction_basis' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'reconciliation_mode' => ['sometimes', 'string', 'in:off,advisory,required'],
             'confidence_threshold' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'reminders_enabled' => ['sometimes', 'boolean'],
             'reminder_lead_minutes' => ['sometimes', 'integer', 'min:0', 'max:120'],

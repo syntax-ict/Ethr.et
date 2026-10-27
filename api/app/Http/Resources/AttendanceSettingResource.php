@@ -29,6 +29,11 @@ class AttendanceSettingResource extends JsonResource
             'overtime_requires_approval' => (bool) $this->overtime_requires_approval,
             'lateness_deduction_enabled' => (bool) $this->lateness_deduction_enabled,
             'lateness_deduction_basis' => $this->lateness_deduction_basis,
+            'reconciliation_mode' => match ($this->reconciliation_mode) {
+                'advisory' => 'advisory',
+                'required' => 'required',
+                default => 'off',
+            },
             'confidence_threshold' => $this->confidence_threshold,
             'reminders_enabled' => $this->reminders_enabled,
             'reminder_lead_minutes' => $this->reminder_lead_minutes,

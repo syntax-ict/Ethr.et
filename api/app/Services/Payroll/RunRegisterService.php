@@ -385,6 +385,9 @@ final class RunRegisterService
             'loan_cents' => (int) $deductions->where('type', 'loan')->sum('amount_cents'),
             'cost_sharing_cents' => (int) $deductions->where('type', 'cost_sharing')->sum('amount_cents'),
             'net_cents' => (int) $entry->net_cents,
+            // Approved lateness deducted from basic, already in basic_cents. 0
+            // when the organisation does not deduct lateness.
+            'lateness_cents' => (int) ($steps['lateness']['deduction_cents'] ?? 0),
             // From the log, as applied (2026-10-14). Null on older entries.
             'pensionable_cents' => (int) ($steps['pension']['pensionable_cents'] ?? $steps['pension']['pensionable_basic_cents'] ?? $entry->basic_salary_cents),
             'pension_exempt' => isset($steps['pension']['exempt']) ? (bool) $steps['pension']['exempt'] : null,
