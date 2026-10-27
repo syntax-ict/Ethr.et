@@ -12,6 +12,7 @@ return [
     'geofence_location_required' => 'GPS location is required when geofence enforcement is enabled.',
     'outside_geofence' => 'You are outside the allowed check-in area. Please move closer to your branch location.',
     'conflict_already_resolved' => 'This conflict has already been resolved.',
+    'lateness_basis_required' => 'State the basis for lateness deductions, such as the work rules or collective agreement clause, before switching them on.',
     'payroll_period_closed' => 'This day is in an approved payroll run, so its attendance cannot be changed. Void the run first to reopen it.',
     'import_row_payroll_closed' => 'Row :row: this day is in an approved payroll run, so it was not imported.',
     'offline_not_own' => 'You can only sync your own attendance.',

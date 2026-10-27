@@ -39,6 +39,12 @@ final readonly class ApprovalRefusal
         return new self(403, 'https://ethr.et/errors/not-current-approver', 'Not the Current Approver', $detail);
     }
 
+    /** Authorised for the request, but this decision needs a permission the approver lacks. */
+    public static function missingPermission(string $detail): self
+    {
+        return new self(403, 'https://ethr.et/errors/forbidden', 'Forbidden', $detail);
+    }
+
     public static function payrollPeriodClosed(string $detail): self
     {
         return new self(422, 'https://ethr.et/errors/payroll-period-closed', 'Payroll period closed', $detail);

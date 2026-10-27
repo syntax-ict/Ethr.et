@@ -36,6 +36,20 @@ class AttendanceSettingController extends Controller
     {
         Gate::authorize('attendance.manage');
 
+        // Whether lateness may be deducted from pay, and whether a run waits
+        // on reconciliation, are payroll decisions, not attendance ones. Asked
+        // only when one changes: the settings page sends every field, and HR
+        // saving the rest must not need it.
+        $tenant = app(CurrentTenant::class)->get();
+        $stored = AttendanceSetting::query()->where('tenant_id', $tenant->id)->first();
+        $changesLateness = collect(['lateness_deduction_enabled', 'lateness_deduction_basis', 'reconciliation_mode'])
+            ->contains(fn (string $key): bool => $request->has($key)
+                && $request->validated($key) != ($stored?->getAttribute($key) ?? AttendanceSetting::defaults()[$key]));
+
+        if ($changesLateness) {
+            Gate::authorize('payroll.manageConfig');
+        }
+
         $tenant = app(CurrentTenant::class)->get();
         $setting = AttendanceSetting::firstOrCreate(
             ['tenant_id' => $tenant->id],

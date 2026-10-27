@@ -24,6 +24,7 @@ class StoreLeaveTypeRequest extends FormRequest
             'name' => ['required', 'string', 'max:100'],
             'name_am' => ['nullable', 'string', 'max:100'],
             'code' => ['required', 'string', 'max:30'],
+            'kind' => ['sometimes', 'string', 'in:leave,duty,excused'],
             'default_days' => ['required', 'numeric', 'min:0', 'max:365'],
             'accrual_type' => ['required', new Enum(AccrualType::class)],
             'carry_forward' => ['nullable', 'boolean'],

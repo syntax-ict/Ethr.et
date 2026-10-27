@@ -28,6 +28,8 @@ use App\Services\Leave\LeaveDayCalculator;
 use App\Support\TenantTime;
 use App\Support\WorkingWeek;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 final class PayrollEngine
@@ -63,6 +65,9 @@ final class PayrollEngine
 
     /** @var array<int, bool> tenant id => whether overtime must be approved in advance */
     private array $overtimeApprovalRequired = [];
+
+    /** @var array<int, bool> tenant id => whether approved lateness is deducted */
+    private array $latenessDeductions = [];
 
     public function __construct(
         private readonly TaxCalculator $taxCalculator,
@@ -203,28 +208,7 @@ final class PayrollEngine
             $count = 0;
             $skippedNoSalary = 0;
 
-            Employee::query()
-                ->withoutGlobalScope('tenant')
-                ->where('tenant_id', $tenantId)
-                // Someone who left during the period is owed the days they
-                // worked in it. Until 2026-10-20 only the three working
-                // statuses were selected, so a leaver vanished from their
-                // last run, though ACCOUNTANT-SIGN-OFF.md §1 says a mid-period
-                // termination is prorated (blueprint D3).
-                ->where(fn ($q) => $q
-                    ->whereIn('status', [
-                        EmployeeStatus::HIRED,
-                        EmployeeStatus::PROBATION,
-                        EmployeeStatus::CONFIRMED,
-                    ])
-                    ->orWhere(fn ($left) => $left
-                        ->whereIn('status', [
-                            EmployeeStatus::RESIGNED,
-                            EmployeeStatus::TERMINATED,
-                            EmployeeStatus::RETIRED,
-                        ])
-                        ->whereDate('termination_date', '>=', $periodStart->toDateString())
-                        ->whereDate('termination_date', '<=', $periodEnd->toDateString())))
+            $this->payableEmployees($tenantId, $periodStart, $periodEnd)
                 // For the contract fallback in processEmployee(): an employee whose
                 // salary_cents is unset may still have a contract that states one,
                 // and until 2026-10-15 that employee silently vanished from the run
@@ -270,6 +254,39 @@ final class PayrollEngine
         });
 
         return $run->refresh();
+    }
+
+    /**
+     * The employees a run for the period pays: everyone in a working status,
+     * and anyone who left during the period. Attendance reconciliation asks
+     * the same question, so it reads exactly these people.
+     *
+     * @return Builder<Employee>
+     */
+    public function payableEmployees(int $tenantId, Carbon $periodStart, Carbon $periodEnd): Builder
+    {
+        return Employee::query()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            // Someone who left during the period is owed the days they
+            // worked in it. Until 2026-10-20 only the three working
+            // statuses were selected, so a leaver vanished from their
+            // last run, though ACCOUNTANT-SIGN-OFF.md §1 says a mid-period
+            // termination is prorated (blueprint D3).
+            ->where(fn ($q) => $q
+                ->whereIn('status', [
+                    EmployeeStatus::HIRED,
+                    EmployeeStatus::PROBATION,
+                    EmployeeStatus::CONFIRMED,
+                ])
+                ->orWhere(fn ($left) => $left
+                    ->whereIn('status', [
+                        EmployeeStatus::RESIGNED,
+                        EmployeeStatus::TERMINATED,
+                        EmployeeStatus::RETIRED,
+                    ])
+                    ->whereDate('termination_date', '>=', $periodStart->toDateString())
+                    ->whereDate('termination_date', '<=', $periodEnd->toDateString())));
     }
 
     /**
@@ -527,6 +544,36 @@ final class PayrollEngine
             'basic_after_unpaid_leave_cents' => $proratedBasic,
         ];
 
+        // Lateness: only what was decided. A late arrival deducts nothing until
+        // a lateness correction for it is approved by someone who processes
+        // payroll, and only in an organisation that switched deductions on
+        // with a stated basis (Proclamation 1156/2019 Art. 59). Logged only
+        // then, so an organisation that never did gets the run it always got.
+        if ($this->latenessDeductionEnabled($employee->tenant_id)) {
+            $lateness = $this->decidedLateness($employee, $periodStart, $periodEnd);
+            $minuteRate = $dailyRate / (self::HOURS_PER_DAY * 60);
+            $uncapped = (int) round($lateness['minutes'] * $minuteRate);
+            // Never more than a third of the period's basic, the ceiling Art. 59
+            // sets on deductions from wages. Whether loans and cost sharing
+            // count toward the same third is an open question for the
+            // accountant (docs/APPROVAL-ENGINE-DESIGN.md, reconciliation).
+            $cap = intdiv($proratedBasic, 3);
+            $latenessDeduction = min($uncapped, $cap);
+            $proratedBasic -= $latenessDeduction;
+
+            $log['steps'][] = [
+                'step' => 'lateness',
+                'deducted_minutes' => $lateness['minutes'],
+                'minute_rate_cents' => round($minuteRate, 4),
+                'uncapped_cents' => $uncapped,
+                'cap_cents' => $cap,
+                'capped' => $uncapped > $cap,
+                'deduction_cents' => $latenessDeduction,
+                'basic_after_lateness_cents' => $proratedBasic,
+                'corrections' => $lateness['corrections'],
+            ];
+        }
+
         $log['steps'][] = [
             'step' => 'absences',
             // Flagged for review, never deducted: pay is unchanged.
@@ -780,7 +827,7 @@ final class PayrollEngine
      *
      * @return list<string> Y-m-d
      */
-    private function unexplainedAbsences(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
+    public function unexplainedAbsences(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
     {
         $yesterday = TenantTime::today(Tenant::query()->find($employee->tenant_id))->subDay()->format('Y-m-d');
         $first = $periodStart->format('Y-m-d');
@@ -811,6 +858,61 @@ final class PayrollEngine
         return $absent;
     }
 
+    /**
+     * unexplainedAbsences() for many employees of one organisation at once,
+     * by the same rule and the same two guards (only days already over; an
+     * organisation recording no attendance flags nothing). Each day is asked
+     * of ExpectedDays::onDate for everyone together, so the cost grows with
+     * the period's days rather than its people: attendance reconciliation
+     * reads a whole organisation inside one request. A run still asks per
+     * employee, as it always has.
+     *
+     * @param  Collection<int, Employee>  $employees  all of one tenant
+     * @return array<int, list<string>> employee id => Y-m-d
+     */
+    public function unexplainedAbsencesFor(Collection $employees, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $first = $employees->first();
+
+        if ($first === null) {
+            return [];
+        }
+
+        $tenantId = $first->tenant_id;
+        $yesterday = TenantTime::today(Tenant::query()->find($tenantId))->subDay()->format('Y-m-d');
+        $from = $periodStart->format('Y-m-d');
+        $last = min($periodEnd->format('Y-m-d'), $yesterday);
+
+        if ($last < $from || ! $this->attendanceInUse($tenantId, $from, $last)) {
+            return [];
+        }
+
+        $attended = [];
+        AttendanceRecord::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('employee_id', $employees->pluck('id')->all())
+            ->whereDate('date', '>=', $from)
+            ->whereDate('date', '<=', $last)
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            ->where(fn ($q) => $q->whereNotNull('check_in')->orWhereNotNull('check_out'))
+            ->get(['employee_id', 'date'])
+            ->each(function (AttendanceRecord $record) use (&$attended): void {
+                $attended[$record->employee_id][Carbon::parse($record->date)->format('Y-m-d')] = true;
+            });
+
+        $absent = [];
+        for ($day = Carbon::parse($from); $day->format('Y-m-d') <= $last; $day->addDay()) {
+            $key = $day->format('Y-m-d');
+            foreach ($this->expectedDays->onDate($employees, $day) as $employeeId => $kind) {
+                if ($kind === ExpectedDay::WORKDAY && ! isset($attended[$employeeId][$key])) {
+                    $absent[$employeeId][] = $key;
+                }
+            }
+        }
+
+        return $absent;
+    }
+
     private function attendanceInUse(int $tenantId, string $first, string $last): bool
     {
         return $this->attendanceInUse["{$tenantId}|{$first}|{$last}"] ??= AttendanceRecord::query()
@@ -834,7 +936,7 @@ final class PayrollEngine
      *
      * @return array{buckets: array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}, by_day: array<string, int>}
      */
-    private function gatherOvertimeByType(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
+    public function gatherOvertimeByType(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
     {
         $buckets = ['normal' => 0, 'night' => 0, 'rest_day' => 0, 'holiday' => 0, 'holiday_night' => 0];
         $byDay = [];
@@ -911,7 +1013,7 @@ final class PayrollEngine
      * @param  array<string, int>  $byDay  limited overtime minutes by date, whole weeks
      * @return array{daily_limit_minutes: int, days_over_daily_limit: list<string>, legal_daily_limit_minutes: int, days_over_legal_daily_limit: list<string>, legal_weekly_limit_minutes: int, weeks_over_legal_weekly_limit: list<array{week_start: string, minutes: int}>, requires_approval: bool, days_over_approved: list<array{date: string, worked_minutes: int, approved_minutes: int}>}
      */
-    private function overtimeLimits(Employee $employee, array $byDay, Carbon $periodStart, Carbon $periodEnd): array
+    public function overtimeLimits(Employee $employee, array $byDay, Carbon $periodStart, Carbon $periodEnd): array
     {
         $tenantId = $employee->tenant_id;
         $dailyLimit = $this->dailyOvertimeLimit($tenantId);
@@ -983,6 +1085,44 @@ final class PayrollEngine
         }
 
         return $byDay;
+    }
+
+    /**
+     * The late or early minutes approved for deduction on the period's
+     * records (an approved lateness correction writes them on the record),
+     * and the corrections that decided them.
+     *
+     * @return array{minutes: int, corrections: list<string>}
+     */
+    private function decidedLateness(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $records = AttendanceRecord::query()
+            ->where('tenant_id', $employee->tenant_id)
+            ->where('employee_id', $employee->id)
+            ->whereDate('date', '>=', $periodStart->format('Y-m-d'))
+            ->whereDate('date', '<=', $periodEnd->format('Y-m-d'))
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            ->whereNotNull('metadata->pay_deduct_minutes')
+            ->get(['metadata']);
+
+        $minutes = 0;
+        $corrections = [];
+        foreach ($records as $record) {
+            $minutes += (int) ($record->metadata['pay_deduct_minutes'] ?? 0);
+            if (is_string($record->metadata['lateness_correction_id'] ?? null)) {
+                $corrections[] = $record->metadata['lateness_correction_id'];
+            }
+        }
+
+        return ['minutes' => $minutes, 'corrections' => $corrections];
+    }
+
+    /** Whether the organisation switched lateness deductions on. Read once per run. */
+    private function latenessDeductionEnabled(int $tenantId): bool
+    {
+        return $this->latenessDeductions[$tenantId] ??= (bool) AttendanceSetting::query()
+            ->where('tenant_id', $tenantId)
+            ->value('lateness_deduction_enabled');
     }
 
     /** Whether the organisation asks for overtime to be approved before it is worked. Read once per run. */
