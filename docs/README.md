@@ -29,6 +29,8 @@ Several documents in this tree describe things that are not true of the code. Th
 | [`payroll/ACCOUNTANT-SIGN-OFF.md`](payroll/ACCOUNTANT-SIGN-OFF.md) | **Payroll sign-off pack** for an accountant: the tax and pension rules as coded, the order of operations, seven worked payslips the tests assert to the cent, the register/journal evidence, and the checklist to sign. Not yet signed. |
 | [`payroll/STATUTORY-SCHEDULES.md`](payroll/STATUTORY-SCHEDULES.md) | The monthly **income tax** (MoR) and **pension** (POESSA/PSSSA) schedules each run exports: where the figures come from, the header settings, who sees TINs, and why the layout is still to be confirmed (owner action O3). |
 | [`payroll/STATUTORY-RULES-RESEARCH.md`](payroll/STATUTORY-RULES-RESEARCH.md) | **Research behind the statutory rules** (2026-10-14): pension rates for POESSA and PSSSA from the 1268/2022 and 1267/2022 Gazette texts, tax brackets, and what could not be confirmed — each rule with its source, access date and confidence. |
+| [`EMPLOYEE-LIFECYCLE.md`](EMPLOYEE-LIFECYCLE.md) | **The employee lifecycle from position to exit** (2026-10-27): capability matrix against the code, the recruitment-to-hire slice, the rules every lifecycle feature follows, and the ordered plan with acceptance criteria. |
+| [`EMPLOYMENT-LAW-REGISTER.md`](EMPLOYMENT-LAW-REGISTER.md) | **Employment law register** (2026-10-27): Labour Proc. 1156/2019, Civil Servants Proc. 1353/2024, PDPP 1321/2024, pension and e-transaction law, each requirement classed verified / not fully verified / needs counsel. Not legal advice. |
 
 Three standing caveats:
 
