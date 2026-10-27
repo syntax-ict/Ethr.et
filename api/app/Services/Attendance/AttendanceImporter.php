@@ -162,7 +162,9 @@ final class AttendanceImporter
             // The shift the row's day is worked on, so it is rated and its
             // overtime counted as a live punch's is. Every imported row was
             // `present` with no shift until 2026-10-27: a late arrival was
-            // on time and a workday's overtime was nothing.
+            // on time and a workday's overtime was nothing. With no shift the
+            // row is `pending`, as the engine leaves a punch it cannot rate,
+            // so AttendanceHealth still sees the missing shift set-up.
             $shift = $this->shifts->match($employee, Carbon::parse($date));
 
             $record = AttendanceRecord::create([
@@ -174,7 +176,7 @@ final class AttendanceImporter
                 'check_out' => $checkOut,
                 'source' => AttendanceSource::CSV,
                 'confidence_score' => AttendanceSource::CSV->baseConfidence(),
-                'status' => AttendanceStatus::PRESENT,
+                'status' => $shift !== null ? AttendanceStatus::PRESENT : AttendanceStatus::PENDING,
                 'idempotency_key' => $idempotencyKey,
                 'metadata' => ['import_key' => $importKey],
             ]);

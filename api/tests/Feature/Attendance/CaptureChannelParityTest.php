@@ -45,9 +45,10 @@ use Illuminate\Testing\TestResponse;
  * the same overtime buckets from PayrollEngine, and the same day from
  * ExpectedDays.
  *
- * The day is one of three that channels have got wrong before: a night shift
- * crossing midnight, a holiday at the employee's branch only, and a branch
- * whose attendance rules override the organisation's. A holiday at another
+ * The day is one of four that channels have got wrong before: a night shift
+ * crossing midnight, a holiday at the employee's branch only, a branch whose
+ * attendance rules override the organisation's, and a person with no shift to
+ * be rated against. A holiday at another
  * branch on the same date sits in every fixture, so a channel that reads the
  * organisation's calendar instead of the branch's is seen too.
  */
@@ -64,7 +65,7 @@ const PARITY_CODE = 'PAR-1';
  * Each scenario's shift, punches (wall clock in PARITY_ZONE) and what payroll
  * must read from them.
  *
- * @return array<string, array{shift: array<string, mixed>, in: string, out: string, status: AttendanceStatus, buckets: array<string, int>, day: ExpectedDay, branch_holiday: bool, override: bool}>
+ * @return array<string, array{shift: ?array<string, mixed>, in: string, out: string, status: AttendanceStatus, buckets: array<string, int>, day: ExpectedDay, branch_holiday: bool, override: bool}>
  */
 function parityScenarios(): array
 {
@@ -107,12 +108,27 @@ function parityScenarios(): array
             'branch_holiday' => false,
             'override' => true,
         ],
+        // No assignment and no default shift. The engine leaves such a punch
+        // `pending`, with nothing to rate it against, and AttendanceHealth
+        // counts it as a missing shift set-up. With no shift there is no
+        // overtime window, and a Tuesday is a working day of the
+        // organisation's week, so payroll pays no overtime.
+        'no shift assigned' => [
+            'shift' => null,
+            'in' => PARITY_DAY.' 08:00',
+            'out' => PARITY_DAY.' 17:00',
+            'status' => AttendanceStatus::PENDING,
+            'buckets' => [],
+            'day' => ExpectedDay::WORKDAY,
+            'branch_holiday' => false,
+            'override' => false,
+        ],
     ];
 }
 
 /**
- * @param  array{shift: array<string, mixed>, in: string, out: string, branch_holiday: bool, override: bool}  $scenario
- * @return array{tenant: Tenant, branch: Branch, shift: Shift, employee: Employee, worker: User, hr: User, in: Carbon, out: Carbon}
+ * @param  array{shift: ?array<string, mixed>, in: string, out: string, branch_holiday: bool, override: bool}  $scenario
+ * @return array{tenant: Tenant, branch: Branch, shift: ?Shift, employee: Employee, worker: User, hr: User, in: Carbon, out: Carbon}
  */
 function parityFixture(array $scenario): array
 {
@@ -156,7 +172,7 @@ function parityFixture(array $scenario): array
         ]);
     }
 
-    $shift = Shift::factory()->create([
+    $shift = $scenario['shift'] === null ? null : Shift::factory()->create([
         'tenant_id' => $tenant->id,
         'grace_minutes' => 15,
         'early_departure_minutes' => 15,
@@ -169,12 +185,14 @@ function parityFixture(array $scenario): array
         'badge_number' => PARITY_BADGE,
         'hire_date' => '2024-01-01',
     ]);
-    ShiftAssignment::factory()->create([
-        'tenant_id' => $tenant->id,
-        'shift_id' => $shift->id,
-        'assignable_type' => Employee::class,
-        'assignable_id' => $employee->id,
-    ]);
+    if ($shift !== null) {
+        ShiftAssignment::factory()->create([
+            'tenant_id' => $tenant->id,
+            'shift_id' => $shift->id,
+            'assignable_type' => Employee::class,
+            'assignable_id' => $employee->id,
+        ]);
+    }
 
     return [
         'tenant' => $tenant,

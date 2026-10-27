@@ -205,3 +205,20 @@ test('an imported row is rated against the shift of its day', function (string $
     'forty minutes late' => ['08:40', '18:00', AttendanceStatus::LATE],
     'left an hour early' => ['08:00', '16:00', AttendanceStatus::EARLY_LEAVE],
 ]);
+
+test('an imported row with no shift to be rated against is pending, as a live punch is', function () {
+    $tenant = createTenant(['timezone' => 'Africa/Addis_Ababa']);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'TZ-NOSHIFT']);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/import/commit", [
+        'import_key' => 'tz-import-no-shift',
+        'rows' => [['employee_code' => 'TZ-NOSHIFT', 'date' => '2026-06-15', 'check_in' => '08:00', 'check_out' => '17:00']],
+    ])->assertCreated()->assertJsonPath('created', 1);
+
+    // `present` hid the missing shift set-up from AttendanceHealth, which
+    // counts the week's `pending` punches.
+    $record = AttendanceRecord::where('employee_id', $employee->id)->sole();
+    expect($record->shift_id)->toBeNull()
+        ->and($record->status)->toBe(AttendanceStatus::PENDING);
+});
