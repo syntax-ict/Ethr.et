@@ -91,6 +91,7 @@ use App\Http\Controllers\Api\V1\Kiosk\KioskSyncController;
 use App\Http\Controllers\Api\V1\Leave\LeaveRequestController;
 use App\Http\Controllers\Api\V1\Leave\LeaveTypeController;
 use App\Http\Controllers\Api\V1\MarketingContentController;
+use App\Http\Controllers\Api\V1\NextSteps\NextStepsController;
 use App\Http\Controllers\Api\V1\Notification\NotificationController;
 use App\Http\Controllers\Api\V1\Notification\NotificationPreferencesController;
 use App\Http\Controllers\Api\V1\Offboarding\ExitClearanceController;
@@ -386,6 +387,13 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/migration/batches/{batch}', [MigrationController::class, 'show']);
         Route::patch('/migration/rows/{row}', [MigrationController::class, 'updateRow']);
         Route::post('/migration/batches/{batch}/commit', [MigrationController::class, 'commit']);
+    });
+
+    // Setup & Next Steps: one list per person, built from their role, scope and plan.
+    Route::prefix('next-steps')->middleware('throttle:dashboard')->group(function () {
+        Route::get('/', [NextStepsController::class, 'index']);
+        Route::delete('/dismissals', [NextStepsController::class, 'restore']);
+        Route::post('/{step}/dismiss', [NextStepsController::class, 'dismiss']);
     });
 
     // User & access management (invite/activate any role)
