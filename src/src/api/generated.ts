@@ -1770,6 +1770,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/next-steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The things this person should do next, in the order to do them
+         * @description Built from who they are: their own profile, requests waiting on them, the
+         *     employee records they keep, the setup they can finish. Each source checks
+         *     its own permission, org scope and plan, so this route has no single
+         *     permission. A platform super admin belongs to no organisation and gets an
+         *     empty list.
+         */
+        get: operations["nextSteps.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/next-steps/dismissals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Bring back every step this person put away */
+        delete: operations["nextSteps.restore"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/next-steps/{step}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Put a step away until it changes, or for a number of days. A blocker can
+         *     only be snoozed
+         */
+        post: operations["nextSteps.dismiss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/employee": {
         parameters: {
             query?: never;
@@ -8385,6 +8446,11 @@ export interface components {
          * @enum {string}
          */
         DisciplinarySanctionType: "verbal_warning" | "written_warning" | "suspension" | "demotion" | "salary_deduction" | "termination";
+        /** DismissNextStepRequest */
+        DismissNextStepRequest: {
+            signature: string;
+            snooze_days?: number | null;
+        };
         /** DismissUnmatchedBadgeRequest */
         DismissUnmatchedBadgeRequest: {
             device_public_id: string;
@@ -9084,6 +9150,45 @@ export interface components {
          * @enum {string}
          */
         NationalityStatus: "ethiopian" | "ethiopian_origin" | "foreign";
+        /**
+         * NextStepGroup
+         * @description What kind of help a next step is: the frontend groups and labels by it.
+         * @enum {string}
+         */
+        NextStepGroup: "profile" | "approvals" | "records" | "setup" | "operations";
+        /**
+         * NextStepId
+         * @description Every step `GET /next-steps` can return. The case order is the tie-break order inside one severity: the steps that hold up other people's work come before configuration, and configuration before housekeeping. The frontend registry is keyed by this enum, which Scramble publishes as a union type, so a case added here without copy there fails the TypeScript build rather than rendering a blank row.  Severity is a property of the step, not of a moment, so a step that cannot be dismissed for good (a blocker) is known from its id alone.
+         * @enum {string}
+         */
+        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent";
+        /** NextStepResource */
+        NextStepResource: {
+            id: components["schemas"]["NextStepId"];
+            group: components["schemas"]["NextStepGroup"];
+            severity: components["schemas"]["NextStepSeverity"];
+            count: number;
+            total: number | null;
+            items: string[] | null;
+            subject: string | null;
+            href: string;
+            signature: string;
+        };
+        /**
+         * NextStepSeverity
+         * @description How much a step matters. A blocker keeps somebody from working and may be snoozed but never dismissed for good; a warning is work waiting for a decision or setup that is unfinished; info is worth doing and holds nobody up.
+         * @enum {string}
+         */
+        NextStepSeverity: "blocker" | "warning" | "info";
+        /** NextStepsResource */
+        NextStepsResource: {
+            steps: components["schemas"]["NextStepResource"][];
+            setup: {
+                done: number;
+                total: number;
+                complete: boolean;
+            } | null;
+        };
         /** NotificationResource */
         NotificationResource: {
             id: string;
@@ -16402,6 +16507,75 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "nextSteps.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `NextStepsResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NextStepsResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "nextSteps.restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "nextSteps.dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The step ID */
+                step: components["schemas"]["NextStepId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DismissNextStepRequest"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "dashboard.employee": {
         parameters: {
             query?: never;
@@ -18471,6 +18645,7 @@ export interface operations {
             query?: {
                 search?: string;
                 "filter[status]"?: string;
+                "filter[missing]"?: string;
                 "filter[department_id]"?: string;
                 "filter[branch_id]"?: string;
                 "filter[position_id]"?: string;
@@ -18802,6 +18977,13 @@ export interface operations {
             query?: {
                 search?: string;
                 "filter[status]"?: string;
+                /**
+                 * @description The "records to fix" list a Next Steps row opens. It is the set the
+                 *      row counted, through EmployeeGaps.
+                 *      Pay data needs the permission that edits pay data, so the list
+                 *      cannot be used to learn who has no TIN or bank account.
+                 */
+                "filter[missing]"?: string;
                 "filter[department_id]"?: string;
                 "filter[branch_id]"?: string;
                 "filter[position_id]"?: string;

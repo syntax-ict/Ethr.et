@@ -34,10 +34,8 @@ import { localizedName } from "@/lib/i18n/localizedName";
 import { formatETB } from "@/lib/utils/currency";
 import {
   WelcomeSection,
-  SetupProgress,
   KpiCard,
   PendingApprovalsPanel,
-  NextSteps,
   RecentActivity,
   AnnouncementsWidget,
   CalendarWidget,
@@ -47,21 +45,21 @@ import {
   LinkEmployeeCallout,
 } from "@/features/dashboard/components";
 import { PulsePrompt } from "@/features/dashboard/components/voice-and-integrity-prompts";
+import { NextStepsCard } from "@/features/next-steps/components/next-steps-card";
 import { ErrorState } from "@/components/shared/error-state";
 
 /**
  * Dashboard layout order is deliberate:
  *
  *   1. Header — who/where/when, plus the primary actions.
- *   2. Setup banner — only while onboarding is incomplete.
- *   3. "Organisation today" — headcount, attendance, approvals and payroll,
+ *   2. "Organisation today" — headcount, attendance, approvals and payroll,
  *      for those who can see the whole organisation.
- *   4. "Today" — the supervisor's operational state (present/absent/on leave).
- *   5. "My Day" — the individual's own state, shown to every role; an account
+ *   3. "Today" — the supervisor's operational state (present/absent/on leave).
+ *   4. "My Day" — the individual's own state, shown to every role; an account
  *      with no employee record is told why it has none instead.
- *   6. Next steps: at most three things that need a hand first, from the
- *      counts the endpoints already return. Then the work queue, trends and
- *      reference material.
+ *   5. Next steps: the list the server built for this person (their own
+ *      profile, requests waiting on them, records to fix, setup to finish),
+ *      three rows first. Then the work queue, trends and reference material.
  *
  * The governing rule is decisions-before-trends: what needs a response today
  * outranks a chart of the last five days. Previously the analytics card was
@@ -85,8 +83,6 @@ export default function DashboardPage() {
 
       <InstallAppBanner />
 
-      <SetupProgress />
-
       {can.viewExecutiveDashboard && <OrganisationSnapshot />}
 
       {/* Section headings turn what was a run of seven undifferentiated tiles
@@ -107,7 +103,7 @@ export default function DashboardPage() {
           "View all" off the page. */}
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="min-w-0 space-y-6 xl:col-span-2">
-          <NextSteps />
+          <NextStepsCard />
           <PendingApprovalsPanel />
           <InteractiveCharts />
         </div>

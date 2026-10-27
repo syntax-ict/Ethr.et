@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\OrgScope;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -60,6 +62,22 @@ class AttendanceIntegrityFlag extends Model
             'details' => 'array',
             'reviewed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The flags this user's org scope reaches: the queue, its summary and the
+     * Next Steps count all read it, so the three cannot disagree.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->orgScope() !== OrgScope::ALL) {
+            $query->whereHas('employee', fn ($q) => $user->scopeAccessibleEmployees($q));
+        }
+
+        return $query;
     }
 
     /** @return BelongsTo<AttendanceRecord, $this> */

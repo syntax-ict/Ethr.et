@@ -21,6 +21,9 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
 // The page test is about its own "My Day" tiles; every other widget is
 // stubbed so it does not need its own endpoints.
 vi.mock("next/dynamic", () => ({ default: () => () => null }));
+vi.mock("@/features/next-steps/components/next-steps-card", () => ({
+  NextStepsCard: () => null,
+}));
 vi.mock("@/features/dashboard/components", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/features/dashboard/components")>();
@@ -28,7 +31,6 @@ vi.mock("@/features/dashboard/components", async (importOriginal) => {
   return {
     ...actual,
     WelcomeSection: none,
-    SetupProgress: none,
     PendingApprovalsPanel: none,
     RecentActivity: none,
     AnnouncementsWidget: none,

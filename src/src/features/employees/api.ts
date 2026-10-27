@@ -24,11 +24,17 @@ export interface EmployeeFilters {
   status?: string;
   departmentId?: string;
   branchId?: string;
+  /**
+   * Current staff with one gap in their record: `tin`, `bank`,
+   * `emergency_contact` or `phone`. The set a Next Steps row counted.
+   */
+  missing?: string;
 }
 
 function filterParams(f: EmployeeFilters): Record<string, string | number> {
   const out: Record<string, string | number> = {};
   if (f.nationalityReview) out["filter[nationality_needs_review]"] = 1;
+  if (f.missing) out["filter[missing]"] = f.missing;
   if (f.status) out["filter[status]"] = f.status;
   if (f.departmentId) out["filter[department_id]"] = f.departmentId;
   if (f.branchId) out["filter[branch_id]"] = f.branchId;
@@ -51,6 +57,7 @@ export function useEmployees(
         status,
         departmentId,
         branchId,
+        missing,
         search,
         ...rest
       } = params ?? {};
@@ -63,6 +70,7 @@ export function useEmployees(
             status,
             departmentId,
             branchId,
+            missing,
           }),
         },
       });

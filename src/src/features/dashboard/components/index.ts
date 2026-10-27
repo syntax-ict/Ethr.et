@@ -9,12 +9,10 @@
  * and prefer `next/dynamic` at the call site.
  */
 export { WelcomeSection } from "./welcome-section";
-export { SetupProgress } from "./setup-progress";
 export { KpiCard } from "./kpi-card";
 export type { KpiTone } from "./kpi-card";
 export { QuickActions } from "./quick-actions";
 export { PendingApprovalsPanel } from "./pending-approvals";
-export { NextSteps } from "./next-steps";
 export { RecentActivity } from "./recent-activity";
 export { AnnouncementsWidget } from "./announcements-widget";
 export { CalendarWidget } from "./calendar-widget";
