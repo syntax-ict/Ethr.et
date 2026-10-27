@@ -148,6 +148,15 @@ approval engine, so an organisation's `overtime` chain applies.
 | `retirement_case.viewAny` | View retirement cases |
 | `retirement_case.manage` | Initiate, review, decide and finalize retirement cases |
 
+### recruitment *(2026-10-27)*
+
+| Permission | Description |
+|---|---|
+| `recruitment.manage` | Record applicants and move them through screening, interviews and offers. Hiring also needs `employee.create`; an offered salary needs `employee.updateFinancial` to set and `employee.viewFinancial` to see |
+| `recruitment.approve` | Approve a job offer someone else made. The person who made an offer can never approve it, whatever they hold, so one HR admin alone cannot hire from the pipeline (`RecruitmentService::approveOffer`) |
+
+Both are in the HR Admin set, so `hr_admin` and `tenant_admin` hold them. See [`EMPLOYEE-LIFECYCLE.md`](EMPLOYEE-LIFECYCLE.md).
+
 ### profile
 
 | Permission | Description |
@@ -254,6 +263,7 @@ personnel_action.create,
 disciplinary_case.manage,
 retirement_case.manage,
 announcement.manage,
+recruitment.manage, recruitment.approve,
 users.viewAny, users.invite, users.update,
 users.issueActivationCode
 ```
@@ -339,6 +349,7 @@ Two further rules sit on top of scope for approvals: a user cannot approve their
 | personnel_action | 2 |
 | disciplinary_case | 2 |
 | retirement_case | 2 |
+| recruitment | 2 *(added 2026-10-27; the total below was not re-counted, and other modules such as `vacancy` and `voice` are missing from this table)* |
 | profile | 2 |
 | users | 4 |
 | announcement | 1 |

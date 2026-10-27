@@ -126,6 +126,7 @@ use App\Http\Controllers\Api\V1\Profile\ProfilePhotoController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
 use App\Http\Controllers\Api\V1\Profile\ProfileUpdateRequestController;
 use App\Http\Controllers\Api\V1\Push\PushSubscriptionController;
+use App\Http\Controllers\Api\V1\Recruitment\JobApplicationController;
 use App\Http\Controllers\Api\V1\Report\ReportController;
 use App\Http\Controllers\Api\V1\Role\CustomRoleController;
 use App\Http\Controllers\Api\V1\Scim\ScimGroupController;
@@ -838,6 +839,16 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/vacancies', [VacancyController::class, 'store']);
     Route::put('/vacancies/{vacancy}', [VacancyController::class, 'update']);
     Route::delete('/vacancies/{vacancy}', [VacancyController::class, 'destroy']);
+
+    // Applicants for a vacancy, through to hire (JobApplicationController).
+    Route::get('/vacancies/{vacancy}/applications', [JobApplicationController::class, 'index']);
+    Route::post('/vacancies/{vacancy}/applications', [JobApplicationController::class, 'store']);
+    Route::get('/job-applications/{application}', [JobApplicationController::class, 'show']);
+    Route::post('/job-applications/{application}/stage', [JobApplicationController::class, 'move']);
+    Route::post('/job-applications/{application}/events', [JobApplicationController::class, 'record']);
+    Route::post('/job-applications/{application}/approve-offer', [JobApplicationController::class, 'approveOffer']);
+    Route::post('/job-applications/{application}/hire', [JobApplicationController::class, 'hire']);
+    Route::post('/job-applications/{application}/erase', [JobApplicationController::class, 'erase']);
 
     // Employee voice: the weekly pulse, speak-up concerns and recognition.
     Route::prefix('voice')->group(function () {

@@ -3536,6 +3536,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/vacancies/{vacancy}/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List applications */
+        get: operations["jobApplication.index"];
+        put?: never;
+        /** Create application */
+        post: operations["jobApplication.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/job-applications/{application}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get job application */
+        get: operations["jobApplication.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/job-applications/{application}/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stage job applications */
+        post: operations["jobApplication.move"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/job-applications/{application}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create event */
+        post: operations["jobApplication.record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/job-applications/{application}/approve-offer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve offer job applications */
+        post: operations["jobApplication.approveOffer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/job-applications/{application}/hire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hire job applications */
+        post: operations["jobApplication.hire"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/job-applications/{application}/erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Erase job applications */
+        post: operations["jobApplication.erase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/tenant-landing/feed": {
         parameters: {
             query?: never;
@@ -7796,6 +7916,10 @@ export interface components {
             approver_ref: string | null;
             sla_hours: number;
         };
+        /** ApproveOfferRequest */
+        ApproveOfferRequest: {
+            note?: string | null;
+        };
         /**
          * ApprovePayrollRunRequest
          * @description Approving a run. When the run exempts anyone from pension, the approver
@@ -8814,6 +8938,20 @@ export interface components {
             /** Format: date-time */
             created_at: string | null;
         };
+        /**
+         * HireApplicationRequest
+         * @description Hiring from an approved offer. The start date defaults to the offer's.
+         *     Probation is chosen by HR, never assumed: whether and how long it applies
+         *     depends on the organisation's employment framework.
+         */
+        HireApplicationRequest: {
+            /** Format: date */
+            hire_date?: string | null;
+            /** @enum {string|null} */
+            status?: "hired" | "probation" | null;
+            /** Format: date */
+            probation_end_date?: string | null;
+        };
         /** HoldAttendancePhotoRequest */
         HoldAttendancePhotoRequest: {
             reason: string;
@@ -8925,6 +9063,53 @@ export interface components {
             note?: string | null;
             current_password: string;
             mfa_code?: string | null;
+        };
+        /** JobApplicationEventResource */
+        JobApplicationEventResource: {
+            public_id: string;
+            type: string;
+            from_stage: string | null;
+            to_stage: string | null;
+            note: string | null;
+            score: number | null;
+            scheduled_at: string | null;
+            actor?: unknown;
+            created_at: string | null;
+        };
+        /** JobApplicationResource */
+        JobApplicationResource: {
+            public_id: string;
+            name: string;
+            email: string | null;
+            phone: string | null;
+            source: string;
+            cover_note: string | null;
+            stage: string;
+            vacancy?: {
+                public_id: string;
+                title: string;
+            } | null;
+            offer: {
+                start_date: string;
+                salary_cents: number | null;
+                notes: string | null;
+                made_by?: unknown;
+                made_by_me: boolean;
+                approved_by?: unknown;
+                approved_at: string | null;
+            } | null;
+            employee?: {
+                public_id: string;
+                name: string;
+                employee_code: string | null;
+            } | null;
+            hired_at: string | null;
+            closed_reason: string | null;
+            closed_at: string | null;
+            erased: boolean;
+            events?: components["schemas"]["JobApplicationEventResource"][];
+            possible_duplicates?: string;
+            created_at: string | null;
         };
         /** KioskAttendanceRequest */
         KioskAttendanceRequest: {
@@ -9184,6 +9369,20 @@ export interface components {
             };
             /** @enum {string|null} */
             liveness?: "passed" | "failed" | "no_face" | "unavailable" | null;
+        };
+        /**
+         * MoveJobApplicationRequest
+         * @description Moving an application to its next stage. An offer needs a start date;
+         *     rejecting or withdrawing needs a reason, kept on the selection record.
+         */
+        MoveJobApplicationRequest: {
+            /** @enum {string} */
+            stage: "screening" | "interview" | "offer" | "rejected" | "withdrawn";
+            note?: string | null;
+            /** Format: date */
+            offer_start_date?: string;
+            offer_salary_cents?: number;
+            offer_notes?: string;
         };
         /**
          * NationalityStatus
@@ -9644,6 +9843,19 @@ export interface components {
                     userHandle?: string | null;
                 };
             };
+        };
+        /**
+         * RecordApplicationEventRequest
+         * @description A note, or an interview: when it is or was, and the panel's assessment out
+         *     of 100 if they gave one.
+         */
+        RecordApplicationEventRequest: {
+            /** @enum {string} */
+            type: "note" | "interview";
+            note: string;
+            score?: number;
+            /** Format: date-time */
+            scheduled_at?: string;
         };
         /** RecordDisciplinaryDecisionRequest */
         RecordDisciplinaryDecisionRequest: {
@@ -10377,6 +10589,20 @@ export interface components {
             ethiopian_calendar?: boolean | null;
             recurring?: boolean | null;
             is_estimated?: boolean | null;
+        };
+        /**
+         * StoreJobApplicationRequest
+         * @description Recording someone who applied. Only what a selection needs: a name, a way
+         *     to reach them, where the application came from and what they sent.
+         */
+        StoreJobApplicationRequest: {
+            name: string;
+            /** Format: email */
+            email?: string | null;
+            phone?: string | null;
+            /** @enum {string} */
+            source: "email" | "walk_in" | "referral" | "internal" | "agency" | "website" | "other";
+            cover_note?: string | null;
         };
         /** StoreLeaveRequestRequest */
         StoreLeaveRequestRequest: {
@@ -21186,6 +21412,369 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "jobApplication.index": {
+        parameters: {
+            query?: {
+                stage?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path: {
+                vacancy: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `JobApplicationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["JobApplicationResource"] & {
+                            offer: {
+                                start_date: string;
+                                salary_cents: number | null;
+                                notes: string | null;
+                                made_by?: unknown;
+                                made_by_me: boolean;
+                                approved_by?: unknown;
+                                approved_at: string | null;
+                            } | null;
+                            employee: {
+                                public_id: string;
+                                name: string;
+                                employee_code: string | null;
+                            } | null;
+                        })[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "jobApplication.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vacancy: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreJobApplicationRequest"];
+            };
+        };
+        responses: {
+            /** @description `JobApplicationResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobApplicationResource"] & {
+                        vacancy: {
+                            public_id: string;
+                            title: string;
+                        } | null;
+                        offer: {
+                            start_date: string;
+                            salary_cents: number | null;
+                            notes: string | null;
+                            made_by?: unknown;
+                            made_by_me: boolean;
+                            approved_by?: unknown;
+                            approved_at: string | null;
+                        } | null;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                        } | null;
+                        events: components["schemas"]["JobApplicationEventResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "jobApplication.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `JobApplicationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobApplicationResource"] & {
+                        vacancy: {
+                            public_id: string;
+                            title: string;
+                        } | null;
+                        offer: {
+                            start_date: string;
+                            salary_cents: number | null;
+                            notes: string | null;
+                            made_by?: unknown;
+                            made_by_me: boolean;
+                            approved_by?: unknown;
+                            approved_at: string | null;
+                        } | null;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                        } | null;
+                        events: components["schemas"]["JobApplicationEventResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "jobApplication.move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveJobApplicationRequest"];
+            };
+        };
+        responses: {
+            /** @description `JobApplicationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobApplicationResource"] & {
+                        vacancy: {
+                            public_id: string;
+                            title: string;
+                        } | null;
+                        offer: {
+                            start_date: string;
+                            salary_cents: number | null;
+                            notes: string | null;
+                            made_by?: unknown;
+                            made_by_me: boolean;
+                            approved_by?: unknown;
+                            approved_at: string | null;
+                        } | null;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                        } | null;
+                        events: components["schemas"]["JobApplicationEventResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "jobApplication.record": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordApplicationEventRequest"];
+            };
+        };
+        responses: {
+            /** @description `JobApplicationEventResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobApplicationEventResource"] & {
+                        actor: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "jobApplication.approveOffer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ApproveOfferRequest"];
+            };
+        };
+        responses: {
+            /** @description `JobApplicationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobApplicationResource"] & {
+                        vacancy: {
+                            public_id: string;
+                            title: string;
+                        } | null;
+                        offer: {
+                            start_date: string;
+                            salary_cents: number | null;
+                            notes: string | null;
+                            made_by?: unknown;
+                            made_by_me: boolean;
+                            approved_by?: unknown;
+                            approved_at: string | null;
+                        } | null;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                        } | null;
+                        events: components["schemas"]["JobApplicationEventResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "jobApplication.hire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["HireApplicationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "jobApplication.erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `JobApplicationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobApplicationResource"] & {
+                        vacancy: {
+                            public_id: string;
+                            title: string;
+                        } | null;
+                        offer: {
+                            start_date: string;
+                            salary_cents: number | null;
+                            notes: string | null;
+                            made_by?: unknown;
+                            made_by_me: boolean;
+                            approved_by?: unknown;
+                            approved_at: string | null;
+                        } | null;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                        } | null;
+                        events: components["schemas"]["JobApplicationEventResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "landingFeed.index": {
