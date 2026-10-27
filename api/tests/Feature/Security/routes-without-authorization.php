@@ -60,6 +60,7 @@ return [
         'App\Http\Controllers\Api\V1\Profile\ProfileEmergencyContactController@update' => 'ownedContact($employee, $publicId) — a contact of another employee misses.',
         'App\Http\Controllers\Api\V1\Profile\ProfileEmergencyContactController@destroy' => 'ownedContact($employee, $publicId) — a contact of another employee misses.',
         'App\Http\Controllers\Api\V1\Profile\ProfileUpdateRequestController@withdraw' => 'where(\'employee_id\', $employee->id) on the lookup; 404 when it misses.',
+        'App\Http\Controllers\Api\V1\NextSteps\NextStepsController@index' => 'NextStepsService::forUser($request->user()) — every provider checks its own permission, org scope and plan; there is no one audience, so no one gate.',
         'App\Http\Controllers\Api\V1\Notification\NotificationController@index' => 'Scoped to $request->user()->notifications().',
         'App\Http\Controllers\Api\V1\Notification\NotificationController@unreadCount' => 'Counts $request->user()->unreadNotifications().',
         'App\Http\Controllers\Api\V1\Notification\NotificationController@markAsRead' => 'firstOrFail() on $request->user()->notifications() — another user\'s id 404s.',

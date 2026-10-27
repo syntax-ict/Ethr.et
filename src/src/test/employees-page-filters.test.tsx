@@ -130,6 +130,43 @@ describe("Employees list filters", () => {
     expect(exported!.get("filter[department_id]")).toBe("D1");
   });
 
+  // The "records to fix" list a Next Steps row opens (?missing=tin): the set
+  // the row counted, named in a banner, and exported as it is shown.
+  it("lists the records with one gap, says so, and exports the same set", async () => {
+    let exported: URLSearchParams | undefined;
+    server.use(
+      http.get("*/api/v1/employees/export", ({ request }) => {
+        exported = new URL(request.url).searchParams;
+        return HttpResponse.json({ csv: "name\n", count: 1 });
+      }),
+    );
+    renderAt("?missing=tin");
+
+    await screen.findByText("Abebe Kebede");
+    await waitFor(() => expect(lastQuery()).toBeDefined());
+    expect(lastQuery().get("filter[missing]")).toBe("tin");
+    expect(
+      screen.getByText("Showing current employees who have no TIN."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    await waitFor(() => expect(exported).toBeDefined());
+    expect(exported!.get("filter[missing]")).toBe("tin");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all employees" }));
+    await waitFor(() => expect(window.location.search).toBe(""));
+    await waitFor(() => expect(lastQuery().get("filter[missing]")).toBeNull());
+  });
+
+  it("ignores a gap the API does not know, instead of sending it", async () => {
+    renderAt("?missing=salary");
+
+    await screen.findByText("Abebe Kebede");
+    await waitFor(() => expect(lastQuery()).toBeDefined());
+    expect(lastQuery().get("filter[missing]")).toBeNull();
+    expect(screen.queryByText(/Showing current employees/)).toBeNull();
+  });
+
   it("clears the filters but keeps the sort", async () => {
     renderAt("?status=probation&branch=B1&sort=-name");
 

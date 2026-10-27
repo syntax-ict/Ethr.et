@@ -82,8 +82,12 @@ const FILTER_DEFAULTS = {
   department: "all",
   branch: "all",
   review: "",
+  missing: "",
   sort: "name",
 };
+
+/** The record gaps a Next Steps row opens the list for (`EmployeeGaps`). */
+const MISSING = ["tin", "bank", "emergency_contact", "phone"] as const;
 
 function parseSort(sort?: string): SortingState {
   if (!sort) return [];
@@ -96,6 +100,7 @@ export default function EmployeesPage() {
   const filters = useQueryFilters(FILTER_DEFAULTS, {
     status: ["all", ...STATUSES],
     review: ["", "1"],
+    missing: ["", ...MISSING],
     sort: SORTS,
   });
   const search = filters.values.q;
@@ -107,6 +112,8 @@ export default function EmployeesPage() {
   // The "check nationality" list: people the 2026-10-14 backfill could not
   // confirm as Ethiopian from their free-text nationality.
   const reviewOnly = filters.values.review === "1";
+  // The "records to fix" list: current staff with one gap in their record.
+  const missing = filters.values.missing;
   const { data: departments } = departmentsApi.useList();
   const { data: branches } = branchesApi.useList();
 
@@ -138,12 +145,14 @@ export default function EmployeesPage() {
   const isFiltered =
     search !== "" ||
     reviewOnly ||
+    missing !== "" ||
     status !== "all" ||
     department !== "all" ||
     branch !== "all";
 
   const listFilters = {
     nationalityReview: reviewOnly,
+    missing: missing || undefined,
     status: status === "all" ? undefined : status,
     departmentId: department === "all" ? undefined : department,
     branchId: branch === "all" ? undefined : branch,
@@ -351,6 +360,23 @@ export default function EmployeesPage() {
               {reviewOnly
                 ? t("employees.nationality_review_show_all")
                 : t("employees.nationality_review_show")}
+            </Button>
+          </div>
+        )}
+
+        {missing !== "" && (
+          <div className="flex flex-col gap-2 rounded-lg border border-info-edge bg-info-soft p-3 text-sm text-info-on-soft sm:flex-row sm:items-center sm:justify-between">
+            <p>
+              {t("employees.missing_banner", undefined, {
+                gap: t(`employees.missing.${missing}`),
+              })}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setFilters({ missing: "" })}
+            >
+              {t("employees.missing_show_all")}
             </Button>
           </div>
         )}

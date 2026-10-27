@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
+import { NEXT_STEPS_KEY } from "@/features/next-steps/api";
 
 type Schemas = components["schemas"];
 
@@ -61,6 +62,8 @@ function useProfileInvalidation() {
     queryClient.invalidateQueries({ queryKey: ["profile"] });
     // A staged change also lands in the HR review queue (/approvals).
     queryClient.invalidateQueries({ queryKey: ["approvals"] });
+    // "Finish your profile" counts what this screen just filled in.
+    queryClient.invalidateQueries({ queryKey: NEXT_STEPS_KEY });
   };
 }
 
@@ -106,6 +109,7 @@ export function useUploadProfilePhoto() {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       // The header avatar reads from /auth/me.
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      queryClient.invalidateQueries({ queryKey: NEXT_STEPS_KEY });
     },
   });
 }
@@ -120,6 +124,7 @@ export function useRemoveProfilePhoto() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      queryClient.invalidateQueries({ queryKey: NEXT_STEPS_KEY });
     },
   });
 }
