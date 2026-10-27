@@ -21550,6 +21550,9 @@
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
@@ -42642,6 +42645,9 @@
                     "code": {
                         "type": "string"
                     },
+                    "kind": {
+                        "type": "string"
+                    },
                     "default_days": {
                         "type": "number"
                     },
@@ -42719,6 +42725,7 @@
                     "name",
                     "name_am",
                     "code",
+                    "kind",
                     "default_days",
                     "accrual_type",
                     "carry_forward",
@@ -46889,6 +46896,12 @@
                     "leave_type_public_id": {
                         "type": "string"
                     },
+                    "employee_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "start_date": {
                         "type": "string",
                         "format": "date-time"
@@ -46936,6 +46949,14 @@
                     "code": {
                         "type": "string",
                         "maxLength": 30
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "leave",
+                            "duty",
+                            "excused"
+                        ]
                     },
                     "default_days": {
                         "type": "number",
@@ -48880,6 +48901,14 @@
                     "code": {
                         "type": "string",
                         "maxLength": 30
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "leave",
+                            "duty",
+                            "excused"
+                        ]
                     },
                     "default_days": {
                         "type": "number",

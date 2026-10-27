@@ -8970,6 +8970,7 @@ export interface components {
             name: string;
             name_am: string | null;
             code: string;
+            kind: string;
             default_days: number;
             accrual_type: string;
             carry_forward: boolean;
@@ -10340,6 +10341,7 @@ export interface components {
         /** StoreLeaveRequestRequest */
         StoreLeaveRequestRequest: {
             leave_type_public_id: string;
+            employee_public_id?: string | null;
             /** Format: date-time */
             start_date: string;
             /** Format: date-time */
@@ -10352,6 +10354,8 @@ export interface components {
             name: string;
             name_am?: string | null;
             code: string;
+            /** @enum {string} */
+            kind?: "leave" | "duty" | "excused";
             default_days: number;
             accrual_type: components["schemas"]["AccrualType"];
             carry_forward?: boolean | null;
@@ -11154,6 +11158,8 @@ export interface components {
             name?: string;
             name_am?: string | null;
             code?: string;
+            /** @enum {string} */
+            kind?: "leave" | "duty" | "excused";
             default_days?: number;
             accrual_type?: components["schemas"]["AccrualType"];
             carry_forward?: boolean;
@@ -21378,6 +21384,7 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
         };
     };
