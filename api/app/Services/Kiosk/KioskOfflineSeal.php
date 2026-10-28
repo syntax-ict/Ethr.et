@@ -97,7 +97,7 @@ final class KioskOfflineSeal
 
         if (! is_array($payload)
             || ! is_string($payload['c'] ?? null) || $payload['c'] === '' || strlen($payload['c']) > 64
-            || ! in_array($payload['t'] ?? null, ['check_in', 'check_out'], true)
+            || ! in_array($payload['t'] ?? null, ['check_in', 'check_out', 'auto'], true)
             || ! is_string($payload['at'] ?? null)
             || ! is_string($payload['k'] ?? null) || $payload['k'] === '' || strlen($payload['k']) > 64
             || (isset($payload['p']) && ! is_string($payload['p']))) {

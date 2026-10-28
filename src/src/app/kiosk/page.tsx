@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   LogIn,
   LogOut,
+  ArrowLeftRight,
   CheckCircle2,
   XCircle,
   Clock,
@@ -72,7 +73,11 @@ export default function KioskPage() {
   const [code, setCode] = useState("");
   const [pin, setPin] = useState("");
   const [showPin, setShowPin] = useState(false);
-  const [type, setType] = useState<"check_in" | "check_out">("check_in");
+  // `auto` unless the person picks: a shared terminal cannot know, before
+  // the code is typed, whether this person is arriving or leaving, and the
+  // server does (KioskCheckInRequest). Starting on Check in made a leaver
+  // who had checked in on the phone open a second, conflicting record.
+  const [type, setType] = useState<"auto" | "check_in" | "check_out">("auto");
   const [mode, setMode] = useState<CheckMode>("idle");
   const [message, setMessage] = useState("");
   const [now, setNow] = useState(new Date());
@@ -113,6 +118,7 @@ export default function KioskPage() {
           setPin("");
           setShowPin(false);
           setMessage("");
+          setType("auto");
         },
         (config?.autoResetSeconds ?? 4) * 1000,
       );
@@ -241,10 +247,11 @@ export default function KioskPage() {
         data.employee_name ??
         data.employee?.name ??
         t("kiosk_page.default_employee");
+      const punched = type === "auto" ? data.punch : type;
       setMode("success");
       setMessage(
         t(
-          type === "check_in" ? "kiosk_page.welcome" : "kiosk_page.goodbye",
+          punched === "check_out" ? "kiosk_page.goodbye" : "kiosk_page.welcome",
           undefined,
           { name: empName },
         ),
@@ -565,6 +572,17 @@ export default function KioskPage() {
             {/* Type toggle */}
             <div className="flex rounded-xl border-2 p-1">
               <button
+                onClick={() => setType("auto")}
+                className={cn(
+                  "flex-1 rounded-lg py-3 font-semibold transition-all flex items-center justify-center gap-2",
+                  type === "auto"
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "text-muted-foreground",
+                )}
+              >
+                <ArrowLeftRight className="h-4 w-4" /> {t("kiosk_page.auto")}
+              </button>
+              <button
                 onClick={() => setType("check_in")}
                 className={cn(
                   "flex-1 rounded-lg py-3 font-semibold transition-all flex items-center justify-center gap-2",
@@ -587,6 +605,11 @@ export default function KioskPage() {
                 <LogOut className="h-4 w-4" /> {t("common.check_out")}
               </button>
             </div>
+            {type === "auto" && (
+              <p className="text-center text-sm text-muted-foreground">
+                {t("kiosk_page.auto_hint")}
+              </p>
+            )}
 
             {/* Input display */}
             <Card>
@@ -705,6 +728,8 @@ export default function KioskPage() {
                 t("kiosk_page.verify_pin")
               ) : config?.pinRequired ? (
                 t("kiosk_page.next_enter_pin")
+              ) : type === "auto" ? (
+                t("kiosk_page.record")
               ) : type === "check_in" ? (
                 t("common.check_in")
               ) : (

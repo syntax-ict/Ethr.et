@@ -16,6 +16,10 @@ use Illuminate\Http\Request;
  * keys to the array, which the API contract cannot follow; it published the
  * whole body as a string.
  *
+ * `punch` says which punch it was. It is what a caller that sent `auto` reads
+ * to greet the person: the shared kiosk does not know before the code is
+ * typed whether they are arriving or leaving.
+ *
  * @mixin AttendanceRecord
  */
 class AttendancePunchResource extends AttendanceRecordResource
@@ -24,6 +28,7 @@ class AttendancePunchResource extends AttendanceRecordResource
         AttendanceRecord $record,
         private readonly bool $wasDuplicate,
         private readonly ?string $employeeName = null,
+        private readonly string $punch = 'check_in',
     ) {
         parent::__construct($record);
     }
@@ -32,6 +37,7 @@ class AttendancePunchResource extends AttendanceRecordResource
     {
         return array_merge(parent::toArray($request), [
             'was_duplicate' => $this->wasDuplicate,
+            'punch' => $this->punch,
             'employee_name' => $this->when($this->employeeName !== null, $this->employeeName),
         ]);
     }

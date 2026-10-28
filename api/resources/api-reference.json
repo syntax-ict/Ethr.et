@@ -40668,6 +40668,13 @@
                     "was_duplicate": {
                         "type": "boolean"
                     },
+                    "punch": {
+                        "type": "string",
+                        "enum": [
+                            "check_in",
+                            "check_out"
+                        ]
+                    },
                     "employee_name": {
                         "type": "string"
                     }
@@ -40691,7 +40698,8 @@
                     "conflict",
                     "created_at",
                     "updated_at",
-                    "was_duplicate"
+                    "was_duplicate",
+                    "punch"
                 ],
                 "title": "AttendancePunchResource"
             },
