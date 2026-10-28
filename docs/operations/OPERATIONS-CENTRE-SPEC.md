@@ -19,6 +19,12 @@
 - G13: health probes now return `error: "unavailable"` and log the driver's message.
 - Tests: `tests/Feature/Admin/OperationsStatusTest.php` (17) and
   `src/src/test/admin-operations-page.test.tsx` (5).
+- **Live 2026-10-28 as v2026.10.28.6.** The first look found that every health timestamp
+  (heartbeat, caller ticks, last drain, mail) lived in the default cache store, which the
+  release step `optimize:clear` empties, so the console read "never" right after each deploy.
+  They now live in a `signals` file store under `storage/framework/signals`
+  (`App\Support\HealthSignals`), which nothing clears. Until a deploy's cached configuration
+  knows that store, they fall back to the default one rather than throw.
 
 **One question the page answers:** *is ETHR doing its work right now, for every organisation?*
 
