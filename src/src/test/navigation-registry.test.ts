@@ -162,6 +162,7 @@ describe("what each person may open", () => {
     const hrefs = visibleDestinations(ctx).map((d) => resolveHref(d.href, ctx));
     expect(hrefs).toEqual([
       "/admin",
+      "/admin/operations",
       "/admin/tenants",
       "/admin/audit",
       "/admin/platform-settings",

@@ -46,6 +46,7 @@ import {
   useDismissFailedJob,
   servicesNeedingAttention,
 } from "@/features/admin/api";
+import { OperationsStrip } from "@/features/admin/components/operations-strip";
 import { formatETB, formatETBCompact } from "@/lib/utils/currency";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -140,6 +141,9 @@ export default function AdminConsolePage() {
             </div>
           </div>
         )}
+
+        {/* ── Operations: is the platform doing its work? ────────────── */}
+        <OperationsStrip />
 
         {/* ── Critical alerts banner ─────────────────────────────────── */}
         {hasAlerts && !healthLoading && (
