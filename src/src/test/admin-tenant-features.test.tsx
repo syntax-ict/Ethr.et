@@ -73,12 +73,12 @@ describe("an organisation's features in the console", () => {
 
     const payroll = (await screen.findByText("Payroll")).closest("tr")!;
     expect(
-      within(payroll).getByText("Off: not in this organisation's plan"),
+      within(payroll).getByText("Not in this organisation's plan"),
     ).toBeInTheDocument();
 
     const webhooks = screen.getByText("Webhooks").closest("tr")!;
     expect(
-      within(webhooks).getByText("Off: revoked for this organisation"),
+      within(webhooks).getByText("Revoked for this organisation"),
     ).toBeInTheDocument();
     expect(
       within(webhooks).getByText("Revoked, no end date"),
@@ -144,7 +144,7 @@ describe("an organisation's features in the console", () => {
       }),
     );
     expect(
-      await screen.findByText("On: granted to this organisation"),
+      await screen.findByText("Granted to this organisation"),
     ).toBeInTheDocument();
   });
 
@@ -186,7 +186,7 @@ describe("an organisation's features in the console", () => {
 
     await waitFor(() => expect(sent).toEqual({ reason: "Pilot ended" }));
     expect(
-      await screen.findByText("Off: not in this organisation's plan"),
+      await screen.findByText("Not in this organisation's plan"),
     ).toBeInTheDocument();
   });
 

@@ -36,12 +36,12 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 
 const REASON_FALLBACK: Record<FeatureReason, string> = {
-  enabled: "On",
-  granted: "On: granted to this organisation",
-  plan: "Off: not in this organisation's plan",
-  platform_disabled: "Off: disabled for every organisation",
-  not_in_rollout: "Off: restricted, and this organisation has no grant",
-  revoked: "Off: revoked for this organisation",
+  enabled: "As its plan allows",
+  granted: "Granted to this organisation",
+  plan: "Not in this organisation's plan",
+  platform_disabled: "Disabled for every organisation",
+  not_in_rollout: "Restricted, and this organisation has no grant",
+  revoked: "Revoked for this organisation",
 };
 
 /** A grant ends after 30 days unless the admin changes it (owner decision D1). */
