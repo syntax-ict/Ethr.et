@@ -114,6 +114,7 @@ class SettingsController extends Controller
             'employees' => [
                 'number_format' => $numbering->format($tenant),
                 'next_code' => $numbering->next($tenant),
+                'invitation_reminders' => data_get($tenant->settings, 'invitation_reminders', true) !== false,
             ],
             'sso' => $this->ssoConfig($tenant),
         ]);

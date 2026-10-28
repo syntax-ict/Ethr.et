@@ -85,7 +85,7 @@ return [
         'self' => 'You cannot issue an activation code for your own account.',
         'role' => 'You cannot issue an activation code for an account at or above your own level.',
         'status' => 'This account cannot be activated or recovered in its current state.',
-        'contact' => 'This employee has an email or a phone number. Use the normal invitation or password reset instead.',
+        'contact' => 'This employee can be reached by email or text message. Use the normal invitation or password reset instead.',
         'identifier' => 'This employee would have no way to sign in. Turn on employee code sign-in in settings first.',
     ],
 ];

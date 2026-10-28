@@ -57,11 +57,16 @@ export function IssueActivationCodeButton({
   const [mfaCode, setMfaCode] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const status = useActivationStatus(employeeId, open);
+  const allowed = !email && hasPermission("users.issueActivationCode");
+  // With a phone, the server decides: it counts only once texts can reach it.
+  const status = useActivationStatus(
+    employeeId,
+    allowed && (open || Boolean(phone)),
+  );
   const issue = useIssueActivationCode(employeeId);
   const revoke = useRevokeActivationCode(employeeId);
 
-  if (email || phone || !hasPermission("users.issueActivationCode")) {
+  if (!allowed || (phone && status.data?.reachable !== false)) {
     return null;
   }
 
@@ -158,7 +163,7 @@ export function IssueActivationCodeButton({
             <DialogDescription>
               {t(
                 "activation_code.description",
-                "This person has no email or phone, so nothing can be sent to them. Check their identity document in person first. The code is shown once and cannot be read back.",
+                "Nothing can be sent to this person: they have no email, and invitations are not sent by text. Check their identity document in person first. The code is shown once and cannot be read back.",
               )}
             </DialogDescription>
           </DialogHeader>

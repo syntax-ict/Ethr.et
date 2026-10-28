@@ -148,6 +148,7 @@ use App\Http\Controllers\Api\V1\SiteContentController;
 use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\User\ActivationCodeController;
+use App\Http\Controllers\Api\V1\User\InvitationController;
 use App\Http\Controllers\Api\V1\User\UserController;
 use App\Http\Controllers\Api\V1\Vacancy\VacancyController;
 use App\Http\Controllers\Api\V1\Voice\ConcernController;
@@ -405,6 +406,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index']);
         Route::post('/', [UserController::class, 'store']);
+        Route::post('/invitations', [InvitationController::class, 'store']);
+        Route::get('/invitations/{batch}', [InvitationController::class, 'show']);
         Route::patch('/{user}', [UserController::class, 'update']);
         Route::post('/{user}/resend-invite', [UserController::class, 'resendInvite']);
         Route::post('/{user}/mfa/reset', [UserController::class, 'resetMfa']);

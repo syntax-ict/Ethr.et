@@ -22,6 +22,7 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
 
 const PREVIEW_URL = "*/api/v1/employees/import/preview";
 const COMMIT_URL = "*/api/v1/employees/import/commit";
+const BATCH = "01JBQ8Z6ZK3M9V2X7Y4W5T6R8S";
 
 // One valid row (line 2) and one row that fails validation (line 3).
 const PREVIEW = {
@@ -261,10 +262,67 @@ describe("Employee CSV import, 2026-10-15", () => {
       http.post(COMMIT_URL, async ({ request }) => {
         bodies.push((await request.json()) as { create_logins?: boolean });
         return HttpResponse.json(
-          { created: 1, skipped: 0, matched: 0, users_created: 1, errors: [] },
+          {
+            created: 1,
+            skipped: 0,
+            matched: 0,
+            users_created: 1,
+            invitations_batch: BATCH,
+            invitations_queued: 1,
+            in_person: 0,
+            errors: [],
+          },
           { status: 201 },
         );
       }),
+      http.get(`*/api/v1/users/invitations/${BATCH}`, () =>
+        HttpResponse.json({
+          batch: BATCH,
+          total: 1,
+          queued: 1,
+          sent: 0,
+          failed: 0,
+          skipped: 0,
+          failures: [],
+        }),
+      ),
+    );
+
+    const { container } = renderPage();
+    await screen.findByText("Upload CSV File");
+    uploadCsv(container);
+    fireEvent.click(await screen.findByLabelText(/Send a login invitation/));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Import 1 valid row/i }),
+    );
+
+    // Sent from the server's queue, a few a minute: the page says so rather
+    // than claiming they have gone.
+    expect(
+      await screen.findByText("Invitations are being sent"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("0 of 1 sent")).toBeInTheDocument();
+    expect(bodies[0]?.create_logins).toBe(true);
+  });
+
+  it("lists the people with no email for an in-person activation", async () => {
+    server.use(
+      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
+      http.post(COMMIT_URL, () =>
+        HttpResponse.json(
+          {
+            created: 2,
+            skipped: 0,
+            matched: 0,
+            users_created: 0,
+            invitations_batch: null,
+            invitations_queued: 0,
+            in_person: 2,
+            errors: [],
+          },
+          { status: 201 },
+        ),
+      ),
     );
 
     const { container } = renderPage();
@@ -276,8 +334,9 @@ describe("Employee CSV import, 2026-10-15", () => {
     );
 
     expect(
-      await screen.findByText("1 login invitation sent."),
+      await screen.findByText(
+        "2 people have no email. Activate them in person from their employee pages.",
+      ),
     ).toBeInTheDocument();
-    expect(bodies[0]?.create_logins).toBe(true);
   });
 });

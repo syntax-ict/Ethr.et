@@ -49,6 +49,11 @@ export interface SmsDeliveryState {
   route_prefix: "7" | "9" | null;
   daily_cap: number;
   sent_today: number;
+  /** Invitations go by text to people with only a phone. Off until SMS is live. */
+  invitations_enabled: boolean;
+  /** Percent of the daily cap invitations may use; sign-in codes keep the rest. */
+  invitation_share: number;
+  invitations_sent_today: number;
   available: boolean;
   /** Where the live configuration comes from: this page, `.env`, or nowhere. */
   source: "console" | "env" | "none";
@@ -95,7 +100,14 @@ export function useUpdateSmsSettings() {
   return useSmsMutation(
     async (
       payload: Partial<
-        Pick<SmsDeliveryState, "enabled" | "route_prefix" | "daily_cap">
+        Pick<
+          SmsDeliveryState,
+          | "enabled"
+          | "route_prefix"
+          | "daily_cap"
+          | "invitations_enabled"
+          | "invitation_share"
+        >
       >,
     ) =>
       (await apiClient.put<SmsDeliveryState>("/admin/sms/settings", payload))

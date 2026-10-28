@@ -45,6 +45,7 @@ import {
   useDeleteUser,
   useResendInvite,
   useResetUserMfa,
+  useSendInvitations,
   type TenantUser,
   type UpdateUserPayload,
   type UserRole,
@@ -55,6 +56,8 @@ import { PaginationControls } from "@/components/shared/pagination-controls";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { FilterBar } from "@/components/shared/filter-bar";
+import { InvitationProgress } from "@/features/users/components/invitation-progress";
+import { InvitationRemindersSetting } from "@/features/users/components/invitation-reminders-setting";
 
 const ROLES = [
   "tenant_admin",
@@ -83,21 +86,72 @@ function statusTone(status: UserStatus | string): string {
   }
 }
 
+/** What became of an invited person's last invitation, in a few words. */
+function invitationLine(
+  u: TenantUser,
+  t: ReturnType<typeof useT>["t"],
+): string {
+  if (!u.email && u.last_invitation?.channel !== "sms") {
+    return t("users_page.invitation.in_person", "Activate in person");
+  }
+
+  switch (u.last_invitation?.status) {
+    case "queued":
+      return t("users_page.invitation.queued", "Invitation on its way");
+    case "sent":
+      return u.last_invitation.reminder
+        ? t("users_page.invitation.reminder_sent", "Reminder sent")
+        : t("users_page.invitation.sent", "Invitation sent");
+    case "failed":
+      return t("users_page.invitation.failed", "Invitation could not be sent");
+    default:
+      return t("users_page.invitation.none", "No invitation sent yet");
+  }
+}
+
 export default function UsersSettingsPage() {
   const { t } = useT();
   // Every page, and the API's search: it pages at 25 ordered by email, and the
   // screen read only the first page, so accounts past the 25th could not be
   // edited, re-invited or removed (audit N68).
   const [page, setPage] = useState(1);
-  const filters = useQueryFilters({ q: "" });
+  const filters = useQueryFilters({ q: "", status: "" });
   const search = filters.values.q;
-  const usersQuery = useUsers({ page, search: search || undefined });
+  const notActivatedOnly = filters.values.status === "invited";
+  const usersQuery = useUsers({
+    page,
+    search: search || undefined,
+    status: notActivatedOnly ? "invited" : undefined,
+  });
   const invite = useInviteUser();
   const update = useUpdateUser();
   const remove = useDeleteUser();
   const resend = useResendInvite();
   const resetMfa = useResetUserMfa();
+  const sendInvitations = useSendInvitations();
   const { can } = usePermissions();
+  // The bulk send in progress on this screen, if any.
+  const [batch, setBatch] = useState<string | null>(null);
+
+  async function resendToEveryone() {
+    try {
+      const result = await sendInvitations.mutateAsync({
+        scope: "not_activated",
+      });
+      if (result.batch) {
+        setBatch(result.batch);
+      } else {
+        toast.info(
+          t(
+            "users_page.nothing_to_send",
+            "No one is waiting for an invitation by email.",
+          ),
+        );
+      }
+    } catch (e) {
+      toastError(e, t("common.error", "Something went wrong"));
+    }
+  }
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState<TenantUser | null>(null);
@@ -177,12 +231,31 @@ export default function UsersSettingsPage() {
       <div className="space-y-6">
         <PageActions
           actions={
-            <Button onClick={openInvite}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              {t("users_page.invite", "Invite user")}
-            </Button>
+            <>
+              {can.inviteUsers && (
+                <Button
+                  variant="outline"
+                  onClick={resendToEveryone}
+                  disabled={sendInvitations.isPending}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {t(
+                    "users_page.resend_all",
+                    "Resend to everyone not activated",
+                  )}
+                </Button>
+              )}
+              <Button onClick={openInvite}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                {t("users_page.invite", "Invite user")}
+              </Button>
+            </>
           }
         />
+
+        {batch && <InvitationProgress batch={batch} onRetried={setBatch} />}
+
+        <InvitationRemindersSetting />
 
         <FilterBar
           activeCount={filters.activeCount}
@@ -201,6 +274,17 @@ export default function UsersSettingsPage() {
               placeholder={t("users_page.search", "Search by name or email")}
             />
           </div>
+          <Button
+            variant={notActivatedOnly ? "default" : "outline"}
+            size="sm"
+            aria-pressed={notActivatedOnly}
+            onClick={() => {
+              filters.set({ status: notActivatedOnly ? "" : "invited" });
+              setPage(1);
+            }}
+          >
+            {t("users_page.not_activated", "Not activated")}
+          </Button>
         </FilterBar>
 
         {usersQuery.isLoading ? (
@@ -262,13 +346,19 @@ export default function UsersSettingsPage() {
                     <span key="r" className="text-muted-foreground">
                       {t(`role.${u.role}`, u.role.replace(/_/g, " "))}
                     </span>,
-                    <Badge
-                      key="s"
-                      variant="outline"
-                      style={{ color: statusTone(u.status) }}
-                    >
-                      {t(`status.${u.status}`, u.status)}
-                    </Badge>,
+                    <div key="s">
+                      <Badge
+                        variant="outline"
+                        style={{ color: statusTone(u.status) }}
+                      >
+                        {t(`status.${u.status}`, u.status)}
+                      </Badge>
+                      {u.status === "invited" && (
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {invitationLine(u, t)}
+                        </span>
+                      )}
+                    </div>,
                   ],
                   actions: (
                     <div className="flex justify-end gap-1">

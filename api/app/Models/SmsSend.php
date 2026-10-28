@@ -25,15 +25,21 @@ class SmsSend extends Model
 
     public const PURPOSE_TEST = 'test';
 
+    /** An invitation to sign in, which may use only its share of the cap. */
+    public const PURPOSE_INVITATION = 'invitation';
+
     protected $fillable = ['slot', 'purpose'];
 
     protected $hidden = ['id'];
 
     /** Messages accepted since midnight in Addis Ababa, where the day is counted. */
-    public static function countToday(): int
+    public static function countToday(?string $purpose = null): int
     {
         $start = now('Africa/Addis_Ababa')->startOfDay()->utc();
 
-        return static::query()->where('created_at', '>=', $start)->count();
+        return static::query()
+            ->where('created_at', '>=', $start)
+            ->when($purpose !== null, fn ($query) => $query->where('purpose', $purpose))
+            ->count();
     }
 }
