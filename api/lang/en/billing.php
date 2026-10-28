@@ -10,6 +10,7 @@ return [
     'device_limit_reached' => 'You have reached the device limit for your plan.',
 
     'feature_not_in_plan' => 'Your plan does not include :feature. Upgrade to use it.',
+    'feature_unavailable' => 'Your organisation cannot use :feature right now.',
 
     'features' => [
         'attendance' => 'attendance tracking',
