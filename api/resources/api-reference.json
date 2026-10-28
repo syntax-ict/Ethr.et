@@ -15753,6 +15753,86 @@
                 }
             }
         },
+        "/employees/logins": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "employeeLogin.store",
+                "summary": "Create login",
+                "tags": [
+                    "Employees"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateEmployeeLoginsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Invitations are being sent."
+                                        },
+                                        "created": {
+                                            "type": "integer"
+                                        },
+                                        "active": {
+                                            "type": "integer"
+                                        },
+                                        "in_person": {
+                                            "type": "string"
+                                        },
+                                        "email_in_use": {
+                                            "type": "integer"
+                                        },
+                                        "batch": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "queued": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "created",
+                                        "active",
+                                        "in_person",
+                                        "email_in_use",
+                                        "batch",
+                                        "queued"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/employees/next-code": {
             "get": {
                 "x-abilities": [
@@ -24710,12 +24790,150 @@
                                         },
                                         "status": {
                                             "type": "string"
+                                        },
+                                        "without_login": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "employee_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "email": {
+                                                        "type": "string"
+                                                    },
+                                                    "phone": {
+                                                        "type": "string"
+                                                    },
+                                                    "channel": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "sms",
+                                                            "in_person",
+                                                            "email"
+                                                        ]
+                                                    },
+                                                    "invited": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "employee_public_id",
+                                                    "name",
+                                                    "email",
+                                                    "phone",
+                                                    "channel",
+                                                    "invited"
+                                                ]
+                                            }
+                                        },
+                                        "hire_dates_defaulted": {
+                                            "type": "integer",
+                                            "minimum": 0
                                         }
                                     },
                                     "required": [
                                         "message",
                                         "totals",
-                                        "status"
+                                        "status",
+                                        "without_login",
+                                        "hire_dates_defaulted"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/onboarding/migration/batches/{batch}/logins": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "migration.logins",
+                "summary": "Who among a committed batch's people cannot sign in yet, and how each\nwould be invited, for the \"give them a way to sign in\" step after a\nmigration. Also how many were given today as their hire date because\nthe source had none",
+                "tags": [
+                    "Onboarding"
+                ],
+                "parameters": [
+                    {
+                        "name": "batch",
+                        "in": "path",
+                        "required": true,
+                        "description": "The batch public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "without_login": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "employee_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "email": {
+                                                        "type": "string"
+                                                    },
+                                                    "phone": {
+                                                        "type": "string"
+                                                    },
+                                                    "channel": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "sms",
+                                                            "in_person",
+                                                            "email"
+                                                        ]
+                                                    },
+                                                    "invited": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "employee_public_id",
+                                                    "name",
+                                                    "email",
+                                                    "phone",
+                                                    "channel",
+                                                    "invited"
+                                                ]
+                                            }
+                                        },
+                                        "hire_dates_defaulted": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                        }
+                                    },
+                                    "required": [
+                                        "without_login",
+                                        "hire_dates_defaulted"
                                     ]
                                 }
                             }
@@ -41875,6 +42093,25 @@
                     "cancelled"
                 ],
                 "title": "CostSharingStatus"
+            },
+            "CreateEmployeeLoginsRequest": {
+                "type": "object",
+                "properties": {
+                    "employee_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 26,
+                            "maxLength": 26
+                        },
+                        "minItems": 1,
+                        "maxItems": 1000
+                    }
+                },
+                "required": [
+                    "employee_ids"
+                ],
+                "title": "CreateEmployeeLoginsRequest"
             },
             "DecideRetirementCaseRequest": {
                 "type": "object",

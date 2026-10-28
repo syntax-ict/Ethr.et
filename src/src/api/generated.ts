@@ -2826,6 +2826,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/logins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create login */
+        post: operations["employeeLogin.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/import/template": {
         parameters: {
             query?: never;
@@ -4569,6 +4586,28 @@ export interface paths {
         put?: never;
         /** Commit batches */
         post: operations["migration.commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/batches/{batch}/logins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who among a committed batch's people cannot sign in yet, and how each
+         *     would be invited, for the "give them a way to sign in" step after a
+         *     migration. Also how many were given today as their hire date because
+         *     the source had none
+         */
+        get: operations["migration.logins"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -8554,6 +8593,10 @@ export interface components {
          * @enum {string}
          */
         CostSharingStatus: "active" | "suspended" | "completed" | "cancelled";
+        /** CreateEmployeeLoginsRequest */
+        CreateEmployeeLoginsRequest: {
+            employee_ids: string[];
+        };
         /** CustomRoleResource */
         CustomRoleResource: {
             public_id: string;
@@ -19297,6 +19340,41 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "employeeLogin.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEmployeeLoginsRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Invitations are being sent.";
+                        created: number;
+                        active: number;
+                        in_person: string;
+                        email_in_use: number;
+                        batch: string | null;
+                        queued: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "employeeImport.template": {
         parameters: {
             query?: never;
@@ -24423,6 +24501,52 @@ export interface operations {
                             deferred: number;
                         } | unknown[];
                         status: string;
+                        without_login: {
+                            employee_public_id: string;
+                            name: string;
+                            email: string;
+                            phone: string;
+                            /** @enum {string} */
+                            channel: "sms" | "in_person" | "email";
+                            invited: boolean;
+                        }[];
+                        hire_dates_defaulted: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "migration.logins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        without_login: {
+                            employee_public_id: string;
+                            name: string;
+                            email: string;
+                            phone: string;
+                            /** @enum {string} */
+                            channel: "sms" | "in_person" | "email";
+                            invited: boolean;
+                        }[];
+                        hire_dates_defaulted: number;
                     };
                 };
             };
