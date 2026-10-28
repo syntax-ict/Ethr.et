@@ -37,20 +37,20 @@ class AttendanceDeviceDecidedNotification extends Notification
     /** @return array<string, mixed> */
     public function toArray(object $notifiable): array
     {
-        $key = match ($this->outcome) {
-            AttendanceDevice::ACTIVE => 'phone_approved',
-            AttendanceDevice::REJECTED => 'phone_rejected',
-            default => 'phone_revoked',
-        };
         $reason = trim((string) $this->reason);
+        $message = match (true) {
+            $this->outcome === AttendanceDevice::ACTIVE => __('notification.inapp.phone_approved'),
+            $this->outcome === AttendanceDevice::REJECTED && $reason === '' => __('notification.inapp.phone_rejected'),
+            $this->outcome === AttendanceDevice::REJECTED => __('notification.inapp.phone_rejected_reason', ['reason' => $reason]),
+            $reason === '' => __('notification.inapp.phone_revoked'),
+            default => __('notification.inapp.phone_revoked_reason', ['reason' => $reason]),
+        };
 
         return [
             'device_id' => $this->device->public_id,
             'action' => $this->outcome,
             'reason' => $reason === '' ? null : $reason,
-            'message' => $reason === '' || $key === 'phone_approved'
-                ? __('notification.inapp.'.$key)
-                : __('notification.inapp.'.$key.'_reason', ['reason' => $reason]),
+            'message' => $message,
             'url' => '/attendance/mobile',
         ];
     }
