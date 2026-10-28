@@ -1340,6 +1340,7 @@ class ComposerStaticInit870e919e58412b109fb9aa8379549848
         'App\\Http\\Resources\\UserResource' => __DIR__ . '/../..' . '/app/Http/Resources/UserResource.php',
         'App\\Http\\Resources\\VacancyResource' => __DIR__ . '/../..' . '/app/Http/Resources/VacancyResource.php',
         'App\\Jobs\\AccrueLeaveBalancesJob' => __DIR__ . '/../..' . '/app/Jobs/AccrueLeaveBalancesJob.php',
+        'App\\Jobs\\ApplyDuePersonnelActionsJob' => __DIR__ . '/../..' . '/app/Jobs/ApplyDuePersonnelActionsJob.php',
         'App\\Jobs\\BackupTenantJob' => __DIR__ . '/../..' . '/app/Jobs/BackupTenantJob.php',
         'App\\Jobs\\CarryForwardLeaveBalancesJob' => __DIR__ . '/../..' . '/app/Jobs/CarryForwardLeaveBalancesJob.php',
         'App\\Jobs\\CleanupExpiredDataJob' => __DIR__ . '/../..' . '/app/Jobs/CleanupExpiredDataJob.php',

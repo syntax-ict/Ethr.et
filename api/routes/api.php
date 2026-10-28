@@ -565,6 +565,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/transition', [EmployeeTransitionController::class, 'store']);
         Route::get('/personnel-actions', [PersonnelActionController::class, 'index']);
         Route::post('/personnel-actions', [PersonnelActionController::class, 'store']);
+        Route::delete('/personnel-actions/{personnelAction}', [PersonnelActionController::class, 'destroy']);
         Route::get('/disciplinary-cases', [DisciplinaryCaseController::class, 'index']);
         Route::post('/disciplinary-cases', [DisciplinaryCaseController::class, 'store']);
         Route::post('/disciplinary-cases/{disciplinaryCase}/notes', [DisciplinaryCaseController::class, 'addNote']);

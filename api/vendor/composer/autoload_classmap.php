@@ -606,6 +606,7 @@ return array(
     'App\\Http\\Resources\\UserResource' => $baseDir . '/app/Http/Resources/UserResource.php',
     'App\\Http\\Resources\\VacancyResource' => $baseDir . '/app/Http/Resources/VacancyResource.php',
     'App\\Jobs\\AccrueLeaveBalancesJob' => $baseDir . '/app/Jobs/AccrueLeaveBalancesJob.php',
+    'App\\Jobs\\ApplyDuePersonnelActionsJob' => $baseDir . '/app/Jobs/ApplyDuePersonnelActionsJob.php',
     'App\\Jobs\\BackupTenantJob' => $baseDir . '/app/Jobs/BackupTenantJob.php',
     'App\\Jobs\\CarryForwardLeaveBalancesJob' => $baseDir . '/app/Jobs/CarryForwardLeaveBalancesJob.php',
     'App\\Jobs\\CleanupExpiredDataJob' => $baseDir . '/app/Jobs/CleanupExpiredDataJob.php',
