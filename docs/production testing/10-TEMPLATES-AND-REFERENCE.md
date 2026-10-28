@@ -81,7 +81,7 @@ the test pass (test plan 7.3).
 ## 4. Known issues and suspected defects to verify
 
 Found by reading the code while writing this pack (2026-10-24, K-01 to K-18; 2026-10-28, K-19 to
-K-40) and from earlier production QA. **They
+K-41) and from earlier production QA. **They
 are not confirmed on production.** Run the named case, then either file the defect or record
 "not reproduced" in the log.
 
@@ -127,6 +127,7 @@ are not confirmed on production.** Run the named case, then either file the defe
 | K-38 | Payroll | `paid_on` is checked against today's UTC date, so between 00:00 and 03:00 EAT today's EAT date may be refused | PAID-002 |
 | K-39 | Address | A platform operator impersonating an organisation can rename its address (renaming is not on the impersonation block list) | TEN-015 |
 | K-40 | Attendance setup | The "no kiosk" check fires only when the kiosk PIN is also required, not whenever the kiosk method is on with no kiosk | SETUP-003 |
+| K-41 | Feature gate | Platform switches and per-organisation overrides exist in the database (#460) but have no console screen or API yet. Any reason other than `enabled` or `plan` on production means a row was written by hand | PLAN-017 |
 
 ## 5. Production facts in one place
 

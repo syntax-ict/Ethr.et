@@ -6,7 +6,7 @@
 | System under test | Production: `https://www.ethr.et` (apex and organisation addresses), `https://admin.ethr.et` (platform console) |
 | Release under test | The release tag being verified, `vYYYY.MM.DD.N`. Read it from `https://www.ethr.et/release.json` before starting |
 | Document owner | Product owner (Syntax ICT) |
-| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 from `main` at `7cf43b1b3` (section 2.3) |
+| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 from `main` at `c9cfc1282` (section 2.3) |
 | Companion documents | [UAT guide](02-UAT-GUIDE.md), E2E specifications 03 to 09, [templates](10-TEMPLATES-AND-REFERENCE.md) |
 
 ---
@@ -57,7 +57,7 @@ no shell on the host, and the only server-side window is the public health endpo
 
 ### 2.3 Changes since the first edition
 
-Merged on `main` between `c2f86e234` and `7cf43b1b3`. **Check `/release.json` (S-01) before running
+Merged on `main` between `c2f86e234` and `c9cfc1282`. **Check `/release.json` (S-01) before running
 these cases: a merged change is not necessarily deployed.** A case for a change that is not live is
 recorded as Blocked, not Fail.
 
@@ -83,6 +83,7 @@ recorded as Blocked, not Fail.
 | Sidebar product mark as a platform setting; footer row | #425, #426, #437 | CON-P-020 to CON-P-022, UI-009, A11Y-006 |
 | Animated landing stories | #424 | MKT-010 to MKT-012, CON-P-013 |
 | web-push 11 | #436 | PUSH-003 |
+| One feature gate over the plan (no visible change; switches have no screen yet) | #460 | PLAN-014 to PLAN-018 |
 
 ## 3. Approach
 

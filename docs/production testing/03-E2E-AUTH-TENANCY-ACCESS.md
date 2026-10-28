@@ -215,6 +215,13 @@ API (the interface hiding a button is not access control).
 Run on the QA Isolation organisation. PA changes its plan and status on request. A **trial**
 organisation has every feature and no limits, so these cases need it out of trial.
 
+Since #460 the plan is one input to a feature gate (`Services/Features/FeatureGate`) that decides, in
+order: switched off by the platform, revoked for this organisation, granted to it, outside a
+restricted rollout, then the plan. The platform switches and per-organisation overrides
+(`platform_feature_states`, `tenant_feature_overrides`) have **no screen or API yet** and start empty,
+so on production every answer must still equal the plan's. The 13 gated write routes are unchanged
+(payroll processing and runs, reports, custom reports, API keys, webhooks, audit log).
+
 | ID | P | Mode | Scenario | Steps | Expected |
 |---|---|---|---|---|---|
 | PLAN-001 | P1 | R | Starter gates | QA Isolation on Starter (out of trial): process payroll, generate a report, create an API key, create a webhook, read audit logs | Each 403 "Your plan does not include :feature. Upgrade to use it." with the feature named |
@@ -230,3 +237,8 @@ organisation has every feature and no limits, so these cases need it out of tria
 | PLAN-011 | P2 | R | Dunning (observe only) | For a test invoice left unpaid: 7 days overdue, 30 days past due (subscription past due), 60 days suspended | Observe on a `uat-` organisation only; do not wait 60 days on QA Audit |
 | PLAN-012 | P1 | W | Mark paid | PA marks a test invoice paid twice | Paid; the second call changes nothing |
 | PLAN-013 | P2 | R | Pricing page | Public `/en/pricing` and `/am/pricing` | Plans and prices match the console catalogue |
+| PLAN-014 | P1 | R | Feature decisions in `/auth/me` | TA in QA Audit (trial or Enterprise): `GET /api/v1/auth/me`. PA on the console: the same call | `features` holds 11 keys (`attendance`, `leave`, `employee_management`, `payroll`, `reports`, `notifications`, `api_access`, `webhooks`, `custom_reports`, `audit_log`, `custom_domain`), each `{on, visible, reason}`, here all `on: true`, `visible: true`, `reason: "enabled"`. `plan_features` is null (every plan feature on). PA: `features: null` and `plan_features: null` (no organisation) |
+| PLAN-015 | P1 | R | Decisions follow the plan | QA Isolation on Starter, out of trial: `GET /api/v1/auth/me`; then on Professional | Every feature the plan lacks is `on: false`, `reason: "plan"`; the rest `on: true`, `reason: "enabled"`. `plan_features` lists exactly the plan features that are on (add-ons such as `custom_domain` are not listed there). The refusals in PLAN-001 and PLAN-004 match the `on: false` keys one for one |
+| PLAN-016 | P1 | R | A plan refusal keeps its answer | Repeat the PLAN-001 refusals after #460 is live | Each still 403 "Your plan does not include :feature. Upgrade to use it." with the feature named, never `feature-unavailable`. Reads stay open (PLAN-002) |
+| PLAN-017 | P1 | R | No platform switch is set | Across the pass, watch every 403 and every `/auth/me` | No reason other than `enabled` or `plan`, and no 403 `https://ethr.et/errors/feature-unavailable` ("Your organisation cannot use :feature right now.", with `reason` `platform_disabled`, `revoked` or `not_in_rollout`). Seeing one means a switch or override row exists with no screen to show it: stop and tell the owner (K-41) |
+| PLAN-018 | P2 | R | Custom domain follows the gate | Console → QA Isolation (Starter) and QA Audit (Enterprise or trial): tenant detail; TA in each: Settings → Address | `custom_domain_allowed` false on Starter, true on Enterprise and in trial, the same on the console and in Settings. Assigning a domain on Starter is refused as in CON-P-006 |
