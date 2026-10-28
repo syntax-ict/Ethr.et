@@ -15085,6 +15085,18 @@
                                         "users_created": {
                                             "type": "integer"
                                         },
+                                        "invitations_batch": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "invitations_queued": {
+                                            "type": "integer"
+                                        },
+                                        "in_person": {
+                                            "type": "integer"
+                                        },
                                         "errors": {
                                             "type": "object",
                                             "additionalProperties": {
@@ -15100,6 +15112,9 @@
                                         "skipped",
                                         "matched",
                                         "users_created",
+                                        "invitations_batch",
+                                        "invitations_queued",
+                                        "in_person",
                                         "errors"
                                     ]
                                 }
@@ -34089,11 +34104,15 @@
                                                 },
                                                 "next_code": {
                                                     "type": "string"
+                                                },
+                                                "invitation_reminders": {
+                                                    "type": "boolean"
                                                 }
                                             },
                                             "required": [
                                                 "number_format",
-                                                "next_code"
+                                                "next_code",
+                                                "invitation_reminders"
                                             ]
                                         },
                                         "sso": {

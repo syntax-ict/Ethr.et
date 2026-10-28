@@ -29,10 +29,17 @@ export function useUsers(params?: {
   page?: number;
   per_page?: number;
   search?: string;
+  /** `invited` lists the people who have not activated yet. */
+  status?: UserStatus;
 }) {
   return useQuery<PaginatedResponse<TenantUser>>({
     queryKey: ["users", params],
-    queryFn: async () => (await apiClient.get("/users", { params })).data,
+    queryFn: async () => {
+      const { status, ...rest } = params ?? {};
+      const query: Record<string, string | number | undefined> = { ...rest };
+      if (status) query["filter[status]"] = status;
+      return (await apiClient.get("/users", { params: query })).data;
+    },
   });
 }
 
@@ -109,5 +116,41 @@ export function useResendInvite() {
   return useMutation<ResendInviteResult, unknown, string>({
     mutationFn: async (publicId) =>
       (await apiClient.post(`/users/${publicId}/resend-invite`)).data,
+  });
+}
+
+export type SendInvitationsPayload =
+  components["schemas"]["SendInvitationsRequest"];
+
+export type SendInvitationsResult =
+  operations["invitation.store"]["responses"][202]["content"]["application/json"];
+
+export type InvitationBatch = NonNullable<
+  operations["invitation.show"]["responses"][200]["content"]["application/json"]
+>;
+
+/**
+ * Invitations for many people at once. Nothing is sent in the request: the
+ * server queues them and sends a few a minute, so the answer is a batch to
+ * watch (`useInvitationBatch`), not a result.
+ */
+export function useSendInvitations() {
+  const qc = useQueryClient();
+  return useMutation<SendInvitationsResult, unknown, SendInvitationsPayload>({
+    mutationFn: async (payload) =>
+      (await apiClient.post("/users/invitations", payload)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+/** Where a batch stands. Polls while anything is still waiting to go out. */
+export function useInvitationBatch(batch: string | null) {
+  return useQuery<InvitationBatch>({
+    queryKey: ["users", "invitations", batch],
+    enabled: batch !== null,
+    queryFn: async () =>
+      (await apiClient.get(`/users/invitations/${batch}`)).data,
+    refetchInterval: (query) =>
+      query.state.data && query.state.data.queued === 0 ? false : 15_000,
   });
 }

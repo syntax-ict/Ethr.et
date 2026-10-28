@@ -34,6 +34,13 @@ class UserResource extends JsonResource
                 'public_id' => $this->employee->public_id,
                 'name' => $this->employee->name,
             ] : null),
+            'last_invitation' => $this->whenLoaded('latestInvitation', fn () => $this->latestInvitation ? [
+                'channel' => $this->latestInvitation->channel,
+                'status' => $this->latestInvitation->status,
+                'reminder' => $this->latestInvitation->reminder,
+                'queued_at' => $this->latestInvitation->queued_at,
+                'sent_at' => $this->latestInvitation->sent_at,
+            ] : null),
             'created_at' => $this->created_at,
         ];
     }

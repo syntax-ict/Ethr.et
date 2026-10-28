@@ -63,6 +63,7 @@ class EmployeeImportController extends Controller
             $request->validated('import_key'),
             $request->validated('rows'),
             (bool) $request->boolean('create_logins'),
+            $request->user(),
         );
 
         AuditLog::record('employee.import.committed', null, [
@@ -70,6 +71,7 @@ class EmployeeImportController extends Controller
             'created' => $result['created'],
             'skipped' => $result['skipped'],
             'users_created' => $result['users_created'],
+            'invitations_queued' => $result['invitations_queued'],
         ]);
 
         return response()->json($result, 201);

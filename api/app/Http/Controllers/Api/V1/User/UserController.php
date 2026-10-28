@@ -29,7 +29,7 @@ class UserController extends Controller
     {
         Gate::authorize('users.viewAny');
 
-        $query = User::query()->with('employee');
+        $query = User::query()->with(['employee', 'latestInvitation']);
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -128,7 +128,7 @@ class UserController extends Controller
             return $this->problem(422, __('user.errors.not_pending'));
         }
 
-        $sent = $this->provisioning->sendActivationLink($user);
+        $sent = $this->provisioning->sendActivationLink($user, $request->user()->id);
 
         AuditLog::record('user.invite_resent', $user);
 

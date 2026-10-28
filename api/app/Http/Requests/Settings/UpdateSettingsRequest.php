@@ -44,6 +44,7 @@ class UpdateSettingsRequest extends FormRequest
             'settings.session_timeout_minutes' => ['sometimes', 'integer', $timeout],
             'settings.calendar' => ['sometimes', 'string', Rule::in(CalendarPreference::ORGANISATION_CHOICES)],
             'settings.employee_number_format' => ['sometimes', 'string', 'max:40', 'regex:'.EmployeeNumbering::SHAPE],
+            'settings.invitation_reminders' => ['sometimes', 'boolean'],
         ];
     }
 

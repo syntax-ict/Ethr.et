@@ -3536,6 +3536,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create invitation */
+        post: operations["invitation.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/invitations/{batch}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get invitation */
+        get: operations["invitation.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/vacancies/{vacancy}/applications": {
         parameters: {
             query?: never;
@@ -10201,6 +10235,12 @@ export interface components {
             frequency: "daily" | "weekly" | "monthly";
             recipients: string[];
         };
+        /** SendInvitationsRequest */
+        SendInvitationsRequest: {
+            user_ids?: string[];
+            /** @enum {string} */
+            scope?: "not_activated";
+        };
         /** ShiftAssignmentResource */
         ShiftAssignmentResource: {
             public_id: string;
@@ -11698,6 +11738,7 @@ export interface components {
                 /** @enum {string} */
                 calendar?: "ethiopian" | "gregorian";
                 employee_number_format?: string;
+                invitation_reminders?: boolean;
             };
         };
         /** UpdateShiftRequest */
@@ -11724,6 +11765,8 @@ export interface components {
             /** @enum {string|null} */
             route_prefix?: "7" | "9" | null;
             daily_cap?: number;
+            invitations_enabled?: boolean;
+            invitation_share?: number;
         };
         /** UpdateSsoRequest */
         UpdateSsoRequest: {
@@ -11944,6 +11987,15 @@ export interface components {
             employee?: {
                 public_id: string;
                 name: string;
+            } | null;
+            last_invitation?: {
+                channel: string;
+                status: string;
+                reminder: boolean;
+                /** Format: date-time */
+                queued_at: string;
+                /** Format: date-time */
+                sent_at: string | null;
             } | null;
             /** Format: date-time */
             created_at: string | null;
@@ -19296,6 +19348,9 @@ export interface operations {
                         skipped: number;
                         matched: number;
                         users_created: number;
+                        invitations_batch: string | null;
+                        invitations_queued: number;
+                        in_person: number;
                         errors: {
                             [key: string]: string[];
                         };
@@ -21460,6 +21515,92 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "invitation.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SendInvitationsRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Invitations are being sent.";
+                        batch: string | null;
+                        queued: number;
+                        in_person: number;
+                        skipped: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "invitation.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        batch: string;
+                        total: number;
+                        queued: number;
+                        sent: number;
+                        failed: number;
+                        skipped: number;
+                        failures: {
+                            user_id: string;
+                            name: string | null;
+                            channel: string;
+                            error_code: string | null;
+                        }[];
+                    } | null;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No such invitation batch.";
+                    };
+                };
+            };
         };
     };
     "jobApplication.index": {
@@ -29912,6 +30053,7 @@ export interface operations {
                         employees: {
                             number_format: string;
                             next_code: string;
+                            invitation_reminders: boolean;
                         };
                         sso: {
                             is_enabled: boolean;
@@ -31441,6 +31583,9 @@ export interface operations {
                         route_prefix: string | null;
                         daily_cap: number;
                         sent_today: number;
+                        invitations_enabled: boolean;
+                        invitation_share: number;
+                        invitations_sent_today: number;
                         available: boolean;
                         /** @enum {string} */
                         source: "console" | "env" | "none";
@@ -31528,6 +31673,9 @@ export interface operations {
                         route_prefix: string | null;
                         daily_cap: number;
                         sent_today: number;
+                        invitations_enabled: boolean;
+                        invitation_share: number;
+                        invitations_sent_today: number;
                         available: boolean;
                         /** @enum {string} */
                         source: "console" | "env" | "none";
@@ -31618,6 +31766,9 @@ export interface operations {
                         route_prefix: string | null;
                         daily_cap: number;
                         sent_today: number;
+                        invitations_enabled: boolean;
+                        invitation_share: number;
+                        invitations_sent_today: number;
                         available: boolean;
                         /** @enum {string} */
                         source: "console" | "env" | "none";
@@ -31704,6 +31855,9 @@ export interface operations {
                         route_prefix: string | null;
                         daily_cap: number;
                         sent_today: number;
+                        invitations_enabled: boolean;
+                        invitation_share: number;
+                        invitations_sent_today: number;
                         available: boolean;
                         /** @enum {string} */
                         source: "console" | "env" | "none";
@@ -32278,6 +32432,15 @@ export interface operations {
                             employee: {
                                 public_id: string;
                                 name: string;
+                            } | null;
+                            last_invitation: {
+                                channel: string;
+                                status: string;
+                                reminder: boolean;
+                                /** Format: date-time */
+                                queued_at: string;
+                                /** Format: date-time */
+                                sent_at: string | null;
                             } | null;
                         })[];
                         links: {
