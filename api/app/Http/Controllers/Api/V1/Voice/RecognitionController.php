@@ -61,7 +61,7 @@ class RecognitionController extends Controller
         }
 
         $recognition = Recognition::query()->create([
-            'tenant_id' => app(CurrentTenant::class)->get()->id,
+            'tenant_id' => app(CurrentTenant::class)->requireId(),
             'from_employee_id' => $from->id,
             'to_employee_id' => $to->id,
             'value' => $request->validated('value'),

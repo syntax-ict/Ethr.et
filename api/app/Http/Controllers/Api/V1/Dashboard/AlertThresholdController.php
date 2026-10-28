@@ -83,7 +83,7 @@ class AlertThresholdController extends Controller
     public function triggered(Request $request): JsonResponse
     {
         $branchId = $this->resolveBranchId($request);
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
         $to = now();
         $from = $to->copy()->subDays(30);
 
