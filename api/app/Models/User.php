@@ -12,6 +12,8 @@ use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -139,6 +141,18 @@ class User extends Authenticatable implements HasLocalePreference
     public function customRole(): BelongsTo
     {
         return $this->belongsTo(CustomRole::class);
+    }
+
+    /** @return HasMany<InvitationSend, $this> */
+    public function invitationSends(): HasMany
+    {
+        return $this->hasMany(InvitationSend::class);
+    }
+
+    /** @return HasOne<InvitationSend, $this> */
+    public function latestInvitation(): HasOne
+    {
+        return $this->hasOne(InvitationSend::class)->ofMany(['queued_at' => 'max', 'id' => 'max']);
     }
 
     /**

@@ -7,6 +7,8 @@ namespace App\Services;
 use App\Enums\UserRole;
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Models\InvitationSend;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\AccountActivationNotification;
 use App\Support\Mail\CriticalMail;
@@ -90,7 +92,7 @@ class UserProvisioningService
         ]);
 
         if ($sendActivation) {
-            $this->sendActivationLink($user);
+            $this->sendActivationLink($user, $invitedBy);
         }
 
         return $user;
@@ -133,9 +135,26 @@ class UserProvisioningService
     }
 
     /**
-     * (Re)send the activation / set-password link to an invited user.
+     * Provision a login for an employee with a phone and no email, to be
+     * invited by text message once SMS invitations are on. Like the in-person
+     * account it has a null email and an unusable password; the person signs in
+     * with a code sent to that phone, which activates the account (OtpController).
      */
-    public function sendActivationLink(User $user): bool
+    public function provisionWithPhone(Employee $employee, ?int $invitedBy = null): User
+    {
+        $user = $this->provisionWithoutContact($employee, $invitedBy);
+        $user->update(['phone' => $employee->phone]);
+
+        return $user;
+    }
+
+    /**
+     * (Re)send the activation / set-password link to an invited user, now.
+     *
+     * For one person, where someone may be waiting for it. A bulk send goes
+     * through InvitationDispatcher::queue() instead, which sends from the queue.
+     */
+    public function sendActivationLink(User $user, ?int $sentBy = null): bool
     {
         $tenant = $this->currentTenant->get();
         if ($tenant === null || empty($user->email)) {
@@ -146,14 +165,41 @@ class UserProvisioningService
             $token = PasswordTokens::activationBroker()->createToken($user);
 
             // Sent now; a failure queues retries (CriticalMail).
-            return CriticalMail::send($user, new AccountActivationNotification($token, $tenant->subdomain, $tenant->name));
+            $sent = CriticalMail::send($user, new AccountActivationNotification($token, $tenant->subdomain, $tenant->name));
         } catch (\Throwable $e) {
             Log::error('Account activation email failed', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);
 
-            return false;
+            $sent = false;
         }
+
+        // A failure here is retried by CriticalMail, so it is recorded as
+        // queued rather than failed: the users list should not call it lost.
+        InvitationSend::query()->create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $user->id,
+            'channel' => InvitationSend::EMAIL,
+            'status' => $sent ? InvitationSend::SENT : InvitationSend::QUEUED,
+            'attempts' => 1,
+            'queued_by' => $sentBy,
+            'queued_at' => now(),
+            'sent_at' => $sent ? now() : null,
+        ]);
+
+        return $sent;
+    }
+
+    /**
+     * Send the activation email and let a failure throw, for SendInvitationJob,
+     * which is itself the retry. The token is made here, inside the job, so the
+     * jobs table never holds one.
+     */
+    public function deliverActivationEmail(User $user, Tenant $tenant): void
+    {
+        $token = PasswordTokens::activationBroker()->createToken($user);
+
+        $user->notifyNow(new AccountActivationNotification($token, $tenant->subdomain, $tenant->name));
     }
 }

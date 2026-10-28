@@ -17,12 +17,14 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $enabled
  * @property string|null $route_prefix
  * @property int $daily_cap
+ * @property bool $invitations_enabled Invitations go by text (off until SMS is live)
+ * @property int $invitation_share Percent of the daily cap invitations may use
  */
 class SmsSetting extends Model
 {
     public const ROUTE_PREFIXES = ['7', '9'];
 
-    protected $fillable = ['enabled', 'route_prefix', 'daily_cap'];
+    protected $fillable = ['enabled', 'route_prefix', 'daily_cap', 'invitations_enabled', 'invitation_share'];
 
     protected $hidden = ['id'];
 
@@ -31,6 +33,8 @@ class SmsSetting extends Model
         return [
             'enabled' => 'boolean',
             'daily_cap' => 'integer',
+            'invitations_enabled' => 'boolean',
+            'invitation_share' => 'integer',
         ];
     }
 
@@ -41,6 +45,8 @@ class SmsSetting extends Model
             'enabled' => false,
             'route_prefix' => null,
             'daily_cap' => (int) config('sms.daily_cap', 500),
+            'invitations_enabled' => false,
+            'invitation_share' => 30,
         ]);
     }
 }

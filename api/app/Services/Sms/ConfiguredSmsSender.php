@@ -43,6 +43,47 @@ final class ConfiguredSmsSender implements SmsSender
 
     public function send(string $to, string $message): bool
     {
+        return $this->deliver($to, $message, SmsSend::PURPOSE_MESSAGE);
+    }
+
+    /**
+     * Whether invitations go by text at all: SMS works and the platform has
+     * switched text invitations on (console, `sms_settings.invitations_enabled`).
+     * Off, a person with only a phone is activated in person.
+     */
+    public function invitationsEnabled(): bool
+    {
+        return $this->plan() !== null && SmsSetting::current()->invitations_enabled;
+    }
+
+    /**
+     * Whether one more invitation fits today: inside the invitations' share of
+     * the daily cap, so sign-in codes keep the rest for every organisation.
+     */
+    public function invitationBudgetLeft(): bool
+    {
+        $plan = $this->plan();
+        if ($plan === null) {
+            return false;
+        }
+
+        $share = max(0, min(100, SmsSetting::current()->invitation_share));
+
+        return SmsSend::countToday(SmsSend::PURPOSE_INVITATION) < intdiv($plan['cap'] * $share, 100);
+    }
+
+    /** An invitation, counted against the invitations' share. False when it does not fit or was not accepted. */
+    public function sendInvitation(string $to, string $message): bool
+    {
+        if (! $this->invitationsEnabled() || ! $this->invitationBudgetLeft()) {
+            return false;
+        }
+
+        return $this->deliver($to, $message, SmsSend::PURPOSE_INVITATION);
+    }
+
+    private function deliver(string $to, string $message, string $purpose): bool
+    {
         $plan = $this->plan();
 
         if ($plan === null) {
@@ -69,7 +110,7 @@ final class ConfiguredSmsSender implements SmsSender
             $result = (new HttpSmsGateway($gateway))->send($to, $message);
 
             if ($result->ok) {
-                SmsSend::create(['slot' => $gateway->slot, 'purpose' => SmsSend::PURPOSE_MESSAGE]);
+                SmsSend::create(['slot' => $gateway->slot, 'purpose' => $purpose]);
 
                 return true;
             }
