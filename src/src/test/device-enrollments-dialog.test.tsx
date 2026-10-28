@@ -36,7 +36,11 @@ function renderDialog() {
 
 function enrollments(roster: Record<string, unknown>, people = 1) {
   return HttpResponse.json({
-    device: { public_id: "DEV1", name: "Main gate", adapter_type: "zkteco_adms" },
+    device: {
+      public_id: "DEV1",
+      name: "Main gate",
+      adapter_type: "zkteco_adms",
+    },
     enrollments: Array.from({ length: people }, (_, i) => ({
       device_user_id: String(1042 + i),
       name: "Abebe Kebede",
@@ -46,7 +50,13 @@ function enrollments(roster: Record<string, unknown>, people = 1) {
       face_registered: null,
       match: { outcome: "new", employee_public_id: null, confidence: 0 },
     })),
-    summary: { total: people, matched: 0, probable: 0, ambiguous: 0, new: people },
+    summary: {
+      total: people,
+      matched: 0,
+      probable: 0,
+      ambiguous: 0,
+      new: people,
+    },
     roster: {
       source: "reported",
       received_at: null,
@@ -62,10 +72,7 @@ describe("<DeviceEnrollmentsDialog> for a device that reports its list", () => {
     let asked = 0;
     server.use(
       http.get("*/api/v1/devices/DEV1/enrollments", () =>
-        enrollments(
-          asked ? { requested_at: "2026-10-28T06:00:00Z" } : {},
-          0,
-        ),
+        enrollments(asked ? { requested_at: "2026-10-28T06:00:00Z" } : {}, 0),
       ),
       http.post("*/api/v1/devices/DEV1/enrollments/request", () => {
         asked++;

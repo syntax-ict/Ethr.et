@@ -100,6 +100,7 @@ return [
         'App\Http\Controllers\Api\V1\Device\AdmsController@getRequest' => 'Pre-authentication ZKTeco ADMS device: AdmsDeviceResolver selects by serial and authenticates by the device IP allowlist, fail-closed.',
         'App\Http\Controllers\Api\V1\Device\AdmsController@handshake' => 'Pre-authentication ZKTeco ADMS device: AdmsDeviceResolver selects by serial and authenticates by the device IP allowlist, fail-closed.',
         'App\Http\Controllers\Api\V1\Device\AdmsController@ping' => 'Pre-authentication ZKTeco ADMS device: AdmsDeviceResolver selects by serial and authenticates by the device IP allowlist, fail-closed.',
+        'App\Http\Controllers\Api\V1\Device\AdmsController@queryData' => 'Pre-authentication ZKTeco ADMS device: AdmsDeviceResolver selects by serial and authenticates by the device IP allowlist, fail-closed.',
         'App\Http\Controllers\Api\V1\Device\AdmsController@upload' => 'Pre-authentication ZKTeco ADMS device: AdmsDeviceResolver selects by serial and authenticates by the device IP allowlist, fail-closed.',
         'App\Http\Controllers\Api\V1\PlanController@index' => 'Deliberately public pricing.',
         'App\Http\Controllers\Api\V1\SiteContentController@index' => 'Deliberately public marketing copy.',

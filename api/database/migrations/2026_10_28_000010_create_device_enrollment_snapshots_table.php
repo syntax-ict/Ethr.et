@@ -29,7 +29,7 @@ return new class extends Migration
             $table->boolean('is_admin')->default(false);
             $table->unsignedTinyInteger('fingerprint_count')->nullable();
             $table->boolean('face_registered')->nullable();
-            $table->timestamp('seen_at');
+            $table->timestamp('seen_at')->useCurrent();
             $table->timestamps();
 
             // Named: the generated names pass MariaDB's 64-character limit.
