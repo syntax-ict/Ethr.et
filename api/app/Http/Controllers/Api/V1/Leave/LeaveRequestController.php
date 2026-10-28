@@ -43,7 +43,16 @@ class LeaveRequestController extends Controller
         $this->authorize('request', LeaveRequest::class);
 
         $user = $request->user();
-        $employee = Employee::findOrFail($user->employee_id);
+        // HR may file for an employee they reach, including for days already
+        // gone: settling an absence found when reconciling attendance.
+        $onBehalf = $request->onBehalf();
+        if ($onBehalf) {
+            // The request's hook has already refused a name that resolves to no one.
+            $employee = $request->filedFor() ?? abort(404);
+            $this->authorize('requestFor', [LeaveRequest::class, $employee]);
+        } else {
+            $employee = Employee::findOrFail($user->employee_id);
+        }
 
         $leaveType = LeaveType::where('public_id', $request->validated('leave_type_public_id'))->firstOrFail();
 
@@ -75,7 +84,7 @@ class LeaveRequestController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
-        if ($leaveType->min_notice_days > 0) {
+        if ($leaveType->min_notice_days > 0 && ! $onBehalf) {
             $noticeDays = now()->diffInDays($startDate, false);
             if ($noticeDays < $leaveType->min_notice_days) {
                 return response()->json([
@@ -100,7 +109,7 @@ class LeaveRequestController extends Controller
         $balance = $this->balanceService->getOrCreateBalance($employee, $leaveType, $year);
         $remaining = $balance->remainingDays();
 
-        if ($days > $remaining) {
+        if ($leaveType->limitedByBalance() && $days > $remaining) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/insufficient-balance',
                 'title' => 'Insufficient Leave Balance',
@@ -139,6 +148,10 @@ class LeaveRequestController extends Controller
         ]);
 
         $balance->increment('pending_days', $days);
+
+        if ($onBehalf) {
+            $this->approvals->recordFiledFor($leaveRequest, $user);
+        }
 
         AuditLog::record('leave.requested', $leaveRequest, [
             'leave_type' => $leaveType->code,

@@ -96,6 +96,7 @@ final class EmployeeDashboardService
         return LeaveBalance::query()
             ->where('employee_id', $employee->id)
             ->where('year', Carbon::now()->year)
+            ->whereHas('leaveType', fn ($q) => $q->where('kind', 'leave'))
             ->with('leaveType')
             ->orderByDesc('entitled_days')
             ->limit(3)

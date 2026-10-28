@@ -316,7 +316,7 @@ describe("Pricing page", () => {
     // BillingService bills price_cents, so the advertised figure was never the
     // charged one. These assertions are what stop that drifting back.
     expect(screen.getByText("999")).toBeInTheDocument();
-    expect(screen.getByText("2,999")).toBeInTheDocument();
+    expect(screen.getByText("8,999")).toBeInTheDocument();
     expect(screen.getByText("Free")).toBeInTheDocument();
   });
 

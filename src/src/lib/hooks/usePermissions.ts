@@ -19,6 +19,11 @@ const CAN_ABILITIES = {
   manageEmployees: "employee.create",
   manageAnnouncements: "announcement.manage",
   manageVacancies: "vacancy.manage",
+  // The applicant pipeline, and approving an offer someone else made.
+  manageRecruitment: "recruitment.manage",
+  approveOffers: "recruitment.approve",
+  // Setting an offered salary is pay data, as on the employee form.
+  updateEmployeeFinancial: "employee.updateFinancial",
   manageVoice: "voice.manage",
   recordPersonnelAction: "personnel_action.create",
   manageDisciplinaryCases: "disciplinary_case.manage",
@@ -39,6 +44,7 @@ const CAN_ABILITIES = {
   viewPayrollRuns: "payroll.viewAll",
   manageLoans: "payroll.manageLoan",
   manageCostSharing: "payroll.manageCostSharing",
+  managePayrollConfig: "payroll.manageConfig",
   approveLeave: "leave.approve",
   requestOvertime: "overtime.request",
   approveOvertime: "overtime.approve",

@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
 use App\Http\Controllers\Api\V1\Attendance\KioskAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\ManualAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\MobileAttendanceController;
+use App\Http\Controllers\Api\V1\Attendance\MyAttendanceExceptionsController;
 use App\Http\Controllers\Api\V1\Attendance\MyShiftController;
 use App\Http\Controllers\Api\V1\Attendance\OfflineSyncController;
 use App\Http\Controllers\Api\V1\Attendance\OvertimeRequestController;
@@ -125,6 +126,7 @@ use App\Http\Controllers\Api\V1\Profile\ProfilePhotoController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
 use App\Http\Controllers\Api\V1\Profile\ProfileUpdateRequestController;
 use App\Http\Controllers\Api\V1\Push\PushSubscriptionController;
+use App\Http\Controllers\Api\V1\Recruitment\JobApplicationController;
 use App\Http\Controllers\Api\V1\Report\ReportController;
 use App\Http\Controllers\Api\V1\Role\CustomRoleController;
 use App\Http\Controllers\Api\V1\Scim\ScimGroupController;
@@ -411,6 +413,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/check-in', [AttendanceController::class, 'checkIn']);
         Route::post('/check-out', [AttendanceController::class, 'checkOut']);
         Route::get('/my', [AttendanceController::class, 'my']);
+        Route::get('/my-exceptions', MyAttendanceExceptionsController::class);
         Route::get('/my-shift', MyShiftController::class);
         Route::get('/team', [AttendanceController::class, 'team']);
         Route::get('/today', [AttendanceController::class, 'today']);
@@ -679,6 +682,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/runs/{payrollRun}/export/bank', [PayrollController::class, 'bankExport']);
         Route::get('/runs/{payrollRun}/export/bank-csv', [PayrollController::class, 'downloadBankExport']);
         Route::get('/runs/{payrollRun}/register', [PayrollController::class, 'register']);
+        Route::get('/reconciliation', [PayrollController::class, 'reconciliation']);
         Route::get('/runs/{payrollRun}/register-csv', [PayrollController::class, 'downloadRegister']);
         Route::get('/runs/{payrollRun}/statutory/{schedule}', [PayrollController::class, 'statutory'])
             ->whereIn('schedule', StatutorySchedules::SCHEDULES);
@@ -835,6 +839,16 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/vacancies', [VacancyController::class, 'store']);
     Route::put('/vacancies/{vacancy}', [VacancyController::class, 'update']);
     Route::delete('/vacancies/{vacancy}', [VacancyController::class, 'destroy']);
+
+    // Applicants for a vacancy, through to hire (JobApplicationController).
+    Route::get('/vacancies/{vacancy}/applications', [JobApplicationController::class, 'index']);
+    Route::post('/vacancies/{vacancy}/applications', [JobApplicationController::class, 'store']);
+    Route::get('/job-applications/{application}', [JobApplicationController::class, 'show']);
+    Route::post('/job-applications/{application}/stage', [JobApplicationController::class, 'move']);
+    Route::post('/job-applications/{application}/events', [JobApplicationController::class, 'record']);
+    Route::post('/job-applications/{application}/approve-offer', [JobApplicationController::class, 'approveOffer']);
+    Route::post('/job-applications/{application}/hire', [JobApplicationController::class, 'hire']);
+    Route::post('/job-applications/{application}/erase', [JobApplicationController::class, 'erase']);
 
     // Employee voice: the weekly pulse, speak-up concerns and recognition.
     Route::prefix('voice')->group(function () {

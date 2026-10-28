@@ -19,6 +19,7 @@ use App\Models\EmployeeDocument;
 use App\Models\EmployeeLoan;
 use App\Models\Grade;
 use App\Models\Holiday;
+use App\Models\JobApplication;
 use App\Models\KioskSession;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -110,6 +111,11 @@ test('parameterized GET api/v1 endpoints never 5xx with valid bound records', fu
         'description' => 'x', 'status' => 'open', 'visibility' => 'public', 'published_at' => now()->subDay(),
     ]);
 
+    $application = JobApplication::query()->create([
+        'tenant_id' => $tenant->id, 'vacancy_id' => $vacancy->id, 'name' => 'Smoke applicant',
+        'source' => 'email', 'stage' => 'applied',
+    ]);
+
     $concern = Concern::query()->create([
         'tenant_id' => $tenant->id, 'category' => 'safety', 'subject' => 'Smoke',
         'description' => 'x', 'status' => 'new', 'anonymous' => false,
@@ -124,6 +130,7 @@ test('parameterized GET api/v1 endpoints never 5xx with valid bound records', fu
         'variant' => 'image-640',
         'concern' => $concern->public_id,
         'vacancy' => $vacancy->public_id,
+        'application' => $application->public_id,
         'payrollRun' => $run->public_id, 'branch' => $branch->public_id, 'department' => $dept->public_id,
         'announcement' => $announcement->public_id, 'correction' => $correction->public_id,
         'attendanceRecord' => $record->public_id, 'device' => $device->public_id, 'employee' => $employee->public_id,

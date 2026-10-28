@@ -185,6 +185,8 @@ class PermissionSeeder extends Seeder
             // Announcement
             ['name' => 'announcement.manage', 'module' => 'announcement', 'action' => 'manage', 'description' => 'Manage announcements'],
             ['name' => 'vacancy.manage', 'module' => 'vacancy', 'action' => 'manage', 'description' => 'Post, edit and close vacancies'],
+            ['name' => 'recruitment.manage', 'module' => 'recruitment', 'action' => 'manage', 'description' => 'Record applicants and move them through screening, interviews and offers'],
+            ['name' => 'recruitment.approve', 'module' => 'recruitment', 'action' => 'approve', 'description' => 'Approve a job offer someone else made'],
             ['name' => 'voice.manage', 'module' => 'voice', 'action' => 'manage', 'description' => 'Read pulse results and handle concerns employees raise'],
 
             // Dashboard
@@ -290,6 +292,11 @@ class PermissionSeeder extends Seeder
             'retirement_case.manage',
             'announcement.manage',
             'vacancy.manage',
+            // Making an offer and approving it are separate permissions, and
+            // the approver must be someone other than whoever made the offer
+            // (RecruitmentService::approveOffer), so one HR admin alone cannot
+            // hire from the pipeline.
+            'recruitment.manage', 'recruitment.approve',
             'voice.manage',
             // Inviting/activating people is part of HR onboarding.
             'users.viewAny', 'users.invite', 'users.update',

@@ -64,6 +64,8 @@ import {
 import { CalculationLogDialog } from "@/features/payroll/components/calculation-log-dialog";
 import { OvertimeLimitsBanner } from "@/features/payroll/components/overtime-limits-banner";
 import { AbsencesBanner } from "@/features/payroll/components/absences-banner";
+import { ReconciliationBanner } from "@/features/payroll/components/reconciliation-banner";
+import { DeductionCeilingBanner } from "@/features/payroll/components/deduction-ceiling-banner";
 import { IntegrityBanner } from "@/features/payroll/components/integrity-banner";
 import { PensionExemptionsBanner } from "@/features/payroll/components/pension-exemptions-banner";
 import {
@@ -575,12 +577,19 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         <PensionExemptionsBanner exemptions={register.pension_exemptions} />
       )}
 
+      {register?.reconciliation && run.status === "completed" && (
+        <ReconciliationBanner reconciliation={register.reconciliation} />
+      )}
+
       {register?.overtime_limits && run.status !== "voided" && (
         <OvertimeLimitsBanner limits={register.overtime_limits} />
       )}
 
       {register?.absences && run.status !== "voided" && (
         <AbsencesBanner absences={register.absences} />
+      )}
+      {register?.deduction_ceiling && run.status !== "voided" && (
+        <DeductionCeilingBanner ceiling={register.deduction_ceiling} />
       )}
       {register?.integrity && run.status !== "voided" && (
         <IntegrityBanner integrity={register.integrity} />

@@ -120,7 +120,7 @@ are not confirmed on production.** Run the named case, then either file the defe
 | Time zone | Stored UTC, shown EAT (Africa/Addis_Ababa, UTC+3, no DST) |
 | Currency | ETB in cents, shown `X,XXX.XX ETB` |
 | Trial | 6 months on Starter, every feature open, no limits |
-| Plans (as seeded; editable in the console) | Starter 0.00 (10 employees, 1 branch, 2 devices; attendance, leave, employees); Professional 999.00 (100, 5, 20; adds payroll, reports, notifications); Enterprise 2,999.00 (unlimited; adds API, webhooks, saved and scheduled reports, audit log, custom domain) |
+| Plans (as seeded; editable in the console) | Starter 0.00 (10 employees, 1 branch, 2 devices; attendance, leave, employees); Professional 999.00 (100, 5, 20; adds payroll, reports, notifications); Enterprise 8,999.00 (unlimited; adds API, webhooks, saved and scheduled reports, audit log, custom domain) |
 | Token and session | Access token 15 min, refreshed silently; idle timeout per organisation, default 480 min (5 to 480) |
 | MFA | TOTP, 6 digits; trusted browser 30 days; no recovery codes |
 | Sign-in code | 6 digits, 5 minutes, single use |
