@@ -2,9 +2,10 @@
 
 import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import { useState } from "react";
-import { Building2, Loader2, Save } from "lucide-react";
+import { Building2, Landmark, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import {
+  useOrganizationTypes,
   useUpdateOrganization,
   type OrganizationUpdate,
 } from "@/features/settings/api";
@@ -68,12 +69,15 @@ export interface OrganizationCardProps {
     type?: string | null;
     timezone?: string | null;
     locale?: string | null;
+    organization_type?: string | null;
+    organization_type_needs_review?: boolean | null;
   } | null;
 }
 
 export function OrganizationCard({ organization }: OrganizationCardProps) {
-  const { t } = useT();
+  const { t, locale: uiLocale } = useT();
   const updateOrganization = useUpdateOrganization();
+  const organizationTypes = useOrganizationTypes();
 
   const [name, setName] = useState(organization?.name ?? "");
   const [type, setType] = useState(organization?.type ?? "private");
@@ -81,15 +85,23 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
     organization?.timezone ?? "Africa/Addis_Ababa",
   );
   const [locale, setLocale] = useState(organization?.locale ?? "en");
+  // The kind of organisation in law, which decides the payroll rules applied
+  // (pension scheme, fiscal year). Distinct from `type`, the industry.
+  const [kind, setKind] = useState(
+    organization?.organization_type ?? "private",
+  );
+  const needsReview = organization?.organization_type_needs_review === true;
 
   const dirty =
     name !== (organization?.name ?? "") ||
     type !== (organization?.type ?? "private") ||
     timezone !== (organization?.timezone ?? "Africa/Addis_Ababa") ||
-    locale !== (organization?.locale ?? "en");
+    locale !== (organization?.locale ?? "en") ||
+    kind !== (organization?.organization_type ?? "private");
 
   // The hook refreshes /auth/me as well as the settings query: the tenant name
-  // is rendered from it in the sidebar and header.
+  // is rendered from it in the sidebar and header. Sending the kind, even
+  // unchanged, is what confirms it after the migration guessed it.
   function save() {
     updateOrganization.mutate(
       {
@@ -97,6 +109,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
         type,
         timezone,
         locale: locale as OrganizationUpdate["locale"],
+        organization_type: kind,
       },
       {
         onSuccess: () =>
@@ -128,6 +141,30 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {needsReview && (
+          <div
+            role="status"
+            className="flex flex-col gap-3 rounded-md border border-[var(--color-status-warning)] bg-[var(--color-surface-secondary)] p-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="flex items-start gap-2">
+              <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-status-warning)]" />
+              <p className="text-sm">
+                {t(
+                  "settings.organization_kind_review",
+                  "Confirm the kind of organisation below. Payroll applies the pension scheme and fiscal year set for it in law.",
+                )}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={save}
+              disabled={updateOrganization.isPending}
+            >
+              {t("settings.organization_kind_confirm", "Confirm")}
+            </Button>
+          </div>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="org-name">
@@ -161,8 +198,31 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
             </p>
           </div>
           <div>
+            <Label htmlFor="org-kind">
+              {t("settings.organization_kind", "Kind of organisation in law")}
+            </Label>
+            <Select value={kind} onValueChange={setKind}>
+              <SelectTrigger id="org-kind" className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(organizationTypes.data ?? []).map((option) => (
+                  <SelectItem key={option.code} value={option.code}>
+                    {uiLocale === "am" ? option.name_am : option.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "settings.organization_kind_help",
+                "Decides the statutory payroll rules: the pension scheme and the fiscal year.",
+              )}
+            </p>
+          </div>
+          <div>
             <Label htmlFor="org-type">
-              {t("settings.organization_type", "Organization Type")}
+              {t("settings.industry", "Industry")}
             </Label>
             <Select value={type} onValueChange={setType}>
               <SelectTrigger id="org-type" className="mt-1">

@@ -56,11 +56,31 @@ class PayrollEntry extends Model
         ];
     }
 
+    /**
+     * What a payslip says. Once its run is approved, paid or voided none of
+     * these can change: the trigger `payroll_entries_amounts_frozen` refuses
+     * it in the database, and this refuses it before the query is sent.
+     *
+     * @var list<string>
+     */
+    public const FROZEN_COLUMNS = [
+        'payroll_run_id', 'employee_id', 'basic_salary_cents', 'allowances', 'deductions', 'gross_cents',
+        'income_tax_cents', 'employee_pension_cents', 'employer_pension_cents', 'other_deductions_cents',
+        'net_cents', 'calculation_log',
+    ];
+
     protected static function booted(): void
     {
         static::updating(function (self $entry) {
             if ($entry->isDirty('calculation_log') && $entry->getOriginal('calculation_log') !== null) {
                 throw new \LogicException('calculation_log is immutable after initial creation.');
+            }
+
+            if ($entry->isDirty(self::FROZEN_COLUMNS)) {
+                $status = PayrollRun::query()->whereKey($entry->getOriginal('payroll_run_id'))->value('status');
+                if (in_array($status, [...PayrollRun::RELEASED_STATUSES, 'voided'], true)) {
+                    throw new \LogicException('A payroll entry cannot change once its run is approved, paid or voided.');
+                }
             }
         });
     }

@@ -8,22 +8,17 @@ use App\Models\AttendanceRecord;
 use Illuminate\Support\Carbon;
 
 /**
- * Splits a record's overtime minutes into the four Ethiopian overtime
- * categories so each can be paid at its own rate:
- *   - normal        (1.25x) — daytime, ordinary day
- *   - night         (1.5x)  — night hours, ordinary day
- *   - holiday       (2.0x)  — daytime, public holiday / rest day
- *   - holiday_night (2.5x)  — night hours, public holiday / rest day
+ * Splits a record's overtime minutes into the categories Labour Proclamation
+ * No. 1156/2019 Art. 68(1) pays at different rates: normal and night on an
+ * ordinary day, rest_day on a weekly rest day, holiday and holiday_night on a
+ * public holiday. The rates themselves are OvertimeCalculator's.
  *
- * Night is the 22:00–06:00 window (constant across the year; Ethiopia has no
- * DST). All arithmetic is in whole minutes.
+ * Night is the `overtime.night_window` statutory parameter, 22:00 to 06:00
+ * since 2016 (Ethiopia has no DST), passed in by the caller rather than held
+ * here. All arithmetic is in whole minutes.
  */
 final class OvertimeClassifier
 {
-    private const NIGHT_START_HOUR = 22;
-
-    private const NIGHT_END_HOUR = 6;
-
     /**
      * Work on a public holiday or a weekly rest day is paid at its Art. 68(1)
      * rate for the whole time worked — there are no scheduled hours on those
@@ -32,10 +27,17 @@ final class OvertimeClassifier
      * day worked on a holiday paid only what ran past 17:30, and rest days
      * were not recognised at all.
      *
+     * @param  array{start_hour: int, end_hour: int}|null  $nightWindow  hours of the day night overtime starts and
+     *                                                                   ends; required, nullable only so it can follow
+     *                                                                   `$isRestDay`'s default
      * @return array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}
      */
-    public function classify(AttendanceRecord $record, bool $isHoliday, bool $isRestDay = false): array
+    public function classify(AttendanceRecord $record, bool $isHoliday, bool $isRestDay = false, ?array $nightWindow = null): array
     {
+        if ($nightWindow === null) {
+            throw new \InvalidArgumentException('OvertimeClassifier::classify needs the overtime.night_window statutory parameter');
+        }
+
         $buckets = ['normal' => 0, 'night' => 0, 'rest_day' => 0, 'holiday' => 0, 'holiday_night' => 0];
 
         $window = ($isHoliday || $isRestDay) ? $record->workedWindow() : $record->overtimeWindow();
@@ -46,7 +48,7 @@ final class OvertimeClassifier
         [$start, $end] = $window;
 
         $totalMinutes = (int) $start->diffInMinutes($end);
-        $nightMinutes = $this->nightMinutes($start, $end);
+        $nightMinutes = $this->nightMinutes($start, $end, (int) $nightWindow['start_hour'], (int) $nightWindow['end_hour']);
         $dayMinutes = max(0, $totalMinutes - $nightMinutes);
 
         if ($isHoliday) {
@@ -65,11 +67,11 @@ final class OvertimeClassifier
     }
 
     /**
-     * Minutes of [start, end] that fall inside the 22:00–06:00 night window,
-     * summed across every calendar day the interval touches (handles overtime
-     * that crosses midnight).
+     * Minutes of [start, end] that fall inside the night window, summed
+     * across every calendar day the interval touches (handles overtime that
+     * crosses midnight).
      */
-    private function nightMinutes(Carbon $start, Carbon $end): int
+    private function nightMinutes(Carbon $start, Carbon $end, int $nightStartHour, int $nightEndHour): int
     {
         $minutes = 0;
 
@@ -77,16 +79,16 @@ final class OvertimeClassifier
         $lastDay = $end->copy()->startOfDay();
 
         while ($day->lte($lastDay)) {
-            // Early window: [00:00, 06:00)
+            // Early window: [00:00, end hour)
             $minutes += $this->overlapMinutes(
                 $start, $end,
-                $day->copy(), $day->copy()->addHours(self::NIGHT_END_HOUR),
+                $day->copy(), $day->copy()->addHours($nightEndHour),
             );
 
-            // Late window: [22:00, next 00:00)
+            // Late window: [start hour, next 00:00)
             $minutes += $this->overlapMinutes(
                 $start, $end,
-                $day->copy()->addHours(self::NIGHT_START_HOUR), $day->copy()->addDay(),
+                $day->copy()->addHours($nightStartHour), $day->copy()->addDay(),
             );
 
             $day->addDay();

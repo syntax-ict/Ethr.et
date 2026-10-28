@@ -481,7 +481,7 @@ final class ExecutiveDashboardService
         if ($branchId === null) {
             return PayrollRun::withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenantId)
-                ->whereIn('status', ['completed', 'approved'])
+                ->whereIn('status', ['completed', ...PayrollRun::RELEASED_STATUSES])
                 ->orderByDesc('period_start')
                 ->limit(12)
                 ->get()
@@ -501,7 +501,7 @@ final class ExecutiveDashboardService
             ->join('payroll_runs', 'payroll_entries.payroll_run_id', '=', 'payroll_runs.id')
             ->join('employees', 'payroll_entries.employee_id', '=', 'employees.id')
             ->where('employees.branch_id', $branchId)
-            ->whereIn('payroll_runs.status', ['completed', 'approved'])
+            ->whereIn('payroll_runs.status', ['completed', ...PayrollRun::RELEASED_STATUSES])
             ->selectRaw('
                 payroll_runs.id as run_id,
                 payroll_runs.period_label as period,
@@ -543,7 +543,7 @@ final class ExecutiveDashboardService
             ->where('payroll_entries.tenant_id', $tenantId)
             ->join('payroll_runs', 'payroll_entries.payroll_run_id', '=', 'payroll_runs.id')
             ->join('employees', 'payroll_entries.employee_id', '=', 'employees.id')
-            ->whereIn('payroll_runs.status', ['completed', 'approved']);
+            ->whereIn('payroll_runs.status', ['completed', ...PayrollRun::RELEASED_STATUSES]);
 
         if ($branchId !== null) {
             $query->where('employees.branch_id', $branchId);

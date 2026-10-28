@@ -321,6 +321,39 @@ export function useVoidPayroll() {
   });
 }
 
+/**
+ * Record that an approved run has been paid: the date the money left and the
+ * bank's reference. A paid run cannot be voided; a mistake is corrected in the
+ * next run.
+ */
+export function useMarkPayrollPaid() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      paidOn,
+      reference,
+      note,
+    }: {
+      publicId: string;
+      paidOn: string;
+      reference?: string;
+      note?: string;
+    }) => {
+      const { data } = await apiClient.put(`/payroll/runs/${publicId}/paid`, {
+        paid_on: paidOn,
+        payment_reference: reference || null,
+        payment_note: note || null,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payroll"] });
+    },
+  });
+}
+
 export function useReprocessPayroll() {
   const queryClient = useQueryClient();
 

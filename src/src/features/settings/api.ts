@@ -52,6 +52,18 @@ export function useSettings() {
   });
 }
 
+/** `GET /organization-types`: the catalogue statutory payroll rules are scoped by. */
+export type OrganizationTypeOption =
+  operations["organizationType.index"]["responses"][200]["content"]["application/json"]["data"][number];
+
+export function useOrganizationTypes() {
+  return useQuery<OrganizationTypeOption[]>({
+    queryKey: ["organization-types"],
+    queryFn: async () => (await apiClient.get("/organization-types")).data.data,
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
 export function useNotificationTemplates() {
   return useQuery<NotificationTemplate[]>({
     queryKey: keys.notificationTemplates,

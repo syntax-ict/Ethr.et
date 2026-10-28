@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Payroll;
 
+use App\Http\Requests\Payroll\Concerns\ValidatesPensionScheme;
 use App\Services\Payroll\PensionCalculator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -16,6 +17,8 @@ use Illuminate\Validation\Validator;
  */
 class StorePensionRuleRequest extends FormRequest
 {
+    use ValidatesPensionScheme;
+
     public function authorize(): bool
     {
         return true;
@@ -25,7 +28,7 @@ class StorePensionRuleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'scheme' => ['required', 'string', Rule::in(PensionCalculator::SCHEMES)],
+            'scheme' => ['required', 'string', 'max:30'],
             'employee_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'employer_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'ceiling_cents' => ['nullable', 'integer', 'min:1'],
@@ -41,6 +44,8 @@ class StorePensionRuleRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v): void {
+            $this->checkPensionScheme($v, 'scheme');
+
             $ceiling = $this->input('ceiling_cents');
             $floor = $this->input('floor_cents');
             if (is_numeric($ceiling) && is_numeric($floor) && (int) $floor > (int) $ceiling) {
