@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\PlanFeature;
+use App\Enums\Feature;
 use App\Enums\TenantAddressMode;
 use App\Models\AuditLog;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\TenantSubdomainAlias;
+use App\Services\Features\FeatureGate;
 use App\Support\FrontendUrl;
 use App\Support\TenancyDomain;
 use Illuminate\Support\Facades\Cache;
@@ -26,7 +27,7 @@ use Illuminate\Validation\ValidationException;
 final class TenantAddressService
 {
     public function __construct(
-        private readonly PlanFeatureService $plans,
+        private readonly FeatureGate $features,
         private readonly CustomDomainVerifier $verifier,
     ) {}
 
@@ -64,7 +65,7 @@ final class TenantAddressService
             'subdomains_served' => Tenant::subdomainsServed(),
             'custom_domain' => $tenant->custom_domain,
             'custom_domain_status' => $this->domainStatus($tenant),
-            'custom_domain_allowed' => $this->plans->allows($tenant, PlanFeature::CustomDomain),
+            'custom_domain_allowed' => $this->features->allows($tenant, Feature::CustomDomain),
             'custom_domain_dns' => $this->domainDns($tenant),
         ];
     }
@@ -154,7 +155,7 @@ final class TenantAddressService
     {
         $this->loadSubscription($tenant);
 
-        if ($domain !== null && ! $this->plans->allows($tenant, PlanFeature::CustomDomain)) {
+        if ($domain !== null && ! $this->features->allows($tenant, Feature::CustomDomain)) {
             throw ValidationException::withMessages([
                 'custom_domain' => [__('validation.custom_domain_not_in_plan')],
             ]);

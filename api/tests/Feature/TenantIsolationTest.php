@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Models\FeatureFlag;
 use App\Models\Lead;
 use App\Models\MarketingItem;
 use App\Models\MarketingSection;
@@ -12,6 +11,7 @@ use App\Models\OtpCode;
 use App\Models\Permission;
 use App\Models\PersonalAccessToken;
 use App\Models\Plan;
+use App\Models\PlatformFeatureState;
 use App\Models\PlatformSetting;
 use App\Models\SmsGateway;
 use App\Models\SmsSend;
@@ -33,7 +33,7 @@ use Illuminate\Support\Facades\Schema;
 const GLOBAL_MODELS = [
     Tenant::class,               // the tenant record itself
     Plan::class,                 // global subscription catalogue
-    FeatureFlag::class,          // global when tenant_id is null
+    PlatformFeatureState::class, // the platform admin's feature switches, one row per feature
     Permission::class,           // global permission catalogue
     OrganizationTemplate::class, // global industry template catalogue
     OrganizationType::class,     // global catalogue of organisation types statutory rules are scoped by
@@ -71,14 +71,11 @@ const GLOBAL_MODELS = [
  * Models carrying a nullable `tenant_id` where NULL is meaningful, so the strict
  * `where tenant_id = X` global scope would hide rows the feature depends on.
  *
- * `FeatureFlag` stores a global default as `tenant_id IS NULL` and a per-tenant
- * override as a real id; `FeatureFlag::enabled()` filters both branches explicitly
- * and the only other access is via `Tenant::featureFlags()`, which is already scoped.
- * Any new entry here needs the same proof: every read path filters by tenant itself.
+ * Empty since 2026-10-28: `FeatureFlag`, its only entry, was replaced by the global
+ * `PlatformFeatureState` and the tenant-scoped `TenantFeatureOverride`.
+ * Any new entry here needs proof that every read path filters by tenant itself.
  */
-const NULLABLE_TENANT_MODELS = [
-    FeatureFlag::class,
-];
+const NULLABLE_TENANT_MODELS = [];
 
 /**
  * @return list<class-string<Model>>

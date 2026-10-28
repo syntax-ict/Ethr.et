@@ -69,7 +69,7 @@ it('creates a plan with its marketing copy', function () {
 it('refuses a feature key that is not a PlanFeature', function () {
     asPlatformOperator();
 
-    // RequiresPlanFeature compares strings, so a typo here would deny access
+    // RequiresFeature compares strings, so a typo here would deny access
     // with no error anywhere — the failure would look like a permissions bug
     // months later.
     $this->postJson('/api/v1/admin/plans', [

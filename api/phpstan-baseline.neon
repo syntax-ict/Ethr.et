@@ -925,18 +925,6 @@ parameters:
 			path: app/Models/EmployeeTransition.php
 
 		-
-			message: '#^Method App\\Models\\FeatureFlag\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/FeatureFlag.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>enabled" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Models/FeatureFlag.php
-
-		-
 			message: '#^Class App\\Models\\Grade uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
@@ -1388,12 +1376,6 @@ parameters:
 
 		-
 			message: '#^Method App\\Models\\Tenant\:\:employees\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/Tenant.php
-
-		-
-			message: '#^Method App\\Models\\Tenant\:\:featureFlags\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/Tenant.php
