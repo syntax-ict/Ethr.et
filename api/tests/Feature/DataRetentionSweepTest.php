@@ -65,7 +65,7 @@ function insertNotification(string $id, CarbonInterface $createdAt): void
  * omitting it is a NOT NULL violation, which is exactly how the first version
  * of this file failed CI.
  *
- * Root CLAUDE.md records the reason the column exists: `WebhookDispatcher` wrote
+ * `docs/audit/BASELINE.md` §11c records the reason the column exists: `WebhookDispatcher` wrote
  * delivery rows with no `tenant_id`, so a queue worker either violated this
  * constraint or filed the row against whichever tenant the *previous* job had
  * left resolved.
