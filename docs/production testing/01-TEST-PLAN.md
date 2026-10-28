@@ -6,7 +6,7 @@
 | System under test | Production: `https://www.ethr.et` (apex and organisation addresses), `https://admin.ethr.et` (platform console) |
 | Release under test | The release tag being verified, `vYYYY.MM.DD.N`. Read it from `https://www.ethr.et/release.json` before starting |
 | Document owner | Product owner (Syntax ICT) |
-| Prepared | 2026-10-24, from `main` at `c2f86e234` |
+| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 from `main` at `7cf43b1b3` (section 2.3) |
 | Companion documents | [UAT guide](02-UAT-GUIDE.md), E2E specifications 03 to 09, [templates](10-TEMPLATES-AND-REFERENCE.md) |
 
 ---
@@ -32,15 +32,15 @@ no shell on the host, and the only server-side window is the public health endpo
 | Area | Specification |
 |---|---|
 | Release verification and health | [10, section 3](10-TEMPLATES-AND-REFERENCE.md#3-release-smoke-checklist) |
-| Sign-in (password, sign-in code by email or SMS, SSO), MFA, sessions, password reset, invitations, find my organisation, registration, impersonation | [03](03-E2E-AUTH-TENANCY-ACCESS.md) |
-| Organisation addresses (`ethr.et/{slug}`, subdomain, custom domain), tenant statuses | [03](03-E2E-AUTH-TENANCY-ACCESS.md) |
+| Sign-in (password, sign-in code by email or SMS, SSO), MFA, sessions, password reset, invitations, in-person activation codes, find my organisation, registration, impersonation | [03](03-E2E-AUTH-TENANCY-ACCESS.md) |
+| Organisation addresses (`ethr.et/{slug}`, subdomain, custom domain), renaming the address, tenant statuses | [03](03-E2E-AUTH-TENANCY-ACCESS.md) |
 | Roles, permissions, reach, custom roles, plan gates and limits, billing | [03](03-E2E-AUTH-TENANCY-ACCESS.md) |
-| Setup wizard, organisation structure, employees, import and export, lifecycle, documents, profile self-service | [04](04-E2E-PEOPLE-AND-ORGANISATION.md) |
-| Attendance (web, mobile, QR, kiosk, manual, import, offline, biometric devices), status rules, corrections, overtime requests, conflicts, integrity flags, photos, shifts, rotations, holidays | [05](05-E2E-ATTENDANCE-SHIFTS-DEVICES.md) |
+| Setup wizard, organisation structure, employees, import and export, lifecycle and scheduled personnel changes, documents, profile self-service, recruitment from applicant to hire | [04](04-E2E-PEOPLE-AND-ORGANISATION.md) |
+| Attendance (web, mobile, QR, kiosk, manual, import, offline, biometric devices), status rules, corrections, overtime requests, conflicts, integrity flags, risk score and liveness, rules by branch, work sites, setup status, field visits, registered phones, photos, shifts, rotations, default schedules, holidays | [05](05-E2E-ATTENDANCE-SHIFTS-DEVICES.md) |
 | Leave, balances, approval chains, batch approvals, employment letters, exit clearance, disciplinary and retirement cases | [06](06-E2E-LEAVE-AND-APPROVALS.md) |
-| Payroll calculation, run lifecycle, loans, cost sharing, bank file, register, statutory schedules, payslips, accounting journal | [07](07-E2E-PAYROLL.md) |
-| Announcements, news site, organisation landing page, vacancies, notifications, employee voice, search, dashboards, reports, analytics | [08](08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md) |
-| API keys, webhooks, SCIM, SSO settings, data export, audit log, platform console, marketing site | [08](08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md) |
+| Payroll calculation and rounding, run lifecycle and payment, attendance reconciliation, lateness deductions, statutory rules by kind of organisation, loans, cost sharing, bank file, register, statutory schedules, payslips, accounting journal | [07](07-E2E-PAYROLL.md) |
+| Announcements, news site, organisation landing page and public listing, vacancies, notifications and phone push, employee voice, search, dashboards and Next steps, reports, analytics | [08](08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md) |
+| API keys, webhooks, SCIM, SSO settings, data export, audit log, platform console and operations centre, marketing site | [08](08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md) |
 | Security, isolation, rate limits, performance, accessibility, localisation, Ethiopian calendar, responsive layout, PWA and offline | [09](09-NON-FUNCTIONAL.md) |
 
 ### 2.2 Out of scope
@@ -51,9 +51,38 @@ no shell on the host, and the only server-side window is the public health endpo
 | Load and stress testing on production | Shared hosting with a 5 GB quota and stock PHP limits. A load test can take every customer down. Only the light timing checks in [09](09-NON-FUNCTIONAL.md) are allowed |
 | Penetration testing beyond the black-box checks in [09](09-NON-FUNCTIONAL.md) | Needs a separate authorisation from the owner |
 | Physical biometric devices | Only if the owner provides a test device registered to the QA organisation |
-| Face matching, liveness and the attendance work in progress on 2026-10-24 | Not on `main` when this pack was written. Add cases from the release notes when it ships |
+| Face matching (comparing a selfie with a stored face) | Not built. The live face check before a selfie (liveness) is in scope, [05, section 6a](05-E2E-ATTENDANCE-SHIFTS-DEVICES.md#6a-risk-score-liveness-and-pattern-scans) |
 | Afaan Oromoo, Tigrinya, Somali, Sidama | Listed as coming soon; they cannot be selected |
 | Real payment collection | ETHR raises invoices; payment is confirmed by hand in the console |
+
+### 2.3 Changes since the first edition
+
+Merged on `main` between `c2f86e234` and `7cf43b1b3`. **Check `/release.json` (S-01) before running
+these cases: a merged change is not necessarily deployed.** A case for a change that is not live is
+recorded as Blocked, not Fail.
+
+| Change | PRs | Cases |
+|---|---|---|
+| Attendance upgrade: rules by branch, where each employee punches, work sites on a map, setup status, risk score, liveness, field visits, a default schedule from the first minute, phone push and reminders | #412 to #423 | 05 sections 1a to 1c, 6a, 7a, 9a; MOB-010 to MOB-012; PUSH-001 to PUSH-005 |
+| Registered phones (passkeys), and managing them | #427, #459 | 05 section 15; ISO-012; SEC-024 to SEC-027 |
+| The punch each screen offers (web, QR, kiosk Automatic) | #455 | 05 section 5a |
+| Every capture channel pays the same; manual night shifts; imported rows rated | #443 | CAP-001, CAP-002, MAN-002, AIMP-002, PAY-031 |
+| Absences report source; the manager card's absence count | #407 | REP-005, ABS-003 |
+| Problem JSON for signed-out calls, validation, refused punches, unreadable devices | #406, #408 | SEC-021 to SEC-023 |
+| Organisation renames its address | #439 | TEN-015 to TEN-023, ORG-005 |
+| In-person activation for staff with no email or phone | #440 | 03 section 5a, EMP-014, EMP-015 |
+| Next steps card | #441 | NXT-001 to NXT-006, EMP-016 |
+| Recruitment from applicant to hire | #444 | 04 section 9 |
+| Attendance-to-payroll reconciliation, missed punches, leave kinds that settle absences | #446 | 07 section 8, COR-008, COR-009, LT-005, LR-016, LR-017 |
+| Lateness deductions within Art. 59's one third | #449 | 07 section 9 |
+| Exact rounding, statutory rules by kind of organisation, the paid state | #448 | RND-001, 07 sections 10 and 11, corrections in 07 sections 1 to 5 |
+| Future-dated personnel actions held until their date | #451 | LIFE-009 to LIFE-013 |
+| Console: operations centre, truthful figures, readable audit, platform sign-in lands on the console | #452, #453, #457 | 08 section 9a, CON-P-011, CON-P-016, CON-P-018, CON-P-019, AUD-003 |
+| Console deletes with a reason only (no typed address, no authenticator code) | #439, #442 | CON-P-009 |
+| Every organisation in use listed on Google and under Trusted by unless it opts out | #438 | LAND-005 to LAND-008, CON-P-008, MKT-006, MKT-007 |
+| Sidebar product mark as a platform setting; footer row | #425, #426, #437 | CON-P-020 to CON-P-022, UI-009, A11Y-006 |
+| Animated landing stories | #424 | MKT-010 to MKT-012, CON-P-013 |
+| web-push 11 | #436 | PUSH-003 |
 
 ## 3. Approach
 
@@ -161,7 +190,8 @@ builds it step by step):
 | Shifts | S1 "QA Day" 08:30 to 17:30, grace 15, early departure 15, Monday to Friday; S2 "QA Night" 22:00 to 06:00 crossing midnight |
 | Leave types | The defaults from the setup wizard (annual 16 days, sick 30, maternity 120, paternity 3 and so on) |
 | Holidays | Auto-detected for the current year |
-| Employees | The persona employees above, plus E-PAY-1 to E-PAY-7 with the golden-payslip salaries in [07, section 2](07-E2E-PAYROLL.md#2-golden-payslips) |
+| Employees | The persona employees above, plus E-PAY-1 to E-PAY-8 with the golden-payslip salaries in [07, section 2](07-E2E-PAYROLL.md#2-golden-payslips); E-REC-1 (basic 6,600.00) and E-LATE-1 to E-LATE-3 (basic 8,800.00) for [07, sections 8 and 9](07-E2E-PAYROLL.md#8-attendance-reconciliation-before-payroll); E-NC, with no email and no phone (EMP-014) |
+| Work site | "QA-Site North" at `9.0300, 38.7400`, radius 200 m, open to EMP2 and D1 (PLACE-001) |
 | Test files | A CSV employee import of 5 rows; an attendance import of 5 rows; a 1.4 MB JPEG; a 2.5 MB PDF; a 3 MB JPEG; a `.exe` renamed to `.pdf`; a 960 px and a 600 px wide JPEG; an Amharic CSV saved as UTF-8 with a byte order mark |
 
 **Naming rule.** Everything a tester creates carries the prefix `QA-` (people, branches, announcements)
@@ -277,8 +307,14 @@ At the end of the pass:
 - End or cancel test loans and cost-sharing obligations.
 - Revoke test API keys, delete test webhooks, deactivate test kiosk sessions.
 - Unpublish test announcements and vacancies, or mark them internal.
-- Delete the `uat-` organisations through the console (cancel, then delete with the typed address,
-  reason and MFA code).
+- Delete the `uat-` organisations through the console (cancel, then delete with a reason; no typed
+  address or authenticator code is asked).
+- Set "Registered phone" back to Off, delete the `ethr.et` passkeys from every test phone's password
+  manager, and end test phone exemptions (05 section 15).
+- Set reconciliation to Off and lateness deductions off (07 sections 8 and 9); remove branch rules and
+  work sites made for the pass; set test employees back to "At their branch".
+- Cancel scheduled personnel changes left pending (LIFE-011); withdraw live activation codes (ACT-007).
+- Keep QA Audit, Syntax and QA Isolation off "Trusted by" and out of search (LAND-007).
 - Withdraw photo consent on test accounts if the photo tests are finished.
 - Record what was left in QA Audit on purpose, in the execution log.
 
@@ -302,3 +338,6 @@ At the end of the pass:
 | Payroll figures differ from the accountant's | Wrong pay | Golden payslips in [07](07-E2E-PAYROLL.md); tax ladder confirmed by a tax adviser before the first real run (owner action) |
 | MFA devices unavailable | Admin cases blocked | Admins enrol on day 0; the tenant admin can reset MFA for a test account |
 | The release steps were not run | New features 404 | Entry criterion 7.1 |
+| A paid run cannot be voided | Its period can never be run again in QA Audit | Record payment only on the last run of a pass (PAID-001), and use new periods next time |
+| QA organisations are public by default | QA names under "Trusted by" and in search results | LAND-007 before the pass |
+| A merged change is not yet deployed | Cases fail for a feature that is not live | Check `/release.json` against section 2.3 first; record Blocked |

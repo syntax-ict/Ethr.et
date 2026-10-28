@@ -4,7 +4,9 @@ This folder is the complete hand-over for a test engineer verifying **ETHR on pr
 (`https://www.ethr.et`, platform console `https://admin.ethr.et`) after a release. It covers the test plan,
 the user acceptance test (UAT) guide and the end-to-end (E2E) test specification.
 
-Written 2026-10-24 from the code on `main` (`c2f86e234`) and the product documents. The figures
+Written 2026-10-24 from the code on `main` (`c2f86e234`) and the product documents, and brought up
+to date on 2026-10-28 from `main` at `7cf43b1b3` (PRs #406 to #459; the list is in
+[01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)). The figures
 here (limits, rates, messages) were read from the source, with file references, so a tester can
 tell a real defect from a misunderstanding. **When the product and this pack disagree, record a
 defect against one or the other and say which.** Do not silently adjust the expectation.
@@ -15,12 +17,12 @@ defect against one or the other and say which.** Do not silently adjust the expe
 |---|---|---|---|
 | 1 | [01-TEST-PLAN.md](01-TEST-PLAN.md) | Test lead, owner | Scope, environments, accounts, production safety rules, entry and exit criteria, severity, schedule, reporting |
 | 2 | [02-UAT-GUIDE.md](02-UAT-GUIDE.md) | Business users, HR, finance, the owner | Persona-based acceptance scenarios in plain language, with a sign-off sheet |
-| 3 | [03-E2E-AUTH-TENANCY-ACCESS.md](03-E2E-AUTH-TENANCY-ACCESS.md) | Test engineer | Sign-in, MFA, sessions, tenancy and addresses, roles and permissions, plans and billing |
-| 4 | [04-E2E-PEOPLE-AND-ORGANISATION.md](04-E2E-PEOPLE-AND-ORGANISATION.md) | Test engineer | Setup wizard, organisation structure, employees, import and export, lifecycle, self-service profile |
-| 5 | [05-E2E-ATTENDANCE-SHIFTS-DEVICES.md](05-E2E-ATTENDANCE-SHIFTS-DEVICES.md) | Test engineer | Every punch method, status rules, corrections, overtime, conflicts, integrity, photos, shifts, holidays, kiosks, devices |
+| 3 | [03-E2E-AUTH-TENANCY-ACCESS.md](03-E2E-AUTH-TENANCY-ACCESS.md) | Test engineer | Sign-in, MFA, sessions, in-person activation, tenancy, addresses and renaming, roles and permissions, plans and billing |
+| 4 | [04-E2E-PEOPLE-AND-ORGANISATION.md](04-E2E-PEOPLE-AND-ORGANISATION.md) | Test engineer | Setup wizard, organisation structure, employees, import and export, lifecycle and scheduled changes, self-service profile, recruitment |
+| 5 | [05-E2E-ATTENDANCE-SHIFTS-DEVICES.md](05-E2E-ATTENDANCE-SHIFTS-DEVICES.md) | Test engineer | Every punch method, rules by branch, work sites, setup status, status rules, corrections and missed punches, overtime, conflicts, integrity, risk score and liveness, field visits, photos, shifts, holidays, kiosks, devices, registered phones |
 | 6 | [06-E2E-LEAVE-AND-APPROVALS.md](06-E2E-LEAVE-AND-APPROVALS.md) | Test engineer | Leave types, balances, requests, the approval engine, letters, exit clearance, cases |
-| 7 | [07-E2E-PAYROLL.md](07-E2E-PAYROLL.md) | Test engineer, finance | Tax, pension, overtime, allowances, run lifecycle, loans, cost sharing, exports, golden payslips |
-| 8 | [08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md](08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md) | Test engineer | Announcements, news, landing page, notifications, voice, search, reports, API keys, webhooks, SCIM, SSO, platform console, marketing site |
+| 7 | [07-E2E-PAYROLL.md](07-E2E-PAYROLL.md) | Test engineer, finance | Tax, pension, overtime, allowances, rounding, run lifecycle and payment, loans, cost sharing, exports, golden payslips, reconciliation, lateness deductions, statutory rules by kind of organisation |
+| 8 | [08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md](08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md) | Test engineer | Announcements, news, landing page and public listing, notifications, voice, search, Next steps, reports, API keys, webhooks, SCIM, SSO, platform console and operations centre, marketing site |
 | 9 | [09-NON-FUNCTIONAL.md](09-NON-FUNCTIONAL.md) | Test engineer | Security, tenant isolation, rate limits, performance, accessibility, Amharic and the Ethiopian calendar, responsive, PWA and offline, browsers |
 | 10 | [10-TEMPLATES-AND-REFERENCE.md](10-TEMPLATES-AND-REFERENCE.md) | Everyone | Defect report template, execution log, release smoke checklist, known issues to verify, glossary |
 
