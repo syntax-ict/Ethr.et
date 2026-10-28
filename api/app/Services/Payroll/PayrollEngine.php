@@ -553,11 +553,21 @@ final class PayrollEngine
             $lateness = $this->decidedLateness($employee, $periodStart, $periodEnd);
             $minuteRate = $dailyRate / (self::HOURS_PER_DAY * 60);
             $uncapped = (int) round($lateness['minutes'] * $minuteRate);
-            // Never more than a third of the period's basic, the ceiling Art. 59
-            // sets on deductions from wages. Whether loans and cost sharing
-            // count toward the same third is an open question for the
-            // accountant (docs/APPROVAL-ENGINE-DESIGN.md, reconciliation).
-            $cap = intdiv($proratedBasic, 3);
+            // Art. 59 limits what may be deducted from a month's wage to a third,
+            // and reads as one total, not a third per kind (decided 2026-10-28,
+            // docs/APPROVAL-ENGINE-DESIGN.md). Loans and cost sharing were
+            // deducted before lateness existed and are left exactly as they
+            // are; lateness takes only the headroom they leave. Loan instalments
+            // are fixed. Cost sharing is a share of gross, not known yet, so it
+            // is estimated on basic here, and the run register flags any payslip
+            // whose actual total still passes the third.
+            $third = intdiv($proratedBasic, 3);
+            $otherDeductions = $this->loanService->calculateMonthlyDeduction($employee)
+                + $this->costSharingService->calculateDeduction(
+                    $this->costSharingService->getActiveObligation($employee),
+                    $proratedBasic,
+                );
+            $cap = max(0, $third - $otherDeductions);
             $latenessDeduction = min($uncapped, $cap);
             $proratedBasic -= $latenessDeduction;
 
@@ -566,6 +576,8 @@ final class PayrollEngine
                 'deducted_minutes' => $lateness['minutes'],
                 'minute_rate_cents' => round($minuteRate, 4),
                 'uncapped_cents' => $uncapped,
+                'third_of_basic_cents' => $third,
+                'other_deductions_cents' => $otherDeductions,
                 'cap_cents' => $cap,
                 'capped' => $uncapped > $cap,
                 'deduction_cents' => $latenessDeduction,
