@@ -18,6 +18,7 @@ class AuditLogResource extends JsonResource
             'auditable_type' => $this->auditable_type,
             'auditable_public_id' => $this->subjectPublicId(),
             'user' => $this->actor(),
+            'organisation' => $this->organisation(),
             'data' => $this->payload,
             'ip_address' => $this->ip_address,
             'user_agent' => $this->user_agent,
@@ -38,6 +39,27 @@ class AuditLogResource extends JsonResource
         $id = $this->resource->getRelation('auditable')?->getAttribute('public_id');
 
         return is_string($id) ? $id : null;
+    }
+
+    /**
+     * Set by `AuditSubjects::attachOrganisations()`, which only the platform
+     * view calls: a tenant's own trail is all one organisation, so it is null
+     * there, as it is for a platform action.
+     *
+     * @return array{public_id: string, name: string}|null
+     */
+    private function organisation(): ?array
+    {
+        if (! $this->resource->relationLoaded('organisation')) {
+            return null;
+        }
+
+        $tenant = $this->resource->getRelation('organisation');
+
+        return $tenant === null ? null : [
+            'public_id' => (string) $tenant->public_id,
+            'name' => (string) $tenant->name,
+        ];
     }
 
     /**

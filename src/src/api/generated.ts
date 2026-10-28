@@ -8331,6 +8331,10 @@ export interface components {
                 public_id: string;
                 name: string;
             } | null;
+            organisation: {
+                public_id: string;
+                name: string;
+            } | null;
             data: unknown[] | null;
             ip_address: string | null;
             user_agent: string | null;
@@ -28295,8 +28299,10 @@ export interface operations {
                 content: {
                     "application/json": {
                         mrr_cents: number;
+                        collected_this_month_cents: number;
                         total_tenants: number;
                         active_tenants: number;
+                        paying_tenants: number;
                         trial_tenants: number;
                         suspended_tenants: number;
                         cancelled_tenants: number;
@@ -28380,6 +28386,7 @@ export interface operations {
                         resources: {
                             php_memory_mb: number;
                             php_peak_memory_mb: number;
+                            php_memory_limit_mb: number | null;
                             disk_free_gb: number | null;
                         };
                     };
