@@ -1,6 +1,6 @@
 # Platform Feature Control Center — design
 
-**Prepared:** 2026-10-28 · **Status: proposal awaiting owner decisions** (§10). Nothing here is built.
+**Prepared:** 2026-10-28 · **Status: OWNER DECIDED, 2026-10-28** — all seven decisions in §10 taken as recommended. Ready to build from PR 1 in §9; nothing here is built yet.
 
 **Method, same rule as every document in this tree:** the current state in §1 was read out of the source, with the file named so it can be checked. Nothing was measured against a running build. Where a choke point is named in §6 but was not read, it says so.
 
@@ -246,12 +246,14 @@ Four PRs, each shippable alone, each through local → remote → `main` → `pr
 
 ## 10. Owner decisions
 
-| # | Question | Recommendation |
-|---|---|---|
-| D1 | May a grant give an organisation a paid feature its plan lacks? | **Yes**, with a required reason and an expiry by default. That is most of the reason to have overrides |
-| D2 | When a module is Disabled, are the organisation's admins told? | **A banner in the app, no email.** An email for a switch that may be on for ten minutes is noise |
-| D3 | Does Disabled need an authenticator code on top of the console's MFA session? | **No**, consistent with PR #442, which removed the per-action code from organisation deletion. Reason plus route MFA |
-| D4 | Fold the SMS switch into the control center? | **No.** Link to `/admin/sms` and read its state |
-| D5 | Drop `feature_flags`? | **Yes**, behind the migration guard in §4 |
-| D6 | Who besides the super admin may use this? | **Only `admin.manage`**, as every other console write |
-| D7 | Should a Disabled public surface return 404 or a "temporarily unavailable" page? | **A page that says so**, so a shared link does not look broken |
+**Decided by the owner on 2026-10-28: every recommendation below was accepted as written.** The design above already assumes each of them, so nothing earlier in this document changed when they were taken. Reversing one later is a design change, and the row says what it would touch.
+
+| # | Question | Decision | Reversing it would touch |
+|---|---|---|---|
+| D1 | May a grant give an organisation a paid feature its plan lacks? | **Yes**, with a required reason and an expiry by default. That is most of the reason to have overrides | Resolution order step 3 in §3, and the `custom_domain` add-on note in §6 |
+| D2 | When a module is Disabled, are the organisation's admins told? | **A banner in the app, no email.** An email for a switch that may be on for ten minutes is noise | The screen notice in PR 3; a notification would add a queued listener |
+| D3 | Does Disabled need an authenticator code on top of the console's MFA session? | **No**, consistent with PR #442, which removed the per-action code from organisation deletion. Reason plus route MFA | The `PUT /admin/features/{key}` request and its console dialog |
+| D4 | Fold the SMS switch into the control center? | **No.** Link to `/admin/sms` and read its state | §6: SMS would need its own catalogue entry and a migration of `SmsSetting.enabled` |
+| D5 | Drop `feature_flags`? | **Yes**, behind the migration guard in §4 | The PR 1 migration and the Global Model List |
+| D6 | Who besides the super admin may use this? | **Only `admin.manage`**, as every other console write | A new permission and its seeder |
+| D7 | Should a Disabled public surface return 404 or a "temporarily unavailable" page? | **A page that says so**, so a shared link does not look broken | The public-surface checks in PR 3 |
