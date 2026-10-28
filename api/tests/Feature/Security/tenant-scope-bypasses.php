@@ -11,6 +11,13 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-28, feature control center: one more. `Services/Features/
+ * FeatureGate` reads an organisation's feature grants and revokes. The
+ * platform console asks about organisations other than the resolved one, and
+ * a queued job may have none resolved, where the fail-closed scope would hide
+ * every revoke and so turn a revoked feature back on. It states `tenant_id`
+ * from the tenant in hand on the same chain. 175/70.)
+ *
  * (2026-10-27, statutory parameters: one in, one out. The payroll engine's
  * constants became dated rows scoped by organisation type.
  * `Services/Payroll/StatutoryRules` reads the platform rows (`whereNull
@@ -274,6 +281,9 @@ return [
     // request (fail-closed when empty). It states no `tenant_id` — the tenant
     // is what it finds out — and two rows for one serial authenticate neither.
     'Services/Device/AdmsDeviceResolver.php' => 1,
+    // Feature control center (2026-10-28): an organisation's grants and
+    // revokes, read for the tenant in hand, stating `tenant_id` on the chain.
+    'Services/Features/FeatureGate.php' => 1,
     'Services/Holiday/HolidayService.php' => 2,
     'Services/Identity/IdentityResolver.php' => 2,
     'Services/Import/EmployeeImporter.php' => 1,
