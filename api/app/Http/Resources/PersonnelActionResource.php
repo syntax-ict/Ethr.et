@@ -30,6 +30,7 @@ class PersonnelActionResource extends JsonResource
             'public_id' => $this->public_id,
             'type' => $this->type->value,
             'is_temporary' => $this->is_temporary,
+            'is_scheduled' => (bool) $this->isScheduled(),
             'effective_date' => $this->effective_date->toDateString(),
             'end_date' => $this->end_date?->toDateString(),
             'reference_number' => $this->reference_number,

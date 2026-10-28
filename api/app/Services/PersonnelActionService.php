@@ -14,6 +14,7 @@ use App\Models\GradeSalaryStep;
 use App\Models\PersonnelAction;
 use App\Models\Position;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -24,6 +25,12 @@ use Illuminate\Validation\ValidationException;
  * employee's substantive record and captures a before/after snapshot in the
  * action. A temporary action (acting, delegation, secondment) is recorded with
  * the same snapshot but leaves the substantive posting untouched.
+ *
+ * A permanent action dated after today, in the organisation's own zone, is
+ * held until that date and applied by ApplyDuePersonnelActionsJob. It used to
+ * apply on the spot, so a promotion effective next month raised this month's
+ * pay. An employee has at most one such scheduled change at a time, because
+ * the change is worked out against the record as it stands now.
  */
 class PersonnelActionService
 {
@@ -46,7 +53,23 @@ class PersonnelActionService
             ]);
         }
 
-        return DB::transaction(function () use ($employee, $type, $data, $changes, $apply, $recordedBy) {
+        $effective = Carbon::parse($data['effective_date'])->toDateString();
+        $scheduled = ! $type->isTemporary() && $effective > EmployeeTransitionService::today();
+
+        return DB::transaction(function () use ($employee, $type, $data, $changes, $apply, $recordedBy, $scheduled) {
+            // Locked so two requests cannot both find no scheduled change.
+            Employee::query()->whereKey($employee->getKey())->lockForUpdate()->first();
+
+            $pending = $type->isTemporary() ? null : $this->scheduledFor($employee);
+
+            if ($pending !== null) {
+                throw ValidationException::withMessages([
+                    'effective_date' => [__('personnel.already_scheduled', [
+                        'date' => $pending->effective_date->toDateString(),
+                    ])],
+                ]);
+            }
+
             $action = PersonnelAction::create([
                 'employee_id' => $employee->id,
                 'type' => $type->value,
@@ -56,24 +79,115 @@ class PersonnelActionService
                 'reason' => $data['reason'] ?? null,
                 'remarks' => $data['remarks'] ?? null,
                 'changes' => $changes,
+                'pending_values' => $scheduled ? $apply : null,
                 'is_temporary' => $type->isTemporary(),
+                'applied_at' => $scheduled ? null : now(),
                 'recorded_by' => $recordedBy,
             ]);
 
             // A temporary posting must not overwrite the person's real job.
-            if (! $type->isTemporary()) {
+            if (! $type->isTemporary() && ! $scheduled) {
                 $employee->forceFill($apply)->save();
             }
 
             AuditLog::record('employee.personnel_action', $employee, [
                 'action_type' => $type->value,
                 'temporary' => $type->isTemporary(),
+                'scheduled' => $scheduled,
                 'changes' => $changes,
                 'reference_number' => $action->reference_number,
             ]);
 
             return $action;
         });
+    }
+
+    /**
+     * Apply every scheduled action of the current organisation whose
+     * effective date has come, oldest first. Safe to run as often as wanted:
+     * each action is locked and re-checked before it is written.
+     *
+     * @return int how many were applied
+     */
+    public function applyDue(): int
+    {
+        $due = PersonnelAction::query()
+            ->whereNull('applied_at')
+            ->whereDate('effective_date', '<=', EmployeeTransitionService::today())
+            ->orderBy('effective_date')
+            ->orderBy('id')
+            ->pluck('id');
+
+        $applied = 0;
+
+        foreach ($due as $id) {
+            $applied += DB::transaction(function () use ($id): int {
+                $action = PersonnelAction::query()->whereKey($id)->lockForUpdate()->first();
+
+                if ($action === null || ! $action->isScheduled()) {
+                    return 0;
+                }
+
+                // A person removed since keeps their record as it was left.
+                $employee = Employee::withTrashed()->find($action->employee_id);
+
+                if ($employee !== null && ! $employee->trashed()) {
+                    $employee->forceFill($action->pending_values ?? [])->save();
+                }
+
+                $action->forceFill(['applied_at' => now(), 'pending_values' => null])->save();
+
+                if ($employee !== null) {
+                    AuditLog::record('employee.personnel_action_applied', $employee, [
+                        'action' => $action->public_id,
+                        'action_type' => $action->type->value,
+                        'effective_date' => $action->effective_date->toDateString(),
+                        'changes' => $action->changes,
+                        'employee_removed' => $employee->trashed(),
+                    ]);
+                }
+
+                return 1;
+            });
+        }
+
+        return $applied;
+    }
+
+    /**
+     * Withdraw a scheduled action before it applies. An applied action is
+     * history and stays; the way to undo it is another action.
+     *
+     * @throws ValidationException when the action has already applied
+     */
+    public function cancel(PersonnelAction $action, Employee $employee): void
+    {
+        DB::transaction(function () use ($action, $employee): void {
+            $locked = PersonnelAction::query()->whereKey($action->getKey())->lockForUpdate()->first();
+
+            if ($locked === null || ! $locked->isScheduled()) {
+                throw ValidationException::withMessages([
+                    'action' => [__('personnel.not_scheduled')],
+                ]);
+            }
+
+            AuditLog::record('employee.personnel_action_cancelled', $employee, [
+                'action' => $locked->public_id,
+                'action_type' => $locked->type->value,
+                'effective_date' => $locked->effective_date->toDateString(),
+                'changes' => $locked->changes,
+            ]);
+
+            $locked->delete();
+        });
+    }
+
+    private function scheduledFor(Employee $employee): ?PersonnelAction
+    {
+        return PersonnelAction::query()
+            ->where('employee_id', $employee->id)
+            ->whereNull('applied_at')
+            ->first();
     }
 
     /**

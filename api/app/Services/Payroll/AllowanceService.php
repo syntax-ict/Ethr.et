@@ -6,6 +6,7 @@ namespace App\Services\Payroll;
 
 use App\Models\Employee;
 use App\Models\PayrollRule;
+use App\Support\Cents;
 
 /**
  * Resolves tenant-configured allowance rules into concrete per-employee
@@ -80,7 +81,7 @@ final class AllowanceService
         $formula = is_array($rule->formula) ? $rule->formula : [];
 
         return match ($rule->type) {
-            'percentage' => (int) round($basicSalaryCents * ((float) ($formula['percent'] ?? 0)) / 100),
+            'percentage' => Cents::percentOf($basicSalaryCents, is_numeric($formula['percent'] ?? null) ? $formula['percent'] : 0),
             default => (int) ($formula['amount_cents'] ?? 0), // 'fixed'
         };
     }

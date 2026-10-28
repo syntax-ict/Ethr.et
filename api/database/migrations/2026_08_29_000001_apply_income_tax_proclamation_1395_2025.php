@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Services\Payroll\TaxCalculator;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -32,9 +31,28 @@ return new class extends Migration
 {
     private const SUPERSEDED_ON = '2025-07-06';
 
+    /**
+     * The day Proclamation 1395/2025 took effect, and its ladder.
+     *
+     * This migration read both from constants on TaxCalculator until
+     * 2026-10-27, when the engine stopped carrying a ladder in code. They are
+     * written out here so the migration keeps doing exactly what it did.
+     */
+    private const EFFECTIVE_FROM = '2025-07-07';
+
+    /** @var list<array{min: int, max: int|null, rate: int, deduction: int}> */
+    private const BRACKETS = [
+        ['min' => 0, 'max' => 200000, 'rate' => 0, 'deduction' => 0],
+        ['min' => 200001, 'max' => 400000, 'rate' => 15, 'deduction' => 30000],
+        ['min' => 400001, 'max' => 700000, 'rate' => 20, 'deduction' => 50000],
+        ['min' => 700001, 'max' => 1000000, 'rate' => 25, 'deduction' => 85000],
+        ['min' => 1000001, 'max' => 1400000, 'rate' => 30, 'deduction' => 135000],
+        ['min' => 1400001, 'max' => null, 'rate' => 35, 'deduction' => 205000],
+    ];
+
     public function up(): void
     {
-        $from = TaxCalculator::AMENDMENT_1395_EFFECTIVE_FROM;
+        $from = self::EFFECTIVE_FROM;
 
         // Close every open platform band that predates the amendment. Scoped to
         // `effective_to IS NULL` so re-running this is inert, and to bands that
@@ -49,7 +67,7 @@ return new class extends Migration
                 'updated_at' => now(),
             ]);
 
-        foreach (TaxCalculator::CURRENT_BRACKETS as $bracket) {
+        foreach (self::BRACKETS as $bracket) {
             // updateOrInsert keyed on the band floor AND effective_from: the two
             // ladders share a floor at 0, so keying on the floor alone would
             // overwrite the historical row this migration just preserved.
@@ -90,7 +108,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        $from = TaxCalculator::AMENDMENT_1395_EFFECTIVE_FROM;
+        $from = self::EFFECTIVE_FROM;
 
         DB::table('tax_brackets')
             ->whereNull('tenant_id')

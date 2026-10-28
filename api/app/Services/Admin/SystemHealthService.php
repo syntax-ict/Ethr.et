@@ -7,6 +7,7 @@ namespace App\Services\Admin;
 use App\Services\Observability\QueueHealth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -49,7 +50,7 @@ final class SystemHealthService
 
             return ['status' => 'healthy', 'response_ms' => $ms];
         } catch (Throwable $e) {
-            return ['status' => 'unhealthy', 'error' => $e->getMessage()];
+            return $this->unhealthy('database', $e);
         }
     }
 
@@ -71,7 +72,7 @@ final class SystemHealthService
 
             return ['status' => 'healthy', 'response_ms' => $ms];
         } catch (Throwable $e) {
-            return ['status' => 'unhealthy', 'error' => $e->getMessage()];
+            return $this->unhealthy('cache', $e);
         }
     }
 
@@ -116,8 +117,25 @@ final class SystemHealthService
 
             return ['status' => 'healthy', 'response_ms' => $ms];
         } catch (Throwable $e) {
-            return ['status' => 'unhealthy', 'error' => $e->getMessage()];
+            return $this->unhealthy('storage', $e);
         }
+    }
+
+    /**
+     * A failed probe, without the exception's message.
+     *
+     * It returned `$e->getMessage()` until 2026-10-28, and a connection error
+     * names the database host, port, schema and user. The console is behind
+     * `admin.manage`, but a support screenshot is not, and the operator needs
+     * to know which probe failed, not the driver's text. The detail is logged.
+     *
+     * @return array{status: string, error: string}
+     */
+    private function unhealthy(string $probe, Throwable $e): array
+    {
+        Log::warning('Health probe failed', ['probe' => $probe, 'error' => $e->getMessage()]);
+
+        return ['status' => 'unhealthy', 'error' => 'unavailable'];
     }
 
     private function queueStatus(): array
@@ -157,8 +175,36 @@ final class SystemHealthService
         return [
             'php_memory_mb' => round(memory_get_usage(true) / 1024 / 1024, 1),
             'php_peak_memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 1),
+            'php_memory_limit_mb' => $this->memoryLimitMb(),
             'disk_free_gb' => $this->diskFreeGb(),
         ];
+    }
+
+    /**
+     * PHP's `memory_limit` in MB, or null when there is none (`-1`) or it
+     * cannot be read.
+     *
+     * The console drew its memory bar as this request's usage against this
+     * request's own peak, which are nearly always equal — production showed
+     * "34 MB / 34 MB" as a full red bar. The limit is the figure a request
+     * can actually run out against.
+     */
+    private function memoryLimitMb(): ?float
+    {
+        $raw = trim((string) ini_get('memory_limit'));
+
+        if (! preg_match('/^(\d+)\s*([kmg]?)$/i', $raw, $matches)) {
+            return null;
+        }
+
+        $bytes = (int) $matches[1] * match (strtolower($matches[2])) {
+            'g' => 1024 ** 3,
+            'm' => 1024 ** 2,
+            'k' => 1024,
+            default => 1,
+        };
+
+        return $bytes > 0 ? round($bytes / 1024 / 1024, 1) : null;
     }
 
     /**

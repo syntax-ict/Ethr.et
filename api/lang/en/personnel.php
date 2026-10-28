@@ -9,4 +9,6 @@ return [
     'salary_step_out_of_range' => "This step's salary must fall within the grade's minimum and maximum.",
     'salary_step_not_monotonic' => 'Each step must pay at least as much as the step below it and no more than the step above it.',
     'salary_step_mismatch' => "This grade's salary scale defines step :step at :expected — provide that amount, or leave it blank to use it automatically.",
+    'already_scheduled' => 'This employee already has a change scheduled for :date. Let it take effect or cancel it before scheduling another.',
+    'not_scheduled' => 'Only a scheduled change can be cancelled. This one has already taken effect.',
 ];

@@ -61,3 +61,29 @@ and owner action O3 remain the way to settle what is open.
 3. **P10** — does the 45-day rule mean no contribution in the first 45 days?
 4. **P8** — how is a foreign national of Ethiopian origin opted in, and with which document?
 5. **F1–F3** — the current official monthly declaration layouts for MoR, POESSA and PSSSA.
+
+## What this changed in ETHR (2026-10-27)
+
+- The engine carries **no statutory value in code**. The working-day divisor, the hours in a
+  day, the Art. 68 overtime floor, the night window, the Art. 67 limits, the list of pension
+  schemes, the default scheme, the fiscal year's first month and the Pagume strategy are dated
+  rows in `statutory_parameters`; the tax ladders and pension rates were already rows, and
+  their fallbacks in code (`TaxCalculator::CURRENT_BRACKETS`, the 7/11 fallback) are gone. A
+  date with no row in force refuses the run by name. See
+  [`STATUTORY-PARAMETERS.md`](STATUTORY-PARAMETERS.md).
+- Every row can be scoped to an **organisation type** (private, public enterprise, government,
+  charity, international organisation, defence and police). Seeded differences: the default
+  pension scheme (public for government and public enterprises, military for defence and
+  police) and the fiscal year (Hamle for government). Everything else applies to every type
+  until the questions below are answered.
+
+## Open questions added 2026-10-27
+
+6. **O1** — which rules differ for **civil servants** under the Federal Civil Servants
+   Proclamation No. 1064/2017 rather than the Labour Proclamation: overtime, severance, the
+   working-day divisor? And are **public enterprise** staff covered by 1267/2022 (seeded so,
+   unconfirmed)?
+7. **O2** — **international organisations and diplomatic missions**: 1268/2022 Art. 3(4)
+   excludes their employees from the private pension (P9). Should the type default to no
+   pension scheme rather than private? Seeded private until confirmed, so nothing is
+   silently left out.

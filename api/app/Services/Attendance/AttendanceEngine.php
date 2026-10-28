@@ -50,16 +50,20 @@ final class AttendanceEngine
             // gets that record back. Before, the replay looked for an open
             // check-in, found none, and showed the person an error for a
             // punch that had succeeded (attendance QA A6).
-            if ($existing === null && in_array($input->type, ['check_out', 'auto'], true)) {
+            if ($existing) {
+                return new AttendanceResult($existing, wasDuplicate: true);
+            }
+
+            if (in_array($input->type, ['check_out', 'auto'], true)) {
                 $existing = AttendanceRecord::query()
                     ->where('tenant_id', $input->tenantId)
                     ->where('employee_id', $input->employeeId)
                     ->where('metadata->checkout_idempotency_key', $input->idempotencyKey)
                     ->first();
-            }
 
-            if ($existing) {
-                return new AttendanceResult($existing, wasDuplicate: true);
+                if ($existing) {
+                    return new AttendanceResult($existing, wasDuplicate: true, punch: 'check_out');
+                }
             }
         }
 
@@ -141,7 +145,11 @@ final class AttendanceEngine
         $now = $this->resolveMoment($input);
         $open = $this->findOpenRecord($input, $now, $zone);
 
-        if ($open === null) {
+        // A punch older than the open record's check-in (an offline kiosk
+        // syncing late, a device backlog) cannot be its check-out: it would
+        // end the day before it began. It is a check-in, and the conflict
+        // resolver decides whether it joins the open record.
+        if ($open === null || $now->lt($open->check_in)) {
             return $this->processCheckIn($input, $employee, $zone, $settings);
         }
 
@@ -381,7 +389,7 @@ final class AttendanceEngine
 
         $this->webhook($record->tenant_id, 'attendance.checked_out', AttendanceWebhookPayload::of($record, $employee));
 
-        return new AttendanceResult($record);
+        return new AttendanceResult($record, punch: 'check_out');
     }
 
     /**
@@ -421,6 +429,32 @@ final class AttendanceEngine
         if ($status !== $record->status) {
             $record->update(['status' => $status]);
         }
+    }
+
+    /**
+     * The minutes a `late` or `early_leave` record missed of its shift, read
+     * from the same shift window the status was rated against: from the
+     * shift's start to the check-in, or from the check-out to the shift's end.
+     * Grace decides whether a punch is late, not how late it is. Zero for any
+     * other status or a record with no shift. $zone is the tenant's, when the
+     * caller already knows it and reads many records.
+     */
+    public function missedMinutes(AttendanceRecord $record, ?string $zone = null): int
+    {
+        if (! $record->shift || ! $record->check_in) {
+            return 0;
+        }
+
+        $zone ??= TenantTime::zone(Tenant::query()->find($record->tenant_id));
+        [$shiftStart, $shiftEnd] = $record->shift->windowOn($record->workDate($zone), $zone);
+
+        return match ($record->status) {
+            AttendanceStatus::LATE => max(0, (int) $shiftStart->diffInMinutes($record->check_in, false)),
+            AttendanceStatus::EARLY_LEAVE => $record->check_out === null
+                ? 0
+                : max(0, (int) $record->check_out->diffInMinutes($shiftEnd, false)),
+            default => 0,
+        };
     }
 
     /** Whether the record's check-out came before its shift's early-departure threshold. */

@@ -25,6 +25,13 @@ const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "ETHR";
  * Public routes ((marketing), and the (auth) group) keep real server-rendered
  * `metadata` exports: those pages are crawlable and a client-side title would
  * be invisible to anything that does not run JavaScript.
+ *
+ * Setting the title once was not enough. Next streams each route's metadata
+ * and writes its `<title>` when that arrives, which on a client navigation can
+ * be after this effect ran. Production, 2026-10-28: opening an organisation
+ * from the console's list left the tab reading the layout's default for as long
+ * as the page stayed open. So the hook keeps watching `<head>` and puts its
+ * title back whenever something else replaces it.
  */
 export function useDocumentTitle(): void {
   const pathname = usePathname();
@@ -38,7 +45,20 @@ export function useDocumentTitle(): void {
       routeI18nKey(routeI18nPath(pathname, meta), "label"),
       meta.label,
     );
-    document.title = `${label} · ${APP_NAME}`;
+    const title = `${label} · ${APP_NAME}`;
+    const apply = () => {
+      if (document.title !== title) document.title = title;
+    };
+
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(document.head, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => observer.disconnect();
     // `locale` is a dependency because the title must be re-rendered in the new
     // language when the user switches, not just on navigation.
   }, [pathname, t, locale]);

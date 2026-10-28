@@ -462,9 +462,14 @@ export function useRetryAllFailedJobs() {
 // ── Platform analytics hooks ─────────────────────────────────────────────────
 
 export interface AdminRevenue {
+  /** What active subscriptions are billed per month, free plans included at 0. */
   mrr_cents: number;
+  /** Paid invoices this calendar month: cash in, not recurring revenue. */
+  collected_this_month_cents: number;
   total_tenants: number;
   active_tenants: number;
+  /** Active organisations whose subscription costs more than nothing. */
+  paying_tenants: number;
   trial_tenants: number;
   suspended_tenants: number;
   cancelled_tenants: number;
@@ -515,6 +520,8 @@ export interface AdminHealth {
   resources?: {
     php_memory_mb: number;
     php_peak_memory_mb: number;
+    /** PHP's `memory_limit`; null when there is none. */
+    php_memory_limit_mb: number | null;
     disk_free_gb: number | null;
   };
 }

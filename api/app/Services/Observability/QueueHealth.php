@@ -62,6 +62,16 @@ class QueueHealth
 
     private const DRAIN_KEY = 'ethr:queue:last_drain_at';
 
+    private const EXTERNAL_TICK_KEY = 'ethr:cron:last_external_tick_at';
+
+    private const TRAFFIC_TICK_KEY = 'ethr:cron:last_traffic_tick_at';
+
+    /**
+     * Longer than the heartbeat's day: a caller dead for two days must read as
+     * stale, not as "never ran", which the console shows as unknown.
+     */
+    private const TICK_TTL_SECONDS = 2592000;
+
     /**
      * Record that a queue drain ran to its end (CronRunner::queue). Without it
      * "is anything working the queue?" could only be inferred from how old the
@@ -86,6 +96,37 @@ class QueueHealth
     public function lastBeat(): ?Carbon
     {
         return $this->readMoment(self::HEARTBEAT_KEY);
+    }
+
+    /**
+     * Record that the external timer reached `/cron/*` (CronRunController).
+     *
+     * The heartbeat above cannot say WHO ran the scheduler. Since
+     * RunBackgroundWorkAfterResponse lets page views run it too, a dead
+     * external caller is invisible whenever people are using ETHR — and found
+     * only after a quiet night, when nothing ran the 01:00 backup. Recorded on
+     * arrival, before the lock: a tick refused with 409 still proves the
+     * caller is alive.
+     */
+    public function recordExternalTick(): void
+    {
+        Cache::put(self::EXTERNAL_TICK_KEY, now()->toIso8601String(), self::TICK_TTL_SECONDS);
+    }
+
+    public function lastExternalTick(): ?Carbon
+    {
+        return $this->readMoment(self::EXTERNAL_TICK_KEY);
+    }
+
+    /** Record that ordinary traffic ran background work (RunBackgroundWorkAfterResponse). */
+    public function recordTrafficTick(): void
+    {
+        Cache::put(self::TRAFFIC_TICK_KEY, now()->toIso8601String(), self::TICK_TTL_SECONDS);
+    }
+
+    public function lastTrafficTick(): ?Carbon
+    {
+        return $this->readMoment(self::TRAFFIC_TICK_KEY);
     }
 
     private function readMoment(string $key): ?Carbon

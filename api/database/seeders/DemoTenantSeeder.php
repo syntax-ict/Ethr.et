@@ -22,6 +22,7 @@ use App\Models\Shift;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\Onboarding\OrganizationProvisioner;
 use App\Services\Payroll\PayrollEngine;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
@@ -174,6 +175,8 @@ class DemoTenantSeeder extends Seeder
                 ],
             ),
         ];
+        // Unpaid, excused and business trip, as every organisation gets them.
+        app(OrganizationProvisioner::class)->ensureSettlingLeaveTypes($tenant);
 
         foreach ($employees as $employee) {
             foreach ($leaveTypes as $lt) {

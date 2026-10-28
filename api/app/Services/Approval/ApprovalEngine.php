@@ -592,6 +592,29 @@ final class ApprovalEngine
         return $instance;
     }
 
+    /**
+     * Note that $by filed this request for someone else. Recorded as its own
+     * action, so it stays in the request's history and cannot be rewritten.
+     */
+    public function recordFiledFor(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable, User $by): void
+    {
+        $instance = $this->instanceOf($approvable);
+
+        if ($instance !== null) {
+            $this->record($instance, $by, ApprovalAction::FILED_FOR);
+        }
+    }
+
+    /** The user who filed this request for someone else, if anyone did. */
+    public function filedForBy(LeaveRequest|AttendanceCorrection|ProfileUpdateRequest|OvertimeRequest $approvable): ?int
+    {
+        $by = $this->instanceOf($approvable)?->actions()
+            ->where('action', ApprovalAction::FILED_FOR)
+            ->value('actor_user_id');
+
+        return $by === null ? null : (int) $by;
+    }
+
     /** @param  array<string, mixed>|null  $metadata */
     private function record(ApprovalInstance $instance, ?User $by, string $action, ?string $comment = null, ?array $metadata = null): void
     {

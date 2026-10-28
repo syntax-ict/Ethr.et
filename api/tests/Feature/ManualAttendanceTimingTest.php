@@ -8,6 +8,8 @@ use App\Enums\UserRole;
 use App\Models\AttendanceConflict;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
+use App\Models\Shift;
+use App\Models\ShiftAssignment;
 use App\Models\Tenant;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
@@ -119,3 +121,46 @@ it('merges with a punch minutes away and keeps its check-out', function () {
         ->and($live->check_out->utc()->format('Y-m-d H:i'))->toBe('2026-10-08 14:00')
         ->and(AttendanceConflict::count())->toBe(0);
 });
+
+/*
+ * A night shift entered by hand. `after:check_in` refused a check-out earlier
+ * on the clock than the check-in, so the 22:00-06:30 night a guard could punch
+ * live could not be typed in from the paper register (capture-channel parity,
+ * 2026-10-27). The check-out is now the next morning, and the record is dated
+ * the night it began, as a live punch is.
+ */
+it('enters a night that ends the next morning, dated the night it began', function () {
+    ['tenant' => $tenant, 'employee' => $employee] = manualTimingSetup();
+    $shift = Shift::factory()->create([
+        'tenant_id' => $tenant->id,
+        'start_time' => '22:00',
+        'end_time' => '06:00',
+        'crosses_midnight' => true,
+        'working_days' => '1,2,3,4,5,6,7',
+    ]);
+    ShiftAssignment::factory()->create([
+        'tenant_id' => $tenant->id,
+        'shift_id' => $shift->id,
+        'assignable_type' => Employee::class,
+        'assignable_id' => $employee->id,
+    ]);
+
+    manualTimingPost($tenant, $employee, '2026-10-07', '22:00', '06:30')->assertCreated();
+
+    $record = AttendanceRecord::where('employee_id', $employee->id)->sole();
+    expect($record->date->format('Y-m-d'))->toBe('2026-10-07')
+        ->and($record->check_in->utc()->format('Y-m-d H:i'))->toBe('2026-10-07 19:00')
+        ->and($record->check_out->utc()->format('Y-m-d H:i'))->toBe('2026-10-08 03:30')
+        ->and($record->status)->toBe(AttendanceStatus::PRESENT);
+});
+
+it('still refuses a check-out no live punch could close, and one equal to the check-in', function (string $out) {
+    ['tenant' => $tenant, 'employee' => $employee] = manualTimingSetup();
+
+    // 08:00 to 07:00 would be a 23-hour day: a mistyped time, not a night.
+    manualTimingPost($tenant, $employee, '2026-10-07', '08:00', $out)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['check_out']);
+
+    expect(AttendanceRecord::where('employee_id', $employee->id)->exists())->toBeFalse();
+})->with(['next morning, 23 hours on' => '07:00', 'the same minute' => '08:00']);

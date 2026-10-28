@@ -318,7 +318,10 @@ test('overtime minutes calculated for work beyond shift end', function () {
         'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
         'shift_id' => $shift->id,
         // Addis wall-clock times, as a person keeps them; the shift's 17:30
-        // end is one too (attendance QA A1).
+        // end is one too (attendance QA A1). The day is Addis's as well: the
+        // factory dates a record by the UTC clock, which from 21:00 to 24:00
+        // UTC is the day before and put the shift end a day early.
+        'date' => Carbon::today('Africa/Addis_Ababa')->toDateString(),
         'check_in' => Carbon::today('Africa/Addis_Ababa')->setTime(8, 30)->utc(),
         'check_out' => Carbon::today('Africa/Addis_Ababa')->setTime(19, 30)->utc(),
     ]);

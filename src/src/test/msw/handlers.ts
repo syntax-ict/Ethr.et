@@ -49,6 +49,14 @@ export const handlers = [
     document.cookie = "XSRF-TOKEN=test; path=/";
     return new HttpResponse(null, { status: 204 });
   }),
+  // The attendance page asks for the caller's own exceptions on every load
+  // (MyExceptionsCard); none, unless a test says otherwise.
+  http.get("*/api/v1/attendance/my-exceptions", () =>
+    HttpResponse.json({
+      period: { start: "2026-06-01", end: "2026-06-30" },
+      exceptions: [],
+    }),
+  ),
   http.get("*/api/v1/employees", () => {
     const employees = [buildEmployee()];
     return HttpResponse.json({

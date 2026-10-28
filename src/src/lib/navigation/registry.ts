@@ -1,4 +1,5 @@
 import {
+  Activity,
   AlarmClock,
   Banknote,
   BarChart3,
@@ -146,6 +147,14 @@ const PLATFORM_CHILDREN: Destination[] = [
     labelKey: "nav.admin",
     labelFallback: "Admin Console",
     icon: Shield,
+    show: (c) => c.can.viewAdminConsole,
+  },
+  {
+    id: "platform_operations",
+    href: "/admin/operations",
+    labelKey: "nav.platform_operations",
+    labelFallback: "Operations",
+    icon: Activity,
     show: (c) => c.can.viewAdminConsole,
   },
   {

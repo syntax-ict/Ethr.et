@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\V1\Attendance\EmployeeKioskPinController;
 use App\Http\Controllers\Api\V1\Attendance\KioskAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\ManualAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\MobileAttendanceController;
+use App\Http\Controllers\Api\V1\Attendance\MyAttendanceExceptionsController;
 use App\Http\Controllers\Api\V1\Attendance\MyShiftController;
 use App\Http\Controllers\Api\V1\Attendance\OfflineSyncController;
 use App\Http\Controllers\Api\V1\Attendance\OvertimeRequestController;
@@ -108,6 +109,7 @@ use App\Http\Controllers\Api\V1\Organization\GradeController;
 use App\Http\Controllers\Api\V1\Organization\GradeSalaryStepController;
 use App\Http\Controllers\Api\V1\Organization\PositionController;
 use App\Http\Controllers\Api\V1\Organization\TeamController;
+use App\Http\Controllers\Api\V1\OrganizationTypeController;
 use App\Http\Controllers\Api\V1\Payroll\CostSharingController;
 use App\Http\Controllers\Api\V1\Payroll\LoanController;
 use App\Http\Controllers\Api\V1\Payroll\OvertimeRateController;
@@ -213,6 +215,8 @@ Route::get('/trusted-by', [TrustedByController::class, 'index'])->middleware('th
 // edited in the console; published rows only (MarketingContentController).
 Route::get('/marketing-content', [MarketingContentController::class, 'index'])->middleware('throttle:public-catalogue');
 Route::get('/templates', [TemplateController::class, 'index'])->middleware('throttle:public-catalogue');
+// The kinds of organisation statutory rules are scoped by (OrganizationTypeController).
+Route::get('/organization-types', [OrganizationTypeController::class, 'index'])->middleware('throttle:public-catalogue');
 Route::get('/templates/{slug}', [TemplateController::class, 'show'])->middleware('throttle:public-catalogue');
 Route::post('/contact', ContactController::class)->middleware('throttle:auth');
 
@@ -412,6 +416,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/check-in', [AttendanceController::class, 'checkIn']);
         Route::post('/check-out', [AttendanceController::class, 'checkOut']);
         Route::get('/my', [AttendanceController::class, 'my']);
+        Route::get('/my-exceptions', MyAttendanceExceptionsController::class);
         Route::get('/my-shift', MyShiftController::class);
         Route::get('/team', [AttendanceController::class, 'team']);
         Route::get('/today', [AttendanceController::class, 'today']);
@@ -560,6 +565,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/transition', [EmployeeTransitionController::class, 'store']);
         Route::get('/personnel-actions', [PersonnelActionController::class, 'index']);
         Route::post('/personnel-actions', [PersonnelActionController::class, 'store']);
+        Route::delete('/personnel-actions/{personnelAction}', [PersonnelActionController::class, 'destroy']);
         Route::get('/disciplinary-cases', [DisciplinaryCaseController::class, 'index']);
         Route::post('/disciplinary-cases', [DisciplinaryCaseController::class, 'store']);
         Route::post('/disciplinary-cases/{disciplinaryCase}/notes', [DisciplinaryCaseController::class, 'addNote']);
@@ -675,11 +681,14 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             ->middleware(RequiresPlanFeature::class.':payroll');
         Route::post('/runs/{payrollRun}/void', [PayrollController::class, 'void'])
             ->middleware(RequiresPlanFeature::class.':payroll');
+        Route::put('/runs/{payrollRun}/paid', [PayrollController::class, 'markPaid'])
+            ->middleware(RequiresPlanFeature::class.':payroll');
         Route::post('/runs/{payrollRun}/reprocess', [PayrollController::class, 'reprocess'])
             ->middleware(['throttle:payroll-process', RequiresPlanFeature::class.':payroll']);
         Route::get('/runs/{payrollRun}/export/bank', [PayrollController::class, 'bankExport']);
         Route::get('/runs/{payrollRun}/export/bank-csv', [PayrollController::class, 'downloadBankExport']);
         Route::get('/runs/{payrollRun}/register', [PayrollController::class, 'register']);
+        Route::get('/reconciliation', [PayrollController::class, 'reconciliation']);
         Route::get('/runs/{payrollRun}/register-csv', [PayrollController::class, 'downloadRegister']);
         Route::get('/runs/{payrollRun}/statutory/{schedule}', [PayrollController::class, 'statutory'])
             ->whereIn('schedule', StatutorySchedules::SCHEDULES);
@@ -953,6 +962,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::put('/tenants/{publicId}/invoices/{invoicePublicId}/mark-paid', [AdminTenantController::class, 'markInvoicePaid']);
             Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
             Route::get('/health', [AdminDashboardController::class, 'health']);
+            Route::get('/operations', [AdminDashboardController::class, 'operations']);
             Route::get('/audit', [AdminDashboardController::class, 'auditLog']);
             Route::get('/failed-jobs', [AdminDashboardController::class, 'failedJobs']);
             Route::post('/failed-jobs/{uuid}/retry', [AdminDashboardController::class, 'retryFailedJob']);

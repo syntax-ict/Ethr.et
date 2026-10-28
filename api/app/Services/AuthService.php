@@ -48,6 +48,16 @@ class AuthService
                 'name' => $data['organization_name'],
                 'subdomain' => $data['subdomain'],
                 'type' => $data['organization_type'] ?? null,
+                // The kind of organisation in law, which scopes the statutory
+                // payroll rules, is inferred from the industry picked here and
+                // left for the tenant admin to confirm in Settings, rather than
+                // asked as a second question during sign-up.
+                'organization_type' => match ($data['organization_type'] ?? null) {
+                    'government' => 'government',
+                    'ngo' => 'ngo',
+                    default => 'private',
+                },
+                'organization_type_needs_review' => true,
                 'status' => TenantStatus::TRIAL,
                 'trial_ends_at' => now()->addMonths(6),
             ]);

@@ -11,7 +11,6 @@ use App\Models\PayrollEntry;
 use App\Models\PayrollRule;
 use App\Models\Shift;
 use App\Models\TaxBracket;
-use App\Services\Payroll\OvertimeCalculator;
 use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\TaxCalculator;
 use Carbon\Carbon;
@@ -234,7 +233,7 @@ test('the overtime rate rule is not listed as an allowance', function () {
         'tenant_id' => $tenant->id,
         'category' => 'overtime',
         'type' => 'rate',
-        'formula' => OvertimeCalculator::DEFAULT_RATES,
+        'formula' => ['normal' => 1.5, 'night' => 1.75, 'rest_day' => 2.0, 'holiday' => 2.5, 'holiday_night' => 2.5],
     ]);
 
     test()->getJson(configUrl($tenant->subdomain, 'rules'))

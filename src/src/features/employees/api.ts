@@ -342,6 +342,8 @@ export interface PersonnelAction {
   public_id: string;
   type: PersonnelActionType;
   is_temporary: boolean;
+  /** Dated after today: held until its effective date, and cancellable until then. */
+  is_scheduled: boolean;
   effective_date: string;
   end_date: string | null;
   reference_number: string | null;
@@ -395,6 +397,22 @@ export function useRecordPersonnelAction(publicId: string) {
         queryKey: ["employees", publicId, "personnel-actions"],
       });
       queryClient.invalidateQueries({ queryKey: ["employees", publicId] });
+    },
+  });
+}
+
+export function useCancelPersonnelAction(publicId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (actionId: string) => {
+      await apiClient.delete(
+        `/employees/${publicId}/personnel-actions/${actionId}`,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["employees", publicId, "personnel-actions"],
+      });
     },
   });
 }

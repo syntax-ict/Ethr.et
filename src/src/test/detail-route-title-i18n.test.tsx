@@ -68,4 +68,19 @@ describe("detail pages are translated like the section they belong to", () => {
       expect(document.title.startsWith(dict["route.payroll.label"])).toBe(true),
     );
   });
+
+  // Next writes a route's streamed metadata title after a client navigation,
+  // which replaced this hook's title on /admin/tenants/<id> for good
+  // (production, 2026-10-28).
+  it("puts its title back when something later replaces it", async () => {
+    path.value = "/admin/tenants/01M4NNB7QQY1CS1MR5S1DWWWCH";
+    render(<TitleProbe />);
+
+    const expected = dict["route.admin.tenants.label"];
+    await waitFor(() => expect(document.title.startsWith(expected)).toBe(true));
+
+    document.title = "ETHR | HR and Payroll Software for Ethiopia";
+
+    await waitFor(() => expect(document.title.startsWith(expected)).toBe(true));
+  });
 });

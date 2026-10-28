@@ -340,8 +340,14 @@ final class ReportEngine
 
     private function queryLeave(int $tenantId, array $filters, User $viewer): array
     {
+        // Trips and excused absences (`duty`, `excused` types) are not leave
+        // taken and have no balance to report.
         $query = LeaveBalance::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
+            ->whereIn('leave_type_id', fn ($q) => $q->select('id')
+                ->from('leave_types')
+                ->where('tenant_id', $tenantId)
+                ->where('kind', 'leave'))
             ->with(['employee:id,name', 'leaveType:id,name']);
         $this->limitToReach($query, $tenantId, $viewer);
 

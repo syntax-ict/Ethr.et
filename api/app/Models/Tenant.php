@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Cache;
 
 /**
  * @property TenantStatus $status
+ * @property string $organization_type
+ * @property bool $organization_type_needs_review
  * @property string|null $custom_domain
  * @property string|null $custom_domain_token
  * @property Carbon|null $custom_domain_verified_at
@@ -94,6 +96,8 @@ class Tenant extends Model
         'custom_domain',
         'address_mode',
         'type',
+        'organization_type',
+        'organization_type_needs_review',
         'status',
         'logo_path',
         'logo_storage_path',
@@ -122,6 +126,7 @@ class Tenant extends Model
             'landing' => 'array',
             'settings' => 'array',
             'ethiopian_calendar' => 'boolean',
+            'organization_type_needs_review' => 'boolean',
             'trial_ends_at' => 'datetime',
             'custom_domain_verified_at' => 'datetime',
             'address_mode' => TenantAddressMode::class,

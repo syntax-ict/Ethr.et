@@ -10,6 +10,7 @@ use App\Http\Resources\FailedJobResource;
 use App\Models\AuditLog;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Admin\OperationsStatusService;
 use App\Services\Admin\PlatformAnalyticsService;
 use App\Services\Admin\SystemHealthService;
 use App\Support\AuditSubjects;
@@ -36,6 +37,21 @@ class AdminDashboardController extends Controller
         return response()->json($health->check());
     }
 
+    /**
+     * Operations status
+     *
+     * Whether background work, delivery and the deployed release are doing
+     * their job: one state per area, with the evidence behind it.
+     *
+     * @response array{status: 'ok'|'warning'|'critical'|'unknown', checked_at: string, background: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, scheduler: array{last_run_at: string|null, age_seconds: int|null, state: 'ok'|'warning'|'critical'|'unknown'}, external_caller: array{last_run_at: string|null, age_seconds: int|null, state: 'ok'|'warning'|'critical'|'unknown'}, page_traffic: array{last_run_at: string|null, age_seconds: int|null}, last_drain_at: string|null, queues: list<array{name: string, depth: int|null, oldest_waiting_seconds: int|null, state: 'ok'|'warning'|'critical'|'unknown'}>}, failed_jobs: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, count: int|null, last_failed_at: string|null}, delivery: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, mail: array{mailer: string, last_sent_at: string|null, last_failed_at: string|null, tls: string|null}}, release: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, environment: string, commit: string|null, built_at: string|null, pending_migrations: int|null, config_cached_at: string|null, routes_cached_at: string|null, debug: bool, queue_connection: string, broadcast_connection: string, maintenance_routes_open: bool, cron_token_set: bool, php: array{version: string, upload_max_filesize: string, post_max_size: string, memory_limit: string, max_execution_time: string}}, services: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, checks: list<array{name: string, status: string, response_ms: int|null}>, disk_free_gb: float|null}}
+     */
+    public function operations(OperationsStatusService $operations): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        return response()->json($operations->status());
+    }
+
     public function auditLog(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('admin.manage');
@@ -60,6 +76,7 @@ class AdminDashboardController extends Controller
 
         $logs = $query->paginate($request->integer('per_page', 50));
         AuditSubjects::attach($logs->getCollection());
+        AuditSubjects::attachOrganisations($logs->getCollection());
 
         return AuditLogResource::collection($logs);
     }

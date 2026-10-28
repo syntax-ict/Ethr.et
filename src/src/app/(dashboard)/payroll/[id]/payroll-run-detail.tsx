@@ -17,12 +17,14 @@ import {
   Wallet,
   Banknote,
   Users,
+  BadgeCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -58,12 +60,15 @@ import {
   useApprovePayroll,
   usePayrollRegister,
   useVoidPayroll,
+  useMarkPayrollPaid,
   useReprocessPayroll,
   type PayrollEntry,
 } from "@/features/payroll/api";
 import { CalculationLogDialog } from "@/features/payroll/components/calculation-log-dialog";
 import { OvertimeLimitsBanner } from "@/features/payroll/components/overtime-limits-banner";
 import { AbsencesBanner } from "@/features/payroll/components/absences-banner";
+import { ReconciliationBanner } from "@/features/payroll/components/reconciliation-banner";
+import { DeductionCeilingBanner } from "@/features/payroll/components/deduction-ceiling-banner";
 import { IntegrityBanner } from "@/features/payroll/components/integrity-banner";
 import { PensionExemptionsBanner } from "@/features/payroll/components/pension-exemptions-banner";
 import {
@@ -84,22 +89,25 @@ import { localizedPeriodLabel } from "@/lib/calendar/period-label";
 import { ErrorState } from "@/components/shared/error-state";
 
 /**
- * Where a run stands: calculated, then reviewed, then approved. A completed
- * run and an approved one used to look alike, so a run nobody had approved
- * read as finished (FRONTEND_REDESIGN_PLAN.md, Phase 3).
+ * Where a run stands: calculated, then reviewed, then approved, then paid. A
+ * completed run and an approved one used to look alike, so a run nobody had
+ * approved read as finished (FRONTEND_REDESIGN_PLAN.md, Phase 3).
  */
 function runSteps(
   run: {
     status: string;
     processed_at?: string | null;
     approved_at?: string | null;
+    paid_on?: string | null;
   },
   {
     canApprove,
     t,
     formatWhen,
+    formatDay,
   }: {
     canApprove: boolean;
+    formatDay: (iso: string) => string;
     t: (
       key: string,
       fallback?: string,
@@ -109,8 +117,9 @@ function runSteps(
   },
 ): Step[] {
   const { status } = run;
-  const calculated = status === "completed" || status === "approved";
-  const approved = status === "approved";
+  const paid = status === "paid";
+  const approved = status === "approved" || paid;
+  const calculated = status === "completed" || approved;
   return [
     {
       key: "calculate",
@@ -155,6 +164,20 @@ function runSteps(
       description:
         approved && run.approved_at ? formatWhen(run.approved_at) : undefined,
     },
+    {
+      key: "paid",
+      label: t("payroll_detail_page.step_paid", "Paid"),
+      state: paid ? "complete" : status === "approved" ? "current" : "upcoming",
+      description:
+        paid && run.paid_on
+          ? formatDay(run.paid_on)
+          : status === "approved"
+            ? t(
+                "payroll_detail_page.step_paid_waiting",
+                "Confirm the payment once the bank has sent it.",
+              )
+            : undefined,
+    },
   ];
 }
 
@@ -192,6 +215,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const canApprove = hasPayroll && hasPermission("payroll.approve");
   const canVoid = hasPayroll && hasPermission("payroll.void");
   const canReprocess = hasPayroll && hasPermission("payroll.reprocess");
+  const canMarkPaid = hasPayroll && hasPermission("payroll.markPaid");
   const approvePayroll = useApprovePayroll();
   // The pension exemptions, shown before approval and acknowledged by count.
   const { data: register, isLoading: registerLoading } = usePayrollRegister(
@@ -201,6 +225,13 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const exemptionCount = register?.pension_exemptions?.count ?? 0;
   const voidPayroll = useVoidPayroll();
   const reprocessPayroll = useReprocessPayroll();
+  const markPaid = useMarkPayrollPaid();
+  // Recording payment is its own step after approval: the date the money
+  // left and the bank's batch reference, which the run then keeps.
+  const [paidDialogOpen, setPaidDialogOpen] = useState(false);
+  const [paidOn, setPaidOn] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentNote, setPaymentNote] = useState("");
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
   const [calcEntry, setCalcEntry] = useState<{
     id: string;
@@ -242,6 +273,42 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         onError: (err: unknown) => {
           toast.error(
             apiErrorDetail(err) || t("payroll_detail_page.void_failed"),
+          );
+        },
+      },
+    );
+  }
+
+  function openPaidDialog() {
+    setPaidOn(new Date().toLocaleDateString("en-CA"));
+    setPaidDialogOpen(true);
+  }
+
+  function handleMarkPaid(e: React.FormEvent) {
+    e.preventDefault();
+    markPaid.mutate(
+      {
+        publicId: id,
+        paidOn,
+        reference: paymentReference.trim(),
+        note: paymentNote.trim(),
+      },
+      {
+        onSuccess: () => {
+          toast.success(
+            t("payroll_detail_page.paid_success", "Payment recorded"),
+          );
+          setPaidDialogOpen(false);
+          setPaymentReference("");
+          setPaymentNote("");
+        },
+        onError: (err: unknown) => {
+          toast.error(
+            apiErrorDetail(err) ||
+              t(
+                "payroll_detail_page.paid_failed",
+                "Could not record the payment",
+              ),
           );
         },
       },
@@ -477,6 +544,14 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
               {t("payroll_detail_page.approve_payroll")}
             </Button>
           )}
+          {run.status === "approved" && canMarkPaid && (
+            <Button size="sm" onClick={openPaidDialog}>
+              <BadgeCheck className="mr-2 h-4 w-4" />
+              {t("payroll_detail_page.confirm_payment", "Confirm payment")}
+            </Button>
+          )}
+          {/* A paid run is not voided: the money is in employees' accounts,
+              so a mistake is corrected in the next run. */}
           {(run.status === "completed" || run.status === "approved") &&
             canVoid && (
               <Button
@@ -516,8 +591,8 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
                 {t("payroll_detail_page.export_register")}
               </DropdownMenuItem>
               {/* A bank file is an instruction to pay, so the server builds
-                  one only for an approved run. */}
-              {run.status === "approved" && (
+                  one only for an approved run, and again for a paid one. */}
+              {(run.status === "approved" || run.status === "paid") && (
                 <DropdownMenuItem onClick={exportBankFile}>
                   <Landmark className="mr-2 h-4 w-4" />
                   {t("payroll_detail_page.export_bank")}
@@ -555,9 +630,27 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
             canApprove,
             t,
             formatWhen: (iso) => formatDate(new Date(iso), locale),
+            formatDay: (iso) => formatDate(dateFromIso(iso), locale),
           })}
           className="rounded-xl border border-border bg-card p-4"
         />
+      )}
+
+      {run.status === "paid" && (run.payment_reference || run.payment_note) && (
+        <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+          {run.payment_reference && (
+            <p>
+              <span className="text-muted-foreground">
+                {t("payroll_detail_page.payment_reference", "Bank reference")}
+                {": "}
+              </span>
+              <span className="font-medium">{run.payment_reference}</span>
+            </p>
+          )}
+          {run.payment_note && (
+            <p className="mt-1 text-muted-foreground">{run.payment_note}</p>
+          )}
+        </div>
       )}
 
       {run.status === "voided" && (
@@ -575,12 +668,19 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         <PensionExemptionsBanner exemptions={register.pension_exemptions} />
       )}
 
+      {register?.reconciliation && run.status === "completed" && (
+        <ReconciliationBanner reconciliation={register.reconciliation} />
+      )}
+
       {register?.overtime_limits && run.status !== "voided" && (
         <OvertimeLimitsBanner limits={register.overtime_limits} />
       )}
 
       {register?.absences && run.status !== "voided" && (
         <AbsencesBanner absences={register.absences} />
+      )}
+      {register?.deduction_ceiling && run.status !== "voided" && (
+        <DeductionCeilingBanner ceiling={register.deduction_ceiling} />
       )}
       {register?.integrity && run.status !== "voided" && (
         <IntegrityBanner integrity={register.integrity} />
@@ -760,6 +860,79 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
           handleReprocess();
         }}
       />
+
+      <Dialog open={paidDialogOpen} onOpenChange={setPaidDialogOpen}>
+        <DialogContent>
+          <form onSubmit={handleMarkPaid}>
+            <DialogHeader>
+              <DialogTitle>
+                {t("payroll_detail_page.confirm_payment", "Confirm payment")}
+              </DialogTitle>
+              <DialogDescription>
+                {t(
+                  "payroll_detail_page.confirm_payment_description",
+                  "Record the day the bank paid this run. A paid run cannot be voided: a mistake in it is corrected in the next payroll run.",
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="paid-on">
+                  {t("payroll_detail_page.paid_on", "Date paid")}
+                </Label>
+                <Input
+                  id="paid-on"
+                  type="date"
+                  className="mt-1"
+                  required
+                  max={new Date().toLocaleDateString("en-CA")}
+                  value={paidOn}
+                  onChange={(e) => setPaidOn(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="payment-reference">
+                  {t("payroll_detail_page.payment_reference", "Bank reference")}
+                </Label>
+                <Input
+                  id="payment-reference"
+                  className="mt-1"
+                  maxLength={120}
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="payment-note">
+                  {t("payroll_detail_page.payment_note", "Note")}
+                </Label>
+                <Textarea
+                  id="payment-note"
+                  className="mt-1"
+                  maxLength={500}
+                  value={paymentNote}
+                  onChange={(e) => setPaymentNote(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPaidDialogOpen(false)}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" disabled={markPaid.isPending || !paidOn}>
+                {markPaid.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {t("payroll_detail_page.confirm_payment", "Confirm payment")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
         <DialogContent>

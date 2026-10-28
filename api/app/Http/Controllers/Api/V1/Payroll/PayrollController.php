@@ -9,7 +9,9 @@ use App\Events\PayrollProcessed;
 use App\Exceptions\PayrollRunRefused;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payroll\ApprovePayrollRunRequest;
+use App\Http\Requests\Payroll\MarkPayrollRunPaidRequest;
 use App\Http\Requests\Payroll\ProcessPayrollRequest;
+use App\Http\Requests\Payroll\ReconcileAttendanceRequest;
 use App\Http\Requests\Payroll\ReprocessPayrollRunRequest;
 use App\Http\Requests\Payroll\VoidPayrollRunRequest;
 use App\Http\Resources\PayrollEntryResource;
@@ -19,8 +21,10 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\Payroll\AttendanceReconciliation;
 use App\Services\Payroll\BankExportService;
 use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\PayslipPdfService;
@@ -33,6 +37,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Gate;
 
 class PayrollController extends Controller
 {
@@ -125,7 +130,7 @@ class PayrollController extends Controller
         return new PayrollRunResource($payrollRun);
     }
 
-    public function approve(ApprovePayrollRunRequest $request, PayrollRun $payrollRun, RunRegisterService $registerService, PayrollEngine $engine): JsonResponse
+    public function approve(ApprovePayrollRunRequest $request, PayrollRun $payrollRun, RunRegisterService $registerService, PayrollEngine $engine, AttendanceReconciliation $reconciliation): JsonResponse
     {
         $this->authorize('approve', $payrollRun);
 
@@ -150,6 +155,15 @@ class PayrollController extends Controller
                 'detail' => __('payroll.pension_exemptions_unacknowledged', ['count' => $exempt]),
                 'pension_exemptions' => $exempt,
             ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        // Attendance reconciliation, when the organisation requires it: no
+        // exception in the period may still be open or pending, and nothing
+        // may have been decided since the run was calculated, or the run pays
+        // from attendance that has since changed (reprocess it). Off and
+        // advisory approve as before.
+        if (AttendanceReconciliation::mode($payrollRun->tenant_id) === 'required') {
+            $this->assertReconciled($payrollRun, $reconciliation);
         }
 
         // Maker-checker: the person who processed a run does not also release
@@ -182,6 +196,10 @@ class PayrollController extends Controller
     {
         $this->authorize('void', $payrollRun);
 
+        if ($payrollRun->status === 'paid') {
+            throw PayrollRunRefused::paidCannotVoid();
+        }
+
         if (! in_array($payrollRun->status, ['completed', 'approved'], true)) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/invalid-state',
@@ -200,6 +218,37 @@ class PayrollController extends Controller
         $this->webhook($payrollRun->tenant_id, 'payroll.voided', [
             'public_id' => $payrollRun->public_id,
             'period' => $payrollRun->period_label,
+        ]);
+
+        return response()->json(new PayrollRunResource($payrollRun));
+    }
+
+    /**
+     * Record that an approved run has been paid: the date the money left and
+     * the bank's reference. A paid run cannot be voided; a mistake in it is
+     * corrected in the next run.
+     */
+    public function markPaid(MarkPayrollRunPaidRequest $request, PayrollRun $payrollRun, PayrollEngine $engine): JsonResponse
+    {
+        $this->authorize('markPaid', $payrollRun);
+
+        $payrollRun = $engine->markPaid(
+            $payrollRun,
+            $request->user()->id,
+            $request->validated('paid_on'),
+            $request->validated('payment_reference'),
+            $request->validated('payment_note'),
+        );
+
+        AuditLog::record('payroll.paid', $payrollRun, [
+            'period' => $payrollRun->period_label,
+            'paid_on' => $payrollRun->paid_on?->toDateString(),
+            'payment_reference' => $payrollRun->payment_reference,
+        ]);
+        $this->webhook($payrollRun->tenant_id, 'payroll.paid', [
+            'public_id' => $payrollRun->public_id,
+            'period' => $payrollRun->period_label,
+            'paid_on' => $payrollRun->paid_on?->toDateString(),
         ]);
 
         return response()->json(new PayrollRunResource($payrollRun));
@@ -254,12 +303,12 @@ class PayrollController extends Controller
 
         $user = $request->user();
 
-        // Approved runs only. A completed run is still finance's draft — a
-        // void and reprocess can change every figure on it — and this listed
-        // those payslips to employees before anyone had approved them.
+        // Released runs only (approved or paid). A completed run is still
+        // finance's draft, which a void and reprocess can change entirely, and
+        // this listed those payslips to employees before anyone approved them.
         $entries = PayrollEntry::query()
             ->where('employee_id', $user->employee_id)
-            ->whereHas('payrollRun', fn ($q) => $q->where('status', 'approved'))
+            ->whereHas('payrollRun', fn ($q) => $q->whereIn('status', PayrollRun::RELEASED_STATUSES))
             ->with('payrollRun', 'employee')
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 25));
@@ -291,7 +340,7 @@ class PayrollController extends Controller
         $ownReleased = $user->hasPermission('payroll.viewOwnPayslip')
             && $user->employee_id !== null
             && $payrollEntry->employee_id === $user->employee_id
-            && $payrollEntry->payrollRun?->status === 'approved';
+            && $payrollEntry->payrollRun?->isReleased() === true;
 
         if (! $ownReleased) {
             $this->authorize('viewAny', PayrollRun::class);
@@ -328,11 +377,14 @@ class PayrollController extends Controller
      * totals that tie to the run and the accounting journal
      * (RunRegisterService). What an accountant reconciles a run against.
      */
-    public function register(PayrollRun $payrollRun, RunRegisterService $registerService): JsonResponse
+    public function register(PayrollRun $payrollRun, RunRegisterService $registerService, AttendanceReconciliation $reconciliation): JsonResponse
     {
         $this->authorize('view', $payrollRun);
 
         $register = $registerService->register($payrollRun);
+        // Live, unlike the rest of the register: where the period's attendance
+        // stands now, for the run page's reconciliation banner.
+        $reconciled = $this->reconciliationSummary($payrollRun, $reconciliation);
 
         return response()->json([
             'period' => $payrollRun->period_label,
@@ -345,7 +397,31 @@ class PayrollController extends Controller
             'overtime_limits' => $register['overtime_limits'],
             'absences' => $register['absences'],
             'integrity' => $register['integrity'],
+            'deduction_ceiling' => $register['deduction_ceiling'],
+            'reconciliation' => $reconciled,
         ]);
+    }
+
+    /**
+     * Every exception in a pay period's attendance and whether someone has
+     * acted on it (AttendanceReconciliation), for the employees the caller
+     * reaches. What payroll staff settle before a run is approved.
+     *
+     * @response array{period: array{start: string, end: string}, mode: string, lateness_deduction_enabled: bool, totals: array{open: int, pending: int, resolved: int, blocking: int}, by_type: list<array{type: string, count: int}>, unmatched_punches: int, employees: list<array{employee_public_id: string, employee_name: string, employee_code: string|null, exceptions: list<array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null}>}>}
+     */
+    public function reconciliation(ReconcileAttendanceRequest $request, AttendanceReconciliation $reconciliation): JsonResponse
+    {
+        Gate::authorize('payroll.viewAll');
+
+        $tenant = app(CurrentTenant::class)->get();
+        $result = $reconciliation->forPeriod(
+            $tenant,
+            Carbon::parse((string) $request->validated('period_start')),
+            Carbon::parse((string) $request->validated('period_end')),
+            $request->user(),
+        );
+
+        return response()->json($result);
     }
 
     public function downloadRegister(PayrollRun $payrollRun, RunRegisterService $registerService): Response
@@ -446,11 +522,12 @@ class PayrollController extends Controller
      * checked only `view`, so the file could be built for a draft or voided
      * run and uploaded before anyone approved it (blueprint assessment D2).
      * Thrown rather than returned so the response shapes Scramble publishes
-     * stay as they are; bootstrap/app.php renders it as a 422.
+     * stay as they are; bootstrap/app.php renders it as a 422. A paid run can
+     * still be exported again: the file is the record of what was sent.
      */
     private function ensureApprovedForPayment(PayrollRun $payrollRun): void
     {
-        if ($payrollRun->status !== 'approved') {
+        if (! $payrollRun->isReleased()) {
             throw PayrollRunRefused::notApprovedForPayment();
         }
     }
@@ -460,6 +537,48 @@ class PayrollController extends Controller
      * an active user holding `payroll.approve`, resolved the way
      * hasPermission() resolves it, so a custom role counts.
      */
+    /**
+     * Thrown rather than returned, so the response shapes Scramble publishes
+     * for approve() stay as they are (bootstrap/app.php renders it).
+     */
+    private function assertReconciled(PayrollRun $run, AttendanceReconciliation $reconciliation): void
+    {
+        $tenant = Tenant::query()->findOrFail($run->tenant_id);
+        $start = Carbon::parse($run->period_start);
+        $end = Carbon::parse($run->period_end);
+
+        $blocking = $reconciliation->blocking($tenant, $start, $end);
+        if ($blocking > 0) {
+            throw PayrollRunRefused::reconciliationOpen($blocking);
+        }
+
+        if ($run->processed_at !== null
+            && AttendanceReconciliation::decidedSince($run->tenant_id, $start, $end, Carbon::parse($run->processed_at))) {
+            throw PayrollRunRefused::reconciliationMoved();
+        }
+    }
+
+    /**
+     * @return array{mode: string, lateness_deduction_enabled: bool, totals: array{open: int, pending: int, resolved: int, blocking: int}, by_type: list<array{type: string, count: int}>, unmatched_punches: int}
+     */
+    private function reconciliationSummary(PayrollRun $run, AttendanceReconciliation $reconciliation): array
+    {
+        $full = $reconciliation->forPeriod(
+            Tenant::query()->findOrFail($run->tenant_id),
+            Carbon::parse($run->period_start),
+            Carbon::parse($run->period_end),
+            request()->user(),
+        );
+
+        return [
+            'mode' => $full['mode'],
+            'lateness_deduction_enabled' => $full['lateness_deduction_enabled'],
+            'totals' => $full['totals'],
+            'by_type' => $full['by_type'],
+            'unmatched_punches' => $full['unmatched_punches'],
+        ];
+    }
+
     private function anotherApproverExists(User $user): bool
     {
         return User::query()

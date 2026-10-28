@@ -29,7 +29,9 @@ use App\Listeners\StartExitClearance;
 use App\Models\ApiKey;
 use App\Models\AttendanceConflict;
 use App\Models\AttendanceCorrection;
+use App\Models\AttendanceIntegrityFlag;
 use App\Models\AttendanceRecord;
+use App\Models\AttendanceSetting;
 use App\Models\DisciplinaryCase;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
@@ -58,6 +60,7 @@ use App\Policies\ShiftRotationPolicy;
 use App\Services\Auth\SessionIdleTimeout;
 use App\Services\Device\DeviceCommandQueue;
 use App\Services\Dns\SystemDnsResolver;
+use App\Services\Payroll\AttendanceReconciliation;
 use App\Services\Sms\ConfiguredSmsSender;
 use App\Services\Sso\SamlProvider;
 use App\Services\Sso\SsoProviderInterface;
@@ -192,6 +195,24 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(PayrollApproved::class, NotifyPayslipsReleased::class);
         Event::listen(EmployeeTransitioned::class, CloseLeaverLogin::class);
         Event::listen(EmployeeTransitioned::class, StartExitClearance::class);
+
+        // A cached attendance reconciliation is stale once anything it reads
+        // changes for that organisation (AttendanceReconciliation::forget).
+        foreach ([
+            AttendanceRecord::class,
+            AttendanceCorrection::class,
+            LeaveRequest::class,
+            OvertimeRequest::class,
+            AttendanceIntegrityFlag::class,
+            AttendanceConflict::class,
+            AttendanceSetting::class,
+        ] as $source) {
+            $source::saved(static function (Model $row): void {
+                if (is_numeric($row->getAttribute('tenant_id'))) {
+                    AttendanceReconciliation::forget((int) $row->getAttribute('tenant_id'));
+                }
+            });
+        }
 
         // Devices that take commands follow the people of their branch: a new
         // hire is added, a rename or new badge is sent, a leaver is removed
