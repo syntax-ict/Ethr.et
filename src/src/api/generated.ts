@@ -5602,6 +5602,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{employee}/personnel-actions/{personnelAction}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel a scheduled action before its effective date. Whoever may record
+         *     an action may withdraw one that has not taken effect; an applied action
+         *     is refused, since it is history
+         */
+        delete: operations["personnelAction.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile/photo-consent": {
         parameters: {
             query?: never;
@@ -9660,6 +9681,7 @@ export interface components {
             public_id: string;
             type: string;
             is_temporary: boolean;
+            is_scheduled: boolean;
             effective_date: string;
             end_date: string | null;
             reference_number: string | null;
@@ -27531,6 +27553,33 @@ export interface operations {
                         recorded_by: unknown;
                     };
                 };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "personnelAction.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The personnel action public id */
+                personnelAction: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];

@@ -18855,6 +18855,56 @@
                 }
             }
         },
+        "/employees/{employee}/personnel-actions/{personnelAction}": {
+            "delete": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "personnelAction.destroy",
+                "summary": "Cancel a scheduled action before its effective date. Whoever may record\nan action may withdraw one that has not taken effect; an applied action\nis refused, since it is history",
+                "tags": [
+                    "Personnel Action"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "personnelAction",
+                        "in": "path",
+                        "required": true,
+                        "description": "The personnel action public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/employees/{employee}/retirement-cases": {
             "get": {
                 "x-abilities": [
@@ -46136,6 +46186,9 @@
                     "is_temporary": {
                         "type": "boolean"
                     },
+                    "is_scheduled": {
+                        "type": "boolean"
+                    },
                     "effective_date": {
                         "type": "string"
                     },
@@ -46177,6 +46230,7 @@
                     "public_id",
                     "type",
                     "is_temporary",
+                    "is_scheduled",
                     "effective_date",
                     "end_date",
                     "reference_number",

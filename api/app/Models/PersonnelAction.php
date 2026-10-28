@@ -20,6 +20,11 @@ use Illuminate\Support\Carbon;
  * when the referenced records have changed. Append-only by convention: history
  * is never edited, only added to.
  *
+ * A permanent action dated after today is scheduled: `applied_at` is NULL and
+ * `pending_values` holds the employee columns it writes on its effective date
+ * (ApplyDuePersonnelActionsJob). Until then it can be cancelled, which deletes
+ * it; once applied it is history like any other.
+ *
  * Larastan cannot introspect this table (the JSON `changes` column), so property
  * types are declared here rather than inferred from the schema.
  *
@@ -34,7 +39,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $reason
  * @property string|null $remarks
  * @property array<string, array{from: mixed, to: mixed}> $changes
+ * @property array<string, int|null>|null $pending_values
  * @property bool $is_temporary
+ * @property Carbon|null $applied_at
  * @property int|null $recorded_by
  * @property Carbon $created_at
  * @property Carbon $updated_at
@@ -56,7 +63,9 @@ class PersonnelAction extends Model
         'reason',
         'remarks',
         'changes',
+        'pending_values',
         'is_temporary',
+        'applied_at',
         'recorded_by',
     ];
 
@@ -72,8 +81,15 @@ class PersonnelAction extends Model
             'effective_date' => 'date',
             'end_date' => 'date',
             'changes' => 'array',
+            'pending_values' => 'array',
             'is_temporary' => 'boolean',
+            'applied_at' => 'datetime',
         ];
+    }
+
+    public function isScheduled(): bool
+    {
+        return $this->applied_at === null;
     }
 
     /** @return BelongsTo<Employee, $this> */

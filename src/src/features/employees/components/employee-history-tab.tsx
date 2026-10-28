@@ -37,6 +37,7 @@ import { useT } from "@/lib/i18n/useT";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { formatETB } from "@/lib/utils/currency";
 import {
+  useCancelPersonnelAction,
   useEmployeePersonnelActions,
   useRecordPersonnelAction,
   type PersonnelAction,
@@ -50,6 +51,8 @@ import {
   gradesApi,
 } from "@/features/organization/api";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const ACTION_TYPES: PersonnelActionType[] = [
   "promotion",
@@ -153,7 +156,13 @@ export function EmployeeHistoryTab({ employeeId }: { employeeId: string }) {
           />
         }
       >
-        {(actions) => <Timeline actions={actions} />}
+        {(actions) => (
+          <Timeline
+            actions={actions}
+            employeeId={employeeId}
+            canCancel={can.recordPersonnelAction}
+          />
+        )}
       </QueryBoundary>
 
       {can.recordPersonnelAction && (
@@ -167,75 +176,152 @@ export function EmployeeHistoryTab({ employeeId }: { employeeId: string }) {
   );
 }
 
-function Timeline({ actions }: { actions: PersonnelAction[] }) {
+function Timeline({
+  actions,
+  employeeId,
+  canCancel,
+}: {
+  actions: PersonnelAction[];
+  employeeId: string;
+  canCancel: boolean;
+}) {
   const { t } = useT();
+  const cancel = useCancelPersonnelAction(employeeId);
+  const [cancelling, setCancelling] = useState<PersonnelAction | null>(null);
   return (
-    <ol className="space-y-3">
-      {actions.map((action) => {
-        const rows = describeChanges(action.changes, t);
-        return (
-          <li key={action.public_id}>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">
-                    {actionTypeLabel(action.type, t)}
-                  </Badge>
-                  {action.is_temporary && (
-                    <Badge variant="outline" className="text-[10px]">
-                      {t("employee.history.temporary", "Temporary")}
+    <>
+      <ol className="space-y-3">
+        {actions.map((action) => {
+          const rows = describeChanges(action.changes, t);
+          return (
+            <li key={action.public_id}>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">
+                      {actionTypeLabel(action.type, t)}
                     </Badge>
-                  )}
-                  <span className="text-sm text-muted-foreground">
-                    {action.effective_date}
-                    {action.end_date ? ` → ${action.end_date}` : ""}
-                  </span>
-                  {action.reference_number && (
-                    <span className="ml-auto font-mono text-xs text-muted-foreground">
-                      {action.reference_number}
+                    {action.is_temporary && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {t("employee.history.temporary", "Temporary")}
+                      </Badge>
+                    )}
+                    {action.is_scheduled && (
+                      <Badge variant="secondary">
+                        {t("employee.history.scheduled", "Scheduled")}
+                      </Badge>
+                    )}
+                    <span className="text-sm text-muted-foreground">
+                      {action.effective_date}
+                      {action.end_date ? ` → ${action.end_date}` : ""}
                     </span>
-                  )}
-                </div>
-
-                {rows.length > 0 && (
-                  <div className="mt-3 space-y-1">
-                    {rows.map((row) => (
-                      <div
-                        key={row.label}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <span className="w-24 shrink-0 text-muted-foreground">
-                          {row.label}
-                        </span>
-                        <span className="text-muted-foreground/70">
-                          {row.from}
-                        </span>
-                        <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
-                        <span className="font-medium text-foreground">
-                          {row.to}
-                        </span>
-                      </div>
-                    ))}
+                    {action.reference_number && (
+                      <span className="ml-auto font-mono text-xs text-muted-foreground">
+                        {action.reference_number}
+                      </span>
+                    )}
                   </div>
-                )}
 
-                {action.reason && (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {action.reason}
-                  </p>
-                )}
-                {action.recorded_by && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {t("employee.history.recorded_by", "Recorded by")}{" "}
-                    {action.recorded_by}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </li>
-        );
-      })}
-    </ol>
+                  {rows.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                      {rows.map((row) => (
+                        <div
+                          key={row.label}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <span className="w-24 shrink-0 text-muted-foreground">
+                            {row.label}
+                          </span>
+                          <span className="text-muted-foreground/70">
+                            {row.from}
+                          </span>
+                          <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+                          <span className="font-medium text-foreground">
+                            {row.to}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {action.reason && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {action.reason}
+                    </p>
+                  )}
+                  {action.recorded_by && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {t("employee.history.recorded_by", "Recorded by")}{" "}
+                      {action.recorded_by}
+                    </p>
+                  )}
+                  {action.is_scheduled && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm text-muted-foreground">
+                        {t(
+                          "employee.history.scheduled_note",
+                          "Takes effect on :date. The employee record is unchanged until then.",
+                          { date: action.effective_date },
+                        )}
+                      </p>
+                      {canCancel && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setCancelling(action)}
+                        >
+                          {t("employee.history.cancel", "Cancel change")}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </li>
+          );
+        })}
+      </ol>
+
+      <ConfirmDialog
+        open={cancelling !== null}
+        onOpenChange={(open) => {
+          if (!open) setCancelling(null);
+        }}
+        variant="destructive"
+        title={t(
+          "employee.history.cancel_title",
+          "Cancel this scheduled change?",
+        )}
+        description={t(
+          "employee.history.cancel_description",
+          "It is removed and will not take effect. Record it again if it is still needed.",
+        )}
+        confirmLabel={t("employee.history.cancel", "Cancel change")}
+        cancelLabel={t("employee.history.keep", "Keep it")}
+        loading={cancel.isPending}
+        onConfirm={() => {
+          if (cancelling === null) return;
+          cancel.mutate(cancelling.public_id, {
+            onSuccess: () => {
+              setCancelling(null);
+              toast.success(
+                t("employee.history.cancelled", "Scheduled change cancelled"),
+              );
+            },
+            onError: (error) =>
+              toast.error(
+                apiErrorMessage(
+                  error,
+                  t(
+                    "employee.history.cancel_failed",
+                    "Could not cancel the change",
+                  ),
+                ),
+              ),
+          });
+        }}
+      />
+    </>
   );
 }
 
@@ -358,9 +444,15 @@ function RecordActionDialog({
     // grade's scale and rejects an amount that contradicts it, naming the
     // expected figure. That message is worth landing on the salary field rather
     // than in a toast.
-    await record.mutateAsync(payload);
+    const saved = await record.mutateAsync(payload);
 
-    toast.success(t("employee.history.recorded", "Action recorded"));
+    toast.success(
+      saved.is_scheduled
+        ? t("employee.history.recorded_scheduled", "Scheduled for :date", {
+            date: saved.effective_date,
+          })
+        : t("employee.history.recorded", "Action recorded"),
+    );
     reset(EMPTY_ACTION);
     onOpenChange(false);
   }
