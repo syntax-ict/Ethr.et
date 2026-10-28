@@ -14,7 +14,7 @@ What ETHR does across an employee's working life, from an approved position to t
 | Recruitment | Vacancies with internal/public visibility, shown on the organisation's sign-in page (`VacancyController`, `VacancyTest`). **New 2026-10-27:** applicants, stages, interview records, offers with second approval, duplicate warnings, erasure (`JobApplicationController`, `RecruitmentTest`) | No public apply form; no requisition approval; no rejection message to the applicant; reads not audited | Built the core; the rest is plan steps 2, 6 and 9 |
 | Hiring and onboarding | **New 2026-10-27:** hire from an approved offer creates one employee, with department and branch from the vacancy, salary from the offer and a numbered employee code (`RecruitmentService::hire`). In-person activation for staff with no email or phone (#440) | No new-hire checklist (blueprint L2: `OnboardingProgress` is organisation setup, not a person's); no pension registration task | Add a new-hire checklist (plan step 3) |
 | Contracts and probation | Contracts with type, dates, salary, renewal chain and an expiring list (`EmployeeContractService`, `EmployeeContractTest`). Probation status and end date, overdue flag. Status transitions validated (`EmployeeStatus::allowedTransitions`) | Hire does not start a contract; no written particulars or 15-day letter (Labour Proc. Art. 7); probation has no confirmation decision with evidence | Plan steps 2 and 4 |
-| Transfers and promotions | Personnel actions for promotion, transfer, acting, secondment and others, with before/after changes (`PersonnelActionService`, `PersonnelActionTest`) | **A future-dated action changes the employee record the moment it is recorded** (`PersonnelActionService::record` applies `$apply` immediately, whatever `effective_date` says), so payroll can pay a promotion before it starts. No approval step | Fix the effective-date defect first (plan step 1b) |
+| Transfers and promotions | Personnel actions for promotion, transfer, acting, secondment and others, with before/after changes (`PersonnelActionService`, `PersonnelActionTest`) | No approval step. *(The effective-date defect, step 1b, is fixed: a permanent action dated after today is held and applied on its date.)* Status changes (`EmployeeTransitionService`) still apply immediately whatever their date | Status changes by effective date, with the separation workflow (step 4) |
 | Performance and training | Education records (`EducationController`); recognition and pulse in the voice module | No review cycles, objectives, training or skills (blueprint R9–R15) | Plan steps 7 and 8 |
 | Discipline and grievances | Disciplinary cases from offence to appeal, reached one employee at a time (`DisciplinaryCaseService`, `DisciplinaryCaseController::reach`, blueprint D5 closed) | No framework timers (Labour Proc. Art. 27 30-working-day lapse, Civil Servants Proc. Art. 102); no grievance procedure (the voice module's concerns are not one); case files sit with ordinary employee access rules | Plan step 5 |
 | Separation and clearance | Resignation, termination and retirement transitions; retirement cases; exit clearance checklist started on any leaving transition (`StartExitClearance`, `ExitClearanceTest`); payroll includes a leaver to the termination date (blueprint D3) | No notice or reason rules per framework; **no code found that ends a leaver's sign-in** (blueprint L9); no certificate tied to exit | Plan step 4 |
@@ -91,7 +91,7 @@ Each step is a separate, reviewable change with its own tests. Acceptance criter
 | # | Step | Acceptance criteria |
 |---|---|---|
 | 1a | **Employment framework per organisation** (private labour law, federal civil service, regional civil service with region, public enterprise, other), set at onboarding and in settings; effective-dated | Stored per tenant with history; shown on lifecycle screens; no rule reads it yet |
-| 1b | **Fix: personnel actions apply only when effective** | A future-dated promotion leaves the employee and payroll unchanged until its date; a scheduled sweep applies due actions once; tests on both sides of the boundary |
+| 1b | **Fix: personnel actions apply only when effective** *(done 2026-10-27, see below)* | A future-dated promotion leaves the employee and payroll unchanged until its date; a scheduled sweep applies due actions once; tests on both sides of the boundary |
 | 2 | **Hire starts the contract** and a particulars letter | Hire can create the first `EmployeeContract` from the vacancy's type and the offer; the letter lists the Labour Proc. Art. 6 particulars; a task reminds HR within 15 days when no written contract exists (private framework only) |
 | 3 | **New-hire checklist** from a template per organisation | Tasks with owner and due date (documents, pension registration within 60 days, equipment, account); completion recorded; incomplete items visible on the employee |
 | 4 | **Separation workflow**: proposed, approved, effective, completed | Reason codes exclude Art. 26(2) grounds; notice per framework (30 days private resignation, 2 months federal); sign-in ends on the effective date; certificate of service generated on exit and tied to clearance |
@@ -101,7 +101,22 @@ Each step is a separate, reviewable change with its own tests. Acceptance criter
 | 8 | **Training and skills** | Training records, certifications with expiry, needs linked from reviews |
 | 9 | **Public applications, privacy notice and reporting** | An applicant-facing form on public vacancies with an information notice (PDPP Art. 24) and abuse limits; reads of applications audited (Art. 46); time-to-hire and pending-offer reports; an owner decision on how long closed applications are kept |
 
-**Next priority: 1b.** It is a defect in a built feature that can pay someone wrongly today, and every later step depends on "proposed is not effective" holding.
+**Next priority: 1a**, the employment framework per organisation, now that 1b is done.
+
+## Scheduled personnel actions (step 1b, 2026-10-27)
+
+Until then every personnel action wrote its new grade, position, unit or salary to the employee when it was recorded, so a promotion effective next month raised this month's pay.
+
+- A **permanent** action whose effective date is after today, in the organisation's own zone, is stored with `applied_at` empty and the columns it will write in `pending_values`. The employee is unchanged and the history shows it as **Scheduled**.
+- `ApplyDuePersonnelActionsJob` runs at five past every hour for each operational organisation and applies every scheduled action whose date has come, oldest first, each locked and re-checked, so a second run changes nothing. A run missed while the cron caller was down is caught up by the next one.
+- **One scheduled change per employee.** The change is worked out against the record as it is today, so a second one, scheduled or immediate, could undo the first; it is refused with a message naming the date. Cancel the first or let it apply.
+- **Cancel** (`DELETE /employees/{employee}/personnel-actions/{personnelAction}`, the `personnel_action.create` permission) removes a scheduled action, audited as `employee.personnel_action_cancelled`. An applied action is history and is refused.
+- Temporary postings (acting, delegation, secondment) never touch the substantive record, so they are never scheduled.
+- Applying writes to the employee whatever the record says by then: an edit made directly on the employee between scheduling and the effective date is overwritten for the columns the action sets. An employee removed in the meantime is left as it was, and the action is marked applied.
+
+Limits: a raise taking effect mid-month is not split across the month by payroll (blueprint PY6); an organisation that is suspended has its changes applied once it is operational again; status changes are still immediate.
+
+Deploy: `migrate` (two columns on `personnel_actions`, existing rows backfilled as applied), then `optimize` for the new route. No seed.
 
 ## Known limitations of the recruitment slice
 
