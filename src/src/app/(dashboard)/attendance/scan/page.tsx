@@ -24,6 +24,7 @@ import {
 } from "@/features/attendance/api";
 import type { DeviceProof } from "@/lib/attendance/passkey";
 import { cn } from "@/lib/utils";
+import { nextPunch } from "@/lib/attendance/next-punch";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { apiErrorDetail } from "@/lib/api/error-message";
@@ -35,7 +36,12 @@ export default function QrScanPage() {
   const { t } = useT();
   const { data: shift } = useMyShift();
   const router = useRouter();
-  const [type, setType] = useState<"check_in" | "check_out">("check_in");
+  // Starts on the punch the day is waiting for, as the phone screen does:
+  // someone checked in on the phone this morning scans to check out. The
+  // selector still overrides it.
+  const [chosen, setType] = useState<"check_in" | "check_out" | null>(null);
+  const type =
+    chosen ?? (nextPunch(shift) === "check_out" ? "check_out" : "check_in");
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
   const [manualToken, setManualToken] = useState("");

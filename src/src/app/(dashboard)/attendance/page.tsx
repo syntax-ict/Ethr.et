@@ -59,10 +59,12 @@ import {
   useCheckOut,
   useManualAttendance,
   useMyAttendance,
+  useMyShift,
   type AttendanceFilters,
   type MyAttendanceFilters,
 } from "@/features/attendance/api";
-import { useCurrentPermissions } from "@/features/auth/api";
+import { useCurrentPermissions, useCurrentUser } from "@/features/auth/api";
+import { nextPunch } from "@/lib/attendance/next-punch";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -122,6 +124,14 @@ export default function AttendancePage() {
   const signPunch = usePunchSigner(deviceState);
   const { can } = usePermissions();
   const { data: granted } = useCurrentPermissions();
+  // The punch the day is waiting for, as the phone screen shows it: one
+  // checked in on the phone sees Check out here, not Check in again. Both
+  // buttons stay when there is no answer (no employee record, loading).
+  const { data: user } = useCurrentUser();
+  const { data: shift } = useMyShift(Boolean(user?.employee_public_id));
+  const next = nextPunch(shift);
+  const offerIn = next === null || next === "check_in";
+  const offerOut = next === null || next === "check_out";
 
   // `GET /attendance` requires attendance.viewAll. Everyone else — every
   // employee, every supervisor — was sent there anyway, got a 403, and saw
@@ -230,18 +240,32 @@ export default function AttendancePage() {
       <PageActions
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={handleCheckIn} disabled={checkIn.isPending}>
-              <LogIn className="mr-2 h-4 w-4" />{" "}
-              {t("common.check_in", "Check In")}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleCheckOut}
-              disabled={checkOut.isPending}
-            >
-              <LogOut className="mr-2 h-4 w-4" />{" "}
-              {t("common.check_out", "Check Out")}
-            </Button>
+            {offerIn && (
+              <Button onClick={handleCheckIn} disabled={checkIn.isPending}>
+                <LogIn className="mr-2 h-4 w-4" />{" "}
+                {t("common.check_in", "Check In")}
+              </Button>
+            )}
+            {offerOut && (
+              <Button
+                variant={next === "check_out" ? "default" : "outline"}
+                onClick={handleCheckOut}
+                disabled={checkOut.isPending}
+              >
+                <LogOut className="mr-2 h-4 w-4" />{" "}
+                {t("common.check_out", "Check Out")}
+              </Button>
+            )}
+            {next === "done" && (
+              <Button
+                variant="outline"
+                onClick={handleCheckIn}
+                disabled={checkIn.isPending}
+              >
+                <LogIn className="mr-2 h-4 w-4" />{" "}
+                {t("attendance.punch.check_in_again", "Check in again")}
+              </Button>
+            )}
             {/* ManualAttendanceController checks attendance.manage, not
                 employee.create; the two only coincide on the built-in roles. */}
             {can.manageAttendance && (

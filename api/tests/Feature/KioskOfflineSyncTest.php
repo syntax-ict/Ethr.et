@@ -164,3 +164,24 @@ it('opens only what it sealed', function () {
     expect($seal->open($session->fresh(), sealPunch($config['public_key'], $punch)))->toBe($punch)
         ->and($seal->open($session->fresh(), sealPunch($config['public_key'], [...$punch, 't' => 'teleport'])))->toBeNull();
 });
+
+it('lets the server decide an offline punch the kiosk sent as auto', function () {
+    // The terminal sends `auto` unless the person picked (2026-10-28): an
+    // arrival and a departure made through one outage end as one day.
+    Carbon::setTestNow('2026-10-13 05:00:00');
+    [$tenant, $session, $config] = offlineKiosk();
+
+    Carbon::setTestNow('2026-10-13 15:00:00');
+    $in = sealPunch($config['public_key'], ['c' => 'K-OFF', 'p' => '4821', 't' => 'auto', 'at' => '2026-10-13T05:30:00Z', 'k' => 'kiosk-auto-in']);
+    $out = sealPunch($config['public_key'], ['c' => 'K-OFF', 'p' => '4821', 't' => 'auto', 'at' => '2026-10-13T14:00:00Z', 'k' => 'kiosk-auto-out']);
+
+    syncKiosk($tenant, $session, [
+        ['idempotency_key' => 'kiosk-auto-in', 'sealed' => $in, 'grant' => $config['grant']],
+        ['idempotency_key' => 'kiosk-auto-out', 'sealed' => $out, 'grant' => $config['grant']],
+    ])->assertOk()
+        ->assertJsonPath('results.0.status', 'created')
+        ->assertJsonPath('results.1.status', 'created');
+
+    $record = AttendanceRecord::withoutGlobalScopes()->where('idempotency_key', 'kiosk-auto-in')->sole();
+    expect($record->check_out?->utc()->format('H:i'))->toBe('14:00');
+});

@@ -18,7 +18,7 @@ class KioskCheckInRequest extends FormRequest
         return [
             'idempotency_key' => ['required', 'string', 'max:64'],
             'employee_code' => ['required', 'string'],
-            'type' => ['required', 'string', 'in:check_in,check_out'],
+            'type' => ['required', 'string', 'in:check_in,check_out,auto'],
             'pin' => ['nullable', 'string', 'max:8'],
         ];
     }
