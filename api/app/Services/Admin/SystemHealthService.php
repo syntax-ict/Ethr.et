@@ -7,6 +7,7 @@ namespace App\Services\Admin;
 use App\Services\Observability\QueueHealth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -49,7 +50,7 @@ final class SystemHealthService
 
             return ['status' => 'healthy', 'response_ms' => $ms];
         } catch (Throwable $e) {
-            return ['status' => 'unhealthy', 'error' => $e->getMessage()];
+            return $this->unhealthy('database', $e);
         }
     }
 
@@ -71,7 +72,7 @@ final class SystemHealthService
 
             return ['status' => 'healthy', 'response_ms' => $ms];
         } catch (Throwable $e) {
-            return ['status' => 'unhealthy', 'error' => $e->getMessage()];
+            return $this->unhealthy('cache', $e);
         }
     }
 
@@ -116,8 +117,25 @@ final class SystemHealthService
 
             return ['status' => 'healthy', 'response_ms' => $ms];
         } catch (Throwable $e) {
-            return ['status' => 'unhealthy', 'error' => $e->getMessage()];
+            return $this->unhealthy('storage', $e);
         }
+    }
+
+    /**
+     * A failed probe, without the exception's message.
+     *
+     * It returned `$e->getMessage()` until 2026-10-28, and a connection error
+     * names the database host, port, schema and user. The console is behind
+     * `admin.manage`, but a support screenshot is not, and the operator needs
+     * to know which probe failed, not the driver's text. The detail is logged.
+     *
+     * @return array{status: string, error: string}
+     */
+    private function unhealthy(string $probe, Throwable $e): array
+    {
+        Log::warning('Health probe failed', ['probe' => $probe, 'error' => $e->getMessage()]);
+
+        return ['status' => 'unhealthy', 'error' => 'unavailable'];
     }
 
     private function queueStatus(): array

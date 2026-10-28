@@ -5992,6 +5992,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Operations status
+         * @description Whether background work, delivery and the deployed release are doing
+         *     their job: one state per area, with the evidence behind it.
+         */
+        get: operations["adminDashboard.operations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/audit": {
         parameters: {
             query?: never;
@@ -28315,7 +28336,8 @@ export interface operations {
                             database: {
                                 /** @constant */
                                 status: "unhealthy";
-                                error: string;
+                                /** @constant */
+                                error: "unavailable";
                             } | {
                                 /** @constant */
                                 status: "healthy";
@@ -28324,7 +28346,8 @@ export interface operations {
                             cache: {
                                 /** @constant */
                                 status: "unhealthy";
-                                error: string;
+                                /** @constant */
+                                error: "unavailable";
                             } | {
                                 /** @constant */
                                 status: "healthy";
@@ -28333,7 +28356,8 @@ export interface operations {
                             storage: {
                                 /** @constant */
                                 status: "unhealthy";
-                                error: string;
+                                /** @constant */
+                                error: "unavailable";
                             } | {
                                 /** @constant */
                                 status: "healthy";
@@ -28356,6 +28380,112 @@ export interface operations {
                         resources: {
                             php_memory_mb: number;
                             php_peak_memory_mb: number;
+                            disk_free_gb: number | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminDashboard.operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "ok" | "warning" | "critical" | "unknown";
+                        checked_at: string;
+                        background: {
+                            /** @enum {string} */
+                            state: "ok" | "warning" | "critical" | "unknown";
+                            reasons: string[];
+                            scheduler: {
+                                last_run_at: string | null;
+                                age_seconds: number | null;
+                                /** @enum {string} */
+                                state: "ok" | "warning" | "critical" | "unknown";
+                            };
+                            external_caller: {
+                                last_run_at: string | null;
+                                age_seconds: number | null;
+                                /** @enum {string} */
+                                state: "ok" | "warning" | "critical" | "unknown";
+                            };
+                            page_traffic: {
+                                last_run_at: string | null;
+                                age_seconds: number | null;
+                            };
+                            last_drain_at: string | null;
+                            queues: {
+                                name: string;
+                                depth: number | null;
+                                oldest_waiting_seconds: number | null;
+                                /** @enum {string} */
+                                state: "ok" | "warning" | "critical" | "unknown";
+                            }[];
+                        };
+                        failed_jobs: {
+                            /** @enum {string} */
+                            state: "ok" | "warning" | "critical" | "unknown";
+                            reasons: string[];
+                            count: number | null;
+                            last_failed_at: string | null;
+                        };
+                        delivery: {
+                            /** @enum {string} */
+                            state: "ok" | "warning" | "critical" | "unknown";
+                            reasons: string[];
+                            mail: {
+                                mailer: string;
+                                last_sent_at: string | null;
+                                last_failed_at: string | null;
+                                tls: string | null;
+                            };
+                        };
+                        release: {
+                            /** @enum {string} */
+                            state: "ok" | "warning" | "critical" | "unknown";
+                            reasons: string[];
+                            environment: string;
+                            commit: string | null;
+                            built_at: string | null;
+                            pending_migrations: number | null;
+                            config_cached_at: string | null;
+                            routes_cached_at: string | null;
+                            debug: boolean;
+                            queue_connection: string;
+                            broadcast_connection: string;
+                            maintenance_routes_open: boolean;
+                            cron_token_set: boolean;
+                            php: {
+                                version: string;
+                                upload_max_filesize: string;
+                                post_max_size: string;
+                                memory_limit: string;
+                                max_execution_time: string;
+                            };
+                        };
+                        services: {
+                            /** @enum {string} */
+                            state: "ok" | "warning" | "critical" | "unknown";
+                            reasons: string[];
+                            checks: {
+                                name: string;
+                                status: string;
+                                response_ms: number | null;
+                            }[];
                             disk_free_gb: number | null;
                         };
                     };
