@@ -26308,6 +26308,7 @@ export interface operations {
                              *     when the organisation does not deduct lateness.
                              */
                             lateness_cents: number;
+                            deduction_ceiling_cents: number | null;
                             /** @description From the log, as applied (2026-10-14). Null on older entries. */
                             pensionable_cents: number;
                             pension_exempt: boolean | null;
@@ -26382,6 +26383,15 @@ export interface operations {
                             count: number;
                             flags: number;
                             employees: string[];
+                        };
+                        deduction_ceiling: {
+                            count: number;
+                            employees: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                ceiling_cents: number;
+                                deducted_cents: number;
+                            }[];
                         };
                         reconciliation: {
                             mode: string;

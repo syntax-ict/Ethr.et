@@ -361,6 +361,7 @@ class PayrollController extends Controller
             'overtime_limits' => $register['overtime_limits'],
             'absences' => $register['absences'],
             'integrity' => $register['integrity'],
+            'deduction_ceiling' => $register['deduction_ceiling'],
             'reconciliation' => $reconciled,
         ]);
     }
