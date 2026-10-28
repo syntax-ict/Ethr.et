@@ -52,10 +52,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { apiErrorMessage } from "@/lib/api/error-message";
-
-function formatAction(action: string): string {
-  return action.replace(/\./g, " › ").replace(/_/g, " ");
-}
+import { auditActionLabel } from "@/lib/audit/labels";
 
 export default function AdminConsolePage() {
   const { t } = useT();
@@ -261,7 +258,9 @@ export default function AdminConsolePage() {
               tone="success"
               title={t("admin_console_page.active_label", "Active")}
               value={String(revenue.active_tenants)}
-              sub={t("admin_console_page.paying_customers", "Paying customers")}
+              sub={t("admin_console_page.paying_count", ":count paying", {
+                count: revenue.paying_tenants,
+              })}
             />
             <KpiCard
               icon={TrendingUp}
@@ -276,9 +275,15 @@ export default function AdminConsolePage() {
             <KpiCard
               icon={Wallet}
               tone="info"
-              title={t("admin_console_page.mrr", "MRR")}
+              title={t("admin_console_page.mrr", "Recurring revenue")}
               value={formatETBCompact(revenue.mrr_cents)}
-              sub={t("admin_console_page.this_month", "This month")}
+              sub={t(
+                "admin_console_page.collected_this_month",
+                "Paid this month: :amount",
+                {
+                  amount: formatETBCompact(revenue.collected_this_month_cents),
+                },
+              )}
             />
             <KpiCard
               icon={Activity}
@@ -362,36 +367,41 @@ export default function AdminConsolePage() {
               ) : health ? (
                 <div className="space-y-4">
                   {/* Services */}
+                  {/* A `disabled` service is one this deployment does not run
+                      on purpose (live updates, on shared hosting), so it is
+                      not listed as if it were a component with a state. */}
                   <div className="space-y-2">
-                    {Object.entries(health.services).map(([name, svc]) => (
-                      <div
-                        key={name}
-                        className="flex items-center justify-between gap-3"
-                      >
-                        <div className="flex items-center gap-2">
-                          <ServiceIcon name={name} />
-                          <span className="text-sm capitalize text-foreground">
-                            {name}
-                          </span>
+                    {Object.entries(health.services)
+                      .filter(([, svc]) => svc.status !== "disabled")
+                      .map(([name, svc]) => (
+                        <div
+                          key={name}
+                          className="flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-2">
+                            <ServiceIcon name={name} />
+                            <span className="text-sm text-foreground">
+                              {serviceLabel(name, t)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {svc.response_ms !== undefined &&
+                              svc.response_ms > 0 && (
+                                <span
+                                  className={cn(
+                                    "text-xs tabular-nums",
+                                    svc.response_ms > 500
+                                      ? "text-status-warning"
+                                      : "text-muted-foreground",
+                                  )}
+                                >
+                                  {svc.response_ms}ms
+                                </span>
+                              )}
+                            <HealthDot status={svc.status} />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {svc.response_ms !== undefined &&
-                            svc.response_ms > 0 && (
-                              <span
-                                className={cn(
-                                  "text-xs tabular-nums",
-                                  svc.response_ms > 500
-                                    ? "text-status-warning"
-                                    : "text-muted-foreground",
-                                )}
-                              >
-                                {svc.response_ms}ms
-                              </span>
-                            )}
-                          <HealthDot status={svc.status} />
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
 
                   {/* Queue depths */}
@@ -407,7 +417,7 @@ export default function AdminConsolePage() {
                             className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs"
                           >
                             <span className="font-medium text-foreground">
-                              {q}
+                              {queueLabel(q, t)}
                             </span>
                             <span
                               className={cn(
@@ -433,16 +443,27 @@ export default function AdminConsolePage() {
                       </p>
                       <div className="space-y-3">
                         <ResourceGauge
-                          label={t("admin_console_page.memory", "Memory")}
-                          current={health.resources.php_memory_mb}
-                          peak={health.resources.php_peak_memory_mb}
+                          label={t(
+                            "admin_console_page.memory_per_request",
+                            "Memory per request",
+                          )}
+                          current={health.resources.php_peak_memory_mb}
+                          limit={health.resources.php_memory_limit_mb}
+                          noLimitLabel={t(
+                            "admin_console_page.memory_no_limit",
+                            "No limit",
+                          )}
                           unit="MB"
                         />
                         {health.resources.disk_free_gb !== null && (
                           <ResourceGauge
                             label={t(
-                              "admin_console_page.disk_free",
-                              "Disk Free",
+                              "admin_console_page.disk_free_server",
+                              "Free disk on the server",
+                            )}
+                            hint={t(
+                              "admin_console_page.disk_free_hint",
+                              "The whole server's disk. The hosting plan's own quota is not visible from here.",
                             )}
                             current={health.resources.disk_free_gb}
                             unit="GB"
@@ -557,15 +578,18 @@ export default function AdminConsolePage() {
                         <p className="truncate text-sm font-medium">
                           {jobName}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        {/* A div, not a p: Badge renders a div, and a div
+                            inside a p is invalid HTML that React reports as
+                            a hydration error. */}
+                        <div className="text-xs text-muted-foreground">
                           <Badge
                             variant="outline"
                             className="mr-1.5 text-[10px]"
                           >
-                            {job.queue}
+                            {queueLabel(job.queue, t)}
                           </Badge>
                           {timeAgo(job.failed_at)}
-                        </p>
+                        </div>
                       </div>
                       <Button
                         variant="ghost"
@@ -696,17 +720,23 @@ export default function AdminConsolePage() {
                   >
                     <div className="flex min-w-0 items-center gap-2.5">
                       <CircleDot className="h-3 w-3 shrink-0 text-muted-foreground/50" />
-                      <span className="truncate text-sm text-foreground">
-                        {formatAction(log.action)}
-                      </span>
-                      {log.auditable_type && (
-                        <Badge
-                          variant="outline"
-                          className="shrink-0 text-[10px] font-mono"
+                      <div className="min-w-0">
+                        <p
+                          className="truncate text-sm text-foreground"
+                          title={log.action}
                         >
-                          {log.auditable_type.split("\\").pop()}
-                        </Badge>
-                      )}
+                          {auditActionLabel(log.action, t)}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {[
+                            log.user?.name,
+                            log.organisation?.name ??
+                              t("audit_logs_page.platform", "Platform"),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      </div>
                     </div>
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                       {timeAgo(log.created_at)}
@@ -803,6 +833,44 @@ function HealthDot({ status }: { status: string }) {
   );
 }
 
+/**
+ * Literal keys, not `admin_console_page.service.${name}`: the i18n gate only
+ * checks string-literal keys for en/am coverage. An unknown name keeps the
+ * server's word rather than going blank.
+ */
+function serviceLabel(name: string, t: (k: string, f: string) => string) {
+  switch (name) {
+    case "api":
+      return t("admin_console_page.service.api", "Application");
+    case "database":
+      return t("admin_console_page.service.database", "Database");
+    case "cache":
+      return t("admin_console_page.service.cache", "Cache");
+    case "storage":
+      return t("admin_console_page.service.storage", "File storage");
+    case "reverb":
+      return t("admin_console_page.service.reverb", "Live updates");
+    default:
+      return name;
+  }
+}
+
+/** The queue names `QueueHealth::QUEUES` reports, in the reader's language. */
+function queueLabel(name: string, t: (k: string, f: string) => string) {
+  switch (name) {
+    case "default":
+      return t("admin_console_page.queue.default", "General");
+    case "attendance":
+      return t("admin_console_page.queue.attendance", "Attendance");
+    case "notifications":
+      return t("admin_console_page.queue.notifications", "Notifications");
+    case "exports":
+      return t("admin_console_page.queue.exports", "Exports");
+    default:
+      return name;
+  }
+}
+
 function ServiceIcon({ name }: { name: string }) {
   const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
     api: Server,
@@ -815,20 +883,31 @@ function ServiceIcon({ name }: { name: string }) {
   return <Icon className="h-3.5 w-3.5 text-muted-foreground" />;
 }
 
+/**
+ * A figure, and a bar when there is a ceiling to measure it against.
+ *
+ * The memory bar used this request's own peak as its ceiling, which it nearly
+ * always equals: production drew "34 MB / 34 MB" as a full red bar. `limit` is
+ * PHP's memory_limit, and with none there is no bar to draw.
+ */
 function ResourceGauge({
   label,
+  hint,
   current,
-  peak,
+  limit,
+  noLimitLabel,
   unit,
   warn,
 }: {
   label: string;
+  hint?: string;
   current: number;
-  peak?: number;
+  limit?: number | null;
+  noLimitLabel?: string;
   unit: string;
   warn?: boolean;
 }) {
-  const ratio = peak ? (current / peak) * 100 : null;
+  const ratio = limit ? (current / limit) * 100 : null;
 
   return (
     <div className="space-y-1">
@@ -841,13 +920,21 @@ function ResourceGauge({
           )}
         >
           {current} {unit}
-          {peak && (
+          {limit ? (
             <span className="ml-1 font-normal text-muted-foreground">
-              / {peak} {unit}
+              / {limit} {unit}
             </span>
+          ) : (
+            limit === null &&
+            noLimitLabel && (
+              <span className="ml-1 font-normal text-muted-foreground">
+                · {noLimitLabel}
+              </span>
+            )
           )}
         </span>
       </div>
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
       {ratio !== null && (
         <div className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div
@@ -955,7 +1042,7 @@ function RevenueBars({
 }: {
   data: Array<{ month: string; revenue_cents: number }>;
 }) {
-  const { locale } = useT();
+  const { t, locale } = useT();
   const recent = data.slice(-6);
   const max = Math.max(...recent.map((m) => m.revenue_cents), 1);
   // `2026-06` read as "06" under the bar; name the month instead.
@@ -969,6 +1056,19 @@ function RevenueBars({
       : key;
   };
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  // Six empty bars over six dashes read as a broken chart, not as "nothing was
+  // paid yet", which is what they meant on production.
+  if (recent.every((m) => m.revenue_cents === 0)) {
+    return (
+      <p className="py-12 text-center text-sm text-muted-foreground">
+        {t(
+          "admin_console_page.no_revenue_yet",
+          "No payments recorded in the last six months",
+        )}
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-4">

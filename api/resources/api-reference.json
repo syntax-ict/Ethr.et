@@ -41087,6 +41087,24 @@
                             "name"
                         ]
                     },
+                    "organisation": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "public_id": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "public_id",
+                            "name"
+                        ]
+                    },
                     "data": {
                         "type": [
                             "array",
@@ -41116,6 +41134,7 @@
                     "auditable_type",
                     "auditable_public_id",
                     "user",
+                    "organisation",
                     "data",
                     "ip_address",
                     "user_agent",

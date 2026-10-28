@@ -157,8 +157,36 @@ final class SystemHealthService
         return [
             'php_memory_mb' => round(memory_get_usage(true) / 1024 / 1024, 1),
             'php_peak_memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 1),
+            'php_memory_limit_mb' => $this->memoryLimitMb(),
             'disk_free_gb' => $this->diskFreeGb(),
         ];
+    }
+
+    /**
+     * PHP's `memory_limit` in MB, or null when there is none (`-1`) or it
+     * cannot be read.
+     *
+     * The console drew its memory bar as this request's usage against this
+     * request's own peak, which are nearly always equal — production showed
+     * "34 MB / 34 MB" as a full red bar. The limit is the figure a request
+     * can actually run out against.
+     */
+    private function memoryLimitMb(): ?float
+    {
+        $raw = trim((string) ini_get('memory_limit'));
+
+        if (! preg_match('/^(\d+)\s*([kmg]?)$/i', $raw, $matches)) {
+            return null;
+        }
+
+        $bytes = (int) $matches[1] * match (strtolower($matches[2])) {
+            'g' => 1024 ** 3,
+            'm' => 1024 ** 2,
+            'k' => 1024,
+            default => 1,
+        };
+
+        return $bytes > 0 ? round($bytes / 1024 / 1024, 1) : null;
     }
 
     /**
