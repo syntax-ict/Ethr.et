@@ -235,6 +235,12 @@ class Employee extends Model
         return $this->belongsTo(Branch::class);
     }
 
+    /** @return HasMany<AttendanceDevice, $this> */
+    public function attendanceDevices(): HasMany
+    {
+        return $this->hasMany(AttendanceDevice::class);
+    }
+
     /** @return BelongsTo<Position, $this> */
     public function position(): BelongsTo
     {

@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Contracts\DnsResolver;
 use App\Contracts\SmsSender;
+use App\Enums\EmployeeStatus;
 use App\Events\AttendanceRecorded;
 use App\Events\DeviceOffline;
 use App\Events\DeviceSyncFailed;
@@ -57,6 +58,7 @@ use App\Policies\PersonnelActionPolicy;
 use App\Policies\ProfileUpdateRequestPolicy;
 use App\Policies\RetirementCasePolicy;
 use App\Policies\ShiftRotationPolicy;
+use App\Services\Attendance\Device\AttendanceDeviceGate;
 use App\Services\Auth\SessionIdleTimeout;
 use App\Services\Device\DeviceCommandQueue;
 use App\Services\Dns\SystemDnsResolver;
@@ -228,6 +230,26 @@ class AppServiceProvider extends ServiceProvider
         Employee::deleted(function (Employee $employee): void {
             try {
                 app(DeviceCommandQueue::class)->employeeDeleted($employee);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        });
+
+        // A leaver's attendance phone stops punching and can be handed to a
+        // colleague (AttendanceDeviceGate::employeeLeft). Same rule as above:
+        // a failure is reported, never allowed to fail the save.
+        Employee::saved(function (Employee $employee): void {
+            if ($employee->wasChanged('status') && in_array($employee->status, EmployeeStatus::leaving(), true)) {
+                try {
+                    app(AttendanceDeviceGate::class)->employeeLeft($employee);
+                } catch (Throwable $e) {
+                    report($e);
+                }
+            }
+        });
+        Employee::deleted(function (Employee $employee): void {
+            try {
+                app(AttendanceDeviceGate::class)->employeeLeft($employee);
             } catch (Throwable $e) {
                 report($e);
             }

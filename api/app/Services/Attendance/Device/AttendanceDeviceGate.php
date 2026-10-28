@@ -6,12 +6,18 @@ namespace App\Services\Attendance\Device;
 
 use App\Enums\AttendanceMode;
 use App\Enums\AttendanceSource;
+use App\Enums\EmployeeStatus;
+use App\Enums\UserRole;
 use App\Exceptions\DeviceBindingRefused;
 use App\Models\AttendanceDevice;
 use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
+use App\Models\BranchAttendanceOverride;
 use App\Models\Employee;
 use App\Models\Tenant;
+use App\Models\User;
+use App\Notifications\AttendanceDeviceDecidedNotification;
+use App\Notifications\AttendanceDeviceRequestedNotification;
 use App\Services\Attendance\AttendancePlaces;
 use App\Services\Attendance\AttendancePolicy;
 use App\Services\Auth\DeviceFingerprint;
@@ -19,9 +25,11 @@ use App\Support\FrontendUrl;
 use App\Support\PunchSignals;
 use App\Support\TenancyDomain;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\IpUtils;
+use Throwable;
 
 /**
  * Which phone may punch for whom. Each employee has at most one active
@@ -215,9 +223,12 @@ final class AttendanceDeviceGate
         $cookieHash = $this->fingerprint->existingHash($request);
 
         // One phone, one person: this browser already punches for someone else.
+        // A leaver's phone is revoked when they leave (employeeLeft); one left
+        // over from before that never blocks the colleague it was handed to.
         $taken = AttendanceDevice::query()
             ->where('employee_id', '!=', $employee->id)
             ->where('status', AttendanceDevice::ACTIVE)
+            ->whereHas('employee', fn ($query) => $query->whereNotIn('status', EmployeeStatus::leaving()))
             ->where(function ($query) use ($installHash, $cookieHash, $verified): void {
                 $query->where('credential_id_hash', AttendanceDevice::hashCredential($verified['credential_id']));
                 if ($installHash !== null) {
@@ -268,6 +279,10 @@ final class AttendanceDeviceGate
             'inside_geofence' => $inside,
         ]);
 
+        if ($status === AttendanceDevice::PENDING) {
+            $this->tellApprovers($device, $employee, $hasActive);
+        }
+
         return $device;
     }
 
@@ -277,8 +292,8 @@ final class AttendanceDeviceGate
      */
     public function approve(AttendanceDevice $device, int $approverId): AttendanceDevice
     {
-        DB::transaction(function () use ($device, $approverId): void {
-            AttendanceDevice::query()
+        $replaced = DB::transaction(function () use ($device, $approverId): int {
+            $replaced = AttendanceDevice::query()
                 ->where('employee_id', $device->employee_id)
                 ->where('status', AttendanceDevice::ACTIVE)
                 ->whereKeyNot($device->getKey())
@@ -289,27 +304,135 @@ final class AttendanceDeviceGate
                 'approved_by' => $approverId,
                 'approved_at' => Carbon::now('UTC'),
             ])->save();
+
+            return $replaced;
         });
 
-        AuditLog::record('attendance.device_approved', $device);
+        AuditLog::record('attendance.device_approved', $device, ['replaced' => $replaced]);
+        $this->tellEmployee($device, AttendanceDevice::ACTIVE, null);
 
         return $device;
     }
 
-    public function reject(AttendanceDevice $device): AttendanceDevice
+    public function reject(AttendanceDevice $device, ?string $reason = null): AttendanceDevice
     {
         $device->forceFill(['status' => AttendanceDevice::REJECTED, 'revoked_at' => Carbon::now('UTC')])->save();
-        AuditLog::record('attendance.device_rejected', $device);
+        AuditLog::record('attendance.device_rejected', $device, ['reason' => $reason]);
+        $this->tellEmployee($device, AttendanceDevice::REJECTED, $reason);
 
         return $device;
     }
 
-    public function revoke(AttendanceDevice $device): AttendanceDevice
+    public function revoke(AttendanceDevice $device, ?string $reason = null): AttendanceDevice
     {
         $device->forceFill(['status' => AttendanceDevice::REVOKED, 'revoked_at' => Carbon::now('UTC')])->save();
-        AuditLog::record('attendance.device_revoked', $device);
+        AuditLog::record('attendance.device_revoked', $device, ['reason' => $reason]);
+        $this->tellEmployee($device, AttendanceDevice::REVOKED, $reason);
 
         return $device;
+    }
+
+    /**
+     * Someone left: their phone stops punching and a request still waiting
+     * is closed, so the phone can be handed to a colleague. Nobody is told;
+     * the person has gone.
+     */
+    public function employeeLeft(Employee $employee): void
+    {
+        $now = Carbon::now('UTC');
+        $revoked = AttendanceDevice::query()
+            ->where('employee_id', $employee->id)
+            ->where('status', AttendanceDevice::ACTIVE)
+            ->update(['status' => AttendanceDevice::REVOKED, 'revoked_at' => $now]);
+        $rejected = AttendanceDevice::query()
+            ->where('employee_id', $employee->id)
+            ->where('status', AttendanceDevice::PENDING)
+            ->update(['status' => AttendanceDevice::REJECTED, 'revoked_at' => $now]);
+
+        if ($revoked + $rejected > 0) {
+            AuditLog::record('attendance.device_revoked', $employee, ['reason' => 'left', 'revoked' => $revoked, 'rejected' => $rejected]);
+        }
+    }
+
+    /**
+     * The people whose phone is checked today: they work here now, their
+     * branch (or the organisation) checks phones and lets them punch from a
+     * phone or browser at all, and HR has not exempted them.
+     *
+     * @return Builder<Employee>
+     */
+    public function employeesChecked(): Builder
+    {
+        $organisation = $this->policy->organisation();
+        $orgChecks = $this->checksPhones($organisation);
+        $exceptions = [];
+
+        foreach (BranchAttendanceOverride::query()->pluck('branch_id') as $branchId) {
+            if ($this->checksPhones($this->policy->forBranch((int) $branchId, $organisation)) !== $orgChecks) {
+                $exceptions[] = (int) $branchId;
+            }
+        }
+
+        $today = Carbon::now('UTC')->format('Y-m-d');
+
+        return Employee::query()
+            ->whereIn('status', EmployeeStatus::current())
+            ->where(fn ($query) => $query
+                ->whereNull('attendance_device_exempt_until')
+                ->orWhereDate('attendance_device_exempt_until', '<', $today))
+            ->where(function ($query) use ($orgChecks, $exceptions): void {
+                if ($orgChecks) {
+                    $query->whereNull('branch_id')->orWhereNotIn('branch_id', $exceptions === [] ? [0] : $exceptions);
+                } else {
+                    $query->whereIn('branch_id', $exceptions === [] ? [0] : $exceptions);
+                }
+            });
+    }
+
+    /** Whether these rules check phones: binding on and a way to punch from a phone or browser. */
+    private function checksPhones(AttendanceSetting $policy): bool
+    {
+        $binding = (string) ($policy->device_binding ?? 'off');
+        if (! in_array($binding, ['flag', 'enforce'], true)) {
+            return false;
+        }
+
+        foreach (['mobile', 'web', 'qr'] as $method) {
+            if ($policy->isMethodEnabled($method)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** The people who approve phones hear that one is waiting. */
+    private function tellApprovers(AttendanceDevice $device, Employee $employee, bool $replacing): void
+    {
+        try {
+            User::query()
+                ->where('tenant_id', $employee->tenant_id)
+                ->whereIn('role', [UserRole::TENANT_ADMIN->value, UserRole::HR_ADMIN->value])
+                ->where('status', 'active')
+                ->get()
+                ->each(fn (User $approver) => $approver->notify(new AttendanceDeviceRequestedNotification($device, (string) $employee->name, $replacing)));
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** The employee hears what became of their phone. */
+    private function tellEmployee(AttendanceDevice $device, string $outcome, ?string $reason): void
+    {
+        try {
+            User::query()
+                ->where('tenant_id', $device->tenant_id)
+                ->where('employee_id', $device->employee_id)
+                ->first()
+                ?->notify(new AttendanceDeviceDecidedNotification($device, $outcome, $reason));
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

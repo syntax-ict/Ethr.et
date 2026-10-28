@@ -22,6 +22,16 @@ class AttendanceDeviceResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'last_used_at' => $this->last_used_at?->toIso8601String(),
             'approved_at' => $this->approved_at?->toIso8601String(),
+            'revoked_at' => $this->revoked_at?->toIso8601String(),
+            'replaces' => $this->when(
+                $this->status === AttendanceDevice::PENDING && $this->relationLoaded('replacing'),
+                fn () => $this->replacing === null ? null : [
+                    'label' => $this->replacing->label,
+                    'synced_passkey' => (bool) $this->replacing->backup_state,
+                    'created_at' => $this->replacing->created_at?->toIso8601String(),
+                    'last_used_at' => $this->replacing->last_used_at?->toIso8601String(),
+                ],
+            ),
             'employee' => $this->whenLoaded('employee', fn () => [
                 'public_id' => (string) $this->employee->public_id,
                 'name' => (string) $this->employee->name,

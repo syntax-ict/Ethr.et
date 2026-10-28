@@ -49,6 +49,51 @@ export function signWithPasskey(
   return startAuthentication({ optionsJSON: options });
 }
 
+const THIS_PHONE_KEY = "ethr.attendance.this-phone";
+
+/**
+ * Remember which registered phone this browser is: set when this browser
+ * registers a phone or signs a punch with one. The server cannot tell, since
+ * the employee's phone is the same answer on every browser; without this the
+ * punch screen on a new phone said it was the registered one. Safari clears
+ * storage after a week unused, so a missing mark means "not known", never
+ * "not this phone".
+ */
+export function rememberThisPhone(publicId: string): void {
+  try {
+    window.localStorage.setItem(THIS_PHONE_KEY, publicId);
+  } catch {
+    // Storage blocked: the screen falls back to not knowing.
+  }
+  window.dispatchEvent(new Event(THIS_PHONE_KEY));
+}
+
+/** Subscribe to changes of the mark, for useSyncExternalStore. */
+export function subscribeThisPhone(onChange: () => void): () => void {
+  window.addEventListener(THIS_PHONE_KEY, onChange);
+  return () => window.removeEventListener(THIS_PHONE_KEY, onChange);
+}
+
+/** The registered phone this browser was last seen to be, if known. */
+export function thisPhone(): string | null {
+  try {
+    return window.localStorage.getItem(THIS_PHONE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** The browser refused to make a passkey because this phone already holds one of this person's. */
+export function alreadyRegisteredHere(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code ===
+      "ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED"
+  );
+}
+
 /** A coordinate rounded the way both sides hash it. */
 export function fixedCoordinate(value: number): number {
   return Number(value.toFixed(6));
