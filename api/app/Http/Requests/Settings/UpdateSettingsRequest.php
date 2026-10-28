@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Http\Requests\Payroll\Concerns\ValidatesPensionScheme;
 use App\Services\EmployeeNumbering;
-use App\Services\Payroll\PensionCalculator;
 use App\Support\CalendarPreference;
 use App\Support\TenantSecurityPolicy;
 use Illuminate\Foundation\Http\FormRequest;
@@ -14,6 +14,8 @@ use Illuminate\Validation\Validator;
 
 class UpdateSettingsRequest extends FormRequest
 {
+    use ValidatesPensionScheme;
+
     public function authorize(): bool
     {
         return true;
@@ -35,7 +37,7 @@ class UpdateSettingsRequest extends FormRequest
             'settings.run_day' => ['sometimes', 'integer', 'between:1,28'],
             'settings.employer_tin' => ['sometimes', 'nullable', 'string', 'regex:/^\d{10}$/'],
             'settings.tax_center' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'settings.pension_scheme' => ['sometimes', 'string', Rule::in(PensionCalculator::SCHEMES)],
+            'settings.pension_scheme' => ['sometimes', 'string', 'max:30'],
             'settings.working_days' => ['sometimes', 'array', 'min:1'],
             'settings.working_days.*' => ['integer', 'distinct', 'between:1,7'],
             'settings.mfa_policy' => ['sometimes', 'string', Rule::in(TenantSecurityPolicy::MFA_POLICIES)],
@@ -104,6 +106,8 @@ class UpdateSettingsRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
+            $this->checkPensionScheme($validator, 'settings.pension_scheme');
+
             $settings = $this->input('settings');
             if (! is_array($settings)) {
                 return;

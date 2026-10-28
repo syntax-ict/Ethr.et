@@ -13,4 +13,5 @@ return [
     'rejected' => 'Leave request rejected.',
     'cancelled' => 'Leave request cancelled.',
     'cannot_approve_own' => 'You cannot approve your own leave request.',
+    'cannot_approve_filed' => 'You filed this request, so someone else must approve it.',
 ];

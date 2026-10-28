@@ -23,6 +23,7 @@ class LeaveType extends Model
         'name',
         'name_am',
         'code',
+        'kind',
         'default_days',
         'accrual_type',
         'carry_forward',
@@ -61,6 +62,45 @@ class LeaveType extends Model
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];
+    }
+
+    public const KIND_LEAVE = 'leave';
+
+    public const KIND_DUTY = 'duty';
+
+    public const KIND_EXCUSED = 'excused';
+
+    /** @var list<string> */
+    public const KINDS = [self::KIND_LEAVE, self::KIND_DUTY, self::KIND_EXCUSED];
+
+    /** The column's default, so a type created in this request has its kind before it is reloaded. */
+    protected $attributes = [
+        'kind' => self::KIND_LEAVE,
+    ];
+
+    /** Time off, as opposed to a trip or an excused absence. Counted as leave taken. */
+    public function isLeave(): bool
+    {
+        return ($this->kind ?? self::KIND_LEAVE) === self::KIND_LEAVE;
+    }
+
+    /**
+     * Whether a request must fit in the employee's balance.
+     *
+     * Duty and excused days draw on nothing. Nor does an unpaid type that
+     * grants no days: an unpaid day costs the organisation nothing, so there
+     * is nothing to run out of. The catalog's `unpaid` type is exactly that
+     * (0 days), and until 2026-10-27 every request for it was refused as
+     * "insufficient balance" unless HR first adjusted the balance by hand. An
+     * unpaid type someone gave a day count keeps it as a cap.
+     */
+    public function limitedByBalance(): bool
+    {
+        if (! $this->isLeave()) {
+            return false;
+        }
+
+        return $this->is_paid || (float) $this->default_days > 0;
     }
 
     public function leaveRequests(): HasMany

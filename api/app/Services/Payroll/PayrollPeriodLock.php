@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Payroll;
 
 use App\Models\PayrollEntry;
+use App\Models\PayrollRun;
 use App\Support\ApprovalRefusal;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -34,7 +35,7 @@ final class PayrollPeriodLock
         return PayrollEntry::query()
             ->where('employee_id', $employeeId)
             ->whereHas('payrollRun', fn ($run) => $run
-                ->where('status', 'approved')
+                ->whereIn('status', PayrollRun::RELEASED_STATUSES)
                 ->whereDate('period_start', '<=', $day)
                 ->whereDate('period_end', '>=', $day))
             ->exists();

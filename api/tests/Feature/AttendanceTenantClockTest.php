@@ -128,7 +128,7 @@ it('counts overtime from the tenant\'s shift end, and as night hours by the tena
     // the check-out — so there was no overtime at all.
     expect($left->overtimeMinutes())->toBe(30);
 
-    $buckets = app(OvertimeClassifier::class)->classify($left->load('shift'), isHoliday: false, isRestDay: false);
+    $buckets = app(OvertimeClassifier::class)->classify($left->load('shift'), isHoliday: false, isRestDay: false, nightWindow: ['start_hour' => 22, 'end_hour' => 6]);
     expect($buckets['night'])->toBe(30)
         ->and($buckets['normal'])->toBe(0);
 });

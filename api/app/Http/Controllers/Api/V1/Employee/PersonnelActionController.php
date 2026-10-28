@@ -54,6 +54,21 @@ class PersonnelActionController extends Controller
     }
 
     /**
+     * Cancel a scheduled action before its effective date. Whoever may record
+     * an action may withdraw one that has not taken effect; an applied action
+     * is refused, since it is history.
+     */
+    public function destroy(Employee $employee, PersonnelAction $personnelAction): JsonResponse
+    {
+        Gate::authorize('create', PersonnelAction::class);
+        $this->reach($employee);
+
+        $this->actions->cancel($personnelAction, $employee);
+
+        return response()->json(null, 204);
+    }
+
+    /**
      * An employee's history is read and written one employee at a time, so
      * the caller must reach that employee, as on every employee screen. Until
      * 2026-10-20 the class-level permission, which supervisors hold, was the

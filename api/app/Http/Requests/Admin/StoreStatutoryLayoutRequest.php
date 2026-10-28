@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
-use App\Services\Payroll\PensionCalculator;
+use App\Http\Requests\Payroll\Concerns\ValidatesPensionScheme;
 use App\Services\Payroll\StatutorySchedules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -17,6 +17,8 @@ use Illuminate\Validation\Validator;
  */
 class StoreStatutoryLayoutRequest extends FormRequest
 {
+    use ValidatesPensionScheme;
+
     public function authorize(): bool
     {
         return true;
@@ -27,7 +29,7 @@ class StoreStatutoryLayoutRequest extends FormRequest
     {
         return [
             'schedule' => ['required', 'string', Rule::in(StatutorySchedules::SCHEDULES)],
-            'scheme' => ['nullable', 'string', Rule::in(PensionCalculator::SCHEMES)],
+            'scheme' => ['nullable', 'string', 'max:30'],
             'agency' => ['required', 'string', 'max:200'],
             'title' => ['required', 'string', 'max:200'],
             'note' => ['nullable', 'string', 'max:500'],
@@ -41,6 +43,8 @@ class StoreStatutoryLayoutRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v): void {
+            $this->checkPensionScheme($v, 'scheme');
+
             $pension = $this->input('schedule') === StatutorySchedules::PENSION;
             if ($pension && ! is_string($this->input('scheme'))) {
                 $v->errors()->add('scheme', __('validation.required', ['attribute' => 'scheme']));

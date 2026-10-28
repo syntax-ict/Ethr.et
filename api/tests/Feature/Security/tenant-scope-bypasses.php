@@ -11,6 +11,13 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-27, statutory parameters: one in, one out. The payroll engine's
+ * constants became dated rows scoped by organisation type.
+ * `Services/Payroll/StatutoryRules` reads the platform rows (`whereNull
+ * ('tenant_id')`) and the organisation's own (`tenant_id = X`) in one
+ * chain. `Services/Payroll/TaxCalculator` loses one: `basis()` no longer
+ * queries on its own but reports what the single ladder lookup found. 174/69.)
+ *
  * (2026-10-26, in-person activation: one more. `Services/Auth/
  * ActivationCodeService::purge()` deletes activation codes a month after they
  * expired, for every organisation at once from the scheduler: a sweep with no
@@ -281,8 +288,11 @@ return [
     // The rule in force: the organisation's (`where tenant_id = X`), else the
     // platform's (`whereNull`) — the tax ladder's arrangement (2026-10-14).
     'Services/Payroll/PensionCalculator.php' => 1,
-    // effectiveBrackets() and basis() (2026-10-14), each stating tenant_id.
-    'Services/Payroll/TaxCalculator.php' => 2,
+    // Platform and organisation parameters in one chain, each owner stated (2026-10-27).
+    'Services/Payroll/StatutoryRules.php' => 1,
+    // rowsInForce(): the organisation's ladder, the type's, then every type's,
+    // each stating tenant_id or whereNull (2026-10-27; was 2 with basis()).
+    'Services/Payroll/TaxCalculator.php' => 1,
     'Services/Report/ReportEngine.php' => 4,
     'Services/TenantAddressService.php' => 2,
     'Services/UserProvisioningService.php' => 1,

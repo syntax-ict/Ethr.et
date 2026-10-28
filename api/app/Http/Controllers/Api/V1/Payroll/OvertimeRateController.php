@@ -35,7 +35,7 @@ class OvertimeRateController extends Controller
 
         return response()->json([
             'rates' => $this->overtimeCalculator->ratesFor($tenantId),
-            'defaults' => OvertimeCalculator::DEFAULT_RATES,
+            'defaults' => $this->overtimeCalculator->minimumRates($tenantId),
             'is_customized' => $this->rule() !== null,
         ]);
     }
@@ -51,7 +51,7 @@ class OvertimeRateController extends Controller
         );
 
         $rule = $this->rule();
-        $before = $rule ? $this->overtimeCalculator->ratesFor($tenantId) : OvertimeCalculator::DEFAULT_RATES;
+        $before = $rule ? $this->overtimeCalculator->ratesFor($tenantId) : $this->overtimeCalculator->minimumRates($tenantId);
 
         if ($rule) {
             $rule->update(['formula' => $rates, 'is_active' => true]);
@@ -77,7 +77,7 @@ class OvertimeRateController extends Controller
 
         return response()->json([
             'rates' => $this->overtimeCalculator->ratesFor($tenantId),
-            'defaults' => OvertimeCalculator::DEFAULT_RATES,
+            'defaults' => $this->overtimeCalculator->minimumRates($tenantId),
             'is_customized' => true,
         ]);
     }

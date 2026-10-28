@@ -31,6 +31,7 @@ final class WebhookEvents
         'payroll.processed',
         'payroll.approved',
         'payroll.voided',
+        'payroll.paid',
         'payroll.reprocessed',
         'attendance.checked_in',
         'attendance.checked_out',

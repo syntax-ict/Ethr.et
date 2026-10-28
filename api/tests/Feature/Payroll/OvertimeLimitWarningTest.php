@@ -66,7 +66,7 @@ test('days over the organisation\'s limit are flagged and every minute is still 
     $step = overtimeLimitStep($run);
 
     expect($step['overtime_minutes'])->toBe(540)
-        ->and($step['overtime_amount_cents'])->toBe((new OvertimeCalculator)->calculate(500000, 22, 8, 540, 'normal'))
+        ->and($step['overtime_amount_cents'])->toBe(app(OvertimeCalculator::class)->calculate(500000, 22, 8, 540, 'normal'))
         ->and($step['limits']['daily_limit_minutes'])->toBe(120)
         ->and($step['limits']['days_over_daily_limit'])->toBe(['2026-06-01', '2026-06-02', '2026-06-03'])
         ->and($step['limits']['legal_daily_limit_minutes'])->toBe(240)
@@ -121,7 +121,7 @@ test('a week that runs into the next period is counted whole, and only the perio
     $step = overtimeLimitStep($run);
 
     expect($step['overtime_minutes'])->toBe(420)
-        ->and($step['overtime_amount_cents'])->toBe((new OvertimeCalculator)->calculate(500000, 22, 8, 420, 'normal'))
+        ->and($step['overtime_amount_cents'])->toBe(app(OvertimeCalculator::class)->calculate(500000, 22, 8, 420, 'normal'))
         ->and($step['limits']['weeks_over_legal_weekly_limit'])->toEqual([['week_start' => '2026-06-29', 'minutes' => 840]]);
 });
 

@@ -382,7 +382,7 @@ describe("<PayrollRunDetail> progress", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows every step done once the run is approved", async () => {
+  it("leaves only the payment to confirm once the run is approved", async () => {
     server.use(me("finance_admin", ["payroll.viewAll"]));
     server.use(
       http.get("*/api/v1/payroll/runs/RUN1", () =>
@@ -398,11 +398,38 @@ describe("<PayrollRunDetail> progress", () => {
     const steps = await screen.findByRole("list", {
       name: "Payroll run progress",
     });
+    const items = within(steps).getAllByRole("listitem");
+    for (const li of items.slice(0, -1)) {
+      expect(li).toHaveTextContent("Done");
+      expect(li).not.toHaveAttribute("aria-current");
+    }
+    expect(items[items.length - 1]).toHaveTextContent(
+      "Confirm the payment once the bank has sent it.",
+    );
+    expect(screen.queryByText("Awaiting approval")).toBeNull();
+  });
+
+  it("shows every step done once the run is paid", async () => {
+    server.use(me("finance_admin", ["payroll.viewAll"]));
+    server.use(
+      http.get("*/api/v1/payroll/runs/RUN1", () =>
+        HttpResponse.json({
+          ...RUN,
+          status: "paid",
+          approved_at: "2026-10-11T06:00:00Z",
+          paid_on: "2026-10-12",
+        }),
+      ),
+    );
+    renderDetail();
+
+    const steps = await screen.findByRole("list", {
+      name: "Payroll run progress",
+    });
     for (const li of within(steps).getAllByRole("listitem")) {
       expect(li).toHaveTextContent("Done");
       expect(li).not.toHaveAttribute("aria-current");
     }
-    expect(screen.queryByText("Awaiting approval")).toBeNull();
   });
 
   it("marks the calculation failed on a failed run", async () => {
@@ -439,5 +466,92 @@ describe("<PayrollRunDetail> progress", () => {
     expect(
       screen.queryByRole("list", { name: "Payroll run progress" }),
     ).toBeNull();
+  });
+});
+
+describe("<PayrollRunDetail> confirming payment", () => {
+  // Upgrade 3 of the payroll plan: an approved run's last state is paid,
+  // recorded with the day the money left and the bank's reference.
+  it("records the payment of an approved run, with its date and reference", async () => {
+    let sent: unknown = null;
+    server.use(
+      me("finance_admin", ["payroll.viewAll", "payroll.markPaid"]),
+      http.get("*/api/v1/payroll/runs/RUN1", () =>
+        HttpResponse.json({ ...RUN, status: "approved" }),
+      ),
+      http.put("*/api/v1/payroll/runs/RUN1/paid", async ({ request }) => {
+        sent = await request.json();
+        return HttpResponse.json({ ...RUN, status: "paid" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderDetail();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Confirm payment/ }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    const date = within(dialog).getByLabelText("Date paid");
+    await user.clear(date);
+    await user.type(date, "2026-10-09");
+    await user.type(
+      within(dialog).getByLabelText("Bank reference"),
+      "CBE-BATCH-0042",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: /Confirm payment/ }),
+    );
+
+    await waitFor(() =>
+      expect(sent).toEqual({
+        paid_on: "2026-10-09",
+        payment_reference: "CBE-BATCH-0042",
+        payment_note: null,
+      }),
+    );
+  });
+
+  it("does not offer it without payroll.markPaid", async () => {
+    server.use(
+      me("tenant_admin", ["payroll.viewAll", "payroll.void"]),
+      http.get("*/api/v1/payroll/runs/RUN1", () =>
+        HttpResponse.json({ ...RUN, status: "approved" }),
+      ),
+    );
+    renderDetail();
+
+    expect(
+      await screen.findByRole("button", { name: /Void Payroll/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Confirm payment/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers no void on a paid run, and shows the bank reference", async () => {
+    server.use(
+      me("tenant_admin", [
+        "payroll.viewAll",
+        "payroll.void",
+        "payroll.markPaid",
+      ]),
+      http.get("*/api/v1/payroll/runs/RUN1", () =>
+        HttpResponse.json({
+          ...RUN,
+          status: "paid",
+          paid_on: "2026-10-09",
+          payment_reference: "CBE-BATCH-0042",
+        }),
+      ),
+    );
+    renderDetail();
+
+    expect(await screen.findByText("CBE-BATCH-0042")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Void Payroll/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Confirm payment/ }),
+    ).not.toBeInTheDocument();
   });
 });

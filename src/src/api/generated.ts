@@ -4087,6 +4087,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/my-exceptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List my exceptions */
+        get: operations["attendance.myAttendanceExceptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/my-shift": {
         parameters: {
             query?: never;
@@ -4901,6 +4918,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organization-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List organization types */
+        get: operations["organizationType.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/otp/request": {
         parameters: {
             query?: never;
@@ -5124,6 +5158,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll/runs/{payrollRun}/paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Record that an approved run has been paid: the date the money left and
+         *     the bank's reference. A paid run cannot be voided; a mistake in it is
+         *     corrected in the next run
+         */
+        put: operations["payroll.markPaid"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/runs/{payrollRun}/reprocess": {
         parameters: {
             query?: never;
@@ -5188,6 +5243,27 @@ export interface paths {
          *     (RunRegisterService). What an accountant reconciles a run against
          */
         get: operations["payroll.register"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/reconciliation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every exception in a pay period's attendance and whether someone has
+         *     acted on it (AttendanceReconciliation), for the employees the caller
+         *     reaches. What payroll staff settle before a run is approved
+         */
+        get: operations["payroll.reconciliation"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5521,6 +5597,27 @@ export interface paths {
         /** Create personnel action */
         post: operations["personnelAction.store"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/personnel-actions/{personnelAction}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel a scheduled action before its effective date. Whoever may record
+         *     an action may withdraw one that has not taken effect; an applied action
+         *     is refused, since it is history
+         */
+        delete: operations["personnelAction.destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -7993,6 +8090,9 @@ export interface components {
             attendance_record_public_id: string | null;
             employee?: components["schemas"]["EmployeeResource"] | null;
             employee_public_id: string | null;
+            kind: string;
+            date: string | null;
+            deduct_minutes: number | null;
             reason: string;
             proposed_check_in: string | null;
             proposed_check_out: string | null;
@@ -8176,6 +8276,10 @@ export interface components {
             kiosk_auto_reset_seconds: number;
             ot_daily_cap_minutes: number;
             overtime_requires_approval: boolean;
+            lateness_deduction_enabled: boolean;
+            lateness_deduction_basis: string | null;
+            /** @enum {string} */
+            reconciliation_mode: "advisory" | "required" | "off";
             confidence_threshold: number;
             reminders_enabled: boolean;
             reminder_lead_minutes: number;
@@ -9171,6 +9275,7 @@ export interface components {
             name: string;
             name_am: string | null;
             code: string;
+            kind: string;
             default_days: number;
             accrual_type: string;
             carry_forward: boolean;
@@ -9240,6 +9345,13 @@ export interface components {
             check_in: string;
             check_out?: string | null;
             reason: string;
+        };
+        /** MarkPayrollRunPaidRequest */
+        MarkPayrollRunPaidRequest: {
+            /** Format: date */
+            paid_on: string;
+            payment_reference?: string | null;
+            payment_note?: string | null;
         };
         /** MarketingItemResource */
         MarketingItemResource: {
@@ -9559,6 +9671,11 @@ export interface components {
             /** Format: date-time */
             voided_at: string | null;
             void_reason: string | null;
+            paid_on: string | null;
+            /** Format: date-time */
+            paid_at: string | null;
+            payment_reference: string | null;
+            payment_note: string | null;
             reprocessed_from_public_id?: string | null;
             /** Format: date-time */
             created_at: string | null;
@@ -9585,6 +9702,7 @@ export interface components {
             public_id: string;
             type: string;
             is_temporary: boolean;
+            is_scheduled: boolean;
             effective_date: string;
             end_date: string | null;
             reference_number: string | null;
@@ -10363,12 +10481,18 @@ export interface components {
         };
         /** StoreCorrectionRequest */
         StoreCorrectionRequest: {
-            attendance_record_public_id: string;
+            /** @enum {string} */
+            kind?: "correction" | "missed_punch" | "lateness";
+            attendance_record_public_id?: string | null;
+            employee_public_id?: string | null;
+            /** Format: date */
+            date?: string | null;
             reason: string;
             /** Format: date-time */
             proposed_check_in?: string | null;
             /** Format: date-time */
             proposed_check_out?: string | null;
+            deduct_minutes?: number | null;
         };
         /** StoreCostCenterRequest */
         StoreCostCenterRequest: {
@@ -10576,6 +10700,7 @@ export interface components {
         /** StoreLeaveRequestRequest */
         StoreLeaveRequestRequest: {
             leave_type_public_id: string;
+            employee_public_id?: string | null;
             /** Format: date-time */
             start_date: string;
             /** Format: date-time */
@@ -10588,6 +10713,8 @@ export interface components {
             name: string;
             name_am?: string | null;
             code: string;
+            /** @enum {string} */
+            kind?: "leave" | "duty" | "excused";
             default_days: number;
             accrual_type: components["schemas"]["AccrualType"];
             carry_forward?: boolean | null;
@@ -10695,8 +10822,7 @@ export interface components {
          *     moved into a form.
          */
         StorePensionRuleRequest: {
-            /** @enum {string} */
-            scheme: "private" | "public" | "public_military";
+            scheme: string;
             employee_rate: number;
             employer_rate: number;
             ceiling_cents?: number | null;
@@ -10854,8 +10980,7 @@ export interface components {
         StoreStatutoryLayoutRequest: {
             /** @enum {string} */
             schedule: "income-tax" | "pension";
-            /** @enum {string|null} */
-            scheme?: "private" | "public" | "public_military" | null;
+            scheme?: string | null;
             agency: string;
             title: string;
             note?: string | null;
@@ -10893,7 +11018,7 @@ export interface components {
         StoreWebhookRequest: {
             /** Format: uri */
             url: string;
-            events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
+            events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
         };
         /** TaxBracketResource */
         TaxBracketResource: {
@@ -11075,6 +11200,10 @@ export interface components {
             kiosk_auto_reset_seconds?: number;
             ot_daily_cap_minutes?: number;
             overtime_requires_approval?: boolean;
+            lateness_deduction_enabled?: boolean;
+            lateness_deduction_basis?: string | null;
+            /** @enum {string} */
+            reconciliation_mode?: "off" | "advisory" | "required";
             confidence_threshold?: number;
             reminders_enabled?: boolean;
             reminder_lead_minutes?: number;
@@ -11388,6 +11517,8 @@ export interface components {
             name?: string;
             name_am?: string | null;
             code?: string;
+            /** @enum {string} */
+            kind?: "leave" | "duty" | "excused";
             default_days?: number;
             accrual_type?: components["schemas"]["AccrualType"];
             carry_forward?: boolean;
@@ -11445,16 +11576,17 @@ export interface components {
         UpdateOrganizationRequest: {
             name?: string;
             type?: string | null;
+            organization_type?: string;
             timezone?: string;
             /** @enum {string} */
             locale?: "en" | "am" | "om" | "ti" | "so";
         };
         /**
          * UpdateOvertimeRatesRequest
-         * @description Tenant overtime multipliers. The lower bounds are Labour Proclamation
-         *     1156/2019 Art. 68(1) — a tenant may pay above them, never below.
-         *     (They were the repealed 377/2003 rates until 2026-10-01.) `rest_day` is
-         *     optional so a client that predates it keeps working; the default applies.
+         * @description Tenant overtime multipliers. A tenant may pay above the statutory floor
+         *     for its organisation type (Labour Proclamation 1156/2019 Art. 68(1)), never
+         *     below it. `rest_day` is optional so a client that predates it keeps
+         *     working; the floor applies.
          */
         UpdateOvertimeRatesRequest: {
             normal: number;
@@ -11601,8 +11733,7 @@ export interface components {
                 run_day?: number;
                 employer_tin?: string | null;
                 tax_center?: string | null;
-                /** @enum {string} */
-                pension_scheme?: "private" | "public" | "public_military";
+                pension_scheme?: string;
                 working_days?: number[];
                 /** @enum {string} */
                 mfa_policy?: "disabled" | "optional" | "required";
@@ -11733,7 +11864,7 @@ export interface components {
         UpdateWebhookRequest: {
             /** Format: uri */
             url?: string;
-            events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
+            events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
             is_active?: boolean;
         };
         /**
@@ -21975,6 +22106,7 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
         };
     };
@@ -22886,6 +23018,45 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "attendance.myAttendanceExceptions": {
+        parameters: {
+            query?: {
+                period_start?: string | null;
+                period_end?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        period: {
+                            start: string;
+                            end: string;
+                        };
+                        exceptions: {
+                            type: string;
+                            date: string;
+                            state: string;
+                            minutes: number | null;
+                            record_public_id: string | null;
+                            request_kind: string | null;
+                            request_public_id: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "attendance.myShift": {
@@ -25549,6 +25720,32 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "organizationType.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            code: string;
+                            name: string;
+                            name_am: string;
+                            description: string | null;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
     "otp.request": {
         parameters: {
             query?: never;
@@ -26095,6 +26292,37 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "payroll.markPaid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkPayrollRunPaidRequest"];
+            };
+        };
+        responses: {
+            /** @description `PayrollRunResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollRunResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "payroll.reprocess": {
         parameters: {
             query?: never;
@@ -26223,6 +26451,12 @@ export interface operations {
                             loan_cents: number;
                             cost_sharing_cents: number;
                             net_cents: number;
+                            /**
+                             * @description Approved lateness deducted from basic, already in basic_cents. 0
+                             *     when the organisation does not deduct lateness.
+                             */
+                            lateness_cents: number;
+                            deduction_ceiling_cents: number | null;
                             /** @description From the log, as applied (2026-10-14). Null on older entries. */
                             pensionable_cents: number;
                             pension_exempt: boolean | null;
@@ -26298,12 +26532,93 @@ export interface operations {
                             flags: number;
                             employees: string[];
                         };
+                        deduction_ceiling: {
+                            count: number;
+                            employees: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                ceiling_cents: number;
+                                deducted_cents: number;
+                            }[];
+                        };
+                        reconciliation: {
+                            mode: string;
+                            lateness_deduction_enabled: boolean;
+                            totals: {
+                                open: number;
+                                pending: number;
+                                resolved: number;
+                                blocking: number;
+                            };
+                            by_type: {
+                                type: string;
+                                count: number;
+                            }[];
+                            unmatched_punches: number;
+                        };
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "payroll.reconciliation": {
+        parameters: {
+            query: {
+                period_start: string;
+                period_end: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        period: {
+                            start: string;
+                            end: string;
+                        };
+                        mode: string;
+                        lateness_deduction_enabled: boolean;
+                        totals: {
+                            open: number;
+                            pending: number;
+                            resolved: number;
+                            blocking: number;
+                        };
+                        by_type: {
+                            type: string;
+                            count: number;
+                        }[];
+                        unmatched_punches: number;
+                        employees: {
+                            employee_public_id: string;
+                            employee_name: string;
+                            employee_code: string | null;
+                            exceptions: {
+                                type: string;
+                                date: string;
+                                state: string;
+                                minutes: number | null;
+                                record_public_id: string | null;
+                                request_kind: string | null;
+                                request_public_id: string | null;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "payroll.downloadRegister": {
@@ -26360,7 +26675,7 @@ export interface operations {
                             tax_center: string | null;
                             period: string;
                             /** @enum {string} */
-                            status: "Approved" | "NOT APPROVED — draft figures";
+                            status: "Approved and paid" | "Approved" | "NOT APPROVED — draft figures";
                             approved: boolean;
                             basis: string;
                             notice: string | "Layout prepared by ETHR; to be confirmed with the agency before filing (owner action O3).";
@@ -27259,6 +27574,33 @@ export interface operations {
                         recorded_by: unknown;
                     };
                 };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "personnelAction.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The personnel action public id */
+                personnelAction: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -29615,6 +29957,8 @@ export interface operations {
                              */
                             timezone: string;
                             locale: string;
+                            organization_type: string;
+                            organization_type_needs_review: boolean;
                         };
                         address: {
                             mode: string;
@@ -29733,7 +30077,8 @@ export interface operations {
                             /** @description The header of the statutory schedules (StatutorySchedules). */
                             employer_tin: string | null;
                             tax_center: string | null;
-                            pension_scheme: string | null;
+                            pension_scheme: string;
+                            pension_schemes: unknown[];
                         };
                         security: {
                             mfa_policy: string;
@@ -29830,6 +30175,8 @@ export interface operations {
                             type: string;
                             timezone: string;
                             locale: string;
+                            organization_type: string;
+                            organization_type_needs_review: boolean;
                         };
                     };
                 };

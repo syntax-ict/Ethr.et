@@ -176,7 +176,17 @@ export interface PayrollRegister {
   absences?: PayrollAbsences;
   /** People with serious attendance findings in the period still open; pay is unchanged. */
   integrity?: PayrollIntegrity;
+  /** Live: where the period's attendance reconciliation stands now. */
+  reconciliation?: RegisterReconciliation;
+  /** Payslips whose lateness, loan and cost-sharing deductions pass a third of basic. */
+  deduction_ceiling?: DeductionCeiling;
 }
+
+export type DeductionCeiling =
+  operations["payroll.register"]["responses"][200]["content"]["application/json"]["deduction_ceiling"];
+
+export type RegisterReconciliation =
+  operations["payroll.register"]["responses"][200]["content"]["application/json"]["reconciliation"];
 
 export interface PayrollIntegrity {
   count: number;
@@ -302,6 +312,39 @@ export function useVoidPayroll() {
     }) => {
       const { data } = await apiClient.post(`/payroll/runs/${publicId}/void`, {
         reason,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payroll"] });
+    },
+  });
+}
+
+/**
+ * Record that an approved run has been paid: the date the money left and the
+ * bank's reference. A paid run cannot be voided; a mistake is corrected in the
+ * next run.
+ */
+export function useMarkPayrollPaid() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      paidOn,
+      reference,
+      note,
+    }: {
+      publicId: string;
+      paidOn: string;
+      reference?: string;
+      note?: string;
+    }) => {
+      const { data } = await apiClient.put(`/payroll/runs/${publicId}/paid`, {
+        paid_on: paidOn,
+        payment_reference: reference || null,
+        payment_note: note || null,
       });
       return data;
     },

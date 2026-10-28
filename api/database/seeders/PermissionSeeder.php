@@ -132,6 +132,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'payroll.process', 'module' => 'payroll', 'action' => 'process', 'description' => 'Process payroll runs'],
             ['name' => 'payroll.approve', 'module' => 'payroll', 'action' => 'approve', 'description' => 'Approve payroll runs'],
             ['name' => 'payroll.void', 'module' => 'payroll', 'action' => 'void', 'description' => 'Void an approved payroll run'],
+            ['name' => 'payroll.markPaid', 'module' => 'payroll', 'action' => 'markPaid', 'description' => 'Record that an approved payroll run has been paid'],
             ['name' => 'payroll.reprocess', 'module' => 'payroll', 'action' => 'reprocess', 'description' => 'Reprocess a voided payroll run'],
             ['name' => 'payroll.manageLoan', 'module' => 'payroll', 'action' => 'manageLoan', 'description' => 'Manage employee loans'],
             ['name' => 'payroll.manageCostSharing', 'module' => 'payroll', 'action' => 'manageCostSharing', 'description' => 'Manage employee cost-sharing obligations'],
@@ -315,6 +316,10 @@ class PermissionSeeder extends Seeder
             // what everybody is paid and stays at tenant-admin.
             'payroll.manageCostSharing',
             'payroll.viewConfig',
+            // Confirming the money left is the treasury side of payroll: it
+            // releases nothing new, since the run is already approved, and
+            // records what the bank did.
+            'payroll.markPaid',
         ];
 
         // isAtLeast(TENANT_ADMIN) — level 90+

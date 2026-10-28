@@ -263,3 +263,54 @@ maker and checker.
 
 Still to come in Phase C: delegation while an approver is away, and returning
 a request to its author for correction.
+
+### Attendance reconciliation before payroll (2026-10-27)
+
+Payroll staff reconciled attendance by hand: the run only flagged absences,
+overtime limits and integrity findings, nothing tracked whether anyone acted
+on them, and lateness was ignored. Reconciliation adds no approval type and no
+table of its own. `App\Services\Payroll\AttendanceReconciliation` reads a pay
+period's exceptions by payroll's own rules (the `PayrollEngine` detectors and
+`payableEmployees`) and links each to the request that settles it, all
+already on this engine:
+
+| Exception | Settled by |
+|---|---|
+| Absent with nothing on record | A missed-punch claim (`attendance_corrections.kind = missed_punch`, approving it creates the record), or leave HR files for the employee: unpaid (deducted by the existing unpaid-leave step), excused, or a business trip (`leave_types.kind` `excused` / `duty`) |
+| Late arrival or early departure | A lateness decision (`kind = lateness`): minutes to deduct, or 0 to waive. Moves no punch |
+| Check-out missing, or written by auto check-out | A correction, as before |
+| Overtime past what was approved | An overtime request for the day; overtime over a limit is listed for information only, because it is paid |
+| Integrity flag, duplicate punches | Their own screens |
+
+An exception's state (`open`, `pending`, `resolved`, `info`) is derived from
+the request it points at and never stored, so it cannot disagree with the
+requests. The engine's rules still hold: nobody approves their own request,
+and nobody approves what they filed. A request HR files on someone's behalf is
+recorded as a `filed_for` action, and its filer cannot approve it. A lateness
+decision must also be approved by someone holding `payroll.process`.
+
+Organisations choose how firmly this binds (`attendance_settings.reconciliation_mode`,
+changed with `payroll.manageConfig`):
+
+- `off`, the default: runs are approved exactly as before.
+- `advisory`: the run page shows what is still open.
+- `required`: a run is refused approval while anything in its period is open or
+  pending, and once a decision was made after it was calculated (reprocess it).
+
+Lateness is deducted only after an organisation switches it on and records its
+basis (`lateness_deduction_enabled`, `lateness_deduction_basis`): Proclamation
+1156/2019 Art. 59 allows deductions from wages only on a stated basis. The
+deduction is basic / 22 / 480 a minute, capped at a third of the period's
+basic.
+
+**Decided 2026-10-28 (owner delegated):** the third is one total shared by
+lateness, loans and cost sharing; income tax and pension, which the law itself
+imposes, stay outside it. The reading follows Art. 59 as secondary sources state
+it ("the amount of deduction must not exceed one-third of the monthly wages");
+confirm it against the Negarit Gazette text when the accountant next reviews.
+Loans and cost sharing were deducted before lateness existed and are not cut:
+lateness takes only the headroom they leave. Loan instalments are fixed; cost
+sharing is a share of gross, which is not final when lateness is computed, so it
+is estimated on basic, and the run register lists any payslip whose actual total
+still passes the third (`deduction_ceiling`, shown on the run page before
+approval). Nothing is changed for those payslips.
