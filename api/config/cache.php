@@ -53,6 +53,22 @@ return [
             'lock_path' => storage_path('framework/cache/data'),
         ],
 
+        /*
+        | Health timestamps only: the scheduler heartbeat, the cron callers'
+        | ticks, the last queue drain and when mail last left or failed
+        | (App\Support\HealthSignals). Kept out of the default store because
+        | every release runs `optimize:clear`, which empties that store, and
+        | the console then read "never" for each of them right after a deploy,
+        | when they matter most. Nothing clears this directory. Tests use the
+        | array driver (phpunit.xml) so no run leaves a file behind.
+        */
+        'signals' => [
+            'driver' => env('SIGNALS_CACHE_DRIVER', 'file'),
+            'path' => storage_path('framework/signals'),
+            'lock_path' => storage_path('framework/signals'),
+            'serialize' => false,
+        ],
+
         'memcached' => [
             'driver' => 'memcached',
             'persistent_id' => env('MEMCACHED_PERSISTENT_ID'),

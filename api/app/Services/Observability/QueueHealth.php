@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Observability;
 
+use App\Support\HealthSignals;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -79,7 +79,7 @@ class QueueHealth
      */
     public function recordDrain(): void
     {
-        Cache::put(self::DRAIN_KEY, now()->toIso8601String(), self::HEARTBEAT_TTL_SECONDS);
+        HealthSignals::store()->put(self::DRAIN_KEY, now()->toIso8601String(), self::HEARTBEAT_TTL_SECONDS);
     }
 
     public function lastDrain(): ?Carbon
@@ -90,7 +90,7 @@ class QueueHealth
     /** Record that the scheduler ran. Called once a minute by routes/console.php. */
     public function beat(): void
     {
-        Cache::put(self::HEARTBEAT_KEY, now()->toIso8601String(), self::HEARTBEAT_TTL_SECONDS);
+        HealthSignals::store()->put(self::HEARTBEAT_KEY, now()->toIso8601String(), self::HEARTBEAT_TTL_SECONDS);
     }
 
     public function lastBeat(): ?Carbon
@@ -110,7 +110,7 @@ class QueueHealth
      */
     public function recordExternalTick(): void
     {
-        Cache::put(self::EXTERNAL_TICK_KEY, now()->toIso8601String(), self::TICK_TTL_SECONDS);
+        HealthSignals::store()->put(self::EXTERNAL_TICK_KEY, now()->toIso8601String(), self::TICK_TTL_SECONDS);
     }
 
     public function lastExternalTick(): ?Carbon
@@ -121,7 +121,7 @@ class QueueHealth
     /** Record that ordinary traffic ran background work (RunBackgroundWorkAfterResponse). */
     public function recordTrafficTick(): void
     {
-        Cache::put(self::TRAFFIC_TICK_KEY, now()->toIso8601String(), self::TICK_TTL_SECONDS);
+        HealthSignals::store()->put(self::TRAFFIC_TICK_KEY, now()->toIso8601String(), self::TICK_TTL_SECONDS);
     }
 
     public function lastTrafficTick(): ?Carbon
@@ -131,7 +131,7 @@ class QueueHealth
 
     private function readMoment(string $key): ?Carbon
     {
-        $value = Cache::get($key);
+        $value = HealthSignals::store()->get($key);
 
         if (! is_string($value)) {
             return null;

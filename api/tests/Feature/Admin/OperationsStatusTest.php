@@ -287,3 +287,49 @@ test('a failed health probe names the probe, not the driver error', function () 
 
     expect($response->getContent())->not->toContain('no-such-disk-for-this-test');
 });
+
+test('a release clearing the cache keeps the health timestamps', function () {
+    // Every release runs `optimize:clear`, which empties the default store.
+    // These lived there until 2026-10-28, and the live console read "never"
+    // for the external caller and for mail right after the deploy that
+    // shipped this page.
+    $health = app(QueueHealth::class);
+    $health->beat();
+    $health->recordExternalTick();
+    $health->recordTrafficTick();
+    $health->recordDrain();
+    MailHealth::recordSent('pinned');
+
+    Artisan::call('cache:clear');
+
+    expect(Cache::get('anything'))->toBeNull()
+        ->and($health->lastBeat())->not->toBeNull()
+        ->and($health->lastExternalTick())->not->toBeNull()
+        ->and($health->lastTrafficTick())->not->toBeNull()
+        ->and($health->lastDrain())->not->toBeNull()
+        ->and(MailHealth::snapshot()['tls'])->toBe('pinned');
+});
+
+test('the health store is a store of its own, outside the default cache directory', function () {
+    expect(config('cache.default'))->not->toBe('signals')
+        ->and(config('cache.stores.signals.path'))->toBe(storage_path('framework/signals'))
+        ->and(config('cache.stores.signals.path'))->not->toBe(config('cache.stores.file.path'));
+});
+
+test('a cached configuration from before the health store still records ticks', function () {
+    // Between a deploy and the release step that rebuilds the cached
+    // configuration, `signals` is undefined. The cron endpoint records a tick
+    // before it runs anything, so a throw there would stop background work.
+    config()->set('cache.stores.signals', null);
+
+    app(QueueHealth::class)->recordExternalTick();
+
+    expect(app(QueueHealth::class)->lastExternalTick())->not->toBeNull();
+});
+
+test('tests keep health signals in memory, never on disk', function () {
+    // The file store survives between tests. The MySQL suite ran on it once
+    // (its phpunit.mysql.xml lacked this setting), and every "never ran" test
+    // saw the heartbeat an earlier test had written.
+    expect(config('cache.stores.signals.driver'))->toBe('array');
+});
