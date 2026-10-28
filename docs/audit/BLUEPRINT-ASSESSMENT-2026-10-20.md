@@ -473,7 +473,7 @@ No statutory compliance may be claimed until O2 and O3 are complete.
 | ID | Item | Status | Evidence / gap |
 |---|---|---|---|
 | PY1 | Period and cutoff | Partial | Monthly only; no cutoff or lock |
-| PY2 | Salary, grade, effective dates | Partial | Personnel actions apply immediately |
+| PY2 | Salary, grade, effective dates | Partial | A future-dated personnel action is held until its date (2026-10-27, `docs/EMPLOYEE-LIFECYCLE.md`); status changes still apply immediately |
 | PY3 | Earnings | Partial | No per-employee bonuses or one-off earnings |
 | PY4 | Deductions, loans | Partial | No advances or custom deductions |
 | PY5 | Unpaid leave, adjustments | Partial | No manual adjustments |
