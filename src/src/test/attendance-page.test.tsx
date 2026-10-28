@@ -269,3 +269,72 @@ describe("<AttendancePage> filters in the address", () => {
     }
   });
 });
+
+describe("<AttendancePage> punch buttons", () => {
+  function employee(status: "not_checked_in" | "checked_in" | "checked_out") {
+    return [
+      http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          user: {
+            public_id: "U1",
+            name: "Test User",
+            role: "employee",
+            employee_public_id: "01HZEMP0000000000000000001",
+          },
+          tenant: {
+            public_id: "T1",
+            name: "Demo",
+            timezone: "Africa/Addis_Ababa",
+          },
+          permissions: ["attendance.viewOwn", "attendance.checkIn"],
+        }),
+      ),
+      http.get("*/api/v1/attendance/my", () => HttpResponse.json(page([]))),
+      http.get("*/api/v1/attendance/my-shift", () =>
+        HttpResponse.json({ attendance: { status } }),
+      ),
+    ];
+  }
+
+  it("offers Check Out, not Check In, to someone who checked in on the phone", async () => {
+    // Only the phone screen read the day's record. After a phone check-in
+    // this page still put Check In first, and a check-in pressed in the
+    // evening opened a second record instead of ending the day.
+    server.use(...employee("checked_in"));
+    renderPage();
+
+    expect(
+      await screen.findByRole("button", { name: /check out/i }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: /^\s*check in$/i }),
+      ).toBeNull(),
+    );
+  });
+
+  it("offers Check in again once the day is checked out", async () => {
+    server.use(...employee("checked_out"));
+    renderPage();
+
+    expect(
+      await screen.findByRole("button", { name: /check in again/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /check out/i })).toBeNull();
+  });
+
+  it("offers both when there is no employee record to read", async () => {
+    server.use(
+      me(["attendance.viewOwn", "attendance.checkIn"]),
+      http.get("*/api/v1/attendance/my", () => HttpResponse.json(page([]))),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByRole("button", { name: /check out/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^\s*check in$/i }),
+    ).toBeInTheDocument();
+  });
+});

@@ -30,7 +30,8 @@ interface SealedPunch {
   c: string;
   /** PIN, when the organisation requires one. */
   p: string | null;
-  t: "check_in" | "check_out";
+  /** `auto`: the server decides, from the day's record, when it arrives. */
+  t: "auto" | "check_in" | "check_out";
   /** When the punch was made, by the terminal's clock. */
   at: string;
   /** Idempotency key. */
