@@ -58,6 +58,12 @@ parameters:
         - message: '#^Method App\\Models\\ProfileUpdateRequest\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
 
+        # Same larastan limitation for statutory_parameters (2026-10-27). The
+        # model is correct and covered by StatutoryParametersTest. Scoped to the
+        # trait file, model-named exact.
+        - message: '#^Method App\\Models\\StatutoryParameter\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+          path: app/Traits/BelongsToTenant.php
+
         # Same larastan limitation for vacancies (2026-10-13). The model is
         # correct and covered by VacancyTest and LandingFeedTest. Scoped to the
         # trait file, model-named exact.

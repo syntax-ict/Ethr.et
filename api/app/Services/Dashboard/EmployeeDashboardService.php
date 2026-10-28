@@ -12,6 +12,7 @@ use App\Models\Holiday;
 use App\Models\LeaveBalance;
 use App\Models\OnboardingProgress;
 use App\Models\PayrollEntry;
+use App\Models\PayrollRun;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -121,7 +122,7 @@ final class EmployeeDashboardService
         // this tile showed its net pay to the employee before approval.
         $entry = PayrollEntry::query()
             ->where('employee_id', $employee->id)
-            ->whereHas('payrollRun', fn ($query) => $query->where('status', 'approved'))
+            ->whereHas('payrollRun', fn ($query) => $query->whereIn('status', PayrollRun::RELEASED_STATUSES))
             ->with('payrollRun')
             ->orderByDesc('created_at')
             ->first();

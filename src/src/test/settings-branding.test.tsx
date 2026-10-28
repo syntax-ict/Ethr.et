@@ -128,6 +128,83 @@ describe("<OrganizationCard>", () => {
       type: "private",
       timezone: "Africa/Addis_Ababa",
       locale: "en",
+      organization_type: "private",
     });
+  });
+
+  it("offers the kinds of organisation from the catalogue, in the reader's language", async () => {
+    server.use(
+      http.get("*/organization-types", () =>
+        HttpResponse.json({
+          data: [
+            {
+              code: "private",
+              name: "Private organisation",
+              name_am: "የግል ድርጅት",
+              description: null,
+            },
+            {
+              code: "government",
+              name: "Government office (civil service)",
+              name_am: "የመንግሥት መሥሪያ ቤት",
+              description: null,
+            },
+          ],
+        }),
+      ),
+    );
+
+    renderWithClient(<OrganizationCard organization={org} />);
+
+    expect(
+      screen.getByLabelText("Kind of organisation in law"),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText("Kind of organisation in law"),
+      ).toHaveTextContent("Private organisation"),
+    );
+  });
+
+  it("asks an organisation whose kind was inferred to confirm it, and the confirmation saves it", async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.put("*/settings/organization", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ message: "Organization updated" });
+      }),
+    );
+
+    renderWithClient(
+      <OrganizationCard
+        organization={{
+          ...org,
+          organization_type: "government",
+          organization_type_needs_review: true,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /confirm the kind of organisation/i,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ organization_type: "government" });
+  });
+
+  it("shows no confirmation once the kind is confirmed", () => {
+    renderWithClient(
+      <OrganizationCard
+        organization={{
+          ...org,
+          organization_type: "private",
+          organization_type_needs_review: false,
+        }}
+      />,
+    );
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });

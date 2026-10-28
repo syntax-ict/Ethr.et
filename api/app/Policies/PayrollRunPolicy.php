@@ -34,6 +34,11 @@ class PayrollRunPolicy
         return $user->hasPermission('payroll.approve');
     }
 
+    public function markPaid(User $user, PayrollRun $payrollRun): bool
+    {
+        return $user->hasPermission('payroll.markPaid');
+    }
+
     public function void(User $user, PayrollRun $payrollRun): bool
     {
         return $user->hasPermission('payroll.void');

@@ -7,6 +7,7 @@ use App\Models\Lead;
 use App\Models\MarketingItem;
 use App\Models\MarketingSection;
 use App\Models\OrganizationTemplate;
+use App\Models\OrganizationType;
 use App\Models\OtpCode;
 use App\Models\Permission;
 use App\Models\PersonalAccessToken;
@@ -35,6 +36,7 @@ const GLOBAL_MODELS = [
     FeatureFlag::class,          // global when tenant_id is null
     Permission::class,           // global permission catalogue
     OrganizationTemplate::class, // global industry template catalogue
+    OrganizationType::class,     // global catalogue of organisation types statutory rules are scoped by
     PersonalAccessToken::class,  // Sanctum's own table
     PlatformSetting::class,      // super-admin settings; every tenant reads the same row
     // SMS is bought and switched on once for the whole platform by the super

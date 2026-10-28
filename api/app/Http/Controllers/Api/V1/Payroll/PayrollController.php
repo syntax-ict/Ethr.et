@@ -9,6 +9,7 @@ use App\Events\PayrollProcessed;
 use App\Exceptions\PayrollRunRefused;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payroll\ApprovePayrollRunRequest;
+use App\Http\Requests\Payroll\MarkPayrollRunPaidRequest;
 use App\Http\Requests\Payroll\ProcessPayrollRequest;
 use App\Http\Requests\Payroll\ReconcileAttendanceRequest;
 use App\Http\Requests\Payroll\ReprocessPayrollRunRequest;
@@ -195,6 +196,10 @@ class PayrollController extends Controller
     {
         $this->authorize('void', $payrollRun);
 
+        if ($payrollRun->status === 'paid') {
+            throw PayrollRunRefused::paidCannotVoid();
+        }
+
         if (! in_array($payrollRun->status, ['completed', 'approved'], true)) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/invalid-state',
@@ -213,6 +218,37 @@ class PayrollController extends Controller
         $this->webhook($payrollRun->tenant_id, 'payroll.voided', [
             'public_id' => $payrollRun->public_id,
             'period' => $payrollRun->period_label,
+        ]);
+
+        return response()->json(new PayrollRunResource($payrollRun));
+    }
+
+    /**
+     * Record that an approved run has been paid: the date the money left and
+     * the bank's reference. A paid run cannot be voided; a mistake in it is
+     * corrected in the next run.
+     */
+    public function markPaid(MarkPayrollRunPaidRequest $request, PayrollRun $payrollRun, PayrollEngine $engine): JsonResponse
+    {
+        $this->authorize('markPaid', $payrollRun);
+
+        $payrollRun = $engine->markPaid(
+            $payrollRun,
+            $request->user()->id,
+            $request->validated('paid_on'),
+            $request->validated('payment_reference'),
+            $request->validated('payment_note'),
+        );
+
+        AuditLog::record('payroll.paid', $payrollRun, [
+            'period' => $payrollRun->period_label,
+            'paid_on' => $payrollRun->paid_on?->toDateString(),
+            'payment_reference' => $payrollRun->payment_reference,
+        ]);
+        $this->webhook($payrollRun->tenant_id, 'payroll.paid', [
+            'public_id' => $payrollRun->public_id,
+            'period' => $payrollRun->period_label,
+            'paid_on' => $payrollRun->paid_on?->toDateString(),
         ]);
 
         return response()->json(new PayrollRunResource($payrollRun));
@@ -267,12 +303,12 @@ class PayrollController extends Controller
 
         $user = $request->user();
 
-        // Approved runs only. A completed run is still finance's draft — a
-        // void and reprocess can change every figure on it — and this listed
-        // those payslips to employees before anyone had approved them.
+        // Released runs only (approved or paid). A completed run is still
+        // finance's draft, which a void and reprocess can change entirely, and
+        // this listed those payslips to employees before anyone approved them.
         $entries = PayrollEntry::query()
             ->where('employee_id', $user->employee_id)
-            ->whereHas('payrollRun', fn ($q) => $q->where('status', 'approved'))
+            ->whereHas('payrollRun', fn ($q) => $q->whereIn('status', PayrollRun::RELEASED_STATUSES))
             ->with('payrollRun', 'employee')
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 25));
@@ -304,7 +340,7 @@ class PayrollController extends Controller
         $ownReleased = $user->hasPermission('payroll.viewOwnPayslip')
             && $user->employee_id !== null
             && $payrollEntry->employee_id === $user->employee_id
-            && $payrollEntry->payrollRun?->status === 'approved';
+            && $payrollEntry->payrollRun?->isReleased() === true;
 
         if (! $ownReleased) {
             $this->authorize('viewAny', PayrollRun::class);
@@ -486,11 +522,12 @@ class PayrollController extends Controller
      * checked only `view`, so the file could be built for a draft or voided
      * run and uploaded before anyone approved it (blueprint assessment D2).
      * Thrown rather than returned so the response shapes Scramble publishes
-     * stay as they are; bootstrap/app.php renders it as a 422.
+     * stay as they are; bootstrap/app.php renders it as a 422. A paid run can
+     * still be exported again: the file is the record of what was sent.
      */
     private function ensureApprovedForPayment(PayrollRun $payrollRun): void
     {
-        if ($payrollRun->status !== 'approved') {
+        if (! $payrollRun->isReleased()) {
             throw PayrollRunRefused::notApprovedForPayment();
         }
     }
