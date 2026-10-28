@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace App\Services\NextSteps\Providers;
 
 use App\Enums\EmployeeStatus;
+use App\Enums\Feature;
 use App\Enums\NextStepId;
-use App\Enums\PlanFeature;
 use App\Enums\ProfileUpdateStatus;
 use App\Models\ProfileUpdateRequest;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Features\FeatureGate;
 use App\Services\NextSteps\NextStep;
 use App\Services\NextSteps\StepProvider;
-use App\Services\PlanFeatureService;
 
 /**
  * What the person can still add to their own profile.
@@ -26,7 +26,7 @@ use App\Services\PlanFeatureService;
  */
 final class ProfileProvider implements StepProvider
 {
-    public function __construct(private readonly PlanFeatureService $plans) {}
+    public function __construct(private readonly FeatureGate $features) {}
 
     public function steps(User $user, Tenant $tenant): array
     {
@@ -49,7 +49,7 @@ final class ProfileProvider implements StepProvider
             'emergency_contact' => $employee->emergencyContacts()->exists(),
         ];
 
-        if ($this->plans->allows($tenant, PlanFeature::Payroll)) {
+        if ($this->features->allows($tenant, Feature::Payroll)) {
             $done['tin'] = filled($employee->tin) || in_array('tin', $waiting, true);
             $done['bank'] = $employee->bankDetails()->exists()
                 || array_intersect(['bank_name', 'bank_account_number'], $waiting) !== [];

@@ -49,7 +49,7 @@ class StorePlanRequest extends FormRequest
      *                       PlanLimitService has always returned for an uncapped
      *                       resource and what the schema now allows.
      *   features            The enforcement vocabulary, constrained to the enum:
-     *                       RequiresPlanFeature compares strings, so 'payrol'
+     *                       RequiresFeature compares strings, so 'payrol'
      *                       would deny access with no error anywhere.
      *   marketing_features  Sales copy. Free text by design — the field exists
      *                       so bullets stop being smuggled into `features`.

@@ -10362,6 +10362,31 @@
                                             ],
                                             "items": []
                                         },
+                                        "features": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "additionalProperties": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "on": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "visible": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "reason": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "on",
+                                                    "visible",
+                                                    "reason"
+                                                ]
+                                            }
+                                        },
                                         "tenant": {
                                             "anyOf": [
                                                 {
@@ -10380,6 +10405,7 @@
                                         "user",
                                         "permissions",
                                         "plan_features",
+                                        "features",
                                         "tenant",
                                         "upload_limit_bytes"
                                     ]

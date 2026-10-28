@@ -15868,6 +15868,13 @@ export interface operations {
                             [key: string]: unknown;
                         };
                         plan_features: unknown[] | null;
+                        features: {
+                            [key: string]: {
+                                on: boolean;
+                                visible: boolean;
+                                reason: string;
+                            };
+                        } | null;
                         tenant: components["schemas"]["TenantResource"] | null;
                         upload_limit_bytes: number;
                     };

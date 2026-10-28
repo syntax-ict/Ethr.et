@@ -91,7 +91,7 @@ class PlanFeatureService
      * null when nothing is restricted (a trial, no plan, or no feature list).
      *
      * Derived from allows() feature by feature, so the screen and the
-     * RequiresPlanFeature middleware cannot disagree. Before this, the UI had
+     * RequiresFeature middleware cannot disagree. Before this, the UI had
      * no idea of the plan: a Starter tenant saw Payroll, Reports, Webhooks and
      * the Audit Log and was refused with a 403 on every action (audit N66).
      *
