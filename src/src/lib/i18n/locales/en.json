@@ -6030,5 +6030,6 @@
   "audit_logs_page.system": "System",
   "audit_logs_page.csv.organisation": "Organisation",
   "audit_logs_page.csv.description": "Description",
-  "audit.action.employee.personnel_action_cancelled": "Personnel action cancelled"
+  "audit.action.employee.personnel_action_cancelled": "Personnel action cancelled",
+  "audit.action.employee.personnel_action_applied": "Scheduled personnel action took effect"
 }

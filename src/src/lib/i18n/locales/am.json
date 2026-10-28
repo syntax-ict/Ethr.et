@@ -6030,5 +6030,6 @@
   "audit_logs_page.system": "ሥርዓቱ",
   "audit_logs_page.csv.organisation": "ድርጅት",
   "audit_logs_page.csv.description": "መግለጫ",
-  "audit.action.employee.personnel_action_cancelled": "የሰው ኃይል እርምጃ ተሰረዘ"
+  "audit.action.employee.personnel_action_cancelled": "የሰው ኃይል እርምጃ ተሰረዘ",
+  "audit.action.employee.personnel_action_applied": "የታቀደ የሰው ኃይል እርምጃ ተፈጻሚ ሆነ"
 }
