@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SimpleTable } from "@/components/shared/simple-table";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { InvitationProgress } from "@/features/users/components/invitation-progress";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toastError } from "@/lib/errors";
@@ -88,59 +89,67 @@ export function MigrationLogins({
             {t("migration_logins.title", "Give them a way to sign in")}
           </div>
 
-          {query.isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          ) : pending.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t(
-                "migration_logins.none",
-                "Everyone brought in can already sign in.",
-              )}
-            </p>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                {t(
-                  "migration_logins.desc",
-                  "Check the names first. People with an email get an invitation by email. People without one are listed for an in-person code, which you issue from their profile.",
-                )}
-              </p>
-              <div className="rounded-lg border">
-                <SimpleTable
-                  caption={t("migration_logins.title", "Give them a way to sign in")}
-                  maxHeight="18rem"
-                  headers={[
-                    t("setup2.person", "Person"),
-                    t("migration_logins.contact", "Contact"),
-                    t("migration_logins.channel", "Invitation"),
-                  ]}
-                  rows={pending.map((p) => ({
-                    key: p.employee_public_id,
-                    cells: [
-                      <Link
-                        key="n"
-                        href={`/employees/${p.employee_public_id}`}
-                        className="text-primary underline-offset-2 hover:underline"
-                      >
-                        {p.name}
-                      </Link>,
-                      <span key="c" className="text-xs text-muted-foreground">
-                        {p.email ??
-                          p.phone ??
-                          t("migration_logins.no_contact", "None on file")}
-                      </span>,
-                      <span key="ch" className="text-xs">
-                        {channelLabel(p)}
-                        {p.invited
-                          ? ` · ${t("migration_logins.invited", "invited, not yet activated")}`
-                          : ""}
-                      </span>,
-                    ],
-                  }))}
-                />
-              </div>
-            </>
-          )}
+          <QueryBoundary query={query} isEmpty={() => false}>
+            {() =>
+              pending.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "migration_logins.none",
+                    "Everyone brought in can already sign in.",
+                  )}
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    {t(
+                      "migration_logins.desc",
+                      "Check the names first. People with an email get an invitation by email. People without one are listed for an in-person code, which you issue from their profile.",
+                    )}
+                  </p>
+                  <div className="rounded-lg border">
+                    <SimpleTable
+                      caption={t(
+                        "migration_logins.title",
+                        "Give them a way to sign in",
+                      )}
+                      maxHeight="18rem"
+                      headers={[
+                        t("setup2.person", "Person"),
+                        t("migration_logins.contact", "Contact"),
+                        t("migration_logins.channel", "Invitation"),
+                      ]}
+                      rows={pending.map((p) => ({
+                        key: p.employee_public_id,
+                        cells: [
+                          <Link
+                            key="n"
+                            href={`/employees/${p.employee_public_id}`}
+                            className="text-primary underline-offset-2 hover:underline"
+                          >
+                            {p.name}
+                          </Link>,
+                          <span
+                            key="c"
+                            className="text-xs text-muted-foreground"
+                          >
+                            {p.email ??
+                              p.phone ??
+                              t("migration_logins.no_contact", "None on file")}
+                          </span>,
+                          <span key="ch" className="text-xs">
+                            {channelLabel(p)}
+                            {p.invited
+                              ? ` · ${t("migration_logins.invited", "invited, not yet activated")}`
+                              : ""}
+                          </span>,
+                        ],
+                      }))}
+                    />
+                  </div>
+                </>
+              )
+            }
+          </QueryBoundary>
 
           {result && (
             <p className="text-sm text-muted-foreground">

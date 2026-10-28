@@ -143,10 +143,7 @@ export function DeviceEnrollmentsDialog({
           {can.manageEmployees && devicePublicId && (
             <Button asChild>
               <Link href={`/employees/from-device?device=${devicePublicId}`}>
-                {t(
-                  "devices_page.bring_in",
-                  "Bring these people into ETHR",
-                )}
+                {t("devices_page.bring_in", "Bring these people into ETHR")}
               </Link>
             </Button>
           )}
