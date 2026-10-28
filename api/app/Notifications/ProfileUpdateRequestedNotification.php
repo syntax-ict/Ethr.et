@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\Employee;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -44,7 +45,7 @@ class ProfileUpdateRequestedNotification extends Notification
             'employee_public_id' => $this->employee->public_id,
             'employee_name' => $this->employee->name,
             'fields' => $this->fields,
-            'message' => __('notification.profile_update_requested_body', [
+            ...NotificationMessage::make('notification.profile_update_requested_body', [
                 'name' => $this->employee->name,
             ]),
             'url' => '/approvals',

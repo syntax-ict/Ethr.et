@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\EmploymentLetterRequest;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -29,7 +30,7 @@ class LetterRequestedNotification extends Notification
     {
         return [
             'letter_id' => $this->letter->public_id,
-            'message' => __('letters.requested', ['name' => $this->employeeName]),
+            ...NotificationMessage::make('letters.requested', ['name' => $this->employeeName]),
             'url' => '/employees/letters',
         ];
     }

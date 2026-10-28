@@ -72,6 +72,8 @@ it('describes a missing check-out by the employee\'s public id, name and the day
             'date' => '2026-10-05',
             'type' => 'missing_check_out',
             'message' => 'Abebe Kebede did not check out on 2026-10-05.',
+            'message_key' => 'notification.inapp.missing_check_out',
+            'message_params' => ['name' => 'Abebe Kebede', 'date' => '2026-10-05'],
             'url' => '/attendance',
         ]);
 });

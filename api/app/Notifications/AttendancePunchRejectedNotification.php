@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\AttendanceRecord;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -47,7 +48,7 @@ class AttendancePunchRejectedNotification extends Notification implements Should
             'type' => 'punch_rejected',
             'record_public_id' => $this->record->public_id,
             'date' => $this->record->date?->format('Y-m-d'),
-            'message' => __('attendance.punch_rejected.message', [
+            ...NotificationMessage::make('attendance.punch_rejected.message', [
                 'date' => $this->record->date?->format('Y-m-d'),
                 'reason' => $this->reason,
             ]),
