@@ -63,7 +63,7 @@ class VacancyController extends Controller
 
         $vacancy = new Vacancy([
             ...$data,
-            'tenant_id' => app(CurrentTenant::class)->get()->id,
+            'tenant_id' => app(CurrentTenant::class)->requireId(),
             'created_by' => $request->user()?->id,
             'published_at' => $data['status'] === 'open' ? now() : null,
         ]);

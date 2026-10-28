@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Loader2, ShieldCheck, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,19 +10,33 @@ import {
   useRegisterDevice,
 } from "@/features/attendance/api";
 import { apiErrorDetail } from "@/lib/api/error-message";
-import { passkeySupported } from "@/lib/attendance/passkey";
+import {
+  alreadyRegisteredHere,
+  passkeySupported,
+  rememberThisPhone,
+  subscribeThisPhone,
+  thisPhone,
+} from "@/lib/attendance/passkey";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 
 /**
  * This phone and the organisation's rule about it. Shown only where phones
  * are checked: registered, waiting for approval, not registered yet, or on
  * the wrong address. The first phone registers by itself only at work.
+ *
+ * "Your registered phone" is the same answer on every browser, so the card
+ * says "this is it" only where this browser is known to be that phone
+ * (thisPhone). Anywhere else it names the registered phone and offers to
+ * register this one instead, which is how a lost or new phone is replaced.
  */
 export function DeviceCard() {
   const { t } = useT();
+  const { timeAgo } = useDateFormatters();
   const { data: state } = useAttendanceDevice();
   const register = useRegisterDevice();
   const [supported, setSupported] = useState<boolean | null>(null);
+  const here = useSyncExternalStore(subscribeThisPhone, thisPhone, () => null);
 
   useEffect(() => {
     let live = true;
@@ -33,6 +47,56 @@ export function DeviceCard() {
       live = false;
     };
   }, []);
+
+  const registerButton = (label: string) => (
+    <Button
+      size="sm"
+      variant={state?.device ? "outline" : "default"}
+      disabled={register.isPending || supported === null}
+      onClick={() =>
+        register.mutate(undefined, {
+          onSuccess: (device) => {
+            toast.success(
+              device.status === "active"
+                ? t("device.registered_toast", "Phone registered.")
+                : state?.device
+                  ? t(
+                      "device.replacement_toast",
+                      "Sent for approval. Your old phone works until HR approves this one.",
+                    )
+                  : t(
+                      "device.requested_toast",
+                      "Sent for approval. You were not at work, so a manager will confirm it.",
+                    ),
+            );
+          },
+          onError: (err) => {
+            if (alreadyRegisteredHere(err)) {
+              if (state?.device && !state.pending) {
+                rememberThisPhone(state.device.public_id);
+              }
+              toast.info(
+                t(
+                  "device.already_here",
+                  "This phone is already registered or waiting for approval.",
+                ),
+              );
+              return;
+            }
+            toast.error(
+              apiErrorDetail(err) ??
+                t("device.register_failed", "Could not register this phone."),
+            );
+          },
+        })
+      }
+    >
+      {register.isPending && (
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+      )}
+      {label}
+    </Button>
+  );
 
   if (!state || state.binding === "off") return null;
 
@@ -56,7 +120,7 @@ export function DeviceCard() {
     );
   }
 
-  if (state.device) {
+  if (state.device && here === state.device.public_id) {
     return (
       <Notice
         tone="success"
@@ -71,6 +135,50 @@ export function DeviceCard() {
                 "device.registered_body",
                 "Your punches are confirmed with this phone's fingerprint, face or PIN.",
               )
+        }
+      />
+    );
+  }
+
+  if (state.device && state.pending && here === state.pending.public_id) {
+    return (
+      <Notice
+        tone="warning"
+        title={t(
+          "device.this_pending_title",
+          "This phone is waiting for approval",
+        )}
+        body={t(
+          "device.this_pending_body",
+          "Your registered phone keeps working until HR approves this one. Then only this phone can punch for you.",
+        )}
+      />
+    );
+  }
+
+  if (state.device) {
+    const name = state.device.label ?? t("devices.unnamed", "Phone");
+    const used = state.device.last_used_at
+      ? t("device.last_used", "Last punched :when.", {
+          when: timeAgo(state.device.last_used_at),
+        })
+      : "";
+    return (
+      <Notice
+        tone="info"
+        title={t(
+          "device.registered_elsewhere_title",
+          "Your registered phone: :name",
+          { name },
+        )}
+        body={`${used ? `${used} ` : ""}${t(
+          "device.registered_elsewhere_body",
+          "On a different phone now? Register this one and HR will approve it. Your old phone stops working once they do.",
+        )}`}
+        action={
+          supported === false
+            ? null
+            : registerButton(t("device.register_this", "Register this phone"))
         }
       />
     );
@@ -113,38 +221,7 @@ export function DeviceCard() {
         "device.register_body",
         "Register the phone you punch with while you are at work. Only this phone can then punch for you.",
       )}
-      action={
-        <Button
-          size="sm"
-          disabled={register.isPending || supported === null}
-          onClick={() =>
-            register.mutate(undefined, {
-              onSuccess: (device) =>
-                toast.success(
-                  device.status === "active"
-                    ? t("device.registered_toast", "Phone registered.")
-                    : t(
-                        "device.requested_toast",
-                        "Sent for approval. You were not at work, so a manager will confirm it.",
-                      ),
-                ),
-              onError: (err) =>
-                toast.error(
-                  apiErrorDetail(err) ??
-                    t(
-                      "device.register_failed",
-                      "Could not register this phone.",
-                    ),
-                ),
-            })
-          }
-        >
-          {register.isPending && (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-          )}
-          {t("device.register", "Register")}
-        </Button>
-      }
+      action={registerButton(t("device.register", "Register"))}
     />
   );
 }

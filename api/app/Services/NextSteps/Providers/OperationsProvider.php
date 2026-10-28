@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\NextSteps\Providers;
 
+use App\Enums\Feature;
 use App\Enums\NextStepId;
-use App\Enums\PlanFeature;
 use App\Models\AttendanceIntegrityFlag;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Device\UnmatchedPunches;
+use App\Services\Features\FeatureGate;
 use App\Services\NextSteps\NextStep;
 use App\Services\NextSteps\StepProvider;
-use App\Services\PlanFeatureService;
 
 /**
  * Day-to-day work that is stuck: open integrity flags, a payroll run that
@@ -27,7 +27,7 @@ use App\Services\PlanFeatureService;
 final class OperationsProvider implements StepProvider
 {
     public function __construct(
-        private readonly PlanFeatureService $plans,
+        private readonly FeatureGate $features,
         private readonly UnmatchedPunches $unmatched,
     ) {}
 
@@ -43,7 +43,7 @@ final class OperationsProvider implements StepProvider
     /** @return list<NextStep> */
     private function integrity(User $user, Tenant $tenant): array
     {
-        if (! $user->hasPermission('attendance.viewConflicts') || ! $this->plans->allows($tenant, PlanFeature::Attendance)) {
+        if (! $user->hasPermission('attendance.viewConflicts') || ! $this->features->allows($tenant, Feature::Attendance)) {
             return [];
         }
 
@@ -64,7 +64,7 @@ final class OperationsProvider implements StepProvider
     {
         if (! $user->hasPermission('payroll.process')
             || ! $user->hasPermission('payroll.viewAll')
-            || ! $this->plans->allows($tenant, PlanFeature::Payroll)) {
+            || ! $this->features->allows($tenant, Feature::Payroll)) {
             return [];
         }
 

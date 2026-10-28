@@ -9,6 +9,7 @@ use App\Traits\HasPublicId;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * The phone an employee punches with: a passkey whose private key never
@@ -91,6 +92,17 @@ class AttendanceDevice extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /**
+     * The phone this one would replace: the same person's active phone.
+     * Meaningful for a waiting device only; an active one finds itself.
+     *
+     * @return HasOne<AttendanceDevice, $this>
+     */
+    public function replacing(): HasOne
+    {
+        return $this->hasOne(self::class, 'employee_id', 'employee_id')->where('status', self::ACTIVE);
     }
 
     /** The lookup key for a credential id as the browser sends it (base64url). */

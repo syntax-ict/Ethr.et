@@ -325,11 +325,6 @@ class Tenant extends Model
         return $this->hasMany(Invoice::class);
     }
 
-    public function featureFlags(): HasMany
-    {
-        return $this->hasMany(FeatureFlag::class);
-    }
-
     public function branches(): HasMany
     {
         return $this->hasMany(Branch::class);
