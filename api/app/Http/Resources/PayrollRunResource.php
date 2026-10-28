@@ -29,6 +29,10 @@ class PayrollRunResource extends JsonResource
             'approved_at' => $this->approved_at,
             'voided_at' => $this->voided_at,
             'void_reason' => $this->void_reason,
+            'paid_on' => $this->paid_on?->format('Y-m-d'),
+            'paid_at' => $this->paid_at,
+            'payment_reference' => $this->payment_reference,
+            'payment_note' => $this->payment_note,
             'reprocessed_from_public_id' => $this->whenLoaded(
                 'reprocessedFrom',
                 fn () => $this->reprocessedFrom?->public_id,

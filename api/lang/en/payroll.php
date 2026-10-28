@@ -5,8 +5,11 @@ declare(strict_types=1);
 return [
     'not_completed' => 'Payroll run has not been completed yet.',
     'cannot_void' => 'Only a completed or approved payroll run can be voided.',
+    'paid_cannot_void' => 'This payroll run has been paid, so it cannot be voided. Correct it in the next payroll run.',
+    'payment_not_approved' => 'Payment can only be recorded for an approved payroll run.',
     'cannot_reprocess' => 'Only a voided payroll run can be reprocessed.',
     'balances_changed' => 'Loan or cost-sharing balances changed after this run was calculated. Void the run and reprocess the period.',
+    'no_rule_in_force' => 'No statutory rule is in force for :code on this date. A platform administrator must add one before payroll can run.',
     'bank_export_not_approved' => 'A bank file can only be exported for an approved payroll run.',
     'self_approval' => 'You processed this payroll run, so another approver in your organisation must approve it.',
     'fiscal_year_start_month' => 'Fiscal Year Start Month',
@@ -24,4 +27,7 @@ return [
     'pension_rule_not_after_latest' => 'A new rule must start after :date, the start of your latest rule for this scheme.',
     'pension_exemptions_unacknowledged' => 'This run exempts :count employee(s) from pension. Review them, then approve with that count.',
     'period_overlaps' => 'A payroll run already covers :start to :end (:label). Void that run first if this period must be computed again.',
+    'reconciliation_open' => 'Attendance for this period is not reconciled yet: :count exceptions are still open or waiting for a decision. Settle them on the Reconcile tab first.',
+    'reconciliation_moved' => 'Attendance for this period was decided after the run was calculated. Reprocess the run so it pays from the decisions.',
+    'reconciliation_range' => 'Reconcile at most 92 days at a time.',
 ];

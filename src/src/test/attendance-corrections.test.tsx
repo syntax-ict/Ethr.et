@@ -151,6 +151,56 @@ describe("<CorrectionsPage> request", () => {
       reason: "Badge reader was offline",
     });
   });
+
+  it("claims a missed punch for a day with no record instead of refusing it", async () => {
+    // A day with nothing on record used to leave Submit disabled. It is now
+    // a missed-punch claim: approving it creates the record.
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      me("employee", ["correction.create", "attendance.viewOwn"]),
+      http.get("*/api/v1/attendance/my", () => HttpResponse.json(page([]))),
+      http.post("*/api/v1/attendance/corrections", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          { ...CORRECTION, kind: "missed_punch", attendance_record: null },
+          { status: 201 },
+        );
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Request Correction/ }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(dialog.querySelector('input[type="date"]')!, {
+      target: { value: "2026-09-29" },
+    });
+    expect(
+      await screen.findByText(/Nothing is on record for this day/),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Correct Check In"), {
+      target: { value: "08:00" },
+    });
+    fireEvent.change(screen.getByLabelText("Correct Check Out"), {
+      target: { value: "17:30" },
+    });
+    await user.type(screen.getByLabelText(/Reason/), "Reader was down");
+
+    const submit = screen.getByRole("button", { name: /Submit Request/ });
+    await waitFor(() => expect(submit).toBeEnabled());
+    await user.click(submit);
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toEqual({
+      kind: "missed_punch",
+      date: "2026-09-29",
+      proposed_check_in: "2026-09-29T05:00:00Z",
+      proposed_check_out: "2026-09-29T14:30:00Z",
+      reason: "Reader was down",
+    });
+  });
 });
 
 describe("<CorrectionsPage> lists", () => {

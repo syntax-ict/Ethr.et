@@ -107,6 +107,7 @@ return [
         'App\Http\Controllers\Api\V1\Showcase\TrustedByController@index' => 'Deliberately public: name, logo and public page of organisations that consented to be named, active and not hidden (Tenant::scopeShowcased).',
         'App\Http\Controllers\Api\V1\TemplateController@index' => 'Deliberately public template catalogue.',
         'App\Http\Controllers\Api\V1\TemplateController@show' => 'Deliberately public template catalogue.',
+        'App\Http\Controllers\Api\V1\OrganizationTypeController@index' => 'Deliberately public catalogue of organisation types, for the registration form.',
         'App\Http\Controllers\Api\V1\ContactController@__invoke' => 'Deliberately public contact form, throttle:auth.',
         'App\Http\Controllers\Api\V1\Auth\LoginController@__invoke' => 'The authentication endpoint itself — the presented credential is the authority.',
         'App\Http\Controllers\Api\V1\Auth\RegisterController@__invoke' => 'Pre-authentication tenant sign-up, throttle:auth.',

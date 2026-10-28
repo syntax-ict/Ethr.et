@@ -344,8 +344,12 @@ final class StatutorySchedules
             'employer_tin' => $tenant === null ? null : self::setting($tenant, 'employer_tin'),
             'tax_center' => $tenant === null ? null : self::setting($tenant, 'tax_center'),
             'period' => (string) $run->period_label,
-            'status' => $run->status === 'approved' ? 'Approved' : 'NOT APPROVED — draft figures',
-            'approved' => $run->status === 'approved',
+            'status' => match ($run->status) {
+                'paid' => 'Approved and paid',
+                'approved' => 'Approved',
+                default => 'NOT APPROVED — draft figures',
+            },
+            'approved' => $run->isReleased(),
             'basis' => self::basisLine($basis),
             'notice' => $layout['note']
                 ?? 'Layout prepared by ETHR; to be confirmed with the agency before filing (owner action O3).',
@@ -355,8 +359,8 @@ final class StatutorySchedules
     }
 
     /**
-     * The pension scheme the run applied, from its logs; the organisation's
-     * current setting only for a run that did not record one.
+     * The pension scheme the run applied, from its logs; the scheme in force
+     * for the organisation today only for a run that did not record one.
      *
      * @param  array{pension: list<array<string, mixed>>, tax: list<array<string, mixed>>}  $basis
      * @param  list<array<string, mixed>>  $rows
@@ -365,14 +369,15 @@ final class StatutorySchedules
     {
         foreach ($rows as $row) {
             $scheme = $row['pension_rule']['scheme'] ?? null;
-            if (is_string($scheme) && in_array($scheme, PensionCalculator::SCHEMES, true)) {
+            if (is_string($scheme) && $scheme !== '') {
                 return $scheme;
             }
         }
 
-        $setting = $tenant === null ? null : self::setting($tenant, 'pension_scheme');
+        $rules = app(StatutoryRules::class);
+        $today = Carbon::today();
 
-        return in_array($setting, PensionCalculator::SCHEMES, true) ? (string) $setting : 'private';
+        return ($tenant === null ? $rules->platform($today) : $rules->for($tenant, $today))->string('pension.default_scheme');
     }
 
     /**

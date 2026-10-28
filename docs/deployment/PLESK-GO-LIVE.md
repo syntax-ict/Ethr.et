@@ -281,6 +281,14 @@ private key is a secret like `APP_KEY`; keep it out of chats and tickets.
    crawler and a first visitor see whatever they held at build time until the live API answers
    in the browser. Once the landing page or the plan catalog is edited in the console, the next
    release must carry it (`docs/operations/MARKETING-SITE.md`).
+
+   **A plan edited in the console also needs `PlanSeeder` changed to match**, in the same PR.
+   `PricingSnapshotFreshnessTest` requires the plans snapshot to describe exactly what
+   `PlanSeeder` writes, so a refreshed snapshot carrying a console price fails every backend
+   job until the seeder says the same. Changing the seeder does not touch production: it uses
+   `firstOrCreate`, so `seed` never overwrites a plan that exists. *(Measured 2026-10-27:
+   Enterprise had been raised to 8,999 ETB in the console while the seeder said 2,999, and the
+   refreshed snapshot failed four backend checks on PR #444.)*
 1. Merge to `main`, and wait for **Plesk release** to go green.
 2. Plesk Git → **Pull now → Deploy now**.
 3. Set `MAINTENANCE_TOKEN` in `.env`, then run `migrate`, `seed` (it picks up permissions a

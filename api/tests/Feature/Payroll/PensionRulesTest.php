@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Exceptions\PayrollRunRefused;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\PayrollEntry;
@@ -166,16 +167,38 @@ it('labels the register and the schedule with the rate the run used, even after 
         ->toContain('Pension: Hypothetical No. 1/2026, effective 01/10/2026');
 });
 
-it('falls back to 7 / 11 only when no rule is in force, and says so', function () {
+// Until 2026-10-27 a database with no rule fell back to 7 / 11 written in
+// code. There is no fallback now: the run is refused, naming what is missing,
+// and writes no entry.
+it('refuses to run when no pension rule is in force, naming the scheme', function () {
     DB::table('pension_rules')->delete();
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
     pensionEmployee($tenant, 'E1', 1000000);
 
-    $step = pensionStep(pensionRun($tenant, $user->id, '2026-10-01', '2026-10-31'), 'E1');
+    expect(fn () => pensionRun($tenant, $user->id, '2026-10-01', '2026-10-31'))
+        ->toThrow(PayrollRunRefused::class, 'pension.private');
+    expect(PayrollEntry::query()->count())->toBe(0);
+});
 
-    expect($step)->toMatchArray(['employee_pension_cents' => 70000, 'employer_pension_cents' => 110000])
-        ->and($step['rule'])->toMatchArray(['source' => 'fallback', 'legal_reference' => PensionCalculator::FALLBACK_REFERENCE]);
+it('applies a platform rule scoped to the organisation type over the rule for every type', function () {
+    DB::table('pension_rules')->insert([
+        'public_id' => (string) Str::ulid(), 'tenant_id' => null, 'organization_type' => 'ngo', 'scheme' => 'private',
+        'employee_rate' => 7, 'employer_rate' => 12, 'base' => 'basic', 'exempt_non_nationals' => true,
+        'legal_reference' => 'Hypothetical charity rule', 'effective_from' => '2026-01-01', 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    $charity = createTenant(['organization_type' => 'ngo']);
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $charity);
+    pensionEmployee($charity, 'N1', 1000000);
+
+    expect(pensionStep(pensionRun($charity, $user->id, '2026-10-01', '2026-10-31'), 'N1'))
+        ->toMatchArray(['employer_pension_cents' => 120000, 'employee_pension_cents' => 70000]);
+
+    $company = createTenant(['organization_type' => 'private']);
+    $other = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $company);
+    pensionEmployee($company, 'C1', 1000000);
+
+    expect(pensionStep(pensionRun($company, $other->id, '2026-10-01', '2026-10-31'), 'C1')['employer_pension_cents'])->toBe(110000);
 });
 
 it('uses the public schemes when the organisation is a public body', function (string $scheme, int $employer, string $reference) {

@@ -17,7 +17,7 @@ precisely. Nothing here is new; it is the same requirement, assembled.
 | **Not required** | `SUPER`. No global privilege of any kind |
 | **Already implied by** | `ALL PRIVILEGES` on a schema, which is what Plesk grants by default to a database user it creates |
 | **Engine** | MySQL 5.7.9+ / MariaDB 10.2.7+ (the project's floor for other reasons too) |
-| **When it is exercised** | Once, during `php artisan migrate`, at migration `2026_07_22_000001` |
+| **When it is exercised** | During `php artisan migrate`, at migrations `2026_07_22_000001` (audit log) and `2026_10_27_000010` (released payroll) |
 | **Also needed later** | Nothing at runtime. The triggers fire on the server; the application needs no privilege to benefit from them |
 
 **The favourable prior, stated as a prior and not as evidence.** `TRIGGER` is part of
@@ -31,7 +31,14 @@ granted and nobody has looked.
 ## 2. Which migration, and exactly what it creates
 
 **`api/database/migrations/2026_07_22_000001_restrict_audit_log_to_insert_only.php`** —
-the only migration in the project that needs the privilege.
+the first migration in the project that needs the privilege. *(Since 2026-10-27 there is a
+second: `2026_10_27_000010_record_payment_and_freeze_released_payroll.php` creates
+`payroll_entries_amounts_frozen` and `payroll_runs_totals_frozen`, two `BEFORE UPDATE`
+triggers that refuse a change to an approved, paid or voided run's amounts. It is fatal on
+failure in the same way, needs the same privilege and nothing more, and by the time it
+ships production has already run `2026_07_22_000001` successfully, so the grant is held in
+practice. The §7 DEFINER hazard applies to both: `DatabaseDumper` dumps every trigger
+without a DEFINER, so a restore through `ethr:restore` is safe for both.)*
 
 On MySQL/MariaDB it creates **two** triggers on the `audit_log` table:
 

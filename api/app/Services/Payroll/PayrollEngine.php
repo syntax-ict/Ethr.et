@@ -25,44 +25,34 @@ use App\Services\Attendance\ShiftMatcher;
 use App\Services\Calendar\EthiopianCalendar;
 use App\Services\Holiday\HolidayService;
 use App\Services\Leave\LeaveDayCalculator;
+use App\Support\Cents;
 use App\Support\TenantTime;
 use App\Support\WorkingWeek;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Every statutory value this engine applies comes from a StatutoryRuleSet,
+ * resolved once per run for the organisation's type and the period
+ * (StatutoryRules): the working days and hours that turn a monthly salary
+ * into daily and hourly rates, the Art. 67 overtime limits (used only to
+ * flag a run: overtime worked is paid whatever the limit, Art. 68), which
+ * overtime counts against them, the night window, the pension scheme, the
+ * fiscal year and the Pagume strategy. Until 2026-10-27 the first five were
+ * constants here.
+ */
 final class PayrollEngine
 {
-    /** Standard Ethiopian working days per month, used to derive the OT hourly rate. */
-    private const WORKING_DAYS_PER_MONTH = 22;
-
-    private const HOURS_PER_DAY = 8;
-
-    /**
-     * Labour Proclamation 1156/2019 Art. 67: overtime may not exceed four
-     * hours in a day or twelve hours in a week. (The two hours a day and
-     * twenty a month first written here were the repealed Proclamation
-     * 377/2003.) Used only to flag a run for review: overtime worked is paid
-     * whatever the limit (Art. 68), so no amount depends on these. To be
-     * confirmed in the accountant sign-off (O2) with the other statutory
-     * figures.
-     */
-    private const LEGAL_DAILY_OVERTIME_MINUTES = 240;
-
-    private const LEGAL_WEEKLY_OVERTIME_MINUTES = 720;
-
-    /**
-     * Overtime in the sense of Art. 67: work beyond normal hours on a working
-     * day. Work on a weekly rest day or a public holiday is paid at its own
-     * Art. 68 rates in full but is not counted against these limits, or an
-     * ordinary eight-hour holiday shift would read as twice the daily limit.
-     */
-    private const LIMITED_OVERTIME_TYPES = ['normal', 'night'];
-
     /** @var array<int, int> tenant id => the organisation's daily overtime limit, in minutes */
     private array $dailyOvertimeLimits = [];
 
     /** @var array<int, bool> tenant id => whether overtime must be approved in advance */
     private array $overtimeApprovalRequired = [];
+
+    /** @var array<int, bool> tenant id => whether approved lateness is deducted */
+    private array $latenessDeductions = [];
 
     public function __construct(
         private readonly TaxCalculator $taxCalculator,
@@ -78,6 +68,7 @@ final class PayrollEngine
         private readonly ShiftMatcher $shiftMatcher,
         private readonly PayrollBalanceService $balances,
         private readonly ExpectedDays $expectedDays,
+        private readonly StatutoryRules $statutoryRules,
     ) {}
 
     /** @var array<string, bool> keyed by tenant id and period */
@@ -176,26 +167,27 @@ final class PayrollEngine
         $periodEnd = Carbon::parse($run->period_end);
 
         $tenant = Tenant::findOrFail($tenantId);
-        $settings = $tenant->settings ?? [];
-        $pagumenStrategy = $settings['pagumen_proration_strategy'] ?? 'full_month';
-        $fiscalYearStartMonth = (int) ($settings['fiscal_year_start_month'] ?? 1);
 
-        // The statutory rules in force for this period, resolved once per run:
-        // the pension rule for the organisation's scheme and the tax ladder's
-        // legal basis. Both are written into every entry's calculation_log, so
-        // an approved run keeps saying what it applied (convention #11).
-        $pensionRule = $this->pensionCalculator->rule(
-            $tenantId,
-            StatutorySchedules::setting($tenant, 'pension_scheme') ?? 'private',
-            $periodStart,
-        );
-        $taxBasis = $this->taxCalculator->basis($tenantId, $periodStart);
+        // The statutory rules in force for this period, resolved once per run
+        // for the organisation's type: the parameters, the pension rule for its
+        // scheme and the tax ladder with its legal basis. All are written into
+        // every entry's calculation_log, so an approved run keeps saying what
+        // it applied (convention #11). A rule with no row in force refuses the
+        // run by name here, before any entry is written.
+        $rules = $this->statutoryRules->for($tenant, $periodStart);
+        $pagumenStrategy = $rules->string('pagume.proration');
+        $fiscalYearStartMonth = $rules->int('fiscal_year.start_month');
+        $pensionRule = $this->pensionCalculator->rule($tenantId, $rules->string('pension.default_scheme'), $periodStart);
+        // Since 1.4 the ladder itself travels with its basis, so a month can be
+        // re-taxed from its own log even if a tenant's rows were replaced.
+        $taxBasis = $this->taxCalculator->basis($tenantId, $periodStart)
+            + ['brackets' => $this->taxCalculator->ladder($tenantId, $periodStart)];
 
         $pagume = $this->calendar->pagumeDaysInRange($periodStart, $periodEnd);
 
         DB::transaction(function () use (
             $run, $tenantId, $periodStart, $periodEnd,
-            $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis,
+            $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules,
         ): void {
             $totalGross = 0;
             $totalNet = 0;
@@ -203,28 +195,7 @@ final class PayrollEngine
             $count = 0;
             $skippedNoSalary = 0;
 
-            Employee::query()
-                ->withoutGlobalScope('tenant')
-                ->where('tenant_id', $tenantId)
-                // Someone who left during the period is owed the days they
-                // worked in it. Until 2026-10-20 only the three working
-                // statuses were selected, so a leaver vanished from their
-                // last run, though ACCOUNTANT-SIGN-OFF.md §1 says a mid-period
-                // termination is prorated (blueprint D3).
-                ->where(fn ($q) => $q
-                    ->whereIn('status', [
-                        EmployeeStatus::HIRED,
-                        EmployeeStatus::PROBATION,
-                        EmployeeStatus::CONFIRMED,
-                    ])
-                    ->orWhere(fn ($left) => $left
-                        ->whereIn('status', [
-                            EmployeeStatus::RESIGNED,
-                            EmployeeStatus::TERMINATED,
-                            EmployeeStatus::RETIRED,
-                        ])
-                        ->whereDate('termination_date', '>=', $periodStart->toDateString())
-                        ->whereDate('termination_date', '<=', $periodEnd->toDateString())))
+            $this->payableEmployees($tenantId, $periodStart, $periodEnd)
                 // For the contract fallback in processEmployee(): an employee whose
                 // salary_cents is unset may still have a contract that states one,
                 // and until 2026-10-15 that employee silently vanished from the run
@@ -233,7 +204,7 @@ final class PayrollEngine
                 ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
                 ->chunkById(100, function ($employees) use (
                     $run, $periodStart, $periodEnd,
-                    $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis,
+                    $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules,
                     &$totalGross, &$totalNet, &$totalTax, &$count, &$skippedNoSalary,
                 ) {
                     foreach ($employees as $employee) {
@@ -247,6 +218,7 @@ final class PayrollEngine
                             $fiscalYearStartMonth,
                             $pensionRule,
                             $taxBasis,
+                            $rules,
                         );
                         if ($entry) {
                             $totalGross += $entry->gross_cents;
@@ -270,6 +242,39 @@ final class PayrollEngine
         });
 
         return $run->refresh();
+    }
+
+    /**
+     * The employees a run for the period pays: everyone in a working status,
+     * and anyone who left during the period. Attendance reconciliation asks
+     * the same question, so it reads exactly these people.
+     *
+     * @return Builder<Employee>
+     */
+    public function payableEmployees(int $tenantId, Carbon $periodStart, Carbon $periodEnd): Builder
+    {
+        return Employee::query()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            // Someone who left during the period is owed the days they
+            // worked in it. Until 2026-10-20 only the three working
+            // statuses were selected, so a leaver vanished from their
+            // last run, though ACCOUNTANT-SIGN-OFF.md §1 says a mid-period
+            // termination is prorated (blueprint D3).
+            ->where(fn ($q) => $q
+                ->whereIn('status', [
+                    EmployeeStatus::HIRED,
+                    EmployeeStatus::PROBATION,
+                    EmployeeStatus::CONFIRMED,
+                ])
+                ->orWhere(fn ($left) => $left
+                    ->whereIn('status', [
+                        EmployeeStatus::RESIGNED,
+                        EmployeeStatus::TERMINATED,
+                        EmployeeStatus::RETIRED,
+                    ])
+                    ->whereDate('termination_date', '>=', $periodStart->toDateString())
+                    ->whereDate('termination_date', '<=', $periodEnd->toDateString())));
     }
 
     /**
@@ -306,6 +311,36 @@ final class PayrollEngine
     }
 
     /**
+     * Record that an approved run's money has left: the date, the bank's
+     * reference and who confirmed it. The run's last state.
+     *
+     * A paid run cannot be voided (owner decision Q6): the money is in
+     * employees' accounts, so a mistake is corrected in the next run, where it
+     * shows, rather than by rewriting this one.
+     */
+    public function markPaid(PayrollRun $run, int $paidBy, string $paidOn, ?string $reference, ?string $note): PayrollRun
+    {
+        return DB::transaction(function () use ($run, $paidBy, $paidOn, $reference, $note): PayrollRun {
+            $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== 'approved') {
+                throw PayrollRunRefused::notApprovedForPaymentRecord();
+            }
+
+            $locked->update([
+                'status' => 'paid',
+                'paid_on' => $paidOn,
+                'paid_at' => now(),
+                'paid_by' => $paidBy,
+                'payment_reference' => $reference,
+                'payment_note' => $note,
+            ]);
+
+            return $locked;
+        });
+    }
+
+    /**
      * Void a completed or approved run.
      *
      * A completed run never moved a balance, so voiding it gives nothing
@@ -318,6 +353,10 @@ final class PayrollEngine
     {
         return DB::transaction(function () use ($run, $voidedBy, $reason): PayrollRun {
             $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($locked->status === 'paid') {
+                throw PayrollRunRefused::paidCannotVoid();
+            }
 
             if (! in_array($locked->status, ['completed', 'approved'], true)) {
                 throw PayrollRunRefused::cannotVoid();
@@ -410,7 +449,10 @@ final class PayrollEngine
         int $fiscalYearStartMonth,
         PensionRuleSnapshot $pensionRule,
         array $taxBasis,
+        StatutoryRuleSet $rules,
     ): ?PayrollEntry {
+        $workingDaysPerMonth = $rules->int('payroll.working_days_per_month');
+        $hoursPerDay = $rules->int('payroll.hours_per_day');
         $basicSalary = $employee->salary_cents;
 
         // An employee whose own salary is unset is paid what the contract in
@@ -427,8 +469,14 @@ final class PayrollEngine
         }
 
         $log = [
-            'version' => '1.3',
+            'version' => '1.5',
             'calculated_at' => now()->toIso8601String(),
+            // Since 1.4: every amount is an exact fraction rounded once, half
+            // away from zero (App\Support\Cents), not a float passed to round().
+            'rounding' => Cents::ROUNDING,
+            // Since 1.5: every statutory parameter applied, the organisation
+            // type it was resolved for, and the row each value came from.
+            'statutory_rules' => $rules->toLog(),
             // Since 1.3: the loan and cost-sharing deductions below are what
             // the payslip withholds, and PayrollBalanceService draws the
             // balances down by exactly those figures when the run is approved.
@@ -452,7 +500,7 @@ final class PayrollEngine
         // or left before it ended, is paid only for the days of the period
         // they were employed. A termination date outside the period changes
         // nothing.
-        $totalPeriodDays = $periodStart->diffInDays($periodEnd) + 1;
+        $totalPeriodDays = (int) $periodStart->diffInDays($periodEnd) + 1;
         $hireDate = $employee->hire_date;
         $terminationDate = $employee->termination_date;
         $firstDay = $hireDate && $hireDate->gt($periodStart) ? $hireDate->copy()->startOfDay() : $periodStart->copy()->startOfDay();
@@ -460,8 +508,10 @@ final class PayrollEngine
             ? $terminationDate->copy()->startOfDay()
             : $periodEnd->copy()->startOfDay();
         $hireProrationFactor = 1.0;
+        $workedDays = $totalPeriodDays;
         if ($firstDay->gt($periodStart) || $lastDay->lt($periodEnd->copy()->startOfDay())) {
-            $workedDays = $lastDay->lt($firstDay) ? 0 : $firstDay->diffInDays($lastDay) + 1;
+            $workedDays = $lastDay->lt($firstDay) ? 0 : (int) $firstDay->diffInDays($lastDay) + 1;
+            // For the log only; the amount below is the exact fraction.
             $hireProrationFactor = $workedDays / $totalPeriodDays;
         }
 
@@ -477,19 +527,19 @@ final class PayrollEngine
         if ($pagumenApplied) {
             $nonPagumeDays = $totalPeriodDays - $pagumeDaysInPeriod;
             // Pagume days: annual (12 x monthly) / 365, per actual Pagume day.
-            $pagumeBasic = (int) round($basicSalary * 12 * $pagumeDaysInPeriod / 365);
+            $pagumeBasic = Cents::mulDiv($basicSalary * 12, $pagumeDaysInPeriod, 365);
             // Any non-Pagume days in the same run (uncommon — Pagume normally
             // has its own boundaried run) keep the monthly basis, scaled to
             // their share of the period.
             $nonPagumeBasic = $nonPagumeDays > 0
-                ? (int) round($basicSalary * $nonPagumeDays / $totalPeriodDays)
+                ? Cents::mulDiv($basicSalary, $nonPagumeDays, $totalPeriodDays)
                 : 0;
             $periodBasic = $pagumeBasic + $nonPagumeBasic;
         } else {
             $periodBasic = $basicSalary;
         }
 
-        $proratedBasic = (int) round($periodBasic * $hireProrationFactor);
+        $proratedBasic = Cents::mulDiv($periodBasic, $workedDays, $totalPeriodDays);
 
         $log['steps'][] = [
             'step' => 'proration',
@@ -513,9 +563,11 @@ final class PayrollEngine
         // the contractual daily rate (full monthly basic / working days) for each
         // unpaid working day in the period. Paid leave has no effect on pay.
         $unpaidLeaveDays = $this->gatherUnpaidLeaveDays($employee, $periodStart, $periodEnd);
-        $dailyRate = (int) round($basicSalary / self::WORKING_DAYS_PER_MONTH);
+        $dailyRate = Cents::mulDiv($basicSalary, 1, $workingDaysPerMonth);
+        // Leave days are counted in halves and occasionally finer; thousandths
+        // carry any of them exactly.
         $unpaidLeaveDeduction = $unpaidLeaveDays > 0
-            ? min((int) round($dailyRate * $unpaidLeaveDays), $proratedBasic)
+            ? min(Cents::mulDiv($dailyRate, (int) round($unpaidLeaveDays * 1000), 1000), $proratedBasic)
             : 0;
         $proratedBasic -= $unpaidLeaveDeduction;
 
@@ -527,14 +579,57 @@ final class PayrollEngine
             'basic_after_unpaid_leave_cents' => $proratedBasic,
         ];
 
+        // Lateness: only what was decided. A late arrival deducts nothing until
+        // a lateness correction for it is approved by someone who processes
+        // payroll, and only in an organisation that switched deductions on
+        // with a stated basis (Proclamation 1156/2019 Art. 59). Logged only
+        // then, so an organisation that never did gets the run it always got.
+        if ($this->latenessDeductionEnabled($employee->tenant_id)) {
+            $lateness = $this->decidedLateness($employee, $periodStart, $periodEnd);
+            $minutesPerDay = $rules->int('payroll.hours_per_day') * 60;
+            $minuteRate = $dailyRate / $minutesPerDay;
+            $uncapped = Cents::mulDiv($lateness['minutes'], $dailyRate, $minutesPerDay);
+            // Art. 59 limits what may be deducted from a month's wage to a third,
+            // and reads as one total, not a third per kind (decided 2026-10-28,
+            // docs/APPROVAL-ENGINE-DESIGN.md). Loans and cost sharing were
+            // deducted before lateness existed and are left exactly as they
+            // are; lateness takes only the headroom they leave. Loan instalments
+            // are fixed. Cost sharing is a share of gross, not known yet, so it
+            // is estimated on basic here, and the run register flags any payslip
+            // whose actual total still passes the third.
+            $third = intdiv($proratedBasic, 3);
+            $otherDeductions = $this->loanService->calculateMonthlyDeduction($employee)
+                + $this->costSharingService->calculateDeduction(
+                    $this->costSharingService->getActiveObligation($employee),
+                    $proratedBasic,
+                );
+            $cap = max(0, $third - $otherDeductions);
+            $latenessDeduction = min($uncapped, $cap);
+            $proratedBasic -= $latenessDeduction;
+
+            $log['steps'][] = [
+                'step' => 'lateness',
+                'deducted_minutes' => $lateness['minutes'],
+                'minute_rate_cents' => round($minuteRate, 4),
+                'uncapped_cents' => $uncapped,
+                'third_of_basic_cents' => $third,
+                'other_deductions_cents' => $otherDeductions,
+                'cap_cents' => $cap,
+                'capped' => $uncapped > $cap,
+                'deduction_cents' => $latenessDeduction,
+                'basic_after_lateness_cents' => $proratedBasic,
+                'corrections' => $lateness['corrections'],
+            ];
+        }
+
         $log['steps'][] = [
             'step' => 'absences',
             // Flagged for review, never deducted: pay is unchanged.
             'unexplained_absence_days' => $this->unexplainedAbsences($employee, $periodStart, $periodEnd),
         ];
 
-        ['buckets' => $overtimeByType, 'by_day' => $overtimeByDay] = $this->gatherOvertimeByType($employee, $periodStart, $periodEnd);
-        $overtimeRates = $this->overtimeCalculator->ratesFor($employee->tenant_id);
+        ['buckets' => $overtimeByType, 'by_day' => $overtimeByDay] = $this->gatherOvertimeByType($employee, $periodStart, $periodEnd, $rules);
+        $overtimeRates = $this->overtimeCalculator->ratesFor($employee->tenant_id, $periodStart);
 
         $overtimeAmount = 0;
         $overtimeMinutes = 0;
@@ -542,11 +637,12 @@ final class PayrollEngine
         foreach ($overtimeByType as $type => $minutes) {
             $amount = $this->overtimeCalculator->calculate(
                 $proratedBasic,
-                self::WORKING_DAYS_PER_MONTH,
-                self::HOURS_PER_DAY,
+                $workingDaysPerMonth,
+                $hoursPerDay,
                 $minutes,
                 $type,
                 $employee->tenant_id,
+                $periodStart,
             );
             $overtimeAmount += $amount;
             $overtimeMinutes += $minutes;
@@ -563,7 +659,7 @@ final class PayrollEngine
             'overtime_amount_cents' => $overtimeAmount,
             'by_type' => $overtimeBreakdown,
             // Flagged for review, never capped: every minute above is paid.
-            'limits' => $this->overtimeLimits($employee, $overtimeByDay, $periodStart, $periodEnd),
+            'limits' => $this->overtimeLimits($employee, $overtimeByDay, $periodStart, $periodEnd, $rules),
         ];
 
         $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic);
@@ -780,7 +876,7 @@ final class PayrollEngine
      *
      * @return list<string> Y-m-d
      */
-    private function unexplainedAbsences(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
+    public function unexplainedAbsences(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
     {
         $yesterday = TenantTime::today(Tenant::query()->find($employee->tenant_id))->subDay()->format('Y-m-d');
         $first = $periodStart->format('Y-m-d');
@@ -811,6 +907,61 @@ final class PayrollEngine
         return $absent;
     }
 
+    /**
+     * unexplainedAbsences() for many employees of one organisation at once,
+     * by the same rule and the same two guards (only days already over; an
+     * organisation recording no attendance flags nothing). Each day is asked
+     * of ExpectedDays::onDate for everyone together, so the cost grows with
+     * the period's days rather than its people: attendance reconciliation
+     * reads a whole organisation inside one request. A run still asks per
+     * employee, as it always has.
+     *
+     * @param  Collection<int, Employee>  $employees  all of one tenant
+     * @return array<int, list<string>> employee id => Y-m-d
+     */
+    public function unexplainedAbsencesFor(Collection $employees, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $first = $employees->first();
+
+        if ($first === null) {
+            return [];
+        }
+
+        $tenantId = $first->tenant_id;
+        $yesterday = TenantTime::today(Tenant::query()->find($tenantId))->subDay()->format('Y-m-d');
+        $from = $periodStart->format('Y-m-d');
+        $last = min($periodEnd->format('Y-m-d'), $yesterday);
+
+        if ($last < $from || ! $this->attendanceInUse($tenantId, $from, $last)) {
+            return [];
+        }
+
+        $attended = [];
+        AttendanceRecord::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('employee_id', $employees->pluck('id')->all())
+            ->whereDate('date', '>=', $from)
+            ->whereDate('date', '<=', $last)
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            ->where(fn ($q) => $q->whereNotNull('check_in')->orWhereNotNull('check_out'))
+            ->get(['employee_id', 'date'])
+            ->each(function (AttendanceRecord $record) use (&$attended): void {
+                $attended[$record->employee_id][Carbon::parse($record->date)->format('Y-m-d')] = true;
+            });
+
+        $absent = [];
+        for ($day = Carbon::parse($from); $day->format('Y-m-d') <= $last; $day->addDay()) {
+            $key = $day->format('Y-m-d');
+            foreach ($this->expectedDays->onDate($employees, $day) as $employeeId => $kind) {
+                if ($kind === ExpectedDay::WORKDAY && ! isset($attended[$employeeId][$key])) {
+                    $absent[$employeeId][] = $key;
+                }
+            }
+        }
+
+        return $absent;
+    }
+
     private function attendanceInUse(int $tenantId, string $first, string $last): bool
     {
         return $this->attendanceInUse["{$tenantId}|{$first}|{$last}"] ??= AttendanceRecord::query()
@@ -827,15 +978,17 @@ final class PayrollEngine
      * record. A weekly rest day is a day the record's shift does not work; with
      * no shift it is Sunday, Art. 69's default.
      *
-     * Also each day's limited overtime (LIMITED_OVERTIME_TYPES), over whole
+     * Also each day's limited overtime (the `overtime.limited_types` parameter), over whole
      * Monday-to-Sunday weeks: a week that starts in the previous period or
      * ends in the next is read whole, or twelve hours split across two runs
      * would never be flagged. Only the period's own days are paid.
      *
      * @return array{buckets: array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}, by_day: array<string, int>}
      */
-    private function gatherOvertimeByType(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
+    public function gatherOvertimeByType(Employee $employee, Carbon $periodStart, Carbon $periodEnd, StatutoryRuleSet $rules): array
     {
+        $limitedTypes = $rules->list('overtime.limited_types');
+        $nightWindow = $rules->list('overtime.night_window');
         $buckets = ['normal' => 0, 'night' => 0, 'rest_day' => 0, 'holiday' => 0, 'holiday_night' => 0];
         $byDay = [];
 
@@ -885,11 +1038,11 @@ final class PayrollEngine
                     ? ! $record->shift->isWorkingDay($date)
                     : ! in_array($date->dayOfWeekIso, $workingWeek, true));
 
-            foreach ($this->overtimeClassifier->classify($record, $isHoliday, $isRestDay) as $type => $minutes) {
+            foreach ($this->overtimeClassifier->classify($record, $isHoliday, $isRestDay, $nightWindow) as $type => $minutes) {
                 if ($paid) {
                     $buckets[$type] += $minutes;
                 }
-                if (in_array($type, self::LIMITED_OVERTIME_TYPES, true)) {
+                if (in_array($type, $limitedTypes, true)) {
                     $byDay[$day] = ($byDay[$day] ?? 0) + $minutes;
                 }
             }
@@ -911,8 +1064,10 @@ final class PayrollEngine
      * @param  array<string, int>  $byDay  limited overtime minutes by date, whole weeks
      * @return array{daily_limit_minutes: int, days_over_daily_limit: list<string>, legal_daily_limit_minutes: int, days_over_legal_daily_limit: list<string>, legal_weekly_limit_minutes: int, weeks_over_legal_weekly_limit: list<array{week_start: string, minutes: int}>, requires_approval: bool, days_over_approved: list<array{date: string, worked_minutes: int, approved_minutes: int}>}
      */
-    private function overtimeLimits(Employee $employee, array $byDay, Carbon $periodStart, Carbon $periodEnd): array
+    public function overtimeLimits(Employee $employee, array $byDay, Carbon $periodStart, Carbon $periodEnd, StatutoryRuleSet $rules): array
     {
+        $legalDaily = $rules->int('overtime.legal_daily_minutes');
+        $legalWeekly = $rules->int('overtime.legal_weekly_minutes');
         $tenantId = $employee->tenant_id;
         $dailyLimit = $this->dailyOvertimeLimit($tenantId);
         $requiresApproval = $this->overtimeRequiresApproval($tenantId);
@@ -929,7 +1084,7 @@ final class PayrollEngine
                 if ($dailyLimit > 0 && $minutes > $dailyLimit) {
                     $overOwn[] = $day;
                 }
-                if ($minutes > self::LEGAL_DAILY_OVERTIME_MINUTES) {
+                if ($minutes > $legalDaily) {
                     $overLegal[] = $day;
                 }
                 if ($requiresApproval && $minutes > ($approved[$day] ?? 0)) {
@@ -943,7 +1098,7 @@ final class PayrollEngine
 
         $weeksOver = [];
         foreach ($weeks as $weekStart => $minutes) {
-            if ($minutes > self::LEGAL_WEEKLY_OVERTIME_MINUTES) {
+            if ($minutes > $legalWeekly) {
                 $weeksOver[] = ['week_start' => $weekStart, 'minutes' => $minutes];
             }
         }
@@ -951,9 +1106,9 @@ final class PayrollEngine
         return [
             'daily_limit_minutes' => $dailyLimit,
             'days_over_daily_limit' => $overOwn,
-            'legal_daily_limit_minutes' => self::LEGAL_DAILY_OVERTIME_MINUTES,
+            'legal_daily_limit_minutes' => $legalDaily,
             'days_over_legal_daily_limit' => $overLegal,
-            'legal_weekly_limit_minutes' => self::LEGAL_WEEKLY_OVERTIME_MINUTES,
+            'legal_weekly_limit_minutes' => $legalWeekly,
             'weeks_over_legal_weekly_limit' => $weeksOver,
             'requires_approval' => $requiresApproval,
             'days_over_approved' => $overApproved,
@@ -983,6 +1138,44 @@ final class PayrollEngine
         }
 
         return $byDay;
+    }
+
+    /**
+     * The late or early minutes approved for deduction on the period's
+     * records (an approved lateness correction writes them on the record),
+     * and the corrections that decided them.
+     *
+     * @return array{minutes: int, corrections: list<string>}
+     */
+    private function decidedLateness(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $records = AttendanceRecord::query()
+            ->where('tenant_id', $employee->tenant_id)
+            ->where('employee_id', $employee->id)
+            ->whereDate('date', '>=', $periodStart->format('Y-m-d'))
+            ->whereDate('date', '<=', $periodEnd->format('Y-m-d'))
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            ->whereNotNull('metadata->pay_deduct_minutes')
+            ->get(['metadata']);
+
+        $minutes = 0;
+        $corrections = [];
+        foreach ($records as $record) {
+            $minutes += (int) ($record->metadata['pay_deduct_minutes'] ?? 0);
+            if (is_string($record->metadata['lateness_correction_id'] ?? null)) {
+                $corrections[] = $record->metadata['lateness_correction_id'];
+            }
+        }
+
+        return ['minutes' => $minutes, 'corrections' => $corrections];
+    }
+
+    /** Whether the organisation switched lateness deductions on. Read once per run. */
+    private function latenessDeductionEnabled(int $tenantId): bool
+    {
+        return $this->latenessDeductions[$tenantId] ??= (bool) AttendanceSetting::query()
+            ->where('tenant_id', $tenantId)
+            ->value('lateness_deduction_enabled');
     }
 
     /** Whether the organisation asks for overtime to be approved before it is worked. Read once per run. */

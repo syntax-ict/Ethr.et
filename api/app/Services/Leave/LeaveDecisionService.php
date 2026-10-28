@@ -43,6 +43,14 @@ class LeaveDecisionService
             return ApprovalRefusal::selfApproval(__('leave.cannot_approve_own'));
         }
 
+        // Nor the person who filed it for someone else: HR may record an
+        // unpaid or excused day on an employee's behalf, which payroll acts
+        // on, so filing and approving are two people's acts, as for
+        // corrections.
+        if ($approving && $this->engine->filedForBy($leaveRequest) === $by->id) {
+            return ApprovalRefusal::selfApproval(__('leave.cannot_approve_filed'));
+        }
+
         if (! $this->engine->isCurrentApprover($leaveRequest, $by, $approving)) {
             return ApprovalRefusal::notCurrentApprover(__('approval.not_current_approver'));
         }

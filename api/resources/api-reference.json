@@ -5694,6 +5694,135 @@
                 }
             }
         },
+        "/attendance/my-exceptions": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendance.myAttendanceExceptions",
+                "summary": "List my exceptions",
+                "tags": [
+                    "My Attendance Exceptions"
+                ],
+                "parameters": [
+                    {
+                        "name": "period_start",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "period_end",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "period": {
+                                            "type": "object",
+                                            "properties": {
+                                                "start": {
+                                                    "type": "string"
+                                                },
+                                                "end": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "start",
+                                                "end"
+                                            ]
+                                        },
+                                        "exceptions": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    },
+                                                    "date": {
+                                                        "type": "string"
+                                                    },
+                                                    "state": {
+                                                        "type": "string"
+                                                    },
+                                                    "minutes": {
+                                                        "type": [
+                                                            "integer",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "record_public_id": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "request_kind": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "request_public_id": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "type",
+                                                    "date",
+                                                    "state",
+                                                    "minutes",
+                                                    "record_public_id",
+                                                    "request_kind",
+                                                    "request_public_id"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "period",
+                                        "exceptions"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/attendance/my-shift": {
             "get": {
                 "x-abilities": [
@@ -22323,6 +22452,9 @@
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
@@ -29617,6 +29749,212 @@
                 }
             }
         },
+        "/payroll/reconciliation": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "payroll"
+                ],
+                "operationId": "payroll.reconciliation",
+                "summary": "Every exception in a pay period's attendance and whether someone has\nacted on it (AttendanceReconciliation), for the employees the caller\nreaches. What payroll staff settle before a run is approved",
+                "tags": [
+                    "Payroll"
+                ],
+                "parameters": [
+                    {
+                        "name": "period_start",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "period_end",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "period": {
+                                            "type": "object",
+                                            "properties": {
+                                                "start": {
+                                                    "type": "string"
+                                                },
+                                                "end": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "start",
+                                                "end"
+                                            ]
+                                        },
+                                        "mode": {
+                                            "type": "string"
+                                        },
+                                        "lateness_deduction_enabled": {
+                                            "type": "boolean"
+                                        },
+                                        "totals": {
+                                            "type": "object",
+                                            "properties": {
+                                                "open": {
+                                                    "type": "integer"
+                                                },
+                                                "pending": {
+                                                    "type": "integer"
+                                                },
+                                                "resolved": {
+                                                    "type": "integer"
+                                                },
+                                                "blocking": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "open",
+                                                "pending",
+                                                "resolved",
+                                                "blocking"
+                                            ]
+                                        },
+                                        "by_type": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    },
+                                                    "count": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "type",
+                                                    "count"
+                                                ]
+                                            }
+                                        },
+                                        "unmatched_punches": {
+                                            "type": "integer"
+                                        },
+                                        "employees": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "employee_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "employee_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "employee_code": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "exceptions": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "type": {
+                                                                    "type": "string"
+                                                                },
+                                                                "date": {
+                                                                    "type": "string"
+                                                                },
+                                                                "state": {
+                                                                    "type": "string"
+                                                                },
+                                                                "minutes": {
+                                                                    "type": [
+                                                                        "integer",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "record_public_id": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "request_kind": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "request_public_id": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "type",
+                                                                "date",
+                                                                "state",
+                                                                "minutes",
+                                                                "record_public_id",
+                                                                "request_kind",
+                                                                "request_public_id"
+                                                            ]
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "employee_public_id",
+                                                    "employee_name",
+                                                    "employee_code",
+                                                    "exceptions"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "period",
+                                        "mode",
+                                        "lateness_deduction_enabled",
+                                        "totals",
+                                        "by_type",
+                                        "unmatched_punches",
+                                        "employees"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/payroll/rules": {
             "get": {
                 "x-abilities": [
@@ -30433,6 +30771,64 @@
                 }
             }
         },
+        "/payroll/runs/{payrollRun}/paid": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "payroll"
+                ],
+                "operationId": "payroll.markPaid",
+                "summary": "Record that an approved run has been paid: the date the money left and\nthe bank's reference. A paid run cannot be voided; a mistake in it is\ncorrected in the next run",
+                "tags": [
+                    "Payroll"
+                ],
+                "parameters": [
+                    {
+                        "name": "payrollRun",
+                        "in": "path",
+                        "required": true,
+                        "description": "The payroll run public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MarkPayrollRunPaidRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PayrollRunResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PayrollRunResource"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/payroll/runs/{payrollRun}/register": {
             "get": {
                 "x-abilities": [
@@ -30518,6 +30914,16 @@
                                                     },
                                                     "net_cents": {
                                                         "type": "integer"
+                                                    },
+                                                    "lateness_cents": {
+                                                        "type": "integer",
+                                                        "description": "Approved lateness deducted from basic, already in basic_cents. 0\nwhen the organisation does not deduct lateness."
+                                                    },
+                                                    "deduction_ceiling_cents": {
+                                                        "type": [
+                                                            "integer",
+                                                            "null"
+                                                        ]
                                                     },
                                                     "pensionable_cents": {
                                                         "type": "integer",
@@ -30631,6 +31037,8 @@
                                                     "loan_cents",
                                                     "cost_sharing_cents",
                                                     "net_cents",
+                                                    "lateness_cents",
+                                                    "deduction_ceiling_cents",
                                                     "pensionable_cents",
                                                     "pension_exempt",
                                                     "pension_exempt_reason",
@@ -30928,6 +31336,106 @@
                                                     ]
                                                 }
                                             ]
+                                        },
+                                        "deduction_ceiling": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "employees": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_public_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "employee_name": {
+                                                                "type": "string"
+                                                            },
+                                                            "ceiling_cents": {
+                                                                "type": "integer"
+                                                            },
+                                                            "deducted_cents": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_public_id",
+                                                            "employee_name",
+                                                            "ceiling_cents",
+                                                            "deducted_cents"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "count",
+                                                "employees"
+                                            ]
+                                        },
+                                        "reconciliation": {
+                                            "type": "object",
+                                            "properties": {
+                                                "mode": {
+                                                    "type": "string"
+                                                },
+                                                "lateness_deduction_enabled": {
+                                                    "type": "boolean"
+                                                },
+                                                "totals": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "open": {
+                                                            "type": "integer"
+                                                        },
+                                                        "pending": {
+                                                            "type": "integer"
+                                                        },
+                                                        "resolved": {
+                                                            "type": "integer"
+                                                        },
+                                                        "blocking": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "open",
+                                                        "pending",
+                                                        "resolved",
+                                                        "blocking"
+                                                    ]
+                                                },
+                                                "by_type": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "type": {
+                                                                "type": "string"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "type",
+                                                            "count"
+                                                        ]
+                                                    }
+                                                },
+                                                "unmatched_punches": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "mode",
+                                                "lateness_deduction_enabled",
+                                                "totals",
+                                                "by_type",
+                                                "unmatched_punches"
+                                            ]
                                         }
                                     },
                                     "required": [
@@ -30940,7 +31448,9 @@
                                         "pension_exemptions",
                                         "overtime_limits",
                                         "absences",
-                                        "integrity"
+                                        "integrity",
+                                        "deduction_ceiling",
+                                        "reconciliation"
                                     ]
                                 }
                             }
@@ -31139,6 +31649,7 @@
                                                 "status": {
                                                     "type": "string",
                                                     "enum": [
+                                                        "Approved and paid",
                                                         "Approved",
                                                         "NOT APPROVED — draft figures"
                                                     ]
@@ -33034,6 +33545,12 @@
                                                 },
                                                 "locale": {
                                                     "type": "string"
+                                                },
+                                                "organization_type": {
+                                                    "type": "string"
+                                                },
+                                                "organization_type_needs_review": {
+                                                    "type": "boolean"
                                                 }
                                             },
                                             "required": [
@@ -33041,7 +33558,9 @@
                                                 "subdomain",
                                                 "type",
                                                 "timezone",
-                                                "locale"
+                                                "locale",
+                                                "organization_type",
+                                                "organization_type_needs_review"
                                             ]
                                         },
                                         "address": {
@@ -33563,10 +34082,11 @@
                                                     ]
                                                 },
                                                 "pension_scheme": {
-                                                    "type": [
-                                                        "string",
-                                                        "null"
-                                                    ]
+                                                    "type": "string"
+                                                },
+                                                "pension_schemes": {
+                                                    "type": "array",
+                                                    "items": []
                                                 }
                                             },
                                             "required": [
@@ -33577,7 +34097,8 @@
                                                 "retirement_age",
                                                 "employer_tin",
                                                 "tax_center",
-                                                "pension_scheme"
+                                                "pension_scheme",
+                                                "pension_schemes"
                                             ]
                                         },
                                         "security": {
@@ -39499,6 +40020,21 @@
                             "null"
                         ]
                     },
+                    "kind": {
+                        "type": "string"
+                    },
+                    "date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "deduct_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
                     "reason": {
                         "type": "string"
                     },
@@ -39546,6 +40082,9 @@
                     "public_id",
                     "attendance_record_public_id",
                     "employee_public_id",
+                    "kind",
+                    "date",
+                    "deduct_minutes",
                     "reason",
                     "proposed_check_in",
                     "proposed_check_out",
@@ -40337,6 +40876,23 @@
                     "overtime_requires_approval": {
                         "type": "boolean"
                     },
+                    "lateness_deduction_enabled": {
+                        "type": "boolean"
+                    },
+                    "lateness_deduction_basis": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "reconciliation_mode": {
+                        "type": "string",
+                        "enum": [
+                            "advisory",
+                            "required",
+                            "off"
+                        ]
+                    },
                     "confidence_threshold": {
                         "type": "integer"
                     },
@@ -40400,6 +40956,9 @@
                     "kiosk_auto_reset_seconds",
                     "ot_daily_cap_minutes",
                     "overtime_requires_approval",
+                    "lateness_deduction_enabled",
+                    "lateness_deduction_basis",
+                    "reconciliation_mode",
                     "confidence_threshold",
                     "reminders_enabled",
                     "reminder_lead_minutes",
@@ -44080,6 +44639,9 @@
                     "code": {
                         "type": "string"
                     },
+                    "kind": {
+                        "type": "string"
+                    },
                     "default_days": {
                         "type": "number"
                     },
@@ -44157,6 +44719,7 @@
                     "name",
                     "name_am",
                     "code",
+                    "kind",
                     "default_days",
                     "accrual_type",
                     "carry_forward",
@@ -44329,6 +44892,33 @@
                     "reason"
                 ],
                 "title": "ManualAttendanceRequest"
+            },
+            "MarkPayrollRunPaidRequest": {
+                "type": "object",
+                "properties": {
+                    "paid_on": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "payment_reference": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 120
+                    },
+                    "payment_note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "paid_on"
+                ],
+                "title": "MarkPayrollRunPaidRequest"
             },
             "MobileCheckInRequest": {
                 "type": "object",
@@ -45446,6 +46036,31 @@
                             "null"
                         ]
                     },
+                    "paid_on": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "paid_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "payment_reference": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "payment_note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "reprocessed_from_public_id": {
                         "type": [
                             "string",
@@ -45475,6 +46090,10 @@
                     "approved_at",
                     "voided_at",
                     "void_reason",
+                    "paid_on",
+                    "paid_at",
+                    "payment_reference",
+                    "payment_note",
                     "created_at"
                 ],
                 "title": "PayrollRunResource"
@@ -47609,8 +48228,32 @@
             "StoreCorrectionRequest": {
                 "type": "object",
                 "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "correction",
+                            "missed_punch",
+                            "lateness"
+                        ]
+                    },
                     "attendance_record_public_id": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "employee_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date"
                     },
                     "reason": {
                         "type": "string",
@@ -47629,10 +48272,17 @@
                             "null"
                         ],
                         "format": "date-time"
+                    },
+                    "deduct_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 1440
                     }
                 },
                 "required": [
-                    "attendance_record_public_id",
                     "reason"
                 ],
                 "title": "StoreCorrectionRequest"
@@ -48420,6 +49070,12 @@
                     "leave_type_public_id": {
                         "type": "string"
                     },
+                    "employee_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "start_date": {
                         "type": "string",
                         "format": "date-time"
@@ -48467,6 +49123,14 @@
                     "code": {
                         "type": "string",
                         "maxLength": 30
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "leave",
+                            "duty",
+                            "excused"
+                        ]
                     },
                     "default_days": {
                         "type": "number",
@@ -48690,11 +49354,7 @@
                 "properties": {
                     "scheme": {
                         "type": "string",
-                        "enum": [
-                            "private",
-                            "public",
-                            "public_military"
-                        ]
+                        "maxLength": 30
                     },
                     "employee_rate": {
                         "type": "number",
@@ -49595,6 +50255,24 @@
                     "overtime_requires_approval": {
                         "type": "boolean"
                     },
+                    "lateness_deduction_enabled": {
+                        "type": "boolean"
+                    },
+                    "lateness_deduction_basis": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 500
+                    },
+                    "reconciliation_mode": {
+                        "type": "string",
+                        "enum": [
+                            "off",
+                            "advisory",
+                            "required"
+                        ]
+                    },
                     "confidence_threshold": {
                         "type": "integer",
                         "minimum": 0,
@@ -50402,6 +51080,14 @@
                         "type": "string",
                         "maxLength": 30
                     },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "leave",
+                            "duty",
+                            "excused"
+                        ]
+                    },
                     "default_days": {
                         "type": "number",
                         "minimum": 0,
@@ -50497,31 +51183,31 @@
             },
             "UpdateOvertimeRatesRequest": {
                 "type": "object",
-                "description": "Tenant overtime multipliers. The lower bounds are Labour Proclamation\n1156/2019 Art. 68(1) — a tenant may pay above them, never below.\n(They were the repealed 377/2003 rates until 2026-10-01.) `rest_day` is\noptional so a client that predates it keeps working; the default applies.",
+                "description": "Tenant overtime multipliers. A tenant may pay above the statutory floor\nfor its organisation type (Labour Proclamation 1156/2019 Art. 68(1)), never\nbelow it. `rest_day` is optional so a client that predates it keeps\nworking; the floor applies.",
                 "properties": {
                     "normal": {
                         "type": "number",
-                        "minimum": 1.5,
+                        "minimum": 1,
                         "maximum": 10
                     },
                     "night": {
                         "type": "number",
-                        "minimum": 1.75,
+                        "minimum": 1,
                         "maximum": 10
                     },
                     "rest_day": {
                         "type": "number",
-                        "minimum": 2,
+                        "minimum": 1,
                         "maximum": 10
                     },
                     "holiday": {
                         "type": "number",
-                        "minimum": 2.5,
+                        "minimum": 1,
                         "maximum": 10
                     },
                     "holiday_night": {
                         "type": "number",
-                        "minimum": 2.5,
+                        "minimum": 1,
                         "maximum": 10
                     }
                 },
@@ -51049,6 +51735,7 @@
         "payroll.processed",
         "payroll.approved",
         "payroll.voided",
+        "payroll.paid",
         "payroll.reprocessed",
         "attendance.checked_in",
         "attendance.checked_out",
