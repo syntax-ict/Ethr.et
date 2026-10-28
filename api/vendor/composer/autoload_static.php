@@ -1743,6 +1743,7 @@ class ComposerStaticInit870e919e58412b109fb9aa8379549848
         'App\\Support\\ExecutiveBranchScope' => __DIR__ . '/../..' . '/app/Support/ExecutiveBranchScope.php',
         'App\\Support\\ExitClearanceTemplate' => __DIR__ . '/../..' . '/app/Support/ExitClearanceTemplate.php',
         'App\\Support\\FrontendUrl' => __DIR__ . '/../..' . '/app/Support/FrontendUrl.php',
+        'App\\Support\\HealthSignals' => __DIR__ . '/../..' . '/app/Support/HealthSignals.php',
         'App\\Support\\ImageHash' => __DIR__ . '/../..' . '/app/Support/ImageHash.php',
         'App\\Support\\InstallMode' => __DIR__ . '/../..' . '/app/Support/InstallMode.php',
         'App\\Support\\LeaverAccess' => __DIR__ . '/../..' . '/app/Support/LeaverAccess.php',

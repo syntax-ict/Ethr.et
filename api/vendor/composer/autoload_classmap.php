@@ -1009,6 +1009,7 @@ return array(
     'App\\Support\\ExecutiveBranchScope' => $baseDir . '/app/Support/ExecutiveBranchScope.php',
     'App\\Support\\ExitClearanceTemplate' => $baseDir . '/app/Support/ExitClearanceTemplate.php',
     'App\\Support\\FrontendUrl' => $baseDir . '/app/Support/FrontendUrl.php',
+    'App\\Support\\HealthSignals' => $baseDir . '/app/Support/HealthSignals.php',
     'App\\Support\\ImageHash' => $baseDir . '/app/Support/ImageHash.php',
     'App\\Support\\InstallMode' => $baseDir . '/app/Support/InstallMode.php',
     'App\\Support\\LeaverAccess' => $baseDir . '/app/Support/LeaverAccess.php',

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Mail;
 
-use Illuminate\Support\Facades\Cache;
+use App\Support\HealthSignals;
 
 /**
  * When mail last left, when it last failed, and how the TLS connection was
@@ -43,7 +43,7 @@ final class MailHealth
     private static function write(array $values): void
     {
         try {
-            Cache::putMany($values, self::TTL);
+            HealthSignals::store()->putMany($values, self::TTL);
         } catch (\Throwable) {
             // Reported by /health's own cache check.
         }
@@ -59,7 +59,7 @@ final class MailHealth
     {
         $read = static function (string $key): ?string {
             try {
-                $value = Cache::get($key);
+                $value = HealthSignals::store()->get($key);
             } catch (\Throwable) {
                 return null;
             }
