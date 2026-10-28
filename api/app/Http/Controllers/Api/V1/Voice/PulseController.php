@@ -64,7 +64,7 @@ class PulseController extends Controller
         $today = Carbon::today();
         PulseResponse::query()->create([
             'public_id' => (string) Str::ulid($today),
-            'tenant_id' => app(CurrentTenant::class)->get()->id,
+            'tenant_id' => app(CurrentTenant::class)->requireId(),
             'week' => $week,
             'score' => (int) $request->validated('score'),
             'tags' => array_values(array_unique($request->validated('tags', []))),

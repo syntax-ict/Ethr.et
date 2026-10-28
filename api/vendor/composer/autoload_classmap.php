@@ -112,6 +112,7 @@ return array(
     'App\\Exceptions\\InvalidEmployeeTransition' => $baseDir . '/app/Exceptions/InvalidEmployeeTransition.php',
     'App\\Exceptions\\NoOpenCheckIn' => $baseDir . '/app/Exceptions/NoOpenCheckIn.php',
     'App\\Exceptions\\PayrollRunRefused' => $baseDir . '/app/Exceptions/PayrollRunRefused.php',
+    'App\\Exceptions\\TenantRequired' => $baseDir . '/app/Exceptions/TenantRequired.php',
     'App\\Http\\Controllers\\Api\\V1\\Accounting\\AccountingController' => $baseDir . '/app/Http/Controllers/Api/V1/Accounting/AccountingController.php',
     'App\\Http\\Controllers\\Api\\V1\\Admin\\AdminDashboardController' => $baseDir . '/app/Http/Controllers/Api/V1/Admin/AdminDashboardController.php',
     'App\\Http\\Controllers\\Api\\V1\\Admin\\AdminMarketingController' => $baseDir . '/app/Http/Controllers/Api/V1/Admin/AdminMarketingController.php',

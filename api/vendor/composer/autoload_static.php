@@ -846,6 +846,7 @@ class ComposerStaticInit870e919e58412b109fb9aa8379549848
         'App\\Exceptions\\InvalidEmployeeTransition' => __DIR__ . '/../..' . '/app/Exceptions/InvalidEmployeeTransition.php',
         'App\\Exceptions\\NoOpenCheckIn' => __DIR__ . '/../..' . '/app/Exceptions/NoOpenCheckIn.php',
         'App\\Exceptions\\PayrollRunRefused' => __DIR__ . '/../..' . '/app/Exceptions/PayrollRunRefused.php',
+        'App\\Exceptions\\TenantRequired' => __DIR__ . '/../..' . '/app/Exceptions/TenantRequired.php',
         'App\\Http\\Controllers\\Api\\V1\\Accounting\\AccountingController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Accounting/AccountingController.php',
         'App\\Http\\Controllers\\Api\\V1\\Admin\\AdminDashboardController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Admin/AdminDashboardController.php',
         'App\\Http\\Controllers\\Api\\V1\\Admin\\AdminMarketingController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Admin/AdminMarketingController.php',
