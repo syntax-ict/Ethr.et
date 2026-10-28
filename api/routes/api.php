@@ -953,6 +953,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::put('/tenants/{publicId}/invoices/{invoicePublicId}/mark-paid', [AdminTenantController::class, 'markInvoicePaid']);
             Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
             Route::get('/health', [AdminDashboardController::class, 'health']);
+            Route::get('/operations', [AdminDashboardController::class, 'operations']);
             Route::get('/audit', [AdminDashboardController::class, 'auditLog']);
             Route::get('/failed-jobs', [AdminDashboardController::class, 'failedJobs']);
             Route::post('/failed-jobs/{uuid}/retry', [AdminDashboardController::class, 'retryFailedJob']);

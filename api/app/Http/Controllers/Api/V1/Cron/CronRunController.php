@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Cron;
 
 use App\Services\Observability\CronRunner;
+use App\Services\Observability\QueueHealth;
 use Dedoc\Scramble\Attributes\ExcludeRouteFromDocs;
 use Illuminate\Http\JsonResponse;
 
@@ -40,8 +41,10 @@ class CronRunController
      *      contract. Internal infrastructure detail does not belong there.
      */
     #[ExcludeRouteFromDocs]
-    public function schedule(CronRunner $runner): JsonResponse
+    public function schedule(CronRunner $runner, QueueHealth $health): JsonResponse
     {
+        $health->recordExternalTick();
+
         return $this->respond('schedule', fn (): ?array => $runner->schedule());
     }
 
@@ -50,8 +53,10 @@ class CronRunController
      * `cron.queue_max_seconds` so it finishes inside the caller's HTTP timeout.
      */
     #[ExcludeRouteFromDocs]
-    public function queue(CronRunner $runner): JsonResponse
+    public function queue(CronRunner $runner, QueueHealth $health): JsonResponse
     {
+        $health->recordExternalTick();
+
         return $this->respond('queue', fn (): ?array => $runner->queue((int) config('cron.queue_max_seconds', 25)));
     }
 
