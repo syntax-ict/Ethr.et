@@ -39,7 +39,7 @@ class PlanController extends Controller
         // every existing caller.
         //
         // marketing_features, not features. The latter holds PlanFeature keys
-        // that RequiresPlanFeature gates real routes on; publishing them here
+        // that RequiresFeature gates real routes on; publishing them here
         // would leak the capability vocabulary and invite the pricing page to
         // render enforcement flags as sales copy.
         $plans = Plan::where('is_active', true)

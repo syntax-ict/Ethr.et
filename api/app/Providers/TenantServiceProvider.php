@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Services\CurrentTenant;
+use App\Services\Features\FeatureGate;
 use Illuminate\Support\ServiceProvider;
 
 class TenantServiceProvider extends ServiceProvider
@@ -34,5 +35,10 @@ class TenantServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(CurrentTenant::class);
+
+        // Scoped for the same reason: it holds the feature switches it read for
+        // one request or job, and a switch changed in between must be seen by
+        // the next one.
+        $this->app->scoped(FeatureGate::class);
     }
 }
