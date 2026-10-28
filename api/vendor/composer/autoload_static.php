@@ -1548,6 +1548,7 @@ class ComposerStaticInit870e919e58412b109fb9aa8379549848
         'App\\Rules\\PermittedMarketingClaim' => __DIR__ . '/../..' . '/app/Rules/PermittedMarketingClaim.php',
         'App\\Rules\\VerifyFileContent' => __DIR__ . '/../..' . '/app/Rules/VerifyFileContent.php',
         'App\\Services\\Accounting\\AccountingExportService' => __DIR__ . '/../..' . '/app/Services/Accounting/AccountingExportService.php',
+        'App\\Services\\Admin\\OperationsStatusService' => __DIR__ . '/../..' . '/app/Services/Admin/OperationsStatusService.php',
         'App\\Services\\Admin\\PlatformAnalyticsService' => __DIR__ . '/../..' . '/app/Services/Admin/PlatformAnalyticsService.php',
         'App\\Services\\Admin\\SystemHealthService' => __DIR__ . '/../..' . '/app/Services/Admin/SystemHealthService.php',
         'App\\Services\\Analytics\\AlertEvaluator' => __DIR__ . '/../..' . '/app/Services/Analytics/AlertEvaluator.php',

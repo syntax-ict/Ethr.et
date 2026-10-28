@@ -814,6 +814,7 @@ return array(
     'App\\Rules\\PermittedMarketingClaim' => $baseDir . '/app/Rules/PermittedMarketingClaim.php',
     'App\\Rules\\VerifyFileContent' => $baseDir . '/app/Rules/VerifyFileContent.php',
     'App\\Services\\Accounting\\AccountingExportService' => $baseDir . '/app/Services/Accounting/AccountingExportService.php',
+    'App\\Services\\Admin\\OperationsStatusService' => $baseDir . '/app/Services/Admin/OperationsStatusService.php',
     'App\\Services\\Admin\\PlatformAnalyticsService' => $baseDir . '/app/Services/Admin/PlatformAnalyticsService.php',
     'App\\Services\\Admin\\SystemHealthService' => $baseDir . '/app/Services/Admin/SystemHealthService.php',
     'App\\Services\\Analytics\\AlertEvaluator' => $baseDir . '/app/Services/Analytics/AlertEvaluator.php',
