@@ -27,7 +27,7 @@ declare(strict_types=1);
  *
  * ## Why the check is tokenised
  *
- * Root `CLAUDE.md` records what text-matching cost the tenant-scope inventory:
+ * `docs/audit/BASELINE.md` §25b records what text-matching cost the tenant-scope inventory:
  * `preg_match_all` over raw source counted five docblock mentions of
  * `withoutGlobalScopes()` as real call sites, inflating a security figure by a
  * constant +5 for four days. A convention gate that a comment can trip is a
