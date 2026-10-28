@@ -29,6 +29,7 @@ use App\Services\Device\DeviceManager;
 use App\Services\Device\MockAdapter;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Payroll\PayrollEngine;
+use App\Services\Payroll\StatutoryRules;
 use Carbon\Carbon;
 use Illuminate\Testing\TestResponse;
 
@@ -593,9 +594,14 @@ it('leaves payroll the same day whichever channel captured it', function (string
         ->and($record->check_in?->equalTo($ctx['in']))->toBeTrue()
         ->and($record->check_out?->equalTo($ctx['out']))->toBeTrue();
 
-    $payroll = app(PayrollEngine::class);
-    $overtime = (fn (Employee $e, Carbon $from, Carbon $to) => $this->gatherOvertimeByType($e, $from, $to))
-        ->call($payroll, $employee, Carbon::parse('2026-10-01'), Carbon::parse('2026-10-31'));
+    // With the statutory rules a payroll run for October uses (#448).
+    $periodStart = Carbon::parse('2026-10-01');
+    $overtime = app(PayrollEngine::class)->gatherOvertimeByType(
+        $employee,
+        $periodStart,
+        Carbon::parse('2026-10-31'),
+        app(StatutoryRules::class)->for($ctx['tenant'], $periodStart),
+    );
     expect($overtime['buckets'])->toBe([
         'normal' => 0, 'night' => 0, 'rest_day' => 0, 'holiday' => 0, 'holiday_night' => 0,
         ...$scenario['buckets'],
