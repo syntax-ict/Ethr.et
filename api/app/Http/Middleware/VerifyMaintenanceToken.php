@@ -31,7 +31,7 @@ class VerifyMaintenanceToken
 
     public function handle(Request $request, Closure $next): Response
     {
-        $expected = $this->expectedToken();
+        $expected = self::expectedToken();
 
         // Fail closed and invisible: unconfigured means not there at all.
         if ($expected === '') {
@@ -71,8 +71,11 @@ class VerifyMaintenanceToken
      * cached configuration the file is read on each request instead, so the
      * edit takes effect at once — which is what "empty it after the release"
      * relies on.
+     *
+     * Public so the console can say whether the routes are open
+     * (OperationsStatusService) by the same reading this middleware uses.
      */
-    private function expectedToken(): string
+    public static function expectedToken(): string
     {
         $readFile = config('maintenance.read_env_file') ?? app()->configurationIsCached();
 

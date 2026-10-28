@@ -25,6 +25,7 @@ import { statusTone } from "@/lib/utils/status-colors";
 import { csvFromRows, saveCsv } from "@/lib/utils/csv-export";
 import { toast } from "sonner";
 import { PaginationControls } from "@/components/shared/pagination-controls";
+import { auditActionLabel, auditEntityLabel } from "@/lib/audit/labels";
 
 // Actions are not statuses, so they ask for a tone by name rather than
 // borrowing a status that happens to be the right colour today: "updated"
@@ -50,17 +51,23 @@ function getActionColor(action: string): string {
  * Callers supply both; everything the reader sees is identical, which is the
  * point: a compliance view that behaves differently depending on which door you
  * came through is a view nobody can be trained on.
+ *
+ * The one addition is `showOrganisation`, for the platform view: its rows come
+ * from every organisation, and a sign-in or a payroll approval says nothing
+ * until it says whose.
  */
 export function AuditLogExplorer({
   endpoint,
   queryKey,
   title,
   exportPrefix = "audit-log",
+  showOrganisation = false,
 }: {
   endpoint: AuditLogEndpoint;
   queryKey: string;
   title: string;
   exportPrefix?: string;
+  showOrganisation?: boolean;
 }) {
   const { t } = useT();
   const { formatDateTime } = useDateFormatters();
@@ -97,6 +104,10 @@ export function AuditLogExplorer({
     if (!all.length) return;
     const headers = [
       t("audit_logs_page.csv.created_at", "Created At"),
+      ...(showOrganisation
+        ? [t("audit_logs_page.csv.organisation", "Organisation")]
+        : []),
+      t("audit_logs_page.csv.description", "Description"),
       t("audit_logs_page.csv.action", "Action"),
       t("audit_logs_page.csv.user", "User"),
       t("audit_logs_page.csv.user_id", "User ID"),
@@ -106,6 +117,8 @@ export function AuditLogExplorer({
     ];
     const rows = all.map((l) => [
       l.created_at,
+      ...(showOrganisation ? [l.organisation?.name ?? ""] : []),
+      auditActionLabel(l.action, t),
       l.action,
       l.user?.name ?? "",
       l.user?.public_id ?? "",
@@ -215,6 +228,9 @@ export function AuditLogExplorer({
                   caption={title}
                   headers={[
                     t("audit_logs_page.time"),
+                    ...(showOrganisation
+                      ? [t("audit_logs_page.organisation", "Organisation")]
+                      : []),
                     t("audit_logs_page.action"),
                     t("audit_logs_page.entity"),
                     t("audit_logs_page.user"),
@@ -222,6 +238,7 @@ export function AuditLogExplorer({
                   ]}
                   colClassName={[
                     "",
+                    ...(showOrganisation ? [""] : []),
                     "",
                     "hidden md:table-cell",
                     "hidden lg:table-cell",
@@ -236,21 +253,37 @@ export function AuditLogExplorer({
                       >
                         {formatDateTime(log.created_at)}
                       </span>,
-                      <Badge
-                        key="a"
-                        variant="outline"
-                        className={`border-0 font-mono text-[11px] ${getActionColor(log.action)}`}
-                      >
-                        {log.action}
-                      </Badge>,
+                      ...(showOrganisation
+                        ? [
+                            <span
+                              key="o"
+                              className="text-xs text-foreground"
+                              title={log.organisation?.public_id ?? undefined}
+                            >
+                              {log.organisation?.name ??
+                                t("audit_logs_page.platform", "Platform")}
+                            </span>,
+                          ]
+                        : []),
+                      // The code under the words is what the action filter
+                      // searches, so it stays visible, just not as the headline.
+                      <div key="a" className="space-y-1">
+                        <Badge
+                          variant="outline"
+                          className={`border-0 text-[11px] ${getActionColor(log.action)}`}
+                        >
+                          {auditActionLabel(log.action, t)}
+                        </Badge>
+                        <p className="font-mono text-xs text-muted-foreground">
+                          {log.action}
+                        </p>
+                      </div>,
                       <span
                         key="e"
                         className="text-xs text-muted-foreground"
                         title={log.auditable_public_id ?? undefined}
                       >
-                        {log.auditable_type
-                          ? log.auditable_type.split("\\").pop()
-                          : "—"}
+                        {auditEntityLabel(log.auditable_type, t) ?? "—"}
                       </span>,
                       <span
                         key="u"

@@ -22,6 +22,7 @@ export default function PlatformAuditLogPage() {
         queryKey="admin-audit"
         title={t("platform_audit_page.title", "Platform Audit Log")}
         exportPrefix="platform-audit-log"
+        showOrganisation
       />
     </RoleGate>
   );

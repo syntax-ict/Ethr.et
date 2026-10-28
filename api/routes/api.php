@@ -568,6 +568,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/transition', [EmployeeTransitionController::class, 'store']);
         Route::get('/personnel-actions', [PersonnelActionController::class, 'index']);
         Route::post('/personnel-actions', [PersonnelActionController::class, 'store']);
+        Route::delete('/personnel-actions/{personnelAction}', [PersonnelActionController::class, 'destroy']);
         Route::get('/disciplinary-cases', [DisciplinaryCaseController::class, 'index']);
         Route::post('/disciplinary-cases', [DisciplinaryCaseController::class, 'store']);
         Route::post('/disciplinary-cases/{disciplinaryCase}/notes', [DisciplinaryCaseController::class, 'addNote']);
@@ -964,6 +965,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::put('/tenants/{publicId}/invoices/{invoicePublicId}/mark-paid', [AdminTenantController::class, 'markInvoicePaid']);
             Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
             Route::get('/health', [AdminDashboardController::class, 'health']);
+            Route::get('/operations', [AdminDashboardController::class, 'operations']);
             Route::get('/audit', [AdminDashboardController::class, 'auditLog']);
             Route::get('/failed-jobs', [AdminDashboardController::class, 'failedJobs']);
             Route::post('/failed-jobs/{uuid}/retry', [AdminDashboardController::class, 'retryFailedJob']);

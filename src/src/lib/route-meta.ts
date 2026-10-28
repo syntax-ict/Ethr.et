@@ -385,6 +385,13 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Admin Console",
     description: "Platform-wide administration and tenant management",
   },
+  "/admin/operations": {
+    section: "Admin",
+    parent: { label: "Admin Console", href: "/admin" },
+    label: "Operations",
+    description:
+      "Whether background work, email and the deployed release are doing their job",
+  },
   "/admin/tenants": {
     section: "Admin",
     parent: { label: "Admin Console", href: "/admin" },

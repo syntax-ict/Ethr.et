@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Jobs\ApplyDuePersonnelActionsJob;
 use App\Jobs\DispatchWebhookJob;
 use App\Jobs\NotifyAnnouncementAudienceJob;
 use App\Jobs\ProcessPayrollJob;
@@ -9,6 +10,7 @@ use App\Jobs\SendInvitationJob;
 use App\Models\Announcement;
 use App\Models\Employee;
 use App\Models\PayrollRun;
+use App\Models\PersonnelAction;
 use App\Models\Tenant;
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
@@ -214,7 +216,35 @@ test('the tenant id is required on every job that scopes by it', function (strin
     DispatchWebhookJob::class,
     NotifyAnnouncementAudienceJob::class,
     SendInvitationJob::class,
+    ApplyDuePersonnelActionsJob::class,
 ]);
+
+// ── ApplyDuePersonnelActionsJob: sets its tenant, drops no scope ──
+
+test('applying due personnel actions touches only the tenant in the payload', function () {
+    $owner = Tenant::factory()->create();
+    $other = Tenant::factory()->create();
+    app(CurrentTenant::class)->set($owner);
+    $employee = Employee::factory()->create(['tenant_id' => $owner->id, 'salary_cents' => 1_000_00]);
+    $action = PersonnelAction::create([
+        'employee_id' => $employee->id,
+        'type' => 'promotion',
+        'effective_date' => now()->subDay()->toDateString(),
+        'changes' => ['salary' => ['from' => 1_000_00, 'to' => 2_000_00]],
+        'pending_values' => ['salary_cents' => 2_000_00],
+        'is_temporary' => false,
+        'applied_at' => null,
+    ]);
+
+    // No tenant resolved, as on a worker. The job resolves its own from the
+    // payload and queries through the ordinary scope, so another tenant's
+    // id reaches nothing.
+    app(CurrentTenant::class)->forget();
+    ApplyDuePersonnelActionsJob::dispatchSync($other->id);
+
+    expect(PersonnelAction::withoutGlobalScopes()->findOrFail($action->id)->applied_at)->toBeNull()
+        ->and(Employee::withoutGlobalScopes()->findOrFail($employee->id)->salary_cents)->toBe(1_000_00);
+});
 
 test('a job that scopes by tenant cannot be constructed without one', function () {
     // The shape assertions above describe the signature; this one proves what

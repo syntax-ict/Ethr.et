@@ -239,6 +239,66 @@ test('super admin can view revenue', function () {
         ]);
 });
 
+// Production, 2026-10-28: "MRR 0 ETB" beside "1 paying customer". The figure was
+// this month's paid invoices, and the customer was active on a free plan.
+test('recurring revenue is what active subscriptions are billed, not what was paid this month', function () {
+    $home = createTenant();
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $home);
+    test()->actingAs($user);
+
+    $subscribe = function (TenantStatus $tenantStatus, SubscriptionStatus $status, int $price): Tenant {
+        $tenant = Tenant::factory()->create(['status' => $tenantStatus]);
+        Subscription::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'plan_id' => Plan::factory()->create(['price_cents' => $price])->id,
+            'price_cents' => $price,
+            'status' => $status,
+            'current_period_start' => now(),
+            'current_period_end' => now()->addMonth(),
+        ]);
+
+        return $tenant;
+    };
+
+    $paying = $subscribe(TenantStatus::ACTIVE, SubscriptionStatus::ACTIVE, 299900);
+    $subscribe(TenantStatus::ACTIVE, SubscriptionStatus::PAST_DUE, 99900);
+    $subscribe(TenantStatus::ACTIVE, SubscriptionStatus::ACTIVE, 0);
+    $subscribe(TenantStatus::TRIAL, SubscriptionStatus::TRIAL, 599900);
+
+    Invoice::factory()->paid()->create(['tenant_id' => $paying->id, 'amount_cents' => 150000]);
+
+    test()->getJson("http://{$home->subdomain}.ethr.test/api/v1/admin/revenue")
+        ->assertOk()
+        ->assertJsonPath('mrr_cents', 299900 + 99900)
+        ->assertJsonPath('paying_tenants', 2)
+        ->assertJsonPath('collected_this_month_cents', 150000)
+        ->assertJsonPath('monthly_trend.11.month', now()->format('Y-m'))
+        ->assertJsonPath('monthly_trend.11.revenue_cents', 150000);
+});
+
+test('an organisation that moved to a free plan stops counting as paying', function () {
+    $home = createTenant();
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $home);
+    test()->actingAs($user);
+
+    $tenant = Tenant::factory()->create(['status' => TenantStatus::ACTIVE]);
+    foreach ([299900, 0] as $price) {
+        Subscription::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'plan_id' => Plan::factory()->create(['price_cents' => $price])->id,
+            'price_cents' => $price,
+            'status' => SubscriptionStatus::ACTIVE,
+            'current_period_start' => now(),
+            'current_period_end' => now()->addMonth(),
+        ]);
+    }
+
+    test()->getJson("http://{$home->subdomain}.ethr.test/api/v1/admin/revenue")
+        ->assertOk()
+        ->assertJsonPath('mrr_cents', 0)
+        ->assertJsonPath('paying_tenants', 0);
+});
+
 // ── System Health ──
 
 test('super admin can view system health', function () {
@@ -276,6 +336,30 @@ test('health reports no disk figure rather than failing when free space cannot b
         ->assertJsonPath('services.database.status', 'healthy');
 });
 
+// The bar compared this request's memory with this request's own peak, so it
+// read "34 MB / 34 MB" in red on production. The limit is what it can run out of.
+test('health reports the memory limit, and no limit when there is none', function () {
+    $tenant = createTenant();
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+    test()->actingAs($user);
+
+    $previous = ini_get('memory_limit');
+
+    try {
+        ini_set('memory_limit', '2G');
+        test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/health")
+            ->assertOk()
+            ->assertJsonPath('resources.php_memory_limit_mb', 2048);
+
+        ini_set('memory_limit', '-1');
+        test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/health")
+            ->assertOk()
+            ->assertJsonPath('resources.php_memory_limit_mb', null);
+    } finally {
+        ini_set('memory_limit', (string) $previous);
+    }
+});
+
 // ── Admin Audit Log ──
 
 test('super admin can view platform audit log', function () {
@@ -291,6 +375,45 @@ test('super admin can view platform audit log', function () {
             'meta' => ['current_page', 'last_page', 'per_page', 'total'],
             'links' => ['first', 'last', 'prev', 'next'],
         ]);
+});
+
+// The platform trail mixes every organisation's rows and said whose none of
+// them were: a sign-in read the same in every organisation.
+test('the platform audit log names the organisation each row belongs to', function () {
+    $home = createTenant();
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $home);
+    test()->actingAs($user);
+
+    $acme = Tenant::factory()->create(['name' => 'Acme Woreda']);
+    $gone = Tenant::factory()->create(['name' => 'Closed Clinic']);
+    $gone->delete();
+
+    DB::table('audit_log')->insert([
+        ['tenant_id' => $acme->id, 'action' => 'user.login', 'created_at' => now()->subMinutes(3)],
+        ['tenant_id' => $gone->id, 'action' => 'user.login', 'created_at' => now()->subMinutes(2)],
+        ['tenant_id' => null, 'action' => 'platform.plan.updated', 'created_at' => now()->subMinute()],
+    ]);
+
+    $data = collect(test()->getJson("http://{$home->subdomain}.ethr.test/api/v1/admin/audit")
+        ->assertOk()
+        ->json('data'));
+    $rows = $data->where('action', 'user.login')->keyBy('organisation.name');
+
+    expect($rows['Acme Woreda']['organisation']['public_id'])->toBe($acme->public_id)
+        ->and($rows['Closed Clinic']['organisation']['public_id'])->toBe($gone->public_id)
+        ->and($rows['Acme Woreda'])->not->toHaveKey('tenant_id')
+        ->and($data->firstWhere('action', 'platform.plan.updated')['organisation'])->toBeNull();
+});
+
+test('an organisation\'s own audit log does not name the organisation on every row', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    DB::table('audit_log')->insert(['tenant_id' => $tenant->id, 'action' => 'user.login', 'created_at' => now()]);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/audit-logs")
+        ->assertOk()
+        ->assertJsonPath('data.0.organisation', null);
 });
 
 // ── Failed Jobs ──

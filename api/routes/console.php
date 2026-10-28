@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\AccrueLeaveBalancesJob;
+use App\Jobs\ApplyDuePersonnelActionsJob;
 use App\Jobs\CarryForwardLeaveBalancesJob;
 use App\Jobs\CleanupExpiredDataJob;
 use App\Jobs\GenerateMonthlyInvoicesJob;
@@ -113,6 +114,15 @@ Schedule::call(function () {
         ScanAttendanceAnomaliesJob::dispatch($tenant->id, $yesterday)->onQueue('attendance');
     });
 })->dailyAt('15:45')->name('scan-attendance-anomalies')->withoutOverlapping();
+
+// Apply personnel actions whose effective date has come, at five past every
+// hour. Hourly rather than daily so a change takes effect within the first hour
+// of the organisation's own day, and a missed run is caught up by the next.
+Schedule::call(function () {
+    Tenant::operational()->each(function (Tenant $tenant) {
+        ApplyDuePersonnelActionsJob::dispatch($tenant->id)->onQueue('default');
+    });
+})->hourlyAt(5)->name('apply-due-personnel-actions')->withoutOverlapping();
 
 // Warn tenant admins at 30/7/1 days before trial expiry — 05:00 UTC (08:00 EAT)
 Schedule::job(new NotifyExpiringTrialsJob, 'notifications')

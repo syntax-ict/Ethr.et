@@ -60,6 +60,8 @@ final class RunBackgroundWorkAfterResponse
         ignore_user_abort(true);
 
         try {
+            $this->health->recordTrafficTick();
+
             $last = $this->health->lastBeat();
             if ($last === null || $last->diffInSeconds(now(), absolute: true) > (int) config('cron.opportunistic_schedule_after_seconds', 300)) {
                 $this->runner->schedule();

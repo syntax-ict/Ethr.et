@@ -72,6 +72,7 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
+import { orgTypeLabel } from "@/features/settings/org-type-label";
 import { DeleteTenantDialog } from "./delete-tenant-dialog";
 
 /** The shared host an organisation on the shared address is reached through. */
@@ -117,6 +118,14 @@ function humanize(value: string | null | undefined): string {
   if (!value) return "—";
   const words = value.replace(/_/g, " ");
   return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** The organisation type in the reader's language; the stored word otherwise. */
+function typeLabel(
+  value: string | null | undefined,
+  t: (k: string, f: string) => string,
+): string {
+  return (value ? orgTypeLabel(value, t) : null) ?? humanize(value);
 }
 
 /**
@@ -580,7 +589,7 @@ function TenantDetail({ id }: { id: string }) {
             label={t("admin_tenant_detail_page.type")}
             value={
               tenant.type
-                ? humanize(tenant.type)
+                ? typeLabel(tenant.type, t)
                 : t("admin_tenant_detail_page.unspecified")
             }
           />
@@ -902,7 +911,7 @@ function TenantDetail({ id }: { id: string }) {
             />
             <Row
               label={t("admin_tenant_detail_page.type")}
-              value={humanize(tenant.type)}
+              value={typeLabel(tenant.type, t)}
             />
             <Row
               label={t("common.status")}

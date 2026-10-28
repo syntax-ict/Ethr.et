@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { orgTypeLabel } from "@/features/settings/org-type-label";
 
 /**
  * Organization profile — name, type, timezone, default language.
@@ -50,8 +51,6 @@ const ORG_TYPES = [
   "manufacturing",
   "hotel",
 ] as const;
-
-type OrgType = (typeof ORG_TYPES)[number];
 
 const TIMEZONES = [
   "Africa/Addis_Ababa",
@@ -296,32 +295,4 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
       </CardContent>
     </Card>
   );
-}
-
-/**
- * Literal `t()` calls, not a `settings.org_type_${value}` template: the i18n
- * gate only sees string-literal keys, so a dynamic one would never be checked
- * for en/am coverage.
- */
-function orgTypeLabel(value: OrgType, t: (k: string, f: string) => string) {
-  switch (value) {
-    case "general":
-      return t("settings.org_type_general", "General company");
-    case "private":
-      return t("settings.org_type_private", "Private company");
-    case "government":
-      return t("settings.org_type_government", "Government");
-    case "university":
-      return t("settings.org_type_university", "University / TVET");
-    case "ngo":
-      return t("settings.org_type_ngo", "NGO");
-    case "bank":
-      return t("settings.org_type_bank", "Bank / Finance");
-    case "hospital":
-      return t("settings.org_type_hospital", "Hospital / Health");
-    case "manufacturing":
-      return t("settings.org_type_manufacturing", "Manufacturing");
-    case "hotel":
-      return t("settings.org_type_hotel", "Hotel / Hospitality");
-  }
 }
