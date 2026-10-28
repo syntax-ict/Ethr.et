@@ -663,8 +663,32 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** GET /attendance/devices: registered and waiting phones, with how many people have one */
+        /**
+         * GET /attendance/devices: registered and waiting phones, with how many
+         *     people have one. A waiting replacement carries the phone it replaces
+         */
         get: operations["attendanceDevice.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/devices/unregistered": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /attendance/devices/unregistered: the people whose phone is checked
+         *     and who have none registered yet, the ones a switch to enforce would
+         *     stop. Someone with a phone waiting for approval is marked as such
+         */
+        get: operations["attendanceDevice.unregistered"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8114,6 +8138,13 @@ export interface components {
             created_at: string | null;
             last_used_at: string | null;
             approved_at: string | null;
+            revoked_at: string | null;
+            replaces?: {
+                label: string | null;
+                synced_passkey: boolean;
+                created_at: string | null;
+                last_used_at: string | null;
+            } | null;
             employee?: {
                 public_id: string;
                 name: string;
@@ -8533,6 +8564,14 @@ export interface components {
             created_at: string | null;
             /** Format: date-time */
             updated_at: string | null;
+        };
+        /**
+         * DecideAttendanceDeviceRequest
+         * @description Refusing or revoking a phone. The reason is optional; when given it is
+         *     kept in the audit log and told to the employee.
+         */
+        DecideAttendanceDeviceRequest: {
+            reason?: string | null;
         };
         /** DecideRetirementCaseRequest */
         DecideRetirementCaseRequest: {
@@ -11108,6 +11147,15 @@ export interface components {
             name: string;
             logo_url: string | null;
             url: string;
+        };
+        /** UnregisteredEmployeeResource */
+        UnregisteredEmployeeResource: {
+            public_id: string;
+            name: string;
+            employee_code: string | null;
+            branch: string | null;
+            has_pending_phone: boolean;
+            exempt_until: string | null;
         };
         /** UpdateAccessRequest */
         UpdateAccessRequest: {
@@ -14012,7 +14060,7 @@ export interface operations {
     "attendanceDevice.index": {
         parameters: {
             query?: {
-                status?: "active" | "pending" | "revoked" | "rejected" | null;
+                status?: "active" | "pending" | "revoked" | "rejected" | "closed" | null;
                 search?: string | null;
                 per_page?: number | null;
             };
@@ -14034,8 +14082,36 @@ export interface operations {
                             employees: number;
                             registered: number;
                             pending: number;
+                            checked: number;
+                            missing: number;
                         };
                     };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceDevice.unregistered": {
+        parameters: {
+            query?: {
+                search?: string | null;
+                per_page?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `UnregisteredEmployeeResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnregisteredEmployeeResource"][];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14100,7 +14176,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DecideAttendanceDeviceRequest"];
+            };
+        };
         responses: {
             /** @description `AttendanceDeviceResource` */
             200: {
@@ -14135,11 +14215,14 @@ export interface operations {
                     };
                 };
             };
+            422: components["responses"]["ValidationException"];
         };
     };
     "attendanceDevice.revoke": {
         parameters: {
-            query?: never;
+            query?: {
+                reason?: string | null;
+            };
             header?: never;
             path: {
                 /** @description The device public id */
@@ -14167,6 +14250,22 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This phone is not registered now.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
         };
     };
     "attendanceVisit.index": {
