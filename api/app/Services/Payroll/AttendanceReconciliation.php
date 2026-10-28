@@ -83,6 +83,7 @@ final class AttendanceReconciliation
     public function __construct(
         private readonly PayrollEngine $payroll,
         private readonly AttendanceEngine $attendance,
+        private readonly StatutoryRules $statutoryRules,
     ) {}
 
     /** The organisation's mode: `off`, `advisory` or `required`. */
@@ -248,6 +249,9 @@ final class AttendanceReconciliation
         // is worked. Days over a limit are paid either way and already listed
         // on the run (OvertimeLimitsBanner), so they are not repeated here.
         $overtimeApproval = (bool) AttendanceSetting::query()->where('tenant_id', $tenantId)->value('overtime_requires_approval');
+        // The overtime limits are the organisation's statutory rules for the
+        // period, the ones its payroll run applies.
+        $rules = $overtimeApproval ? $this->statutoryRules->for($tenant, $end) : null;
 
         foreach ($employees as $employee) {
             $exceptions = [];
@@ -265,11 +269,11 @@ final class AttendanceReconciliation
                 $exceptions[] = $this->recordException($record, $claims['by_record'][$record->id] ?? [], $lateness, $zone);
             }
 
-            ['by_day' => $byDay] = $overtimeApproval
-                ? $this->payroll->gatherOvertimeByType($employee, $start, $end)
+            ['by_day' => $byDay] = $rules !== null
+                ? $this->payroll->gatherOvertimeByType($employee, $start, $end, $rules)
                 : ['by_day' => []];
-            if ($byDay !== []) {
-                $limits = $this->payroll->overtimeLimits($employee, $byDay, $start, $end);
+            if ($rules !== null && $byDay !== []) {
+                $limits = $this->payroll->overtimeLimits($employee, $byDay, $start, $end, $rules);
                 foreach ($limits['days_over_approved'] as $over) {
                     $pending = $overtimeRequests[$employee->id][$over['date']] ?? null;
                     $exceptions[] = self::item(
