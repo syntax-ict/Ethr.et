@@ -14,6 +14,7 @@ use App\Services\Attendance\EnteredAttendance;
 use App\Services\CurrentTenant;
 use App\Services\Payroll\PayrollPeriodLock;
 use App\Support\TenantTime;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
@@ -33,9 +34,16 @@ class ManualAttendanceController extends Controller
         $date = $request->validated('date');
         app(PayrollPeriodLock::class)->assertOpen($employee->id, $date);
         $checkIn = TenantTime::wallClockToUtc($date, $request->validated('check_in'), $zone);
-        $checkOut = $request->validated('check_out')
-            ? TenantTime::wallClockToUtc($date, $request->validated('check_out'), $zone)
-            : null;
+        // A check-out earlier on the clock than the check-in is the next
+        // morning: a night shift crossing midnight (ManualAttendanceRequest).
+        // The record stays dated the night it began, as a live punch is.
+        $checkOut = null;
+        if ($request->validated('check_out')) {
+            $outDate = $request->validated('check_out') < $request->validated('check_in')
+                ? Carbon::parse($date)->addDay()->format('Y-m-d')
+                : $date;
+            $checkOut = TenantTime::wallClockToUtc($outDate, $request->validated('check_out'), $zone);
+        }
 
         // The times are what HR read off a sheet or a clock in the tenant's
         // own timezone. Written as "{date} {H:i}:00" they were stored as UTC
