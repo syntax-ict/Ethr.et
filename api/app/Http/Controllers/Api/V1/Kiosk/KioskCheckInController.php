@@ -138,9 +138,9 @@ class KioskCheckInController extends Controller
 
         $result->record->load('employee', 'shift');
 
-        $punch = new AttendancePunchResource($result->record, $result->wasDuplicate, $employee->name);
+        $punch = new AttendancePunchResource($result->record, $result->wasDuplicate, $employee->name, $result->punch);
 
-        if ($result->wasDuplicate || $request->validated('type') === 'check_out') {
+        if ($result->wasDuplicate || $result->punch === 'check_out') {
             return $punch->response()->setStatusCode(200);
         }
 
