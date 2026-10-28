@@ -34,6 +34,35 @@ describe('super admin with no tenant', function () {
 
         expect(DB::table('onboarding_progress')->count())->toBe(0);
     });
+
+    // Production, 2026-10-28: every platform sign-in lands on /dashboard, whose
+    // executive tiles answered 500 because the controller read `->id` on a
+    // null tenant. The same read sat in analytics, reports, accounting and the
+    // alert thresholds.
+    it('gets a tenant-required problem from organisation endpoints instead of a 500', function (string $path) {
+        $superAdmin = User::factory()->create([
+            'tenant_id' => null,
+            'role' => UserRole::SUPER_ADMIN,
+            'mfa_enabled' => true,
+        ]);
+        test()->actingAs($superAdmin);
+
+        test()->getJson("http://admin.ethr.test/api/v1{$path}")
+            ->assertStatus(422)
+            ->assertHeader('Content-Type', 'application/problem+json')
+            ->assertJsonPath('type', 'https://ethr.et/errors/tenant-required')
+            ->assertJsonPath('detail', __('general.tenant_required'));
+    })->with([
+        'executive overview' => '/dashboard/executive',
+        'executive attendance' => '/dashboard/executive/attendance',
+        'executive payroll' => '/dashboard/executive/payroll',
+        'executive workforce' => '/dashboard/executive/workforce',
+        'executive compliance' => '/dashboard/executive/compliance',
+        'executive forecast' => '/dashboard/executive/forecast',
+        'department analytics' => '/analytics/departments',
+        'branch analytics' => '/analytics/branches',
+        'chart of accounts' => '/accounting/chart-of-accounts',
+    ]);
 });
 
 describe('cross-tenant counting', function () {

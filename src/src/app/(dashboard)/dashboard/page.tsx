@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { Clock, CalendarDays, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -67,13 +69,24 @@ import { ErrorState } from "@/components/shared/error-state";
  * absent and three approvals are waiting" sat below a week-over-week graph.
  */
 export default function DashboardPage() {
-  const { isSupervisor, can } = usePermissions();
+  const { isSupervisor, isSuperAdmin, can } = usePermissions();
   const { t } = useT();
   const { data: user } = useCurrentUser();
+  const router = useRouter();
+
+  // A platform account has no organisation, so this page has nothing to show
+  // it, and every sign-in lands here: production, 2026-10-28, the console's
+  // own users met an organisation dashboard whose tiles all failed. Their
+  // home is the console.
+  useEffect(() => {
+    if (isSuperAdmin) router.replace("/admin");
+  }, [isSuperAdmin, router]);
 
   // Only an explicit null means "no employee record": while /auth/me loads,
   // or from an older payload without the field, the tiles show as before.
   const hasNoEmployee = user?.employee_public_id === null;
+
+  if (isSuperAdmin) return null;
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
