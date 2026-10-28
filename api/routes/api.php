@@ -452,6 +452,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/device/register', [AttendanceDeviceController::class, 'register']);
         Route::post('/device/challenge', [AttendanceDeviceController::class, 'challenge']);
         Route::get('/devices', [AttendanceDeviceController::class, 'index']);
+        Route::get('/devices/unregistered', [AttendanceDeviceController::class, 'unregistered']);
         Route::post('/devices/{device}/approve', [AttendanceDeviceController::class, 'approve']);
         Route::post('/devices/{device}/reject', [AttendanceDeviceController::class, 'reject']);
         Route::delete('/devices/{device}', [AttendanceDeviceController::class, 'revoke']);

@@ -52,5 +52,6 @@ return [
     'device_belongs_to_another' => 'This phone is registered to another employee. Punch from your own registered phone.',
     'device_proof_invalid' => 'We could not confirm this is your registered phone. Try again, and unlock the phone when it asks.',
     'device_wrong_host' => 'Open the ETHR address of your own organisation to punch with your registered phone.',
+    'device_not_active' => 'This phone is not registered now.',
     'device_not_pending' => 'This phone is not waiting for approval.',
 ];
