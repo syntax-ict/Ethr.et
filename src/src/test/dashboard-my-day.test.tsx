@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -8,15 +8,30 @@ import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { WelcomeSection } from "@/features/dashboard/components/welcome-section";
 import DashboardPage from "@/app/(dashboard)/dashboard/page";
 
+const session = vi.hoisted(() => ({
+  role: "employee",
+  replace: vi.fn(),
+}));
+
 vi.mock("@/lib/hooks/usePermissions", () => ({
   usePermissions: () => ({
     isAtLeast: () => false,
     hasRole: () => false,
     can: {},
-    role: "employee",
+    role: session.role,
     isSupervisor: false,
+    isSuperAdmin: session.role === "super_admin",
   }),
 }));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: session.replace, push: vi.fn() }),
+}));
+
+beforeEach(() => {
+  session.role = "employee";
+  session.replace.mockReset();
+});
 
 // The page test is about its own "My Day" tiles; every other widget is
 // stubbed so it does not need its own endpoints.
@@ -162,5 +177,31 @@ describe("Dashboard — a request that fails", () => {
       screen.getByRole("button", { name: /Try again/ }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Not Checked In")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Every sign-in lands on /dashboard, a platform account included, and the
+ * organisation tiles it then requested all failed: it has no organisation
+ * (production, 2026-10-28).
+ */
+describe("Dashboard — a platform account", () => {
+  it("is sent to the console and asks for no organisation data", async () => {
+    session.role = "super_admin";
+    let asked = false;
+    server.use(
+      http.get("*/api/v1/dashboard/*", () => {
+        asked = true;
+        return HttpResponse.json({});
+      }),
+    );
+
+    const { container } = renderWith(<DashboardPage />);
+
+    await vi.waitFor(() =>
+      expect(session.replace).toHaveBeenCalledWith("/admin"),
+    );
+    expect(container).toBeEmptyDOMElement();
+    expect(asked).toBe(false);
   });
 });

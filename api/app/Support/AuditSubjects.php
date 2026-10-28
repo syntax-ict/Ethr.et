@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Models\AuditLog;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
@@ -48,6 +49,31 @@ final class AuditSubjects
             foreach ($rows->groupBy(fn (AuditLog $log): string => (string) $log->auditable_type) as $type => $subjects) {
                 self::attachSubjects($subjects, $type, $tenantId);
             }
+        }
+    }
+
+    /**
+     * Sets the `organisation` relation on every log: the tenant the row was
+     * written in, or null for a platform action.
+     *
+     * Only the platform view calls this. Its trail mixes every organisation's
+     * rows, and without the name a reader could not tell whose sign-in or whose
+     * payroll approval a row recorded. `Tenant` is on the Global Model List, so
+     * there is no tenant scope to drop; a deleted organisation still names its
+     * own history.
+     *
+     * @param  Collection<int, AuditLog>  $logs
+     */
+    public static function attachOrganisations(Collection $logs): void
+    {
+        $ids = $logs->pluck('tenant_id')->filter()->unique()->values();
+
+        $tenants = $ids->isEmpty()
+            ? collect()
+            : Tenant::withTrashed()->whereIn('id', $ids)->get(['id', 'public_id', 'name'])->keyBy('id');
+
+        foreach ($logs as $log) {
+            $log->setRelation('organisation', $tenants->get($log->tenant_id));
         }
     }
 

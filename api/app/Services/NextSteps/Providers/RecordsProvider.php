@@ -6,15 +6,15 @@ namespace App\Services\NextSteps\Providers;
 
 use App\Enums\ContractStatus;
 use App\Enums\EmployeeStatus;
+use App\Enums\Feature;
 use App\Enums\NextStepId;
-use App\Enums\PlanFeature;
 use App\Models\Employee;
 use App\Models\EmployeeContract;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Features\FeatureGate;
 use App\Services\NextSteps\NextStep;
 use App\Services\NextSteps\StepProvider;
-use App\Services\PlanFeatureService;
 use App\Support\EmployeeGaps;
 use App\Support\TenantTime;
 use Illuminate\Database\Eloquent\Builder;
@@ -38,7 +38,7 @@ final class RecordsProvider implements StepProvider
         EmployeeGaps::PHONE => NextStepId::RecordsMissingPhone,
     ];
 
-    public function __construct(private readonly PlanFeatureService $plans) {}
+    public function __construct(private readonly FeatureGate $features) {}
 
     public function steps(User $user, Tenant $tenant): array
     {
@@ -47,7 +47,7 @@ final class RecordsProvider implements StepProvider
         }
 
         $steps = [];
-        $payroll = $this->plans->allows($tenant, PlanFeature::Payroll);
+        $payroll = $this->features->allows($tenant, Feature::Payroll);
 
         foreach (self::GAP_STEPS as $gap => $id) {
             if (! $this->mayFill($user, $gap, $payroll)) {

@@ -76,6 +76,7 @@ class AdminDashboardController extends Controller
 
         $logs = $query->paginate($request->integer('per_page', 50));
         AuditSubjects::attach($logs->getCollection());
+        AuditSubjects::attachOrganisations($logs->getCollection());
 
         return AuditLogResource::collection($logs);
     }

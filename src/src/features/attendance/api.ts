@@ -11,6 +11,7 @@ import {
 } from "@/lib/attendance/punch-signals";
 import {
   registerPasskey,
+  rememberThisPhone,
   signWithPasskey,
   type DeviceProof,
 } from "@/lib/attendance/passkey";
@@ -883,6 +884,14 @@ export interface AttendanceDeviceInfo {
   created_at: string | null;
   last_used_at: string | null;
   approved_at: string | null;
+  revoked_at?: string | null;
+  /** On a waiting phone: the person's registered phone it would replace. */
+  replaces?: {
+    label: string | null;
+    synced_passkey: boolean;
+    created_at: string | null;
+    last_used_at: string | null;
+  } | null;
   employee?: { public_id: string; name: string; employee_code: string | null };
 }
 
@@ -951,7 +960,8 @@ export function useRegisterDevice() {
         })
       ).data;
     },
-    onSuccess: () => {
+    onSuccess: (device) => {
+      rememberThisPhone(device.public_id);
       void queryClient.invalidateQueries({ queryKey: keys.device });
     },
   });
@@ -971,6 +981,7 @@ export function usePunchSigner(state: AttendanceDeviceState | undefined) {
   const cached = useRef<{ options: unknown; at: number } | null>(null);
   const active = Boolean(state && state.binding !== "off" && state.device);
   const enforced = state?.binding === "enforce";
+  const registeredId = state?.device?.public_id;
 
   const refresh = useCallback(async () => {
     try {
@@ -1003,17 +1014,70 @@ export function usePunchSigner(state: AttendanceDeviceState | undefined) {
       const proof = await signWithPasskey(
         entry.options as Parameters<typeof signWithPasskey>[0],
       );
+      // Only the registered phone's passkey can sign this challenge.
+      if (registeredId) rememberThisPhone(registeredId);
       return { proof, stop: false };
     } catch {
       return { stop: enforced };
     } finally {
       void refresh();
     }
-  }, [active, enforced, refresh]);
+  }, [active, enforced, refresh, registeredId]);
 }
 
 export interface AttendanceDevicesPage extends PaginatedResponse<AttendanceDeviceInfo> {
-  coverage: { employees: number; registered: number; pending: number };
+  coverage: {
+    /** People who work here now. */
+    employees: number;
+    /** Of them, people with a registered phone. */
+    registered: number;
+    pending: number;
+    /** People whose phone is checked: rule on, a phone method allowed, not exempt. */
+    checked: number;
+    /** Of them, people with no registered phone yet. */
+    missing: number;
+  };
+}
+
+export interface UnregisteredEmployee {
+  public_id: string;
+  name: string;
+  employee_code: string | null;
+  branch: string | null;
+  has_pending_phone: boolean;
+  exempt_until: string | null;
+}
+
+/** The people whose phone is checked and who have none registered yet. */
+export function useUnregisteredEmployees(
+  params: { search?: string; page: number },
+  enabled = true,
+) {
+  return useQuery<PaginatedResponse<UnregisteredEmployee>>({
+    queryKey: [...keys.devices, "unregistered", params],
+    queryFn: async () =>
+      (await apiClient.get("/attendance/devices/unregistered", { params }))
+        .data,
+    enabled,
+  });
+}
+
+/** Let someone punch without a registered phone until a date, from the phones page. */
+export function useExemptFromPhone() {
+  const queryClient = useQueryClient();
+  return useMutation<unknown, unknown, { publicId: string; until: string }>({
+    mutationFn: async ({ publicId, until }) =>
+      (
+        await apiClient.put(
+          `/employees/${publicId}/attendance-device-exemption`,
+          { until },
+        )
+      ).data,
+    onSuccess: (_data, { publicId }) => {
+      void queryClient.invalidateQueries({ queryKey: keys.devices });
+      void queryClient.invalidateQueries({ queryKey: ["employees", publicId] });
+    },
+  });
 }
 
 /** Registered and waiting phones, for the people who manage attendance. */
@@ -1029,19 +1093,34 @@ export function useAttendanceDevices(params: {
   });
 }
 
-/** Approve, reject or revoke a phone. */
+/** Approve a phone, or refuse or revoke one with a reason. */
 export function useDecideDevice() {
   const queryClient = useQueryClient();
   return useMutation<
     AttendanceDeviceInfo,
     unknown,
-    { publicId: string; action: "approve" | "reject" | "revoke" }
+    {
+      publicId: string;
+      action: "approve" | "reject" | "revoke";
+      /** Told to the employee and kept in the audit log. */
+      reason?: string;
+    }
   >({
-    mutationFn: async ({ publicId, action }) =>
+    mutationFn: async ({ publicId, action, reason }) =>
       action === "revoke"
-        ? (await apiClient.delete(`/attendance/devices/${publicId}`)).data
-        : (await apiClient.post(`/attendance/devices/${publicId}/${action}`))
-            .data,
+        ? (
+            await apiClient.delete(`/attendance/devices/${publicId}`, {
+              data: { reason },
+            })
+          ).data
+        : action === "reject"
+          ? (
+              await apiClient.post(`/attendance/devices/${publicId}/reject`, {
+                reason,
+              })
+            ).data
+          : (await apiClient.post(`/attendance/devices/${publicId}/approve`))
+              .data,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: keys.devices });
     },

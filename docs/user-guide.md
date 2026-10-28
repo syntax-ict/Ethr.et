@@ -55,8 +55,12 @@ Your organisation may ask you to punch only from your own phone. The first
 time, open the attendance page on your phone **while you are at work** and tap
 **Register**. The phone asks for your fingerprint, face or PIN, and from then
 on each punch asks for it again. A punch from any other phone or browser is
-not accepted. If you register away from work, or get a new phone, a manager
-approves it first.
+not accepted. If you register away from work, a manager approves it first.
+
+**New or lost phone:** open the attendance page on the new phone. It shows
+your registered phone and a **Register this phone** button. Tap it, and HR
+approves the new phone; your old one keeps working until they do. You get a
+notification when your phone is approved, refused or revoked, with the reason.
 
 ### QR Code
 

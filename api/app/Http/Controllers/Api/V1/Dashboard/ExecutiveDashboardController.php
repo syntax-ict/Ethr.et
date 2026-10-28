@@ -40,7 +40,7 @@ class ExecutiveDashboardController extends Controller
     public function overview(Request $request): JsonResponse
     {
         [$from, $to] = $this->dateRange($request);
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
         $branchId = $this->resolveBranchId($request);
 
         $data = Cache::remember(
@@ -55,7 +55,7 @@ class ExecutiveDashboardController extends Controller
     public function attendance(Request $request): JsonResponse
     {
         [$from, $to] = $this->dateRange($request);
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
         $branchId = $this->resolveBranchId($request);
 
         $data = Cache::remember(
@@ -70,7 +70,7 @@ class ExecutiveDashboardController extends Controller
     public function payroll(Request $request): JsonResponse
     {
         [$from, $to] = $this->dateRange($request);
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
         $branchId = $this->resolveBranchId($request);
 
         $data = Cache::remember(
@@ -84,7 +84,7 @@ class ExecutiveDashboardController extends Controller
 
     public function workforce(Request $request): JsonResponse
     {
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
         $branchId = $this->resolveBranchId($request);
 
         $data = Cache::remember(
@@ -98,7 +98,7 @@ class ExecutiveDashboardController extends Controller
 
     public function compliance(Request $request): JsonResponse
     {
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
         $branchId = $this->resolveBranchId($request);
 
         $data = Cache::remember(
@@ -112,7 +112,7 @@ class ExecutiveDashboardController extends Controller
 
     public function forecast(Request $request): JsonResponse
     {
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
         $branchId = $this->resolveBranchId($request);
 
         $data = Cache::remember(

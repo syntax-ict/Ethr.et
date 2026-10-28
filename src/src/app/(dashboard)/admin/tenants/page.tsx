@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { PaginationControls } from "@/components/shared/pagination-controls";
+import { orgTypeLabel } from "@/features/settings/org-type-label";
 
 function trialDaysLeft(trialEndsAt: string | null): number | null {
   if (!trialEndsAt) return null;
@@ -197,8 +198,8 @@ export default function AdminTenantsPage() {
                             {tenant.name}
                           </span>
                           {tenant.type && (
-                            <p className="text-xs capitalize text-muted-foreground">
-                              {tenant.type}
+                            <p className="text-xs text-muted-foreground">
+                              {orgTypeLabel(tenant.type, t) ?? tenant.type}
                             </p>
                           )}
                         </div>,

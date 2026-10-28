@@ -6,7 +6,10 @@ import { DashboardShell } from "./dashboard-shell";
 
 export const viewport: Viewport = baseViewport;
 
-export const metadata: Metadata = baseMetadata;
+// The marketing title is for search results. Behind the login it was what every
+// tab read until `useDocumentTitle` ran, and what an organisation's page in the
+// console kept reading after a client navigation (production, 2026-10-28).
+export const metadata: Metadata = { ...baseMetadata, title: "ETHR" };
 
 /**
  * Root layout for the authenticated application.
