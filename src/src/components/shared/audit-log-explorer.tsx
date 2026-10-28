@@ -274,7 +274,7 @@ export function AuditLogExplorer({
                         >
                           {auditActionLabel(log.action, t)}
                         </Badge>
-                        <p className="font-mono text-[10px] text-muted-foreground">
+                        <p className="font-mono text-xs text-muted-foreground">
                           {log.action}
                         </p>
                       </div>,

@@ -934,7 +934,7 @@ function ResourceGauge({
           )}
         </span>
       </div>
-      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       {ratio !== null && (
         <div className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div
