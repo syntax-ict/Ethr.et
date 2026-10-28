@@ -326,3 +326,10 @@ test('a cached configuration from before the health store still records ticks', 
 
     expect(app(QueueHealth::class)->lastExternalTick())->not->toBeNull();
 });
+
+test('tests keep health signals in memory, never on disk', function () {
+    // The file store survives between tests. The MySQL suite ran on it once
+    // (its phpunit.mysql.xml lacked this setting), and every "never ran" test
+    // saw the heartbeat an earlier test had written.
+    expect(config('cache.stores.signals.driver'))->toBe('array');
+});
