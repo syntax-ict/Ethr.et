@@ -50,16 +50,20 @@ final class AttendanceEngine
             // gets that record back. Before, the replay looked for an open
             // check-in, found none, and showed the person an error for a
             // punch that had succeeded (attendance QA A6).
-            if ($existing === null && in_array($input->type, ['check_out', 'auto'], true)) {
+            if ($existing) {
+                return new AttendanceResult($existing, wasDuplicate: true);
+            }
+
+            if (in_array($input->type, ['check_out', 'auto'], true)) {
                 $existing = AttendanceRecord::query()
                     ->where('tenant_id', $input->tenantId)
                     ->where('employee_id', $input->employeeId)
                     ->where('metadata->checkout_idempotency_key', $input->idempotencyKey)
                     ->first();
-            }
 
-            if ($existing) {
-                return new AttendanceResult($existing, wasDuplicate: true);
+                if ($existing) {
+                    return new AttendanceResult($existing, wasDuplicate: true, punch: 'check_out');
+                }
             }
         }
 
@@ -141,7 +145,11 @@ final class AttendanceEngine
         $now = $this->resolveMoment($input);
         $open = $this->findOpenRecord($input, $now, $zone);
 
-        if ($open === null) {
+        // A punch older than the open record's check-in (an offline kiosk
+        // syncing late, a device backlog) cannot be its check-out: it would
+        // end the day before it began. It is a check-in, and the conflict
+        // resolver decides whether it joins the open record.
+        if ($open === null || $now->lt($open->check_in)) {
             return $this->processCheckIn($input, $employee, $zone, $settings);
         }
 
@@ -381,7 +389,7 @@ final class AttendanceEngine
 
         $this->webhook($record->tenant_id, 'attendance.checked_out', AttendanceWebhookPayload::of($record, $employee));
 
-        return new AttendanceResult($record);
+        return new AttendanceResult($record, punch: 'check_out');
     }
 
     /**

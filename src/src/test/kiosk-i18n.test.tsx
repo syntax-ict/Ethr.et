@@ -103,10 +103,52 @@ describe("the kiosk keypad", () => {
       await screen.findByRole("textbox", { name: /employee code/i }),
       "EMP-0001",
     );
-    const checkIn = screen.getAllByRole("button", { name: /check in/i });
-    await userEvent.click(checkIn[checkIn.length - 1]);
+    await userEvent.click(screen.getByRole("button", { name: /^record$/i }));
 
     await vi.waitFor(() => expect(sentCode).toBe("EMP-0001"));
+  });
+
+  it("sends auto unless the person picks, and greets by the punch the server made", async () => {
+    // The kiosk started on Check in, so someone who checked in on the phone
+    // and typed their code here in the evening opened a second record.
+    let sentType: unknown = null;
+    server.use(
+      http.post("*/kiosk/authenticate", () =>
+        HttpResponse.json({
+          session: { public_id: "K1", name: "Front desk", branch: null },
+          tenant: { name: "Acme", subdomain: "acme", logo_path: null },
+          settings: { pin_required: false, auto_reset_seconds: 4 },
+        }),
+      ),
+      http.post("*/kiosk/check-in", async ({ request }) => {
+        sentType = ((await request.json()) as { type: string }).type;
+        return HttpResponse.json({
+          employee_name: "Abebe Kebede",
+          was_duplicate: false,
+          punch: "check_out",
+        });
+      }),
+    );
+    localStorage.setItem("locale", "en");
+    render(<KioskPage />);
+
+    await userEvent.type(
+      await screen.findByPlaceholderText(/paste kiosk token/i),
+      "good-token",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Activate Kiosk/ }),
+    );
+    await userEvent.type(
+      await screen.findByRole("textbox", { name: /employee code/i }),
+      "EMP-0001",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^record$/i }));
+
+    expect(
+      await screen.findByText("Goodbye, Abebe Kebede"),
+    ).toBeInTheDocument();
+    expect(sentType).toBe("auto");
   });
 });
 

@@ -8260,6 +8260,8 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
             was_duplicate: boolean;
+            /** @enum {string} */
+            punch: "check_in" | "check_out";
             employee_name?: string;
         };
         /** AttendanceRecordResource */
@@ -9246,7 +9248,7 @@ export interface components {
             idempotency_key: string;
             employee_code: string;
             /** @enum {string} */
-            type: "check_in" | "check_out";
+            type: "check_in" | "check_out" | "auto";
             pin?: string | null;
         };
         /** KioskSessionResource */
