@@ -38,6 +38,7 @@ final class RunRegisterService
      *     basis: array{pension: list<array<string, mixed>>, tax: list<array<string, mixed>>},
      *     pension_exemptions: array{count: int, by_reason: array<string, int>, employees: list<array{employee_public_id: mixed, employee_name: mixed, reason: string}>},
      *     absences: array{count: int, days: int, employees: list<array{employee_public_id: mixed, employee_name: mixed, days: int, dates: list<string>}>},
+     *     deduction_ceiling: array{count: int, employees: list<array{employee_public_id: mixed, employee_name: mixed, ceiling_cents: int, deducted_cents: int}>},
      *     integrity: array{count: int, flags: int, employees: list<array{employee_public_id: string|null, employee_name: string|null, flags: int}>},
      *     overtime_limits: array{count: int, daily_limit_minutes: int|null, legal_daily_limit_minutes: int|null, legal_weekly_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, days_over_legal_daily_limit: int, weeks_over_legal_weekly_limit: int, longest_week_minutes: int, days_over_approved: int}>},
      * }
@@ -68,6 +69,7 @@ final class RunRegisterService
             'pension_exemptions' => self::exemptions($rows),
             'overtime_limits' => self::overtimeLimits($rows),
             'absences' => self::absences($rows),
+            'deduction_ceiling' => self::deductionCeiling($rows),
             'integrity' => $this->openIntegrity($run, $entries->pluck('employee_id')->all()),
         ];
     }
@@ -145,6 +147,52 @@ final class RunRegisterService
         }
 
         return ['count' => count($employees), 'days' => $days, 'employees' => $employees];
+    }
+
+    /**
+     * Payslips whose lateness, loan and cost-sharing deductions together pass
+     * a third of the period's basic (Proclamation 1156/2019 Art. 59, read as
+     * one total). Lateness is capped to the headroom loans and cost sharing
+     * leave, but cost sharing is a share of gross and was estimated on basic,
+     * so a payslip can still land over. Listed before approval; nothing is
+     * changed. Only entries where lateness is deducted carry a ceiling.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array{count: int, employees: list<array{employee_public_id: mixed, employee_name: mixed, ceiling_cents: int, deducted_cents: int}>}
+     */
+    public static function deductionCeiling(array $rows): array
+    {
+        $employees = [];
+        foreach ($rows as $row) {
+            if (! is_int($row['deduction_ceiling_cents'] ?? null)) {
+                continue;
+            }
+
+            $deducted = self::ceilingDeductions($row);
+            if ($deducted <= $row['deduction_ceiling_cents']) {
+                continue;
+            }
+
+            $employees[] = [
+                'employee_public_id' => $row['employee_public_id'],
+                'employee_name' => $row['employee_name'],
+                'ceiling_cents' => (int) $row['deduction_ceiling_cents'],
+                'deducted_cents' => $deducted,
+            ];
+        }
+
+        return ['count' => count($employees), 'employees' => $employees];
+    }
+
+    /**
+     * Lateness, loans and cost sharing on one payslip. Typed so the contract
+     * publishes an integer, which an inline sum did not.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private static function ceilingDeductions(array $row): int
+    {
+        return (int) $row['lateness_cents'] + (int) $row['loan_cents'] + (int) $row['cost_sharing_cents'];
     }
 
     /**
@@ -388,6 +436,9 @@ final class RunRegisterService
             // Approved lateness deducted from basic, already in basic_cents. 0
             // when the organisation does not deduct lateness.
             'lateness_cents' => (int) ($steps['lateness']['deduction_cents'] ?? 0),
+            'deduction_ceiling_cents' => isset($steps['lateness']['third_of_basic_cents'])
+                ? (int) $steps['lateness']['third_of_basic_cents']
+                : null,
             // From the log, as applied (2026-10-14). Null on older entries.
             'pensionable_cents' => (int) ($steps['pension']['pensionable_cents'] ?? $steps['pension']['pensionable_basic_cents'] ?? $entry->basic_salary_cents),
             'pension_exempt' => isset($steps['pension']['exempt']) ? (bool) $steps['pension']['exempt'] : null,

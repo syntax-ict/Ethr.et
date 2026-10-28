@@ -10,6 +10,7 @@ use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\Employee;
+use App\Models\EmployeeLoan;
 use App\Models\Holiday;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -20,6 +21,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Payroll\AttendanceReconciliation;
 use App\Services\Payroll\PayrollEngine;
+use App\Services\Payroll\RunRegisterService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 
@@ -162,6 +164,78 @@ describe('payroll', function () {
 
         expect($step['capped'])->toBeTrue()
             ->and($step['deduction_cents'])->toBe(intdiv(500_000, 3));
+    });
+});
+
+describe('the one-third ceiling, shared with loans and cost sharing', function () {
+    it('gives lateness only the headroom a loan leaves, and leaves the loan as it was', function () {
+        $tenant = createTenant();
+        reconSettings($tenant, ['lateness_deduction_enabled' => true, 'lateness_deduction_basis' => 'Work rules 12']);
+        $finance = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+        $employee = reconEmployee($tenant, late: '2026-06-10');
+        EmployeeLoan::factory()->create([
+            'tenant_id' => $tenant->id, 'employee_id' => $employee->id,
+            'amount_cents' => 1_000_000, 'remaining_cents' => 1_000_000, 'monthly_deduction_cents' => 150_000,
+        ]);
+        reconLateness($tenant, $employee, '2026-06-10', 100_000, CorrectionStatus::APPROVED);
+
+        $run = reconJune($tenant, $finance);
+        $step = reconStep($run, $employee, 'lateness');
+
+        // A third of 500,000 is 166,666; the loan takes 150,000 of it.
+        expect($step['third_of_basic_cents'])->toBe(166_666)
+            ->and($step['other_deductions_cents'])->toBe(150_000)
+            ->and($step['deduction_cents'])->toBe(16_666)
+            ->and(reconStep($run, $employee, 'loan_deductions')['loan_deduction_cents'])->toBe(150_000);
+    });
+
+    it('deducts no lateness when loans already take the third', function () {
+        $tenant = createTenant();
+        reconSettings($tenant, ['lateness_deduction_enabled' => true, 'lateness_deduction_basis' => 'Work rules 12']);
+        $finance = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+        $employee = reconEmployee($tenant, late: '2026-06-10');
+        EmployeeLoan::factory()->create([
+            'tenant_id' => $tenant->id, 'employee_id' => $employee->id,
+            'amount_cents' => 1_000_000, 'remaining_cents' => 1_000_000, 'monthly_deduction_cents' => 200_000,
+        ]);
+        reconLateness($tenant, $employee, '2026-06-10', 40, CorrectionStatus::APPROVED);
+
+        $step = reconStep(reconJune($tenant, $finance), $employee, 'lateness');
+
+        expect($step['cap_cents'])->toBe(0)
+            ->and($step['deduction_cents'])->toBe(0)
+            ->and($step['capped'])->toBeTrue();
+    });
+
+    it('lists on the register a payslip whose actual total still passes the third', function () {
+        $tenant = createTenant();
+        reconSettings($tenant, ['lateness_deduction_enabled' => true, 'lateness_deduction_basis' => 'Work rules 12']);
+        $finance = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+        $employee = reconEmployee($tenant, late: '2026-06-10');
+        // A loan already over the third: it was there before lateness was,
+        // and is not cut. The register says so.
+        EmployeeLoan::factory()->create([
+            'tenant_id' => $tenant->id, 'employee_id' => $employee->id,
+            'amount_cents' => 1_000_000, 'remaining_cents' => 1_000_000, 'monthly_deduction_cents' => 200_000,
+        ]);
+
+        $ceiling = app(RunRegisterService::class)->register(reconJune($tenant, $finance))['deduction_ceiling'];
+
+        expect($ceiling['count'])->toBe(1)
+            ->and($ceiling['employees'][0]['ceiling_cents'])->toBe(166_666)
+            ->and($ceiling['employees'][0]['deducted_cents'])->toBe(200_000);
+    });
+
+    it('lists nothing for an organisation that does not deduct lateness', function () {
+        $tenant = createTenant();
+        $finance = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+        $employee = reconEmployee($tenant);
+        EmployeeLoan::factory()->create([
+            'tenant_id' => $tenant->id, 'employee_id' => $employee->id,
+            'amount_cents' => 1_000_000, 'remaining_cents' => 1_000_000, 'monthly_deduction_cents' => 200_000,
+        ]);
+
+        expect(app(RunRegisterService::class)->register(reconJune($tenant, $finance))['deduction_ceiling']['count'])->toBe(0);
     });
 });
 

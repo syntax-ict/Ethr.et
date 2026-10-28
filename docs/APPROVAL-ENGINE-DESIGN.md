@@ -301,6 +301,16 @@ Lateness is deducted only after an organisation switches it on and records its
 basis (`lateness_deduction_enabled`, `lateness_deduction_basis`): Proclamation
 1156/2019 Art. 59 allows deductions from wages only on a stated basis. The
 deduction is basic / 22 / 480 a minute, capped at a third of the period's
-basic. **Open for the accountant (O2):** whether loans and cost sharing count
-toward the same one-third ceiling. Until that is answered, lateness alone is
-capped and nothing else changes.
+basic.
+
+**Decided 2026-10-28 (owner delegated):** the third is one total shared by
+lateness, loans and cost sharing; income tax and pension, which the law itself
+imposes, stay outside it. The reading follows Art. 59 as secondary sources state
+it ("the amount of deduction must not exceed one-third of the monthly wages");
+confirm it against the Negarit Gazette text when the accountant next reviews.
+Loans and cost sharing were deducted before lateness existed and are not cut:
+lateness takes only the headroom they leave. Loan instalments are fixed; cost
+sharing is a share of gross, which is not final when lateness is computed, so it
+is estimated on basic, and the run register lists any payslip whose actual total
+still passes the third (`deduction_ceiling`, shown on the run page before
+approval). Nothing is changed for those payslips.

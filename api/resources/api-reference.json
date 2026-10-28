@@ -30869,6 +30869,12 @@
                                                         "type": "integer",
                                                         "description": "Approved lateness deducted from basic, already in basic_cents. 0\nwhen the organisation does not deduct lateness."
                                                     },
+                                                    "deduction_ceiling_cents": {
+                                                        "type": [
+                                                            "integer",
+                                                            "null"
+                                                        ]
+                                                    },
                                                     "pensionable_cents": {
                                                         "type": "integer",
                                                         "description": "From the log, as applied (2026-10-14). Null on older entries."
@@ -30982,6 +30988,7 @@
                                                     "cost_sharing_cents",
                                                     "net_cents",
                                                     "lateness_cents",
+                                                    "deduction_ceiling_cents",
                                                     "pensionable_cents",
                                                     "pension_exempt",
                                                     "pension_exempt_reason",
@@ -31280,6 +31287,44 @@
                                                 }
                                             ]
                                         },
+                                        "deduction_ceiling": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "employees": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_public_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "employee_name": {
+                                                                "type": "string"
+                                                            },
+                                                            "ceiling_cents": {
+                                                                "type": "integer"
+                                                            },
+                                                            "deducted_cents": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_public_id",
+                                                            "employee_name",
+                                                            "ceiling_cents",
+                                                            "deducted_cents"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "count",
+                                                "employees"
+                                            ]
+                                        },
                                         "reconciliation": {
                                             "type": "object",
                                             "properties": {
@@ -31354,6 +31399,7 @@
                                         "overtime_limits",
                                         "absences",
                                         "integrity",
+                                        "deduction_ceiling",
                                         "reconciliation"
                                     ]
                                 }
