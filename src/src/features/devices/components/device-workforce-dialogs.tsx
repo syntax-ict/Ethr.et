@@ -24,10 +24,13 @@ import {
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { toast } from "sonner";
 import {
   useDeviceEnrollments,
   useImportDeviceHistory,
+  useRequestDeviceEnrollments,
+  type DeviceRoster,
   type HistoryWindow,
   type MatchOutcome,
 } from "../api";
@@ -79,6 +82,13 @@ export function DeviceEnrollmentsDialog({
         <QueryBoundary query={query}>
           {(data) => (
             <div className="space-y-3">
+              {data.roster?.source === "reported" && devicePublicId && (
+                <ReportedRosterBar
+                  devicePublicId={devicePublicId}
+                  roster={data.roster}
+                  total={data.summary.total}
+                />
+              )}
               <div className="flex flex-wrap gap-2">
                 {(["matched", "probable", "ambiguous", "new"] as const).map(
                   (k) => (
@@ -140,6 +150,85 @@ export function DeviceEnrollmentsDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * For a device that reports its list when asked (ZKTeco ADMS): when the list
+ * last arrived, whether a request is waiting, and a way to ask again. The
+ * device never says its list is complete, so the count is shown as a count.
+ */
+function ReportedRosterBar({
+  devicePublicId,
+  roster,
+  total,
+}: {
+  devicePublicId: string;
+  roster: DeviceRoster;
+  total: number;
+}) {
+  const { t } = useT();
+  const { timeAgo } = useDateFormatters();
+  const request = useRequestDeviceEnrollments();
+  const waiting = !!roster.requested_at;
+
+  async function ask() {
+    try {
+      await request.mutateAsync(devicePublicId);
+      toast.success(
+        t(
+          "devices_page.roster_asked",
+          "Asked. The device sends its list at its next check-in, usually within a minute.",
+        ),
+      );
+    } catch {
+      toast.error(
+        t("devices_page.roster_ask_failed", "Could not ask the device"),
+      );
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-0.5">
+        <p className="font-medium">
+          {roster.received_at
+            ? t(
+                "devices_page.roster_received",
+                "People on the device: :count, as last reported :when",
+                { count: total, when: timeAgo(roster.received_at) },
+              )
+            : t(
+                "devices_page.roster_none",
+                "The device has not sent its list yet",
+              )}
+        </p>
+        <p className="text-muted-foreground">
+          {waiting
+            ? t(
+                "devices_page.roster_waiting",
+                "Waiting for the device. This list updates when it answers.",
+              )
+            : t(
+                "devices_page.roster_note",
+                "This device sends its list when asked. Compare the count with the terminal before relying on it.",
+              )}
+        </p>
+      </div>
+      {roster.can_request && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={ask}
+          disabled={request.isPending || waiting}
+        >
+          {(request.isPending || waiting) && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          )}
+          {t("devices_page.roster_ask", "Ask the device again")}
+        </Button>
+      )}
+    </div>
   );
 }
 

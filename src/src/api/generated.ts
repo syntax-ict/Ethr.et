@@ -2479,6 +2479,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/{device}/enrollments/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask a ZKTeco ADMS device again who is enrolled on it. It answers at its
+         *     next check-in, usually within a minute; the enrollments list shows the
+         *     answer once it has arrived. Changes nothing on the device
+         */
+        post: operations["deviceEnrollment.request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/{device}/commands": {
         parameters: {
             query?: never;
@@ -18456,12 +18477,79 @@ export interface operations {
                             ambiguous: string;
                             new: string;
                         };
+                        roster: {
+                            /** @constant */
+                            source: "reported";
+                            received_at: string | null;
+                            requested_at: string | null;
+                            can_request: boolean;
+                        } | {
+                            /** @constant */
+                            source: "live";
+                            received_at: null;
+                            requested_at: null;
+                            can_request: boolean;
+                        };
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deviceEnrollment.request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        roster: {
+                            /** @constant */
+                            source: "reported";
+                            received_at: string | null;
+                            requested_at: string | null;
+                            can_request: boolean;
+                        } | {
+                            /** @constant */
+                            source: "live";
+                            received_at: null;
+                            requested_at: null;
+                            can_request: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This device is read directly, so there is nothing to ask it for. Open the list again to read it now.
+                         */
+                        message: string;
+                    };
+                };
+            };
         };
     };
     "deviceCommand.index": {

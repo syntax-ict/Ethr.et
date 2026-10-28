@@ -301,15 +301,52 @@ export interface DeviceEnrollmentsResponse {
     ambiguous: number;
     new: number;
   };
+  roster: DeviceRoster;
 }
 
-/** Read the people enrolled on a device, each with a suggested employee match. */
+/**
+ * Where the list comes from. `live` is read from the device now. `reported`
+ * (ZKTeco ADMS) is what the device last sent, as of `received_at`; while
+ * `requested_at` is set, a request is waiting for its next check-in.
+ */
+export interface DeviceRoster {
+  source: "live" | "reported";
+  received_at: string | null;
+  requested_at: string | null;
+  can_request: boolean;
+}
+
+const enrollmentsKey = (publicId: string) => [
+  ...keys.detail(publicId),
+  "enrollments",
+];
+
+/**
+ * Read the people enrolled on a device, each with a suggested employee match.
+ * While a reported list has been asked for and not yet answered, it is read
+ * again every 10 seconds; the device answers at its next check-in.
+ */
 export function useDeviceEnrollments(publicId: string | null) {
   return useQuery<DeviceEnrollmentsResponse>({
-    queryKey: [...keys.detail(publicId ?? ""), "enrollments"],
+    queryKey: enrollmentsKey(publicId ?? ""),
     queryFn: async () =>
       (await apiClient.get(`/devices/${publicId}/enrollments`)).data,
     enabled: !!publicId,
+    refetchInterval: (query) =>
+      query.state.data?.roster?.requested_at ? 10_000 : false,
+  });
+}
+
+/** Ask a ZKTeco ADMS device again who is enrolled on it. */
+export function useRequestDeviceEnrollments() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (publicId: string): Promise<{ roster: DeviceRoster }> =>
+      (await apiClient.post(`/devices/${publicId}/enrollments/request`)).data,
+    onSuccess: (_data, publicId) => {
+      queryClient.invalidateQueries({ queryKey: enrollmentsKey(publicId) });
+    },
   });
 }
 
