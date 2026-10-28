@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Enums\AttendanceStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
+use App\Models\Shift;
+use App\Models\ShiftAssignment;
 use App\Models\Tenant;
 use App\Support\TenantTime;
 use Illuminate\Http\UploadedFile;
@@ -136,4 +139,86 @@ test('an unknown stored timezone falls back to Addis Ababa instead of failing', 
     expect(TenantTime::zone(new Tenant(['timezone' => 'Not/AZone'])))->toBe('Africa/Addis_Ababa');
     expect(TenantTime::zone(new Tenant(['timezone' => 'Asia/Dubai'])))->toBe('Asia/Dubai');
     expect(TenantTime::zone(null))->toBe('Africa/Addis_Ababa');
+});
+
+/**
+ * An imported row is read as a live punch on that day is (capture-channel
+ * parity, 2026-10-27). Every row was stored `present` with no shift, so a late
+ * arrival was on time and a workday's overtime counted as nothing; and a night
+ * whose check-out was earlier on the clock than its check-in was stored ending
+ * before it began.
+ */
+function tenantTimezoneShift(Tenant $tenant, Employee $employee, array $attributes): Shift
+{
+    $shift = Shift::factory()->create(['tenant_id' => $tenant->id, 'grace_minutes' => 15, ...$attributes]);
+    ShiftAssignment::factory()->create([
+        'tenant_id' => $tenant->id,
+        'shift_id' => $shift->id,
+        'assignable_type' => Employee::class,
+        'assignable_id' => $employee->id,
+        'effective_from' => '2026-06-01',
+    ]);
+
+    return $shift;
+}
+
+test('an imported night ends the next morning and stays dated the night it began', function () {
+    $tenant = createTenant(['timezone' => 'Africa/Addis_Ababa']);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'TZ-NIGHT']);
+    $shift = tenantTimezoneShift($tenant, $employee, [
+        'start_time' => '22:00', 'end_time' => '06:00', 'crosses_midnight' => true, 'working_days' => '1,2,3,4,5,6,7',
+    ]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/import/commit", [
+        'import_key' => 'tz-import-night',
+        'rows' => [['employee_code' => 'TZ-NIGHT', 'date' => '2026-06-15', 'check_in' => '21:58', 'check_out' => '07:30']],
+    ])->assertCreated()->assertJsonPath('created', 1);
+
+    $record = AttendanceRecord::where('employee_id', $employee->id)->sole();
+    expect($record->date->format('Y-m-d'))->toBe('2026-06-15')
+        ->and($record->check_in->utc()->format('Y-m-d H:i'))->toBe('2026-06-15 18:58')
+        ->and($record->check_out->utc()->format('Y-m-d H:i'))->toBe('2026-06-16 04:30')
+        ->and($record->shift_id)->toBe($shift->id)
+        ->and($record->status)->toBe(AttendanceStatus::PRESENT);
+});
+
+test('an imported row is rated against the shift of its day', function (string $in, string $out, AttendanceStatus $expected) {
+    $tenant = createTenant(['timezone' => 'Africa/Addis_Ababa']);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'TZ-RATE']);
+    $shift = tenantTimezoneShift($tenant, $employee, [
+        'start_time' => '08:00', 'end_time' => '17:00', 'early_departure_minutes' => 15, 'working_days' => '1,2,3,4,5',
+    ]);
+
+    // 2026-06-15 is a Monday.
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/import/commit", [
+        'import_key' => 'tz-import-rate',
+        'rows' => [['employee_code' => 'TZ-RATE', 'date' => '2026-06-15', 'check_in' => $in, 'check_out' => $out]],
+    ])->assertCreated()->assertJsonPath('created', 1);
+
+    $record = AttendanceRecord::where('employee_id', $employee->id)->sole();
+    expect($record->shift_id)->toBe($shift->id)
+        ->and($record->status)->toBe($expected);
+})->with([
+    'on time' => ['08:10', '17:00', AttendanceStatus::PRESENT],
+    'forty minutes late' => ['08:40', '18:00', AttendanceStatus::LATE],
+    'left an hour early' => ['08:00', '16:00', AttendanceStatus::EARLY_LEAVE],
+]);
+
+test('an imported row with no shift to be rated against is pending, as a live punch is', function () {
+    $tenant = createTenant(['timezone' => 'Africa/Addis_Ababa']);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'TZ-NOSHIFT']);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/import/commit", [
+        'import_key' => 'tz-import-no-shift',
+        'rows' => [['employee_code' => 'TZ-NOSHIFT', 'date' => '2026-06-15', 'check_in' => '08:00', 'check_out' => '17:00']],
+    ])->assertCreated()->assertJsonPath('created', 1);
+
+    // `present` hid the missing shift set-up from AttendanceHealth, which
+    // counts the week's `pending` punches.
+    $record = AttendanceRecord::where('employee_id', $employee->id)->sole();
+    expect($record->shift_id)->toBeNull()
+        ->and($record->status)->toBe(AttendanceStatus::PENDING);
 });
