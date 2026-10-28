@@ -12440,8 +12440,8 @@ export interface operations {
                         default_state: string;
                         reason: string | null;
                         changed_at: string | null;
-                        grants: string | 0;
-                        revokes: string | 0;
+                        grants: number;
+                        revokes: number;
                     };
                 };
             };
