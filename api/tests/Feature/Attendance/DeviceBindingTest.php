@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use App\Enums\AttendanceMode;
 use App\Enums\AttendanceSource;
+use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceDevice;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
+use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\BranchAttendanceOverride;
 use App\Models\Employee;
@@ -324,4 +326,89 @@ test('HR sets and ends an employee\'s exemption, and a date in the past is refus
     test()->getJson(dbUrl($tenant, "employees/{$employee->public_id}"))->assertJsonPath('attendance_device_exempt_until', '2026-11-15');
     test()->putJson($url, ['until' => '2026-10-01'])->assertStatus(422);
     test()->putJson($url, ['until' => null])->assertOk()->assertJsonPath('exempt_until', null);
+});
+
+test('a leaver\'s phone is revoked and can be registered by the colleague it is handed to', function () {
+    [$tenant, $employee, , $branch] = dbOrganisation();
+    dbRegister($tenant, new SoftAuthenticator, install: 'handed-on')->assertCreated();
+    dbRegister($tenant, new SoftAuthenticator, install: 'second')->assertCreated()->assertJsonPath('status', 'pending');
+
+    $employee->forceFill(['status' => EmployeeStatus::RESIGNED])->save();
+
+    expect(AttendanceDevice::where('employee_id', $employee->id)->pluck('status')->sort()->values()->all())->toBe(['rejected', 'revoked']);
+
+    $colleague = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $colleague->id], $tenant));
+    dbRegister($tenant, new SoftAuthenticator, install: 'handed-on')->assertCreated()->assertJsonPath('status', 'active');
+});
+
+test('a phone left active by someone who left before the rule never blocks a colleague', function () {
+    [$tenant, $employee, , $branch] = dbOrganisation();
+    dbRegister($tenant, new SoftAuthenticator, install: 'old-phone')->assertCreated();
+    Employee::withoutEvents(fn () => $employee->forceFill(['status' => EmployeeStatus::TERMINATED])->save());
+
+    $colleague = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $colleague->id], $tenant));
+
+    dbRegister($tenant, new SoftAuthenticator, install: 'old-phone')->assertCreated();
+});
+
+test('coverage counts the people who work here now, and lists who still has no phone', function () {
+    [$tenant, $employee, , $branch] = dbOrganisation();
+    dbRegister($tenant, new SoftAuthenticator)->assertCreated();
+    $leaver = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+    AttendanceDevice::query()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $leaver->id, 'credential_id' => 'l', 'credential_id_hash' => AttendanceDevice::hashCredential('l'),
+        'public_key' => 'l', 'rp_id' => 'ethr.test', 'status' => 'active',
+    ]);
+    Employee::withoutEvents(fn () => $leaver->forceFill(['status' => EmployeeStatus::RETIRED])->save());
+
+    $missing = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'name' => 'Abebe Missing']);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'attendance_device_exempt_until' => '2026-11-10']);
+    $kioskBranch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    BranchAttendanceOverride::query()->create(['tenant_id' => $tenant->id, 'branch_id' => $kioskBranch->id, 'overrides' => ['enabled_methods' => ['kiosk', 'biometric']]]);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $kioskBranch->id]);
+    $offBranch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    BranchAttendanceOverride::query()->create(['tenant_id' => $tenant->id, 'branch_id' => $offBranch->id, 'overrides' => ['device_binding' => 'off']]);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $offBranch->id]);
+
+    test()->actingAs(createUser(['role' => UserRole::HR_ADMIN], $tenant));
+    test()->getJson(dbUrl($tenant, 'attendance/devices'))->assertOk()
+        ->assertJsonPath('coverage.employees', 5)
+        ->assertJsonPath('coverage.registered', 1)
+        ->assertJsonPath('coverage.checked', 2)
+        ->assertJsonPath('coverage.missing', 1);
+
+    test()->getJson(dbUrl($tenant, 'attendance/devices/unregistered'))->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.public_id', $missing->public_id)
+        ->assertJsonPath('data.0.has_pending_phone', false);
+});
+
+test('a waiting replacement shows the phone it replaces, and approvers are told it is waiting', function () {
+    [$tenant] = dbOrganisation();
+    $hr = createUser(['role' => UserRole::HR_ADMIN], $tenant);
+    dbRegister($tenant, new SoftAuthenticator)->assertCreated();
+    dbRegister($tenant, new SoftAuthenticator, install: 'install-b')->assertCreated()->assertJsonPath('status', 'pending');
+
+    expect($hr->notifications()->sole()->data)
+        ->toMatchArray(['replacing' => true, 'url' => '/attendance/devices']);
+
+    test()->actingAs($hr);
+    test()->getJson(dbUrl($tenant, 'attendance/devices?status=pending'))->assertOk()
+        ->assertJsonPath('data.0.replaces.label', 'Test phone');
+});
+
+test('revoking and refusing take a reason, which is audited and told to the employee', function () {
+    [$tenant, $employee, $user] = dbOrganisation();
+    $active = dbRegister($tenant, new SoftAuthenticator)->json('public_id');
+    $waiting = dbRegister($tenant, new SoftAuthenticator, install: 'install-b')->json('public_id');
+
+    test()->actingAs(createUser(['role' => UserRole::HR_ADMIN], $tenant));
+    test()->postJson(dbUrl($tenant, "attendance/devices/{$waiting}/reject"), ['reason' => 'Not your phone'])->assertOk()->assertJsonPath('status', 'rejected');
+    test()->deleteJson(dbUrl($tenant, "attendance/devices/{$active}"), ['reason' => 'Reported lost'])->assertOk()->assertJsonPath('status', 'revoked');
+    test()->deleteJson(dbUrl($tenant, "attendance/devices/{$active}"))->assertStatus(409);
+
+    expect(AuditLog::where('action', 'attendance.device_revoked')->sole()->payload['reason'])->toBe('Reported lost')
+        ->and($user->notifications()->pluck('data')->pluck('reason')->sort()->values()->all())->toBe(['Not your phone', 'Reported lost']);
 });

@@ -45,7 +45,7 @@ class ConcernController extends Controller
         $code = $anonymous ? self::newCode() : null;
 
         $concern = Concern::query()->create([
-            'tenant_id' => app(CurrentTenant::class)->get()->id,
+            'tenant_id' => app(CurrentTenant::class)->requireId(),
             'reporter_user_id' => $anonymous ? null : $request->user()?->id,
             'anonymous' => $anonymous,
             'tracking_hash' => $code === null ? null : Concern::hashCode($code),
