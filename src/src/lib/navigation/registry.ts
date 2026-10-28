@@ -39,6 +39,7 @@ import {
   Settings,
   Shield,
   ShieldAlert,
+  ToggleRight,
   TrendingUp,
   Upload,
   UserCircle,
@@ -187,6 +188,14 @@ const PLATFORM_CHILDREN: Destination[] = [
     labelKey: "nav.sms_delivery",
     labelFallback: "SMS delivery",
     icon: MessageSquareText,
+    show: (c) => c.can.viewAdminConsole,
+  },
+  {
+    id: "feature_controls",
+    href: "/admin/features",
+    labelKey: "nav.feature_controls",
+    labelFallback: "Features",
+    icon: ToggleRight,
     show: (c) => c.can.viewAdminConsole,
   },
   {
