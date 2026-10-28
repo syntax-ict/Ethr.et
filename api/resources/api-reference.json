@@ -3750,7 +3750,7 @@
                     "attendance"
                 ],
                 "operationId": "attendanceDevice.index",
-                "summary": "GET /attendance/devices: registered and waiting phones, with how many people have one",
+                "summary": "GET /attendance/devices: registered and waiting phones, with how many\npeople have one. A waiting replacement carries the phone it replaces",
                 "tags": [
                     "Attendance"
                 ],
@@ -3768,6 +3768,7 @@
                                 "pending",
                                 "revoked",
                                 "rejected",
+                                "closed",
                                 null
                             ]
                         }
@@ -3824,12 +3825,22 @@
                                                 "pending": {
                                                     "type": "integer",
                                                     "minimum": 0
+                                                },
+                                                "checked": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "missing": {
+                                                    "type": "integer",
+                                                    "minimum": 0
                                                 }
                                             },
                                             "required": [
                                                 "employees",
                                                 "registered",
-                                                "pending"
+                                                "pending",
+                                                "checked",
+                                                "missing"
                                             ]
                                         }
                                     },
@@ -3837,6 +3848,68 @@
                                         "data",
                                         "coverage"
                                     ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/attendance/devices/unregistered": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "attendance"
+                ],
+                "operationId": "attendanceDevice.unregistered",
+                "summary": "GET /attendance/devices/unregistered: the people whose phone is checked\nand who have none registered yet, the ones a switch to enforce would\nstop. Someone with a phone waiting for approval is marked as such",
+                "tags": [
+                    "Attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 100
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `UnregisteredEmployeeResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/UnregisteredEmployeeResource"
+                                    }
                                 }
                             }
                         }
@@ -3872,6 +3945,17 @@
                         "description": "The device public id",
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "name": "reason",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 300
                         }
                     }
                 ],
@@ -3920,6 +4004,28 @@
                             }
                         }
                     },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "This phone is not registered now."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     },
@@ -3928,6 +4034,9 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -4055,6 +4164,15 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DecideAttendanceDeviceRequest"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "`AttendanceDeviceResource`",
@@ -4130,6 +4248,9 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -40134,6 +40255,47 @@
                             "null"
                         ]
                     },
+                    "revoked_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "replaces": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "label": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "synced_passkey": {
+                                "type": "boolean"
+                            },
+                            "created_at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "last_used_at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "label",
+                            "synced_passkey",
+                            "created_at",
+                            "last_used_at"
+                        ]
+                    },
                     "employee": {
                         "type": "object",
                         "properties": {
@@ -40165,7 +40327,8 @@
                     "enrolled_inside_geofence",
                     "created_at",
                     "last_used_at",
-                    "approved_at"
+                    "approved_at",
+                    "revoked_at"
                 ],
                 "title": "AttendanceDeviceResource"
             },
@@ -41856,6 +42019,20 @@
                     "cancelled"
                 ],
                 "title": "CostSharingStatus"
+            },
+            "DecideAttendanceDeviceRequest": {
+                "type": "object",
+                "description": "Refusing or revoking a phone. The reason is optional; when given it is\nkept in the audit log and told to the employee.",
+                "properties": {
+                    "reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 300
+                    }
+                },
+                "title": "DecideAttendanceDeviceRequest"
             },
             "DecideRetirementCaseRequest": {
                 "type": "object",
@@ -50081,6 +50258,47 @@
                     "effective_date"
                 ],
                 "title": "TransitionEmployeeRequest"
+            },
+            "UnregisteredEmployeeResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "employee_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "branch": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "has_pending_phone": {
+                        "type": "boolean"
+                    },
+                    "exempt_until": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "name",
+                    "employee_code",
+                    "branch",
+                    "has_pending_phone",
+                    "exempt_until"
+                ],
+                "title": "UnregisteredEmployeeResource"
             },
             "UpdateAccessRequest": {
                 "type": "object",
