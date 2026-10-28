@@ -7,6 +7,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { ReconcilePanel } from "@/features/payroll/components/reconcile-panel";
 import { ReconciliationBanner } from "@/features/payroll/components/reconciliation-banner";
+import { DeductionCeilingBanner } from "@/features/payroll/components/deduction-ceiling-banner";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
 
 vi.mock("sonner", () => ({
@@ -193,6 +194,36 @@ describe("<ReconciliationBanner>", () => {
       { wrapper: wrapper() },
     );
 
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("<DeductionCeilingBanner>", () => {
+  it("lists a payslip whose deductions pass a third of basic, and nothing when none do", () => {
+    const { rerender, container } = render(
+      <DeductionCeilingBanner
+        ceiling={{
+          count: 1,
+          employees: [
+            {
+              employee_public_id: "01HZEMP0000000000000000001",
+              employee_name: "Abebe Kebede",
+              ceiling_cents: 166_666,
+              deducted_cents: 200_000,
+            },
+          ],
+        }}
+      />,
+      { wrapper: wrapper() },
+    );
+
+    expect(
+      screen.getByText(/1 payslip\(s\) deduct more than a third of basic pay/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("2,000.00 ETB")).toBeInTheDocument();
+    expect(screen.getByText("1,666.66 ETB")).toBeInTheDocument();
+
+    rerender(<DeductionCeilingBanner ceiling={{ count: 0, employees: [] }} />);
     expect(container).toBeEmptyDOMElement();
   });
 });

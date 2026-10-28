@@ -178,7 +178,12 @@ export interface PayrollRegister {
   integrity?: PayrollIntegrity;
   /** Live: where the period's attendance reconciliation stands now. */
   reconciliation?: RegisterReconciliation;
+  /** Payslips whose lateness, loan and cost-sharing deductions pass a third of basic. */
+  deduction_ceiling?: DeductionCeiling;
 }
+
+export type DeductionCeiling =
+  operations["payroll.register"]["responses"][200]["content"]["application/json"]["deduction_ceiling"];
 
 export type RegisterReconciliation =
   operations["payroll.register"]["responses"][200]["content"]["application/json"]["reconciliation"];
