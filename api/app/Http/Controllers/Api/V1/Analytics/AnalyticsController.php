@@ -23,7 +23,7 @@ class AnalyticsController extends Controller
         Gate::authorize('dashboard.executive');
 
         [$from, $to] = $this->dateRange($request);
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
 
         $sort = $request->input('sort', 'headcount');
         $data = $service->compare($tenantId, $from, $to);
@@ -44,7 +44,7 @@ class AnalyticsController extends Controller
         $branchId = ExecutiveBranchScope::resolve($request);
 
         [$from, $to] = $this->dateRange($request);
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
 
         return response()->json($service->detail($tenantId, $department, $from, $to, $branchId));
     }
@@ -54,7 +54,7 @@ class AnalyticsController extends Controller
         Gate::authorize('dashboard.executive');
 
         [$from, $to] = $this->dateRange($request);
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
 
         return response()->json(['branches' => $service->compare($tenantId, $from, $to)]);
     }
@@ -63,7 +63,7 @@ class AnalyticsController extends Controller
     {
         Gate::authorize('dashboard.executive');
 
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
 
         return response()->json($service->detail($tenantId, $branch));
     }

@@ -35,7 +35,7 @@ class AccountingController extends Controller
     {
         Gate::authorize('payroll.viewAll');
 
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
 
         $saved = ChartOfAccount::where('tenant_id', $tenantId)
             ->get()
@@ -59,7 +59,7 @@ class AccountingController extends Controller
     {
         Gate::authorize('payroll.viewAll');
 
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
 
         foreach ($request->input('accounts') as $item) {
             ChartOfAccount::updateOrCreate(
