@@ -6,7 +6,7 @@
 | System under test | Production: `https://www.ethr.et` (apex and organisation addresses), `https://admin.ethr.et` (platform console) |
 | Release under test | The release tag being verified, `vYYYY.MM.DD.N`. Read it from `https://www.ethr.et/release.json` before starting |
 | Document owner | Product owner (Syntax ICT) |
-| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 from `main` at `c9cfc1282` (section 2.3) |
+| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 and 2026-10-29 from `main` at `87d12d4d0` (section 2.3) |
 | Companion documents | [UAT guide](02-UAT-GUIDE.md), E2E specifications 03 to 09, [templates](10-TEMPLATES-AND-REFERENCE.md) |
 
 ---
@@ -57,7 +57,7 @@ no shell on the host, and the only server-side window is the public health endpo
 
 ### 2.3 Changes since the first edition
 
-Merged on `main` between `c2f86e234` and `c9cfc1282`. **Check `/release.json` (S-01) before running
+Merged on `main` between `c2f86e234` and `87d12d4d0`. **Check `/release.json` (S-01) before running
 these cases: a merged change is not necessarily deployed.** A case for a change that is not live is
 recorded as Blocked, not Fail.
 
@@ -84,6 +84,9 @@ recorded as Blocked, not Fail.
 | Animated landing stories | #424 | MKT-010 to MKT-012, CON-P-013 |
 | web-push 11 | #436 | PUSH-003 |
 | One feature gate over the plan (no visible change; switches have no screen yet) | #460 | PLAN-014 to PLAN-018 |
+| Health times survive a release's cache clear | #454 | OPC-008 |
+| Invitations for many people sent from the queue, with progress, reminders and the Not activated filter; a person with only a phone activated in person | #458 | INV-001 to INV-013, EMP-015, IMP-E-004, IMP-E-014, ACT-008, CON-P-023, ISO-013 |
+| Logins for employees brought in from a device, and the hire-date warning | #462 | MIG-001 to MIG-009, UAT-H13 |
 
 ## 3. Approach
 
@@ -191,7 +194,7 @@ builds it step by step):
 | Shifts | S1 "QA Day" 08:30 to 17:30, grace 15, early departure 15, Monday to Friday; S2 "QA Night" 22:00 to 06:00 crossing midnight |
 | Leave types | The defaults from the setup wizard (annual 16 days, sick 30, maternity 120, paternity 3 and so on) |
 | Holidays | Auto-detected for the current year |
-| Employees | The persona employees above, plus E-PAY-1 to E-PAY-8 with the golden-payslip salaries in [07, section 2](07-E2E-PAYROLL.md#2-golden-payslips); E-REC-1 (basic 6,600.00) and E-LATE-1 to E-LATE-3 (basic 8,800.00) for [07, sections 8 and 9](07-E2E-PAYROLL.md#8-attendance-reconciliation-before-payroll); E-NC, with no email and no phone (EMP-014) |
+| Employees | The persona employees above, plus E-PAY-1 to E-PAY-8 with the golden-payslip salaries in [07, section 2](07-E2E-PAYROLL.md#2-golden-payslips); E-REC-1 (basic 6,600.00) and E-LATE-1 to E-LATE-3 (basic 8,800.00) for [07, sections 8 and 9](07-E2E-PAYROLL.md#8-attendance-reconciliation-before-payroll); E-NC, with no email and no phone (EMP-014); E-PH, with a phone and no email (EMP-015) |
 | Work site | "QA-Site North" at `9.0300, 38.7400`, radius 200 m, open to EMP2 and D1 (PLACE-001) |
 | Test files | A CSV employee import of 5 rows; an attendance import of 5 rows; a 1.4 MB JPEG; a 2.5 MB PDF; a 3 MB JPEG; a `.exe` renamed to `.pdf`; a 960 px and a 600 px wide JPEG; an Amharic CSV saved as UTF-8 with a byte order mark |
 
@@ -341,4 +344,5 @@ At the end of the pass:
 | The release steps were not run | New features 404 | Entry criterion 7.1 |
 | A paid run cannot be voided | Its period can never be run again in QA Audit | Record payment only on the last run of a pass (PAID-001), and use new periods next time |
 | QA organisations are public by default | QA names under "Trusted by" and in search results | LAND-007 before the pass |
+| The bulk resend emails every invited login | Invitations reach people outside the team | Run INV-002 on QA Audit only, after INV-001 shows only team addresses |
 | A merged change is not yet deployed | Cases fail for a feature that is not live | Check `/release.json` against section 2.3 first; record Blocked |
