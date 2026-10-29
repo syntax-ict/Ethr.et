@@ -11,6 +11,15 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-28, feature control console: two more, both in `Services/Features/
+ * FeatureControls`, the console's writes. `overridesOf()` reads one
+ * organisation's grants and revokes on the platform host, where no tenant is
+ * resolved and the fail-closed scope would find none, so an update would
+ * insert a second row; it states `tenant_id` from the organisation in the
+ * route. `overrideCounts()` counts unexpired grants and revokes per feature
+ * across every organisation for the console overview, by intent, and returns
+ * only the key, the mode and a count. 177/71.)
+ *
  * (2026-10-28, feature control center: one more. `Services/Features/
  * FeatureGate` reads an organisation's feature grants and revokes. The
  * platform console asks about organisations other than the resolved one, and
@@ -283,6 +292,10 @@ return [
     'Services/Device/AdmsDeviceResolver.php' => 1,
     // Feature control center (2026-10-28): an organisation's grants and
     // revokes, read for the tenant in hand, stating `tenant_id` on the chain.
+    // Feature control console (2026-10-28): one organisation's overrides,
+    // stating `tenant_id`; and per-feature counts across every organisation
+    // for the overview, by intent.
+    'Services/Features/FeatureControls.php' => 2,
     'Services/Features/FeatureGate.php' => 1,
     'Services/Holiday/HolidayService.php' => 2,
     'Services/Identity/IdentityResolver.php' => 2,

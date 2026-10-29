@@ -74,6 +74,7 @@ import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
 import { orgTypeLabel } from "@/features/settings/org-type-label";
 import { DeleteTenantDialog } from "./delete-tenant-dialog";
+import { TenantFeaturesCard } from "./tenant-features-card";
 
 /** The shared host an organisation on the shared address is reached through. */
 const SHARED_HOST = new URL(SITE_URL).host;
@@ -1059,6 +1060,12 @@ function TenantDetail({ id }: { id: string }) {
             )}
           </div>
         )}
+
+        <TenantFeaturesCard
+          publicId={tenant.public_id}
+          name={tenant.name}
+          readOnly={writesBlocked || isDeleted}
+        />
 
         {/* Invoice history. Always shown: hiding the card when there were no
             invoices left "none yet" and "not loaded" looking the same

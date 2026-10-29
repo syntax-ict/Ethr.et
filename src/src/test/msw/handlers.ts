@@ -78,4 +78,9 @@ export const handlers = [
       buildEmployee({ public_id: params.publicId as string }),
     );
   }),
+  // The console's organisation page lists the feature switches for it
+  // (TenantFeaturesCard); none, unless a test says otherwise.
+  http.get("*/api/v1/admin/tenants/:publicId/features", () =>
+    HttpResponse.json({ data: [] }),
+  ),
 ];

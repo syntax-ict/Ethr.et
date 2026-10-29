@@ -23,6 +23,7 @@ import {
   type AdminPlan,
 } from "@/features/admin/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { FEATURE_LABEL_FALLBACK } from "@/features/admin/features";
 import { useT } from "@/lib/i18n/useT";
 import type { components } from "@/api/generated";
 
@@ -30,7 +31,7 @@ type PlanFeature = components["schemas"]["PlanFeature"];
 
 /**
  * App\Enums\PlanFeature, each the gate on a group of routes
- * (RequiresPlanFeature). Neither creating nor editing a plan could set them,
+ * (RequiresFeature). Neither creating nor editing a plan could set them,
  * so a plan's features were whatever the seeder wrote (audit N101).
  */
 const PLAN_FEATURES: readonly PlanFeature[] = [
@@ -46,20 +47,6 @@ const PLAN_FEATURES: readonly PlanFeature[] = [
   "webhooks",
   "custom_domain",
 ];
-
-const FEATURE_FALLBACK: Record<PlanFeature, string> = {
-  employee_management: "Employee management",
-  attendance: "Attendance",
-  leave: "Leave",
-  notifications: "Notifications",
-  payroll: "Payroll",
-  reports: "Reports",
-  custom_reports: "Custom reports",
-  audit_log: "Audit log",
-  api_access: "API access",
-  webhooks: "Webhooks",
-  custom_domain: "Custom domain (add-on)",
-};
 
 /**
  * Super-admin editor for the plan catalog the public pricing page renders.
@@ -484,7 +471,10 @@ function FeatureChecklist({
                 }
               />
               <Label htmlFor={id} className="font-normal">
-                {t(`admin_plans.feature.${feature}`, FEATURE_FALLBACK[feature])}
+                {t(
+                  `admin_plans.feature.${feature}`,
+                  FEATURE_LABEL_FALLBACK[feature],
+                )}
               </Label>
             </div>
           );
