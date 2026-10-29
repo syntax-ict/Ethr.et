@@ -62,7 +62,7 @@ Run read-only from this machine with `curl`, one request every 20 seconds after 
 | OPS-001 | Pass | 07:15 | Healthy; four queues at depth 0, last drain 07:15:04Z, `failed_jobs` 0. `mail_detail` all null |
 | PUSH-005 | Pass | 07:18 | `/attendance/mobile` CSP allows `'wasm-unsafe-eval'` (not `'unsafe-eval'`), `storage.googleapis.com`, `nominatim.openstreetmap.org` |
 | PWA-001 | Pass with finding | 07:18 | Manifest loads: standalone, start URL `/dashboard?source=pwa`; `/app-icons/icon-192.png` 200 PNG. Its name is "ETHR — Ethiopian Workforce OS" (F-06) |
-| UI-001 | Not run | 07:20 | Public pages at 375 px in the built-in browser: the pane was hidden and scripts timed out |
+| UI-001 | Pass (public pages) | 07:20, later | First try failed: the built-in browser's pane was hidden and scripts timed out. Re-run with the pane open at 375 px: `/en`, `/am`, `/en/pricing` and `syntaxtech.ethr.et/login` each 375 px wide, no horizontal scroll; the sign-in page stacks cleanly in one column. The signed-in screens (dashboard, mobile check-in, leave, payslips, approvals) are not checked: they need a QA account, and the only signed-in browser holds a real person's account |
 
 ## Findings
 
