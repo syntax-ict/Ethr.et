@@ -108,6 +108,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/support-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /admin/support-requests */
+        get: operations["adminSupport.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/support-requests/{supportRequest}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /admin/support-requests/{id} */
+        get: operations["adminSupport.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/support-requests/{supportRequest}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /admin/support-requests/{id}/messages - ETHR answers */
+        post: operations["adminSupport.message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/support-requests/{supportRequest}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /admin/support-requests/{id}/resolve */
+        post: operations["adminSupport.resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/alert-thresholds": {
         parameters: {
             query?: never;
@@ -7464,6 +7532,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/support-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /support-requests - every request in the organisation, for support.manage */
+        get: operations["supportRequest.index"];
+        put?: never;
+        /** POST /support-requests */
+        post: operations["supportRequest.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/support-requests/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /support-requests/mine - the caller's own requests, newest activity first */
+        get: operations["supportRequest.mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/support-requests/{supportRequest}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /support-requests/{id} - the person who asked, or support.manage */
+        get: operations["supportRequest.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/support-requests/{supportRequest}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /support-requests/{id}/messages */
+        post: operations["supportRequest.message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/support-requests/{supportRequest}/escalate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /support-requests/{id}/escalate - pass it to ETHR, support.manage only */
+        post: operations["supportRequest.escalate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/support-requests/{supportRequest}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /support-requests/{id}/resolve - the person who asked, or support.manage */
+        post: operations["supportRequest.resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/settings/branding/assets/{kind}": {
         parameters: {
             query?: never;
@@ -9152,6 +9323,10 @@ export interface components {
         EndShiftAssignmentRequest: {
             /** Format: date */
             effective_to: string;
+        };
+        /** EscalateSupportRequest */
+        EscalateSupportRequest: {
+            note?: string | null;
         };
         /** ExitClearanceItemResource */
         ExitClearanceItemResource: {
@@ -11246,6 +11421,31 @@ export interface components {
                 label: string;
             }[];
         };
+        /** StoreSupportRequest */
+        StoreSupportRequest: {
+            /** @enum {string} */
+            category: "sign_in" | "attendance" | "leave" | "payroll" | "employees" | "devices" | "billing" | "other";
+            body: string;
+            /** @enum {string} */
+            send_to?: "organisation" | "ethr";
+            include_context?: boolean;
+            context: {
+                page?: string | null;
+                locale?: string | null;
+                viewport?: string | null;
+                online?: boolean | null;
+                pending_offline?: number | null;
+                recent_errors?: {
+                    /** @enum {string} */
+                    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+                    path: string;
+                    status: number;
+                    type?: string | null;
+                    /** Format: date-time */
+                    at?: string | null;
+                }[] | null;
+            };
+        };
         /** StoreTeamRequest */
         StoreTeamRequest: {
             name: string;
@@ -11273,6 +11473,10 @@ export interface components {
             /** Format: uri */
             url: string;
             events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
+        };
+        /** SupportMessageRequest */
+        SupportMessageRequest: {
+            body: string;
         };
         /** TaxBracketResource */
         TaxBracketResource: {
@@ -12634,6 +12838,229 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminSupport.index": {
+        parameters: {
+            query?: {
+                "filter[status]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: unknown[];
+                        meta: {
+                            current_page: number;
+                            last_page: number;
+                            per_page: number;
+                            total: number;
+                        };
+                        counts: {
+                            [key: string]: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminSupport.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                supportRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        /**
+                         * @description Who is reading: the person who asked reads their own request as
+                         *     theirs even when they also hold support.manage.
+                         * @constant
+                         */
+                        viewer: "ethr";
+                        category: string;
+                        body: string;
+                        status: string;
+                        handled_by: string;
+                        requester: {
+                            name: string;
+                            email: string | null;
+                            role: string | null;
+                        } | null;
+                        escalated_at: string | null;
+                        escalated_by_name: string | null;
+                        escalation_note: string | null;
+                        context: {
+                            [key: string]: unknown;
+                        } | null;
+                        organisation: {
+                            public_id: string;
+                            name: string;
+                            subdomain: string;
+                        } | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminSupport.message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                supportRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportMessageRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        /**
+                         * @description Who is reading: the person who asked reads their own request as
+                         *     theirs even when they also hold support.manage.
+                         * @constant
+                         */
+                        viewer: "ethr";
+                        category: string;
+                        body: string;
+                        status: string;
+                        handled_by: string;
+                        requester: {
+                            name: string;
+                            email: string | null;
+                            role: string | null;
+                        } | null;
+                        escalated_at: string | null;
+                        escalated_by_name: string | null;
+                        escalation_note: string | null;
+                        context: {
+                            [key: string]: unknown;
+                        } | null;
+                        organisation: {
+                            public_id: string;
+                            name: string;
+                            subdomain: string;
+                        } | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminSupport.resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                supportRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        /**
+                         * @description Who is reading: the person who asked reads their own request as
+                         *     theirs even when they also hold support.manage.
+                         * @constant
+                         */
+                        viewer: "ethr";
+                        category: string;
+                        body: string;
+                        status: string;
+                        handled_by: string;
+                        requester: {
+                            name: string;
+                            email: string | null;
+                            role: string | null;
+                        } | null;
+                        escalated_at: string | null;
+                        escalated_by_name: string | null;
+                        escalation_note: string | null;
+                        context: {
+                            [key: string]: unknown;
+                        } | null;
+                        organisation: {
+                            public_id: string;
+                            name: string;
+                            subdomain: string;
+                        } | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "alertThreshold.index": {
@@ -32863,6 +33290,410 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "supportRequest.index": {
+        parameters: {
+            query?: {
+                "filter[status]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: unknown[];
+                        meta: {
+                            current_page: number;
+                            last_page: number;
+                            per_page: number;
+                            total: number;
+                        };
+                        counts: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "supportRequest.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreSupportRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        /**
+                         * @description Who is reading: the person who asked reads their own request as
+                         *     theirs even when they also hold support.manage.
+                         * @constant
+                         */
+                        viewer: "requester";
+                        category: string;
+                        body: string;
+                        status: string;
+                        handled_by: string;
+                        requester: {
+                            name: string;
+                            email: string | null;
+                            role: string | null;
+                        } | null;
+                        escalated_at: string | null;
+                        escalated_by_name: string | null;
+                        escalation_note: string | null;
+                        context: {
+                            [key: string]: unknown;
+                        } | null;
+                        organisation: {
+                            public_id: string;
+                            name: string;
+                            subdomain: string;
+                        } | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example Only your organisation's support people can send a request straight to ETHR.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "supportRequest.mine": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: unknown[];
+                        meta: {
+                            current_page: number;
+                            last_page: number;
+                            per_page: number;
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "supportRequest.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                supportRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        /**
+                         * @description Who is reading: the person who asked reads their own request as
+                         *     theirs even when they also hold support.manage.
+                         */
+                        viewer: string;
+                        category: string;
+                        body: string;
+                        status: string;
+                        handled_by: string;
+                        requester: {
+                            name: string;
+                            email: string | null;
+                            role: string | null;
+                        } | null;
+                        escalated_at: string | null;
+                        escalated_by_name: string | null;
+                        escalation_note: string | null;
+                        context: {
+                            [key: string]: unknown;
+                        } | null;
+                        organisation: {
+                            public_id: string;
+                            name: string;
+                            subdomain: string;
+                        } | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "supportRequest.message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                supportRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportMessageRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        /**
+                         * @description Who is reading: the person who asked reads their own request as
+                         *     theirs even when they also hold support.manage.
+                         */
+                        viewer: string;
+                        category: string;
+                        body: string;
+                        status: string;
+                        handled_by: string;
+                        requester: {
+                            name: string;
+                            email: string | null;
+                            role: string | null;
+                        } | null;
+                        escalated_at: string | null;
+                        escalated_by_name: string | null;
+                        escalation_note: string | null;
+                        context: {
+                            [key: string]: unknown;
+                        } | null;
+                        organisation: {
+                            public_id: string;
+                            name: string;
+                            subdomain: string;
+                        } | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "supportRequest.escalate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                supportRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EscalateSupportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        /**
+                         * @description Who is reading: the person who asked reads their own request as
+                         *     theirs even when they also hold support.manage.
+                         * @constant
+                         */
+                        viewer: "organisation";
+                        category: string;
+                        body: string;
+                        status: string;
+                        handled_by: string;
+                        requester: {
+                            name: string;
+                            email: string | null;
+                            role: string | null;
+                        } | null;
+                        escalated_at: string | null;
+                        escalated_by_name: string | null;
+                        escalation_note: string | null;
+                        context: {
+                            [key: string]: unknown;
+                        } | null;
+                        organisation: {
+                            public_id: string;
+                            name: string;
+                            subdomain: string;
+                        } | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This request is already with ETHR support.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "supportRequest.resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                supportRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        /**
+                         * @description Who is reading: the person who asked reads their own request as
+                         *     theirs even when they also hold support.manage.
+                         */
+                        viewer: string;
+                        category: string;
+                        body: string;
+                        status: string;
+                        handled_by: string;
+                        requester: {
+                            name: string;
+                            email: string | null;
+                            role: string | null;
+                        } | null;
+                        escalated_at: string | null;
+                        escalated_by_name: string | null;
+                        escalation_note: string | null;
+                        context: {
+                            [key: string]: unknown;
+                        } | null;
+                        organisation: {
+                            public_id: string;
+                            name: string;
+                            subdomain: string;
+                        } | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        resolved_at: string | null;
+                        messages: {
+                            public_id: string;
+                            author: string;
+                            author_name: string | null;
+                            body: string;
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
         };
     };
     "tenantBrandAsset.store": {

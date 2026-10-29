@@ -3,6 +3,7 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { clearApiCache } from "@/lib/api-cache";
 import { hostContext } from "@/lib/auth/host-context";
 import { getLocale } from "@/lib/i18n/translations";
+import { recordFailedRequest } from "@/lib/support/recent-failures";
 
 export interface ApiError {
   type: string;
@@ -157,6 +158,17 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiError>) => {
     const originalRequest = error.config;
+
+    // Kept for Get help, which sends the last few with a question. A 401
+    // that the refresh below recovers is not a failure the person saw.
+    if (error.response?.status !== 401) {
+      recordFailedRequest({
+        method: originalRequest?.method,
+        url: originalRequest?.url,
+        status: error.response?.status,
+        type: error.response?.data?.type,
+      });
+    }
 
     if (typeof window !== "undefined" && !redirectingToEnrolment) {
       const target = mfaEnrolmentRedirect(error, window.location.pathname);

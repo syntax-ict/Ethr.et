@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminFeatureController;
 use App\Http\Controllers\Api\V1\Admin\AdminMarketingController;
 use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
 use App\Http\Controllers\Api\V1\Admin\AdminStatutoryLayoutController;
+use App\Http\Controllers\Api\V1\Admin\AdminSupportController;
 use App\Http\Controllers\Api\V1\Admin\AdminTenantController;
 use App\Http\Controllers\Api\V1\Admin\PlatformSettingsController;
 use App\Http\Controllers\Api\V1\Admin\SmsDeliveryController;
@@ -147,6 +148,7 @@ use App\Http\Controllers\Api\V1\Shift\ShiftRotationController;
 use App\Http\Controllers\Api\V1\Showcase\ShowcaseConsentController;
 use App\Http\Controllers\Api\V1\Showcase\TrustedByController;
 use App\Http\Controllers\Api\V1\SiteContentController;
+use App\Http\Controllers\Api\V1\Support\SupportRequestController;
 use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\User\ActivationCodeController;
@@ -867,6 +869,16 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/job-applications/{application}/hire', [JobApplicationController::class, 'hire']);
     Route::post('/job-applications/{application}/erase', [JobApplicationController::class, 'erase']);
 
+    // Get help: anyone asks, the organisation's support people answer and pass
+    // a request to ETHR when it needs the platform (SupportDesk).
+    Route::post('/support-requests', [SupportRequestController::class, 'store'])->middleware('throttle:support');
+    Route::get('/support-requests', [SupportRequestController::class, 'index']);
+    Route::get('/support-requests/mine', [SupportRequestController::class, 'mine']);
+    Route::get('/support-requests/{supportRequest}', [SupportRequestController::class, 'show']);
+    Route::post('/support-requests/{supportRequest}/messages', [SupportRequestController::class, 'message'])->middleware('throttle:support-reply');
+    Route::post('/support-requests/{supportRequest}/escalate', [SupportRequestController::class, 'escalate']);
+    Route::post('/support-requests/{supportRequest}/resolve', [SupportRequestController::class, 'resolve']);
+
     // Employee voice: the weekly pulse, speak-up concerns and recognition.
     Route::prefix('voice')->group(function () {
         Route::get('/pulse', [PulseController::class, 'show']);
@@ -1032,6 +1044,12 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             // The public landing page: sections, rows, order, visibility and
             // pictures. The kinds are fixed in App\Support\MarketingContent;
             // the image upload rides the uploads limiter like every other.
+            // Get help: the requests organisations passed to ETHR.
+            Route::get('/support-requests', [AdminSupportController::class, 'index']);
+            Route::get('/support-requests/{supportRequest}', [AdminSupportController::class, 'show']);
+            Route::post('/support-requests/{supportRequest}/messages', [AdminSupportController::class, 'message']);
+            Route::post('/support-requests/{supportRequest}/resolve', [AdminSupportController::class, 'resolve']);
+
             Route::get('/marketing', [AdminMarketingController::class, 'index']);
             Route::put('/marketing/sections/{kind}', [AdminMarketingController::class, 'updateSection'])
                 ->where('kind', '[a-z_]+');

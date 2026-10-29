@@ -124,6 +124,7 @@ describe("what each person may open", () => {
       "/voice",
       "/profile",
       "/notifications",
+      "/support",
     ]);
     // Corrections is under the Attendance group, which this person cannot
     // open at all: the row is not offered on its own either.
@@ -164,6 +165,7 @@ describe("what each person may open", () => {
     expect(hrefs).toEqual([
       "/admin",
       "/admin/operations",
+      "/admin/support",
       "/admin/tenants",
       "/admin/audit",
       "/admin/platform-settings",
