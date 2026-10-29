@@ -24,6 +24,7 @@ Columns, personas and modes: see the [README](README.md#how-a-test-case-is-writt
 | LT-002 | P2 | W | Create and duplicate | Create "QA Compassionate" 2 days; duplicate it | Saved; the copy is separate |
 | LT-003 | P2 | W | Deactivate | Deactivate QA Compassionate; EMP tries to request it | Not offered; through the API refused (type must be active) |
 | LT-004 | P2 | R | Rights | SUP opens leave type settings | View only (everyone holds `leave.viewTypes`); `leave.manageTypes` is HR |
+| LT-005 | P1 | R | Kinds that settle absences | HR: Settings → Leave types in QA Audit and in a new `uat-` organisation | Both have "Official Duty / Business Trip" (duty) and "Excused Absence" (excused), both paid, plus an unpaid type. Duty and excused days use no balance and are absent from balance cards and the leave balance report |
 
 ## 2. Balances
 
@@ -57,6 +58,8 @@ Columns, personas and modes: see the [README](README.md#how-a-test-case-is-writt
 | LR-013 | P1 | R | Cancel someone else's | SUP cancels EMP's request | 403 "You can only modify your own leave requests." |
 | LR-014 | P2 | W | Ethiopian calendar | With the Ethiopian calendar on, request across Pagume (the 13th month, early September) | Days counted correctly across Pagume and into Meskerem |
 | LR-015 | P2 | W | Amharic reason | A reason in Amharic | Stored and shown intact |
+| LR-016 | P1 | W | Unpaid leave and balance | EMP requests Unpaid Leave (0 days left) 15 days ahead | Pending. No longer refused with "You do not have enough leave balance for this request." |
+| LR-017 | P1 | W | HR files for an employee | HR: `POST /leave/request` with `employee_public_id` EMP3, yesterday, Excused Absence; HR approves it; SUP and FIN file for EMP3; an unknown `employee_public_id` | 201 pending; backdating and notice rules not applied; `filed_for` in its history. HR approving: "You filed this request, so someone else must approve it." SUP, FIN: 403. Unknown: "The selected employee public id is invalid." |
 
 ## 4. Decisions and the approval inbox
 

@@ -13554,12 +13554,200 @@
                                                 "ambiguous",
                                                 "new"
                                             ]
+                                        },
+                                        "roster": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "source": {
+                                                            "type": "string",
+                                                            "const": "reported"
+                                                        },
+                                                        "received_at": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "requested_at": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "can_request": {
+                                                            "type": "boolean"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "source",
+                                                        "received_at",
+                                                        "requested_at",
+                                                        "can_request"
+                                                    ]
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "source": {
+                                                            "type": "string",
+                                                            "const": "live"
+                                                        },
+                                                        "received_at": {
+                                                            "type": "null"
+                                                        },
+                                                        "requested_at": {
+                                                            "type": "null"
+                                                        },
+                                                        "can_request": {
+                                                            "type": "boolean"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "source",
+                                                        "received_at",
+                                                        "requested_at",
+                                                        "can_request"
+                                                    ]
+                                                }
+                                            ]
                                         }
                                     },
                                     "required": [
                                         "device",
                                         "enrollments",
-                                        "summary"
+                                        "summary",
+                                        "roster"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/devices/{device}/enrollments/request": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "deviceEnrollment.request",
+                "summary": "Ask a ZKTeco ADMS device again who is enrolled on it. It answers at its\nnext check-in, usually within a minute; the enrollments list shows the\nanswer once it has arrived. Changes nothing on the device",
+                "tags": [
+                    "Devices"
+                ],
+                "parameters": [
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "required": true,
+                        "description": "The device public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "roster": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "source": {
+                                                            "type": "string",
+                                                            "const": "reported"
+                                                        },
+                                                        "received_at": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "requested_at": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "can_request": {
+                                                            "type": "boolean"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "source",
+                                                        "received_at",
+                                                        "requested_at",
+                                                        "can_request"
+                                                    ]
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "source": {
+                                                            "type": "string",
+                                                            "const": "live"
+                                                        },
+                                                        "received_at": {
+                                                            "type": "null"
+                                                        },
+                                                        "requested_at": {
+                                                            "type": "null"
+                                                        },
+                                                        "can_request": {
+                                                            "type": "boolean"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "source",
+                                                        "received_at",
+                                                        "requested_at",
+                                                        "can_request"
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "roster"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "This device is read directly, so there is nothing to ask it for. Open the list again to read it now."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
                                     ]
                                 }
                             }

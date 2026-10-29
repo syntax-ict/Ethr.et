@@ -37,6 +37,13 @@ without the owner's written authorisation (test plan, rule 9.7).
 | SEC-018 | P2 | W | Webhook targets | Register webhooks to `http://169.254.169.254`, `http://[::1]`, a domain resolving to a private IP | Refused at save or at send time; no request reaches it |
 | SEC-019 | P1 | R | Sensitive data at rest (observable part) | TIN, national ID never in responses; bank account masked | As stated (encryption itself can only be confirmed by the owner on the database) |
 | SEC-020 | P1 | R | Error enumeration | Sign-in, reset, find organisation, sign-in code for real and unknown accounts | Identical messages and status codes (AUTH-003, PWD-002, ORG-002, AUTH-024) |
+| SEC-021 | P1 | R | Signed out, no Accept header | `curl -i https://www.ethr.et/api/v1/employees -H 'X-Tenant: qa-audit'` with no `Accept`; repeat for `/payroll/runs`, `/leave/requests`, and once with `Accept: application/json` | 401 every time, `application/problem+json`, `type` `https://ethr.et/errors/unauthenticated`, "You are not authenticated." Never a 500 or a redirect page |
+| SEC-022 | P1 | R | Validation is a problem document | `POST /api/v1/auth/password/forgot` with an empty JSON body | 422, `application/problem+json`, `type` `https://ethr.et/errors/validation`, `title` "Validation Failed", "The given data was invalid.", `errors.email` |
+| SEC-023 | P2 | R | Refused punch and unreadable device | EMP with nothing open: `POST /attendance/check-out` (with an idempotency key). TA, a registered test device switched off: `GET /devices/{id}/enrollments` | Punch: 422 problem+json, "There is no open check-in to close." Device: 502 problem+json, `type` `https://ethr.et/errors/device-unreachable`, "The device could not be read. Check that it is switched on and reachable from this server, then try again." |
+| SEC-024 | P1 | R | No key material | Inspect `GET /attendance/devices`, `GET /attendance/device`, `GET /attendance/devices/unregistered` and the audit entries from 05 section 15 | No `credential_id`, `public_key`, `install_hash`, `cookie_hash` or challenge; only the employee's own `credential_id` in their offline grant |
+| SEC-025 | P1 | W | Another person's passkey (API) | Laptop holding EMP's registered passkey; sign in there as EMP2 (who has a phone); sign EMP2's challenge with EMP's passkey (`navigator.credentials.get`, no `allowCredentials`) and send it as EMP2's web check-in under enforce | 422 `device-belongs-to-another`; audit `attendance.device_refused` on EMP2; nothing recorded |
+| SEC-026 | P2 | W | Approving one's own phone | HR registers HR's own phone away from work and approves it | Record the result. The code allows it (no self-approval check, unlike INT-004 and COR-004; K-34) |
+| SEC-027 | P2 | R | Phones and reach | A custom role with `attendance.manage` and branch reach (B1) opens Phones and revokes a B2 employee's phone | Record the result. The code applies no reach: every branch is listed and can be decided (K-34) |
 
 ## 2. Tenant isolation
 
@@ -58,6 +65,8 @@ Audit as TA (the widest reach):
 | ISO-009 | P1 | R | Imports | Import into QA Audit a CSV naming QA Isolation's employee codes and department names | Treated as not found or as new; nothing is linked to QA Isolation |
 | ISO-010 | P1 | R | Reverse direction | Repeat ISO-001 and ISO-003 from QA Isolation towards QA Audit | Same results |
 | ISO-011 | P1 | R | Notifications and emails | Any email or notification produced during the pass | Names only the recipient's own organisation and its people |
+| ISO-012 | P1 | R | Phones across organisations | QA Audit TA: `POST /attendance/devices/{QA Isolation phone id}/approve`, `/reject`, `DELETE /attendance/devices/{id}`, `PUT /employees/{QA Isolation employee}/attendance-device-exemption` | 404 each; nothing changes in QA Isolation. QA Audit's Phones page and Not registered list never show QA Isolation people |
+| ISO-013 | P1 | R | Invitations across organisations | Run INV-005, INV-008 and MIG-007 from QA Audit towards QA Isolation, and back | No invitation is queued for the other organisation, its batch reads 404, its employee ids read as unknown; QA Isolation's users receive nothing |
 
 **Any failure in this section is S1.** Stop and tell the owner (test plan, section 7.3).
 
@@ -105,6 +114,7 @@ hosting, record the figures and flag only large misses (more than double) as S3.
 | A11Y-003 | P2 | R | Screen reader | NVDA or VoiceOver on sign-in and the leave form | Fields have labels; errors are announced |
 | A11Y-004 | P2 | R | Contrast | Light, dark and high-contrast themes | Text and controls meet AA contrast |
 | A11Y-005 | P2 | R | Zoom | Browser zoom 200 percent | Content usable, no overlap |
+| A11Y-006 | P2 | R | Sidebar footer contrast and names | axe or a contrast checker on the footer in light, dark and high-contrast; accessibility tree of both controls | Label at least 4.5:1 (designed 7.0:1 on navy, 7.8:1 on dark). The collapsed mark and the toggle each have an `aria-label`; the toggle has `aria-keyshortcuts="Control+B Meta+B"`; neither uses a `title` tooltip |
 
 ## 6. Localisation and the Ethiopian calendar
 
@@ -132,6 +142,7 @@ hosting, record the figures and flag only large misses (more than double) as S3.
 | UI-006 | P1 | R | Browsers | Chrome, Edge, Firefox (latest), Safari on iPhone, Chrome on Android | Sign-in, check-in, leave request and payslip download work in each |
 | UI-007 | P3 | R | Console clean | Developer tools console on the main pages | No errors |
 | UI-008 | P2 | R | Shortcuts | Ctrl+K palette, Ctrl+B collapse sidebar | Work |
+| UI-009 | P2 | R | Sidebar footer | QA Audit, desktop, sidebar expanded then collapsed (Ctrl+B or the icon), en and am; hover each footer control | One row: the ETHR logo tile (white E on brand blue, or the platform's uploaded logo) and "Powered by ETHR" / "በETHR የሚሰራ", opening the public site in a new tab, plus a square collapse icon with tooltip "Collapse sidebar" or "Expand sidebar". No "Command Palette Ctrl+K" or "Collapse Ctrl+B" row. On the rail the tile remains, "Powered by ETHR" as a tooltip. Ctrl+B (Cmd+B) still toggles |
 
 ## 8. PWA and offline
 
@@ -142,6 +153,11 @@ hosting, record the figures and flag only large misses (more than double) as S3.
 | PWA-003 | P1 | W | Offline attendance | OFF-002 | As stated |
 | PWA-004 | P2 | R | Update after release | After a new release, reopen the installed app | The new version loads (no stale bundle); `release.json` matches |
 | PWA-005 | P2 | R | Offline banner | Lose network while using the app | A banner says the app is offline; actions that need the network say so |
+| PUSH-001 | P1 | R | Push configured | `GET /push/config` (any signed-in user) | `enabled: true` with a `public_key`. If false, VAPID keys are missing and `POST /push/subscriptions` answers 409 "Phone notifications are not set up on this server yet." |
+| PUSH-002 | P1 | W | Subscribe on a phone | EMP: `/attendance/mobile` → "Even when ETHR is closed" on; allow notifications (iPhone: add to the Home Screen first). Block notifications and retry | 201; `GET /push/subscriptions` shows `devices: 1`. Blocked: "Notifications are blocked for ETHR. Allow them in your browser settings." |
+| PUSH-003 | P1 | X | Every in-app notice reaches the phone | Close ETHR on EMP's phone; HR approves an EMP leave request (or SUP a correction); PA then reads the console's failed jobs | A push with the notification's own text (title from the notification or "ETHR"); tapping opens ETHR on the linked page. It may be a few minutes late (sent from the queue by the cron caller). No `SendWebPush` failed job, and no `TypeError`, which would mean the web-push 11 regression is back |
+| PUSH-004 | P2 | W | Shared phone | EMP subscribes, signs out; EMP2 signs in on the same browser and subscribes; EMP unsubscribes from another device | The endpoint moves to EMP2 (one owner per endpoint). DELETE removes only the caller's own subscription |
+| PUSH-005 | P2 | R | Content Security Policy for map and liveness | Read the CSP header on `/attendance/mobile` | Allows `'wasm-unsafe-eval'` (not `'unsafe-eval'`), `storage.googleapis.com`, `nominatim.openstreetmap.org`, `maps.googleapis.com` by name, nothing wider |
 
 ## 9. Resilience and operations (observe only)
 

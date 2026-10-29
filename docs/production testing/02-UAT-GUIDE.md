@@ -52,7 +52,7 @@ Every scenario has a **"Done when"** line. That is the acceptance criterion.
 |---|---|---|
 | 1 | Open the organisation address | The sign-in page shows your organisation's name and logo |
 | 2 | Sign in with your email and password | You land on your dashboard |
-| 3 | Look at the dashboard | Today's attendance, your leave balance and recent notifications |
+| 3 | Look at the dashboard | Today's attendance, your leave balance, recent notifications, and a **Next steps** card saying what to finish (for example "Finish your profile") |
 | 4 | Click the globe icon and choose አማርኛ | The whole screen switches to Amharic, nothing left in English, nothing cut off |
 | 5 | Switch the calendar to Ethiopian in the header | Dates show in the Ethiopian calendar (for example 14 ጥቅምት 2019) |
 | 6 | Switch back to English | Everything returns to English and your choice is remembered after signing out and in |
@@ -147,6 +147,50 @@ Every scenario has a **"Done when"** line. That is the acceptance criterion.
 
 **Done when:** you can record attendance without internet and it arrives correctly later.
 
+### UAT-E10 Tell payroll I was at work
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | On **My Attendance**, find a day you worked that shows under "Needs your attention" as "absent, nothing on record", and click **I was at work** | The correction form opens on that day |
+| 2 | Enter your times and a reason, and send | Pending, marked "Missed punch" |
+| 3 | Your supervisor approves | The day is recorded and leaves "Needs your attention" |
+
+**Done when:** a day you worked is never paid as an absence.
+
+### UAT-E11 Activate my account without email or phone
+
+For a staff member with no email and no phone.
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | HR shows you a QR code; scan it with your phone | Your employee code and the code are filled in for you |
+| 2 | Choose your own password (HR must not see it) | "Your account is ready" |
+| 3 | Sign in with your employee code and that password | Your dashboard |
+
+**Done when:** you can get into ETHR without an email address or phone number.
+
+### UAT-E12 Punch only from my own phone
+
+When your organisation checks phones.
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | At work, open the attendance page on your phone and tap **Register** | The phone asks for your fingerprint, face or PIN; "Phone registered." and "This is your registered phone" |
+| 2 | Check in | The phone asks you to unlock again; the check-in is recorded |
+| 3 | Sign in on a colleague's phone or a different browser and try to check in | Under "Only the registered phone" nothing is recorded: you are asked to use your registered phone |
+| 4 | On a new phone, open the attendance page and tap **Register this phone** | "Sent for approval. Your old phone works until HR approves this one." Once HR approves: "Your attendance phone was approved. Punch with it from now on." and the old phone stops working |
+
+**Done when:** only your own phone can record your attendance, and a new phone takes over after HR approves it.
+
+### UAT-E13 The right punch on every screen
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | Check in on your phone, then open Attendance on a computer | Only **Check Out** is offered |
+| 2 | At the kiosk, type your code without choosing anything | "Welcome" in the morning; in the evening, "Goodbye", and the day is closed |
+
+**Done when:** you never have to think about which button to press.
+
 ---
 
 ## 4. Supervisor scenarios
@@ -228,6 +272,7 @@ who was at work.
 | 3 | Add a fixed-term contract ending in 20 days | It appears on the contracts-ending list |
 | 4 | Upload a contract document (a PDF under 2 MB) | Saved; a larger file is refused with a clear message naming the limit |
 | 5 | Record a resignation with a last day | An exit clearance checklist starts on its own (ID card, property, handover, obligations, final pay); it never blocks the exit |
+| 6 | Record a promotion dated next month for another employee | Shown as **Scheduled**, "Takes effect on …"; grade and salary unchanged until then; **Cancel change** removes it |
 
 **Done when:** the employee file tells the true story of the person's employment.
 
@@ -251,7 +296,7 @@ who was at work.
 | 3 | Show a QR code for branch B1 on a screen; an employee scans it with **Attendance → Scan** | Check-in recorded at that branch |
 | 4 | Register a kiosk for B1 and open it on a tablet | Employees check in with their employee code (and PIN if required) |
 | 5 | Enter a forgotten day by hand for an employee, with a reason | Recorded and rated present or late |
-| 6 | Review the **Integrity** queue | Suspicious punches (outside the geofence, no location, impossible travel) are listed for review; none was refused |
+| 6 | Review the **Integrity** queue | Suspicious punches (outside the geofence, no location, impossible travel, a high risk score) are listed for review with the reasons; none was refused unless "Only the registered phone" is on (UAT-H11) |
 
 **Done when:** every way your staff will record attendance works for your organisation.
 
@@ -275,6 +320,82 @@ who was at work.
 
 **Done when:** staff and the public see what you meant them to see, and nothing else.
 
+### UAT-H8 Settle absences for payroll
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | **Approvals**: approve leave the administrator filed for an employee (unpaid, excused or business trip) for a past day | Approved; the day leaves the Reconcile list |
+| 2 | Record a missed punch for an employee on **Attendance → Corrections** | Pending, then recorded once approved |
+| 3 | Try to approve a lateness decision | Refused: "A lateness deduction changes pay, so it must be approved by someone who processes payroll." |
+
+**Done when:** every absence the month's payroll sees has a decision behind it.
+
+### UAT-H9 Activate a staff member who has no email or phone
+
+Needs employee code sign-in on.
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | Add the employee with no email and no phone; tick "Create a login to activate in person" | Saved; nothing is sent |
+| 2 | With the person in front of you, check their ID and click **Activate in person**: choose the document, tick the box, give your password (and authenticator code) | A QR and a typed code, valid 24 hours |
+| 3 | Let them scan the QR (do not photograph the screen) | They choose a password and sign in with their employee code |
+| 4 | Try the same code again | Refused |
+
+**Done when:** a worker without email or phone can sign in, and the code cannot be used twice.
+
+### UAT-H10 Recruit and hire
+
+With the organisation administrator.
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | **Vacancies → Applicants**: add two applicants | Listed as applied |
+| 2 | Move one through screening and interview to **Make an offer** | Waiting for approval by someone else |
+| 3 | Try to approve your own offer | Refused |
+| 4 | The administrator approves it; you **Hire** | An employee record appears with a number, department and branch |
+| 5 | Reject the other applicant with a reason and erase their details | "Erased applicant"; stages kept |
+
+**Done when:** a vacancy can be filled from ETHR, with a second person signing off the offer.
+
+### UAT-H11 Make sure staff punch from their own phone
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | Settings → Attendance → Cheating protection → **Registered phone**: "Check and review" | Saved |
+| 2 | Open Attendance → **Phones** | People with a phone, waiting for approval, and still to register |
+| 3 | Approve a phone registered away from work; refuse another with a reason | The approved phone punches; the refused person is told the reason |
+| 4 | **Still to register**: give one person **Punch without a phone** for a week | They leave the list |
+| 5 | Choose "Only the registered phone"; someone without a phone tries to check in | Refused: "This phone is not registered for your attendance. Register it from the attendance page while you are at work, or ask HR." |
+| 6 | Record that a person has resigned | Their phone appears under "Revoked or refused" |
+| 7 | Set the rule back to Off (QA organisations only) | Saved |
+
+**Done when:** you can roll the rule out, handle new and lost phones, and know who still has to register.
+
+### UAT-H12 Attendance by branch and work site
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | Settings → Attendance: read the **Attendance setup** panel | "Attendance is set up. Nothing needs attention." or a list of what to fix, each with a link |
+| 2 | **Rules by branch**: require a selfie at one branch only | Only that branch's staff are asked for a selfie |
+| 3 | **Work sites**: add a site on the map | Listed with its radius |
+| 4 | Open an employee, set **Where they punch** to Field | Saved; they can punch at the site, are sent for review (not refused) elsewhere, and see a **Visits** card on the phone |
+
+**Done when:** each branch and each kind of worker is held to the rules that fit them.
+
+### UAT-H13 Make sure everyone can sign in
+
+Only with addresses the team controls.
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | Settings → Users → **Not activated** | Everyone who has not set a password, each with what became of their last invitation |
+| 2 | **Resend to everyone not activated** | "Invitations are being sent", then "Invitations sent" a few minutes later. You can leave the page meanwhile |
+| 3 | The person opens the email and sets a password | They leave the Not activated list |
+| 4 | Find someone with only a phone | "Activate in person"; activate them with a code (UAT-H9) |
+| 5 | After a device migration, read **Give them a way to sign in** and **Check the hire dates** | Who still cannot sign in, and how many people were given today as their hire date; correct those dates on their profiles |
+
+**Done when:** everyone who should use ETHR has been invited, and you can see who has not yet signed in.
+
 ---
 
 ## 6. Finance officer scenarios
@@ -284,7 +405,7 @@ who was at work.
 | Step | Do | Expect |
 |---|---|---|
 | 1 | **Settings → Payroll**: tax brackets | The Proclamation 1395/2025 ladder: 0 to 2,000 at 0 percent; 2,000 to 4,000 at 15 percent; 4,000 to 7,000 at 20 percent; 7,000 to 10,000 at 25 percent; 10,000 to 14,000 at 30 percent; over 14,000 at 35 percent |
-| 2 | Pension | Employee 7 percent, employer 11 percent (private sector) |
+| 2 | Pension | Employee 7 percent, employer 11 percent (private sector). **Settings → Organisation** shows the kind of organisation: private, charity and international organisation use the private scheme, government the public scheme, defence and police the military scheme (employer 33 percent) |
 | 3 | Overtime rates | 1.5 normal, 1.75 night, 2.0 rest day, 2.5 public holiday |
 | 4 | Add a transport allowance as **not taxable** and a position allowance of 10 percent as **taxable** | Saved |
 
@@ -325,6 +446,26 @@ Expected figures for the test employees (monthly, ETB, private-sector pension):
 | 4 | Record a cost-sharing (education) obligation at 10 percent of gross | Deducted each month until paid |
 
 **Done when:** balances move only when pay is approved, and come back if it is voided.
+
+### UAT-F4 Reconcile attendance before payroll
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | **Payroll → Reconcile**, set From and To to the Ethiopian month | Each employee's absences, late arrivals and missing punches, with Open, Waiting or Settled |
+| 2 | The administrator settles them: absences as Unpaid Leave, Excused Absence or Business Trip; lateness by deducting or waiving the minutes | They move to Waiting, then Settled once approved |
+| 3 | **Attendance → Corrections**: approve the lateness decisions | Approved |
+| 4 | Process the month | An unpaid day costs basic ÷ 22. Lateness never takes more than a third of basic together with loans and cost sharing, and a payslip over that third is listed before approval |
+
+**Done when:** the month's pay follows decisions people made, not gaps in the records.
+
+### UAT-F5 Record the payment
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | After the administrator approves the run and the bank has paid, click **Confirm payment**; enter the date paid and the bank reference | "Payment recorded" |
+| 2 | Look at the run | **Paid**; the Void button is gone; the schedules read "Approved and paid" |
+
+**Done when:** the run says what the bank did, and a mistake goes into next month's run. **This cannot be undone**: use only a run the owner agrees to close for good.
 
 ---
 
@@ -368,6 +509,7 @@ Expected figures for the test employees (monthly, ETB, private-sector pension):
 | 1 | **Settings → Branding**: upload a logo and colours | The sign-in page and app header use them |
 | 2 | Fill the landing page (headline, about, services, FAQ) | The public sign-in page shows them, in both languages if given |
 | 3 | Open the page signed out on a phone | Looks right; nothing private is shown |
+| 4 | **Settings → ETHR website**, and on the landing page "List this page in search engines" | Both on by default. Turning the first off removes your name from Trusted by on ethr.et at once; turning the second off keeps your page out of search results |
 
 **Done when:** the public face of your organisation is how you want it.
 
@@ -380,6 +522,28 @@ Expected figures for the test employees (monthly, ETB, private-sector pension):
 
 **Done when:** you understand what you pay for and what you have paid.
 
+### UAT-A6 Payroll rules your organisation follows
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | **Settings → Organisation**: confirm the kind of organisation in law | The pension scheme and fiscal year match it |
+| 2 | **Settings → Attendance**: choose reconciliation Off, Advisory or Required | Saved |
+| 3 | Turn on lateness deductions, first without and then with the work-rules clause as the basis | Refused without a basis; saved with one |
+
+**Done when:** payroll follows the law that applies to you and the rules you agreed with staff.
+
+### UAT-A7 Rename our address
+
+Only on a `uat-` organisation: the old name stays reserved for good.
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | **Settings → Address → Change name**, and confirm | "Address changed to …" |
+| 2 | Open the old link | It forwards to the new one |
+| 3 | From another organisation, try to take the old name | Refused |
+
+**Done when:** the organisation can change its name without breaking links already sent.
+
 ---
 
 ## 8. Platform operator scenarios (Syntax ICT)
@@ -388,13 +552,15 @@ Expected figures for the test employees (monthly, ETB, private-sector pension):
 
 | Step | Do | Expect |
 |---|---|---|
-| 1 | Sign in at `https://admin.ethr.et` with MFA | The console dashboard: tenants, revenue, health, failed jobs |
+| 1 | Sign in at `https://admin.ethr.et` with MFA | You arrive directly on the console dashboard: Operations, tenants, recurring revenue and payments this month, health, failed jobs |
 | 2 | Find QA Audit in the tenant list and open it | Its plan, status, trial, address and invoices |
 | 3 | Extend a `uat-` organisation's trial by 30 days | The trial end moves 30 days |
 | 4 | Impersonate QA Audit (MFA code asked) | You work as its administrator; deleting, plan changes and password changes are blocked; leaving returns you to the console |
 | 5 | Mark a test invoice paid | Paid; marking again changes nothing |
 | 6 | Edit the landing page in **Marketing** (a test row, then delete it) | The public site shows the change, then not |
-| 7 | Cancel, then delete, a `uat-` organisation (type its address, give a reason, MFA code) | It is closed and its users signed out; **Restore** brings it back cancelled |
+| 7 | Cancel, then delete, a `uat-` organisation (give a reason) | No address to type and no authenticator code; it is closed and its users signed out; **Restore** brings it back cancelled |
+| 8 | Open **Operations** after a release | Each area Healthy, or Needs a look with a reason you understand; the release shown is the one just deployed |
+| 9 | Read **Platform Settings → Sidebar product mark** (change nothing without the owner) | Shown, with the standard wording, in every organisation's sidebar |
 
 **Done when:** the platform can be operated from the console without database access.
 
@@ -406,11 +572,11 @@ Release under test: `v__________________`   Dates tested: `__________ to _______
 
 | Persona | Scenarios | Name | Result (Accept / Accept with conditions / Reject) | Conditions or defects | Signature and date |
 |---|---|---|---|---|---|
-| Employee | E1 to E9 | | | | |
+| Employee | E1 to E13 | | | | |
 | Supervisor | S1 to S4 | | | | |
-| HR officer | H1 to H7 | | | | |
-| Finance officer | F1 to F3 | | | | |
-| Organisation administrator | A1 to A5 | | | | |
+| HR officer | H1 to H13 | | | | |
+| Finance officer | F1 to F5 | | | | |
+| Organisation administrator | A1 to A7 | | | | |
 | Platform operator | P1 | | | | |
 
 **Final decision (product owner):**

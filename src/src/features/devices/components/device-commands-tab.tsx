@@ -53,6 +53,7 @@ export function DeviceCommandsTab({
     ({
       set_time: t("device_commands.type_set_time"),
       upsert_user: t("device_commands.type_upsert_user"),
+      query_users: t("device_commands.type_query_users"),
       delete_user: t("device_commands.type_delete_user"),
     })[type] ?? type;
 

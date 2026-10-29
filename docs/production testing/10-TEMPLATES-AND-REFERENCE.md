@@ -70,16 +70,18 @@ the test pass (test plan 7.3).
 | S-06 | Marketing site | `/en`, `/am`, `/en/pricing` | 200, no error, prices shown |
 | S-07 | Organisation entry page | `/qa-audit` signed out | Branded sign-in page |
 | S-08 | Sign-in per role | TA (with MFA), HR, FIN, SUP, EMP in QA Audit | Each reaches the dashboard |
-| S-09 | Console | PA at `https://admin.ethr.et` with MFA | Dashboard and tenant list load |
+| S-09 | Console | PA signs in at `https://admin.ethr.et` with MFA | Lands on `/admin`, not an organisation dashboard; KPI cards, the Operations strip and the tenant list load with no error toast |
 | S-10 | One read per module | As TA: employees list, attendance list, leave page, payroll runs, reports page, announcements, settings, billing, devices | Each loads with data (or a proper empty state), no error toast, console clean |
 | S-11 | Self-service | As EMP: My Attendance, Leave balances, My Payslips, Profile | Load |
 | S-12 | Amharic | Switch to አማርኛ on the dashboard | Translated, no raw keys |
 | S-13 | Phone | Dashboard at 375 px | Bottom bar, no horizontal scroll |
 | S-14 | No stale browser bundle | Hard reload after the release; check the version shown or `release.json` fetched by the page | New version served (the site sends no-cache on HTML) |
+| S-15 | Release finished its steps | PA: `/admin/operations` | Release is Healthy: commit equals S-01, pending migrations 0, configuration and routes cached after "Built", maintenance routes closed. Background work Healthy, external caller under 30 min. "Needs a look" on Failed jobs alone does not fail the smoke; read the jobs (OPC-004) |
 
 ## 4. Known issues and suspected defects to verify
 
-Found by reading the code while writing this pack (2026-10-24) and from earlier production QA. **They
+Found by reading the code while writing this pack (2026-10-24, K-01 to K-18; 2026-10-28, K-19 to
+K-43) and from earlier production QA. **They
 are not confirmed on production.** Run the named case, then either file the defect or record
 "not reproduced" in the log.
 
@@ -89,13 +91,13 @@ are not confirmed on production.** Run the named case, then either file the defe
 | K-02 | Leave | Messages for minimum notice and maximum consecutive days may show raw keys (`leave.min_notice`, `leave.max_consecutive`) | LR-009, LR-010 |
 | K-03 | Leave | Overlap message says "approved" even when the clash is with a pending request; the insufficient-balance message does not show remaining or requested days | LR-007, LR-006 |
 | K-04 | Leave | No half-day leave in the API | (none; product gap) |
-| K-05 | Team attendance | `summary.present` may under-count | TEAM-002 |
+| K-05 | Team attendance | `summary.present` may under-count. A fix to the present count on `/attendance/today` (2026-10-24) may have closed it: re-test and record | TEAM-002 |
 | K-06 | Team attendance | `/attendance/team` without a date may use the UTC date (between 00:00 and 03:00 EAT it shows yesterday) | TEAM-004 |
 | K-07 | Team overtime | Voided records may be counted | TEAM-005 |
-| K-08 | Attendance | Night-shift lateness after midnight compares with the start time on the check-in's own day | SHF-004 |
-| K-09 | Attendance | Manual entry cannot record a night shift crossing midnight | MAN-002 |
-| K-10 | Attendance import | Imported rows are stored present with no shift: no late or early rating, no conflict check | AIMP-002 |
-| K-11 | Contracts | The contracts-ending list includes contracts already past their end date but still active (no lower bound) | LIFE-006 |
+| K-08 | Attendance | **Fixed 2026-10-24** (e9e76b85d): night-shift lateness after midnight is dated the night the shift began. Verify | SHF-004 |
+| K-09 | Attendance | **Fixed 2026-10-27** (#443): manual entry records a night shift crossing midnight. Verify | MAN-002 |
+| K-10 | Attendance import | **Fixed 2026-10-27** (#443): imported rows are rated against the day's shift. Verify | AIMP-002, CAP-002 |
+| K-11 | Contracts | The contracts-ending list includes contracts already past their end but still active. **By design** since #441 ("end within 30 days or have ended") | LIFE-006 |
 | K-12 | Approvals | Batch approval has no maximum size | LD-006 |
 | K-13 | Payroll | There is no statutory transport-allowance exemption; taxability is the rule's own flag. Confirm with the accountant | PAY-004 |
 | K-14 | Console | Platform user search and statutory layouts have no screen; API only | CON-P-017 |
@@ -103,6 +105,31 @@ are not confirmed on production.** Run the named case, then either file the defe
 | K-16 | Hosting | Uploads over 2 MB are refused by the host's PHP limits (provider-locked). Expected: a clear refusal | DOC-002, ANN-005 |
 | K-17 | Mobile check-out | Check-out does not re-check photo consent and uses the general 8 MB image cap | MOB-008 |
 | K-18 | Copy | Backend messages are outside the copy-style check (some contain an em dash) | MKT-009 |
+| K-19 | Activation | The typed-code form `/login/activate` is linked from nowhere and says "Invalid activation link" without `?tenant=`, though HR's dialog tells staff to "open the sign-in page and type the code" | ACT-012 |
+| K-20 | Employees | **Fixed in #458 for the API and the profile:** an employee with a phone and no email now gets a login for in-person activation, and the code works while text invitations are off. The form's box is still disabled (K-42) | EMP-015, INV-010 |
+| K-21 | Activation | A wrong or missing authenticator code when issuing a code is reported on `mfa_code` as "The password is incorrect." | ACT-009 |
+| K-22 | Payroll | Finance can open the Reconcile tab but cannot settle (no `leave.adjustBalance` or `attendance.manage`); HR can settle but cannot open the tab. Only the tenant admin can do both | RCN-005 |
+| K-23 | Field visits | The Visits date filter may use the UTC date, so a visit between 00:00 and 03:00 EAT shows under the previous day | VIS-005 |
+| K-24 | Public site | Since 2026-10-26 every organisation in use is named under Trusted by and listed for search engines unless switched off, including QA Audit, Syntax, QA Isolation and every `uat-` organisation from the moment it is created | LAND-007 |
+| K-25 | Console | The operations Services panel shows raw codes (`api`, `reverb`, queue names) and lists `reverb` as `disabled`, while the console home translates names and hides disabled services; "PHP limits" stays English in Amharic. Cosmetic | OPC-006 |
+| K-26 | Console | Any failed job, however old, keeps Failed jobs at "Needs a look" until it is retried or dismissed, so production rarely reads "Nothing needs attention" | OPC-006 |
+| K-27 | Console | Deleting a cancelled organisation needs only a reason from a signed-in PA with MFA on, no fresh code (owner decision 2026-10-27; Restore undoes it) | CON-P-009 |
+| K-28 | Console | "Recurring revenue" leaves out trials and uses each subscription's captured price, not the plan's current price. "Conversion" counts any active organisation with a trial end date as converted | CON-P-011 |
+| K-29 | Marketing | Uploading a picture to the hero or a problems row replaces its animation (by design; do not do it on production) | CON-P-013, MKT-010 |
+| K-30 | Registered phones | A person who is exempt, or on a listed office network, but still has an active registered phone is asked for the passkey; under "Only the registered phone" dismissing it stops the punch, though the server would accept it | PHN-016 |
+| K-31 | Registered phones | "Check and review" and an exemption score 35, an office computer 5; the default review threshold is 40, so alone they never reach Integrity, although the screens say the punches are sent for review | PHN-009, PHN-015, PHN-017 |
+| K-32 | Registered phones | Passkeys belong to the platform domain: on a verified custom domain every punch is refused `device-wrong-host`, and the "Open" link may be the same custom domain | PHN-020 |
+| K-33 | Registered phones | Office networks are matched against the address PHP sees, with no trusted-proxy setting, so behind a proxy no office address may ever match | PHN-017 |
+| K-34 | Registered phones | The Phones list and decisions ignore reach, and HR can approve their own waiting phone | SEC-026, SEC-027 |
+| K-35 | Copy | Phone messages promise "a manager will confirm it" though only HR and organisation admins approve; a first phone still waiting is told to "Use your registered phone"; the exemption limit reads "before +92 days" | PHN-005, PHN-007, PHN-015 |
+| K-36 | Registered phones | "One phone, one person" is checked per browser: a colleague in a different browser app on the same handset can register | PHN-010 |
+| K-37 | Payroll | A lateness deduction is not itemised on the payslip or register CSV; basic is shown already reduced (only the calculation log and the register API's `lateness_cents` show it) | LATE-005 |
+| K-38 | Payroll | `paid_on` is checked against today's UTC date, so between 00:00 and 03:00 EAT today's EAT date may be refused | PAID-002 |
+| K-39 | Address | A platform operator impersonating an organisation can rename its address (renaming is not on the impersonation block list) | TEN-015 |
+| K-40 | Attendance setup | The "no kiosk" check fires only when the kiosk PIN is also required, not whenever the kiosk method is on with no kiosk | SETUP-003 |
+| K-41 | Feature gate | Platform switches and per-organisation overrides exist in the database (#460) but have no console screen or API yet. Any reason other than `enabled` or `plan` on production means a row was written by hand | PLAN-017 |
+| K-42 | Employees | The Add employee form still disables the login box for a phone and no email, saying "Add an email to send a login invitation.", although an in-person code now works for them. Workaround: save without a login, then "Activate in person" from the profile | EMP-015 |
+| K-43 | Users | After a bulk resend that queued nothing, the toast always reads "No one is waiting for an invitation by email.", including when people were skipped as invited in the last 10 minutes or counted for in-person activation. Suspected; confirm the wording is acceptable | INV-003 |
 
 ## 5. Production facts in one place
 
@@ -125,6 +152,13 @@ are not confirmed on production.** Run the named case, then either file the defe
 | MFA | TOTP, 6 digits; trusted browser 30 days; no recovery codes |
 | Sign-in code | 6 digits, 5 minutes, single use |
 | Reset link / invitation | 60 minutes / 72 hours |
+| In-person activation code | 12 characters, 24 hours, single use, locked after 5 wrong tries; purged 30 days after expiry |
+| Bulk invitations | Queued; 30 emails a minute per organisation (texts 10); a second request for the same person within 10 minutes sends nothing; reminders 3 days after the last invitation, at most 2, only for invitations under 30 days old; text invitations off |
+| Payroll run states | processing, completed (or failed), approved, paid; voided. **A paid run cannot be voided** |
+| Rounding | Every amount rounded once, half away from zero; cost sharing rounds down |
+| Registered phones | Passkeys for the platform domain (`ethr.et`): they work on `www.ethr.et/{slug}` and `{slug}.ethr.et`, not on a custom domain. Off by default |
+| Public listing | Trusted by and search listing are on for every organisation in use (active, or a trial not yet ended) unless it switches them off; the platform can hide one from Trusted by |
+| Operations centre | `https://admin.ethr.et/admin/operations` (PA; read-only) |
 
 ## 6. Scheduled jobs a tester may see the effect of
 
@@ -149,6 +183,13 @@ Times are UTC (EAT is +3).
 | Missing punches | daily 15:30 | Notifies employee and supervisor for yesterday |
 | Attendance anomalies | daily 15:45 | Feeds Intelligence |
 | Custom domain re-check | Mondays 03:00 | Logs a domain whose DNS no longer verifies |
+| Apply due personnel actions | hourly at :05 | Applies held actions whose date has come (LIFE-012) |
+| Attendance baseline | hourly | Gives an organisation with no active shift its industry's usual week (BASE-001) |
+| Punch reminders by push | every 5 min | Shift start, missed check-in, check-out reminders to subscribed phones (MOB-012) |
+| Attendance pattern scan | daily 16:00 | `buddy_pattern` and `grace_edge` flags (RISK-009) |
+| Purge activation codes | daily 00:00 | Deletes activation codes more than 30 days past expiry (ACT-013) |
+| Invitation reminders | daily 06:00 | Queues another invitation for people invited 3 or more days before who have not activated (INV-013) |
+| Passkey challenge purge | daily 00:00 | Deletes passkey challenges an hour after they expire (a challenge lives 3 minutes) |
 
 ## 7. Glossary
 
@@ -161,6 +202,12 @@ Times are UTC (EAT is +3).
 | Maker-checker | The person who processed a payroll run may not approve it while another approver exists |
 | Approval chain | Configured sequence of approval steps for leave, corrections, overtime, profile changes |
 | Integrity flag | A mark on a suspicious punch for review; the punch is still recorded |
+| Risk score | 0 to 100 on every punch from fixed signal weights; at the review threshold (default 40) the day is sent for review, never refused |
+| Work site | A named circle on the map, besides the branch, where certain people may punch |
+| Attendance mode | Where an employee punches: at their branch (office), in the field, or remotely |
+| Registered phone, passkey | The one phone allowed to punch for an employee when the organisation checks phones; the passkey is the key it holds, unlocked by fingerprint, face or PIN |
+| Reconciliation | Settling a pay period's attendance exceptions (absences, lateness, missing punches) through requests before payroll |
+| Scheduled change | A personnel action dated in the future, held until its date |
 | Offline grant | A signed permission held by the phone or kiosk so offline punches can be verified when they sync |
 | Idempotency key | A unique key on each write so a retried request does not record twice |
 | Pagume | The 13th Ethiopian month, 5 or 6 days, early September |
@@ -181,5 +228,8 @@ Times are UTC (EAT is +3).
 | Payroll rules and golden payslips | `api/app/Services/Payroll/`, `docs/payroll/ACCOUNTANT-SIGN-OFF.md`, `docs/payroll/STATUTORY-SCHEDULES.md` |
 | Attendance engine | `api/app/Services/Attendance/` |
 | Approval engine | `docs/APPROVAL-ENGINE-DESIGN.md`, `api/app/Services/Approval/` |
+| Invitations | `docs/EMPLOYEE-INVITATIONS-PLAN.md`, `api/app/Services/Invitations/`, `api/config/invitations.php` |
 | Operations and health | `docs/operations/ON-CALL.md`, `docs/deployment/shared-hosting/health-check.md` |
 | Earlier production QA | `docs/audit/QA-PRODUCTION-*.md`, `docs/audit/QA-ATTENDANCE-PRODUCTION-2026-10-12.md` |
+| Payroll changes and statutory parameters | `docs/payroll/PAY-CHANGES.md`, `docs/payroll/STATUTORY-PARAMETERS.md` |
+| Operations centre | `docs/operations/` (spec and gap list) |
