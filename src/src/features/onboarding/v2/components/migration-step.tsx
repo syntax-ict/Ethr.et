@@ -27,6 +27,7 @@ import {
   useStageFromRows,
 } from "../api";
 import type { MatchOutcome, StagingAction } from "../types";
+import { MigrationLogins } from "./migration-logins";
 
 const ACTIONS: StagingAction[] = ["merge", "create", "skip", "defer"];
 
@@ -76,7 +77,18 @@ function parseRows(text: string): Record<string, unknown>[] {
     .filter((r) => r.name);
 }
 
-export function MigrationStep({ onCommitted }: { onCommitted?: () => void }) {
+/**
+ * @param onCommitted Called when the reviewer moves on after the commit, from
+ *   the "give them a way to sign in" step, not at the commit itself.
+ * @param initialDeviceId Preselects the device, when opened from that device.
+ */
+export function MigrationStep({
+  onCommitted,
+  initialDeviceId,
+}: {
+  onCommitted?: () => void;
+  initialDeviceId?: string;
+}) {
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
   const devicesQuery = useDevices();
@@ -86,7 +98,7 @@ export function MigrationStep({ onCommitted }: { onCommitted?: () => void }) {
   const commit = useCommitMigration();
 
   const [batchId, setBatchId] = useState<string | null>(null);
-  const [deviceId, setDeviceId] = useState<string>("");
+  const [deviceId, setDeviceId] = useState<string>(initialDeviceId ?? "");
   const [csv, setCsv] = useState("");
 
   const batchQuery = useMigrationBatch(batchId);
@@ -157,7 +169,6 @@ export function MigrationStep({ onCommitted }: { onCommitted?: () => void }) {
           },
         ),
       );
-      onCommitted?.();
     } catch (err) {
       toast.error(
         apiErrorMessage(
@@ -397,6 +408,10 @@ export function MigrationStep({ onCommitted }: { onCommitted?: () => void }) {
                 : t("setup2.commit", "Commit migration")}
             </Button>
           </div>
+
+          {batch.status === "committed" && batchId && (
+            <MigrationLogins batchId={batchId} onContinue={onCommitted} />
+          )}
         </div>
       )}
       {confirmDialog}

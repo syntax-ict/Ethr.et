@@ -80,11 +80,20 @@ function StatusCard({ state }: { state: SmsDeliveryState }) {
   const update = useUpdateSmsSettings();
   const capId = useId();
   const [cap, setCap] = useState(String(state.daily_cap));
+  const shareId = useId();
+  const [share, setShare] = useState(String(state.invitation_share));
   const primaryVerified = state.primary?.verified === true;
 
   function save(
     payload: Partial<
-      Pick<SmsDeliveryState, "enabled" | "route_prefix" | "daily_cap">
+      Pick<
+        SmsDeliveryState,
+        | "enabled"
+        | "route_prefix"
+        | "daily_cap"
+        | "invitations_enabled"
+        | "invitation_share"
+      >
     >,
   ) {
     update.mutate(payload, {
@@ -199,6 +208,76 @@ function StatusCard({ state }: { state: SmsDeliveryState }) {
               {t("admin_sms.sent_today", ":sent sent today", {
                 sent: state.sent_today,
               })}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4 border-t border-border pt-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {t("admin_sms.invitations_label", "Send invitations by text")}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {state.invitations_enabled
+                  ? t(
+                      "admin_sms.invitations_on",
+                      "People with only a phone are invited by text and activate by signing in with a code.",
+                    )
+                  : t(
+                      "admin_sms.invitations_off",
+                      "Off: people with only a phone are activated in person, with a code HR gives them.",
+                    )}
+              </p>
+            </div>
+            <Switch
+              checked={state.invitations_enabled}
+              disabled={
+                (!state.available && !state.invitations_enabled) ||
+                update.isPending
+              }
+              onCheckedChange={(invitations_enabled) =>
+                save({ invitations_enabled })
+              }
+              aria-label={t(
+                "admin_sms.invitations_label",
+                "Send invitations by text",
+              )}
+            />
+          </div>
+
+          <div className="space-y-2 sm:max-w-xs">
+            <Label htmlFor={shareId}>
+              {t(
+                "admin_sms.invitation_share_label",
+                "Share of the daily limit for invitations (%)",
+              )}
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id={shareId}
+                type="number"
+                min={0}
+                max={100}
+                value={share}
+                onChange={(e) => setShare(e.target.value)}
+              />
+              <Button
+                variant="outline"
+                disabled={
+                  update.isPending || share === String(state.invitation_share)
+                }
+                onClick={() => save({ invitation_share: Number(share) })}
+              >
+                {t("admin_sms.save", "Save")}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "admin_sms.invitation_share_help",
+                ":sent invitations sent today. Sign-in codes keep the rest of the limit.",
+                { sent: state.invitations_sent_today },
+              )}
             </p>
           </div>
         </div>

@@ -16,7 +16,11 @@ function renderCard() {
   return render(
     <QueryClientProvider client={qc}>
       <EmployeeNumberCard
-        employees={{ number_format: "EMP-{SEQ:4}", next_code: "EMP-0012" }}
+        employees={{
+          number_format: "EMP-{SEQ:4}",
+          next_code: "EMP-0012",
+          invitation_reminders: true,
+        }}
       />
     </QueryClientProvider>,
   );

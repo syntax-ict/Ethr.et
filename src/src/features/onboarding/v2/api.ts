@@ -6,11 +6,13 @@ import type {
   CommitResult,
   ConfigurationPlan,
   ConfigurationProfile,
+  CreateLoginsResult,
   GoLiveResult,
   Industry,
   IndustryCatalogResponse,
   LoginIdentifier,
   MigrationBatch,
+  MigrationLogins,
   ReadinessReport,
   StagingAction,
   StagingRow,
@@ -184,6 +186,31 @@ export function useCommitMigration() {
         .data,
     onSuccess: (_data, batchId) => {
       qc.invalidateQueries({ queryKey: ["onboarding", "migration", batchId] });
+    },
+  });
+}
+
+/** Who among a committed batch's people cannot sign in yet. */
+export function useMigrationLogins(batchId: string | null) {
+  return useQuery<MigrationLogins>({
+    queryKey: ["onboarding", "migration", batchId, "logins"],
+    queryFn: async () =>
+      (await apiClient.get(`/onboarding/migration/batches/${batchId}/logins`))
+        .data,
+    enabled: !!batchId,
+  });
+}
+
+/** A login for each employee, and one queued batch of invitations. */
+export function useCreateEmployeeLogins() {
+  const qc = useQueryClient();
+  return useMutation<CreateLoginsResult, unknown, string[]>({
+    mutationFn: async (employeeIds) =>
+      (await apiClient.post("/employees/logins", { employee_ids: employeeIds }))
+        .data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["onboarding", "migration"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
     },
   });
 }

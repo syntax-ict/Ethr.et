@@ -6,6 +6,7 @@ use App\Jobs\ApplyDuePersonnelActionsJob;
 use App\Jobs\DispatchWebhookJob;
 use App\Jobs\NotifyAnnouncementAudienceJob;
 use App\Jobs\ProcessPayrollJob;
+use App\Jobs\SendInvitationJob;
 use App\Models\Announcement;
 use App\Models\Employee;
 use App\Models\PayrollRun;
@@ -214,6 +215,7 @@ test('the tenant id is required on every job that scopes by it', function (strin
     ProcessPayrollJob::class,
     DispatchWebhookJob::class,
     NotifyAnnouncementAudienceJob::class,
+    SendInvitationJob::class,
     ApplyDuePersonnelActionsJob::class,
 ]);
 

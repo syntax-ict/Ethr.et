@@ -62,6 +62,7 @@ const CAN_ABILITIES = {
   manageSettings: "settings.manage",
   viewUsers: "users.viewAny",
   resetUserMfa: "users.resetMfa",
+  inviteUsers: "users.invite",
   manageApiKeys: "apikey.manage",
   manageWebhooks: "webhook.manage",
   viewAdminConsole: "admin.manage",

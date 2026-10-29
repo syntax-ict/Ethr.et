@@ -6,16 +6,17 @@ namespace App\Services\Import;
 
 use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
-use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
+use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
-use App\Services\UserProvisioningService;
+use App\Services\Invitations\EmployeeLogins;
+use App\Services\Invitations\InvitationDispatcher;
 use App\Support\Csv;
 use App\Support\EmployeeImportRow;
 use App\Support\EthiopianPhone;
@@ -35,10 +36,11 @@ class EmployeeImporter
     private const UNIQUE_IN_FILE = ['employee_code', 'email', 'badge_number'];
 
     public function __construct(
-        private readonly UserProvisioningService $provisioning,
         private readonly IdentityResolver $identity,
         private readonly CurrentTenant $currentTenant,
         private readonly EmployeeNumbering $numbering,
+        private readonly InvitationDispatcher $invitations,
+        private readonly EmployeeLogins $logins,
     ) {}
 
     /**
@@ -111,16 +113,22 @@ class EmployeeImporter
     }
 
     /**
-     * @return array{created: int, skipped: int, matched: int, users_created: int, errors: array<int, string[]>}
+     * `in_person` counts the people with a login asked for and no way to send
+     * them an invitation: HR activates them with an in-person code.
      *
-     * @scramble-return array{created: int, skipped: int, matched: int, users_created: int, errors: array<string, list<string>>}
+     * @return array{created: int, skipped: int, matched: int, users_created: int, invitations_batch: string|null, invitations_queued: int, in_person: int, errors: array<int, string[]>}
+     *
+     * @scramble-return array{created: int, skipped: int, matched: int, users_created: int, invitations_batch: string|null, invitations_queued: int, in_person: int, errors: array<string, list<string>>}
      */
-    public function commit(string $importKey, array $rows, bool $createLogins = false): array
+    public function commit(string $importKey, array $rows, bool $createLogins = false, ?User $invitedBy = null): array
     {
         $created = 0;
         $skipped = 0;
         $matched = 0;
         $usersCreated = 0;
+        $inPerson = 0;
+        /** @var list<User> $invitees */
+        $invitees = [];
         $errors = [];
 
         $relations = $this->relationLookup();
@@ -240,22 +248,34 @@ class EmployeeImporter
 
             $created++;
 
-            // Provision a login (employee role) for rows that carry an email.
-            // Rows without an email are attendance/payroll-only records.
-            if ($createLogins && ! empty($employee->email)) {
-                $user = $this->provisioning->provision(
-                    email: $employee->email,
-                    role: UserRole::EMPLOYEE,
-                    employee: $employee,
-                );
-
-                if ($user !== null) {
-                    $usersCreated++;
-                }
+            // A login for every row, invited after the loop from the queue. The
+            // email used to go out here, one mail conversation per row inside
+            // this request, which a few hundred rows run past the host's limit.
+            // No way to reach them means HR activates them in person, and the
+            // in-person code makes the account when it is issued.
+            $login = $createLogins ? $this->logins->provision($employee, $invitedBy) : null;
+            if ($login instanceof User) {
+                $usersCreated++;
+                $invitees[] = $login;
+            } elseif ($login === EmployeeLogins::IN_PERSON) {
+                $inPerson++;
             }
         }
 
-        return ['created' => $created, 'skipped' => $skipped, 'matched' => $matched, 'users_created' => $usersCreated, 'errors' => $errors];
+        $invited = $invitees === []
+            ? ['batch' => null, 'queued' => 0, 'in_person' => 0, 'skipped' => 0]
+            : $this->invitations->queue($invitees, $invitedBy);
+
+        return [
+            'created' => $created,
+            'skipped' => $skipped,
+            'matched' => $matched,
+            'users_created' => $usersCreated,
+            'invitations_batch' => $invited['batch'],
+            'invitations_queued' => $invited['queued'],
+            'in_person' => $inPerson + $invited['in_person'],
+            'errors' => $errors,
+        ];
     }
 
     public function templateCsv(): string

@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\Sms\ConfiguredSmsSender;
 use App\Services\UserProvisioningService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +46,7 @@ final class ActivationCodeService
     public function __construct(
         private readonly CurrentTenant $currentTenant,
         private readonly UserProvisioningService $provisioning,
+        private readonly ConfiguredSmsSender $sms,
     ) {}
 
     /**
@@ -344,16 +346,42 @@ final class ActivationCodeService
         AuditLog::record('user.activation_code_failed', $user, ['attempts' => $attempts]);
     }
 
-    /** An email or a phone means the normal activation link or sign-in code can reach them. */
+    /** Whether a link or a text can reach this employee, so no in-person code is issued. */
+    public function reachable(Employee $employee, ?User $user): bool
+    {
+        return $this->hasContact($employee, $user);
+    }
+
+    /**
+     * An email, or a phone a text can actually reach, means the normal
+     * activation link or sign-in code can reach them.
+     *
+     * A phone counted on its own until 2026-10-28, and SMS is not live: a
+     * person with only a phone could get neither a link nor a text nor an
+     * in-person code. It counts now only while texts would reach it: for an
+     * account still to be activated, once text invitations are on; for an
+     * active one, whenever sign-in codes can be sent.
+     */
     private function hasContact(Employee $employee, ?User $user): bool
     {
-        foreach ([$employee->email, $employee->phone, $user?->email, $user?->phone] as $value) {
+        foreach ([$employee->email, $user?->email] as $value) {
             if (is_string($value) && trim($value) !== '') {
                 return true;
             }
         }
 
-        return false;
+        $hasPhone = false;
+        foreach ([$employee->phone, $user?->phone] as $value) {
+            $hasPhone = $hasPhone || (is_string($value) && trim($value) !== '');
+        }
+
+        if (! $hasPhone) {
+            return false;
+        }
+
+        return $user !== null && $user->status === 'active'
+            ? $this->sms->isAvailable()
+            : $this->sms->invitationsEnabled();
     }
 
     /**

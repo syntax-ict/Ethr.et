@@ -3,7 +3,8 @@ import { apiClient } from "@/api/client";
 import type { components } from "@/api/generated";
 
 /**
- * In-person activation for an employee with no email and no phone. HR issues a
+ * In-person activation for an employee with no email, and no phone a text can
+ * reach (text invitations are off until SMS is live). HR issues a
  * one-time code face to face; the employee redeems it and picks their own
  * password (`ActivationCodeController`, `ActivationRedeemController`).
  */
@@ -22,6 +23,12 @@ export const ACTIVATION_DOCUMENTS: readonly ActivationDocument[] = [
 export interface ActivationStatus {
   /** `none` until a login exists, then the account's status. */
   login_status: string;
+  /**
+   * A link or a text can reach them, so no code is issued. A phone counts only
+   * once the platform sends invitations by text; until then a person with
+   * only a phone is activated in person.
+   */
+  reachable: boolean;
   state: "none" | "live" | "used" | "expired" | "revoked" | "locked";
   purpose: "activation" | "recovery" | null;
   expires_at: string | null;
