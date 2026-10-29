@@ -61,9 +61,15 @@ function ensureLocaleLoaded(locale: string): void {
   if (loaded[locale]) return;
   const loader = lazyLoaders[locale];
   if (loader && !loadPromises[locale]) {
-    loadPromises[locale] = loader().then((mod) => {
-      loaded[locale] = mod.default;
-    });
+    // Offline, a dictionary chunk nothing has cached cannot load. The callers'
+    // English fallbacks stand in until the next page load; left unhandled, the
+    // rejection was a console error on every offline page.
+    loadPromises[locale] = loader().then(
+      (mod) => {
+        loaded[locale] = mod.default;
+      },
+      () => {},
+    );
   }
 }
 

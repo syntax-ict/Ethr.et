@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\LeaveRequest;
 use App\Notifications\Concerns\LeaveTemplateValues;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\NotificationMessage;
 use App\Support\NotificationTemplates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -43,7 +44,7 @@ class LeaveRejectedNotification extends Notification
             'start_date' => $this->leaveRequest->start_date->format('Y-m-d'),
             'end_date' => $this->leaveRequest->end_date->format('Y-m-d'),
             'reason' => $this->leaveRequest->rejected_reason,
-            'message' => __('notification.inapp.leave_rejected'),
+            ...NotificationMessage::make('notification.inapp.leave_rejected'),
             'url' => '/leave',
         ];
     }

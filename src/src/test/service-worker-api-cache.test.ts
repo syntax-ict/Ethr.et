@@ -60,12 +60,12 @@ describe("service worker API caching", () => {
     expect(intercepts("/api/v1/attendance/today")).toBe(true);
   });
 
-  it("names its caches v2, so activation deletes the v1 copies already stored", () => {
+  it("names its caches v3, so activation deletes the v1 and v2 copies already stored", () => {
     const source = readFileSync(
       resolve(__dirname, "../../public/sw.js"),
       "utf8",
     );
-    expect(source).toContain("const CACHE_VERSION = 'ethr-v2';");
+    expect(source).toContain("const CACHE_VERSION = 'ethr-v3';");
   });
 });
 
