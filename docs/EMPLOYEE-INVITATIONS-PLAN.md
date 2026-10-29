@@ -5,8 +5,15 @@
 **Status, 2026-10-28:** PR A is built on `feat/queued-invitations`, together with the parts of
 PR B that the owner asked to have ready for later: the text channel, its console switch (off),
 the invitations' share of the SMS cap, and activation by sign-in code. While the switch is off,
-people with only a phone get an in-person code, which a phone used to block. PRs C and D are
-not started.
+people with only a phone get an in-person code, which a phone used to block.
+
+PR C is built on `feat/invite-after-migration`, stacked on PR A. Point 3 reuses
+`MigrationStep` on a page of its own (`/employees/from-device`) rather than moving it, and
+point 4 is the owner's warning. PR D is built on `feat/adms-enrolled-users`, from `main`.
+The owner said to build it without a real terminal (2026-10-28), so it accepts both the
+PUSH 2.x and 3.x formats, falls back from one to the other, and its fixtures follow the
+published protocols. The first real terminal still has to be compared against them
+(`DEVICE_INTEGRATION.md`).
 
 The goal: an organisation that already has a ZKTeco, Hikvision or Suprema terminal with its
 staff enrolled gets those people into ETHR as employees, and every one of them receives a way
