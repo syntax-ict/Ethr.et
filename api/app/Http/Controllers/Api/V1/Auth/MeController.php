@@ -9,8 +9,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\TenantResource;
 use App\Models\Employee;
 use App\Services\CurrentTenant;
+use App\Services\Features\FeatureGate;
 use App\Services\FileStorageService;
-use App\Services\PlanFeatureService;
 use App\Support\UploadLimit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,7 +19,7 @@ class MeController extends Controller
 {
     public function __construct(
         private readonly FileStorageService $storage,
-        private readonly PlanFeatureService $features,
+        private readonly FeatureGate $features,
     ) {}
 
     public function __invoke(Request $request, CurrentTenant $currentTenant): JsonResponse
@@ -49,7 +49,10 @@ class MeController extends Controller
             ],
             'permissions' => $user->permissionNames(),
             'plan_features' => $currentTenant->resolved()
-                ? $this->features->enabledFor($currentTenant->get())
+                ? $this->features->enabledPlanFeatures($currentTenant->get())
+                : null,
+            'features' => $currentTenant->resolved()
+                ? $this->features->decisionsFor($currentTenant->get())
                 : null,
             'tenant' => $currentTenant->resolved()
                 ? new TenantResource($currentTenant->get())

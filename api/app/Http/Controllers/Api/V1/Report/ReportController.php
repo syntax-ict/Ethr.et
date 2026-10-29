@@ -40,7 +40,7 @@ class ReportController extends Controller
         Gate::authorize('report.generate');
         $this->authorizeSource($request);
 
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
         $result = $this->engine->generate($tenantId, $request->validated(), $request->user());
 
         return response()->json($result);
@@ -51,7 +51,7 @@ class ReportController extends Controller
         Gate::authorize('report.generate');
         $this->authorizeSource($request);
 
-        $tenantId = app(CurrentTenant::class)->get()->id;
+        $tenantId = app(CurrentTenant::class)->requireId();
         $format = $request->validated('format', 'csv');
         $result = $this->engine->generate($tenantId, $request->validated(), $request->user());
         $filename = 'report-'.now()->format('Y-m-d-His');

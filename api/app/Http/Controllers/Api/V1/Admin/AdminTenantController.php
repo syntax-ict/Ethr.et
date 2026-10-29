@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
-use App\Enums\PlanFeature;
+use App\Enums\Feature;
 use App\Enums\SubscriptionStatus;
 use App\Enums\TenantAddressMode;
 use App\Enums\TenantStatus;
@@ -30,8 +30,8 @@ use App\Services\Auth\SessionCookie;
 use App\Services\Auth\SessionHandoff;
 use App\Services\AuthService;
 use App\Services\CustomDomainVerifier;
+use App\Services\Features\FeatureGate;
 use App\Services\MfaService;
-use App\Services\PlanFeatureService;
 use App\Services\TenantAddressService;
 use App\Support\FrontendUrl;
 use Illuminate\Http\JsonResponse;
@@ -92,7 +92,7 @@ class AdminTenantController extends Controller
         );
     }
 
-    public function show(string $publicId, PlanFeatureService $plans): JsonResponse
+    public function show(string $publicId, FeatureGate $features): JsonResponse
     {
         Gate::authorize('admin.manage');
 
@@ -139,7 +139,7 @@ class AdminTenantController extends Controller
             'custom_domain' => $tenant->custom_domain,
             'custom_domain_status' => $this->domainStatus($tenant),
             'custom_domain_dns' => $this->domainDns($tenant),
-            'custom_domain_allowed' => $plans->allows($tenant, PlanFeature::CustomDomain),
+            'custom_domain_allowed' => $features->allows($tenant, Feature::CustomDomain),
             'address_mode' => $tenant->addressMode()->value,
             'address_mode_effective' => $tenant->effectiveAddressMode()->value,
             'canonical_url' => FrontendUrl::canonicalOrigin($tenant),
@@ -222,7 +222,7 @@ class AdminTenantController extends Controller
      * resolves nothing and no link uses it until the Verify action finds the
      * DNS records `custom_domain_dns` lists. `null` clears it at once.
      */
-    public function updateDomain(UpdateTenantDomainRequest $request, string $publicId, PlanFeatureService $plans): JsonResponse
+    public function updateDomain(UpdateTenantDomainRequest $request, string $publicId, FeatureGate $features): JsonResponse
     {
         Gate::authorize('admin.manage');
 
@@ -240,7 +240,7 @@ class AdminTenantController extends Controller
 
         // A custom domain is a paid add-on: assigning one needs a plan that
         // names `custom_domain`. Clearing one never does.
-        if ($newDomain !== null && ! $plans->allows($tenant, PlanFeature::CustomDomain)) {
+        if ($newDomain !== null && ! $features->allows($tenant, Feature::CustomDomain)) {
             throw ValidationException::withMessages([
                 'custom_domain' => [__('validation.custom_domain_not_in_plan')],
             ]);

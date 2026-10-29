@@ -144,8 +144,35 @@ export interface MigrationBatch {
   rows: StagingRow[];
 }
 
-export interface CommitResult {
+export interface CommitResult extends MigrationLogins {
   message: string;
   totals: Record<string, number>;
   status: string;
+}
+
+/** A migrated employee who cannot sign in yet, and how they would be invited. */
+export interface PendingLogin {
+  employee_public_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  channel: "email" | "sms" | "in_person";
+  /** A login exists and was invited; it has not been activated. */
+  invited: boolean;
+}
+
+export interface MigrationLogins {
+  without_login: PendingLogin[];
+  /** People created with today as their hire date, because the source had none. */
+  hire_dates_defaulted: number;
+}
+
+export interface CreateLoginsResult {
+  message: string;
+  created: number;
+  active: number;
+  in_person: number;
+  email_in_use: number;
+  batch: string | null;
+  queued: number;
 }

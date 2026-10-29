@@ -23,8 +23,10 @@ import {
 } from "@/components/ui/select";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { SimpleTable } from "@/components/shared/simple-table";
+import Link from "next/link";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
 import {
   useDeviceEnrollments,
@@ -59,6 +61,7 @@ export function DeviceEnrollmentsDialog({
   onClose: () => void;
 }) {
   const { t } = useT();
+  const { can } = usePermissions();
   const query = useDeviceEnrollments(devicePublicId);
 
   return (
@@ -147,6 +150,13 @@ export function DeviceEnrollmentsDialog({
           <Button variant="outline" onClick={onClose}>
             {t("common.close", "Close")}
           </Button>
+          {can.manageEmployees && devicePublicId && (
+            <Button asChild>
+              <Link href={`/employees/from-device?device=${devicePublicId}`}>
+                {t("devices_page.bring_in", "Bring these people into ETHR")}
+              </Link>
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

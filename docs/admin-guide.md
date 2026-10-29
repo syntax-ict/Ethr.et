@@ -225,7 +225,17 @@ A branch can choose differently from the organisation (Branch rules).
 - **Registering.** The first phone registers by itself only when the person is
   at work, inside their branch or a work site. Registering anywhere else, or
   replacing a phone, waits for approval under Attendance → Devices.
-  Approving a replacement retires the old phone at the same moment.
+  HR admins and organisation admins are told in the app when one is waiting.
+  A waiting replacement shows the phone it replaces and when that phone last
+  punched; approving it retires the old phone at the same moment.
+- **A new or lost phone.** The person opens the punch screen on the new phone.
+  It names their registered phone and offers **Register this phone**, which
+  sends the new one for approval. The old phone keeps working until then.
+- **Refusing and revoking.** Both ask for a reason. The person is told what
+  happened and why, and the reason is kept in the audit log.
+- **Leavers.** When someone resigns, is terminated or retires, their phone is
+  revoked and any waiting request closed, so the phone can be handed to a
+  colleague.
 - **One phone, one person.** A phone or browser already registered to a
   colleague cannot be registered again, and a passkey belonging to someone
   else is refused.
@@ -234,8 +244,9 @@ A branch can choose differently from the organisation (Branch rules).
   internet address, list it under **Office networks for computer punches**: web
   punches from it need no phone and are marked for review.
 - **Exemptions.** A person whose phone cannot hold a passkey, or is broken, can
-  be exempted until a date (up to three months) from their profile. Their
-  punches are accepted meanwhile and still sent for review.
+  be exempted until a date (up to three months) from their profile, or with
+  **Punch without a phone** under Attendance → Devices. Their punches are
+  accepted meanwhile and still sent for review.
 - **Offline.** A punch made with no signal is signed by the registered phone
   over its own time and place, and checked when it syncs, so it cannot be
   edited or made on another phone.
@@ -245,8 +256,11 @@ A branch can choose differently from the organisation (Branch rules).
 - **Kiosk, biometric devices and manual entries** are never asked for a phone.
 
 **Rolling it out:** choose **Check and review**, let staff register as they
-punch at work, watch the count under Attendance → Devices, then choose **Only
-the registered phone**. What it cannot stop is a person handing their own
+punch at work, and watch **Still to register** under Attendance → Devices. It
+counts only the people whose phone is checked (their branch checks phones,
+lets them punch from a phone or browser, and they are not exempt); click it
+for their names. Those are the people **Only the registered phone** would
+stop, so choose it once the list is empty or each name is handled. What it cannot stop is a person handing their own
 unlocked phone to a friend; the selfie, the live face check and the review
 queue cover that.
 

@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services\NextSteps\Providers;
 
+use App\Enums\Feature;
 use App\Enums\NextStepId;
 use App\Enums\OnboardingStep;
-use App\Enums\PlanFeature;
 use App\Models\OnboardingProgress;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Attendance\AttendanceHealth;
+use App\Services\Features\FeatureGate;
 use App\Services\NextSteps\NextStep;
 use App\Services\NextSteps\StepProvider;
 use App\Services\Onboarding\ReadinessScorer;
-use App\Services\PlanFeatureService;
 
 /**
  * Configuration that is genuinely unfinished, for the person who can change it.
@@ -32,16 +32,16 @@ final class SetupProvider implements StepProvider
 {
     /** Readiness checks that only mean something when the plan includes the module. */
     private const CHECK_FEATURE = [
-        'shifts_exist' => PlanFeature::Attendance,
-        'holidays_exist' => PlanFeature::Attendance,
-        'attendance_source_configured' => PlanFeature::Attendance,
-        'leave_types_exist' => PlanFeature::Leave,
+        'shifts_exist' => Feature::Attendance,
+        'holidays_exist' => Feature::Attendance,
+        'attendance_source_configured' => Feature::Attendance,
+        'leave_types_exist' => Feature::Leave,
     ];
 
     public function __construct(
         private readonly ReadinessScorer $readiness,
         private readonly AttendanceHealth $attendance,
-        private readonly PlanFeatureService $plans,
+        private readonly FeatureGate $features,
     ) {}
 
     public function steps(User $user, Tenant $tenant): array
@@ -51,7 +51,7 @@ final class SetupProvider implements StepProvider
         }
 
         $steps = [];
-        $attendanceOn = $this->plans->allows($tenant, PlanFeature::Attendance);
+        $attendanceOn = $this->features->allows($tenant, Feature::Attendance);
         $blockers = $attendanceOn && $user->hasPermission('attendance.manage')
             ? array_values(array_filter(
                 $this->attendance->checks($tenant),
@@ -63,7 +63,7 @@ final class SetupProvider implements StepProvider
             $id = NextStepId::fromReadinessCheck($gap['id']);
             $feature = self::CHECK_FEATURE[$gap['id']] ?? null;
 
-            if ($id === null || ($feature !== null && ! $this->plans->allows($tenant, $feature))) {
+            if ($id === null || ($feature !== null && ! $this->features->allows($tenant, $feature))) {
                 continue;
             }
 

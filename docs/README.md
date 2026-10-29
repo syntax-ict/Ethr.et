@@ -30,6 +30,7 @@ Several documents in this tree describe things that are not true of the code. Th
 | [`payroll/STATUTORY-SCHEDULES.md`](payroll/STATUTORY-SCHEDULES.md) | The monthly **income tax** (MoR) and **pension** (POESSA/PSSSA) schedules each run exports: where the figures come from, the header settings, who sees TINs, and why the layout is still to be confirmed (owner action O3). |
 | [`payroll/STATUTORY-RULES-RESEARCH.md`](payroll/STATUTORY-RULES-RESEARCH.md) | **Research behind the statutory rules** (2026-10-14): pension rates for POESSA and PSSSA from the 1268/2022 and 1267/2022 Gazette texts, tax brackets, and what could not be confirmed — each rule with its source, access date and confidence. |
 | [`EMPLOYEE-LIFECYCLE.md`](EMPLOYEE-LIFECYCLE.md) | **The employee lifecycle from position to exit** (2026-10-27): capability matrix against the code, the recruitment-to-hire slice, the rules every lifecycle feature follows, and the ordered plan with acceptance criteria. |
+| [`EMPLOYEE-INVITATIONS-PLAN.md`](EMPLOYEE-INVITATIONS-PLAN.md) | **Bringing device staff into ETHR and inviting them** (2026-10-28): queued and throttled invitations, an invitation channel for phone-only and no-contact staff, inviting after a device migration, and ADMS enrolled-user lists. Four PRs in order, with the owner decisions they need. Not built. |
 | [`EMPLOYMENT-LAW-REGISTER.md`](EMPLOYMENT-LAW-REGISTER.md) | **Employment law register** (2026-10-27): Labour Proc. 1156/2019, Civil Servants Proc. 1353/2024, PDPP 1321/2024, pension and e-transaction law, each requirement classed verified / not fully verified / needs counsel. Not legal advice. |
 
 Three standing caveats:
@@ -81,6 +82,7 @@ Three standing caveats:
 | Document | What it is |
 |---|---|
 | [`ENTERPRISE_ROADMAP.md`](ENTERPRISE_ROADMAP.md) | **Live status** — done, partial, missing, grounded in code (97 KB). Cites several audit documents that no longer exist; see the note below |
+| [`FEATURE-CONTROL-CENTER-DESIGN.md`](FEATURE-CONTROL-CENTER-DESIGN.md) | **Owner decided 2026-10-28, not built:** a console page where the platform admin enables, hides, restricts or disables a feature, or grants and revokes one per organisation, without a deploy. One resolver over the plan gate; the unused `feature_flags` table replaced |
 | [`APPROVAL-ENGINE-DESIGN.md`](APPROVAL-ENGINE-DESIGN.md) | **Proposal awaiting owner decisions:** configurable approval chains, delegation, escalation and return for correction, delivered in phases that change nothing until an organisation configures a chain |
 | [`external/ERCA_INCOME_TAX_QUERY.md`](external/ERCA_INCOME_TAX_QUERY.md) | **Drafted, unsent.** Asks the **Ministry of Revenues** (not "ERCA" — that body is gone) to confirm the Proclamation 1395/2025 employment-income ladder band by band, because `DEPLOYMENT.md` records it was taken from legal-firm summaries rather than the Negarit Gazeta, and to say how an over-withholding must be corrected. Also records that **both** "open items" in roadmap 4.3 are stale |
 | [`B1-B5_GATE_REPORT.md`](B1-B5_GATE_REPORT.md) | External probing of the hosting target — DNS, ports, TLS |

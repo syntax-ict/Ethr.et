@@ -18,5 +18,6 @@ return [
         'tax_center' => 'የግብር ማዕከል',
         'pension_scheme' => 'የጡረታ ዕቅድ',
         'employee_number_format' => 'የሰራተኛ ቁጥር ቅርጸት',
+        'invitation_reminders' => 'የግብዣ ማስታወሻዎች',
     ],
 ];

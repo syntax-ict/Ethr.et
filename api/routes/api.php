@@ -148,6 +148,8 @@ use App\Http\Controllers\Api\V1\SiteContentController;
 use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\User\ActivationCodeController;
+use App\Http\Controllers\Api\V1\User\EmployeeLoginController;
+use App\Http\Controllers\Api\V1\User\InvitationController;
 use App\Http\Controllers\Api\V1\User\UserController;
 use App\Http\Controllers\Api\V1\Vacancy\VacancyController;
 use App\Http\Controllers\Api\V1\Voice\ConcernController;
@@ -168,7 +170,7 @@ use App\Http\Middleware\EnsureUserBelongsToTenant;
 use App\Http\Middleware\RejectInactiveUser;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
 use App\Http\Middleware\RequirePlatformMfa;
-use App\Http\Middleware\RequiresPlanFeature;
+use App\Http\Middleware\RequiresFeature;
 use App\Http\Middleware\RequireTenantMfaEnrolment;
 use App\Http\Middleware\ScimAuth;
 use App\Http\Middleware\VerifyCronToken;
@@ -392,6 +394,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/migration/batches/{batch}', [MigrationController::class, 'show']);
         Route::patch('/migration/rows/{row}', [MigrationController::class, 'updateRow']);
         Route::post('/migration/batches/{batch}/commit', [MigrationController::class, 'commit']);
+        Route::get('/migration/batches/{batch}/logins', [MigrationController::class, 'logins']);
     });
 
     // Setup & Next Steps: one list per person, built from their role, scope and plan.
@@ -405,6 +408,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index']);
         Route::post('/', [UserController::class, 'store']);
+        Route::post('/invitations', [InvitationController::class, 'store']);
+        Route::get('/invitations/{batch}', [InvitationController::class, 'show']);
         Route::patch('/{user}', [UserController::class, 'update']);
         Route::post('/{user}/resend-invite', [UserController::class, 'resendInvite']);
         Route::post('/{user}/mfa/reset', [UserController::class, 'resetMfa']);
@@ -452,6 +457,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/device/register', [AttendanceDeviceController::class, 'register']);
         Route::post('/device/challenge', [AttendanceDeviceController::class, 'challenge']);
         Route::get('/devices', [AttendanceDeviceController::class, 'index']);
+        Route::get('/devices/unregistered', [AttendanceDeviceController::class, 'unregistered']);
         Route::post('/devices/{device}/approve', [AttendanceDeviceController::class, 'approve']);
         Route::post('/devices/{device}/reject', [AttendanceDeviceController::class, 'reject']);
         Route::delete('/devices/{device}', [AttendanceDeviceController::class, 'revoke']);
@@ -545,6 +551,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Recover the outcome of a committed import when the client lost the response.
     Route::get('/employees/import/status/{key}', [EmployeeImportController::class, 'status']);
     Route::post('/employees/bulk-update', [EmployeeBulkController::class, 'bulkUpdate']);
+    Route::post('/employees/logins', [EmployeeLoginController::class, 'store']);
     Route::post('/employees/{employee}/enrol-on-devices', [DeviceCommandController::class, 'enrolEmployee']);
     // The template is a header line, not an import: under `imports` it spent
     // one of the five an hour before a file was chosen.
@@ -675,17 +682,17 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // paid for would be a records problem, not a billing control.
     Route::prefix('payroll')->group(function () {
         Route::post('/process', [PayrollController::class, 'process'])
-            ->middleware(['throttle:payroll-process', RequiresPlanFeature::class.':payroll']);
+            ->middleware(['throttle:payroll-process', RequiresFeature::class.':payroll']);
         Route::get('/runs', [PayrollController::class, 'index']);
         Route::get('/runs/{payrollRun}', [PayrollController::class, 'show']);
         Route::put('/runs/{payrollRun}/approve', [PayrollController::class, 'approve'])
-            ->middleware(RequiresPlanFeature::class.':payroll');
+            ->middleware(RequiresFeature::class.':payroll');
         Route::post('/runs/{payrollRun}/void', [PayrollController::class, 'void'])
-            ->middleware(RequiresPlanFeature::class.':payroll');
+            ->middleware(RequiresFeature::class.':payroll');
         Route::put('/runs/{payrollRun}/paid', [PayrollController::class, 'markPaid'])
-            ->middleware(RequiresPlanFeature::class.':payroll');
+            ->middleware(RequiresFeature::class.':payroll');
         Route::post('/runs/{payrollRun}/reprocess', [PayrollController::class, 'reprocess'])
-            ->middleware(['throttle:payroll-process', RequiresPlanFeature::class.':payroll']);
+            ->middleware(['throttle:payroll-process', RequiresFeature::class.':payroll']);
         Route::get('/runs/{payrollRun}/export/bank', [PayrollController::class, 'bankExport']);
         Route::get('/runs/{payrollRun}/export/bank-csv', [PayrollController::class, 'downloadBankExport']);
         Route::get('/runs/{payrollRun}/register', [PayrollController::class, 'register']);
@@ -757,20 +764,20 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('reports')->group(function () {
         Route::get('/sources', [ReportController::class, 'sources']);
         Route::post('/generate', [ReportController::class, 'generate'])
-            ->middleware(RequiresPlanFeature::class.':reports');
+            ->middleware(RequiresFeature::class.':reports');
         Route::post('/export', [ReportController::class, 'export'])
-            ->middleware(RequiresPlanFeature::class.':reports');
+            ->middleware(RequiresFeature::class.':reports');
 
         // `custom_reports` is the Enterprise tier's own key, distinct from
         // `reports`: saving and scheduling a report definition is the paid
         // capability, running one ad hoc is not. Deletes stay ungated so a
         // downgraded tenant can still clean up what it created.
         Route::post('/save', [ReportController::class, 'save'])
-            ->middleware(RequiresPlanFeature::class.':custom_reports');
+            ->middleware(RequiresFeature::class.':custom_reports');
         Route::get('/saved', [ReportController::class, 'savedList']);
         Route::delete('/saved/{savedReport}', [ReportController::class, 'deleteSaved']);
         Route::post('/schedule', [ReportController::class, 'schedule'])
-            ->middleware(RequiresPlanFeature::class.':custom_reports');
+            ->middleware(RequiresFeature::class.':custom_reports');
         Route::get('/scheduled', [ReportController::class, 'scheduledList']);
         Route::delete('/scheduled/{scheduledReport}', [ReportController::class, 'deleteScheduled']);
     });
@@ -904,7 +911,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         // Issuing a key is the capability; listing and revoking stay open so a
         // downgraded tenant can see and withdraw keys that are still live.
         Route::post('/', [ApiKeyController::class, 'store'])
-            ->middleware(RequiresPlanFeature::class.':api_access');
+            ->middleware(RequiresFeature::class.':api_access');
         Route::delete('/{apiKey}', [ApiKeyController::class, 'destroy']);
     });
 
@@ -912,9 +919,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('webhooks')->group(function () {
         Route::get('/', [WebhookController::class, 'index']);
         Route::post('/', [WebhookController::class, 'store'])
-            ->middleware(RequiresPlanFeature::class.':webhooks');
+            ->middleware(RequiresFeature::class.':webhooks');
         Route::put('/{webhook}', [WebhookController::class, 'update'])
-            ->middleware(RequiresPlanFeature::class.':webhooks');
+            ->middleware(RequiresFeature::class.':webhooks');
         // Delete stays open: a downgraded tenant must be able to switch off an
         // endpoint that is still receiving its data.
         Route::delete('/{webhook}', [WebhookController::class, 'destroy']);
@@ -1082,7 +1089,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // #5 is a compliance guarantee, not a tier benefit); only reading them back
     // through the API is tiered.
     Route::get('/audit-logs', [AuditLogController::class, 'index'])
-        ->middleware(RequiresPlanFeature::class.':audit_log');
+        ->middleware(RequiresFeature::class.':audit_log');
 
     // Custom roles
     Route::get('/permissions', [CustomRoleController::class, 'permissions']);

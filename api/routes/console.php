@@ -50,6 +50,11 @@ Schedule::command('attendance:baseline')->hourly()->name('attendance-baseline')-
 Schedule::command('attendance:purge-device-challenges')->daily()->name('attendance-purge-device-challenges')->withoutOverlapping();
 Schedule::command('auth:purge-activation-codes')->daily()->name('auth-purge-activation-codes')->withoutOverlapping();
 
+// Invite again anyone who has not activated three days after their last
+// invitation, at most twice (owner decision, 2026-10-28). 06:00 UTC is 09:00 in
+// Addis Ababa, when the person is likely to see it.
+Schedule::command('invitations:send-reminders')->dailyAt('06:00')->name('invitations-send-reminders')->withoutOverlapping();
+
 // Attendance selfie retention: delete photos whose 48-hour review ended, then
 // announce the ones past the organisation's retention period. Hourly, so a
 // deletion lands within an hour of the review's end; idempotent, so a late or

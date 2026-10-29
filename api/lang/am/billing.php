@@ -10,6 +10,7 @@ return [
     'device_limit_reached' => 'ለዕቅድዎ የመሳሪያ ገደብ ደርሰዋል።',
 
     'feature_not_in_plan' => 'ዕቅድዎ :feature አያካትትም። ለመጠቀም ያሻሽሉ።',
+    'feature_unavailable' => 'ድርጅትዎ በአሁኑ ጊዜ :feature መጠቀም አይችልም።',
 
     'features' => [
         'attendance' => 'የመገኘት ክትትል',

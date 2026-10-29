@@ -18,5 +18,6 @@ return [
         'tax_center' => 'tax centre',
         'pension_scheme' => 'pension scheme',
         'employee_number_format' => 'employee number format',
+        'invitation_reminders' => 'invitation reminders',
     ],
 ];

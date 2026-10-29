@@ -21,6 +21,11 @@ return [
         'next' => 'Sign in and set it up again from your security settings. If your organisation requires it, you will be asked to straight away.',
         'not_you' => 'If you did not ask for this, tell your administrator at once.',
     ],
+    'invitation' => [
+        'sms' => ':org added you to ETHR. Sign in at :url with this phone number. We will text you a code.',
+        'queued' => 'Invitations are being sent.',
+        'batch_not_found' => 'No such invitation batch.',
+    ],
     'errors' => [
         'role_not_assignable' => 'This role cannot be assigned.',
         'role_above_your_level' => 'You cannot assign a role higher than your own.',

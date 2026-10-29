@@ -663,8 +663,32 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** GET /attendance/devices: registered and waiting phones, with how many people have one */
+        /**
+         * GET /attendance/devices: registered and waiting phones, with how many
+         *     people have one. A waiting replacement carries the phone it replaces
+         */
         get: operations["attendanceDevice.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/devices/unregistered": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /attendance/devices/unregistered: the people whose phone is checked
+         *     and who have none registered yet, the ones a switch to enforce would
+         *     stop. Someone with a phone waiting for approval is marked as such
+         */
+        get: operations["attendanceDevice.unregistered"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2847,6 +2871,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/logins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create login */
+        post: operations["employeeLogin.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/import/template": {
         parameters: {
             query?: never;
@@ -3549,6 +3590,40 @@ export interface paths {
         };
         /** List deliveries */
         get: operations["webhook.deliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create invitation */
+        post: operations["invitation.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/invitations/{batch}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get invitation */
+        get: operations["invitation.show"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4556,6 +4631,28 @@ export interface paths {
         put?: never;
         /** Commit batches */
         post: operations["migration.commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/batches/{batch}/logins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who among a committed batch's people cannot sign in yet, and how each
+         *     would be invited, for the "give them a way to sign in" step after a
+         *     migration. Also how many were given today as their hire date because
+         *     the source had none
+         */
+        get: operations["migration.logins"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -8135,6 +8232,13 @@ export interface components {
             created_at: string | null;
             last_used_at: string | null;
             approved_at: string | null;
+            revoked_at: string | null;
+            replaces?: {
+                label: string | null;
+                synced_passkey: boolean;
+                created_at: string | null;
+                last_used_at: string | null;
+            } | null;
             employee?: {
                 public_id: string;
                 name: string;
@@ -8541,6 +8645,10 @@ export interface components {
          * @enum {string}
          */
         CostSharingStatus: "active" | "suspended" | "completed" | "cancelled";
+        /** CreateEmployeeLoginsRequest */
+        CreateEmployeeLoginsRequest: {
+            employee_ids: string[];
+        };
         /** CustomRoleResource */
         CustomRoleResource: {
             public_id: string;
@@ -8554,6 +8662,14 @@ export interface components {
             created_at: string | null;
             /** Format: date-time */
             updated_at: string | null;
+        };
+        /**
+         * DecideAttendanceDeviceRequest
+         * @description Refusing or revoking a phone. The reason is optional; when given it is
+         *     kept in the audit log and told to the employee.
+         */
+        DecideAttendanceDeviceRequest: {
+            reason?: string | null;
         };
         /** DecideRetirementCaseRequest */
         DecideRetirementCaseRequest: {
@@ -10271,6 +10387,12 @@ export interface components {
             frequency: "daily" | "weekly" | "monthly";
             recipients: string[];
         };
+        /** SendInvitationsRequest */
+        SendInvitationsRequest: {
+            user_ids?: string[];
+            /** @enum {string} */
+            scope?: "not_activated";
+        };
         /** ShiftAssignmentResource */
         ShiftAssignmentResource: {
             public_id: string;
@@ -11130,6 +11252,15 @@ export interface components {
             logo_url: string | null;
             url: string;
         };
+        /** UnregisteredEmployeeResource */
+        UnregisteredEmployeeResource: {
+            public_id: string;
+            name: string;
+            employee_code: string | null;
+            branch: string | null;
+            has_pending_phone: boolean;
+            exempt_until: string | null;
+        };
         /** UpdateAccessRequest */
         UpdateAccessRequest: {
             login_identifiers: ("email" | "phone" | "employee_code" | "username")[];
@@ -11768,6 +11899,7 @@ export interface components {
                 /** @enum {string} */
                 calendar?: "ethiopian" | "gregorian";
                 employee_number_format?: string;
+                invitation_reminders?: boolean;
             };
         };
         /** UpdateShiftRequest */
@@ -11794,6 +11926,8 @@ export interface components {
             /** @enum {string|null} */
             route_prefix?: "7" | "9" | null;
             daily_cap?: number;
+            invitations_enabled?: boolean;
+            invitation_share?: number;
         };
         /** UpdateSsoRequest */
         UpdateSsoRequest: {
@@ -12014,6 +12148,15 @@ export interface components {
             employee?: {
                 public_id: string;
                 name: string;
+            } | null;
+            last_invitation?: {
+                channel: string;
+                status: string;
+                reminder: boolean;
+                /** Format: date-time */
+                queued_at: string;
+                /** Format: date-time */
+                sent_at: string | null;
             } | null;
             /** Format: date-time */
             created_at: string | null;
@@ -14033,7 +14176,7 @@ export interface operations {
     "attendanceDevice.index": {
         parameters: {
             query?: {
-                status?: "active" | "pending" | "revoked" | "rejected" | null;
+                status?: "active" | "pending" | "revoked" | "rejected" | "closed" | null;
                 search?: string | null;
                 per_page?: number | null;
             };
@@ -14055,8 +14198,36 @@ export interface operations {
                             employees: number;
                             registered: number;
                             pending: number;
+                            checked: number;
+                            missing: number;
                         };
                     };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceDevice.unregistered": {
+        parameters: {
+            query?: {
+                search?: string | null;
+                per_page?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `UnregisteredEmployeeResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnregisteredEmployeeResource"][];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14121,7 +14292,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DecideAttendanceDeviceRequest"];
+            };
+        };
         responses: {
             /** @description `AttendanceDeviceResource` */
             200: {
@@ -14156,11 +14331,14 @@ export interface operations {
                     };
                 };
             };
+            422: components["responses"]["ValidationException"];
         };
     };
     "attendanceDevice.revoke": {
         parameters: {
-            query?: never;
+            query?: {
+                reason?: string | null;
+            };
             header?: never;
             path: {
                 /** @description The device public id */
@@ -14188,6 +14366,22 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This phone is not registered now.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
         };
     };
     "attendanceVisit.index": {
@@ -15889,6 +16083,13 @@ export interface operations {
                             [key: string]: unknown;
                         };
                         plan_features: unknown[] | null;
+                        features: {
+                            [key: string]: {
+                                on: boolean;
+                                visible: boolean;
+                                reason: string;
+                            };
+                        } | null;
                         tenant: components["schemas"]["TenantResource"] | null;
                         upload_limit_bytes: number;
                     };
@@ -19333,6 +19534,41 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "employeeLogin.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEmployeeLoginsRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Invitations are being sent.";
+                        created: number;
+                        active: number;
+                        in_person: string;
+                        email_in_use: number;
+                        batch: string | null;
+                        queued: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "employeeImport.template": {
         parameters: {
             query?: never;
@@ -19433,6 +19669,9 @@ export interface operations {
                         skipped: number;
                         matched: number;
                         users_created: number;
+                        invitations_batch: string | null;
+                        invitations_queued: number;
+                        in_person: number;
                         errors: {
                             [key: string]: string[];
                         };
@@ -21597,6 +21836,92 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "invitation.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SendInvitationsRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Invitations are being sent.";
+                        batch: string | null;
+                        queued: number;
+                        in_person: number;
+                        skipped: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "invitation.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        batch: string;
+                        total: number;
+                        queued: number;
+                        sent: number;
+                        failed: number;
+                        skipped: number;
+                        failures: {
+                            user_id: string;
+                            name: string | null;
+                            channel: string;
+                            error_code: string | null;
+                        }[];
+                    } | null;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No such invitation batch.";
+                    };
+                };
+            };
         };
     };
     "jobApplication.index": {
@@ -24370,6 +24695,52 @@ export interface operations {
                             deferred: number;
                         } | unknown[];
                         status: string;
+                        without_login: {
+                            employee_public_id: string;
+                            name: string;
+                            email: string;
+                            phone: string;
+                            /** @enum {string} */
+                            channel: "sms" | "in_person" | "email";
+                            invited: boolean;
+                        }[];
+                        hire_dates_defaulted: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "migration.logins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        without_login: {
+                            employee_public_id: string;
+                            name: string;
+                            email: string;
+                            phone: string;
+                            /** @enum {string} */
+                            channel: "sms" | "in_person" | "email";
+                            invited: boolean;
+                        }[];
+                        hire_dates_defaulted: number;
                     };
                 };
             };
@@ -30188,6 +30559,7 @@ export interface operations {
                         employees: {
                             number_format: string;
                             next_code: string;
+                            invitation_reminders: boolean;
                         };
                         sso: {
                             is_enabled: boolean;
@@ -31717,6 +32089,9 @@ export interface operations {
                         route_prefix: string | null;
                         daily_cap: number;
                         sent_today: number;
+                        invitations_enabled: boolean;
+                        invitation_share: number;
+                        invitations_sent_today: number;
                         available: boolean;
                         /** @enum {string} */
                         source: "console" | "env" | "none";
@@ -31804,6 +32179,9 @@ export interface operations {
                         route_prefix: string | null;
                         daily_cap: number;
                         sent_today: number;
+                        invitations_enabled: boolean;
+                        invitation_share: number;
+                        invitations_sent_today: number;
                         available: boolean;
                         /** @enum {string} */
                         source: "console" | "env" | "none";
@@ -31894,6 +32272,9 @@ export interface operations {
                         route_prefix: string | null;
                         daily_cap: number;
                         sent_today: number;
+                        invitations_enabled: boolean;
+                        invitation_share: number;
+                        invitations_sent_today: number;
                         available: boolean;
                         /** @enum {string} */
                         source: "console" | "env" | "none";
@@ -31980,6 +32361,9 @@ export interface operations {
                         route_prefix: string | null;
                         daily_cap: number;
                         sent_today: number;
+                        invitations_enabled: boolean;
+                        invitation_share: number;
+                        invitations_sent_today: number;
                         available: boolean;
                         /** @enum {string} */
                         source: "console" | "env" | "none";
@@ -32554,6 +32938,15 @@ export interface operations {
                             employee: {
                                 public_id: string;
                                 name: string;
+                            } | null;
+                            last_invitation: {
+                                channel: string;
+                                status: string;
+                                reminder: boolean;
+                                /** Format: date-time */
+                                queued_at: string;
+                                /** Format: date-time */
+                                sent_at: string | null;
                             } | null;
                         })[];
                         links: {
