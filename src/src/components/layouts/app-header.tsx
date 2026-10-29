@@ -125,8 +125,10 @@ export function AppHeader() {
           own, whatever the page title beside it measures. The actions column
           is never narrower than its contents, so a long name or another
           language cannot push the icons over the search; the title column
-          gives way first. Below lg it stays a row: logo, then the icons. */}
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,32rem)_minmax(max-content,1fr)] lg:gap-4 lg:px-6 xl:gap-6">
+          gives way first. Below lg it stays a row: logo, then the icons.
+          The search stops at 30rem: Get help added an icon to the actions,
+          and at 1280px the Amharic title "Add Employee" then lost 6px. */}
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,30rem)_minmax(max-content,1fr)] lg:gap-4 lg:px-6 xl:gap-6">
         {/* Left: mobile logo / Desktop breadcrumbs. The hamburger that lived
             here was the second of two controls opening the same navigation —
             the bottom bar's More is the documented, thumb-reachable one, and

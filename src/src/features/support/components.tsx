@@ -53,7 +53,7 @@ export function SupportStatusBadge({ status }: { status: SupportStatus }) {
   return (
     <Badge
       variant="outline"
-      className={cn("shrink-0 border-0 text-[10px]", statusStyles[status])}
+      className={cn("shrink-0 border-0 text-xs", statusStyles[status])}
     >
       {t(`support.status.${status}`, status)}
     </Badge>
@@ -237,12 +237,12 @@ export function SupportThread({
                   mine ? "bg-primary text-primary-foreground" : "bg-muted",
                 )}
               >
-                <p className="mb-0.5 text-[11px] font-semibold opacity-80">
+                <p className="mb-0.5 text-xs font-semibold opacity-80">
                   {authorLabel(m)}
                 </p>
                 <p className="whitespace-pre-line">{m.body}</p>
                 {m.created_at && (
-                  <p className="mt-1 text-[10px] opacity-70">
+                  <p className="mt-1 text-xs opacity-70">
                     {formatDateTime(m.created_at)}
                   </p>
                 )}
