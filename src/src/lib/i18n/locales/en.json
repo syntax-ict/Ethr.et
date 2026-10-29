@@ -2516,7 +2516,7 @@
   "executive_dashboard.department_detail": "Department",
   "executive_dashboard.expiring_documents": "Documents expiring within 30 days",
   "executive_dashboard.export_csv": "Export CSV",
-  "executive_dashboard.forecast_subtitle": "Dashed bars are a simple trend projection, not a guarantee.",
+  "executive_dashboard.forecast_subtitle": "Projected values are a simple trend, not a guarantee.",
   "executive_dashboard.gender_unrecorded": "Not recorded",
   "executive_dashboard.headcount": "Headcount",
   "executive_dashboard.probation_overdue": "Probation ended, no decision recorded",
@@ -6262,5 +6262,7 @@
   "audit_logs_page.csv.organisation": "Organisation",
   "audit_logs_page.csv.description": "Description",
   "audit.action.employee.personnel_action_cancelled": "Personnel action cancelled",
-  "audit.action.employee.personnel_action_applied": "Scheduled personnel action took effect"
+  "audit.action.employee.personnel_action_applied": "Scheduled personnel action took effect",
+  "analytics_page.no_one_scheduled": "No one scheduled",
+  "analytics_page.no_one_scheduled_hint": "Rest day or holiday"
 }

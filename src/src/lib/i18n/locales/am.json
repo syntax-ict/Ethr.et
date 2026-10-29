@@ -2516,7 +2516,7 @@
   "executive_dashboard.department_detail": "ክፍል",
   "executive_dashboard.expiring_documents": "በ30 ቀናት ውስጥ የሚያበቁ ሰነዶች",
   "executive_dashboard.export_csv": "CSV ላክ",
-  "executive_dashboard.forecast_subtitle": "የተሰነጣጠሉ አሞሌዎች ቀላል የአዝማሚያ ትንበያ ናቸው፣ ዋስትና አይደሉም።",
+  "executive_dashboard.forecast_subtitle": "የተተነበዩት እሴቶች ቀላል የአዝማሚያ ትንበያ ናቸው፣ ዋስትና አይደሉም።",
   "executive_dashboard.gender_unrecorded": "አልተመዘገበም",
   "executive_dashboard.headcount": "የሰራተኞች ብዛት",
   "executive_dashboard.probation_overdue": "የሙከራ ጊዜ አልቋል፣ ውሳኔ አልተመዘገበም",
@@ -6262,5 +6262,7 @@
   "audit_logs_page.csv.organisation": "ድርጅት",
   "audit_logs_page.csv.description": "መግለጫ",
   "audit.action.employee.personnel_action_cancelled": "የሰው ኃይል እርምጃ ተሰረዘ",
-  "audit.action.employee.personnel_action_applied": "የታቀደ የሰው ኃይል እርምጃ ተፈጻሚ ሆነ"
+  "audit.action.employee.personnel_action_applied": "የታቀደ የሰው ኃይል እርምጃ ተፈጻሚ ሆነ",
+  "analytics_page.no_one_scheduled": "የተመደበ የለም",
+  "analytics_page.no_one_scheduled_hint": "የዕረፍት ቀን ወይም በዓል"
 }

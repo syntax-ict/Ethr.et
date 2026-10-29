@@ -72,9 +72,10 @@ class DashboardDigestNotification extends Notification
                 'active' => $headcount['active'] ?? 0,
                 'total' => $headcount['total'] ?? 0,
             ]))
-            ->line(__('dashboard.digest_attendance', [
-                'rate' => $attendance['today'] ?? 0,
-            ]))
+            // Null on a rest day or holiday, when no one was expected.
+            ->line(isset($attendance['today'])
+                ? __('dashboard.digest_attendance', ['rate' => $attendance['today']])
+                : __('dashboard.digest_attendance_none_expected'))
             ->line(__('dashboard.digest_payroll', [
                 'amount' => number_format((($payroll['net_cents'] ?? 0)) / 100, 2),
             ]))

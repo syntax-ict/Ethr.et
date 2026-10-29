@@ -272,7 +272,8 @@ test('payroll by cost center sums gross pay per center and buckets unassigned em
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
-    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id]);
+    // Completed, not the factory's draft: a draft run counts in no payroll figure.
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'status' => 'completed']);
     $engineering = CostCenter::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Engineering']);
 
     $withCostCenter = Employee::factory()->create(['tenant_id' => $tenant->id, 'cost_center_id' => $engineering->id]);
