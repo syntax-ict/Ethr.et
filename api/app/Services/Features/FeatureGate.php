@@ -75,6 +75,13 @@ final class FeatureGate
         return $this->decide($tenant, $feature)->on;
     }
 
+    /** Forgets what this request read, after it changed a switch itself. */
+    public function flush(): void
+    {
+        $this->platform = null;
+        $this->overrides = [];
+    }
+
     /**
      * Every feature's decision, by key, for the screen.
      *

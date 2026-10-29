@@ -56,6 +56,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List features */
+        get: operations["adminFeature.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/features/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update feature */
+        put: operations["adminFeature.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/statutory-layouts": {
         parameters: {
             query?: never;
@@ -6076,6 +6110,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/tenants/{publicId}/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every feature's decision for one organisation, with why, and its grant
+         *     or revoke when it has one: the "why is payroll off for this
+         *          * organisation" view (docs/FEATURE-CONTROL-CENTER-DESIGN.md §7)
+         */
+        get: operations["adminTenant.features"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/features/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update feature */
+        put: operations["adminTenant.updateFeature"];
+        post?: never;
+        /** Delete feature */
+        delete: operations["adminTenant.removeFeature"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/revenue": {
         parameters: {
             query?: never;
@@ -9104,6 +9177,18 @@ export interface components {
             exception: string;
             failed_at: string;
         };
+        /**
+         * FeatureOverrideMode
+         * @description One organisation's exception to a feature's platform state. A grant beats the plan and Restricted; nothing beats platform Disabled.
+         * @enum {string}
+         */
+        FeatureOverrideMode: "grant" | "revoke";
+        /**
+         * FeatureState
+         * @description A feature's state for the whole platform. Hidden takes the feature off the screen and leaves the API working, so it is never a way to stop anything: that is Disabled. Restricted is on only for organisations holding a grant.
+         * @enum {string}
+         */
+        FeatureState: "enabled" | "hidden" | "restricted" | "disabled";
         /** FileDisciplinaryAppealRequest */
         FileDisciplinaryAppealRequest: {
             grounds: string;
@@ -11555,6 +11640,11 @@ export interface components {
                 kind?: "manual" | "obligations" | null;
             }[];
         };
+        /** UpdateFeatureStateRequest */
+        UpdateFeatureStateRequest: {
+            state: components["schemas"]["FeatureState"];
+            reason: string;
+        };
         /** UpdateGradeRequest */
         UpdateGradeRequest: {
             name?: string;
@@ -12001,6 +12091,13 @@ export interface components {
         UpdateTenantDomainRequest: {
             custom_domain: string | null;
         };
+        /** UpdateTenantFeatureOverrideRequest */
+        UpdateTenantFeatureOverrideRequest: {
+            mode: components["schemas"]["FeatureOverrideMode"];
+            reason: string;
+            /** Format: date-time */
+            expires_at?: string | null;
+        };
         /** UpdateTenantShowcaseRequest */
         UpdateTenantShowcaseRequest: {
             hidden: boolean;
@@ -12407,6 +12504,65 @@ export interface operations {
                     };
                 };
             };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminFeature.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminFeature.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFeatureStateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        key: string;
+                        state: string;
+                        default_state: string;
+                        reason: string | null;
+                        changed_at: string | null;
+                        grants: number;
+                        revokes: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
         };
     };
@@ -28742,6 +28898,128 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenant.features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            key: string;
+                            on: boolean;
+                            visible: boolean;
+                            reason: string;
+                            override: {
+                                mode: string;
+                                reason: string;
+                                expires_at: string | null;
+                                expired: string;
+                                changed_at: string | null;
+                            } | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenant.updateFeature": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTenantFeatureOverrideRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            key: string;
+                            on: boolean;
+                            visible: boolean;
+                            reason: string;
+                            override: {
+                                mode: string;
+                                reason: string;
+                                expires_at: string | null;
+                                expired: string;
+                                changed_at: string | null;
+                            } | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.removeFeature": {
+        parameters: {
+            query: {
+                reason: string;
+            };
+            header?: never;
+            path: {
+                publicId: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            key: string;
+                            on: boolean;
+                            visible: boolean;
+                            reason: string;
+                            override: {
+                                mode: string;
+                                reason: string;
+                                expires_at: string | null;
+                                expired: string;
+                                changed_at: string | null;
+                            } | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "adminDashboard.revenue": {

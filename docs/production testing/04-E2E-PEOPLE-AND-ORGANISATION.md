@@ -62,6 +62,9 @@ so that QA Audit's standing set-up is not overwritten; build QA Audit's data wit
 | EMP-011 | P2 | W | Soft delete | TA deletes a test employee | Removed from lists, still present in history, payroll and audit (never hard-deleted); HR cannot delete (`employee.delete` is tenant admin) |
 | EMP-012 | P2 | W | Bulk update | Select 3 employees, change department | Each shows updated, unchanged or failed. More than 200 refused; including someone outside your reach rejects the whole request (422); no field given: "At least one field to update must be provided."; a status change also needs `employee.transition` |
 | EMP-013 | P2 | R | Statistics | Employees page summary cards | Counts agree with the list |
+| EMP-014 | P1 | W | A login with nothing to send | HR: Add employee, name and hire date only, no email, no phone; tick the login box; save. This is **E-NC** for [03, section 5a](03-E2E-AUTH-TENANCY-ACCESS.md#5a-in-person-activation-no-email-no-phone) | The box reads "Create a login to activate in person", hint "With no email or phone, nothing can be sent. HR activates the login face to face with a one-time code from their profile." 201, `meta.activation_code_pending: true`, `login_invited: false`; no email or SMS. The login is always role `employee`. The profile offers "Activate in person" (ACT-001) |
+| EMP-015 | P2 | R | Phone but no email | Type a phone and no email; through the API create one with `create_login: true` | Form: the box is disabled, "Add an email to send a login invitation." API: saved with `login_invited: false` and `activation_code_pending: false`, **no login created**, and an in-person code is refused for them (ACT-008). Record it (K-20) |
+| EMP-016 | P2 | R | Records to fix | HR: `GET /employees?filter[missing]=tin`, `bank`, `emergency_contact`, `phone`; export with the same filter; SUP asks for `tin` | Only current staff (hired, probation, confirmed) lacking that item; the count equals the matching Next Steps item (NXT-003) and the export has the same rows. `tin` and `bank` need `employee.updateFinancial` (SUP 403). An unknown value is ignored (full list) |
 
 ## 4. Import and export
 
@@ -90,16 +93,27 @@ Status transitions allowed: hired → probation or confirmed; probation → conf
 confirmed → suspended, resigned, terminated or retired; suspended → confirmed or terminated.
 Resigned, terminated and retired are final.
 
+A permanent personnel action (appointment, promotion, demotion, transfer, re-designation, salary
+step increment, reassignment) dated **after today, Addis Ababa time**, is held until that date.
+Acting assignment, delegation and secondment are never held. `DELETE
+/employees/{employee}/personnel-actions/{personnelAction}` cancels a held action
+(`personnel_action.create`).
+
 | ID | P | Mode | Scenario | Steps | Expected |
 |---|---|---|---|---|---|
 | LIFE-001 | P1 | W | Allowed transitions | Walk one test employee through hired → probation → confirmed → suspended → confirmed | Each saved with an effective date, shown in the history |
 | LIFE-002 | P1 | W | Forbidden transitions | Try hired → retired; resigned → confirmed | "Cannot change status from :from to :to." |
 | LIFE-003 | P1 | W | Leaving | Resign a test employee with a last day of tomorrow | Exit clearance starts by itself ([06, section 6](06-E2E-LEAVE-AND-APPROVALS.md#6-exit-clearance)). After the last day: their login stops working (401 `account-inactive`), attendance after that day is refused ("This employee has left…"), they still appear in that period's payroll |
-| LIFE-004 | P1 | W | Personnel actions | Record a promotion, a transfer, a salary step increment | In the history. Acting assignment, delegation and secondment without an end date: "Acting, delegation and secondment actions must have an end date."; end before start refused; salary step outside 1 to 100 refused |
+| LIFE-004 | P1 | W | Personnel actions | Record a promotion, a transfer, a salary step increment, each effective today or earlier | Applied at once and in the history. Acting assignment, delegation and secondment without an end date: "Acting, delegation and secondment actions must have an end date."; end before start refused; salary step outside 1 to 100 refused. A future date is held instead (LIFE-009) |
 | LIFE-005 | P1 | W | Contracts | Add a fixed-term contract with salary 15,000.00 from the first of the month, ending in 20 days | Listed; appears on Employees → Contracts ending (30-day window); renewing and ending work. **Check payroll uses this salary** when the employee record has none ([07, PAY-020](07-E2E-PAYROLL.md)) |
-| LIFE-006 | P2 | R | Contracts ending list | `GET /employees/contracts/expiring?days=30` | Active contracts ending within 30 days. Note: contracts already past their end but still active also appear (no lower bound); report as a defect only if the owner says they should not |
+| LIFE-006 | P2 | R | Contracts ending list | `GET /employees/contracts/expiring?days=30` | Active contracts ending within 30 days, plus active contracts already past their end. Intended: the Next Steps item says "end within 30 days or have ended" (NXT-003) |
 | LIFE-007 | P2 | X | Expiry reminders | A contract ending in 7 days | Reminders 30, 7 and 1 days before (daily at 06:05 UTC); probation reminders 14 and 1 days before |
 | LIFE-008 | P2 | R | Attendance timeline | Employee → attendance timeline | The person's punches by day |
+| LIFE-009 | P1 | W | A future promotion is held | HR records a promotion for a test employee to G1 step 2, effective the 1st of next month | 201, `is_scheduled: true`. History shows "Scheduled", "Takes effect on :date. The employee record is unchanged until then." and "Cancel change". Grade, position and salary unchanged; a payroll run this month uses the old salary |
+| LIFE-010 | P1 | W | One scheduled change per employee | With LIFE-009 pending: a transfer effective today; another promotion dated next month; an acting assignment with an end date | Transfer and promotion: 422 on `effective_date`, "This employee already has a change scheduled for YYYY-MM-DD. Let it take effect or cancel it before scheduling another." The acting assignment is saved |
+| LIFE-011 | P1 | W | Cancel a scheduled change | "Cancel change" ("Cancel this scheduled change?", "Keep it" / "Cancel change"); then cancel an applied action through the API; SUP tries to cancel | 204, "Scheduled change cancelled", row gone, audit `employee.personnel_action_cancelled`. Applied: 422 "Only a scheduled change can be cancelled. This one has already taken effect." SUP: 403. While impersonating: 403 `impersonation-restricted` |
+| LIFE-012 | P1 | W | Applied on its date | Schedule a change dated tomorrow; check after 00:05 EAT | The job runs hourly at :05 UTC per organisation (drained by the cron caller). Within about an hour of midnight EAT the new values are on the record, "Scheduled" is gone, audit `employee.personnel_action_applied`. A missed run is caught up by the next |
+| LIFE-013 | P2 | W | Today or earlier applies at once | A salary step increment dated today, and one dated last week (different employees) | Both applied immediately; neither shows "Scheduled" |
 
 ## 6. Employee records: documents, bank, education, contacts
 
@@ -138,3 +152,27 @@ Resigned, terminated and retired are final.
 | DIR-001 | P1 | R | Search colleagues | EMP: Directory, search a name, email, phone; filter by department | Hired, probation and confirmed staff only; suspended and leavers not shown; 25 per page |
 | DIR-002 | P1 | R | Only own organisation | Search for a QA Isolation employee's name | Not found |
 | DIR-003 | P2 | R | No private data | Inspect the directory API response | No salary, date of birth, TIN, national ID or bank data |
+
+## 9. Recruitment: applicants to hire
+
+`GET|POST /vacancies/{vacancy}/applications`, `GET /job-applications/{application}`, `POST
+/job-applications/{application}/stage|events|approve-offer|hire|erase`. Every route needs
+`recruitment.manage` (HR, TA). Approving an offer also needs `recruitment.approve`, by someone other
+than the person who made it. Hiring also needs `employee.create`. An offered salary needs
+`employee.updateFinancial` to set and `employee.viewFinancial` to see. No plan feature gates
+recruitment, but a hire counts against the employee limit. There is no public application form: HR
+records each applicant. Use the VAC-001 vacancy (2 positions).
+
+| ID | P | Mode | Scenario | Steps | Expected |
+|---|---|---|---|---|---|
+| REC-001 | P1 | W | Record an applicant | HR: Vacancies → "Applicants" → "Add applicant": name, an email the team controls, phone `0911 223344`, source "In person". Then no name; then source `facebook` (API) | 201, stage `applied`, phone stored `+251911223344`, history "Application recorded". The form warns "Record only what the selection needs. Do not record health, religion, ethnicity or political views." No name refused. Bad source: "The selected source is invalid." (email, walk_in, referral, internal, agency, website, other) |
+| REC-002 | P1 | W | Stage flow | applied → screening → interview; then applied → offer, `stage: hired`, reject without a note | Allowed moves saved in history. applied → offer: "An application cannot move from applied to offer." `hired`: "The selected stage is invalid." Reject or withdraw without a note: "The note field is required." Hired, rejected and withdrawn are final |
+| REC-003 | P2 | W | Notes and interviews | Add a note; an interview with a time and score 85; score 101; a score on a plain note | Appended to history, never edited. 101 refused. Score on a note: "The score field is prohibited." |
+| REC-004 | P1 | W | Make an offer | "Make an offer": start next Monday, salary 12,000.00, terms. Then a start date yesterday | Stage `offer`, "Waiting for approval by someone other than :name". A past start date is refused |
+| REC-005 | P1 | R | Offer approval is separated | The HR user who made the offer clicks "Approve offer"; SUP calls approve-offer; approve an application not at the offer stage | Maker: 422 on `approver`, "Someone other than the person who made the offer must approve it." SUP: 403. Not at offer: "Only an application at the offer stage has an offer to approve." |
+| REC-006 | P1 | W | Approve | TA approves the offer, then again | "Approved by :name on :date". Second call 200, nothing changes |
+| REC-007 | P1 | W | Hire | Hire before approval (another application). On the approved one: status probation with no end date; probation end before start; a plain hire; send the hire twice | Before approval: "Hire from an approved offer. Make the offer and have it approved first." No end date refused. End before start: "The probation end date must be after the start date." Hire: 201, ":name is now an employee": next number, the vacancy's department and branch, the offered salary, status `hired`, hire date = offer start; shown "Hired as :name (:code)". Audit `employee.created` (source recruitment); the `employee.created` webhook fires if registered. No login created. Second call: 200, same employee, `meta.was_duplicate: true` |
+| REC-008 | P1 | W | Same person as a current employee | Add an applicant with EMP's email; take them to an approved offer and hire | Detail: "Same e-mail or phone found", "This may or may not be the same person. Nothing is merged." Hire: 422 "A current employee has the same e-mail or phone. Check whether this is the same person before hiring." A former (resigned) employee's details are not refused |
+| REC-009 | P1 | W | Positions and plan limit | After 2 hires on the 2-position vacancy, hire a third approved offer. In QA Isolation on Starter at its limit, hire one | "All 2 positions on this vacancy are filled. Raise the number of positions to hire more." Starter: 403 "You have reached the employee limit for your plan." |
+| REC-010 | P1 | R | Pay data and isolation | A custom role with `recruitment.manage` but no financial permissions opens an offer and sets a salary; request a QA Isolation application id; EMP opens Vacancies | Salary null; setting one 403. Other organisation's id: 404. EMP: no "Applicants", API 403 |
+| REC-011 | P2 | W | Erase personal details | Erase an open application. Reject one with a note → "Erase personal details" → add a note | Open: "Only a rejected or withdrawn application can be erased." Erased: name "Erased applicant", contact details and notes gone, stages and dates kept. A new note: "This application was erased." No longer offered as a possible duplicate |
