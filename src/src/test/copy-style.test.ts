@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import en from "@/lib/i18n/locales/en.json";
 import am from "@/lib/i18n/locales/am.json";
@@ -34,5 +36,43 @@ describe.each([
     expect(entries.filter(([, v]) => /!\s*$/.test(v)).map(([k]) => k)).toEqual(
       [],
     );
+  });
+});
+
+/**
+ * The web app manifest is interface text too: a phone shows its name when the
+ * app is installed and its shortcuts on a long press. It read "ETHR — Ethiopian
+ * Workforce OS" (production QA 2026-10-28, F-06).
+ */
+describe("installed app text", () => {
+  const manifest = JSON.parse(
+    readFileSync(resolve(__dirname, "../../public/manifest.json"), "utf8"),
+  ) as {
+    name: string;
+    short_name: string;
+    description: string;
+    shortcuts?: Array<{
+      name: string;
+      short_name?: string;
+      description?: string;
+    }>;
+  };
+  const strings = [
+    manifest.name,
+    manifest.short_name,
+    manifest.description,
+    ...(manifest.shortcuts ?? []).flatMap((s) => [
+      s.name,
+      s.short_name ?? "",
+      s.description ?? "",
+    ]),
+  ];
+
+  it("has no long dash, emoji or exclamation-mark ending", () => {
+    expect(
+      strings.filter(
+        (v) => v.includes("—") || EMOJI.test(v) || /!\s*$/.test(v),
+      ),
+    ).toEqual([]);
   });
 });
