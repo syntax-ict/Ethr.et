@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\Employee;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use App\Support\NotificationTemplates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -44,7 +45,7 @@ class MissingPunchNotification extends Notification
             'employee_name' => $this->employee->name,
             'date' => $this->date,
             'type' => $this->type,
-            'message' => __($this->type === 'missing_check_out' ? 'notification.inapp.missing_check_out' : 'notification.inapp.missing_check_in', ['name' => $this->employee->name, 'date' => $this->date]),
+            ...NotificationMessage::make($this->type === 'missing_check_out' ? 'notification.inapp.missing_check_out' : 'notification.inapp.missing_check_in', ['name' => $this->employee->name, 'date' => $this->date]),
             'url' => '/attendance',
         ];
     }

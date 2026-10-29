@@ -1037,6 +1037,7 @@ return array(
     'App\\Support\\MarketingContent' => $baseDir . '/app/Support/MarketingContent.php',
     'App\\Support\\MarketingImage' => $baseDir . '/app/Support/MarketingImage.php',
     'App\\Support\\NationalityBackfill' => $baseDir . '/app/Support/NationalityBackfill.php',
+    'App\\Support\\NotificationMessage' => $baseDir . '/app/Support/NotificationMessage.php',
     'App\\Support\\NotificationTemplates' => $baseDir . '/app/Support/NotificationTemplates.php',
     'App\\Support\\OrganisationHost' => $baseDir . '/app/Support/OrganisationHost.php',
     'App\\Support\\OutboundHost' => $baseDir . '/app/Support/OutboundHost.php',

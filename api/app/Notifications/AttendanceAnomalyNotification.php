@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -41,7 +42,7 @@ class AttendanceAnomalyNotification extends Notification
             'anomaly_type' => $this->anomalyType,
             'date' => $this->date,
             'detail' => $this->detail,
-            'message' => __('notification.inapp.attendance_anomaly', ['name' => $this->employeeName, 'type' => $this->anomalyType]),
+            ...NotificationMessage::make('notification.inapp.attendance_anomaly', ['name' => $this->employeeName, 'type' => $this->anomalyType]),
             'url' => '/attendance',
         ];
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -42,7 +43,7 @@ class DashboardDigestFailedNotification extends Notification
     {
         return [
             'title' => __('dashboard.digest_failed_subject', ['frequency' => $this->frequency]),
-            'message' => __('dashboard.digest_failed_body'),
+            ...NotificationMessage::make('dashboard.digest_failed_body'),
         ];
     }
 

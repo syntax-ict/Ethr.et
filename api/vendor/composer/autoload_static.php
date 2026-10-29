@@ -1771,6 +1771,7 @@ class ComposerStaticInit870e919e58412b109fb9aa8379549848
         'App\\Support\\MarketingContent' => __DIR__ . '/../..' . '/app/Support/MarketingContent.php',
         'App\\Support\\MarketingImage' => __DIR__ . '/../..' . '/app/Support/MarketingImage.php',
         'App\\Support\\NationalityBackfill' => __DIR__ . '/../..' . '/app/Support/NationalityBackfill.php',
+        'App\\Support\\NotificationMessage' => __DIR__ . '/../..' . '/app/Support/NotificationMessage.php',
         'App\\Support\\NotificationTemplates' => __DIR__ . '/../..' . '/app/Support/NotificationTemplates.php',
         'App\\Support\\OrganisationHost' => __DIR__ . '/../..' . '/app/Support/OrganisationHost.php',
         'App\\Support\\OutboundHost' => __DIR__ . '/../..' . '/app/Support/OutboundHost.php',
