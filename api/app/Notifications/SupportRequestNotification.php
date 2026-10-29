@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\SupportRequest;
 use App\Services\Support\SupportDesk;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use App\Support\VoiceLabels;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -43,13 +44,29 @@ class SupportRequestNotification extends Notification implements ShouldQueue
         return ['database', 'mail'];
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * The in-app line carries no category: a translated label inside it would
+     * stay in the sender's language when the reader switches theirs, which is
+     * why ConcernRaisedNotification is the one notice NotificationMessage
+     * could not cover. The email, read once, keeps the category.
+     *
+     * @return array<string, mixed>
+     */
     public function toArray(object $notifiable): array
     {
+        $key = match ($this->event) {
+            'received' => 'support.notify.in_app.received',
+            'escalated' => 'support.notify.in_app.escalated',
+            'requester_replied' => 'support.notify.in_app.requester_replied',
+            'passed_to_ethr' => 'support.notify.in_app.passed_to_ethr',
+            'resolved' => 'support.notify.in_app.resolved',
+            default => 'support.notify.in_app.answered',
+        };
+
         return [
             'type' => 'support_'.$this->event,
             'support_request_public_id' => $this->request->public_id,
-            'message' => $this->line(),
+            ...NotificationMessage::make($key),
             'url' => $this->path(),
         ];
     }

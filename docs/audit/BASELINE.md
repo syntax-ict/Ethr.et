@@ -4051,6 +4051,8 @@ line per figure; the story of why it moved belongs in this section.
 
 ### 25b. Tenant-scope bypasses: the count, and the audits behind it
 
+**2026-10-29, get help: 184/72.** `Services/Support/PlatformSupportInbox` joined with seven, the platform console's reads of support requests organisations passed to ETHR, from the platform host where no tenant is resolved. One builder reads escalated requests across every organisation by intent, behind `admin.manage` and platform MFA, for the list, its status counts and the lookup of one request. The list eager-loads each requester by the request's own key, and their employee by the user's own key. A request's messages state its `tenant_id`. The people it names state its `tenant_id` or NULL (ETHR's own accounts), and their employees its `tenant_id`; without the employee every name read as the login email, because `User::name` reads through Employee. The super admins told of a request state `tenant_id` NULL. Between this entry and the one below, the root file stated 177/71 (2026-10-28: `Services/Features/FeatureGate` and `Services/Features/FeatureControls` joined, and `docs/CLAUDE.md` Convention 1 carries their entries).
+
 The count as the root file last stated it, with its full log of what joined and
 left. Later entries go above this paragraph, newest first.
 

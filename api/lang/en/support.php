@@ -18,6 +18,16 @@ return [
         'other' => 'Something else',
     ],
     'notify' => [
+        // In the app, with no translated label inside, so a notice reads in
+        // the language the reader is using now (NotificationMessage).
+        'in_app' => [
+            'received' => 'Someone in your organisation asked for help.',
+            'escalated' => 'An organisation passed a help request to ETHR.',
+            'requester_replied' => 'There is a new reply on a help request.',
+            'answered' => 'Your help request has an answer.',
+            'passed_to_ethr' => 'Your help request was passed to ETHR support.',
+            'resolved' => 'Your help request was marked resolved.',
+        ],
         'open' => 'Open the request',
         'received' => 'Someone in your organisation asked for help: :category.',
         'escalated' => 'An organisation passed a help request to ETHR: :category.',

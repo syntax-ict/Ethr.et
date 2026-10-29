@@ -368,3 +368,23 @@ describe('the console', function () {
         test()->postJson(SUPPORT_CONSOLE."/{$id}/messages", ['body' => 'x'])->assertForbidden();
     });
 });
+
+it('stores an in-app notice that follows the reader\'s language', function () {
+    $tenant = createTenant();
+    $employee = supportPerson($tenant);
+    $hr = supportPerson($tenant, UserRole::HR_ADMIN);
+    $hr->forceFill(['locale' => 'am'])->save();
+    $id = askForHelp($tenant, $employee);
+    $request = SupportRequest::withoutGlobalScopes()->where('public_id', $id)->sole();
+
+    $hr->notify(new SupportRequestNotification($request, 'received', 'organisation', $request->body));
+
+    // No translated label inside, so NotificationResource can read it again
+    // in whatever language the reader switches to.
+    expect($hr->notifications()->latest()->firstOrFail()->data)->toMatchArray([
+        'message' => 'በድርጅትዎ ያለ ሰው እርዳታ ጠይቋል።',
+        'message_key' => 'support.notify.in_app.received',
+        'message_params' => [],
+        'url' => "/support?request={$id}",
+    ]);
+});
