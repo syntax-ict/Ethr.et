@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { PageTitleBar } from "@/components/layouts/page-title-bar";
 import {
   PageActionsSlotProvider,
@@ -23,6 +25,16 @@ function EmployeePage({ name }: { name?: string }) {
  * own header, and the page added a separate "Back" button. It now ends its
  * breadcrumb with the record and leaves the heading to the page.
  */
+
+// The title bar reads the person's permissions to name the sidebar section
+// that holds the page, and those come from a query.
+function withQueries({ children }: { children: ReactNode }) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
+
 describe("<PageTitleBar> on a detail page", () => {
   it("ends the breadcrumb with the record and links back to the list", async () => {
     render(
@@ -30,6 +42,7 @@ describe("<PageTitleBar> on a detail page", () => {
         <PageTitleBar />
         <EmployeePage name="Abel Bauch" />
       </PageActionsSlotProvider>,
+      { wrapper: withQueries },
     );
 
     const trail = await screen.findByRole("navigation", {
@@ -53,6 +66,7 @@ describe("<PageTitleBar> on a detail page", () => {
         <PageTitleBar />
         <EmployeePage />
       </PageActionsSlotProvider>,
+      { wrapper: withQueries },
     );
 
     expect(

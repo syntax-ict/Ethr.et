@@ -88,6 +88,7 @@ export function StatCard({
   className,
 }: StatCardProps) {
   const cfg = TONE[tone];
+  const hasSpark = spark !== undefined && spark.length > 1;
 
   if (loading) {
     return (
@@ -117,15 +118,23 @@ export function StatCard({
         <span className="min-w-0 truncate">{label}</span>
       </p>
 
+      {/* Beside a sparkline the figure keeps its width and the line gives
+          way. The other way round, an Amharic dashboard at 1280 px broke
+          "33.3%" onto two lines (production QA 2026-10-28, F-04). */}
       <div className="mt-2 flex items-end justify-between gap-3">
-        <div className="min-w-0 text-2xl font-semibold leading-tight tracking-tight text-foreground tabular-nums sm:text-[1.75rem]">
+        <div
+          className={cn(
+            "min-w-0 text-2xl font-semibold leading-tight tracking-tight text-foreground tabular-nums sm:text-[1.75rem]",
+            hasSpark && "shrink-0 whitespace-nowrap",
+          )}
+        >
           {value}
         </div>
-        {spark && spark.length > 1 && (
+        {spark && hasSpark && (
           <Sparkline
             values={spark}
             color={cfg.spark}
-            className="mb-1 h-8 w-24 shrink-0"
+            className="mb-1 h-8 w-24 min-w-0 shrink"
           />
         )}
       </div>
@@ -133,7 +142,14 @@ export function StatCard({
       {(delta || hint) && (
         <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           {delta && <DeltaBadge {...delta} />}
-          {hint && <span className="min-w-0 flex-1 truncate">{hint}</span>}
+          {hint && (
+            <span
+              className="line-clamp-2 min-w-0 flex-1"
+              title={typeof hint === "string" ? hint : undefined}
+            >
+              {hint}
+            </span>
+          )}
         </div>
       )}
     </>
