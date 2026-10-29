@@ -969,3 +969,35 @@ export function visibleDestinations(
   MORE_DESTINATIONS.forEach((d) => add(d));
   return out;
 }
+
+/**
+ * The sidebar section that holds this page for this person, or null when the
+ * sidebar has no row for it.
+ *
+ * The breadcrumb names its section from here, so it says what the sidebar
+ * says (production QA 2026-10-28, F-03). It kept its own list in
+ * `route-meta.ts`, which had drifted: Reports under Finance, Announcements
+ * under "My Work" while the sidebar said Insights and Communication. And one
+ * address can sit in two places: `/attendance` is Workspace for someone who
+ * sees only their own record and Operations for someone who sees everyone's.
+ */
+export function sidebarSectionOf(
+  path: string,
+  ctx: NavContext,
+): NavSectionDef | null {
+  const target = path.length > 1 ? path.replace(/\/+$/, "") : path;
+  const holds = (d: Destination) =>
+    d.show(ctx) && resolveHref(d.href, ctx).split("?")[0] === target;
+  for (const section of navSections(ctx)) {
+    for (const entry of section.entries) {
+      if (
+        entry.kind === "leaf"
+          ? holds(entry)
+          : entry.show(ctx) && entry.children.some(holds)
+      ) {
+        return section;
+      }
+    }
+  }
+  return null;
+}

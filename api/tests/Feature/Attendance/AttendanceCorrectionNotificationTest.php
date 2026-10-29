@@ -149,6 +149,8 @@ it('describes the request by public id, name and the corrected day — never an 
         'employee_name' => 'Abebe Kebede',
         'date' => '2026-10-05',
         'message' => 'Abebe Kebede asked for an attendance correction.',
+        'message_key' => 'notification.inapp.correction_requested',
+        'message_params' => ['name' => 'Abebe Kebede'],
         'url' => '/approvals',
     ]);
 });
@@ -223,6 +225,8 @@ it('names the corrected day in the outcome message', function () {
         'date' => '2026-10-05',
         'action' => 'approved',
         'message' => 'Your attendance correction for 2026-10-05 was approved.',
+        'message_key' => 'notification.inapp.correction_approved',
+        'message_params' => ['date' => '2026-10-05'],
         'url' => '/attendance/corrections',
     ]);
 });

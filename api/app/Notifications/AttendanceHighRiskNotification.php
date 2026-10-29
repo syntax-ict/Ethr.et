@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\AttendanceIntegrityFlag;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -41,7 +42,7 @@ class AttendanceHighRiskNotification extends Notification
             'flag_id' => $this->flag->public_id,
             'employee_name' => $this->employeeName,
             'score' => $this->score,
-            'message' => __('notification.inapp.attendance_high_risk', ['name' => $this->employeeName, 'score' => $this->score]),
+            ...NotificationMessage::make('notification.inapp.attendance_high_risk', ['name' => $this->employeeName, 'score' => $this->score]),
             'url' => '/attendance/integrity',
         ];
     }
