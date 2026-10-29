@@ -189,6 +189,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'recruitment.manage', 'module' => 'recruitment', 'action' => 'manage', 'description' => 'Record applicants and move them through screening, interviews and offers'],
             ['name' => 'recruitment.approve', 'module' => 'recruitment', 'action' => 'approve', 'description' => 'Approve a job offer someone else made'],
             ['name' => 'voice.manage', 'module' => 'voice', 'action' => 'manage', 'description' => 'Read pulse results and handle concerns employees raise'],
+            ['name' => 'support.manage', 'module' => 'support', 'action' => 'manage', 'description' => 'Answer colleagues\' help requests and pass them to ETHR support'],
 
             // Dashboard
             ['name' => 'dashboard.executive', 'module' => 'dashboard', 'action' => 'executive', 'description' => 'View executive dashboard (any branch)'],
@@ -299,6 +300,9 @@ class PermissionSeeder extends Seeder
             // hire from the pipeline.
             'recruitment.manage', 'recruitment.approve',
             'voice.manage',
+            // Colleagues' help requests reach HR first; HR passes on what
+            // needs the platform (SupportDesk).
+            'support.manage',
             // Inviting/activating people is part of HR onboarding.
             'users.viewAny', 'users.invite', 'users.update',
             // Face-to-face activation for staff with no email or phone.

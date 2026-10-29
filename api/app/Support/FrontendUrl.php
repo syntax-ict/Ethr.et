@@ -104,6 +104,27 @@ final class FrontendUrl
     }
 
     /**
+     * A page of the platform console, at its own host (admin.{root}). The
+     * console does not run on an organisation's address, so a console link
+     * built with to() lands where the console bounces. With no root domain
+     * configured, or on a single install, there is only the frontend URL.
+     */
+    public static function platform(string $path): string
+    {
+        $root = TenancyDomain::root();
+
+        if ($root === null || InstallMode::single()) {
+            return self::to($path);
+        }
+
+        $frontend = parse_url((string) config('app.frontend_url'));
+        $scheme = $frontend['scheme'] ?? 'https';
+        $port = isset($frontend['port']) ? ':'.$frontend['port'] : '';
+
+        return "{$scheme}://".Tenant::PLATFORM_SUBDOMAIN.".{$root}{$port}/".ltrim($path, '/');
+    }
+
+    /**
      * A link in a notification, at the recipient's organisation. Notifications
      * are sent to users and, for platform accounts, to users with no tenant;
      * anything else (an anonymous route) gets the shared host.
