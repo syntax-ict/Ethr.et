@@ -6,7 +6,6 @@ namespace App\Services\Import;
 
 use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
-use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
@@ -16,8 +15,8 @@ use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
+use App\Services\Invitations\EmployeeLogins;
 use App\Services\Invitations\InvitationDispatcher;
-use App\Services\UserProvisioningService;
 use App\Support\Csv;
 use App\Support\EmployeeImportRow;
 use App\Support\EthiopianPhone;
@@ -37,11 +36,11 @@ class EmployeeImporter
     private const UNIQUE_IN_FILE = ['employee_code', 'email', 'badge_number'];
 
     public function __construct(
-        private readonly UserProvisioningService $provisioning,
         private readonly IdentityResolver $identity,
         private readonly CurrentTenant $currentTenant,
         private readonly EmployeeNumbering $numbering,
         private readonly InvitationDispatcher $invitations,
+        private readonly EmployeeLogins $logins,
     ) {}
 
     /**
@@ -252,25 +251,13 @@ class EmployeeImporter
             // A login for every row, invited after the loop from the queue. The
             // email used to go out here, one mail conversation per row inside
             // this request, which a few hundred rows run past the host's limit.
-            if ($createLogins && ! empty($employee->email)) {
-                $user = $this->provisioning->provision(
-                    email: $employee->email,
-                    role: UserRole::EMPLOYEE,
-                    employee: $employee,
-                    invitedBy: $invitedBy?->id,
-                    sendActivation: false,
-                );
-
-                if ($user !== null) {
-                    $usersCreated++;
-                    $invitees[] = $user;
-                }
-            } elseif ($createLogins && ! empty($employee->phone) && $this->invitations->textsEnabled()) {
+            // No way to reach them means HR activates them in person, and the
+            // in-person code makes the account when it is issued.
+            $login = $createLogins ? $this->logins->provision($employee, $invitedBy) : null;
+            if ($login instanceof User) {
                 $usersCreated++;
-                $invitees[] = $this->provisioning->provisionWithPhone($employee, $invitedBy?->id);
-            } elseif ($createLogins) {
-                // No way to reach them: HR activates them in person, and the
-                // in-person code makes the account when it is issued.
+                $invitees[] = $login;
+            } elseif ($login === EmployeeLogins::IN_PERSON) {
                 $inPerson++;
             }
         }

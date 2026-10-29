@@ -15,6 +15,7 @@ use App\Services\Identity\IdentityMatch;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
 use App\Support\EthiopianPhone;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -167,6 +168,49 @@ final class WorkforceMigrationService
         });
 
         return $totals;
+    }
+
+    /**
+     * The employees a committed batch created or merged into, with their
+     * logins, in the batch's order.
+     *
+     * @return Collection<int, Employee>
+     */
+    public function employees(MigrationBatch $batch): Collection
+    {
+        $ids = $batch->rows()
+            ->whereNotNull('processed_at')
+            ->whereNotNull('resolved_employee_id')
+            ->orderBy('id')
+            ->pluck('resolved_employee_id');
+
+        $employees = Employee::query()
+            ->where('tenant_id', $batch->tenant_id)
+            ->whereIn('id', $ids->all())
+            ->with('user')
+            ->get()
+            ->keyBy('id');
+
+        return $ids->unique()->map(fn ($id) => $employees->get($id))->filter()->values();
+    }
+
+    /**
+     * How many people this batch created with today as their hire date,
+     * because the source gave none. A device never does. Owner decision
+     * (2026-10-28): warn, and leave the date for HR to correct.
+     */
+    public function hireDatesDefaulted(MigrationBatch $batch): int
+    {
+        return $batch->rows()
+            ->where('action', MigrationStagingRow::ACTION_CREATE)
+            ->whereNotNull('processed_at')
+            ->get()
+            ->filter(function (MigrationStagingRow $row): bool {
+                $raw = $row->getAttribute('raw');
+
+                return ! is_array($raw) || empty($raw['hire_date']);
+            })
+            ->count();
     }
 
     private function createBatch(int $tenantId, string $sourceType, ?string $sourceRef, ?User $creator): MigrationBatch
