@@ -33,6 +33,7 @@ use App\Models\PayrollRun;
 use App\Models\Position;
 use App\Models\Shift;
 use App\Models\ShiftRotation;
+use App\Models\SupportRequest;
 use App\Models\Team;
 use App\Models\Vacancy;
 use App\Models\Webhook;
@@ -121,6 +122,11 @@ test('parameterized GET api/v1 endpoints never 5xx with valid bound records', fu
         'description' => 'x', 'status' => 'new', 'anonymous' => false,
     ]);
 
+    $supportRequest = SupportRequest::query()->create([
+        'tenant_id' => $tenant->id, 'category' => 'other', 'body' => 'Smoke',
+        'status' => 'open', 'handled_by' => 'organisation',
+    ]);
+
     // A landing-page row with no picture: the image route is a well-formed 404.
     MarketingSection::query()->create(['kind' => 'problems', 'heading' => 'Smoke', 'sort_order' => 1]);
     $marketingItem = MarketingItem::query()->create(['section_kind' => 'problems', 'slug' => 'smoke', 'title' => 'Smoke', 'sort_order' => 1]);
@@ -129,6 +135,7 @@ test('parameterized GET api/v1 endpoints never 5xx with valid bound records', fu
         'owner' => $marketingItem->public_id,
         'variant' => 'image-640',
         'concern' => $concern->public_id,
+        'supportRequest' => $supportRequest->public_id,
         'vacancy' => $vacancy->public_id,
         'application' => $application->public_id,
         'payrollRun' => $run->public_id, 'branch' => $branch->public_id, 'department' => $dept->public_id,

@@ -7,6 +7,7 @@ namespace App\Services\Admin;
 use App\Http\Middleware\VerifyMaintenanceToken;
 use App\Services\Observability\QueueHealth;
 use App\Support\Mail\MailHealth;
+use App\Support\ReleaseStamp;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -245,7 +246,7 @@ final class OperationsStatusService
     private function release(): array
     {
         $production = app()->environment('production');
-        $stamp = $this->releaseStamp();
+        $stamp = ReleaseStamp::read();
         $pending = $this->pendingMigrations();
         $configCachedAt = $this->cachedAt(app()->configurationIsCached(), app()->getCachedConfigPath());
         $routesCachedAt = $this->cachedAt(app()->routesAreCached(), app()->getCachedRoutesPath());
@@ -348,32 +349,6 @@ final class OperationsStatusService
             'checks' => $checks,
             'disk_free_gb' => $health['resources']['disk_free_gb'],
         ];
-    }
-
-    /**
-     * `release.json` is written by scripts/shared-hosting/build-release.sh and
-     * read by scripts/release-status.sh. A development checkout has none.
-     *
-     * @return array{commit: string|null, built_at: string|null}
-     */
-    private function releaseStamp(): array
-    {
-        $path = public_path('release.json');
-
-        if (! is_file($path) || ! is_readable($path)) {
-            return ['commit' => null, 'built_at' => null];
-        }
-
-        $data = json_decode((string) file_get_contents($path), true);
-
-        if (! is_array($data)) {
-            return ['commit' => null, 'built_at' => null];
-        }
-
-        $commit = is_string($data['commit'] ?? null) && preg_match('/^[0-9a-f]{7,40}$/', $data['commit']) === 1 ? $data['commit'] : null;
-        $builtAt = is_string($data['built_at'] ?? null) ? $data['built_at'] : null;
-
-        return ['commit' => $commit, 'built_at' => $builtAt];
     }
 
     private function pendingMigrations(): ?int

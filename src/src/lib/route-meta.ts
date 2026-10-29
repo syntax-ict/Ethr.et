@@ -394,6 +394,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     description:
       "Whether background work, email and the deployed release are doing their job",
   },
+  "/admin/support": {
+    section: "Admin",
+    parent: { label: "Admin Console", href: "/admin" },
+    label: "Support",
+    description: "Help requests organisations passed to ETHR",
+  },
   "/admin/tenants": {
     section: "Admin",
     parent: { label: "Admin Console", href: "/admin" },
@@ -491,6 +497,10 @@ export const ROUTE_META: Record<string, RouteMeta> = {
   "/notifications": {
     label: "Notifications",
     description: "Your recent notifications and alerts",
+  },
+  "/support": {
+    label: "Help requests",
+    description: "Ask for help and follow the answers",
   },
   "/notifications/preferences": {
     parent: { label: "Notifications", href: "/notifications" },

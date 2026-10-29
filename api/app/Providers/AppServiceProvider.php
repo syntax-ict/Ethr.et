@@ -368,6 +368,16 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
         });
 
+        // Each new help request emails the organisation's support people or
+        // ETHR, so a stuck button or a script cannot flood their inboxes.
+        RateLimiter::for('support', function (Request $request) {
+            return Limit::perHour(10)->by('support:'.($request->user()?->id ?: $request->ip()));
+        });
+
+        RateLimiter::for('support-reply', function (Request $request) {
+            return Limit::perMinute(10)->by('support-reply:'.($request->user()?->id ?: $request->ip()));
+        });
+
         RateLimiter::for('uploads', function (Request $request) {
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
