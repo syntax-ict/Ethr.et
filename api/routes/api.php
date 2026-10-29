@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Enums\Feature;
 use App\Http\Controllers\Api\V1\Accounting\AccountingController;
 use App\Http\Controllers\Api\V1\Admin\AdminDashboardController;
+use App\Http\Controllers\Api\V1\Admin\AdminFeatureController;
 use App\Http\Controllers\Api\V1\Admin\AdminMarketingController;
 use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
 use App\Http\Controllers\Api\V1\Admin\AdminStatutoryLayoutController;
@@ -967,6 +969,20 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::post('/tenants/{publicId}/delete', [AdminTenantController::class, 'destroy']);
             Route::post('/tenants/{publicId}/restore', [AdminTenantController::class, 'restore']);
             Route::put('/tenants/{publicId}/invoices/{invoicePublicId}/mark-paid', [AdminTenantController::class, 'markInvoicePaid']);
+
+            // Feature switches: the platform state of each catalogued feature,
+            // and one organisation's grant or revoke. Every change takes a
+            // reason and is audited (docs/FEATURE-CONTROL-CENTER-DESIGN.md).
+            $featureKeys = array_column(Feature::cases(), 'value');
+            Route::get('/features', [AdminFeatureController::class, 'index']);
+            Route::put('/features/{key}', [AdminFeatureController::class, 'update'])
+                ->whereIn('key', $featureKeys);
+            Route::get('/tenants/{publicId}/features', [AdminTenantController::class, 'features']);
+            Route::put('/tenants/{publicId}/features/{key}', [AdminTenantController::class, 'updateFeature'])
+                ->whereIn('key', $featureKeys);
+            Route::delete('/tenants/{publicId}/features/{key}', [AdminTenantController::class, 'removeFeature'])
+                ->whereIn('key', $featureKeys);
+
             Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
             Route::get('/health', [AdminDashboardController::class, 'health']);
             Route::get('/operations', [AdminDashboardController::class, 'operations']);
