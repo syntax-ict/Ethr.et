@@ -15,7 +15,18 @@ declare(strict_types=1);
  * ExecutiveDashboardService`. The six payroll run lookups became one
  * `countedRuns()`, which states `tenant_id` and the counted statuses on the
  * same chain, and the attendance rate's two record queries became one
- * `attendedShare()`, which states `tenant_id`. 171/71.)
+ * `attendedShare()`, which states `tenant_id`. 178/72.)
+ *
+ * (2026-10-29, get help: seven more, all in `Services/Support/
+ * PlatformSupportInbox`, the platform console's reads of support requests
+ * organisations passed to ETHR. The list, its status counts and the lookup of
+ * one request go through one builder that reads escalated requests across
+ * every organisation, by intent, behind `admin.manage`. The list eager-loads
+ * each requester by the request's own key. A request's messages state its
+ * `tenant_id`; the people it names state its `tenant_id` or NULL for ETHR's
+ * own accounts, and their employees, where names are read, state its
+ * `tenant_id` (the requester's derives from the user's own key); the super
+ * admins told of a new request state `tenant_id` NULL. 184/72.)
  *
  * (2026-10-28, feature control console: two more, both in `Services/Features/
  * FeatureControls`, the console's writes. `overridesOf()` reads one
@@ -323,6 +334,16 @@ return [
     // each stating tenant_id or whereNull (2026-10-27; was 2 with basis()).
     'Services/Payroll/TaxCalculator.php' => 1,
     'Services/Report/ReportEngine.php' => 4,
+    // Get help (2026-10-29): the console reads requests organisations passed
+    // to ETHR, from the platform host. The list, its counts and the lookup of
+    // one request read escalated requests across every organisation by
+    // intent (one builder); the list's requester derives from the request's
+    // own key, and their employee (for the name) from the user's own key;
+    // messages state the request's `tenant_id`; the people a request names
+    // state its `tenant_id` or NULL (ETHR's platform accounts), and their
+    // employees its `tenant_id`; the platform admins told of a request state
+    // `tenant_id` NULL.
+    'Services/Support/PlatformSupportInbox.php' => 7,
     'Services/TenantAddressService.php' => 2,
     'Services/UserProvisioningService.php' => 1,
     'Services/Webhook/WebhookDispatcher.php' => 1,

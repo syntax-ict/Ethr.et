@@ -88,6 +88,12 @@ parameters:
         - message: '#^Method App\\Models\\TenantExport\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
 
+        # Same larastan limitation for support requests and their messages
+        # (2026-10-29). The models are correct and covered by SupportRequestTest.
+        # Scoped to the trait file, model-named exact.
+        - message: '#^Method App\\Models\\SupportRequest(Message)?\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+          path: app/Traits/BelongsToTenant.php
+
         # Same larastan limitation for job applications and their history
         # (2026-10-27). The models are correct and covered by RecruitmentTest.
         # Scoped to the trait file, model-named exact.
