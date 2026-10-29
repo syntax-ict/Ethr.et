@@ -43,11 +43,13 @@ class LeaveBalance extends Model
         ];
     }
 
+    /** @return BelongsTo<Employee, $this> */
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
     }
 
+    /** @return BelongsTo<LeaveType, $this> */
     public function leaveType(): BelongsTo
     {
         return $this->belongsTo(LeaveType::class);

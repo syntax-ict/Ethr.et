@@ -18,7 +18,7 @@ class SaveReportRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'config' => ['required', 'array'],
-            'config.source' => ['required', 'string', 'in:employees,attendance,absences,leave,payroll'],
+            'config.source' => ['required', 'string', 'in:employees,attendance,timesheet,absences,leave,payroll'],
         ];
     }
 }

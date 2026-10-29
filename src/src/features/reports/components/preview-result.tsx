@@ -13,7 +13,6 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { type ReportResult } from "@/features/reports/api";
 import { useT } from "@/lib/i18n/useT";
-import { formatETB } from "@/lib/utils/currency";
 
 export function PreviewResult({ result }: { result: ReportResult }) {
   const { t, locale } = useT();
@@ -72,10 +71,7 @@ export function PreviewResult({ result }: { result: ReportResult }) {
             {groupSums && Object.keys(groupSums).length > 0 && (
               <div className="mt-3 space-y-2 border-t pt-3">
                 <p className="text-xs text-muted-foreground">
-                  {t(
-                    "reports_page.group_totals",
-                    "Totals per group, for statutory filing (e.g. monthly tax and pension remittance):",
-                  )}
+                  {t("reports_page.group_totals", "Totals per group:")}
                 </p>
                 {Object.entries(groupSums).map(([key, sums]) => (
                   <div key={key} className="text-xs">
@@ -84,8 +80,9 @@ export function PreviewResult({ result }: { result: ReportResult }) {
                     </span>{" "}
                     {Object.entries(sums)
                       .map(
-                        ([field, cents]) =>
-                          `${field.replace(/_cents$/, "").replace(/_/g, " ")} ${formatETB(cents)}`,
+                        // Money in birr; day counts and hours as numbers.
+                        ([field, total]) =>
+                          `${reportFieldLabel(t, field)} ${formatReportCell(field, total)}`,
                       )
                       .join(" · ")}
                   </div>

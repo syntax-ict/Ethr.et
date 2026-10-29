@@ -11,9 +11,11 @@ use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\LeaveBalance;
 use App\Models\PayrollEntry;
+use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Attendance\ExpectedDays;
+use App\Services\Payroll\RunRegisterService;
 use App\Support\Csv;
 use App\Support\TenantTime;
 use Carbon\Carbon;
@@ -31,28 +33,100 @@ final class ReportEngine
     /** Set by a query that hit ROW_LIMIT; reset by every generate(). */
     private bool $truncated = false;
 
+    /**
+     * Each source's columns and the `filters` keys it applies. `department`,
+     * `branch` and `cost_center` take the unit's `public_id`; `from` and `to`
+     * are dates and `month` is `YYYY-MM`. Any other filter key is ignored.
+     */
     private const SOURCES = [
         'employees' => [
             'label' => 'Employees',
-            'fields' => ['name', 'email', 'phone', 'employee_code', 'gender', 'status', 'hire_date', 'salary_cents', 'department', 'branch', 'position'],
+            'fields' => ['name', 'email', 'phone', 'employee_code', 'gender', 'status', 'hire_date', 'salary_cents', 'department', 'branch', 'position', 'grade', 'cost_center'],
+            'filters' => ['status', 'department', 'branch', 'cost_center'],
         ],
         'attendance' => [
             'label' => 'Attendance',
-            'fields' => ['employee_name', 'date', 'check_in', 'check_out', 'status', 'source', 'worked_minutes'],
+            'fields' => ['employee_name', 'employee_code', 'department', 'branch', 'date', 'check_in', 'check_out', 'status', 'source', 'worked_minutes', 'overtime_minutes'],
+            'filters' => ['from', 'to', 'status', 'department', 'branch'],
+        ],
+        'timesheet' => [
+            'label' => 'Monthly timesheet',
+            'fields' => ['employee_name', 'employee_code', 'department', 'branch', 'work_days', 'present_days', 'late_days', 'absent_days', 'leave_days', 'holiday_days', 'worked_hours', 'overtime_hours'],
+            'filters' => ['month', 'department', 'branch'],
         ],
         'absences' => [
             'label' => 'Absences',
             'fields' => ['employee_name', 'employee_code', 'department', 'branch', 'date'],
+            'filters' => ['from', 'to', 'department', 'branch'],
         ],
         'leave' => [
             'label' => 'Leave Balances',
-            'fields' => ['employee_name', 'leave_type', 'year', 'entitled_days', 'used_days', 'remaining_days'],
+            'fields' => ['employee_name', 'employee_code', 'department', 'leave_type', 'year', 'entitled_days', 'used_days', 'remaining_days'],
+            'filters' => ['year', 'department', 'branch'],
         ],
         'payroll' => [
             'label' => 'Payroll',
-            'fields' => ['employee_name', 'period', 'basic_salary_cents', 'gross_cents', 'income_tax_cents', 'employee_pension_cents', 'net_cents'],
+            'fields' => ['employee_name', 'employee_code', 'department', 'branch', 'cost_center', 'period', 'basic_salary_cents', 'overtime_cents', 'allowances_cents', 'gross_cents', 'income_tax_cents', 'employee_pension_cents', 'employer_pension_cents', 'loan_cents', 'cost_sharing_cents', 'net_cents'],
+            'filters' => ['from', 'to', 'department', 'branch', 'cost_center'],
         ],
     ];
+
+    /**
+     * Column headings for the files a person reads: the PDF, the CSV export
+     * and scheduled deliveries. Those printed the API keys, `salary_cents`
+     * over `1250000`; the Reports page has its own translated labels.
+     */
+    private const FIELD_LABELS = [
+        'name' => 'Name',
+        'email' => 'Email',
+        'phone' => 'Phone',
+        'employee_code' => 'Employee code',
+        'gender' => 'Gender',
+        'status' => 'Status',
+        'hire_date' => 'Hire date',
+        'salary_cents' => 'Salary (ETB)',
+        'department' => 'Department',
+        'branch' => 'Branch',
+        'position' => 'Position',
+        'grade' => 'Grade',
+        'cost_center' => 'Cost centre',
+        'employee_name' => 'Employee',
+        'date' => 'Date',
+        'check_in' => 'Check-in',
+        'check_out' => 'Check-out',
+        'source' => 'Source',
+        'worked_minutes' => 'Worked (minutes)',
+        'overtime_minutes' => 'Overtime (minutes)',
+        'work_days' => 'Workdays',
+        'present_days' => 'Present',
+        'late_days' => 'Late',
+        'absent_days' => 'Absent',
+        'leave_days' => 'On leave',
+        'holiday_days' => 'Holidays',
+        'worked_hours' => 'Worked hours',
+        'overtime_hours' => 'Overtime hours',
+        'leave_type' => 'Leave type',
+        'year' => 'Year',
+        'entitled_days' => 'Entitled days',
+        'used_days' => 'Used days',
+        'remaining_days' => 'Remaining days',
+        'period' => 'Period',
+        'basic_salary_cents' => 'Basic salary (ETB)',
+        'overtime_cents' => 'Overtime (ETB)',
+        'allowances_cents' => 'Allowances (ETB)',
+        'gross_cents' => 'Gross pay (ETB)',
+        'income_tax_cents' => 'Income tax (ETB)',
+        'employee_pension_cents' => 'Employee pension (ETB)',
+        'employer_pension_cents' => 'Employer pension (ETB)',
+        'loan_cents' => 'Loan (ETB)',
+        'cost_sharing_cents' => 'Cost sharing (ETB)',
+        'net_cents' => 'Net pay (ETB)',
+    ];
+
+    /** Columns summed per group: money, day counts and durations. */
+    private const SUMMED_SUFFIXES = ['_cents', '_days', '_hours', '_minutes'];
+
+    public function __construct(private readonly RunRegisterService $register) {}
 
     public function sources(): array
     {
@@ -72,7 +146,7 @@ final class ReportEngine
 
     /**
      * Rows are the source's column map. `summary` is empty when ungrouped, else
-     * per-group row counts and, when any `*_cents` column is present, per-group
+     * per-group row counts and, when any summed column is present, per-group
      * sums. Stated for the API contract, which cannot follow maps built by key.
      *
      * `truncated` is true when the source had more rows than ROW_LIMIT and only
@@ -85,7 +159,7 @@ final class ReportEngine
      * report.generate, so an HR Admin, deliberately denied payroll.viewAll
      * (audit N95), could pull every payslip figure here (blueprint D6).
      *
-     * @scramble-return array{source: string, total: int, truncated: bool, data: list<array<string, mixed>>, summary: array{grouped_by?: string, groups?: array<string, int>, group_sums?: array<string, array<string, int>>}}
+     * @scramble-return array{source: string, total: int, truncated: bool, data: list<array<string, mixed>>, summary: array{grouped_by?: string, groups?: array<string, int>, group_sums?: array<string, array<string, int|float>>}}
      */
     public function generate(int $tenantId, array $config, User $viewer): array
     {
@@ -100,6 +174,7 @@ final class ReportEngine
         $data = match ($source) {
             'employees' => $this->queryEmployees($tenantId, $filters, $viewer),
             'attendance' => $this->queryAttendance($tenantId, $filters, $viewer),
+            'timesheet' => $this->queryTimesheet($tenantId, $filters, $viewer),
             'absences' => $this->queryAbsences($tenantId, $filters, $viewer),
             'leave' => $this->queryLeave($tenantId, $filters, $viewer),
             'payroll' => $this->permits($viewer, 'payroll') ? $this->queryPayroll($tenantId, $filters, $viewer) : [],
@@ -127,20 +202,25 @@ final class ReportEngine
         $summary = [];
         if ($groupBy && ! empty($data)) {
             $grouped = [];
-            // Sums any `*_cents` column present in the (already column-filtered)
-            // rows per group — e.g. grouping the payroll source by `period` gives
-            // the monthly income-tax/pension totals a statutory filing needs,
-            // without a payroll-specific code path. A count alone ("45 rows")
+            // Sums any `*_cents`, `*_days`, `*_hours` or `*_minutes` column
+            // present in the (already column-filtered) rows per group — e.g.
+            // grouping the payroll source by `period` gives the monthly
+            // income-tax/pension totals a statutory filing needs, and grouping
+            // the timesheet by department gives absent days per department,
+            // without a source-specific code path. A count alone ("45 rows")
             // told a compliance officer nothing usable for a remittance filing.
             $sums = [];
             foreach ($data as $row) {
                 $key = (string) ($row[$groupBy] ?? 'Unknown');
                 $grouped[$key] = ($grouped[$key] ?? 0) + 1;
 
-                // Sums cover the selected columns, as before.
+                // Sums cover the selected columns, as before. Hours are
+                // fractional; everything else summed is a whole number.
                 foreach ($project($row) as $field => $value) {
-                    if (str_ends_with($field, '_cents') && is_numeric($value)) {
-                        $sums[$key][$field] = ($sums[$key][$field] ?? 0) + (int) $value;
+                    if (is_numeric($value) && $this->summed((string) $field)) {
+                        $sums[$key][$field] = str_ends_with((string) $field, '_hours')
+                            ? round(($sums[$key][$field] ?? 0) + (float) $value, 1)
+                            : ($sums[$key][$field] ?? 0) + (int) $value;
                     }
                 }
             }
@@ -175,12 +255,47 @@ final class ReportEngine
             return '';
         }
 
+        $rows = $this->presentable($rows);
         $lines = [Csv::row(array_keys($rows[0]))];
         foreach ($rows as $row) {
             $lines[] = Csv::row($row);
         }
 
         return implode("\r\n", $lines);
+    }
+
+    /**
+     * Rows as a person reads them: headings for keys and birr for cents, as
+     * the Reports page shows them. For files only; the JSON keeps raw values.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    public function presentable(array $rows): array
+    {
+        return array_values(array_map(function (array $row): array {
+            $out = [];
+            foreach ($row as $field => $value) {
+                $field = (string) $field;
+                $label = self::FIELD_LABELS[$field] ?? ucfirst(str_replace('_', ' ', $field));
+                $out[$label] = str_ends_with($field, '_cents') && is_numeric($value)
+                    ? number_format(((int) $value) / 100, 2)
+                    : $value;
+            }
+
+            return $out;
+        }, $rows));
+    }
+
+    private function summed(string $field): bool
+    {
+        foreach (self::SUMMED_SUFFIXES as $suffix) {
+            if (str_ends_with($field, $suffix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function queryEmployees(int $tenantId, array $filters, User $viewer): array
@@ -190,7 +305,7 @@ final class ReportEngine
             // `positions` has no `name` column (it is `title`). Naming it here both
             // errors on a real driver and fails to load the column the mapping
             // below actually reads, so the eager load must select `title` too.
-            ->with(['department:id,name', 'branch:id,name', 'position:id,title']);
+            ->with(['department:id,name', 'branch:id,name', 'position:id,title', 'grade:id,name', 'costCenter:id,name']);
 
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -198,6 +313,7 @@ final class ReportEngine
         if (! empty($filters['department_id'])) {
             $query->where('department_id', $filters['department_id']);
         }
+        $this->filterUnits($query, $filters);
         $viewer->scopeAccessibleEmployees($query);
         $showPay = $viewer->hasPermission('employee.viewFinancial');
 
@@ -214,6 +330,8 @@ final class ReportEngine
             'branch' => $e->branch?->name ?? '',
             // `positions.title`, not `name` — this column was empty in every export.
             'position' => $e->position?->title ?? '',
+            'grade' => $e->grade->name ?? '',
+            'cost_center' => $e->costCenter->name ?? '',
         ], fn (string $field) => $showPay || $field !== 'salary_cents', ARRAY_FILTER_USE_KEY))->toArray();
     }
 
@@ -221,8 +339,14 @@ final class ReportEngine
     {
         $query = AttendanceRecord::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
-            ->with('employee:id,name');
+            ->with([
+                'employee:id,name,employee_code,department_id,branch_id',
+                'employee.department:id,name',
+                'employee.branch:id,name',
+                'shift',
+            ]);
         $this->limitToReach($query, $tenantId, $viewer);
+        $this->limitToUnits($query, $tenantId, $filters);
 
         if (! empty($filters['from'])) {
             $query->whereDate('date', '>=', $filters['from']);
@@ -230,21 +354,138 @@ final class ReportEngine
         if (! empty($filters['to'])) {
             $query->whereDate('date', '<=', $filters['to']);
         }
+        if (! empty($filters['status']) && is_string($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
 
         // Newest first, so a limited report keeps the recent months. It took
         // the first 1,000 in no order, which was the oldest, and said nothing
         // about the cut (audit N65).
         $rows = $this->limited($query->orderByDesc('date')->orderByDesc('id'));
 
-        return $rows->map(fn ($r) => [
+        return $rows->map(fn (AttendanceRecord $r) => [
             'employee_name' => $r->employee?->name,
+            'employee_code' => $r->employee?->employee_code,
+            'department' => $r->employee?->department->name ?? '',
+            'branch' => $r->employee?->branch->name ?? '',
             'date' => $r->date instanceof Carbon ? $r->date->format('Y-m-d') : $r->date,
             'check_in' => $r->check_in,
             'check_out' => $r->check_out,
             'status' => $r->status->value,
             'source' => $r->source->value,
-            'worked_minutes' => $r->worked_minutes ?? 0,
+            // From the punches and the shift's break. This read a
+            // `worked_minutes` attribute that no column or accessor provides,
+            // so every row said 0.
+            'worked_minutes' => $r->workedMinutes(),
+            'overtime_minutes' => $r->overtimeMinutes(),
         ])->toArray();
+    }
+
+    /**
+     * One row per employee for a month: workdays, days present, late, absent,
+     * on leave and on holiday, with hours worked and overtime. Days are
+     * classified by ExpectedDays, the rule the absences source, the dashboards
+     * and the payroll run use, so the totals agree with them.
+     *
+     * `month` is `YYYY-MM` and defaults to the month of yesterday; the month
+     * stops at yesterday, since today is not over. An organisation that
+     * recorded no attendance that month is not using attendance, so its
+     * absent days are 0 rather than every workday, as on the payroll run.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return list<array<string, mixed>>
+     */
+    private function queryTimesheet(int $tenantId, array $filters, User $viewer): array
+    {
+        $yesterday = Carbon::parse(TenantTime::today(Tenant::query()->find($tenantId))->subDay()->format('Y-m-d'));
+        $month = is_string($filters['month'] ?? null) && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $filters['month']) === 1
+            ? Carbon::parse($filters['month'].'-01')
+            : $yesterday->copy()->startOfMonth();
+        $from = $month->copy()->startOfMonth();
+        $to = $month->copy()->endOfMonth()->startOfDay();
+        if ($to->greaterThan($yesterday)) {
+            $to = $yesterday->copy();
+        }
+        if ($from->greaterThan($to)) {
+            return [];
+        }
+
+        $employeeQuery = Employee::query()->where('tenant_id', $tenantId);
+        $this->filterUnits($employeeQuery, $filters);
+        $viewer->scopeAccessibleEmployees($employeeQuery);
+        $employees = $employeeQuery->with(['department:id,name', 'branch:id,name'])->orderBy('name')->get();
+        if ($employees->isEmpty()) {
+            return [];
+        }
+
+        // Scoped, not bypassed, as in the absences source: ExpectedDays reads
+        // shifts and leave through the tenant scope too.
+        $records = AttendanceRecord::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('employee_id', $employees->modelKeys())
+            ->whereDate('date', '>=', $from->format('Y-m-d'))
+            ->whereDate('date', '<=', $to->format('Y-m-d'))
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            ->with('shift')
+            ->get();
+
+        $attended = [];
+        $totals = [];
+        foreach ($records as $record) {
+            $id = $record->employee_id;
+            $totals[$id]['late'] = ($totals[$id]['late'] ?? 0) + ($record->status === AttendanceStatus::LATE ? 1 : 0);
+            $totals[$id]['worked'] = ($totals[$id]['worked'] ?? 0) + $record->workedMinutes();
+            $totals[$id]['overtime'] = ($totals[$id]['overtime'] ?? 0) + $record->overtimeMinutes();
+            if ($record->check_in !== null || $record->check_out !== null) {
+                $attended[$id][$record->date->format('Y-m-d')] = true;
+            }
+        }
+
+        $days = [];
+        $expectedDays = app(ExpectedDays::class);
+        for ($day = $from->copy(); $day->lessThanOrEqualTo($to); $day = $day->copy()->addDay()) {
+            $key = $day->format('Y-m-d');
+            foreach ($expectedDays->onDate($employees, $day) as $id => $kind) {
+                $counted = match ($kind) {
+                    ExpectedDay::WORKDAY => 'work',
+                    ExpectedDay::ON_LEAVE => 'leave',
+                    ExpectedDay::HOLIDAY => 'holiday',
+                    default => null,
+                };
+                if ($counted !== null) {
+                    $days[$id][$counted] = ($days[$id][$counted] ?? 0) + 1;
+                }
+                if ($kind === ExpectedDay::WORKDAY && $records->isNotEmpty() && ! isset($attended[$id][$key])) {
+                    $days[$id]['absent'] = ($days[$id]['absent'] ?? 0) + 1;
+                }
+            }
+        }
+
+        $rows = [];
+        foreach ($employees as $employee) {
+            $id = $employee->id;
+            $present = count($attended[$id] ?? []);
+            // Not employed in the month, or rest days only: nothing to report.
+            if (($days[$id]['work'] ?? 0) === 0 && $present === 0 && ($days[$id]['leave'] ?? 0) === 0) {
+                continue;
+            }
+            $rows[] = [
+                'employee_name' => $employee->name,
+                'employee_code' => $employee->employee_code,
+                'department' => $employee->department->name ?? '',
+                'branch' => $employee->branch->name ?? '',
+                'work_days' => $days[$id]['work'] ?? 0,
+                'present_days' => $present,
+                'late_days' => $totals[$id]['late'] ?? 0,
+                'absent_days' => $days[$id]['absent'] ?? 0,
+                'leave_days' => $days[$id]['leave'] ?? 0,
+                'holiday_days' => $days[$id]['holiday'] ?? 0,
+                'worked_hours' => round(($totals[$id]['worked'] ?? 0) / 60, 1),
+                'overtime_hours' => round(($totals[$id]['overtime'] ?? 0) / 60, 1),
+            ];
+        }
+
+        return $rows;
     }
 
     /**
@@ -284,6 +525,7 @@ final class ReportEngine
         }
 
         $employeeQuery = Employee::query()->where('tenant_id', $tenantId);
+        $this->filterUnits($employeeQuery, $filters);
         $viewer->scopeAccessibleEmployees($employeeQuery);
         $employees = $employeeQuery->with(['department:id,name', 'branch:id,name'])->get();
 
@@ -340,22 +582,19 @@ final class ReportEngine
 
     private function queryLeave(int $tenantId, array $filters, User $viewer): array
     {
-        // Trips and excused absences (`duty`, `excused` types) are not leave
-        // taken and have no balance to report.
         $query = LeaveBalance::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
-            ->whereIn('leave_type_id', fn ($q) => $q->select('id')
-                ->from('leave_types')
-                ->where('tenant_id', $tenantId)
-                ->where('kind', 'leave'))
-            ->with(['employee:id,name', 'leaveType:id,name']);
+            ->with(['employee:id,name,employee_code,department_id', 'employee.department:id,name', 'leaveType:id,name']);
         $this->limitToReach($query, $tenantId, $viewer);
+        $this->limitToUnits($query, $tenantId, $filters);
 
         $year = $filters['year'] ?? Carbon::now()->year;
         $query->where('year', $year);
 
         return $query->get()->map(fn ($b) => [
             'employee_name' => $b->employee?->name,
+            'employee_code' => $b->employee?->employee_code,
+            'department' => $b->employee?->department->name ?? '',
             'leave_type' => $b->leaveType?->name,
             'year' => $b->year,
             'entitled_days' => $b->entitled_days,
@@ -364,24 +603,60 @@ final class ReportEngine
         ])->toArray();
     }
 
+    /**
+     * One row per payslip, with the register's breakdown (overtime,
+     * allowances, employer pension, loan and cost-sharing deductions) read
+     * from the same calculation log. Voided runs are left out: a voided run
+     * and its reprocessed replacement counted every payslip of the month
+     * twice. `from` and `to` select runs by the start of their period.
+     */
     private function queryPayroll(int $tenantId, array $filters, User $viewer): array
     {
+        $runs = PayrollRun::query()->where('tenant_id', $tenantId)->where('status', '!=', 'voided');
+        if (! empty($filters['from'])) {
+            $runs->whereDate('period_start', '>=', $filters['from']);
+        }
+        if (! empty($filters['to'])) {
+            $runs->whereDate('period_start', '<=', $filters['to']);
+        }
+
         $query = PayrollEntry::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
-            ->with(['employee:id,name', 'payrollRun:id,period_label']);
+            ->whereIn('payroll_run_id', $runs->select('id'))
+            ->with([
+                'employee:id,public_id,name,employee_code,department_id,branch_id,cost_center_id',
+                'employee.department:id,name',
+                'employee.branch:id,name',
+                'employee.costCenter:id,name',
+                'payrollRun:id,period_label',
+            ]);
         $this->limitToReach($query, $tenantId, $viewer);
+        $this->limitToUnits($query, $tenantId, $filters);
 
         $rows = $this->limited($query->orderByDesc('payroll_run_id')->orderByDesc('id'));
 
-        return $rows->map(fn ($e) => [
-            'employee_name' => $e->employee?->name,
-            'period' => $e->payrollRun?->period_label ?? '',
-            'basic_salary_cents' => $e->basic_salary_cents,
-            'gross_cents' => $e->gross_cents,
-            'income_tax_cents' => $e->income_tax_cents,
-            'employee_pension_cents' => $e->employee_pension_cents,
-            'net_cents' => $e->net_cents,
-        ])->toArray();
+        return $rows->map(function (PayrollEntry $e): array {
+            $line = $this->register->row($e);
+
+            return [
+                'employee_name' => $e->employee?->name,
+                'employee_code' => $e->employee?->employee_code,
+                'department' => $e->employee?->department->name ?? '',
+                'branch' => $e->employee?->branch->name ?? '',
+                'cost_center' => $e->employee?->costCenter->name ?? '',
+                'period' => $e->payrollRun?->period_label ?? '',
+                'basic_salary_cents' => $e->basic_salary_cents,
+                'overtime_cents' => $line['overtime_cents'],
+                'allowances_cents' => $line['allowances_cents'],
+                'gross_cents' => $e->gross_cents,
+                'income_tax_cents' => $e->income_tax_cents,
+                'employee_pension_cents' => $e->employee_pension_cents,
+                'employer_pension_cents' => $e->employer_pension_cents,
+                'loan_cents' => $line['loan_cents'],
+                'cost_sharing_cents' => $line['cost_sharing_cents'],
+                'net_cents' => $e->net_cents,
+            ];
+        })->toArray();
     }
 
     /**
@@ -403,6 +678,44 @@ final class ReportEngine
             'employee_id',
             $viewer->scopeAccessibleEmployees(Employee::query()->where('tenant_id', $tenantId))->select('id'),
         );
+    }
+
+    /**
+     * The department, branch and cost-centre filters, each a unit's
+     * `public_id`, on an employee query.
+     *
+     * @param  Builder<Employee>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    private function filterUnits(Builder $query, array $filters): bool
+    {
+        $applied = false;
+        foreach (['department' => 'department', 'branch' => 'branch', 'cost_center' => 'costCenter'] as $key => $relation) {
+            $publicId = $filters[$key] ?? null;
+            if (is_string($publicId) && $publicId !== '') {
+                $query->whereHas($relation, fn (Builder $unit) => $unit->where('public_id', $publicId));
+                $applied = true;
+            }
+        }
+
+        return $applied;
+    }
+
+    /**
+     * The unit filters for a source keyed by `employee_id`.
+     *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  Builder<TModel>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    private function limitToUnits(Builder $query, int $tenantId, array $filters): void
+    {
+        $employees = Employee::query()->where('tenant_id', $tenantId);
+
+        if ($this->filterUnits($employees, $filters)) {
+            $query->whereIn('employee_id', $employees->select('id'));
+        }
     }
 
     /**

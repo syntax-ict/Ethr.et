@@ -765,6 +765,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Reports
     Route::prefix('reports')->group(function () {
         Route::get('/sources', [ReportController::class, 'sources']);
+        Route::get('/presets', [ReportController::class, 'presets']);
         Route::post('/generate', [ReportController::class, 'generate'])
             ->middleware(RequiresFeature::class.':reports');
         Route::post('/export', [ReportController::class, 'export'])

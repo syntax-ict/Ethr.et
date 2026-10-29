@@ -258,6 +258,7 @@ class Employee extends Model
         return $this->belongsTo(Team::class);
     }
 
+    /** @return BelongsTo<CostCenter, $this> */
     public function costCenter(): BelongsTo
     {
         return $this->belongsTo(CostCenter::class);

@@ -42,7 +42,6 @@ import {
   useGenerateReport,
   useSaveReport,
   type ReportConfig,
-  REPORT_FILTERS,
   type ReportSourceKey,
   type ReportSources,
 } from "@/features/reports/api";
@@ -89,7 +88,7 @@ export function BuilderTab() {
       field !== "salary_cents" || hasPermission("employee.viewFinancial"),
   );
   // Filters are not columns: only these keys reach the query.
-  const filterFields = REPORT_FILTERS[config.source];
+  const filterFields: string[] = sourceMeta?.filters ?? [];
   const selectedColumns = config.columns ?? [];
 
   function toggleColumn(field: string) {
@@ -309,6 +308,7 @@ export function BuilderTab() {
                     </SelectContent>
                   </Select>
                   <ReportFilterValue
+                    source={config.source}
                     field={f.field}
                     value={f.value}
                     onChange={(value) => updateFilter(i, { value })}
