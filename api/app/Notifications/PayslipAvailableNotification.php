@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\PayrollEntry;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use App\Support\NotificationTemplates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -40,7 +41,7 @@ class PayslipAvailableNotification extends Notification
         return [
             'period' => $this->entry->payrollRun?->period_label,
             'net_cents' => $this->entry->net_cents,
-            'message' => __('notification.inapp.payslip_available', ['period' => (string) $this->entry->payrollRun?->period_label]),
+            ...NotificationMessage::make('notification.inapp.payslip_available', ['period' => (string) $this->entry->payrollRun?->period_label]),
             'url' => '/payroll/payslips',
         ];
     }

@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\AttendanceRecord;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -46,7 +47,7 @@ class AttendanceAutoCheckedOutNotification extends Notification
             'record_public_id' => $this->record->public_id,
             'date' => $this->record->date?->format('Y-m-d'),
             'shift_end' => $this->shiftEnd,
-            'message' => __('attendance.auto_checkout.message', [
+            ...NotificationMessage::make('attendance.auto_checkout.message', [
                 'date' => $this->record->date?->format('Y-m-d'),
                 'time' => $this->shiftEnd,
             ]),

@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\AttendanceDevice;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -41,7 +42,7 @@ class AttendanceDeviceRequestedNotification extends Notification
             'device_id' => $this->device->public_id,
             'employee_name' => $this->employeeName,
             'replacing' => $this->replacing,
-            'message' => __($this->replacing ? 'notification.inapp.phone_replacement_requested' : 'notification.inapp.phone_requested', ['name' => $this->employeeName]),
+            ...NotificationMessage::make($this->replacing ? 'notification.inapp.phone_replacement_requested' : 'notification.inapp.phone_requested', ['name' => $this->employeeName]),
             'url' => '/attendance/devices',
         ];
     }

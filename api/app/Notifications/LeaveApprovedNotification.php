@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\LeaveRequest;
 use App\Notifications\Concerns\LeaveTemplateValues;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\NotificationMessage;
 use App\Support\NotificationTemplates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -42,7 +43,7 @@ class LeaveApprovedNotification extends Notification
             'leave_type' => $this->leaveRequest->leaveType?->name,
             'start_date' => $this->leaveRequest->start_date->format('Y-m-d'),
             'end_date' => $this->leaveRequest->end_date->format('Y-m-d'),
-            'message' => __('notification.inapp.leave_approved'),
+            ...NotificationMessage::make('notification.inapp.leave_approved'),
             'url' => '/leave',
         ];
     }

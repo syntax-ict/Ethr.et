@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\Device;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -35,7 +36,7 @@ class DeviceOfflineNotification extends Notification
             'device_name' => $this->device->name,
             'location' => $this->device->branch?->name ?? 'Unknown',
             'offline_since' => $this->device->last_sync_at?->toIso8601String(),
-            'message' => __('notification.inapp.device_offline', ['name' => $this->device->name]),
+            ...NotificationMessage::make('notification.inapp.device_offline', ['name' => $this->device->name]),
             'url' => '/devices/'.$this->device->public_id,
         ];
     }

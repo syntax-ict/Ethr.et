@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -34,7 +35,7 @@ class ApprovalReminderNotification extends Notification
         return [
             'pending_count' => $this->pendingCount,
             'oldest_hours' => $this->oldestHours,
-            'message' => __('notification.inapp.approval_reminder', ['count' => $this->pendingCount, 'hours' => $this->oldestHours]),
+            ...NotificationMessage::make('notification.inapp.approval_reminder', ['count' => $this->pendingCount, 'hours' => $this->oldestHours]),
             'url' => '/approvals',
         ];
     }
