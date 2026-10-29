@@ -81,7 +81,7 @@ the test pass (test plan 7.3).
 ## 4. Known issues and suspected defects to verify
 
 Found by reading the code while writing this pack (2026-10-24, K-01 to K-18; 2026-10-28, K-19 to
-K-41) and from earlier production QA. **They
+K-43) and from earlier production QA. **They
 are not confirmed on production.** Run the named case, then either file the defect or record
 "not reproduced" in the log.
 
@@ -106,7 +106,7 @@ are not confirmed on production.** Run the named case, then either file the defe
 | K-17 | Mobile check-out | Check-out does not re-check photo consent and uses the general 8 MB image cap | MOB-008 |
 | K-18 | Copy | Backend messages are outside the copy-style check (some contain an em dash) | MKT-009 |
 | K-19 | Activation | The typed-code form `/login/activate` is linked from nowhere and says "Invalid activation link" without `?tenant=`, though HR's dialog tells staff to "open the sign-in page and type the code" | ACT-012 |
-| K-20 | Employees | An employee with a phone but no email gets no login from "create a login" (silently skipped through the API), and an in-person code is refused for them | EMP-015 |
+| K-20 | Employees | **Fixed in #458 for the API and the profile:** an employee with a phone and no email now gets a login for in-person activation, and the code works while text invitations are off. The form's box is still disabled (K-42) | EMP-015, INV-010 |
 | K-21 | Activation | A wrong or missing authenticator code when issuing a code is reported on `mfa_code` as "The password is incorrect." | ACT-009 |
 | K-22 | Payroll | Finance can open the Reconcile tab but cannot settle (no `leave.adjustBalance` or `attendance.manage`); HR can settle but cannot open the tab. Only the tenant admin can do both | RCN-005 |
 | K-23 | Field visits | The Visits date filter may use the UTC date, so a visit between 00:00 and 03:00 EAT shows under the previous day | VIS-005 |
@@ -128,6 +128,8 @@ are not confirmed on production.** Run the named case, then either file the defe
 | K-39 | Address | A platform operator impersonating an organisation can rename its address (renaming is not on the impersonation block list) | TEN-015 |
 | K-40 | Attendance setup | The "no kiosk" check fires only when the kiosk PIN is also required, not whenever the kiosk method is on with no kiosk | SETUP-003 |
 | K-41 | Feature gate | Platform switches and per-organisation overrides exist in the database (#460) but have no console screen or API yet. Any reason other than `enabled` or `plan` on production means a row was written by hand | PLAN-017 |
+| K-42 | Employees | The Add employee form still disables the login box for a phone and no email, saying "Add an email to send a login invitation.", although an in-person code now works for them. Workaround: save without a login, then "Activate in person" from the profile | EMP-015 |
+| K-43 | Users | After a bulk resend that queued nothing, the toast always reads "No one is waiting for an invitation by email.", including when people were skipped as invited in the last 10 minutes or counted for in-person activation. Suspected; confirm the wording is acceptable | INV-003 |
 
 ## 5. Production facts in one place
 
@@ -151,6 +153,7 @@ are not confirmed on production.** Run the named case, then either file the defe
 | Sign-in code | 6 digits, 5 minutes, single use |
 | Reset link / invitation | 60 minutes / 72 hours |
 | In-person activation code | 12 characters, 24 hours, single use, locked after 5 wrong tries; purged 30 days after expiry |
+| Bulk invitations | Queued; 30 emails a minute per organisation (texts 10); a second request for the same person within 10 minutes sends nothing; reminders 3 days after the last invitation, at most 2, only for invitations under 30 days old; text invitations off |
 | Payroll run states | processing, completed (or failed), approved, paid; voided. **A paid run cannot be voided** |
 | Rounding | Every amount rounded once, half away from zero; cost sharing rounds down |
 | Registered phones | Passkeys for the platform domain (`ethr.et`): they work on `www.ethr.et/{slug}` and `{slug}.ethr.et`, not on a custom domain. Off by default |
@@ -185,6 +188,7 @@ Times are UTC (EAT is +3).
 | Punch reminders by push | every 5 min | Shift start, missed check-in, check-out reminders to subscribed phones (MOB-012) |
 | Attendance pattern scan | daily 16:00 | `buddy_pattern` and `grace_edge` flags (RISK-009) |
 | Purge activation codes | daily 00:00 | Deletes activation codes more than 30 days past expiry (ACT-013) |
+| Invitation reminders | daily 06:00 | Queues another invitation for people invited 3 or more days before who have not activated (INV-013) |
 | Passkey challenge purge | daily 00:00 | Deletes passkey challenges an hour after they expire (a challenge lives 3 minutes) |
 
 ## 7. Glossary
@@ -224,6 +228,7 @@ Times are UTC (EAT is +3).
 | Payroll rules and golden payslips | `api/app/Services/Payroll/`, `docs/payroll/ACCOUNTANT-SIGN-OFF.md`, `docs/payroll/STATUTORY-SCHEDULES.md` |
 | Attendance engine | `api/app/Services/Attendance/` |
 | Approval engine | `docs/APPROVAL-ENGINE-DESIGN.md`, `api/app/Services/Approval/` |
+| Invitations | `docs/EMPLOYEE-INVITATIONS-PLAN.md`, `api/app/Services/Invitations/`, `api/config/invitations.php` |
 | Operations and health | `docs/operations/ON-CALL.md`, `docs/deployment/shared-hosting/health-check.md` |
 | Earlier production QA | `docs/audit/QA-PRODUCTION-*.md`, `docs/audit/QA-ATTENDANCE-PRODUCTION-2026-10-12.md` |
 | Payroll changes and statutory parameters | `docs/payroll/PAY-CHANGES.md`, `docs/payroll/STATUTORY-PARAMETERS.md` |

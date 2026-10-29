@@ -10,6 +10,8 @@ import {
   sectionI18nKey,
 } from "@/lib/route-meta";
 import { useT } from "@/lib/i18n/useT";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { isoToday, sidebarSectionOf } from "@/lib/navigation/registry";
 import { cn } from "@/lib/utils";
 import {
   useCurrentEntityTitle,
@@ -26,6 +28,7 @@ export function PageTitleBar() {
   const { t } = useT();
   const registerSlot = useRegisterPageActionsSlot();
   const entity = useCurrentEntityTitle();
+  const { can, isSupervisor, isTenantAdmin, isSuperAdmin } = usePermissions();
 
   if (HIDDEN_PATHS.includes(pathname)) return null;
 
@@ -40,7 +43,21 @@ export function PageTitleBar() {
 
   const crumbs: Array<{ label: string; href?: string }> = [];
 
-  if (meta.section) {
+  // The sidebar's own section when it has a row for this page, so the two
+  // name the same place; the page's stated section only when it has none.
+  // No settings landing: the Settings row is the one href that needs it, and
+  // every settings page already states Admin.
+  const section = sidebarSectionOf(keyPath, {
+    can,
+    isSupervisor,
+    isTenantAdmin,
+    isSuperAdmin,
+    settingsLanding: null,
+    today: isoToday(),
+  });
+  if (section?.titleKey) {
+    crumbs.push({ label: t(section.titleKey, section.titleFallback) });
+  } else if (meta.section) {
     crumbs.push({ label: t(sectionI18nKey(meta.section), meta.section) });
   }
   if (meta.parent) {

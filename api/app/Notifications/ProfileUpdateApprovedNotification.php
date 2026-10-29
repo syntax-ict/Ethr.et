@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -44,7 +45,7 @@ class ProfileUpdateApprovedNotification extends Notification
         return [
             'field' => $this->field,
             'approved' => $this->approved,
-            'message' => __($this->approved
+            ...NotificationMessage::make($this->approved
                 ? 'notification.profile_update_approved_body'
                 : 'notification.profile_update_rejected_body', ['field' => $this->field]),
             'url' => '/profile',

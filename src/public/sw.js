@@ -2,9 +2,18 @@
 // Version is baked in at build time via build process / cache-busting
 // v2 (2026-10-12): bumping it makes activate delete every v1 cache, which is
 // how responses stored before the prefixes below were excluded leave devices.
-const CACHE_VERSION = 'ethr-v2';
+// v3 (2026-10-28): the shell pages are stored with the scripts and styles they
+// load. v2 stored only their HTML, so /offline came out of the cache and then
+// failed on a chunk nothing had fetched (production QA 2026-10-28, F-01).
+const CACHE_VERSION = 'ethr-v3';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;
+
+// sw.js does not change when a release is deployed, so the worker is not
+// reinstalled and would keep the shell of the release it was installed with.
+// A navigation that reaches the network re-reads the shell when this is older.
+const SHELL_REFRESH_MS = 6 * 60 * 60 * 1000;
+const SHELL_STAMP = '/__ethr-shell-cached-at';
 
 // API responses that are never stored. The platform console reads every
 // tenant, and /auth answers describe the signed-in account; neither may sit in
@@ -22,14 +31,8 @@ const SHELL_ASSETS = [
 
 // ── Install: cache app shell ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => {
-      // Non-fatal: if individual assets fail, still install
-      return Promise.allSettled(
-        SHELL_ASSETS.map(url => cache.add(url).catch(() => {}))
-      );
-    }).then(() => self.skipWaiting())
-  );
+  // Non-fatal: if individual assets fail, still install
+  event.waitUntil(cacheShell().catch(() => {}).then(() => self.skipWaiting()));
 });
 
 // ── Activate: clean old caches ────────────────────────────────────────────────
@@ -80,13 +83,50 @@ self.addEventListener('fetch', (event) => {
   // App shell pages: network-first, fall back to /offline
   if (!url.pathname.includes('.')) {
     event.respondWith(
-      fetch(request).catch(() =>
+      fetch(request).then((response) => {
+        if (request.mode === 'navigate' && response.ok) {
+          event.waitUntil(refreshShellIfStale().catch(() => {}));
+        }
+        return response;
+      }).catch(() =>
         caches.match(request).then(cached => cached ?? caches.match('/offline'))
       )
     );
     return;
   }
 });
+
+// ── Shell: each page together with the files it loads ───────────────────────
+async function cacheShell() {
+  const cache = await caches.open(STATIC_CACHE);
+  await cache.put(SHELL_STAMP, new Response(String(Date.now())));
+  await Promise.allSettled(SHELL_ASSETS.map(url => cacheShellPage(cache, url)));
+}
+
+// The page is stored only once every script and stylesheet it names is, so a
+// copy that would render and then fail to hydrate never replaces a working one.
+async function cacheShellPage(cache, url) {
+  const response = await fetch(url, { cache: 'no-store' });
+  if (!response.ok) return;
+
+  const html = await response.clone().text();
+  const assets = [...new Set(html.match(/\/_next\/static\/[^"'\s\\)]+/g) || [])];
+  const stored = await Promise.allSettled(assets.map(async (asset) => {
+    if (!(await cache.match(asset))) await cache.add(asset);
+  }));
+
+  if (stored.every(result => result.status === 'fulfilled')) {
+    await cache.put(url, response);
+  }
+}
+
+async function refreshShellIfStale() {
+  const cache = await caches.open(STATIC_CACHE);
+  const stamp = await cache.match(SHELL_STAMP);
+  const cachedAt = stamp ? Number(await stamp.text()) : 0;
+  if (Date.now() - cachedAt < SHELL_REFRESH_MS) return;
+  await cacheShell();
+}
 
 // ── Background Sync: flush offline attendance queue ───────────────────────────
 self.addEventListener('sync', (event) => {

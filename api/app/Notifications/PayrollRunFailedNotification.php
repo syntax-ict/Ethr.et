@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\PayrollRun;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -55,7 +56,7 @@ class PayrollRunFailedNotification extends Notification
             'payroll_run_id' => $this->payrollRun->public_id,
             'period' => $this->payrollRun->period_label,
             'reason' => $this->reason,
-            'message' => __('payroll.run_failed_body', [
+            ...NotificationMessage::make('payroll.run_failed_body', [
                 'period' => (string) $this->payrollRun->period_label,
                 'reason' => $this->reason,
             ]),

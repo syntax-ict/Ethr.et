@@ -63,7 +63,7 @@ so that QA Audit's standing set-up is not overwritten; build QA Audit's data wit
 | EMP-012 | P2 | W | Bulk update | Select 3 employees, change department | Each shows updated, unchanged or failed. More than 200 refused; including someone outside your reach rejects the whole request (422); no field given: "At least one field to update must be provided."; a status change also needs `employee.transition` |
 | EMP-013 | P2 | R | Statistics | Employees page summary cards | Counts agree with the list |
 | EMP-014 | P1 | W | A login with nothing to send | HR: Add employee, name and hire date only, no email, no phone; tick the login box; save. This is **E-NC** for [03, section 5a](03-E2E-AUTH-TENANCY-ACCESS.md#5a-in-person-activation-no-email-no-phone) | The box reads "Create a login to activate in person", hint "With no email or phone, nothing can be sent. HR activates the login face to face with a one-time code from their profile." 201, `meta.activation_code_pending: true`, `login_invited: false`; no email or SMS. The login is always role `employee`. The profile offers "Activate in person" (ACT-001) |
-| EMP-015 | P2 | R | Phone but no email | Type a phone and no email; through the API create one with `create_login: true` | Form: the box is disabled, "Add an email to send a login invitation." API: saved with `login_invited: false` and `activation_code_pending: false`, **no login created**, and an in-person code is refused for them (ACT-008). Record it (K-20) |
+| EMP-015 | P2 | R | Phone but no email | Type a phone and no email; then through the API create one with `create_login: true`. This is **E-PH** | Form: the box is still disabled, "Add an email to send a login invitation." (K-42). API, while text invitations are off: 201, a login made for in-person activation, `activation_code_pending: true`, `login_invited: false`, no SMS. The profile offers "Activate in person" and ACT-001 works (K-20, fixed by #458) |
 | EMP-016 | P2 | R | Records to fix | HR: `GET /employees?filter[missing]=tin`, `bank`, `emergency_contact`, `phone`; export with the same filter; SUP asks for `tin` | Only current staff (hired, probation, confirmed) lacking that item; the count equals the matching Next Steps item (NXT-003) and the export has the same rows. `tin` and `bank` need `employee.updateFinancial` (SUP 403). An unknown value is ignored (full list) |
 
 ## 4. Import and export
@@ -76,7 +76,7 @@ count). Plan the cases so that a sixth call is the rate-limit case itself.
 | IMP-E-001 | P1 | R | Template | Employees → Import → template | Headers: `name, name_am, employee_code, email, phone, gender, date_of_birth, hire_date, department, branch, position, salary, national_id, tin, badge_number, nationality, nationality_status, marital_status` |
 | IMP-E-002 | P1 | W | Preview errors | Upload a file with a missing `hire_date` column; one with headers only; one with a department that does not exist; two rows with the same code; one with a department name used twice | "Missing required columns: name, hire_date"; "CSV file must have a header row and at least one data row."; per row: not found, duplicate in file ("is already used on row N of this file"), ambiguous name |
 | IMP-E-003 | P1 | W | Amharic and BOM | Upload the UTF-8 CSV with a byte order mark and Amharic names, plus trailing empty `,,,,` rows | Accepted; Amharic intact; empty rows ignored |
-| IMP-E-004 | P1 | W | Commit | Commit 5 valid rows | 201 with `created`, `skipped`, `matched`, `users_created`, `errors`; the 5 people appear |
+| IMP-E-004 | P1 | W | Commit | Commit 5 valid rows | 201 with `created`, `skipped`, `matched`, `users_created`, `invitations_batch`, `invitations_queued`, `in_person`, `errors`; the 5 people appear |
 | IMP-E-005 | P1 | W | Idempotent | Commit the same rows with the same import key | All skipped; no duplicates |
 | IMP-E-006 | P1 | W | Identity match | Commit a row whose email or phone or national ID belongs to an existing person, under a new key | Counted `matched`, not created |
 | IMP-E-007 | P2 | R | Lost response | `GET /employees/import/status/{key}` for a committed key and an unknown one | 200 `{status: "completed", imported: n}`; 404 for unknown |
@@ -86,6 +86,7 @@ count). Plan the cases so that a sixth call is the rate-limit case itself.
 | IMP-E-011 | P2 | W | Round trip | Import the exported file under a new key | Every row `matched` (or created where missing); nothing duplicated |
 | IMP-E-012 | P2 | R | Spreadsheet injection | Create an employee named `=1+1`; export; open in a spreadsheet | The cell shows the text, not a formula |
 | IMP-E-013 | P2 | W | Plan limit on import | On Starter with 8 employees, import 5 | Refused before any row is created |
+| IMP-E-014 | P1 | X | Import with logins | Import 3 rows with team addresses and 1 with no email or phone, "create logins" ticked | The hint reads "People with an email get an invitation, sent a few a minute. People without one are activated in person. People already in ETHR are not invited again." The commit returns in seconds with `invitations_queued: 3`, `in_person: 1`; the result shows the INV-002 progress card and "1 person has no email. Activate them in person from their employee page." The 3 emails arrive after the next drain. Counts toward the 5 an hour |
 
 ## 5. Employee lifecycle
 
@@ -176,3 +177,23 @@ records each applicant. Use the VAC-001 vacancy (2 positions).
 | REC-009 | P1 | W | Positions and plan limit | After 2 hires on the 2-position vacancy, hire a third approved offer. In QA Isolation on Starter at its limit, hire one | "All 2 positions on this vacancy are filled. Raise the number of positions to hire more." Starter: 403 "You have reached the employee limit for your plan." |
 | REC-010 | P1 | R | Pay data and isolation | A custom role with `recruitment.manage` but no financial permissions opens an offer and sets a salary; request a QA Isolation application id; EMP opens Vacancies | Salary null; setting one 403. Other organisation's id: 404. EMP: no "Applicants", API 403 |
 | REC-011 | P2 | W | Erase personal details | Erase an open application. Reject one with a note → "Erase personal details" → add a note | Open: "Only a rejected or withdrawn application can be erased." Erased: name "Erased applicant", contact details and notes gone, stages and dates kept. A new note: "This application was erased." No longer offered as a possible duplicate |
+
+## 10. Logins for employees brought in from a device
+
+A device migration (the onboarding step, or Devices → a device's enrolments → "Bring these people into
+ETHR", which opens `/employees/from-device?device=…`) creates employees and no logins. After the commit,
+"Give them a way to sign in" lists who still cannot sign in. MIG-001 to MIG-004 need the owner's test
+device (05, section 14); without one, mark them Blocked and run MIG-005 to MIG-009 on employees added
+without a login. `POST /employees/logins` needs both `users.invite` and `employee.update`.
+
+| ID | P | Mode | Scenario | Steps | Expected |
+|---|---|---|---|---|---|
+| MIG-001 | P1 | W | The step after a commit | Commit a device migration; read the next step | "Give them a way to sign in", "Check the names first. People with an email get an invitation by email. People without one are listed for an in-person code, which you issue from their profile." Columns Name, Contact ("None on file" when empty) and Invitation ("Email", "Text message", "In person"); "invited, not yet activated" beside anyone already invited. "Continue" moves on. "Everyone brought in can already sign in." when nobody is left |
+| MIG-002 | P1 | R | Hire dates given today | Same batch | "Check the hire dates": ":count people were given today as their hire date, because the source did not have one. Leave and severance are counted from it, so correct it on each profile." A device gives none, so every person created counts; merged people do not. No date is changed |
+| MIG-003 | P1 | X | Send invitations | "Send invitations" (team addresses only) | "Logins created: :created. Invitations queued: :queued. To activate in person: :in_person.", then the INV-002 progress card. Nothing is sent in the request. "Email already used by another login: :count." when an address belongs to another login. The button is absent for a role without `users.invite` |
+| MIG-004 | P2 | R | Opened from a device | Devices → enrolments of the test device → "Bring these people into ETHR"; then "Devices". `GET /onboarding/migration/batches/{batch}/logins` | The migration opens with that device chosen; "Devices" returns. The API gives `without_login` and `hire_dates_defaulted`, and needs `employee.viewAny`. SUP and FIN cannot open the page |
+| MIG-005 | P1 | X | Logins for several people | HR: `POST /employees/logins` with the ids of an employee with a team address and no login, one with no email or phone, one active (EMP), one invited more than 10 minutes ago | 202 "Invitations are being sent.", `created: 1`, `active: 1`, `in_person: 1`, `email_in_use: 0`, `queued: 2` (the new login and the re-invited one), a `batch`. Audit "Logins created for employees". The no-contact person gets no login yet: the in-person code makes it |
+| MIG-006 | P2 | R | Address already taken | An employee with no login whose email belongs to another login of the organisation | `email_in_use: 1`; no login made for them |
+| MIG-007 | P1 | R | Another organisation's employee | Include a QA Isolation employee id; separately, a made-up 26-character id | 422 on `employee_ids`, "The selected employee ids is invalid.", identical for both; nothing created |
+| MIG-008 | P2 | R | Request rules | An empty list; the same id twice; 1,001 ids | 422 each: at least 1, distinct, at most 1,000 |
+| MIG-009 | P1 | R | Who may | SUP, FIN, EMP: `POST /employees/logins` | 403 |

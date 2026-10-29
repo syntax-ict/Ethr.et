@@ -66,6 +66,7 @@ Audit as TA (the widest reach):
 | ISO-010 | P1 | R | Reverse direction | Repeat ISO-001 and ISO-003 from QA Isolation towards QA Audit | Same results |
 | ISO-011 | P1 | R | Notifications and emails | Any email or notification produced during the pass | Names only the recipient's own organisation and its people |
 | ISO-012 | P1 | R | Phones across organisations | QA Audit TA: `POST /attendance/devices/{QA Isolation phone id}/approve`, `/reject`, `DELETE /attendance/devices/{id}`, `PUT /employees/{QA Isolation employee}/attendance-device-exemption` | 404 each; nothing changes in QA Isolation. QA Audit's Phones page and Not registered list never show QA Isolation people |
+| ISO-013 | P1 | R | Invitations across organisations | Run INV-005, INV-008 and MIG-007 from QA Audit towards QA Isolation, and back | No invitation is queued for the other organisation, its batch reads 404, its employee ids read as unknown; QA Isolation's users receive nothing |
 
 **Any failure in this section is S1.** Stop and tell the owner (test plan, section 7.3).
 

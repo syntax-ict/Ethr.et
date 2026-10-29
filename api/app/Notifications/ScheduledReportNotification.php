@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -37,7 +38,7 @@ class ScheduledReportNotification extends Notification
     {
         return [
             'title' => __('report.scheduled_subject', ['name' => $this->name]),
-            'message' => __('report.scheduled_body', ['name' => $this->name, 'rows' => $this->rowCount]),
+            ...NotificationMessage::make('report.scheduled_body', ['name' => $this->name, 'rows' => $this->rowCount]),
         ];
     }
 

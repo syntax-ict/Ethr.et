@@ -382,6 +382,20 @@ With the organisation administrator.
 
 **Done when:** each branch and each kind of worker is held to the rules that fit them.
 
+### UAT-H13 Make sure everyone can sign in
+
+Only with addresses the team controls.
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | Settings → Users → **Not activated** | Everyone who has not set a password, each with what became of their last invitation |
+| 2 | **Resend to everyone not activated** | "Invitations are being sent", then "Invitations sent" a few minutes later. You can leave the page meanwhile |
+| 3 | The person opens the email and sets a password | They leave the Not activated list |
+| 4 | Find someone with only a phone | "Activate in person"; activate them with a code (UAT-H9) |
+| 5 | After a device migration, read **Give them a way to sign in** and **Check the hire dates** | Who still cannot sign in, and how many people were given today as their hire date; correct those dates on their profiles |
+
+**Done when:** everyone who should use ETHR has been invited, and you can see who has not yet signed in.
+
 ---
 
 ## 6. Finance officer scenarios
@@ -560,7 +574,7 @@ Release under test: `v__________________`   Dates tested: `__________ to _______
 |---|---|---|---|---|---|
 | Employee | E1 to E13 | | | | |
 | Supervisor | S1 to S4 | | | | |
-| HR officer | H1 to H12 | | | | |
+| HR officer | H1 to H13 | | | | |
 | Finance officer | F1 to F5 | | | | |
 | Organisation administrator | A1 to A7 | | | | |
 | Platform operator | P1 | | | | |
