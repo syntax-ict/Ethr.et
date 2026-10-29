@@ -20,7 +20,7 @@ without the owner's written authorisation (test plan, rule 9.7).
 | SEC-006 | P1 | R | Cron and maintenance closed | `POST /api/v1/cron/queue` without a token, with a wrong token; `POST /api/v1/maintenance/migrate`. Send each with a body (`curl --data ''`) | JSON 404 for each (a wrong token is answered as if the route did not exist). An HTML 403 means the host's firewall refused a `POST` with no body before the application saw it, and counts towards a ban ([01, rule 10](01-TEST-PLAN.md#9-production-safety-rules)) |
 | SEC-007 | P2 | R | API docs | `https://www.ethr.et/api/docs` | Record whether the API documentation UI is public on production and report it to the owner for a decision (it is registered when the documentation package is installed) |
 | SEC-008 | P1 | R | Framing | Embed `https://www.ethr.et/login` in an iframe on a local HTML page | Refused by the browser |
-| SEC-009 | P1 | R | CORS | From a page on another origin, call the API with credentials | Blocked; only `https://ethr.et`, `https://www.ethr.et` style origins and `*.ethr.et` are allowed |
+| SEC-009 | P1 | R | CORS | From a page on another origin, call the API with credentials | Blocked. Only `https://www.ethr.et` is allowed: any other origin, an organisation's own `*.ethr.et` address included, gets `Access-Control-Allow-Origin: https://www.ethr.et` and the browser refuses it. Organisation pages call their own address, so they never need CORS (decided 2026-10-29) |
 
 ### 1.2 Session and request integrity
 
