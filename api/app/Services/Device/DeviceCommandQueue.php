@@ -42,7 +42,10 @@ final class DeviceCommandQueue
     /** Statuses that end employment; the person is removed from devices. */
     private const LEAVERS = [EmployeeStatus::RESIGNED, EmployeeStatus::TERMINATED, EmployeeStatus::RETIRED];
 
-    public function __construct(private readonly DeviceManager $devices) {}
+    public function __construct(
+        private readonly DeviceManager $devices,
+        private readonly AdmsRoster $roster,
+    ) {}
 
     /** Whether this kind of device can carry out commands at all. */
     public function supports(Device $device): bool
@@ -220,13 +223,13 @@ final class DeviceCommandQueue
      */
     public function collect(Device $device, int $limit = 20): Collection
     {
-        if (! $device->commands_enabled) {
-            return new Collection;
-        }
-
+        // Without commands_enabled the device may still be asked who is on
+        // it: that changes nothing it holds. Nothing else goes.
+        $readOnly = ! $device->commands_enabled;
         $stale = now()->subMinutes(self::RESEND_AFTER_MINUTES);
 
         $device->commands()
+            ->when($readOnly, fn ($q) => $q->where('type', DeviceCommandType::QUERY_USERS->value))
             ->where('status', DeviceCommandStatus::SENT->value)
             ->where('sent_at', '<', $stale)
             ->where('attempts', '>=', self::MAX_ATTEMPTS)
@@ -237,6 +240,7 @@ final class DeviceCommandQueue
             ]);
 
         $commands = $device->commands()
+            ->when($readOnly, fn ($q) => $q->where('type', DeviceCommandType::QUERY_USERS->value))
             ->where(fn ($q) => $q
                 ->where('status', DeviceCommandStatus::PENDING->value)
                 ->orWhere(fn ($q) => $q
@@ -272,8 +276,21 @@ final class DeviceCommandQueue
             return;
         }
 
+        if ($command->type === DeviceCommandType::QUERY_USERS) {
+            $this->acknowledgeQuery($device, $command, $code);
+
+            return;
+        }
+
         if ($code === 0) {
             $command->update(['status' => DeviceCommandStatus::DONE, 'last_error' => null, 'completed_at' => now()]);
+
+            $pin = (string) ($command->payload['device_user_id'] ?? '');
+            if ($pin !== '' && $command->type === DeviceCommandType::UPSERT_USER) {
+                $this->roster->enrolled($device, $pin, $command->payload['name'] ?? null);
+            } elseif ($pin !== '' && $command->type === DeviceCommandType::DELETE_USER) {
+                $this->roster->removed($device, $pin);
+            }
 
             return;
         }
@@ -284,6 +301,61 @@ final class DeviceCommandQueue
             'last_error' => "The device answered with error {$code}.",
             'completed_at' => $gaveUp ? now() : null,
         ]);
+    }
+
+    /**
+     * Ask a device that reports its roster later (ZKTeco ADMS) who is enrolled
+     * on it. A request still waiting for the device is returned rather than
+     * repeated, so pressing the button twice asks once.
+     *
+     * Sent whether or not `commands_enabled` is on: it changes nothing on the
+     * device. Null for a device that does not collect commands, whose roster
+     * is read directly.
+     */
+    public function requestEnrollments(Device $device, ?User $by = null, string $format = 'v2'): ?DeviceCommand
+    {
+        if (! $this->collects($device)) {
+            return null;
+        }
+
+        return $this->roster->pendingRequest($device)
+            ?? $this->queue($device, DeviceCommandType::QUERY_USERS, null, ['format' => $format], $by);
+    }
+
+    /** Whether the device collects its commands at check-in rather than being called. */
+    public function collects(Device $device): bool
+    {
+        try {
+            return $this->devices->adapter($device) instanceof CollectsDeviceCommands;
+        } catch (\InvalidArgumentException) {
+            return false;
+        }
+    }
+
+    /**
+     * A roster request's result. Success is any code from 0 up: PUSH 3.x
+     * firmware answers a query with the number of records it sent. A refusal
+     * of the 2.x form is the sign of 3.x firmware, which is asked once more in
+     * its own form; a refusal of that is final.
+     */
+    private function acknowledgeQuery(Device $device, DeviceCommand $command, int $code): void
+    {
+        if ($code >= 0) {
+            $command->update(['status' => DeviceCommandStatus::DONE, 'last_error' => null, 'completed_at' => now()]);
+            $this->roster->answered($device, $command);
+
+            return;
+        }
+
+        $command->update([
+            'status' => DeviceCommandStatus::FAILED,
+            'last_error' => "The device answered with error {$code}.",
+            'completed_at' => now(),
+        ]);
+
+        if (($command->payload['format'] ?? null) !== AdmsProtocol::QUERY_V3) {
+            $this->queue($device, DeviceCommandType::QUERY_USERS, null, ['format' => AdmsProtocol::QUERY_V3], null);
+        }
     }
 
     /**

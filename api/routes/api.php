@@ -653,6 +653,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/{device}/sync-logs', [DeviceController::class, 'syncLogs']);
         Route::get('/{device}/events', [DeviceController::class, 'deviceEvents']);
         Route::get('/{device}/enrollments', [DeviceEnrollmentController::class, 'index']);
+        Route::post('/{device}/enrollments/request', [DeviceEnrollmentController::class, 'request']);
         Route::get('/{device}/commands', [DeviceCommandController::class, 'index']);
         Route::post('/{device}/commands/set-time', [DeviceCommandController::class, 'setTime']);
         Route::post('/{device}/commands/send-staff', [DeviceCommandController::class, 'sendStaff']);
