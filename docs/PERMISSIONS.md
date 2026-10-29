@@ -157,6 +157,14 @@ approval engine, so an organisation's `overtime` chain applies.
 
 Both are in the HR Admin set, so `hr_admin` and `tenant_admin` hold them. See [`EMPLOYEE-LIFECYCLE.md`](EMPLOYEE-LIFECYCLE.md).
 
+### support *(2026-10-29)*
+
+| Permission | Description |
+|---|---|
+| `support.manage` | See every help request in the organisation, answer it, pass it to ETHR support, and close it. Holders can also send their own question straight to ETHR. Anyone signed in can ask for help and sees only their own requests |
+
+In the HR Admin set, so `hr_admin` and `tenant_admin` hold it. See [`operations/SUPPORT.md`](operations/SUPPORT.md).
+
 ### profile
 
 | Permission | Description |
@@ -264,6 +272,7 @@ disciplinary_case.manage,
 retirement_case.manage,
 announcement.manage,
 recruitment.manage, recruitment.approve,
+support.manage,
 users.viewAny, users.invite, users.update,
 users.issueActivationCode
 ```
@@ -350,6 +359,7 @@ Two further rules sit on top of scope for approvals: a user cannot approve their
 | disciplinary_case | 2 |
 | retirement_case | 2 |
 | recruitment | 2 *(added 2026-10-27; the total below was not re-counted, and other modules such as `vacancy` and `voice` are missing from this table)* |
+| support | 1 *(added 2026-10-29; the total below was not re-counted)* |
 | profile | 2 |
 | users | 4 |
 | announcement | 1 |

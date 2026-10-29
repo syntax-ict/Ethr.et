@@ -28,6 +28,7 @@ import {
   Layers,
   Megaphone,
   LayoutDashboard,
+  LifeBuoy,
   ListChecks,
   LogIn,
   MessageCircleHeart,
@@ -156,6 +157,14 @@ const PLATFORM_CHILDREN: Destination[] = [
     labelKey: "nav.platform_operations",
     labelFallback: "Operations",
     icon: Activity,
+    show: (c) => c.can.viewAdminConsole,
+  },
+  {
+    id: "platform_support",
+    href: "/admin/support",
+    labelKey: "nav.platform_support",
+    labelFallback: "Support",
+    icon: LifeBuoy,
     show: (c) => c.can.viewAdminConsole,
   },
   {
@@ -620,6 +629,15 @@ export const MORE_DESTINATIONS: Destination[] = [
     labelKey: "nav.notifications",
     labelFallback: "Notifications",
     icon: Bell,
+    show: (c) => !c.isSuperAdmin,
+  },
+  {
+    // Opened from the header's Get help and the account menu.
+    id: "support",
+    href: "/support",
+    labelKey: "nav.support",
+    labelFallback: "Help requests",
+    icon: LifeBuoy,
     show: (c) => !c.isSuperAdmin,
   },
   {

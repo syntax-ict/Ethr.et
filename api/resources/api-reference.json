@@ -36759,6 +36759,1261 @@
                 }
             }
         },
+        "/support-requests": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "supportRequest.store",
+                "summary": "POST /support-requests",
+                "tags": [
+                    "Support Request"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreSupportRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "viewer": {
+                                            "type": "string",
+                                            "description": "Who is reading: the person who asked reads their own request as\ntheirs even when they also hold support.manage.",
+                                            "const": "requester"
+                                        },
+                                        "category": {
+                                            "type": "string"
+                                        },
+                                        "body": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "handled_by": {
+                                            "type": "string"
+                                        },
+                                        "requester": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "email": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "role": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "email",
+                                                "role"
+                                            ]
+                                        },
+                                        "escalated_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "escalated_by_name": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "escalation_note": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "context": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "additionalProperties": []
+                                        },
+                                        "organisation": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "public_id": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "subdomain": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "public_id",
+                                                "name",
+                                                "subdomain"
+                                            ]
+                                        },
+                                        "created_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "updated_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "resolved_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "messages": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "author": {
+                                                        "type": "string"
+                                                    },
+                                                    "author_name": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "body": {
+                                                        "type": "string"
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "author",
+                                                    "author_name",
+                                                    "body",
+                                                    "created_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "viewer",
+                                        "category",
+                                        "body",
+                                        "status",
+                                        "handled_by",
+                                        "requester",
+                                        "escalated_at",
+                                        "escalated_by_name",
+                                        "escalation_note",
+                                        "context",
+                                        "organisation",
+                                        "created_at",
+                                        "updated_at",
+                                        "resolved_at",
+                                        "messages"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "Only your organisation's support people can send a request straight to ETHR."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "supportRequest.index",
+                "summary": "GET /support-requests - every request in the organisation, for support.manage",
+                "tags": [
+                    "Support Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "filter[status]",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 25
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": []
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer"
+                                                },
+                                                "last_page": {
+                                                    "type": "integer"
+                                                },
+                                                "per_page": {
+                                                    "type": "integer"
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "last_page",
+                                                "per_page",
+                                                "total"
+                                            ]
+                                        },
+                                        "counts": {
+                                            "type": "array",
+                                            "items": []
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "meta",
+                                        "counts"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/support-requests/mine": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "supportRequest.mine",
+                "summary": "GET /support-requests/mine - the caller's own requests, newest activity first",
+                "tags": [
+                    "Support Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 25
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": []
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer"
+                                                },
+                                                "last_page": {
+                                                    "type": "integer"
+                                                },
+                                                "per_page": {
+                                                    "type": "integer"
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "last_page",
+                                                "per_page",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/support-requests/{supportRequest}": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "supportRequest.show",
+                "summary": "GET /support-requests/{id} - the person who asked, or support.manage",
+                "tags": [
+                    "Support Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "supportRequest",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "viewer": {
+                                            "type": "string",
+                                            "description": "Who is reading: the person who asked reads their own request as\ntheirs even when they also hold support.manage."
+                                        },
+                                        "category": {
+                                            "type": "string"
+                                        },
+                                        "body": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "handled_by": {
+                                            "type": "string"
+                                        },
+                                        "requester": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "email": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "role": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "email",
+                                                "role"
+                                            ]
+                                        },
+                                        "escalated_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "escalated_by_name": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "escalation_note": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "context": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "additionalProperties": []
+                                        },
+                                        "organisation": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "public_id": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "subdomain": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "public_id",
+                                                "name",
+                                                "subdomain"
+                                            ]
+                                        },
+                                        "created_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "updated_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "resolved_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "messages": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "author": {
+                                                        "type": "string"
+                                                    },
+                                                    "author_name": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "body": {
+                                                        "type": "string"
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "author",
+                                                    "author_name",
+                                                    "body",
+                                                    "created_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "viewer",
+                                        "category",
+                                        "body",
+                                        "status",
+                                        "handled_by",
+                                        "requester",
+                                        "escalated_at",
+                                        "escalated_by_name",
+                                        "escalation_note",
+                                        "context",
+                                        "organisation",
+                                        "created_at",
+                                        "updated_at",
+                                        "resolved_at",
+                                        "messages"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/support-requests/{supportRequest}/escalate": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "supportRequest.escalate",
+                "summary": "POST /support-requests/{id}/escalate - pass it to ETHR, support.manage only",
+                "tags": [
+                    "Support Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "supportRequest",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EscalateSupportRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "viewer": {
+                                            "type": "string",
+                                            "description": "Who is reading: the person who asked reads their own request as\ntheirs even when they also hold support.manage.",
+                                            "const": "organisation"
+                                        },
+                                        "category": {
+                                            "type": "string"
+                                        },
+                                        "body": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "handled_by": {
+                                            "type": "string"
+                                        },
+                                        "requester": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "email": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "role": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "email",
+                                                "role"
+                                            ]
+                                        },
+                                        "escalated_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "escalated_by_name": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "escalation_note": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "context": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "additionalProperties": []
+                                        },
+                                        "organisation": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "public_id": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "subdomain": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "public_id",
+                                                "name",
+                                                "subdomain"
+                                            ]
+                                        },
+                                        "created_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "updated_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "resolved_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "messages": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "author": {
+                                                        "type": "string"
+                                                    },
+                                                    "author_name": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "body": {
+                                                        "type": "string"
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "author",
+                                                    "author_name",
+                                                    "body",
+                                                    "created_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "viewer",
+                                        "category",
+                                        "body",
+                                        "status",
+                                        "handled_by",
+                                        "requester",
+                                        "escalated_at",
+                                        "escalated_by_name",
+                                        "escalation_note",
+                                        "context",
+                                        "organisation",
+                                        "created_at",
+                                        "updated_at",
+                                        "resolved_at",
+                                        "messages"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "This request is already with ETHR support."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/support-requests/{supportRequest}/messages": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "supportRequest.message",
+                "summary": "POST /support-requests/{id}/messages",
+                "tags": [
+                    "Support Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "supportRequest",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SupportMessageRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "viewer": {
+                                            "type": "string",
+                                            "description": "Who is reading: the person who asked reads their own request as\ntheirs even when they also hold support.manage."
+                                        },
+                                        "category": {
+                                            "type": "string"
+                                        },
+                                        "body": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "handled_by": {
+                                            "type": "string"
+                                        },
+                                        "requester": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "email": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "role": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "email",
+                                                "role"
+                                            ]
+                                        },
+                                        "escalated_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "escalated_by_name": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "escalation_note": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "context": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "additionalProperties": []
+                                        },
+                                        "organisation": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "public_id": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "subdomain": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "public_id",
+                                                "name",
+                                                "subdomain"
+                                            ]
+                                        },
+                                        "created_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "updated_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "resolved_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "messages": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "author": {
+                                                        "type": "string"
+                                                    },
+                                                    "author_name": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "body": {
+                                                        "type": "string"
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "author",
+                                                    "author_name",
+                                                    "body",
+                                                    "created_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "viewer",
+                                        "category",
+                                        "body",
+                                        "status",
+                                        "handled_by",
+                                        "requester",
+                                        "escalated_at",
+                                        "escalated_by_name",
+                                        "escalation_note",
+                                        "context",
+                                        "organisation",
+                                        "created_at",
+                                        "updated_at",
+                                        "resolved_at",
+                                        "messages"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/support-requests/{supportRequest}/resolve": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "supportRequest.resolve",
+                "summary": "POST /support-requests/{id}/resolve - the person who asked, or support.manage",
+                "tags": [
+                    "Support Request"
+                ],
+                "parameters": [
+                    {
+                        "name": "supportRequest",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "viewer": {
+                                            "type": "string",
+                                            "description": "Who is reading: the person who asked reads their own request as\ntheirs even when they also hold support.manage."
+                                        },
+                                        "category": {
+                                            "type": "string"
+                                        },
+                                        "body": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "handled_by": {
+                                            "type": "string"
+                                        },
+                                        "requester": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "email": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "role": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "email",
+                                                "role"
+                                            ]
+                                        },
+                                        "escalated_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "escalated_by_name": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "escalation_note": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "context": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "additionalProperties": []
+                                        },
+                                        "organisation": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "public_id": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "subdomain": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "public_id",
+                                                "name",
+                                                "subdomain"
+                                            ]
+                                        },
+                                        "created_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "updated_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "resolved_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "messages": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "author": {
+                                                        "type": "string"
+                                                    },
+                                                    "author_name": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "body": {
+                                                        "type": "string"
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "author",
+                                                    "author_name",
+                                                    "body",
+                                                    "created_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "viewer",
+                                        "category",
+                                        "body",
+                                        "status",
+                                        "handled_by",
+                                        "requester",
+                                        "escalated_at",
+                                        "escalated_by_name",
+                                        "escalation_note",
+                                        "context",
+                                        "organisation",
+                                        "created_at",
+                                        "updated_at",
+                                        "resolved_at",
+                                        "messages"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/team/attendance/summary": {
             "get": {
                 "x-abilities": [
@@ -44108,6 +45363,19 @@
                 ],
                 "title": "EndShiftAssignmentRequest"
             },
+            "EscalateSupportRequest": {
+                "type": "object",
+                "properties": {
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 3000
+                    }
+                },
+                "title": "EscalateSupportRequest"
+            },
             "ExitClearanceItemResource": {
                 "type": "object",
                 "properties": {
@@ -50463,6 +51731,135 @@
                 ],
                 "title": "StoreShiftRotationRequest"
             },
+            "StoreSupportRequest": {
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "sign_in",
+                            "attendance",
+                            "leave",
+                            "payroll",
+                            "employees",
+                            "devices",
+                            "billing",
+                            "other"
+                        ]
+                    },
+                    "body": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 5000
+                    },
+                    "send_to": {
+                        "type": "string",
+                        "enum": [
+                            "organisation",
+                            "ethr"
+                        ]
+                    },
+                    "include_context": {
+                        "type": "boolean"
+                    },
+                    "context": {
+                        "type": "object",
+                        "properties": {
+                            "page": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 300
+                            },
+                            "locale": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 10
+                            },
+                            "viewport": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 20
+                            },
+                            "online": {
+                                "type": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            },
+                            "pending_offline": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ],
+                                "minimum": 0,
+                                "maximum": 100000
+                            },
+                            "recent_errors": {
+                                "type": [
+                                    "array",
+                                    "null"
+                                ],
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "method": {
+                                            "type": "string",
+                                            "enum": [
+                                                "GET",
+                                                "POST",
+                                                "PUT",
+                                                "PATCH",
+                                                "DELETE"
+                                            ]
+                                        },
+                                        "path": {
+                                            "type": "string",
+                                            "maxLength": 300
+                                        },
+                                        "status": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 599
+                                        },
+                                        "type": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ],
+                                            "maxLength": 200
+                                        },
+                                        "at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ],
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "required": [
+                                        "method",
+                                        "path",
+                                        "status"
+                                    ]
+                                },
+                                "maxItems": 5
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "category",
+                    "body",
+                    "context"
+                ],
+                "title": "StoreSupportRequest"
+            },
             "StoreTeamRequest": {
                 "type": "object",
                 "properties": {
@@ -50497,6 +51894,19 @@
                     "name"
                 ],
                 "title": "StoreTeamRequest"
+            },
+            "SupportMessageRequest": {
+                "type": "object",
+                "properties": {
+                    "body": {
+                        "type": "string",
+                        "maxLength": 5000
+                    }
+                },
+                "required": [
+                    "body"
+                ],
+                "title": "SupportMessageRequest"
             },
             "TaxBracketResource": {
                 "type": "object",
