@@ -275,6 +275,14 @@ These are not optional. A breach of rule 1 or 2 is itself an incident.
    holds only test people.
 9. **Leave what you find.** Do not delete production data you did not create, including other
    testers' data, without asking.
+10. **The host's firewall bans your address after a few refused requests.** A request it refuses
+    (a secret path such as `/.env`, or a `POST` with no body) gets an HTML 403 from the server, and
+    a handful of those within minutes closes ports 80 and 443 to your address for about ten minutes
+    (measured 2026-10-09, and twice in the 2026-10-28 pass). Everyone behind the same office address
+    is locked out with you. Send every `POST` with a body (`--data ''`), run the secret-path probes
+    (S-05, SEC-004) at most three in ten minutes, and when the site stops answering, check it from
+    outside (for example `check-host.net`) before recording an outage. A tool that fetches from
+    your own machine, including Claude Code's web fetch, is not an outside check.
 
 ## 10. Defect management
 
