@@ -50,9 +50,13 @@ final class ZktecoAdmsAdapter implements CollectsDeviceCommands, DeviceAdapter
         return [];
     }
 
+    /**
+     * What the device last reported (AdmsRoster). It is asked with a command
+     * and answers at its next check-in, so this is the list as of then.
+     */
     public function pullEnrollments(Device $device): array
     {
-        return [];
+        return app(AdmsRoster::class)->enrollments($device);
     }
 
     /** The address is entered on the device itself (Comm → Cloud Server Setting). */

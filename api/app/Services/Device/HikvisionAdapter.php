@@ -216,6 +216,9 @@ final class HikvisionAdapter implements AcceptsDeviceCommands, DeviceAdapter
                     'EmployeeNoList' => [['employeeNo' => (string) $payload['device_user_id']]],
                 ],
             ]),
+            // Hikvision reads its roster directly (pullEnrollments); this is for
+            // devices that report it later, and is never queued for this one.
+            DeviceCommandType::QUERY_USERS => throw new DeviceCommandRejected('This device is read directly; it takes no roster request.'),
         };
 
         if ($response->successful()) {
