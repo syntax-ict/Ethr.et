@@ -25,6 +25,8 @@ const CAN_ABILITIES = {
   // Setting an offered salary is pay data, as on the employee form.
   updateEmployeeFinancial: "employee.updateFinancial",
   manageVoice: "voice.manage",
+  // Answering colleagues' help requests and passing them to ETHR.
+  manageSupport: "support.manage",
   recordPersonnelAction: "personnel_action.create",
   manageDisciplinaryCases: "disciplinary_case.manage",
   manageRetirementCases: "retirement_case.manage",

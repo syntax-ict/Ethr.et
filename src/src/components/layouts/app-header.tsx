@@ -9,6 +9,7 @@ import {
   Contrast,
   Globe,
   Keyboard,
+  LifeBuoy,
   LogOut,
   Monitor,
   Moon,
@@ -30,6 +31,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { InstallAppMenuItem } from "@/components/shared/install-app";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
+import { GetHelpDialogHost, openGetHelp } from "@/features/support/components";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { openCommandPalette } from "@/components/shared/command-palette";
 import {
   useCurrentTenant,
@@ -91,6 +94,10 @@ export function AppHeader() {
   const updatePreferences = useUpdatePreferences();
   const pageLabel = useCurrentPageLabel();
   const { calendar, setCalendar } = useCalendar();
+  // Get help belongs to an organisation's people. A platform super admin is
+  // the one answering, in the console.
+  const { isSuperAdmin } = usePermissions();
+  const canAskForHelp = !isSuperAdmin && !!user;
 
   /**
    * Applied at once, then stored on the user, as the language switcher does:
@@ -118,8 +125,10 @@ export function AppHeader() {
           own, whatever the page title beside it measures. The actions column
           is never narrower than its contents, so a long name or another
           language cannot push the icons over the search; the title column
-          gives way first. Below lg it stays a row: logo, then the icons. */}
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,32rem)_minmax(max-content,1fr)] lg:gap-4 lg:px-6 xl:gap-6">
+          gives way first. Below lg it stays a row: logo, then the icons.
+          The search stops at 30rem: Get help added an icon to the actions,
+          and at 1280px the Amharic title "Add Employee" then lost 6px. */}
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,30rem)_minmax(max-content,1fr)] lg:gap-4 lg:px-6 xl:gap-6">
         {/* Left: mobile logo / Desktop breadcrumbs. The hamburger that lived
             here was the second of two controls opening the same navigation —
             the bottom bar's More is the documented, thumb-reachable one, and
@@ -263,6 +272,29 @@ export function AppHeader() {
             </TooltipContent>
           </Tooltip>
 
+          {/* Get help */}
+          {canAskForHelp && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={openGetHelp}
+                  aria-haspopup="dialog"
+                >
+                  <LifeBuoy className="h-4 w-4" aria-hidden />
+                  <span className="sr-only">
+                    {t("support.get_help", "Get help")}
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t("support.get_help", "Get help")}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           {/* Notifications */}
           <NotificationBell />
 
@@ -346,6 +378,14 @@ export function AppHeader() {
                   {t("nav.notification_prefs", "Notification Preferences")}
                 </Link>
               </DropdownMenuItem>
+              {canAskForHelp && (
+                <DropdownMenuItem asChild>
+                  <Link href="/support" className="cursor-pointer gap-2">
+                    <LifeBuoy className="h-4 w-4 text-muted-foreground" />
+                    {t("nav.support", "Help requests")}
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <InstallAppMenuItem />
               <DropdownMenuItem
                 className="cursor-pointer gap-2"
@@ -399,6 +439,7 @@ export function AppHeader() {
           </DropdownMenu>
         </div>
       </header>
+      {canAskForHelp && <GetHelpDialogHost />}
     </>
   );
 }
