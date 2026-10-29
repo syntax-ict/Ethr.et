@@ -66,7 +66,7 @@ the test pass (test plan 7.3).
 | S-02 | Healthy | `GET /api/v1/health` | All core services healthy; scheduler heartbeat under 15 min; failed jobs not growing |
 | S-03 | Release steps ran | Call a route added in this release (from the release notes) while signed out | 401 (needs sign-in), **not** 404. A 404 here while old routes give 401 means the route cache is stale |
 | S-04 | Redirects | `http://ethr.et` → `https://www.ethr.et`; `https://ethr.et/qa-audit` → `https://www.ethr.et/qa-audit` (301); organisation subdomain (if used) → `/login`; `https://admin.ethr.et` → `/admin/` | As stated |
-| S-05 | Secrets closed | `/.env`, `/api/.env`, `/artisan`, logs | 403 or 404 |
+| S-05 | Secrets closed | `/.env`, `/api/.env`, `/artisan`, logs, at most three in ten minutes ([01, rule 10](01-TEST-PLAN.md#9-production-safety-rules)) | 403 or 404 |
 | S-06 | Marketing site | `/en`, `/am`, `/en/pricing` | 200, no error, prices shown |
 | S-07 | Organisation entry page | `/qa-audit` signed out | Branded sign-in page |
 | S-08 | Sign-in per role | TA (with MFA), HR, FIN, SUP, EMP in QA Audit | Each reaches the dashboard |
