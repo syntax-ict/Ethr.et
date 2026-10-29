@@ -6,6 +6,8 @@ use App\Enums\UserRole;
 use App\Models\AccountActivationCode;
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Models\SmsGateway;
+use App\Models\SmsSetting;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Auth\ActivationCodeService;
@@ -157,9 +159,43 @@ describe('issuing a code', function () {
         $this->postJson("/api/v1/employees/{$employee->public_id}/activation-code", issuePayload())->assertForbidden();
     });
 
-    it('refuses an employee who has an email or a phone', function () {
+    it('refuses an employee who has an email', function () {
+        [, , $employee] = inPersonFixture();
+        $employee->update(['email' => 'reachable@acme.test']);
+
+        $this->postJson("/api/v1/employees/{$employee->public_id}/activation-code", issuePayload())
+            ->assertStatus(422)
+            ->assertJsonPath('reason', 'contact');
+    });
+
+    // Until 2026-10-28 any phone refused, while SMS was not live: a person with
+    // only a phone could get no link, no text and no code. A phone counts now
+    // only once texts would reach it.
+    it('issues for an employee with only a phone while text invitations are off', function () {
         [, , $employee] = inPersonFixture();
         $employee->update(['phone' => '+251911223344']);
+
+        $this->postJson("/api/v1/employees/{$employee->public_id}/activation-code", issuePayload())
+            ->assertCreated();
+    });
+
+    it('refuses an employee with only a phone once text invitations are on', function () {
+        [, , $employee] = inPersonFixture();
+        $employee->update(['phone' => '+251911223344']);
+
+        $gateway = new SmsGateway([
+            'slot' => SmsGateway::SLOT_PRIMARY,
+            'endpoint' => 'https://sms.example.et/send',
+            'method' => 'form',
+            'auth_type' => 'none',
+            'recipient_field' => 'to',
+            'message_field' => 'message',
+            'number_format' => 'international',
+            'timeout_seconds' => 5,
+        ]);
+        $gateway->verified_at = now();
+        $gateway->save();
+        SmsSetting::current()->update(['enabled' => true, 'invitations_enabled' => true]);
 
         $this->postJson("/api/v1/employees/{$employee->public_id}/activation-code", issuePayload())
             ->assertStatus(422)

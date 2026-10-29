@@ -85,6 +85,31 @@ fails. A second gateway is used only once it has passed its own test.
   until midnight. The ledger records which gateway and why, never the number or the text.
 - **Per person.** Notifications are still capped at `SMS_DAILY_LIMIT_PER_USER` (default 5) per
   person per day.
+- **Invitations' share (2026-10-28).** Invitations by text may use only
+  `sms_settings.invitation_share` percent of the daily limit (30 by default), counted in
+  `sms_sends` under the purpose `invitation`. One organisation inviting its whole staff cannot
+  use up the sign-in codes every other organisation needs that day. An invitation over the
+  share waits for tomorrow; it is not dropped.
+
+## Invitations by text (2026-10-28)
+
+**Off by default, and off until SMS is live** (owner decision). The console switch
+**Send invitations by text** sets `sms_settings.invitations_enabled`, and it has an effect only
+while SMS itself is available. While it is off:
+
+- a person with an email is invited by email, as before;
+- a person with only a phone is **activated in person** with a code HR issues, exactly like a
+  person with no contact at all. Until this date a phone alone blocked the in-person code, so
+  such a person had no way in.
+
+Once it is on, a person with only a phone is sent a text that names the organisation and the
+sign-in page and carries **no link and no token**. They sign in with their phone number and a
+code, and that first sign-in activates the account (`OtpController::verify`). A person with an
+email is still activated by their link, never by a code.
+
+**Not done yet:** a person activated this way has no password. They keep signing in by code,
+which is fine, but setting a password afterwards needs a "set a password" step for signed-in
+accounts with no usable one. Build it before switching this on.
 
 ## Out of scope: SMPP and SS7
 
@@ -101,3 +126,6 @@ over the same networks avoids it.
 4. Switch on **Send SMS**, and set the daily limit to what the plan allows.
 5. On an organisation's sign-in page, *Sign in with a one-time code* now offers **Text
    message** beside **Email**.
+6. Only when sign-in codes by text work: switch on **Send invitations by text**, and check
+   the invitations' share of the limit. See *Invitations by text* above for what must exist
+   first.

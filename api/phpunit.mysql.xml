@@ -82,6 +82,8 @@
         <!-- On: adapter tests address fake devices at private hosts. DeviceHostPolicyTest turns it off to test the production shape. -->
         <env name="DEVICE_ALLOW_PRIVATE_HOSTS" value="true" force="true"/>
         <env name="CACHE_STORE" value="array" force="true"/>
+        <!-- As in phpunit.xml: a file store would carry one test's heartbeat into the next. -->
+        <env name="SIGNALS_CACHE_DRIVER" value="array" force="true"/>
 
         <!-- The only lines that differ from phpunit.xml.
              `mysql`, not `mariadb`: production's DB_CONNECTION is `mysql`

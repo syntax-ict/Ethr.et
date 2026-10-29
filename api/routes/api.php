@@ -148,6 +148,8 @@ use App\Http\Controllers\Api\V1\SiteContentController;
 use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\User\ActivationCodeController;
+use App\Http\Controllers\Api\V1\User\EmployeeLoginController;
+use App\Http\Controllers\Api\V1\User\InvitationController;
 use App\Http\Controllers\Api\V1\User\UserController;
 use App\Http\Controllers\Api\V1\Vacancy\VacancyController;
 use App\Http\Controllers\Api\V1\Voice\ConcernController;
@@ -392,6 +394,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/migration/batches/{batch}', [MigrationController::class, 'show']);
         Route::patch('/migration/rows/{row}', [MigrationController::class, 'updateRow']);
         Route::post('/migration/batches/{batch}/commit', [MigrationController::class, 'commit']);
+        Route::get('/migration/batches/{batch}/logins', [MigrationController::class, 'logins']);
     });
 
     // Setup & Next Steps: one list per person, built from their role, scope and plan.
@@ -405,6 +408,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index']);
         Route::post('/', [UserController::class, 'store']);
+        Route::post('/invitations', [InvitationController::class, 'store']);
+        Route::get('/invitations/{batch}', [InvitationController::class, 'show']);
         Route::patch('/{user}', [UserController::class, 'update']);
         Route::post('/{user}/resend-invite', [UserController::class, 'resendInvite']);
         Route::post('/{user}/mfa/reset', [UserController::class, 'resetMfa']);
@@ -546,6 +551,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Recover the outcome of a committed import when the client lost the response.
     Route::get('/employees/import/status/{key}', [EmployeeImportController::class, 'status']);
     Route::post('/employees/bulk-update', [EmployeeBulkController::class, 'bulkUpdate']);
+    Route::post('/employees/logins', [EmployeeLoginController::class, 'store']);
     Route::post('/employees/{employee}/enrol-on-devices', [DeviceCommandController::class, 'enrolEmployee']);
     // The template is a header line, not an import: under `imports` it spent
     // one of the five an hour before a file was chosen.

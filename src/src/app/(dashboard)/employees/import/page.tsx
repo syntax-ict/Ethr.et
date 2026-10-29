@@ -36,6 +36,7 @@ import { saveCsv } from "@/lib/utils/csv-export";
 import { useT } from "@/lib/i18n/useT";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { useUploadLimit } from "@/features/auth/api";
+import { InvitationProgress } from "@/features/users/components/invitation-progress";
 import {
   overServerLimit,
   SERVER_LIMIT_FALLBACK,
@@ -716,17 +717,22 @@ export default function EmployeeImportPage() {
                   color="red"
                 />
               </div>
-              {result.users_created > 0 && (
+              {result.invitations_batch && (
+                <div className="mx-auto mt-4 max-w-xl text-left">
+                  <InvitationProgress batch={result.invitations_batch} />
+                </div>
+              )}
+              {result.in_person > 0 && (
                 <p className="mt-4 text-sm text-muted-foreground">
-                  {result.users_created === 1
+                  {result.in_person === 1
                     ? t(
-                        "employees_import_page.invitations_sent_one",
-                        "1 login invitation sent.",
+                        "employees_import_page.in_person_one",
+                        "1 person has no email. Activate them in person from their employee page.",
                       )
                     : t(
-                        "employees_import_page.invitations_sent",
-                        ":count login invitations sent.",
-                        { count: result.users_created },
+                        "employees_import_page.in_person",
+                        ":count people have no email. Activate them in person from their employee pages.",
+                        { count: result.in_person },
                       )}
                 </p>
               )}

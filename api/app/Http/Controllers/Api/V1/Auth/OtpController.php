@@ -7,12 +7,14 @@ namespace App\Http\Controllers\Api\V1\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RequestOtpRequest;
 use App\Http\Requests\Auth\VerifyOtpRequest;
+use App\Models\AuditLog;
 use App\Models\LoginHistory;
 use App\Models\OtpCode;
 use App\Models\User;
 use App\Services\Auth\OtpService;
 use App\Services\AuthService;
 use App\Services\CurrentTenant;
+use App\Services\Sms\ConfiguredSmsSender;
 use App\Support\EthiopianPhone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +30,7 @@ class OtpController extends Controller
     public function __construct(
         private readonly OtpService $otp,
         private readonly AuthService $authService,
+        private readonly ConfiguredSmsSender $sms,
     ) {}
 
     public function request(RequestOtpRequest $request): JsonResponse
@@ -70,6 +73,19 @@ class OtpController extends Controller
                 'status' => 422,
                 'detail' => __('auth.otp_invalid'),
             ], 422);
+        }
+
+        // An invitation by text tells a person with only a phone to sign in with
+        // a code. The code just proved they hold that phone, which is what an
+        // activation link proves for an address, so the account is activated
+        // here. Only while text invitations are on, and never for an account
+        // with an email: that one is activated by its link.
+        if ($user->status === 'invited'
+            && $this->channel($request->input('email')) === OtpService::CHANNEL_SMS
+            && empty($user->email)
+            && $this->sms->invitationsEnabled()) {
+            $user->update(['status' => 'active', 'activated_at' => now()]);
+            AuditLog::record('user.activated_by_sms_code', $user);
         }
 
         if ($user->status !== 'active') {

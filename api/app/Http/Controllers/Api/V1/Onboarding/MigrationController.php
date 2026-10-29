@@ -15,6 +15,7 @@ use App\Models\MigrationBatch;
 use App\Models\MigrationStagingRow;
 use App\Models\OnboardingProgress;
 use App\Services\CurrentTenant;
+use App\Services\Invitations\EmployeeLogins;
 use App\Services\Migration\WorkforceMigrationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -29,6 +30,7 @@ class MigrationController extends Controller
     public function __construct(
         private readonly WorkforceMigrationService $migration,
         private readonly CurrentTenant $currentTenant,
+        private readonly EmployeeLogins $logins,
     ) {}
 
     public function stageFromDevice(Device $device): JsonResponse
@@ -108,7 +110,32 @@ class MigrationController extends Controller
             'message' => __('general.updated', ['resource' => 'Migration']),
             'totals' => $totals,
             'status' => $batch->status,
+            ...$this->loginsPayload($batch),
         ]);
+    }
+
+    /**
+     * Who among a committed batch's people cannot sign in yet, and how each
+     * would be invited, for the "give them a way to sign in" step after a
+     * migration. Also how many were given today as their hire date because
+     * the source had none.
+     */
+    public function logins(MigrationBatch $batch): JsonResponse
+    {
+        Gate::authorize('employee.viewAny');
+
+        return response()->json($this->loginsPayload($batch));
+    }
+
+    /**
+     * @return array{without_login: list<array{employee_public_id: string, name: string, email: string|null, phone: string|null, channel: string, invited: bool}>, hire_dates_defaulted: int}
+     */
+    private function loginsPayload(MigrationBatch $batch): array
+    {
+        return [
+            'without_login' => $this->logins->pending($this->migration->employees($batch)),
+            'hire_dates_defaulted' => $this->migration->hireDatesDefaulted($batch),
+        ];
     }
 
     private function batchPayload(MigrationBatch $batch): array

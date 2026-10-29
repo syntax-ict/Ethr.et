@@ -19,6 +19,7 @@ use App\Models\Position;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
+use App\Services\Invitations\InvitationDispatcher;
 use App\Services\PlanLimitService;
 use App\Services\UserProvisioningService;
 use App\Support\EmployeeGaps;
@@ -198,13 +199,22 @@ class EmployeeController extends Controller
             }
         }
 
-        // Nothing to send an invitation to: the account is made now and HR
-        // activates it face to face (ActivationCodeController). No code is
-        // issued here, so one cannot exist without HR in front of the person.
+        // No email. A phone is invited by text once the platform has text
+        // invitations on (InvitationDispatcher). Until then, and for someone
+        // with neither, the account is made now and HR activates it face to
+        // face (ActivationCodeController). No code is issued here, so one
+        // cannot exist without HR in front of the person.
         $activationCodePending = false;
-        if ($createLogin && empty($employee->email) && empty($employee->phone)) {
-            $provisioning->provisionWithoutContact($employee, $request->user()->id);
-            $activationCodePending = true;
+        if ($createLogin && empty($employee->email)) {
+            $invitations = app(InvitationDispatcher::class);
+
+            if (! empty($employee->phone) && $invitations->textsEnabled()) {
+                $user = $provisioning->provisionWithPhone($employee, $request->user()->id);
+                $loginInvited = $invitations->queue([$user], $request->user())['queued'] > 0;
+            } else {
+                $provisioning->provisionWithoutContact($employee, $request->user()->id);
+                $activationCodePending = true;
+            }
         }
 
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);

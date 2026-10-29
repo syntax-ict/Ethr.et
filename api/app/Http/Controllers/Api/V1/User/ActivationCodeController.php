@@ -37,6 +37,7 @@ class ActivationCodeController extends Controller
 
         return $this->noStore(response()->json([
             'login_status' => $user === null ? 'none' : (string) $user->status,
+            'reachable' => $this->codes->reachable($employee, $user),
             'state' => $this->codes->stateOf($record),
             'purpose' => $record?->purpose,
             'expires_at' => $record?->expires_at,
