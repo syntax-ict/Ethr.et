@@ -8,9 +8,10 @@ import {
   phrasesKey,
   QUICK_ACTIONS,
   resolveHref,
+  sidebarSectionOf,
   visibleDestinations,
 } from "@/lib/navigation/registry";
-import { ROUTE_META, routeI18nKey } from "@/lib/route-meta";
+import { ROUTE_META, routeI18nKey, sectionI18nKey } from "@/lib/route-meta";
 import type { CanFlag } from "@/lib/hooks/usePermissions";
 
 const enDict = en as Record<string, string>;
@@ -189,5 +190,68 @@ describe("what each person may open", () => {
     expect(run.show(context({ viewPayrollRuns: true }))).toBe(false);
     expect(run.show(context({ processPayroll: true }))).toBe(true);
     expect(resolveHref(run.href, everything)).toBe("/payroll");
+  });
+});
+
+/**
+ * Production QA 2026-10-28, F-03: the breadcrumb named Reports "Finance" and
+ * Announcements "My Work" while the sidebar said Insights and Communication.
+ */
+describe("breadcrumb sections", () => {
+  const sidebarSections = [
+    ...navSections(context()),
+    ...navSections(context({}, { isSuperAdmin: true })),
+  ];
+
+  it("names only sections the sidebar has, by the sidebar's own key", () => {
+    const keys = new Map(
+      sidebarSections.map((s) => [s.titleFallback, s.titleKey]),
+    );
+    const strays = Object.entries(ROUTE_META)
+      .filter(([, meta]) => meta.section !== undefined)
+      .filter(
+        ([, meta]) => keys.get(meta.section!) !== sectionI18nKey(meta.section!),
+      )
+      .map(([path, meta]) => `${path}: ${meta.section}`);
+    expect(strays).toEqual([]);
+  });
+
+  it("agrees with the sidebar for every page the sidebar lists", () => {
+    const disagreements: string[] = [];
+    for (const ctx of [context(), everything]) {
+      for (const d of visibleDestinations(ctx)) {
+        const path = resolveHref(d.href, ctx).split("?")[0];
+        const stated = ROUTE_META[path]?.section;
+        const section = sidebarSectionOf(path, ctx);
+        if (stated === undefined || section === null) continue;
+        // /attendance is the one address the sidebar places by role.
+        if (path === "/attendance") continue;
+        if (section.titleFallback !== stated) {
+          disagreements.push(`${path}: ${stated} vs ${section.titleFallback}`);
+        }
+      }
+    }
+    expect(disagreements).toEqual([]);
+  });
+
+  it("places /attendance where this person's sidebar does", () => {
+    expect(sidebarSectionOf("/attendance", context())?.titleKey).toBe(
+      "nav.section.workspace",
+    );
+    expect(
+      sidebarSectionOf("/attendance", context({ viewAllAttendance: true }))
+        ?.titleKey,
+    ).toBe("nav.section.operations");
+  });
+
+  it("reads a static-export path with its trailing slash", () => {
+    expect(
+      sidebarSectionOf("/reports/", context({ viewReports: true }))?.titleKey,
+    ).toBe("nav.section.insights");
+  });
+
+  it("finds nothing for a page with no sidebar row, or one the person cannot see", () => {
+    expect(sidebarSectionOf("/attendance/kiosks", everything)).toBeNull();
+    expect(sidebarSectionOf("/reports", context())).toBeNull();
   });
 });

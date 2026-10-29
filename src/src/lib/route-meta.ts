@@ -21,10 +21,12 @@ export function routeI18nPath(pathname: string, meta: RouteMeta): string {
  * Breadcrumb + page-title metadata.
  *
  * `section` must name a section that actually exists in the sidebar
- * (see components/layouts/sidebar-nav.tsx). A breadcrumb naming a group the
- * user cannot find in the nav breaks the "you are here" contract it exists to
- * serve, so the two lists are kept deliberately in sync:
- * My Work · People · Operations · Finance · Admin.
+ * (`titleFallback` in lib/navigation/registry.ts). A breadcrumb naming a group
+ * the user cannot find in the nav breaks the "you are here" contract it exists
+ * to serve. The title bar asks the registry first and reads `section` only for
+ * a page with no sidebar row of its own (`sidebarSectionOf`), and the
+ * navigation registry test fails on a name the sidebar does not use:
+ * Workspace · People · Operations · Finance · Insights · Communication · Admin.
  */
 export const ROUTE_META: Record<string, RouteMeta> = {
   "/dashboard": {
@@ -36,50 +38,50 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     description: "Configure your workspace step by step",
   },
 
-  // ── My Work (employee self-service) ──────────────────────────────
+  // ── Workspace (employee self-service) ──────────────────────────────
   "/attendance": {
-    section: "My Work",
+    section: "Workspace",
     label: "My Attendance",
     description: "Your check-ins, check-outs, and timesheet history",
   },
   "/attendance/mobile": {
-    section: "My Work",
+    section: "Workspace",
     parent: { label: "My Attendance", href: "/attendance" },
     label: "Mobile Check-in",
     description: "Check in and out from your mobile device",
   },
   "/leave": {
-    section: "My Work",
+    section: "Workspace",
     label: "Leave",
     description: "Submit and track leave requests",
   },
   "/payroll/payslips": {
-    section: "My Work",
+    section: "Workspace",
     label: "My Payslips",
     description: "View and download your payslip history",
   },
   "/approvals": {
-    section: "My Work",
+    section: "Workspace",
     label: "Approvals",
     description: "Pending requests that need your attention",
   },
   "/announcements": {
-    section: "My Work",
+    section: "Communication",
     label: "Announcements",
     description: "Company-wide announcements and notices",
   },
   "/vacancies": {
-    section: "My Work",
+    section: "People",
     label: "Vacancies",
     description: "Open positions in the organisation",
   },
   "/voice": {
-    section: "My Work",
+    section: "Communication",
     label: "Voice",
     description: "Weekly pulse, speak-up and recognition",
   },
   "/voice/insights": {
-    section: "My Work",
+    section: "Communication",
     parent: { label: "Voice", href: "/voice" },
     label: "Insights",
     description: "Pulse results and concerns for HR",
@@ -255,12 +257,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
       "Track higher-education cost-sharing repayments deducted through payroll",
   },
   "/reports": {
-    section: "Finance",
+    section: "Insights",
     label: "Reports",
     description: "Generate and download operational reports",
   },
   "/analytics": {
-    section: "Finance",
+    section: "Insights",
     label: "Analytics",
     description: "Workforce analytics and trend dashboards",
   },
@@ -503,7 +505,7 @@ export function sectionI18nKey(section: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_|_$/g, "");
-  return `route.section.${slug}`;
+  return `nav.section.${slug}`;
 }
 
 /**
