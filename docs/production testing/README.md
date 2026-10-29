@@ -5,7 +5,7 @@ This folder is the complete hand-over for a test engineer verifying **ETHR on pr
 the user acceptance test (UAT) guide and the end-to-end (E2E) test specification.
 
 Written 2026-10-24 from the code on `main` (`c2f86e234`) and the product documents, and brought up
-to date on 2026-10-28 from `main` at `c9cfc1282` (PRs #406 to #460; the list is in
+to date on 2026-10-29 from `main` at `87d12d4d0` (PRs #406 to #462; the list is in
 [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)). The figures
 here (limits, rates, messages) were read from the source, with file references, so a tester can
 tell a real defect from a misunderstanding. **When the product and this pack disagree, record a

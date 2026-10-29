@@ -77,6 +77,7 @@ return Application::configure(basePath: dirname(__DIR__))
                         Route::post('/cdata'.$ext, [AdmsController::class, 'upload']);
                         Route::get('/getrequest'.$ext, [AdmsController::class, 'getRequest']);
                         Route::post('/devicecmd'.$ext, [AdmsController::class, 'commandResult']);
+                        Route::post('/querydata'.$ext, [AdmsController::class, 'queryData']);
                         Route::get('/ping'.$ext, [AdmsController::class, 'ping']);
                     }
                 });

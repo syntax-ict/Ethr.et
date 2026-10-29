@@ -12,4 +12,7 @@ return [
     // English placeholder, awaiting the native-speaker review (as with the N37 keys).
     'read_failed' => 'መሣሪያውን ማንበብ አልተቻለም። መብራቱንና ከዚህ ሰርቨር መድረስ እንደሚቻል ያረጋግጡና እንደገና ይሞክሩ።',
     'simulator_unavailable' => 'የመሳሪያ አስመሳዩ የሚገኘው በልማት ሰርቨሮች ላይ ብቻ ነው። የእውነተኛውን መሳሪያ ዓይነት ይምረጡ።',
+    'roster' => [
+        'read_directly' => 'ይህ መሣሪያ በቀጥታ ይነበባል፣ ስለዚህ የሚጠየቅ ነገር የለም። አሁን ለማንበብ ዝርዝሩን እንደገና ይክፈቱ።',
+    ],
 ];

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Enums\Feature;
+use App\Enums\FeatureOverrideMode;
 use App\Enums\SubscriptionStatus;
 use App\Enums\TenantAddressMode;
 use App\Enums\TenantStatus;
@@ -13,8 +14,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DeleteTenantRequest;
 use App\Http\Requests\Admin\ExtendTrialRequest;
 use App\Http\Requests\Admin\ImpersonateTenantRequest;
+use App\Http\Requests\Admin\RemoveTenantFeatureOverrideRequest;
 use App\Http\Requests\Admin\UpdateTenantAddressModeRequest;
 use App\Http\Requests\Admin\UpdateTenantDomainRequest;
+use App\Http\Requests\Admin\UpdateTenantFeatureOverrideRequest;
 use App\Http\Requests\Admin\UpdateTenantShowcaseRequest;
 use App\Http\Requests\Admin\UpdateTenantStatusRequest;
 use App\Http\Resources\AdminTenantResource;
@@ -30,6 +33,7 @@ use App\Services\Auth\SessionCookie;
 use App\Services\Auth\SessionHandoff;
 use App\Services\AuthService;
 use App\Services\CustomDomainVerifier;
+use App\Services\Features\FeatureControls;
 use App\Services\Features\FeatureGate;
 use App\Services\MfaService;
 use App\Services\TenantAddressService;
@@ -335,13 +339,100 @@ class AdminTenantController extends Controller
     }
 
     /**
+     * Every feature's decision for one organisation, with why, and its grant
+     * or revoke when it has one: the "why is payroll off for this
+     * organisation" view (docs/FEATURE-CONTROL-CENTER-DESIGN.md §7).
+     */
+    public function features(string $publicId, FeatureGate $gate, FeatureControls $controls): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::query()->where('public_id', $publicId)->firstOrFail();
+
+        return response()->json(['data' => $this->featureRows($tenant, $gate, $controls)]);
+    }
+
+    public function updateFeature(
+        UpdateTenantFeatureOverrideRequest $request,
+        string $publicId,
+        string $key,
+        FeatureGate $gate,
+        FeatureControls $controls,
+    ): JsonResponse {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::query()->where('public_id', $publicId)->firstOrFail();
+        $expiresAt = $request->date('expires_at');
+
+        $controls->setOverride(
+            $tenant,
+            Feature::from($key),
+            FeatureOverrideMode::from($request->string('mode')->toString()),
+            $request->string('reason')->toString(),
+            $expiresAt,
+            $request->user(),
+        );
+
+        return response()->json(['data' => $this->featureRows($tenant, $gate, $controls)]);
+    }
+
+    public function removeFeature(
+        RemoveTenantFeatureOverrideRequest $request,
+        string $publicId,
+        string $key,
+        FeatureGate $gate,
+        FeatureControls $controls,
+    ): JsonResponse {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::query()->where('public_id', $publicId)->firstOrFail();
+
+        if (! $controls->removeOverride($tenant, Feature::from($key), $request->string('reason')->toString())) {
+            abort(404);
+        }
+
+        return response()->json(['data' => $this->featureRows($tenant, $gate, $controls)]);
+    }
+
+    /**
+     * @return list<array{key: string, on: bool, visible: bool, reason: string, override: array{mode: string, reason: string, expires_at: string|null, expired: bool, changed_at: string|null}|null}>
+     */
+    private function featureRows(Tenant $tenant, FeatureGate $gate, FeatureControls $controls): array
+    {
+        $tenant->setRelation('subscription', $this->latestSubscription($tenant));
+        $overrides = $controls->overridesOf($tenant);
+        $rows = [];
+
+        foreach (Feature::cases() as $feature) {
+            $decision = $gate->decide($tenant, $feature);
+            $override = $overrides[$feature->value] ?? null;
+
+            $rows[] = [
+                'key' => $feature->value,
+                'on' => $decision->on,
+                'visible' => $decision->visible,
+                'reason' => $decision->reason->value,
+                'override' => $override === null ? null : [
+                    'mode' => $override->mode->value,
+                    'reason' => $override->reason,
+                    'expires_at' => $override->expires_at?->toIso8601String(),
+                    'expired' => $override->expires_at !== null && $override->expires_at->isPast(),
+                    'changed_at' => $override->updated_at?->toIso8601String(),
+                ],
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
      * The tenant's current subscription, with its plan.
      *
      * Scope-free and stating `tenant_id` itself: the console resolves no
      * tenant, so `$tenant->subscription` would answer null through
      * BelongsToTenant's fail-closed scope, and PlanFeatureService would then
-     * read every plan as absent. One site for show() and updateDomain(), so
-     * the plan the console displays is the plan it enforces.
+     * read every plan as absent. One site for show(), updateDomain() and the
+     * feature view, so the plan the console displays is the plan it enforces.
      */
     private function latestSubscription(Tenant $tenant): ?Subscription
     {

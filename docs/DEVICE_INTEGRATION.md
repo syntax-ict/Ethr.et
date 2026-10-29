@@ -94,6 +94,9 @@ captured payloads against these rules before any customer depends on them.
 `GET /api/v1/devices/{device}/enrollments` — device roster with a suggested
 employee match per person and a summary (matched / probable / ambiguous / new).
 Read-only; confirming the matches happens in the [migration workspace](MIGRATION.md).
+`roster.source` is `live` for a device read now, and `reported` for a ZKTeco ADMS
+terminal, whose list is as of `roster.received_at` (see *Who is enrolled on an ADMS
+terminal* below).
 
 ## Unrecognised badges (2026-10-20)
 
@@ -280,7 +283,8 @@ on the terminal, open **COMM → Cloud Server Setting**:
 |---|---|
 | `GET /iclock/cdata?SN=…` | The options: `TimeZone` from the device's zone, `Realtime=1`, `ATTLOGStamp=None`, so a first connection uploads what the device holds |
 | `POST /iclock/cdata?SN=…&table=ATTLOG` | Each line `PIN⇥YYYY-MM-DD HH:MM:SS⇥status⇥…` is a punch in device-local time. Direction comes from `ZktecoAdapter::directionFor`. The answer is `OK: <lines>` |
-| `POST /iclock/cdata?…&table=OPERLOG` (and others) | `OK: <lines>`, not stored |
+| `POST /iclock/cdata?…&table=OPERLOG` (and `USERINFO`, `tabledata`) | People in the body go to the roster (below); everything else is not stored. `OK: <lines>` |
+| `POST /iclock/querydata?SN=…&tablename=user` | PUSH 3.x firmware's answer to a roster request. People go to the roster. The answer is `<tablename>=<lines>` |
 | `GET /iclock/getrequest?SN=…` | Waiting commands, `C:<id>:<command>` per line, or `OK` |
 | `POST /iclock/devicecmd?SN=…` | Results, `ID=<id>&Return=<code>`. 0 marks the command done |
 
@@ -290,6 +294,51 @@ Commands as the terminal reads them:
 - `DATA DELETE USERINFO PIN=…`
 - `SET OPTION DateTime=<packed>`. The packed value is seconds in a calendar of
   12 × 31-day months from 2000, the firmware's own encoding.
+- `DATA QUERY USERINFO`, the roster request. PUSH 3.x firmware gets
+  `DATA QUERY tablename=user,fielddesc=*,filter=*` instead (below).
+
+### Who is enrolled on an ADMS terminal (2026-10-28)
+
+ETHR cannot read an ADMS terminal, so `pullEnrollments` returns what the terminal last
+reported, held in `device_enrollment_snapshots` (`AdmsRoster`). The discovery endpoint and
+the migration workspace read it as they read any other device. The terminal reports in
+three ways:
+
+- **When asked.** `POST /api/v1/devices/{device}/enrollments/request` (`device.update`)
+  queues a `query_users` command. The terminal takes it at its next check-in, usually
+  within a minute. A request still waiting is not repeated. It changes nothing on the
+  terminal, so it is the one command sent while *Send commands to this device* is off.
+- **At start-up**, when ETHR holds no list for it and has not asked in 24 hours.
+- **As people change.** The handshake's `TransFlag` includes `EnrollUser ChgUser`, so a
+  person enrolled or edited at the terminal is uploaded at once. A person ETHR adds or
+  removes is written to the list when the terminal confirms the command.
+
+The two firmware generations, both accepted in either upload:
+
+| | PUSH 2.x | PUSH 3.x |
+|---|---|---|
+| Person | `USER PIN=1⇥Name=…⇥Pri=0⇥Passwd=…⇥Card=[0000123456]` | `user uid=1⇥pin=1⇥name=…⇥privilege=0⇥password=…⇥cardno=123456` |
+| Fingerprint | `FP PIN=1⇥FID=6⇥TMP=…` | `templatev10 pin=1⇥fingerid=6⇥template=…`, or `biodata … type=1` |
+| Face | `FACE PIN=1⇥…` | `biodata … type=9` (any type but 1), `biophoto` |
+
+Keys are read without regard to case. Firmware that separates fields with spaces is split
+before each `Key=`, so a name with a space stays whole. A card loses its brackets and the
+zeros that pad it; all zeros means no card. A name that is not valid UTF-8 is cleaned, not
+refused.
+
+**Never stored:** the password, and every fingerprint and face template, which are
+biometric data under PDPP 1321/2024. Only a count of fingers per person, and whether a
+face is enrolled, are kept.
+
+**PUSH 3.x.** A terminal that answers the 2.x request with an error (`Return` below 0) is
+asked once more in the 3.x form. A 3.x terminal reports the number of records sent as its
+`Return`, so 0 and above is success for this command only.
+
+**Removed at the terminal.** The firmware never says "that was everyone". When the
+terminal confirms a request it answered, anyone it did not mention since the request was
+sent is dropped from the list. If the confirmation arrives before any of the answer, the
+list is left as it was. The device dialog shows the count and when it arrived, and does
+not call the list complete.
 
 A sent command that is not confirmed is offered again after 30 minutes and fails after
 three sends. The `.aspx` spellings some firmware uses are routed too.
@@ -319,7 +368,10 @@ a terminal that cannot do HTTPS receives a 301 it does not follow. Use a termina
 HTTPS, or ask the host to exempt `/iclock`.
 
 Not yet run against a real terminal (field test O1). The formats follow the PUSH SDK
-2.x protocol. Watch the first device's **Commands** tab and attendance.
+2.x protocol, and the roster also the 3.x one. Watch the first device's **Commands** tab
+and attendance, and compare its enrolled list with the count on the terminal. Then
+replace the bodies in `tests/Feature/Device/AdmsRosterTest.php` with what it actually
+sent.
 
 ## Device clocks (2026-10-14)
 
