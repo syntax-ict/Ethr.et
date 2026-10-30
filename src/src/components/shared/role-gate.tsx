@@ -58,7 +58,9 @@ export function RoleGate({
           {t(
             "role_gate.denied_body",
             "You don't have permission to access this page. Your role (:role) does not have the required access level.",
-            { role: role.replace(/_/g, " ") },
+            // The role's own label, as the header and sidebar show it: the raw
+            // code read "(employee)" inside the Amharic sentence.
+            { role: t(`role.${role}`, role.replace(/_/g, " ")) },
           )}
         </p>
         <Button className="mt-6" asChild>
