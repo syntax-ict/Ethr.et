@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CheckCircle2, Inbox, LifeBuoy, Loader2, Send } from "lucide-react";
+import { CheckCircle2, Inbox, CircleHelp, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
@@ -82,7 +82,7 @@ function SupportPageInner() {
       <PageActions
         actions={
           <Button onClick={openGetHelp}>
-            <LifeBuoy className="mr-2 h-4 w-4" />
+            <CircleHelp className="mr-2 h-4 w-4" />
             {t("support.get_help", "Get help")}
           </Button>
         }
@@ -123,7 +123,7 @@ function MyRequests({ onOpen }: { onOpen: (id: string) => void }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <LifeBuoy className="h-4 w-4 text-primary" aria-hidden="true" />
+          <CircleHelp className="h-4 w-4 text-primary" aria-hidden="true" />
           {t("support.tab_mine", "My requests")}
         </CardTitle>
       </CardHeader>
@@ -133,7 +133,7 @@ function MyRequests({ onOpen }: { onOpen: (id: string) => void }) {
           onOpen={onOpen}
           empty={
             <EmptyState
-              icon={LifeBuoy}
+              icon={CircleHelp}
               title={t("support.none_mine", "You have not asked for help yet")}
               description={t(
                 "support.none_mine_desc",

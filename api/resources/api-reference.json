@@ -10398,6 +10398,9 @@
                                                         "locale": {
                                                             "type": "string"
                                                         },
+                                                        "locale_chosen": {
+                                                            "type": "boolean"
+                                                        },
                                                         "theme": {
                                                             "anyOf": [
                                                                 {
@@ -10423,6 +10426,7 @@
                                                     },
                                                     "required": [
                                                         "locale",
+                                                        "locale_chosen",
                                                         "theme",
                                                         "calendar",
                                                         "punch_reminders",
