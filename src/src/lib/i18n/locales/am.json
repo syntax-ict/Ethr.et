@@ -1511,19 +1511,14 @@
   "branch_rules.saved": "የቅርንጫፉ ደንቦች ተቀምጠዋል",
   "branch_rules.title": "ደንቦች በቅርንጫፍ",
   "calendar.day": "ቀን",
-  "calendar.ec": "ኢ.ቀ",
-  "calendar.ethiopian_active": "የኢትዮጵያ ቀን መቁጠሪያ። ለግሪጎሪያን ይጫኑ",
   "calendar.ethiopian_day": "የኢትዮጵያ ቀን",
   "calendar.ethiopian_entry_hint": "ቀኑን በኢትዮጵያ ቀን መቁጠሪያ ያስገቡ",
   "calendar.ethiopian_month": "የኢትዮጵያ ወር",
   "calendar.ethiopian_year": "የኢትዮጵያ ዓመት",
-  "calendar.gc": "ግ.ቀ",
-  "calendar.gregorian_active": "የግሪጎሪያን ቀን መቁጠሪያ። ለኢትዮጵያ ይጫኑ",
   "calendar.month": "ወር",
   "calendar.next_month": "ቀጣይ ወር",
   "calendar.previous_month": "ቀዳሚ ወር",
   "calendar.today": "ዛሬ",
-  "calendar.toggle": "የቀን መቁጠሪያ ስርዓት ቀይር",
   "calendar.year": "ዓመት",
   "command.actions": "ፈጣን ድርጊቶች",
   "command.add_employee": "ሰራተኛ ጨምር",
@@ -6450,5 +6445,6 @@
   "analytics_page.points": "ነጥብ",
   "analytics_page.today_rate": "ዛሬ :rate%",
   "analytics_page.no_one_scheduled_today": "ዛሬ የተመደበ የለም",
-  "features.paused_banner": "ETHR :featuresን ለጊዜው አጥፍቷል። መዝገቦችዎ ተጠብቀዋል፤ በእርስዎ በኩል የሚደረግ ነገር የለም።"
+  "features.paused_banner": "ETHR :featuresን ለጊዜው አጥፍቷል። መዝገቦችዎ ተጠብቀዋል፤ በእርስዎ በኩል የሚደረግ ነገር የለም።",
+  "header.language_calendar": "ቋንቋ እና የቀን መቁጠሪያ"
 }

@@ -21,6 +21,11 @@ vi.mock("next-themes", () => ({
 vi.mock("@/features/notifications/components/notification-bell", () => ({
   NotificationBell: () => null,
 }));
+const setLocaleSpy = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/i18n/translations", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/i18n/translations")>()),
+  setLocale: setLocaleSpy,
+}));
 
 const LONG_NAME = "Abay Textile and Garment Manufacturing Share Company";
 
@@ -49,6 +54,8 @@ function renderHeader() {
 }
 
 beforeEach(() => {
+  setLocaleSpy.mockClear();
+  localStorage.setItem("locale", "en");
   localStorage.setItem("ethr.calendar", "ethiopian");
   server.use(
     http.get("*/api/v1/auth/me", () =>
@@ -65,33 +72,112 @@ beforeEach(() => {
   );
 });
 
-describe("<AppHeader> calendar toggle", () => {
-  it("stores the choice on the user as well as applying it", async () => {
-    // Audit N33: the toggle wrote this browser's localStorage and nothing
-    // else, so the choice vanished on the next device and disagreed with the
-    // profile setting.
-    let body: unknown = null;
-    server.use(
-      http.put("*/api/v1/profile/preferences", async ({ request }) => {
-        body = await request.json();
-        return HttpResponse.json({
-          locale: "en",
-          theme: "system",
-          calendar: "gregorian",
-        });
-      }),
-    );
-    const user = userEvent.setup();
+function capturePreferences() {
+  const bodies: unknown[] = [];
+  server.use(
+    http.put("*/api/v1/profile/preferences", async ({ request }) => {
+      bodies.push(await request.json());
+      return HttpResponse.json({
+        locale: "en",
+        theme: "system",
+        calendar: "gregorian",
+      });
+    }),
+  );
+  return bodies;
+}
+
+async function openMenu() {
+  const user = userEvent.setup();
+  renderHeader();
+  await user.click(
+    await screen.findByRole("button", { name: /language and calendar/i }),
+  );
+  await screen.findByRole("menu");
+  return user;
+}
+
+describe("<AppHeader> language and calendar menu", () => {
+  it("names the current language and calendar in words on the trigger", async () => {
     renderHeader();
 
-    await user.click(
-      await screen.findByRole("button", { name: /toggle calendar system/i }),
+    const trigger = await screen.findByRole("button", {
+      name: /language and calendar/i,
+    });
+    expect(trigger).toHaveTextContent("English · Ethiopian");
+  });
+
+  it("exposes the current choices as checked radio items", async () => {
+    await openMenu();
+
+    expect(
+      screen.getByRole("menuitemradio", { name: "English" }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("menuitemradio", { name: "አማርኛ" })).toHaveAttribute(
+      "aria-checked",
+      "false",
     );
+    expect(
+      screen.getByRole("menuitemradio", { name: /^Ethiopian/ }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("menuitemradio", { name: /^Gregorian/ }),
+    ).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("previews today's date in each calendar", async () => {
+    vi.useFakeTimers({
+      now: new Date("2026-10-30T09:00:00Z"),
+      toFake: ["Date"],
+    });
+    try {
+      await openMenu();
+
+      expect(
+        screen.getByRole("menuitemradio", { name: /^Ethiopian/ }),
+      ).toHaveTextContent("Tikimt 20, 2019");
+      expect(
+        screen.getByRole("menuitemradio", { name: /^Gregorian/ }),
+      ).toHaveTextContent("30 Oct 2026");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("applies a language at once and stores it on the user", async () => {
+    const bodies = capturePreferences();
+    const user = await openMenu();
+
+    await user.click(screen.getByRole("menuitemradio", { name: "አማርኛ" }));
+
+    expect(setLocaleSpy).toHaveBeenCalledWith("am");
+    await waitFor(() => expect(bodies).toEqual([{ locale: "am" }]));
+  });
+
+  it("applies a calendar at once and stores it on the user", async () => {
+    // Audit N33: the old toggle wrote this browser's localStorage and nothing
+    // else, so the choice vanished on the next device and disagreed with the
+    // profile setting.
+    const bodies = capturePreferences();
+    const user = await openMenu();
+
+    await user.click(screen.getByRole("menuitemradio", { name: /^Gregorian/ }));
 
     expect(screen.getByLabelText("calendar in use")).toHaveTextContent(
       "gregorian",
     );
-    await waitFor(() => expect(body).toEqual({ calendar: "gregorian" }));
+    await waitFor(() => expect(bodies).toEqual([{ calendar: "gregorian" }]));
+  });
+
+  it("no longer has the one-click calendar toggle", async () => {
+    renderHeader();
+    await screen.findByRole("button", { name: /language and calendar/i });
+
+    expect(
+      screen.queryByRole("button", { name: /toggle calendar/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("GC")).not.toBeInTheDocument();
+    expect(screen.queryByText("EC")).not.toBeInTheDocument();
   });
 });
 

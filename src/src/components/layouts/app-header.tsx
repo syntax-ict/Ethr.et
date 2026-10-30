@@ -6,6 +6,7 @@ import {
   Bell,
   Building2,
   Check,
+  CircleHelp,
   Contrast,
   Globe,
   Keyboard,
@@ -26,6 +27,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -50,8 +53,13 @@ import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
 import { Badge } from "@/components/ui/badge";
 import { useT } from "@/lib/i18n/useT";
 import { setLocale, supportedLocales } from "@/lib/i18n/translations";
-import { useCalendar } from "@/lib/calendar/calendar-context";
+import {
+  useCalendar,
+  type CalendarSystem,
+} from "@/lib/calendar/calendar-context";
 import { useShortcutLabel } from "@/lib/hooks/usePlatformShortcut";
+import { useTenantTimezone } from "@/lib/hooks/useTenantTimezone";
+import { formatCalendarDate } from "@/lib/utils/date";
 
 const THEME_OPTIONS = [
   { value: "system", icon: Monitor, labelKey: "theme.system" },
@@ -76,6 +84,15 @@ const HEADER_LANGUAGES = supportedLocales.filter(
   (l) => l.status === "available",
 );
 
+const CALENDARS: readonly CalendarSystem[] = ["ethiopian", "gregorian"];
+
+/**
+ * Every icon action in the header: one size, muted until hovered. The ghost
+ * variant's hover colour is overridden so the set reads as one.
+ */
+const HEADER_ACTION =
+  "h-9 text-muted-foreground hover:text-foreground [&_svg]:h-4 [&_svg]:w-4";
+
 import { getRouteMeta, routeI18nKey, routeI18nPath } from "@/lib/route-meta";
 
 function useCurrentPageLabel() {
@@ -91,28 +108,14 @@ export function AppHeader() {
   const { data: user } = useCurrentUser();
   const { data: tenant } = useCurrentTenant();
   const logout = useLogout();
-  const updatePreferences = useUpdatePreferences();
   const pageLabel = useCurrentPageLabel();
-  const { calendar, setCalendar } = useCalendar();
   // Get help belongs to an organisation's people. A platform super admin is
   // the one answering, in the console.
   const { isSuperAdmin } = usePermissions();
   const canAskForHelp = !isSuperAdmin && !!user;
-
-  /**
-   * Applied at once, then stored on the user, as the language switcher does:
-   * the toggle used to write only this browser's `localStorage`, so the choice
-   * vanished on the next device and disagreed with the profile setting (N33).
-   * A failed save is not worth interrupting the switch the user just made.
-   */
-  function toggleCalendar() {
-    const next = calendar === "ethiopian" ? "gregorian" : "ethiopian";
-    setCalendar(next);
-    updatePreferences.mutate({ calendar: next });
-  }
   const paletteShortcut = useShortcutLabel("K");
 
-  const { t, locale } = useT();
+  const { t } = useT();
   const displayName =
     user?.name?.split(" ")[0] ?? user?.email?.split("@")[0] ?? "User";
   const roleName = user?.role
@@ -126,9 +129,11 @@ export function AppHeader() {
           is never narrower than its contents, so a long name or another
           language cannot push the icons over the search; the title column
           gives way first. Below lg it stays a row: logo, then the icons.
-          The search stops at 30rem: Get help added an icon to the actions,
-          and at 1280px the Amharic title "Add Employee" then lost 6px. */}
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,30rem)_minmax(max-content,1fr)] lg:gap-4 lg:px-6 xl:gap-6">
+          The search stops at 28rem: each icon or word added to the actions
+          comes out of the title column, and at 1280px the Amharic title
+          "Add Employee" is the first to clip (Get help cost 6px; naming the
+          language and calendar in words cost 6px more). */}
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,28rem)_minmax(max-content,1fr)] lg:gap-4 lg:px-6 xl:gap-6">
         {/* Left: mobile logo / Desktop breadcrumbs. The hamburger that lived
             here was the second of two controls opening the same navigation —
             the bottom bar's More is the documented, thumb-reachable one, and
@@ -174,103 +179,19 @@ export function AppHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 lg:hidden"
+            className={`${HEADER_ACTION} w-9 lg:hidden`}
             onClick={openCommandPalette}
             aria-haspopup="dialog"
           >
-            <Search className="h-4 w-4" />
+            <Search aria-hidden />
             <span className="sr-only">{t("common.search", "Search")}</span>
           </Button>
 
-          {/* The header keeps what people reach for daily: language,
+          {/* The header keeps what people reach for daily: language and
               calendar, notifications and their account. The theme is set once
               and lives in the account menu, where phones can reach it too
               (2026-10-19). */}
-
-          {/* Language switcher */}
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="h-9 gap-1.5 px-2 text-xs font-semibold uppercase"
-                  >
-                    <Globe className="h-4 w-4" aria-hidden />
-                    <span className="hidden sm:inline" aria-hidden>
-                      {locale}
-                    </span>
-                    <span className="sr-only">
-                      {t("language.change", "Change language")}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>{t("language.label", "Language")}</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-                {t("language.label", "Language")}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {HEADER_LANGUAGES.map((lang) => (
-                <DropdownMenuItem
-                  key={lang.code}
-                  className="cursor-pointer justify-between"
-                  onClick={() => {
-                    // Via setLocale, not a raw localStorage write: it validates
-                    // the locale, preloads the dictionary and fires
-                    // `locale-changed`, which re-renders the app in place. The
-                    // old code wrote the key directly and then forced a full
-                    // page reload, throwing away any unsaved form state.
-                    setLocale(lang.code);
-                    // Also stored on the user record so the choice survives a
-                    // new device and reaches the payslips, emails and SMS the
-                    // server renders. A failure here is not worth interrupting
-                    // the switch the user just made.
-                    updatePreferences.mutate({ locale: lang.code });
-                  }}
-                >
-                  <span>{lang.nativeName}</span>
-                  {locale === lang.code && (
-                    <Check className="h-3.5 w-3.5 text-primary" />
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Calendar system toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9"
-                onClick={toggleCalendar}
-              >
-                <span className="text-xs font-bold leading-none" aria-hidden>
-                  {calendar === "ethiopian"
-                    ? t("calendar.ec", "EC")
-                    : t("calendar.gc", "GC")}
-                </span>
-                <span className="sr-only">
-                  {t("calendar.toggle", "Toggle calendar system")}
-                </span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {calendar === "ethiopian"
-                ? t(
-                    "calendar.ethiopian_active",
-                    "Ethiopian calendar. Click for Gregorian.",
-                  )
-                : t(
-                    "calendar.gregorian_active",
-                    "Gregorian calendar. Click for Ethiopian.",
-                  )}
-            </TooltipContent>
-          </Tooltip>
+          <LanguageCalendarMenu />
 
           {/* Get help */}
           {canAskForHelp && (
@@ -279,11 +200,11 @@ export function AppHeader() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9"
+                  className={`${HEADER_ACTION} w-9`}
                   onClick={openGetHelp}
                   aria-haspopup="dialog"
                 >
-                  <LifeBuoy className="h-4 w-4" aria-hidden />
+                  <CircleHelp aria-hidden />
                   <span className="sr-only">
                     {t("support.get_help", "Get help")}
                   </span>
@@ -441,5 +362,110 @@ export function AppHeader() {
       </header>
       {canAskForHelp && <GetHelpDialogHost />}
     </>
+  );
+}
+
+/**
+ * Language and calendar, in one menu.
+ *
+ * The calendar used to be a separate button that showed "ኢ.ቀ" or "GC" and
+ * switched on a single click, explained only by a hover tooltip phones never
+ * show. Here both choices are named in words, the current one is announced as
+ * a checked radio item, and each calendar previews today's date before it is
+ * chosen.
+ *
+ * Both choices are applied at once and then stored on the user, as the
+ * Preferences page does through the same context: a localStorage-only switch
+ * vanished on the next device and disagreed with the profile setting (N33). A
+ * failed save is not worth interrupting the switch the user just made.
+ */
+function LanguageCalendarMenu() {
+  const { t, locale } = useT();
+  const { calendar, setCalendar } = useCalendar();
+  const updatePreferences = useUpdatePreferences();
+  const timeZone = useTenantTimezone();
+
+  const languageName =
+    HEADER_LANGUAGES.find((lang) => lang.code === locale)?.nativeName ?? locale;
+  const calendarName = (system: CalendarSystem) =>
+    system === "ethiopian"
+      ? t("profile.calendar.ethiopian", "Ethiopian")
+      : t("profile.calendar.gregorian", "Gregorian");
+  const state = `${languageName} · ${calendarName(calendar)}`;
+  const today = new Date().toISOString();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className={`${HEADER_ACTION} min-w-9 gap-1.5 px-2`}
+        >
+          <Globe aria-hidden />
+          <span className="sr-only">
+            {t("header.language_calendar", "Language and calendar")}
+          </span>{" "}
+          {/* Read on phones too, where only the globe shows. */}
+          <span className="sr-only text-xs font-medium sm:not-sr-only">
+            {state}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+          {t("language.label", "Language")}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={locale}
+          onValueChange={(code) => {
+            // Via setLocale, not a raw localStorage write: it validates the
+            // locale, preloads the dictionary and fires `locale-changed`,
+            // which re-renders the app in place without a reload. Also stored
+            // on the user so the payslips, emails and SMS the server renders
+            // follow it.
+            const lang = HEADER_LANGUAGES.find((l) => l.code === code);
+            if (!lang) return;
+            setLocale(lang.code);
+            updatePreferences.mutate({ locale: lang.code });
+          }}
+        >
+          {HEADER_LANGUAGES.map((lang) => (
+            <DropdownMenuRadioItem
+              key={lang.code}
+              value={lang.code}
+              lang={lang.code}
+              className="cursor-pointer"
+            >
+              {lang.nativeName}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+          {t("profile.calendar", "Calendar")}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={calendar}
+          onValueChange={(value) => {
+            const system = value as CalendarSystem;
+            setCalendar(system);
+            updatePreferences.mutate({ calendar: system });
+          }}
+        >
+          {CALENDARS.map((system) => (
+            <DropdownMenuRadioItem
+              key={system}
+              value={system}
+              className="cursor-pointer"
+            >
+              <span className="flex-1">{calendarName(system)}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {formatCalendarDate(today, timeZone, system, locale)}
+              </span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
