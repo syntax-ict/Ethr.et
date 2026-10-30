@@ -111,8 +111,8 @@ describe('invitation link lifetime', function () {
 
         app(UserProvisioningService::class)->sendActivationLink($user);
 
-        expect(DB::table('account_activation_tokens')->where('email', 'invitee@acme.test')->exists())->toBeTrue();
-        expect(DB::table('password_reset_tokens')->where('email', 'invitee@acme.test')->exists())->toBeFalse();
+        expect(DB::table('account_activation_tokens')->where('email', $user->getEmailForPasswordReset())->exists())->toBeTrue();
+        expect(DB::table('password_reset_tokens')->where('email', $user->getEmailForPasswordReset())->exists())->toBeFalse();
     });
 
     it('leaves password-reset links at 60 minutes', function () {
