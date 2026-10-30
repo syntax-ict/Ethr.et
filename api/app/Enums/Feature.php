@@ -17,7 +17,8 @@ use App\Services\Features\FeatureGate;
  *
  * The first entries are the plan features, under the same strings, so
  * `plans.features` needs no data migration and the plan gate becomes one input
- * to {@see FeatureGate}.
+ * to {@see FeatureGate}. The rest are integrations and public surfaces, which
+ * no plan decides (design §6, PR 3).
  */
 enum Feature: string
 {
@@ -33,13 +34,40 @@ enum Feature: string
     case AuditLog = 'audit_log';
     case CustomDomain = 'custom_domain';
 
-    /**
-     * The plan feature that also decides this one. Every feature is a plan
-     * feature for now; the first that is not makes this nullable.
-     */
-    public function planFeature(): PlanFeature
+    case WebhooksOutbound = 'webhooks_outbound';
+    case WebPush = 'web_push';
+    case EmailSignInCodes = 'email_sign_in_codes';
+    case AttendanceSelfies = 'attendance_selfies';
+    case KioskCheckIn = 'kiosk_check_in';
+    case SelfRegistration = 'self_registration';
+    case Scim = 'scim';
+    case DeviceWebhooksInbound = 'device_webhooks_inbound';
+    case PublicNews = 'public_news';
+    case PublicVacancies = 'public_vacancies';
+
+    /** The plan feature that also decides this one, or null when no plan does. */
+    public function planFeature(): ?PlanFeature
     {
-        return PlanFeature::from($this->value);
+        return PlanFeature::tryFrom($this->value);
+    }
+
+    public function kind(): FeatureKind
+    {
+        return match (true) {
+            $this->planFeature() !== null => FeatureKind::Module,
+            $this === self::PublicNews, $this === self::PublicVacancies => FeatureKind::PublicSurface,
+            default => FeatureKind::Integration,
+        };
+    }
+
+    /**
+     * Whether one organisation can be granted or revoked this feature.
+     * Self-registration happens before there is an organisation to ask about,
+     * so only its platform state can decide it.
+     */
+    public function overridable(): bool
+    {
+        return $this !== self::SelfRegistration;
     }
 
     /**

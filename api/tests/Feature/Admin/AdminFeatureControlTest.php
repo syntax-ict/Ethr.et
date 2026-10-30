@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Feature;
 use App\Enums\FeatureState;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
@@ -54,9 +55,11 @@ describe('platform state', function () {
 
         $response = test()->getJson(CONSOLE.'/features')->assertOk();
 
-        expect($response->json('data'))->toHaveCount(11)
+        expect($response->json('data'))->toHaveCount(count(Feature::cases()))
             ->and($response->json('data.3'))->toBe([
                 'key' => 'payroll',
+                'kind' => 'module',
+                'overridable' => true,
                 'state' => 'enabled',
                 'default_state' => 'enabled',
                 'reason' => null,
@@ -229,6 +232,34 @@ describe('one organisation', function () {
         $payroll = collect(test()->getJson(CONSOLE.'/features')->json('data'))->firstWhere('key', 'payroll');
 
         expect([$payroll['grants'], $payroll['revokes']])->toBe([2, 1]);
+    });
+});
+
+describe('what the catalogue allows', function () {
+    it('says what kind each feature is and whether one organisation can be excepted', function () {
+        featureConsoleAdmin();
+
+        $rows = collect(test()->getJson(CONSOLE.'/features')->assertOk()->json('data'))->keyBy('key');
+
+        expect($rows['payroll'])->toMatchArray(['kind' => 'module', 'overridable' => true])
+            ->and($rows['scim'])->toMatchArray(['kind' => 'integration', 'overridable' => true])
+            ->and($rows['public_news'])->toMatchArray(['kind' => 'public', 'overridable' => true])
+            ->and($rows['self_registration'])->toMatchArray(['kind' => 'integration', 'overridable' => false]);
+    });
+
+    it('refuses a grant or a rollout for sign-up, which no organisation can hold', function () {
+        featureConsoleAdmin();
+        $tenant = featureConsoleTenant();
+
+        test()->putJson(CONSOLE.'/features/self_registration', ['state' => 'restricted', 'reason' => 'Pilot'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['state']);
+        test()->putJson(CONSOLE."/tenants/{$tenant->public_id}/features/self_registration", ['mode' => 'grant', 'reason' => 'Pilot'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['mode']);
+        test()->putJson(CONSOLE.'/features/self_registration', ['state' => 'disabled', 'reason' => 'Spam wave'])->assertOk();
+
+        expect(TenantFeatureOverride::query()->withoutGlobalScopes()->count())->toBe(0);
     });
 });
 

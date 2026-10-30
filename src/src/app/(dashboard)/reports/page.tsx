@@ -27,7 +27,7 @@ export default function ReportsPage() {
     <RoleGate anyPermission={["viewReports"]}>
       <div className="space-y-6">
         {!plan.has("reports") ? (
-          <PlanFeatureNotice />
+          <PlanFeatureNotice feature="reports" />
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
@@ -56,7 +56,7 @@ export default function ReportsPage() {
               {plan.has("custom_reports") ? (
                 <ScheduledTab />
               ) : (
-                <PlanFeatureNotice />
+                <PlanFeatureNotice feature="custom_reports" />
               )}
             </TabsContent>
           </Tabs>

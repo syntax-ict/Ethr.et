@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceMode;
+use App\Enums\Feature;
 use App\Models\AttendanceIntegrityFlag;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\BranchAttendanceOverride;
 use App\Models\Employee;
+use App\Services\CurrentTenant;
+use App\Services\Features\FeatureGate;
 use Illuminate\Support\Carbon;
 
 /**
@@ -28,6 +31,11 @@ use Illuminate\Support\Carbon;
  */
 final class AttendancePolicy
 {
+    public function __construct(
+        private readonly FeatureGate $features,
+        private readonly CurrentTenant $currentTenant,
+    ) {}
+
     /** The settings a branch may set differently from its organisation. */
     public const OVERRIDABLE = [
         'enabled_methods',
@@ -58,14 +66,23 @@ final class AttendancePolicy
     {
         $policy = ($organisation ?? $this->organisation())->replicate();
 
-        if ($branchId === null) {
-            return $policy;
+        if ($branchId !== null) {
+            $overrides = BranchAttendanceOverride::query()->where('branch_id', $branchId)->value('overrides');
+
+            foreach (self::only(is_array($overrides) ? $overrides : []) as $key => $value) {
+                $policy->setAttribute($key, $value);
+            }
         }
 
-        $overrides = BranchAttendanceOverride::query()->where('branch_id', $branchId)->value('overrides');
-
-        foreach (self::only(is_array($overrides) ? $overrides : []) as $key => $value) {
-            $policy->setAttribute($key, $value);
+        // With selfies switched off by the platform no punch asks for one, so
+        // none is refused or flagged for the lack of it (design §6: accepted
+        // without a photo, never refused). Applied to the copy, never to the
+        // saved settings, so the organisation's own choice returns with the
+        // switch.
+        $tenant = $this->currentTenant->get();
+        if ($tenant !== null && ! $this->features->allows($tenant, Feature::AttendanceSelfies)) {
+            $policy->setAttribute('mobile_photo_required', false);
+            $policy->setAttribute('adaptive_selfie', false);
         }
 
         return $policy;

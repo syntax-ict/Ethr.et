@@ -111,6 +111,10 @@ export function NewsListing() {
     (!host.tenantContextLoading && host.context !== "tenant") ||
     (axios.isAxiosError(news.error) && news.error.response?.status === 404);
 
+  // Switched off by the platform for now, not withdrawn by the organisation:
+  // the page says it is temporary (owner decision D7).
+  const paused = host.tenantLanding?.paused?.includes("announcements") ?? false;
+
   function submitSearch(event: FormEvent) {
     event.preventDefault();
     apply({ ...query, q: draft, page: 1 });
@@ -236,11 +240,22 @@ export function NewsListing() {
           {missing ? (
             <NewsState
               icon={Newspaper}
-              title={t("news.unavailable_title", "No news here")}
-              description={t(
-                "news.unavailable_desc",
-                "This organisation does not publish news on this page.",
-              )}
+              title={
+                paused
+                  ? t("news.paused_title", "News is temporarily unavailable")
+                  : t("news.unavailable_title", "No news here")
+              }
+              description={
+                paused
+                  ? t(
+                      "news.paused_desc",
+                      "This page is switched off for a while. Please check back later.",
+                    )
+                  : t(
+                      "news.unavailable_desc",
+                      "This organisation does not publish news on this page.",
+                    )
+              }
               action={
                 <Button asChild variant="outline">
                   <a href={links.home}>

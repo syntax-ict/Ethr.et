@@ -7,6 +7,7 @@ import { PageActionsSlotProvider } from "@/components/layouts/page-actions-slot"
 import { AppLayoutProvider } from "@/components/layouts/layout-context";
 import { MobileBottomNav } from "@/components/layouts/mobile-bottom-nav";
 import { OfflineBanner } from "@/components/shared/offline-banner";
+import { PausedFeaturesBanner } from "@/components/shared/paused-features-banner";
 import { AuthGuard } from "@/components/shared/auth-guard";
 import { CommandPalette } from "@/components/shared/command-palette";
 import { KeyboardShortcuts } from "@/components/shared/keyboard-shortcuts";
@@ -46,6 +47,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           <PunchReminders />
           <ImpersonationBanner />
           <OfflineBanner />
+          <PausedFeaturesBanner />
           <div className="flex h-screen overflow-hidden bg-background">
             <AppSidebar />
             <div className="flex min-w-0 flex-1 flex-col">
