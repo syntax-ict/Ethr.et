@@ -41,7 +41,7 @@ class NewsFileController extends Controller
         $announcement = $tenant !== null
             && $tenant->isActive()
             && ($resolved === null || $resolved->id === $tenant->id)
-            && TenantLanding::present($tenant)['sections']['announcements']
+            && TenantLanding::publicSections($tenant)['announcements']
                 ? Announcement::withoutGlobalScopes()
                     ->where('tenant_id', $tenant->id)
                     ->where('public_id', $story)

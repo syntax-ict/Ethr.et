@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\Feature;
+use App\Enums\FeatureReason;
 use App\Models\Tenant;
+use App\Services\Features\FeatureGate;
+use App\Support\FeatureUnavailable;
 use App\Support\InstallMode;
 use Closure;
 use Illuminate\Http\Request;
@@ -37,6 +41,13 @@ class EnsureRegistrationOpen
                 'status' => 403,
                 'detail' => 'This installation serves a single organisation and does not accept self-service registration.',
             ], 403)->withHeaders(['Content-Type' => 'application/problem+json']);
+        }
+
+        // Switched off by the platform: no new organisation signs itself up
+        // until it is switched back on. There is no organisation to grant it
+        // to, so only the platform state decides (Feature::overridable()).
+        if (! app(FeatureGate::class)->allowsFor(null, Feature::SelfRegistration)) {
+            return FeatureUnavailable::response(Feature::SelfRegistration, FeatureReason::PlatformDisabled);
         }
 
         return $next($request);

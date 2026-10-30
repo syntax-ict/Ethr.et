@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Kiosk;
 
 use App\Enums\AttendanceSource;
+use App\Enums\Feature;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\KioskCheckInRequest;
 use App\Http\Resources\AttendancePunchResource;
@@ -14,6 +15,9 @@ use App\Models\KioskSession;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\AttendancePolicy;
+use App\Services\CurrentTenant;
+use App\Services\Features\FeatureGate;
+use App\Support\FeatureUnavailable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -50,6 +54,15 @@ class KioskCheckInController extends Controller
                 'status' => 401,
                 'detail' => __('kiosk.invalid_token'),
             ], 401)->header('Content-Type', 'application/problem+json');
+        }
+
+        // A new punch at the kiosk is refused while kiosk check-in is switched
+        // off. Sync stays open: what a kiosk captured offline before the switch
+        // is a record, and is never discarded (design §6).
+        $tenant = app(CurrentTenant::class)->get();
+        $decision = $tenant === null ? null : app(FeatureGate::class)->decide($tenant, Feature::KioskCheckIn);
+        if ($decision !== null && ! $decision->on) {
+            return FeatureUnavailable::response(Feature::KioskCheckIn, $decision->reason);
         }
 
         // Plain tenant-scoped queries from here on. These two lookups used to

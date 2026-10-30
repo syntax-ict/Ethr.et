@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Device;
 
+use App\Enums\Feature;
 use App\Http\Controllers\Controller;
 use App\Models\Device;
 use App\Models\Tenant;
@@ -14,6 +15,8 @@ use App\Services\Device\AdmsRoster;
 use App\Services\Device\DeviceCommandQueue;
 use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\ZktecoAdapter;
+use App\Services\Features\FeatureGate;
+use App\Support\FeatureUnavailable;
 use Dedoc\Scramble\Attributes\ExcludeRouteFromDocs;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -83,6 +86,15 @@ class AdmsController extends Controller
             }
 
             return $this->text('OK: '.$this->lineCount($body));
+        }
+
+        // Punches only: while attendance terminals are switched off the device
+        // is told to try again later and keeps them, the same 503 the push
+        // webhooks answer. Its other calls carry on, so it stays online.
+        $tenant = app(CurrentTenant::class)->get();
+        if ($tenant !== null && ! app(FeatureGate::class)->decide($tenant, Feature::DeviceWebhooksInbound)->on) {
+            return $this->text('Temporarily unavailable', 503)
+                ->header('Retry-After', (string) FeatureUnavailable::RETRY_AFTER_SECONDS);
         }
 
         $punches = AdmsProtocol::attendanceLines($body);
