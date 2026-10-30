@@ -391,6 +391,7 @@ return array(
     'App\\Http\\Requests\\Billing\\ChangePlanRequest' => $baseDir . '/app/Http/Requests/Billing/ChangePlanRequest.php',
     'App\\Http\\Requests\\Concerns\\RejectsPlatformHosts' => $baseDir . '/app/Http/Requests/Concerns/RejectsPlatformHosts.php',
     'App\\Http\\Requests\\ContactRequest' => $baseDir . '/app/Http/Requests/ContactRequest.php',
+    'App\\Http\\Requests\\Dashboard\\ExecutiveDashboardPeriodRequest' => $baseDir . '/app/Http/Requests/Dashboard/ExecutiveDashboardPeriodRequest.php',
     'App\\Http\\Requests\\Dashboard\\ScheduleDashboardDigestRequest' => $baseDir . '/app/Http/Requests/Dashboard/ScheduleDashboardDigestRequest.php',
     'App\\Http\\Requests\\Dashboard\\StoreAlertThresholdRequest' => $baseDir . '/app/Http/Requests/Dashboard/StoreAlertThresholdRequest.php',
     'App\\Http\\Requests\\Device\\AssignUnmatchedBadgeRequest' => $baseDir . '/app/Http/Requests/Device/AssignUnmatchedBadgeRequest.php',

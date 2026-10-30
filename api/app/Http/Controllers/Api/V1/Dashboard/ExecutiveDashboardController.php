@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Dashboard\ExecutiveDashboardPeriodRequest;
 use App\Models\Branch;
 use App\Services\Analytics\ExecutiveDashboardService;
 use App\Services\CurrentTenant;
@@ -37,9 +38,9 @@ class ExecutiveDashboardController extends Controller
         private readonly ExecutiveDashboardService $service,
     ) {}
 
-    public function overview(Request $request): JsonResponse
+    public function overview(ExecutiveDashboardPeriodRequest $request): JsonResponse
     {
-        [$from, $to] = $this->dateRange($request);
+        [$from, $to] = $request->period();
         $tenantId = app(CurrentTenant::class)->requireId();
         $branchId = $this->resolveBranchId($request);
 
@@ -52,9 +53,9 @@ class ExecutiveDashboardController extends Controller
         return response()->json($data);
     }
 
-    public function attendance(Request $request): JsonResponse
+    public function attendance(ExecutiveDashboardPeriodRequest $request): JsonResponse
     {
-        [$from, $to] = $this->dateRange($request);
+        [$from, $to] = $request->period();
         $tenantId = app(CurrentTenant::class)->requireId();
         $branchId = $this->resolveBranchId($request);
 
@@ -67,9 +68,9 @@ class ExecutiveDashboardController extends Controller
         return response()->json($data);
     }
 
-    public function payroll(Request $request): JsonResponse
+    public function payroll(ExecutiveDashboardPeriodRequest $request): JsonResponse
     {
-        [$from, $to] = $this->dateRange($request);
+        [$from, $to] = $request->period();
         $tenantId = app(CurrentTenant::class)->requireId();
         $branchId = $this->resolveBranchId($request);
 
@@ -145,19 +146,5 @@ class ExecutiveDashboardController extends Controller
         $branch = $branchId !== null ? ":b{$branchId}" : '';
 
         return "dashboard:executive:{$section}:{$tenantId}{$branch}:v{$version}{$range}";
-    }
-
-    /** @return array{Carbon, Carbon} */
-    private function dateRange(Request $request): array
-    {
-        $from = $request->has('from')
-            ? Carbon::parse($request->input('from'))
-            : Carbon::now()->startOfMonth();
-
-        $to = $request->has('to')
-            ? Carbon::parse($request->input('to'))
-            : Carbon::now()->endOfMonth();
-
-        return [$from, $to];
     }
 }

@@ -1125,6 +1125,7 @@ class ComposerStaticInit870e919e58412b109fb9aa8379549848
         'App\\Http\\Requests\\Billing\\ChangePlanRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Billing/ChangePlanRequest.php',
         'App\\Http\\Requests\\Concerns\\RejectsPlatformHosts' => __DIR__ . '/../..' . '/app/Http/Requests/Concerns/RejectsPlatformHosts.php',
         'App\\Http\\Requests\\ContactRequest' => __DIR__ . '/../..' . '/app/Http/Requests/ContactRequest.php',
+        'App\\Http\\Requests\\Dashboard\\ExecutiveDashboardPeriodRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Dashboard/ExecutiveDashboardPeriodRequest.php',
         'App\\Http\\Requests\\Dashboard\\ScheduleDashboardDigestRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Dashboard/ScheduleDashboardDigestRequest.php',
         'App\\Http\\Requests\\Dashboard\\StoreAlertThresholdRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Dashboard/StoreAlertThresholdRequest.php',
         'App\\Http\\Requests\\Device\\AssignUnmatchedBadgeRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Device/AssignUnmatchedBadgeRequest.php',

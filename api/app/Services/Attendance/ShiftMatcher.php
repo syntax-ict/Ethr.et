@@ -158,20 +158,72 @@ final class ShiftMatcher
     }
 
     /**
+     * workingOn() for every date in [$from, $to]: one query for the
+     * assignments of all of them over the whole range, and each day resolved
+     * in memory, so a year of an organisation costs what one day does.
+     *
+     * @param  Collection<int, Employee>  $employees  all of one tenant
+     * @param  list<int>  $workingWeek
+     * @return array<int, array<string, bool>> employee id => Y-m-d => works
+     */
+    public function workingBetween(Collection $employees, CarbonInterface $from, CarbonInterface $to, array $workingWeek): array
+    {
+        $first = $employees->first();
+
+        if ($first === null) {
+            return [];
+        }
+
+        $candidates = $this->candidates($employees->values()->all(), $from->format('Y-m-d'), $to->format('Y-m-d'));
+        $default = $this->defaults($first);
+        $end = Carbon::parse($to->format('Y-m-d'));
+
+        // The answer depends only on which assignments are the employee's:
+        // everyone in a department with one shift, or with none at all,
+        // shares it, so each distinct set is worked out once.
+        $bySet = [];
+        $working = [];
+        foreach ($employees as $employee) {
+            $owned = $this->ownedBy($candidates, $employee);
+            $set = $owned->pluck('id')->implode(',');
+
+            if (! isset($bySet[$set])) {
+                $bySet[$set] = [];
+                for ($day = Carbon::parse($from->format('Y-m-d')); $day->lessThanOrEqualTo($end); $day = $day->addDay()) {
+                    $bySet[$set][$day->format('Y-m-d')] = $this->worksOn($owned, $employee, $day, $default, $workingWeek);
+                }
+            }
+
+            $working[$employee->id] = $bySet[$set];
+        }
+
+        return $working;
+    }
+
+    /**
+     * The candidates on the employee, their department or their branch.
+     *
+     * @param  Collection<int, ShiftAssignment>  $candidates
+     * @return Collection<int, ShiftAssignment>
+     */
+    private function ownedBy(Collection $candidates, Employee $employee): Collection
+    {
+        return $candidates->filter(fn (ShiftAssignment $a): bool => match ($a->assignable_type) {
+            Employee::class => (int) $a->assignable_id === $employee->id,
+            Department::class => $employee->department_id !== null && (int) $a->assignable_id === (int) $employee->department_id,
+            Branch::class => $employee->branch_id !== null && (int) $a->assignable_id === (int) $employee->branch_id,
+            default => false,
+        });
+    }
+
+    /**
      * @param  Collection<int, ShiftAssignment>  $candidates
      * @param  array{rotation: ?ShiftRotation, shift: ?Shift}  $default
      * @param  list<int>  $workingWeek
      */
     private function worksOn(Collection $candidates, Employee $employee, CarbonInterface $date, array $default, array $workingWeek): bool
     {
-        $owned = $candidates->filter(fn (ShiftAssignment $a): bool => match ($a->assignable_type) {
-            Employee::class => (int) $a->assignable_id === $employee->id,
-            Department::class => $employee->department_id !== null && (int) $a->assignable_id === (int) $employee->department_id,
-            Branch::class => $employee->branch_id !== null && (int) $a->assignable_id === (int) $employee->branch_id,
-            default => false,
-        });
-
-        $assignment = $this->governing($owned, $date->format('Y-m-d'));
+        $assignment = $this->governing($this->ownedBy($candidates, $employee), $date->format('Y-m-d'));
 
         if ($assignment === null) {
             if ($default['rotation'] !== null) {
