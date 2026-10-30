@@ -33171,7 +33171,14 @@
                                                     "additionalProperties": {
                                                         "type": "object",
                                                         "additionalProperties": {
-                                                            "type": "integer"
+                                                            "anyOf": [
+                                                                {
+                                                                    "type": "integer"
+                                                                },
+                                                                {
+                                                                    "type": "number"
+                                                                }
+                                                            ]
                                                         }
                                                     }
                                                 }
@@ -33197,6 +33204,95 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/reports/presets": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "reports"
+                ],
+                "operationId": "report.presets",
+                "summary": "Ready-made reports for this organisation: standard ones, and those\nsuited to its type and how its people work, recommended first",
+                "tags": [
+                    "Dashboards & Reporting"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "organisation": {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "workforce_profile": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "type",
+                                                "workforce_profile"
+                                            ]
+                                        },
+                                        "presets": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "key": {
+                                                        "type": "string"
+                                                    },
+                                                    "source": {
+                                                        "type": "string"
+                                                    },
+                                                    "config": {
+                                                        "type": "object",
+                                                        "additionalProperties": []
+                                                    },
+                                                    "standard": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "recommended": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "key",
+                                                    "source",
+                                                    "config",
+                                                    "standard",
+                                                    "recommended"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "organisation",
+                                        "presets"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
@@ -33640,16 +33736,49 @@
                                                                 {
                                                                     "type": "string",
                                                                     "const": "position"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "grade"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "cost_center"
                                                                 }
                                                             ],
-                                                            "minItems": 11,
-                                                            "maxItems": 11,
+                                                            "minItems": 13,
+                                                            "maxItems": 13,
+                                                            "additionalItems": false
+                                                        },
+                                                        "filters": {
+                                                            "type": "array",
+                                                            "prefixItems": [
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "status"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "department"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "branch"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "cost_center"
+                                                                }
+                                                            ],
+                                                            "minItems": 4,
+                                                            "maxItems": 4,
                                                             "additionalItems": false
                                                         }
                                                     },
                                                     "required": [
                                                         "label",
-                                                        "fields"
+                                                        "fields",
+                                                        "filters"
                                                     ]
                                                 },
                                                 "attendance": {
@@ -33665,6 +33794,18 @@
                                                                 {
                                                                     "type": "string",
                                                                     "const": "employee_name"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "employee_code"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "department"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "branch"
                                                                 },
                                                                 {
                                                                     "type": "string",
@@ -33689,16 +33830,139 @@
                                                                 {
                                                                     "type": "string",
                                                                     "const": "worked_minutes"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "overtime_minutes"
                                                                 }
                                                             ],
-                                                            "minItems": 7,
-                                                            "maxItems": 7,
+                                                            "minItems": 11,
+                                                            "maxItems": 11,
+                                                            "additionalItems": false
+                                                        },
+                                                        "filters": {
+                                                            "type": "array",
+                                                            "prefixItems": [
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "from"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "to"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "status"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "department"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "branch"
+                                                                }
+                                                            ],
+                                                            "minItems": 5,
+                                                            "maxItems": 5,
                                                             "additionalItems": false
                                                         }
                                                     },
                                                     "required": [
                                                         "label",
-                                                        "fields"
+                                                        "fields",
+                                                        "filters"
+                                                    ]
+                                                },
+                                                "timesheet": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "label": {
+                                                            "type": "string",
+                                                            "const": "Monthly timesheet"
+                                                        },
+                                                        "fields": {
+                                                            "type": "array",
+                                                            "prefixItems": [
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "employee_name"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "employee_code"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "department"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "branch"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "work_days"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "present_days"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "late_days"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "absent_days"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "leave_days"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "holiday_days"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "worked_hours"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "overtime_hours"
+                                                                }
+                                                            ],
+                                                            "minItems": 12,
+                                                            "maxItems": 12,
+                                                            "additionalItems": false
+                                                        },
+                                                        "filters": {
+                                                            "type": "array",
+                                                            "prefixItems": [
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "month"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "department"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "branch"
+                                                                }
+                                                            ],
+                                                            "minItems": 3,
+                                                            "maxItems": 3,
+                                                            "additionalItems": false
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "label",
+                                                        "fields",
+                                                        "filters"
                                                     ]
                                                 },
                                                 "absences": {
@@ -33735,11 +33999,36 @@
                                                             "minItems": 5,
                                                             "maxItems": 5,
                                                             "additionalItems": false
+                                                        },
+                                                        "filters": {
+                                                            "type": "array",
+                                                            "prefixItems": [
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "from"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "to"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "department"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "branch"
+                                                                }
+                                                            ],
+                                                            "minItems": 4,
+                                                            "maxItems": 4,
+                                                            "additionalItems": false
                                                         }
                                                     },
                                                     "required": [
                                                         "label",
-                                                        "fields"
+                                                        "fields",
+                                                        "filters"
                                                     ]
                                                 },
                                                 "leave": {
@@ -33755,6 +34044,14 @@
                                                                 {
                                                                     "type": "string",
                                                                     "const": "employee_name"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "employee_code"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "department"
                                                                 },
                                                                 {
                                                                     "type": "string",
@@ -33777,14 +34074,35 @@
                                                                     "const": "remaining_days"
                                                                 }
                                                             ],
-                                                            "minItems": 6,
-                                                            "maxItems": 6,
+                                                            "minItems": 8,
+                                                            "maxItems": 8,
+                                                            "additionalItems": false
+                                                        },
+                                                        "filters": {
+                                                            "type": "array",
+                                                            "prefixItems": [
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "year"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "department"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "branch"
+                                                                }
+                                                            ],
+                                                            "minItems": 3,
+                                                            "maxItems": 3,
                                                             "additionalItems": false
                                                         }
                                                     },
                                                     "required": [
                                                         "label",
-                                                        "fields"
+                                                        "fields",
+                                                        "filters"
                                                     ]
                                                 },
                                                 "payroll": {
@@ -33803,11 +34121,35 @@
                                                                 },
                                                                 {
                                                                     "type": "string",
+                                                                    "const": "employee_code"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "department"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "branch"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "cost_center"
+                                                                },
+                                                                {
+                                                                    "type": "string",
                                                                     "const": "period"
                                                                 },
                                                                 {
                                                                     "type": "string",
                                                                     "const": "basic_salary_cents"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "overtime_cents"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "allowances_cents"
                                                                 },
                                                                 {
                                                                     "type": "string",
@@ -33823,23 +34165,65 @@
                                                                 },
                                                                 {
                                                                     "type": "string",
+                                                                    "const": "employer_pension_cents"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "loan_cents"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "cost_sharing_cents"
+                                                                },
+                                                                {
+                                                                    "type": "string",
                                                                     "const": "net_cents"
                                                                 }
                                                             ],
-                                                            "minItems": 7,
-                                                            "maxItems": 7,
+                                                            "minItems": 16,
+                                                            "maxItems": 16,
+                                                            "additionalItems": false
+                                                        },
+                                                        "filters": {
+                                                            "type": "array",
+                                                            "prefixItems": [
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "from"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "to"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "department"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "branch"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "cost_center"
+                                                                }
+                                                            ],
+                                                            "minItems": 5,
+                                                            "maxItems": 5,
                                                             "additionalItems": false
                                                         }
                                                     },
                                                     "required": [
                                                         "label",
-                                                        "fields"
+                                                        "fields",
+                                                        "filters"
                                                     ]
                                                 }
                                             },
                                             "required": [
                                                 "employees",
                                                 "attendance",
+                                                "timesheet",
                                                 "absences",
                                                 "leave",
                                                 "payroll"
@@ -45540,6 +45924,7 @@
                         "enum": [
                             "employees",
                             "attendance",
+                            "timesheet",
                             "absences",
                             "leave",
                             "payroll"
@@ -49330,6 +49715,7 @@
                                 "enum": [
                                     "employees",
                                     "attendance",
+                                    "timesheet",
                                     "absences",
                                     "leave",
                                     "payroll"
