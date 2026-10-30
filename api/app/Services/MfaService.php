@@ -9,6 +9,8 @@ use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Notifications\MfaResetNotification;
 use App\Support\Mail\CriticalMail;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\RateLimiter;
 use PragmaRX\Google2FA\Google2FA;
 
 class MfaService
@@ -41,6 +43,58 @@ class MfaService
         return $this->google2fa->verifyKey($secret, $code);
     }
 
+    /**
+     * Wrong codes a user may enter in FAILURE_WINDOW seconds before every code
+     * is refused until the window passes. Without it the sign-in challenge took
+     * 300 guesses a minute against a code with roughly three valid values in a
+     * million, about even odds in a day (security review 2026-10-30).
+     */
+    public const MAX_FAILURES = 5;
+
+    public const FAILURE_WINDOW = 900;
+
+    public function lockedOut(User $user): bool
+    {
+        return RateLimiter::tooManyAttempts($this->failureKey($user), self::MAX_FAILURES);
+    }
+
+    public function secondsUntilUnlocked(User $user): int
+    {
+        return RateLimiter::availableIn($this->failureKey($user));
+    }
+
+    /**
+     * Check a code against the user's own secret, counting wrong ones toward
+     * the lockout. With `$singleUse`, an accepted code cannot be accepted again
+     * while it is still inside its time window, so a code seen over someone's
+     * shoulder cannot finish a second sign-in.
+     */
+    public function verifyFor(User $user, string $code, bool $singleUse = false): bool
+    {
+        if ($this->lockedOut($user)) {
+            return false;
+        }
+
+        // Plaintext already: the `encrypted` cast decrypts on read.
+        $valid = $this->verify((string) $user->mfa_secret, $code)
+            && (! $singleUse || Cache::add('mfa-used:'.$user->id.':'.$code, true, 120));
+
+        if (! $valid) {
+            RateLimiter::hit($this->failureKey($user), self::FAILURE_WINDOW);
+
+            return false;
+        }
+
+        RateLimiter::clear($this->failureKey($user));
+
+        return true;
+    }
+
+    private function failureKey(User $user): string
+    {
+        return 'mfa-failures:'.$user->id;
+    }
+
     public function enable(User $user, string $secret, string $code): bool
     {
         if (! $this->verify($secret, $code)) {
@@ -59,8 +113,7 @@ class MfaService
 
     public function disable(User $user, string $code): bool
     {
-        // Plaintext already — the `encrypted` cast decrypts on read.
-        if (! $this->verify((string) $user->mfa_secret, $code)) {
+        if (! $this->verifyFor($user, $code)) {
             return false;
         }
 

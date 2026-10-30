@@ -3,6 +3,7 @@ import { backgroundRequest } from "@/api/background";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
+import { safeInternalPath } from "@/lib/utils/safe-path";
 
 /**
  * From the contract, with two fields corrected: `data` is the notification's
@@ -33,9 +34,7 @@ export function notificationText(n: Notification): string | undefined {
  */
 export function notificationLink(n: Notification): string | undefined {
   const { url } = n.data;
-  return typeof url === "string" && url.startsWith("/") && !url.startsWith("//")
-    ? url
-    : undefined;
+  return safeInternalPath(typeof url === "string" ? url : undefined);
 }
 
 type UnreadCount =

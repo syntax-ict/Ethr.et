@@ -537,7 +537,7 @@ class AdminTenantController extends Controller
             ], 409)->header('Content-Type', 'application/problem+json');
         }
 
-        if (! $mfaService->verify($actor->mfa_secret, $request->validated('code'))) {
+        if (! $mfaService->verifyFor($actor, (string) $request->validated('code'))) {
             AuditLog::record('admin.tenant.impersonation_mfa_failed', null, [
                 'target_tenant_public_id' => $publicId,
             ]);

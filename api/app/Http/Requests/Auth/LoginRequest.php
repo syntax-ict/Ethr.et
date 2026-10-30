@@ -10,6 +10,7 @@ use App\Models\LoginHistory;
 use App\Models\User;
 use App\Services\Auth\AuthIdentifierResolver;
 use App\Services\CurrentTenant;
+use App\Support\ThrottleIdentity;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -120,6 +121,13 @@ class LoginRequest extends FormRequest
             $enabledTypes,
         );
 
+        // An unknown identifier still pays for one bcrypt: answering before any
+        // hashing told a timing attacker which accounts exist (security review
+        // 2026-10-30).
+        if (! $user) {
+            Hash::make(Str::random(40));
+        }
+
         if (! $user || ! Hash::check($this->input('password'), $user->password)) {
             RateLimiter::hit($this->throttleKey(), 300);
 
@@ -157,6 +165,6 @@ class LoginRequest extends FormRequest
             ? app(CurrentTenant::class)->id()
             : 'no-tenant';
 
-        return Str::transliterate(Str::lower($this->loginValue()).'|'.$tenant.'|'.$this->ip());
+        return Str::transliterate(ThrottleIdentity::of($this->loginValue()).'|'.$tenant.'|'.$this->ip());
     }
 }

@@ -34,12 +34,21 @@ class MfaVerifyController extends Controller
             ], 409);
         }
 
-        // The `encrypted` cast has already decrypted it. This called decrypt()
-        // a second time, which throws on plaintext, so any user who enabled MFA
-        // through the API got a 500 at this step of their next sign-in.
-        $secret = (string) $user->mfa_secret;
+        // Five wrong codes lock the challenge for 15 minutes, and an accepted
+        // code is single-use (MfaService::verifyFor).
+        if ($this->mfaService->lockedOut($user)) {
+            AuditLog::record('user.mfa_locked', $user);
+            $retryAfter = $this->mfaService->secondsUntilUnlocked($user);
 
-        if (! $this->mfaService->verify($secret, $request->input('code'))) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/rate-limit',
+                'title' => 'Too Many Attempts',
+                'status' => 429,
+                'detail' => __('auth.throttle', ['seconds' => $retryAfter]),
+            ], 429, ['Retry-After' => $retryAfter]);
+        }
+
+        if (! $this->mfaService->verifyFor($user, (string) $request->input('code'), singleUse: true)) {
             AuditLog::record('user.mfa_failed', $user);
 
             return response()->json([
