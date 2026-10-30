@@ -2516,7 +2516,7 @@
   "executive_dashboard.department_detail": "Department",
   "executive_dashboard.expiring_documents": "Documents expiring within 30 days",
   "executive_dashboard.export_csv": "Export CSV",
-  "executive_dashboard.forecast_subtitle": "Dashed bars are a simple trend projection, not a guarantee.",
+  "executive_dashboard.forecast_subtitle": "Projected values are a simple trend, not a guarantee.",
   "executive_dashboard.gender_unrecorded": "Not recorded",
   "executive_dashboard.headcount": "Headcount",
   "executive_dashboard.probation_overdue": "Probation ended, no decision recorded",
@@ -6390,5 +6390,7 @@
   "support.context.also": "Also your role, your browser and the ETHR release.",
   "support.console_title": "Requests passed to ETHR",
   "support.console_none_open": "Nothing is waiting for ETHR.",
-  "support.console_not_found_desc": "Only requests an organisation passed to ETHR are here."
+  "support.console_not_found_desc": "Only requests an organisation passed to ETHR are here.",
+  "analytics_page.no_one_scheduled": "No one scheduled",
+  "analytics_page.no_one_scheduled_hint": "Rest day or holiday"
 }
