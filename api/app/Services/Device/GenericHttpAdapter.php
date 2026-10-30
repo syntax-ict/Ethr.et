@@ -133,7 +133,12 @@ final class GenericHttpAdapter implements DeviceAdapter
         $auth = $this->config($device)['auth'] ?? [];
         $auth = is_array($auth) ? $auth : [];
 
-        $request = Http::connectTimeout(3)->timeout(15)->acceptJson();
+        $base = (string) ($this->config($device)['base_url'] ?? '');
+        $host = parse_url($base, PHP_URL_HOST);
+        $port = parse_url($base, PHP_URL_PORT)
+            ?? (strtolower((string) parse_url($base, PHP_URL_SCHEME)) === 'https' ? 443 : 80);
+        $request = Http::connectTimeout(3)->timeout(15)->acceptJson()
+            ->withOptions(DeviceHost::connectOptions(is_string($host) ? $host : '', $port));
 
         return match ($auth['type'] ?? 'none') {
             'basic' => $request->withBasicAuth((string) ($auth['username'] ?? ''), (string) ($auth['password'] ?? '')),

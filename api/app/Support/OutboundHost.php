@@ -95,6 +95,22 @@ final class OutboundHost
     }
 
     /**
+     * The CURLOPT_RESOLVE entry that sends a connection to these addresses:
+     * "host:port:addr,addr", an IPv6 address in brackets.
+     *
+     * @param  list<string>  $addresses
+     */
+    public static function curlResolve(string $host, int $port, array $addresses): string
+    {
+        $bracketed = array_map(
+            fn (string $ip): string => str_contains($ip, ':') ? "[{$ip}]" : $ip,
+            $addresses,
+        );
+
+        return "{$host}:{$port}:".implode(',', $bracketed);
+    }
+
+    /**
      * Replaces DNS for tests, which cannot rely on a real answer. Null
      * restores it.
      *
