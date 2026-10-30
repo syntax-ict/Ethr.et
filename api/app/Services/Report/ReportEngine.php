@@ -52,7 +52,7 @@ final class ReportEngine
         'timesheet' => [
             'label' => 'Monthly timesheet',
             'fields' => ['employee_name', 'employee_code', 'department', 'branch', 'work_days', 'present_days', 'late_days', 'absent_days', 'leave_days', 'holiday_days', 'worked_hours', 'overtime_hours'],
-            'filters' => ['month', 'department', 'branch'],
+            'filters' => ['from', 'to', 'department', 'branch'],
         ],
         'absences' => [
             'label' => 'Absences',
@@ -387,9 +387,13 @@ final class ReportEngine
      * classified by ExpectedDays, the rule the absences source, the dashboards
      * and the payroll run use, so the totals agree with them.
      *
-     * `month` is `YYYY-MM` and defaults to the month of yesterday; the month
-     * stops at yesterday, since today is not over. An organisation that
-     * recorded no attendance that month is not using attendance, so its
+     * `from` and `to` choose the days, at most TIMESHEET_MAX_DAYS of them, so
+     * the month can be a Gregorian one or an Ethiopian one (Tikimt runs from
+     * 11 October to 9 November): the Reports page sends the bounds of the
+     * month in the viewer's calendar. `month` (`YYYY-MM`) still works for API
+     * callers and saved reports. With neither, the month of yesterday. The
+     * span stops at yesterday, since today is not over. An organisation that
+     * recorded no attendance in the span is not using attendance, so its
      * absent days are 0 rather than every workday, as on the payroll run.
      *
      * @param  array<string, mixed>  $filters
@@ -398,11 +402,19 @@ final class ReportEngine
     private function queryTimesheet(int $tenantId, array $filters, User $viewer): array
     {
         $yesterday = Carbon::parse(TenantTime::today(Tenant::query()->find($tenantId))->subDay()->format('Y-m-d'));
-        $month = is_string($filters['month'] ?? null) && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $filters['month']) === 1
-            ? Carbon::parse($filters['month'].'-01')
-            : $yesterday->copy()->startOfMonth();
-        $from = $month->copy()->startOfMonth();
-        $to = $month->copy()->endOfMonth()->startOfDay();
+        if (! empty($filters['from'])) {
+            $from = Carbon::parse((string) $filters['from'])->startOfDay();
+            $to = empty($filters['to']) ? $from->copy()->addDays(self::TIMESHEET_MAX_DAYS - 1) : Carbon::parse((string) $filters['to'])->startOfDay();
+            if ($from->diffInDays($to) >= self::TIMESHEET_MAX_DAYS) {
+                $to = $from->copy()->addDays(self::TIMESHEET_MAX_DAYS - 1);
+            }
+        } else {
+            $month = is_string($filters['month'] ?? null) && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $filters['month']) === 1
+                ? Carbon::parse($filters['month'].'-01')
+                : $yesterday->copy()->startOfMonth();
+            $from = $month->copy()->startOfMonth();
+            $to = $month->copy()->endOfMonth()->startOfDay();
+        }
         if ($to->greaterThan($yesterday)) {
             $to = $yesterday->copy();
         }
@@ -430,10 +442,15 @@ final class ReportEngine
             ->get();
 
         $attended = [];
+        $lateOn = [];
         $totals = [];
         foreach ($records as $record) {
             $id = $record->employee_id;
-            $totals[$id]['late'] = ($totals[$id]['late'] ?? 0) + ($record->status === AttendanceStatus::LATE ? 1 : 0);
+            // A day, not a record: a person who punched late twice on one
+            // day was counted late twice, more late days than days present.
+            if ($record->status === AttendanceStatus::LATE) {
+                $lateOn[$id][$record->date->format('Y-m-d')] = true;
+            }
             $totals[$id]['worked'] = ($totals[$id]['worked'] ?? 0) + $record->workedMinutes();
             $totals[$id]['overtime'] = ($totals[$id]['overtime'] ?? 0) + $record->overtimeMinutes();
             if ($record->check_in !== null || $record->check_out !== null) {
@@ -476,7 +493,7 @@ final class ReportEngine
                 'branch' => $employee->branch->name ?? '',
                 'work_days' => $days[$id]['work'] ?? 0,
                 'present_days' => $present,
-                'late_days' => $totals[$id]['late'] ?? 0,
+                'late_days' => count($lateOn[$id] ?? []),
                 'absent_days' => $days[$id]['absent'] ?? 0,
                 'leave_days' => $days[$id]['leave'] ?? 0,
                 'holiday_days' => $days[$id]['holiday'] ?? 0,
@@ -487,6 +504,9 @@ final class ReportEngine
 
         return $rows;
     }
+
+    /** The longest span a timesheet covers: a Gregorian or an Ethiopian month. */
+    public const TIMESHEET_MAX_DAYS = 31;
 
     /**
      * The longest span an absences report covers. Each day is worked out for
@@ -608,16 +628,31 @@ final class ReportEngine
      * allowances, employer pension, loan and cost-sharing deductions) read
      * from the same calculation log. Voided runs are left out: a voided run
      * and its reprocessed replacement counted every payslip of the month
-     * twice. `from` and `to` select runs by the start of their period.
+     * twice. `from` and `to` select the runs whose period's midpoint falls
+     * between them, so a month picked in either calendar finds the run meant
+     * for it, whether the organisation cuts periods on Gregorian or on
+     * Ethiopian month boundaries (the rule `localizedPeriodLabel()` uses).
      */
     private function queryPayroll(int $tenantId, array $filters, User $viewer): array
     {
         $runs = PayrollRun::query()->where('tenant_id', $tenantId)->where('status', '!=', 'voided');
-        if (! empty($filters['from'])) {
-            $runs->whereDate('period_start', '>=', $filters['from']);
-        }
-        if (! empty($filters['to'])) {
-            $runs->whereDate('period_start', '<=', $filters['to']);
+        if (! empty($filters['from']) || ! empty($filters['to'])) {
+            $from = empty($filters['from']) ? null : Carbon::parse((string) $filters['from'])->startOfDay();
+            $to = empty($filters['to']) ? null : Carbon::parse((string) $filters['to'])->startOfDay();
+            $inRange = (clone $runs)
+                ->when($to, fn ($q) => $q->whereDate('period_start', '<=', $to->format('Y-m-d')))
+                ->when($from, fn ($q) => $q->whereDate('period_end', '>=', $from->format('Y-m-d')))
+                ->get(['id', 'period_start', 'period_end'])
+                ->filter(function (PayrollRun $run) use ($from, $to): bool {
+                    $start = Carbon::parse($run->period_start->format('Y-m-d'));
+                    $end = Carbon::parse(($run->period_end ?? $run->period_start)->format('Y-m-d'));
+                    $midpoint = $start->copy()->addDays(intdiv((int) $start->diffInDays($end), 2));
+
+                    return ($from === null || $midpoint->greaterThanOrEqualTo($from))
+                        && ($to === null || $midpoint->lessThanOrEqualTo($to));
+                })
+                ->modelKeys();
+            $runs->whereIn('id', $inRange === [] ? [0] : $inRange);
         }
 
         $query = PayrollEntry::withoutGlobalScope('tenant')

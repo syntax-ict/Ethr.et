@@ -228,3 +228,58 @@ test('every preset runs', function () {
         test()->postJson(rpUrl($tenant, 'generate'), $preset['config'])->assertOk();
     }
 });
+
+// ── Live review, 2026-10-30 ──
+
+test('a day with two late punches is one late day, never more than the days present', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01', 'name' => 'Abenet']);
+    rpAttend($tenant, $employee, '2026-10-12', AttendanceStatus::LATE);
+    rpAttend($tenant, $employee, '2026-10-12', AttendanceStatus::LATE);
+    rpAttend($tenant, $employee, '2026-10-13', AttendanceStatus::LATE);
+
+    $row = test()->postJson(rpUrl($tenant, 'generate'), ['source' => 'timesheet', 'filters' => ['month' => '2026-10']])
+        ->assertOk()->json('data.0');
+
+    expect($row['present_days'])->toBe(2)->and($row['late_days'])->toBe(2);
+});
+
+test('the timesheet takes an Ethiopian month as a date range', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01']);
+    // Meskerem 2019 runs 11 September to 10 October 2026.
+    rpAttend($tenant, $employee, '2026-09-11');
+    rpAttend($tenant, $employee, '2026-10-09');
+    rpAttend($tenant, $employee, '2026-10-12');
+
+    $row = test()->postJson(rpUrl($tenant, 'generate'), [
+        'source' => 'timesheet',
+        'filters' => ['from' => '2026-09-11', 'to' => '2026-10-10'],
+    ])->assertOk()->json('data.0');
+
+    // 11 September to 10 October: 21 weekdays, two of them attended.
+    expect($row['present_days'])->toBe(2)->and($row['work_days'])->toBe(21);
+});
+
+test('a payroll month finds the run meant for it in either calendar', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $october = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'period_label' => 'October 2026', 'period_start' => '2026-10-01', 'period_end' => '2026-10-31', 'status' => 'approved']);
+    $november = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'period_label' => 'November 2026', 'period_start' => '2026-11-01', 'period_end' => '2026-11-30', 'status' => 'approved']);
+    foreach ([$october, $november] as $run) {
+        PayrollEntry::factory()->create(['tenant_id' => $tenant->id, 'payroll_run_id' => $run->id, 'employee_id' => $employee->id]);
+    }
+
+    // Tikimt 2019 is 11 October to 9 November: the October run's midpoint
+    // (16 October) is inside it, the November run's (15 November) is not.
+    // By period start it found November.
+    test()->postJson(rpUrl($tenant, 'generate'), [
+        'source' => 'payroll',
+        'filters' => ['from' => '2026-10-11', 'to' => '2026-11-09'],
+    ])->assertOk()
+        ->assertJsonPath('total', 1)
+        ->assertJsonPath('data.0.period', 'October 2026');
+});

@@ -70,6 +70,33 @@ const LABELS: Record<string, (t: T) => string> = {
   month: (t) => t("reports_page.fields.month", "Month"),
 };
 
+/**
+ * Display names for the report sources. The builder showed the API's English
+ * `label` ("Employees") and the results showed the raw key ("timesheet") on
+ * an Amharic screen. Literal `t()` calls so the i18n gate checks both locales.
+ */
+const SOURCE_LABELS: Record<string, (t: T) => string> = {
+  employees: (t) => t("reports_page.sources.employees", "Employees"),
+  attendance: (t) => t("reports_page.sources.attendance", "Attendance"),
+  timesheet: (t) => t("reports_page.sources.timesheet", "Monthly timesheet"),
+  absences: (t) => t("reports_page.sources.absences", "Absences"),
+  leave: (t) => t("reports_page.sources.leave", "Leave balances"),
+  payroll: (t) => t("reports_page.sources.payroll", "Payroll"),
+};
+
+/** The source's display name; an unknown source keeps a readable form of its key. */
+export function reportSourceLabel(t: T, source: string): string {
+  return SOURCE_LABELS[source]?.(t) ?? reportFieldLabel(t, source);
+}
+
+/**
+ * A group's name. Rows with no department, branch or grade group under an
+ * empty key, which printed as a bare ": 1".
+ */
+export function reportGroupLabel(t: T, key: string): string {
+  return key === "" ? t("reports_page.not_set", "Not set") : key;
+}
+
 /** The field's display name; an unknown field keeps a readable form of its key. */
 export function reportFieldLabel(t: T, field: string): string {
   const label = LABELS[field];

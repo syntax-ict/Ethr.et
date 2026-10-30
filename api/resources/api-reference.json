@@ -33937,7 +33937,11 @@
                                                             "prefixItems": [
                                                                 {
                                                                     "type": "string",
-                                                                    "const": "month"
+                                                                    "const": "from"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "to"
                                                                 },
                                                                 {
                                                                     "type": "string",
@@ -33948,8 +33952,8 @@
                                                                     "const": "branch"
                                                                 }
                                                             ],
-                                                            "minItems": 3,
-                                                            "maxItems": 3,
+                                                            "minItems": 4,
+                                                            "maxItems": 4,
                                                             "additionalItems": false
                                                         }
                                                     },

@@ -18469,7 +18469,8 @@ export interface operations {
                                     "overtime_hours"
                                 ];
                                 filters: [
-                                    "month",
+                                    "from",
+                                    "to",
                                     "department",
                                     "branch"
                                 ];
