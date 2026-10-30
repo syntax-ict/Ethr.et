@@ -64,6 +64,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // signed out sent a field worker who opened the installed app with no
   // signal, or kept it open past the five-minute refetch, to /login, where
   // nobody can sign in offline. A failure with no verdict keeps the last user.
+  //
+  // quiet-on-error: a failed /auth/me is either a verdict (signed out, so
+  // /login) or no answer (keep the page), never an error screen of its own.
   if (signedOut || !user) {
     return null;
   }
