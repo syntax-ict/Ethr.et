@@ -65,7 +65,6 @@ class RunScheduledReportsJob implements ShouldQueue
         $due = ScheduledReport::withoutGlobalScopes()
             ->where('is_active', true)
             ->where(fn ($q) => $q->whereNull('next_run_at')->orWhere('next_run_at', '<=', now()))
-            ->with('savedReport')
             ->get();
 
         foreach ($due as $schedule) {
@@ -103,15 +102,23 @@ class RunScheduledReportsJob implements ShouldQueue
     {
         $tenant = Tenant::find($schedule->tenant_id);
 
-        $saved = $schedule->savedReport;
-
-        if ($tenant === null || ! $saved instanceof SavedReport) {
+        if ($tenant === null) {
             return;
         }
 
         // A queue worker carries no tenant context, and the report engine reads
-        // tenant-scoped models.
+        // tenant-scoped models. The saved report is one of them, so it is read
+        // after the tenant is set: eager-loaded before, the fail-closed scope
+        // answered null and every scheduled report returned here unsent on a
+        // real worker, while the tests, which set a tenant, passed (security
+        // review 2026-10-30).
         $currentTenant->set($tenant);
+
+        $saved = $schedule->savedReport()->first();
+
+        if (! $saved instanceof SavedReport) {
+            return;
+        }
 
         // Read through getAttribute: the `array` cast has a loose static type
         // (array|string) that otherwise defeats the array handling below — the

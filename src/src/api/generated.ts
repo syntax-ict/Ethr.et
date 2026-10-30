@@ -9138,7 +9138,7 @@ export interface components {
             contract_type: components["schemas"]["ContractType"];
             start_date: string;
             end_date: string | null;
-            salary_cents: number | null;
+            salary_cents?: number | null;
             terms: string | null;
             status: components["schemas"]["ContractStatus"];
             renewed_from_id?: string | null;

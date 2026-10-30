@@ -38,6 +38,7 @@ class EmployeeContractController extends Controller
     public function store(StoreEmployeeContractRequest $request, Employee $employee): JsonResponse
     {
         $this->authorize('update', $employee);
+        $this->authorizePay($employee, $request->validated('salary_cents'));
 
         $contract = $this->contracts->create($employee, $request->validated(), $request->user()?->id);
 
@@ -49,6 +50,9 @@ class EmployeeContractController extends Controller
     public function renew(RenewEmployeeContractRequest $request, Employee $employee, EmployeeContract $contract): JsonResponse
     {
         $this->authorize('update', $employee);
+        // A renewal without a salary carries the old contract's over, which
+        // can still move the employee's pay.
+        $this->authorizePay($employee, $request->validated('salary_cents') ?? $contract->salary_cents);
 
         $successor = $this->contracts->renew($contract, $request->validated(), $request->user()?->id);
 
@@ -87,5 +91,18 @@ class EmployeeContractController extends Controller
             ->paginate(min((int) $request->query('per_page', 25), 100));
 
         return EmployeeContractResource::collection($contracts);
+    }
+
+    /**
+     * A contract whose salary differs from the employee's sets their pay
+     * (EmployeeContractService::applyContractSalary), so it needs the pay
+     * permission, as editing the salary directly does. Without this a role
+     * refused `salary_cents` on the employee could set it through a contract.
+     */
+    private function authorizePay(Employee $employee, mixed $salaryCents): void
+    {
+        if ($salaryCents !== null && (int) $salaryCents > 0 && (int) $salaryCents !== (int) $employee->salary_cents) {
+            $this->authorize('updateFinancial', $employee);
+        }
     }
 }
