@@ -5,7 +5,11 @@
 // v3 (2026-10-28): the shell pages are stored with the scripts and styles they
 // load. v2 stored only their HTML, so /offline came out of the cache and then
 // failed on a chunk nothing had fetched (production QA 2026-10-28, F-01).
-const CACHE_VERSION = 'ethr-v3';
+// v4 (2026-10-30): the installed app could not start offline. Its start URL,
+// /dashboard?source=pwa, was never stored, and the fallback matched the exact
+// URL, query string included, so a cold start offline always got /offline.
+// Pages are now kept under their path alone, visited pages included.
+const CACHE_VERSION = 'ethr-v4';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;
 
@@ -21,12 +25,18 @@ const SHELL_STAMP = '/__ethr-shell-cached-at';
 // network as usual — only the offline copy is refused.
 const NEVER_CACHED_API = ['/api/v1/admin/', '/api/v1/auth/'];
 
-// Shell assets to precache — these make the app load offline
+// Shell assets to precache — these make the app load offline. /dashboard is
+// the manifest's start_url and the rest after it are its shortcuts, so each
+// way into the installed app opens with no signal on the first day.
 const SHELL_ASSETS = [
   '/',
   '/offline',
   '/attendance/mobile',
   '/kiosk',
+  '/dashboard',
+  '/attendance',
+  '/leave',
+  '/payroll/payslips',
 ];
 
 // ── Install: cache app shell ──────────────────────────────────────────────────
@@ -80,34 +90,66 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // App shell pages: network-first, fall back to /offline
+  // Next's client-side navigation reads a page as a .txt payload rather than
+  // as HTML. Like the HTML, it is the static export, the same for everyone.
+  if (isPagePayload(url)) {
+    event.respondWith(networkFirstPayload(request, url));
+    return;
+  }
+
+  // App shell pages: network-first, fall back to the stored copy, then /offline.
+  // A page that opened online is kept (it is the static export, the same for
+  // every user; the data comes from the API), so a page someone uses is there
+  // the next time they open it with no signal.
   if (!url.pathname.includes('.')) {
     event.respondWith(
       fetch(request).then((response) => {
         if (request.mode === 'navigate' && response.ok) {
+          event.waitUntil(keepPage(url, response.clone()).catch(() => {}));
           event.waitUntil(refreshShellIfStale().catch(() => {}));
         }
         return response;
-      }).catch(() =>
-        caches.match(request).then(cached => cached ?? caches.match('/offline'))
-      )
+      }).catch(() => cachedPage(url))
     );
     return;
   }
 });
 
 // ── Shell: each page together with the files it loads ───────────────────────
+// Pages are stored under their path alone. The installed app opens
+// /dashboard?source=pwa and its shortcuts add ?source=shortcut, so a copy keyed
+// on the full URL was never found offline.
+function pageKey(url) {
+  const path = url.pathname.replace(/\/+$/, '');
+  return path === '' ? '/' : path;
+}
+
+async function cachedPage(url) {
+  const cached = await caches.match(pageKey(url), { ignoreSearch: true });
+  return cached ?? caches.match('/offline');
+}
+
+async function keepPage(url, response) {
+  const cache = await caches.open(STATIC_CACHE);
+  await storePage(cache, pageKey(url), response);
+}
+
 async function cacheShell() {
   const cache = await caches.open(STATIC_CACHE);
   await cache.put(SHELL_STAMP, new Response(String(Date.now())));
   await Promise.allSettled(SHELL_ASSETS.map(url => cacheShellPage(cache, url)));
 }
 
-// The page is stored only once every script and stylesheet it names is, so a
-// copy that would render and then fail to hydrate never replaces a working one.
 async function cacheShellPage(cache, url) {
   const response = await fetch(url, { cache: 'no-store' });
-  if (!response.ok) return;
+  await storePage(cache, url, response);
+}
+
+// The page is stored only once every script and stylesheet it names is, so a
+// copy that would render and then fail to hydrate never replaces a working one.
+// A redirected answer is not stored: a browser refuses one for a navigation.
+async function storePage(cache, key, response) {
+  if (!response.ok || response.redirected) return;
 
   const html = await response.clone().text();
   const assets = [...new Set(html.match(/\/_next\/static\/[^"'\s\\)]+/g) || [])];
@@ -116,7 +158,30 @@ async function cacheShellPage(cache, url) {
   }));
 
   if (stored.every(result => result.status === 'fulfilled')) {
-    await cache.put(url, response);
+    await cache.put(key, response);
+  }
+}
+
+// /dashboard/__next.!KGRhc2hib2FyZCk.dashboard.__PAGE__.txt (a segment
+// prefetch) or /dashboard.txt?_rsc=… (a full payload).
+function isPagePayload(url) {
+  return url.pathname.endsWith('.txt') &&
+    (url.pathname.includes('/__next.') || url.searchParams.has('_rsc'));
+}
+
+// Stored under the path: the _rsc value changes, the file does not. With no
+// copy, the request fails as it would without this worker, and Next then
+// loads the page as a whole, which the navigation fallback above answers.
+async function networkFirstPayload(request, url) {
+  const cache = await caches.open(STATIC_CACHE);
+  try {
+    const response = await fetch(request);
+    if (response.ok) cache.put(url.pathname, response.clone());
+    return response;
+  } catch (error) {
+    const cached = await cache.match(url.pathname);
+    if (cached) return cached;
+    throw error;
   }
 }
 

@@ -6,6 +6,10 @@ import { server } from "./msw/server";
 import { registerLocale } from "@/lib/i18n/translations";
 import amTranslations from "@/lib/i18n/locales/am.json";
 import { AuthGuard } from "@/components/shared/auth-guard";
+import {
+  readOfflineIdentity,
+  saveOfflineIdentity,
+} from "@/features/auth/offline-identity";
 
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -58,8 +62,13 @@ function refreshFails() {
   );
 }
 
+function meUnreachable() {
+  server.use(http.get("*/auth/me", () => HttpResponse.error()));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.removeItem("ethr.offline-identity");
 });
 
 describe("<AuthGuard>", () => {
@@ -192,5 +201,72 @@ describe("<AuthGuard>", () => {
 
     release!();
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+  });
+  describe("offline", () => {
+    it("keeps the page when /auth/me gets no answer, and does not send anyone to /login", async () => {
+      // The installed app kept open past the five-minute staleTime: the
+      // refetch fails with no response at all. That is the network, not the
+      // server's verdict on the session.
+      meSucceeds();
+      const { queryClient } = renderGuard();
+      expect(await screen.findByText(PROTECTED)).toBeInTheDocument();
+
+      localStorage.removeItem("ethr.offline-identity");
+      meUnreachable();
+      await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+
+      await waitFor(() =>
+        expect(queryClient.getQueryState(["auth", "me"])?.fetchStatus).toBe(
+          "idle",
+        ),
+      );
+      expect(queryClient.getQueryState(["auth", "me"])?.status).toBe("error");
+      expect(screen.getByText(PROTECTED)).toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("opens from the identity kept on the device when the app starts with no signal", async () => {
+      saveOfflineIdentity(ME_BODY as never);
+      meUnreachable();
+
+      renderGuard();
+
+      expect(await screen.findByText(PROTECTED)).toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("sends to /login with no signal and nothing kept, as before", async () => {
+      meUnreachable();
+
+      renderGuard();
+
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+      expect(screen.queryByText(PROTECTED)).not.toBeInTheDocument();
+    });
+
+    it("still signs out on a 401, and drops the kept identity", async () => {
+      saveOfflineIdentity(ME_BODY as never);
+      refreshFails();
+      server.use(
+        http.get("*/auth/me", () => new HttpResponse(null, { status: 401 })),
+      );
+
+      renderGuard();
+
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+      expect(screen.queryByText(PROTECTED)).not.toBeInTheDocument();
+      expect(readOfflineIdentity()).toBeNull();
+    });
+
+    it("signs out on a 419 too", async () => {
+      server.use(
+        http.get("*/auth/me", () => new HttpResponse(null, { status: 419 })),
+      );
+
+      renderGuard();
+
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+      expect(screen.queryByText(PROTECTED)).not.toBeInTheDocument();
+    });
   });
 });

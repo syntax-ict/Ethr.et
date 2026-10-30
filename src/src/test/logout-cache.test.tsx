@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { useCurrentUser, useLogout } from "@/features/auth/api";
+import { readOfflineIdentity } from "@/features/auth/offline-identity";
 
 /**
  * Logging out has to end the session on this device whatever the server says.
@@ -129,5 +130,35 @@ describe("logging out", () => {
 
     expect(client.getQueryData(["auth", "me"])).toBeUndefined();
     expect(window.location.href).toBe("/login");
+  });
+
+  it("removes the identity kept on the device for opening offline", async () => {
+    // offline-identity.ts keeps who was signed in, so the installed app can
+    // open with no signal. Signing out must take it too, offline or not.
+    mockMe();
+    server.use(http.post("*/auth/logout", () => HttpResponse.error()));
+
+    const client = makeClient();
+    const { result } = renderHook(
+      () => ({ me: useCurrentUser(), logout: useLogout() }),
+      {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+
+    await waitFor(() => expect(result.current.me.data).toBeDefined());
+    expect(readOfflineIdentity()?.user.public_id).toBe("01HZME");
+    expect(localStorage.getItem("ethr.offline-identity")).not.toContain(
+      "abebe@acme.et",
+    );
+
+    await act(async () => {
+      await result.current.logout.mutateAsync().catch(() => {});
+    });
+
+    expect(readOfflineIdentity()).toBeNull();
+    expect(localStorage.getItem("ethr.offline-identity")).toBeNull();
   });
 });

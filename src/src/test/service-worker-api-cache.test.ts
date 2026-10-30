@@ -60,12 +60,14 @@ describe("service worker API caching", () => {
     expect(intercepts("/api/v1/attendance/today")).toBe(true);
   });
 
-  it("names its caches v3, so activation deletes the v1 and v2 copies already stored", () => {
+  it("names its caches v4, so activation deletes the v1 to v3 copies already stored", () => {
+    // v4 (2026-10-30): pages are keyed on their path, not the full URL, so a
+    // v3 copy stored under /dashboard?source=pwa must go.
     const source = readFileSync(
       resolve(__dirname, "../../public/sw.js"),
       "utf8",
     );
-    expect(source).toContain("const CACHE_VERSION = 'ethr-v3';");
+    expect(source).toContain("const CACHE_VERSION = 'ethr-v4';");
   });
 });
 
