@@ -10,7 +10,6 @@ import {
   Contrast,
   Globe,
   Keyboard,
-  LifeBuoy,
   LogOut,
   Monitor,
   Moon,
@@ -302,7 +301,7 @@ export function AppHeader() {
               {canAskForHelp && (
                 <DropdownMenuItem asChild>
                   <Link href="/support" className="cursor-pointer gap-2">
-                    <LifeBuoy className="h-4 w-4 text-muted-foreground" />
+                    <CircleHelp className="h-4 w-4 text-muted-foreground" />
                     {t("nav.support", "Help requests")}
                   </Link>
                 </DropdownMenuItem>

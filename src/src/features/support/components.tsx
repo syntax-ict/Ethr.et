@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Info, LifeBuoy, Loader2, Send } from "lucide-react";
+import { Info, CircleHelp, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -397,7 +397,10 @@ export function GetHelpDialogHost() {
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <LifeBuoy className="h-5 w-5 text-primary" aria-hidden="true" />
+                <CircleHelp
+                  className="h-5 w-5 text-primary"
+                  aria-hidden="true"
+                />
                 {t("support.get_help", "Get help")}
               </DialogTitle>
               <DialogDescription>

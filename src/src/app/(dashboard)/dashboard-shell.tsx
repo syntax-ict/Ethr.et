@@ -17,6 +17,7 @@ import { ReverbProvider } from "@/components/providers/reverb-provider";
 import { ImpersonationBanner } from "@/components/shared/impersonation-banner";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { CalendarPreferenceSync } from "@/components/shared/calendar-preference-sync";
+import { LocalePreferenceSync } from "@/components/shared/locale-preference-sync";
 import { useCurrentUser } from "@/features/auth/api";
 import { PunchReminders } from "@/features/attendance/components/punch-reminders";
 import { useT } from "@/lib/i18n/useT";
@@ -34,6 +35,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   return (
     <CalendarProvider>
       <CalendarPreferenceSync />
+      <LocalePreferenceSync />
       <ReverbProvider userId={user?.public_id}>
         <AppLayoutProvider>
           <a

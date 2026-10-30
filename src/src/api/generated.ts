@@ -16685,6 +16685,7 @@ export interface operations {
                              */
                             preferences: {
                                 locale: string;
+                                locale_chosen: boolean;
                                 theme: string | "system";
                                 calendar: string;
                                 punch_reminders: boolean;
@@ -34665,6 +34666,7 @@ export interface operations {
                         };
                         preferences: {
                             locale: string;
+                            locale_chosen: boolean;
                             theme: string | "system";
                             calendar: string;
                             punch_reminders: boolean;
@@ -34808,6 +34810,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         locale: string;
+                        locale_chosen: boolean;
                         theme: string | "system";
                         calendar: string;
                         punch_reminders: boolean;

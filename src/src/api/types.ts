@@ -46,6 +46,11 @@ export interface User {
    */
   preferences?: {
     locale: string;
+    /**
+     * True once the user has saved a language. `locale` alone defaults to
+     * "en", so only a chosen one is applied on sign-in.
+     */
+    locale_chosen?: boolean;
     theme: string;
     calendar: string;
     /** The employee's own switches for the punching assistant. */
