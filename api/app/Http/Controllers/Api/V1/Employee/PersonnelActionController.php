@@ -39,6 +39,9 @@ class PersonnelActionController extends Controller
     {
         Gate::authorize('create', PersonnelAction::class);
         $this->reach($employee);
+        if ($this->actions->wouldChangePay($employee, $request->validated())) {
+            Gate::authorize('updateFinancial', $employee);
+        }
 
         $action = $this->actions->record(
             $employee,

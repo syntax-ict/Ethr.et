@@ -189,7 +189,7 @@ function ContractCard({
             ` (${t("employee.contracts.days_left", ":count days left", { count: c.days_until_expiry })})`}
         </p>
 
-        {c.salary_cents !== null && (
+        {typeof c.salary_cents === "number" && (
           <p className="text-sm text-foreground">{formatETB(c.salary_cents)}</p>
         )}
         {c.terms && <p className="text-sm text-muted-foreground">{c.terms}</p>}
