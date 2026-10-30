@@ -9,6 +9,7 @@ return [
     'digest_greeting' => 'Here is your :frequency summary as of :date.',
     'digest_headcount' => 'Headcount: :active active / :total total',
     'digest_attendance' => 'Attendance rate today: :rate%',
+    'digest_attendance_none_expected' => 'Attendance rate today: no one is scheduled to work today.',
     'digest_payroll' => 'Payroll (last period, net): :amount ETB',
     'digest_turnover' => 'Turnover rate: :rate%',
     'digest_compliance_documents' => ':count document(s) expiring within 30 days',
