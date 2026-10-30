@@ -55,19 +55,63 @@ describe("service worker API caching", () => {
     expect(intercepts("/api/v1/auth/me")).toBe(false);
   });
 
+  it("never stores pay data, but keeps your own payslips for offline use", () => {
+    expect(intercepts("/api/v1/payroll/runs")).toBe(false);
+    expect(intercepts("/api/v1/payroll/payslips/EMP-1")).toBe(false);
+    expect(intercepts("/api/v1/employees/abc/bank-details")).toBe(false);
+    expect(intercepts("/api/v1/employees/abc/contracts")).toBe(false);
+    expect(intercepts("/api/v1/employees/contracts/expiring")).toBe(false);
+    expect(intercepts("/api/v1/reports/saved")).toBe(false);
+    expect(intercepts("/api/v1/payroll/payslips/my")).toBe(true);
+  });
+
+  it("drops every stored API answer when the server says the session is over", async () => {
+    const deleted: string[] = [];
+    const source = readFileSync(
+      resolve(__dirname, "../../public/sw.js"),
+      "utf8",
+    );
+    const listeners: Record<string, FetchListener> = {};
+    const self = {
+      addEventListener: (type: string, listener: FetchListener) => {
+        listeners[type] = listener;
+      },
+    };
+    const caches = {
+      open: async () => ({ match: async () => undefined, put: async () => {} }),
+      match: async () => undefined,
+      delete: async (name: string) => {
+        deleted.push(name);
+        return true;
+      },
+    };
+    const fetch = async () => new Response("{}", { status: 401 });
+    new Function("self", "caches", "fetch", source)(self, caches, fetch);
+
+    let answered: Promise<Response> | undefined;
+    listeners.fetch({
+      request: new Request("https://acme.ethr.et/api/v1/employees"),
+      respondWith: (response) => {
+        answered = response as Promise<Response>;
+      },
+    });
+
+    expect((await answered)?.status).toBe(401);
+    expect(deleted).toEqual(["ethr-v5-api"]);
+  });
+
   it("still keeps ordinary API responses for offline use", () => {
     expect(intercepts("/api/v1/employees")).toBe(true);
     expect(intercepts("/api/v1/attendance/today")).toBe(true);
   });
 
-  it("names its caches v4, so activation deletes the v1 to v3 copies already stored", () => {
-    // v4 (2026-10-30): pages are keyed on their path, not the full URL, so a
-    // v3 copy stored under /dashboard?source=pwa must go.
+  it("names its caches v5, so activation deletes the v1 to v4 copies already stored", () => {
+    // v5 (2026-10-31): pay data copies stored by v4 must go.
     const source = readFileSync(
       resolve(__dirname, "../../public/sw.js"),
       "utf8",
     );
-    expect(source).toContain("const CACHE_VERSION = 'ethr-v4';");
+    expect(source).toContain("const CACHE_VERSION = 'ethr-v5';");
   });
 });
 

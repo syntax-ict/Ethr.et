@@ -9,7 +9,9 @@
 // /dashboard?source=pwa, was never stored, and the fallback matched the exact
 // URL, query string included, so a cold start offline always got /offline.
 // Pages are now kept under their path alone, visited pages included.
-const CACHE_VERSION = 'ethr-v4';
+// v5 (2026-10-31): pay data is no longer stored (NEVER_CACHED_API), and this
+// removes the copies v4 already kept.
+const CACHE_VERSION = 'ethr-v5';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;
 
@@ -23,7 +25,20 @@ const SHELL_STAMP = '/__ethr-shell-cached-at';
 // tenant, and /auth answers describe the signed-in account; neither may sit in
 // Cache Storage after the session ends (console QA F3). They still go to the
 // network as usual — only the offline copy is refused.
-const NEVER_CACHED_API = ['/api/v1/admin/', '/api/v1/auth/'];
+// Pay data joined them on 2026-10-31: payroll runs, other people's payslips,
+// bank accounts, contracts and reports. A copy outlives a session that ends
+// while the device is offline, and none of it is needed to punch in. Your own
+// payslips stay (OFFLINE_PAY_API), since /payroll/payslips is an offline page.
+const NEVER_CACHED_API = ['/api/v1/admin/', '/api/v1/auth/', '/api/v1/payroll/', '/api/v1/reports/'];
+const NEVER_CACHED_API_PARTS = ['/bank-details', '/contracts'];
+const OFFLINE_PAY_API = ['/api/v1/payroll/payslips/my'];
+
+function neverCached(pathname) {
+  if (OFFLINE_PAY_API.some(path => pathname === path)) return false;
+
+  return NEVER_CACHED_API.some(prefix => pathname.startsWith(prefix))
+    || (pathname.startsWith('/api/') && NEVER_CACHED_API_PARTS.some(part => pathname.includes(part)));
+}
 
 // Shell assets to precache — these make the app load offline. /dashboard is
 // the manifest's start_url and the rest after it are its shortcuts, so each
@@ -76,7 +91,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (NEVER_CACHED_API.some(prefix => url.pathname.startsWith(prefix))) return;
+  if (neverCached(url.pathname)) return;
 
   // API calls: network-first, fall back to cached response
   if (url.pathname.startsWith('/api/')) {
@@ -403,6 +418,10 @@ async function networkFirstWithCache(request, cacheName) {
   try {
     const response = await fetch(request);
     if (response.ok) cache.put(request, response.clone());
+    // The session is over, so nothing stored under it may be served offline
+    // afterwards. The app clears the cache on a 401 it sees itself; this also
+    // covers requests the worker makes on its own.
+    if (response.status === 401) await caches.delete(cacheName);
     return response;
   } catch {
     const cached = await cache.match(request);
