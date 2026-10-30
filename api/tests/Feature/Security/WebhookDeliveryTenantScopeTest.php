@@ -8,7 +8,6 @@ use App\Models\Webhook;
 use App\Models\WebhookDelivery;
 use App\Services\CurrentTenant;
 use App\Services\Webhook\WebhookDispatcher;
-use App\Support\OutboundHost;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
@@ -49,12 +48,7 @@ function activeWebhook(Tenant $tenant, string $event = 'payroll.processed'): Web
 beforeEach(function () {
     Queue::fake();
     app(CurrentTenant::class)->forget();
-    // Delivery connects only to an address it looked up and checked, so the
-    // test answers the lookup rather than depend on the network's DNS.
-    OutboundHost::resolveUsing(fn (string $host): array => $host === 'example.et' ? ['93.184.216.34'] : []);
 });
-
-afterEach(fn () => OutboundHost::resolveUsing(null));
 
 it('records a delivery when dispatched from a context with no tenant', function () {
     $tenant = webhookTenant('acme');
