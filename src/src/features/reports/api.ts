@@ -3,31 +3,33 @@ import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 
 type Schemas = components["schemas"];
-type Ok<Op extends "sources" | "generate" | "savedList" | "scheduledList"> =
-  operations[`report.${Op}`]["responses"][200]["content"]["application/json"];
+type Ok<
+  Op extends "sources" | "presets" | "generate" | "savedList" | "scheduledList",
+> = operations[`report.${Op}`]["responses"][200]["content"]["application/json"];
 
 // Shapes come from the generated contract. Where Scramble cannot see through
 // an array-cast column or ReportEngine's built-up arrays, a narrow override
 // says so; each was checked against ReportController and ReportEngine.
 
-/** `ReportEngine::SOURCES`, keyed by source, each with its column list. */
+/**
+ * `ReportEngine::SOURCES`, keyed by source, each with its column list and the
+ * `filters` keys the engine applies. Filters are not columns: offering the
+ * columns let a user filter on `gender` or `name` and get every row back.
+ */
 export type ReportSources = Ok<"sources">["sources"];
 export type ReportSourceKey = keyof ReportSources;
 
 /**
- * The `filters` keys ReportEngine actually applies, per source; it ignores any
- * other key without error. These are not the source's columns — offering the
- * columns let a user filter on `gender` or `name` and get every row back.
- * Employees' `department_id` is left out: it takes the internal numeric id,
- * which the API never exposes. The contract does not publish this list, so it
- * mirrors `ReportEngine::query*()` and must move with it.
+ * `ReportPresets::for()`: ready-made reports, recommended ones first. A preset
+ * is `recommended` when it suits the organisation's type or working pattern,
+ * `standard` when it suits every organisation.
  */
-export const REPORT_FILTERS: Record<ReportSourceKey, readonly string[]> = {
-  employees: ["status"],
-  attendance: ["from", "to"],
-  absences: ["from", "to"],
-  leave: ["year"],
-  payroll: [],
+export type ReportPresetList = Ok<"presets">;
+export type ReportPreset = Omit<
+  ReportPresetList["presets"][number],
+  "config"
+> & {
+  config: ReportConfig;
 };
 
 /**
@@ -68,6 +70,20 @@ export function useReportSources() {
     queryKey: ["reports", "sources"],
     queryFn: async () => {
       const { data } = await apiClient.get("/reports/sources");
+      return data;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function useReportPresets() {
+  return useQuery<{
+    organisation: ReportPresetList["organisation"];
+    presets: ReportPreset[];
+  }>({
+    queryKey: ["reports", "presets"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/reports/presets");
       return data;
     },
     staleTime: 10 * 60 * 1000,

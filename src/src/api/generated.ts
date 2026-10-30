@@ -2213,6 +2213,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ready-made reports for this organisation: standard ones, and those
+         *     suited to its type and how its people work, recommended first
+         */
+        get: operations["report.presets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reports/generate": {
         parameters: {
             query?: never;
@@ -9386,7 +9406,7 @@ export interface components {
         /** GenerateReportRequest */
         GenerateReportRequest: {
             /** @enum {string} */
-            source: "employees" | "attendance" | "absences" | "leave" | "payroll";
+            source: "employees" | "attendance" | "timesheet" | "absences" | "leave" | "payroll";
             columns?: string[];
             filters?: string[];
             group_by?: string | null;
@@ -10600,7 +10620,7 @@ export interface components {
             name: string;
             config: {
                 /** @enum {string} */
-                source: "employees" | "attendance" | "absences" | "leave" | "payroll";
+                source: "employees" | "attendance" | "timesheet" | "absences" | "leave" | "payroll";
             };
         };
         /** SaveSmsGatewayRequest */
@@ -18408,7 +18428,15 @@ export interface operations {
                                     "salary_cents",
                                     "department",
                                     "branch",
-                                    "position"
+                                    "position",
+                                    "grade",
+                                    "cost_center"
+                                ];
+                                filters: [
+                                    "status",
+                                    "department",
+                                    "branch",
+                                    "cost_center"
                                 ];
                             };
                             attendance: {
@@ -18416,12 +18444,46 @@ export interface operations {
                                 label: "Attendance";
                                 fields: [
                                     "employee_name",
+                                    "employee_code",
+                                    "department",
+                                    "branch",
                                     "date",
                                     "check_in",
                                     "check_out",
                                     "status",
                                     "source",
-                                    "worked_minutes"
+                                    "worked_minutes",
+                                    "overtime_minutes"
+                                ];
+                                filters: [
+                                    "from",
+                                    "to",
+                                    "status",
+                                    "department",
+                                    "branch"
+                                ];
+                            };
+                            timesheet: {
+                                /** @constant */
+                                label: "Monthly timesheet";
+                                fields: [
+                                    "employee_name",
+                                    "employee_code",
+                                    "department",
+                                    "branch",
+                                    "work_days",
+                                    "present_days",
+                                    "late_days",
+                                    "absent_days",
+                                    "leave_days",
+                                    "holiday_days",
+                                    "worked_hours",
+                                    "overtime_hours"
+                                ];
+                                filters: [
+                                    "month",
+                                    "department",
+                                    "branch"
                                 ];
                             };
                             absences: {
@@ -18434,17 +18496,30 @@ export interface operations {
                                     "branch",
                                     "date"
                                 ];
+                                filters: [
+                                    "from",
+                                    "to",
+                                    "department",
+                                    "branch"
+                                ];
                             };
                             leave: {
                                 /** @constant */
                                 label: "Leave Balances";
                                 fields: [
                                     "employee_name",
+                                    "employee_code",
+                                    "department",
                                     "leave_type",
                                     "year",
                                     "entitled_days",
                                     "used_days",
                                     "remaining_days"
+                                ];
+                                filters: [
+                                    "year",
+                                    "department",
+                                    "branch"
                                 ];
                             };
                             payroll: {
@@ -18452,15 +18527,66 @@ export interface operations {
                                 label: "Payroll";
                                 fields: [
                                     "employee_name",
+                                    "employee_code",
+                                    "department",
+                                    "branch",
+                                    "cost_center",
                                     "period",
                                     "basic_salary_cents",
+                                    "overtime_cents",
+                                    "allowances_cents",
                                     "gross_cents",
                                     "income_tax_cents",
                                     "employee_pension_cents",
+                                    "employer_pension_cents",
+                                    "loan_cents",
+                                    "cost_sharing_cents",
                                     "net_cents"
+                                ];
+                                filters: [
+                                    "from",
+                                    "to",
+                                    "department",
+                                    "branch",
+                                    "cost_center"
                                 ];
                             };
                         };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "report.presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        organisation: {
+                            type: string | null;
+                            workforce_profile: string | null;
+                        };
+                        presets: {
+                            key: string;
+                            source: string;
+                            config: {
+                                [key: string]: unknown;
+                            };
+                            standard: boolean;
+                            recommended: boolean;
+                        }[];
                     };
                 };
             };

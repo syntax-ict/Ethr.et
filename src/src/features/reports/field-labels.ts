@@ -46,6 +46,28 @@ const LABELS: Record<string, (t: T) => string> = {
   employee_pension_cents: (t) =>
     t("reports_page.fields.employee_pension", "Employee pension"),
   net_cents: (t) => t("reports_page.fields.net", "Net pay"),
+  grade: (t) => t("reports_page.fields.grade", "Grade"),
+  cost_center: (t) => t("reports_page.fields.cost_center", "Cost centre"),
+  overtime_minutes: (t) =>
+    t("reports_page.fields.overtime_minutes", "Overtime (minutes)"),
+  work_days: (t) => t("reports_page.fields.work_days", "Workdays"),
+  present_days: (t) => t("reports_page.fields.present_days", "Present"),
+  late_days: (t) => t("reports_page.fields.late_days", "Late"),
+  absent_days: (t) => t("reports_page.fields.absent_days", "Absent"),
+  leave_days: (t) => t("reports_page.fields.leave_days", "On leave"),
+  holiday_days: (t) => t("reports_page.fields.holiday_days", "Holidays"),
+  worked_hours: (t) => t("reports_page.fields.worked_hours", "Worked hours"),
+  overtime_hours: (t) =>
+    t("reports_page.fields.overtime_hours", "Overtime hours"),
+  overtime_cents: (t) => t("reports_page.fields.overtime_pay", "Overtime pay"),
+  allowances_cents: (t) => t("reports_page.fields.allowances", "Allowances"),
+  employer_pension_cents: (t) =>
+    t("reports_page.fields.employer_pension", "Employer pension"),
+  loan_cents: (t) => t("reports_page.fields.loan", "Loan repayment"),
+  cost_sharing_cents: (t) =>
+    t("reports_page.fields.cost_sharing", "Cost sharing"),
+  // Filter-only key, as `from` and `to` above.
+  month: (t) => t("reports_page.fields.month", "Month"),
 };
 
 /** The field's display name; an unknown field keeps a readable form of its key. */

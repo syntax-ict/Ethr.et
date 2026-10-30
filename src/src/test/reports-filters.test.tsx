@@ -45,6 +45,7 @@ const SOURCES = {
         "branch",
         "position",
       ],
+      filters: ["status", "department", "branch", "cost_center"],
     },
     attendance: {
       label: "Attendance",
@@ -57,6 +58,7 @@ const SOURCES = {
         "source",
         "worked_minutes",
       ],
+      filters: ["from", "to", "status", "department", "branch"],
     },
     leave: {
       label: "Leave Balances",
@@ -68,6 +70,7 @@ const SOURCES = {
         "used_days",
         "remaining_days",
       ],
+      filters: ["year", "department", "branch"],
     },
     payroll: {
       label: "Payroll",
@@ -80,6 +83,7 @@ const SOURCES = {
         "employee_pension_cents",
         "net_cents",
       ],
+      filters: ["from", "to", "department", "branch", "cost_center"],
     },
   },
 };
@@ -123,10 +127,9 @@ async function chooseSource(
 
 /**
  * The filter picker offered every column of the source, but ReportEngine reads
- * only a few keys from `filters` — employees: `status`; attendance: `from` and
- * `to`; leave: `year`; payroll: none — and ignores the rest. A filter such as
- * `gender = female` or `name = Abebe` was dropped on the server, so the report
- * came back unfiltered with nothing to say so.
+ * only the keys each source publishes in `filters` and ignores the rest. A
+ * filter such as `gender = female` or `name = Abebe` was dropped on the
+ * server, so the report came back unfiltered with nothing to say so.
  */
 describe("Reports builder — filters", () => {
   it("filters employees by a key the engine reads, not the first column", async () => {
@@ -152,7 +155,7 @@ describe("Reports builder — filters", () => {
     });
   });
 
-  it("offers attendance only the date range the engine applies", async () => {
+  it("offers attendance only the filters the engine applies", async () => {
     serve(() => {});
 
     const user = userEvent.setup();
@@ -167,7 +170,7 @@ describe("Reports builder — filters", () => {
       within(listbox)
         .getAllByRole("option")
         .map((o) => o.textContent),
-    ).toEqual(["From", "To"]);
+    ).toEqual(["From", "To", "Status", "Department", "Branch"]);
   });
 
   // A date typed as "1/10/2026" matched nothing (audit N100).
@@ -183,18 +186,22 @@ describe("Reports builder — filters", () => {
     expect(screen.queryByPlaceholderText("value")).not.toBeInTheDocument();
   });
 
-  it("cannot add a filter to the payroll source, which applies none", async () => {
+  it("filters payroll by period and unit, which it ignored before", async () => {
     serve(() => {});
 
     const user = userEvent.setup();
     renderPage();
 
     await chooseSource(user, "Payroll");
+    await user.click(screen.getByRole("button", { name: "Add filter" }));
+    await user.click(screen.getByRole("combobox", { name: "Filter field" }));
 
-    expect(screen.getByRole("button", { name: "Add filter" })).toBeDisabled();
+    const listbox = await screen.findByRole("listbox");
     expect(
-      screen.getByText("This data source cannot be filtered."),
-    ).toBeInTheDocument();
+      within(listbox)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["From", "To", "Department", "Branch", "Cost centre"]);
   });
 });
 
