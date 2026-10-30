@@ -15,8 +15,6 @@ use Illuminate\Support\Facades\Http;
  * answer changed between the two reached an address that was never checked.
  */
 
-afterEach(fn () => OutboundHost::resolveUsing(null));
-
 /** @param array<string, list<string>> $dns */
 function pinningDns(array $dns): void
 {
