@@ -138,3 +138,57 @@ test('attendance rate is null on a day no one is expected', function () {
 
     expect(test()->getJson(metricFixUrl($tenant->subdomain))->assertOk()->json('attendance_rate.today'))->toBeNull();
 });
+
+test('a period must be real dates, in order, and at most 400 days long', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    // Any text went to Carbon::parse: a malformed date was a 500.
+    foreach (['?from=yesterday', '?from=2026-02-30', '?from=2026-10-31&to=2026-10-01', '?from=2025-01-01&to=2026-10-31'] as $query) {
+        test()->getJson(metricFixUrl($tenant->subdomain, $query))->assertUnprocessable();
+    }
+
+    test()->getJson(metricFixUrl($tenant->subdomain, '/payroll?from=2025-11-01&to=2026-10-31'))->assertOk();
+    test()->getJson(metricFixUrl($tenant->subdomain, '/attendance?to=2026-12-31'))->assertOk();
+});
+
+test('the attendance rate over a year counts each expected day once', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $this->travelTo(Carbon::parse('2026-10-14 12:00', 'Africa/Addis_Ababa'));
+    $present = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2026-09-01']);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2026-09-01']);
+
+    foreach (Carbon::parse('2026-09-01')->daysUntil('2026-10-14') as $day) {
+        if ($day->isWeekday()) {
+            metricFixAttend($present, $day->toDateString());
+        }
+    }
+
+    // Twelve months asked for, but no one was employed before September and
+    // nothing after today counts: still half.
+    expect(test()->getJson(metricFixUrl($tenant->subdomain, '?from=2025-11-01&to=2026-10-31'))->assertOk()->json('attendance_rate.period'))
+        ->toBe(50);
+});
+
+test('a payroll run belongs to the month holding its middle day, in either calendar', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    // A Gregorian October run, and a run cut on Ethiopian months (Meskerem:
+    // 11 September to 10 October).
+    PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'status' => 'approved', 'period_start' => '2026-10-01', 'period_end' => '2026-10-31', 'gross_total_cents' => 100000]);
+    PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'status' => 'approved', 'period_start' => '2026-09-11', 'period_end' => '2026-10-10', 'gross_total_cents' => 20000]);
+
+    $gross = fn (string $from, string $to) => test()
+        ->getJson(metricFixUrl($tenant->subdomain, "/payroll?from={$from}&to={$to}"))
+        ->assertOk()
+        ->json('totals.total_gross_cents');
+
+    // Tikimt 2019 holds the October run; Gregorian September holds the
+    // Meskerem run; Gregorian October only its own.
+    expect($gross('2026-10-11', '2026-11-09'))->toBe(100000)
+        ->and($gross('2026-09-01', '2026-09-30'))->toBe(20000)
+        ->and($gross('2026-10-01', '2026-10-31'))->toBe(100000);
+});

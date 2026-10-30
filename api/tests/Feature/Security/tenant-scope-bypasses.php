@@ -11,6 +11,12 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-30, analytics periods: one more, in `ExecutiveDashboardService::
+ * countedRuns()`. It now picks the runs whose middle day falls in the period,
+ * which a query cannot say on every engine, so it reads the overlapping runs
+ * stating `tenant_id`, filters them in PHP, and returns a builder over the
+ * chosen ids that states `tenant_id` again. 179/72.)
+ *
  * (2026-10-29, analytics figures: six fewer, all in `Services/Analytics/
  * ExecutiveDashboardService`. The six payroll run lookups became one
  * `countedRuns()`, which states `tenant_id` and the counted statuses on the
@@ -283,7 +289,7 @@ return [
     'Services/Admin/PlatformAnalyticsService.php' => 3,
     'Services/Analytics/BranchAnalyticsService.php' => 5,
     'Services/Analytics/DepartmentAnalyticsService.php' => 5,
-    'Services/Analytics/ExecutiveDashboardService.php' => 16,
+    'Services/Analytics/ExecutiveDashboardService.php' => 17,
     'Services/Attendance/AttendanceEngine.php' => 2,
     // Retention sweep: deletes expired passkey challenges across every
     // organisation from the scheduler; selects and returns nothing.

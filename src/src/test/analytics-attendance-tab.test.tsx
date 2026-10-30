@@ -6,6 +6,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { AttendanceTab } from "@/app/(dashboard)/analytics/attendance-tab";
+import { periodFor } from "@/app/(dashboard)/analytics/period";
 
 /**
  * Every section of the tab hides itself when it has no rows, and the tab's
@@ -22,7 +23,12 @@ function renderTab() {
       <CalendarProvider>{children}</CalendarProvider>
     </QueryClientProvider>
   );
-  return render(<AttendanceTab />, { wrapper });
+  return render(
+    <AttendanceTab
+      range={periodFor("last_month", "gregorian", "2026-10-30").current}
+    />,
+    { wrapper },
+  );
 }
 
 const EMPTY = {

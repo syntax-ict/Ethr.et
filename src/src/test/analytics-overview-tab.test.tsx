@@ -6,6 +6,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { OverviewTab } from "@/app/(dashboard)/analytics/overview-tab";
+import { periodFor } from "@/app/(dashboard)/analytics/period";
 
 function renderTab() {
   const client = new QueryClient({
@@ -16,7 +17,13 @@ function renderTab() {
       <CalendarProvider>{children}</CalendarProvider>
     </QueryClientProvider>
   );
-  return render(<OverviewTab />, { wrapper });
+  return render(
+    <OverviewTab
+      period={periodFor("last_month", "gregorian", "2026-10-30")}
+      periodLabel="September 2026"
+    />,
+    { wrapper },
+  );
 }
 
 const OVERVIEW = {
@@ -49,5 +56,39 @@ describe("<OverviewTab>", () => {
       "title",
       expect.stringMatching(/2,590,000\.00/),
     );
+  });
+});
+
+describe("<OverviewTab> periods", () => {
+  it("compares a finished period with the one before it", async () => {
+    // Last month is September 2026; the period before it, August.
+    server.use(
+      http.get("*/api/v1/dashboard/executive", ({ request }) => {
+        const from = new URL(request.url).searchParams.get("from");
+        return HttpResponse.json(
+          from === "2026-08-01"
+            ? {
+                ...OVERVIEW,
+                attendance_rate: { today: 92, period: 90 },
+                payroll_summary: { net_cents: 200_000_000 },
+                turnover: { rate: 5, exits: 4 },
+              }
+            : {
+                ...OVERVIEW,
+                attendance_rate: { today: 92, period: 92.5 },
+                payroll_summary: { net_cents: 250_000_000 },
+                turnover: { rate: 3, exits: 3 },
+              },
+        );
+      }),
+    );
+    renderTab();
+
+    expect(await screen.findByText("92.5%")).toBeInTheDocument();
+    expect(await screen.findByText("2.5 pts")).toBeInTheDocument();
+    expect(screen.getByText("25%")).toBeInTheDocument();
+    expect(screen.getByText("2 pts")).toBeInTheDocument();
+    expect(screen.getByText("Today 92%")).toBeInTheDocument();
+    expect(screen.getAllByText("vs previous period")).toHaveLength(3);
   });
 });

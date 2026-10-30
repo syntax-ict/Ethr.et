@@ -6392,5 +6392,14 @@
   "support.console_none_open": "Nothing is waiting for ETHR.",
   "support.console_not_found_desc": "Only requests an organisation passed to ETHR are here.",
   "analytics_page.no_one_scheduled": "No one scheduled",
-  "analytics_page.no_one_scheduled_hint": "Rest day or holiday"
+  "analytics_page.period": "Period",
+  "analytics_page.period_this_month": "This month",
+  "analytics_page.period_last_month": "Last month",
+  "analytics_page.period_last_3_months": "Last 3 months",
+  "analytics_page.period_last_12_months": "Last 12 months",
+  "analytics_page.period_range": ":from to :to",
+  "analytics_page.vs_previous_period": "vs previous period",
+  "analytics_page.points": "pts",
+  "analytics_page.today_rate": "Today :rate%",
+  "analytics_page.no_one_scheduled_today": "No one scheduled today"
 }
