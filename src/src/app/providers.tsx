@@ -1,6 +1,10 @@
 "use client";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState, type ReactNode } from "react";
 import { AppToaster } from "@/components/shared/app-toaster";
@@ -49,6 +53,31 @@ function HtmlLangSync() {
   return null;
 }
 
+/**
+ * Refetches what the server wrote when the reader changes language.
+ *
+ * The switcher re-renders the app in place, which translates every key the
+ * client owns but leaves cached responses alone, and some of those carry text
+ * the server composed in the old language (approval summaries with their month
+ * names, notification titles). They stayed English on the Amharic screen until
+ * the query went stale (production QA 2026-10-29). Every request sends
+ * `Accept-Language` from the stored locale, which `setLocale` writes before it
+ * fires the event, so the refetch arrives in the new language.
+ */
+function ServerTextLocaleSync() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const refetch = () => {
+      void queryClient.invalidateQueries();
+    };
+    window.addEventListener("locale-changed", refetch);
+    return () => window.removeEventListener("locale-changed", refetch);
+  }, [queryClient]);
+
+  return null;
+}
+
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -79,6 +108,7 @@ export function Providers({ children }: { children: ReactNode }) {
         <TooltipProvider delayDuration={250} skipDelayDuration={300}>
           <ServiceWorkerRegistrar />
           <HtmlLangSync />
+          <ServerTextLocaleSync />
           {children}
           <AppToaster />
         </TooltipProvider>

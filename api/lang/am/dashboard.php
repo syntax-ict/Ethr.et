@@ -9,6 +9,7 @@ return [
     'digest_greeting' => 'ይህ የ:frequency ማጠቃለያዎ እስከ :date ድረስ ነው።',
     'digest_headcount' => 'የሰራተኛ ብዛት፦ :active ንቁ / :total ጠቅላላ',
     'digest_attendance' => 'የዛሬ የመገኘት ምጣኔ፦ :rate%',
+    'digest_attendance_none_expected' => 'የዛሬ የመገኘት ምጣኔ፦ ዛሬ ሥራ የተመደበለት ሰራተኛ የለም።',
     'digest_payroll' => 'ደመወዝ (ያለፈው ወቅት፣ ተጣራ)፦ :amount ብር',
     'digest_turnover' => 'የመልቀቅ ምጣኔ፦ :rate%',
     'digest_compliance_documents' => 'በ30 ቀናት ውስጥ የሚያበቁ :count ሰነድ(ዎች)',

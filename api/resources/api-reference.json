@@ -11245,10 +11245,16 @@
                                             "type": "object",
                                             "properties": {
                                                 "today": {
-                                                    "type": "number"
+                                                    "type": [
+                                                        "number",
+                                                        "null"
+                                                    ]
                                                 },
                                                 "period": {
-                                                    "type": "number"
+                                                    "type": [
+                                                        "number",
+                                                        "null"
+                                                    ]
                                                 }
                                             },
                                             "required": [

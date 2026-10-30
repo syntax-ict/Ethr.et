@@ -2516,7 +2516,7 @@
   "executive_dashboard.department_detail": "ክፍል",
   "executive_dashboard.expiring_documents": "በ30 ቀናት ውስጥ የሚያበቁ ሰነዶች",
   "executive_dashboard.export_csv": "CSV ላክ",
-  "executive_dashboard.forecast_subtitle": "የተሰነጣጠሉ አሞሌዎች ቀላል የአዝማሚያ ትንበያ ናቸው፣ ዋስትና አይደሉም።",
+  "executive_dashboard.forecast_subtitle": "የተተነበዩት እሴቶች ቀላል የአዝማሚያ ትንበያ ናቸው፣ ዋስትና አይደሉም።",
   "executive_dashboard.gender_unrecorded": "አልተመዘገበም",
   "executive_dashboard.headcount": "የሰራተኞች ብዛት",
   "executive_dashboard.probation_overdue": "የሙከራ ጊዜ አልቋል፣ ውሳኔ አልተመዘገበም",
@@ -6397,5 +6397,7 @@
   "support.context.also": "እንዲሁም ሚናዎ፣ አሳሽዎ እና የETHR ልቀት።",
   "support.console_title": "ወደ ETHR የተላለፉ ጥያቄዎች",
   "support.console_none_open": "ETHRን የሚጠብቅ ምንም የለም።",
-  "support.console_not_found_desc": "እዚህ ያሉት አንድ ድርጅት ወደ ETHR ያስተላለፋቸው ጥያቄዎች ብቻ ናቸው።"
+  "support.console_not_found_desc": "እዚህ ያሉት አንድ ድርጅት ወደ ETHR ያስተላለፋቸው ጥያቄዎች ብቻ ናቸው።",
+  "analytics_page.no_one_scheduled": "የተመደበ የለም",
+  "analytics_page.no_one_scheduled_hint": "የዕረፍት ቀን ወይም በዓል"
 }
