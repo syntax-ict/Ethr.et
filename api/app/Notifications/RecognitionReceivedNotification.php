@@ -7,7 +7,7 @@ namespace App\Notifications;
 use App\Models\Recognition;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
-use App\Support\VoiceLabels;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -35,7 +35,7 @@ class RecognitionReceivedNotification extends Notification implements ShouldQueu
         return [
             'type' => 'recognition_received',
             'recognition_public_id' => $this->recognition->public_id,
-            'message' => $this->line(),
+            ...$this->line(),
             'url' => '/voice?tab=recognition',
         ];
     }
@@ -44,16 +44,17 @@ class RecognitionReceivedNotification extends Notification implements ShouldQueu
     {
         return (new MailMessage)
             ->subject(__('voice.notify.recognised_subject'))
-            ->line($this->line())
+            ->line($this->line()['message'])
             ->line('"'.$this->recognition->message.'"')
             ->action(__('voice.notify.open'), FrontendUrl::forNotifiable($notifiable, '/voice?tab=recognition'));
     }
 
-    private function line(): string
+    /** @return array{message: string, message_key: string, message_params: array<string, scalar|null>, message_labels?: array<string, string>, message_count?: int} */
+    private function line(): array
     {
-        return __('voice.notify.recognised', [
+        return NotificationMessage::make('voice.notify.recognised', [
             'name' => $this->recognition->from->name ?? '',
-            'value' => VoiceLabels::pick(__('voice.value'), $this->recognition->value),
-        ]);
+            'value' => $this->recognition->value,
+        ], ['value' => 'voice.value.'.$this->recognition->value]);
     }
 }
