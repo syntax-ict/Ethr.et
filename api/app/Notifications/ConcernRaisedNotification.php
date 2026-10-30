@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\Concern;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use App\Support\VoiceLabels;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -38,7 +39,7 @@ class ConcernRaisedNotification extends Notification implements ShouldQueue
         return [
             'type' => 'concern_raised',
             'concern_public_id' => $this->concern->public_id,
-            'message' => __('voice.notify.raised', ['category' => VoiceLabels::pick(__('voice.category'), $this->concern->category)]),
+            ...NotificationMessage::make('voice.notify.raised', ['category' => $this->concern->category], ['category' => 'voice.category.'.$this->concern->category]),
             'url' => '/voice/insights',
         ];
     }

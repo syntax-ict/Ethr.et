@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -41,7 +42,7 @@ class ExpiryReminderNotification extends Notification
         return [
             'count' => count($this->lines),
             'items' => $this->lines,
-            'message' => trans_choice('reminders.expiry.summary', count($this->lines), ['count' => count($this->lines)]),
+            ...NotificationMessage::make('reminders.expiry.summary', ['count' => count($this->lines)], count: count($this->lines)),
             'url' => '/employees',
         ];
     }

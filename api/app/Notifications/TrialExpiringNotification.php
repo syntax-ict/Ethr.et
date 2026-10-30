@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use App\Support\NotificationTemplates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -29,7 +30,7 @@ class TrialExpiringNotification extends Notification
         return [
             'days_remaining' => $this->daysRemaining,
             'trial_ends_at' => $this->trialEndsAt,
-            'message' => trans_choice('notification.inapp.trial_expiring', $this->daysRemaining, ['days' => $this->daysRemaining]),
+            ...NotificationMessage::make('notification.inapp.trial_expiring', ['days' => $this->daysRemaining], count: $this->daysRemaining),
             'url' => '/billing',
         ];
     }
