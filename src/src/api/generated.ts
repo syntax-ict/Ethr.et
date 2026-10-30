@@ -16957,6 +16957,23 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationException"];
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/rate-limit";
+                        /** @constant */
+                        title: "Too Many Attempts";
+                        /** @constant */
+                        status: 429;
+                        detail: string;
+                    };
+                };
+            };
         };
     };
     "balanceImport.template": {

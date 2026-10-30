@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Services\Auth\LockoutAlert;
+use App\Support\ThrottleIdentity;
 use Closure;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Http\JsonResponse;
@@ -86,8 +87,10 @@ class RateLimitLoginAttempts
     private function submittedIdentifier(Request $request): string
     {
         // Login accepts `identifier` (email, phone, or employee number) with
-        // `email` as a legacy alias — throttle on whichever was sent.
-        return mb_strtolower(trim($request->input('identifier') ?? $request->input('email') ?? 'unknown'));
+        // `email` as a legacy alias — throttle on whichever was sent, in its
+        // canonical form, so a phone number written another way is the same
+        // account (security review 2026-10-30).
+        return ThrottleIdentity::of($request->input('identifier') ?? $request->input('email')) ?: 'unknown';
     }
 
     private function identifier(Request $request): string
