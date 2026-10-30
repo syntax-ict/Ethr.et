@@ -12776,6 +12776,8 @@ export interface operations {
                 content: {
                     "application/json": {
                         key: string;
+                        kind: string;
+                        overridable: boolean;
                         state: string;
                         default_state: string;
                         reason: string | null;
@@ -13317,6 +13319,17 @@ export interface operations {
                         status: 403;
                         /** @constant */
                         detail: "This attendance method is not enabled for your organization.";
+                    } | {
+                        /** @constant */
+                        type: "https://ethr.et/errors/feature-unavailable";
+                        /** @constant */
+                        title: "Feature Unavailable";
+                        /** @constant */
+                        status: 403;
+                        detail: string;
+                        /** @constant */
+                        code: "feature-unavailable";
+                        reason: string;
                     };
                 };
             };
@@ -16693,6 +16706,7 @@ export interface operations {
                                 reason: string;
                             };
                         } | null;
+                        paused_features: string[];
                         tenant: components["schemas"]["TenantResource"] | null;
                         upload_limit_bytes: number;
                     };
@@ -18963,6 +18977,25 @@ export interface operations {
                     };
                 };
             };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/feature-unavailable";
+                        /** @constant */
+                        title: "Feature Unavailable";
+                        /** @constant */
+                        status: 503;
+                        detail: string;
+                        /** @constant */
+                        code: "feature-unavailable";
+                        reason: string;
+                    };
+                };
+            };
         };
     };
     "device.webhookZkteco": {
@@ -18997,6 +19030,25 @@ export interface operations {
                     };
                 };
             };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/feature-unavailable";
+                        /** @constant */
+                        title: "Feature Unavailable";
+                        /** @constant */
+                        status: 503;
+                        detail: string;
+                        /** @constant */
+                        code: "feature-unavailable";
+                        reason: string;
+                    };
+                };
+            };
         };
     };
     "device.webhookSuprema": {
@@ -19028,6 +19080,25 @@ export interface operations {
                     "application/json": {
                         /** @constant */
                         status: "unauthorized";
+                    };
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/feature-unavailable";
+                        /** @constant */
+                        title: "Feature Unavailable";
+                        /** @constant */
+                        status: 503;
+                        detail: string;
+                        /** @constant */
+                        code: "feature-unavailable";
+                        reason: string;
                     };
                 };
             };
@@ -26971,7 +27042,7 @@ export interface operations {
                         /** @constant */
                         status: 503;
                         /** @enum {string} */
-                        detail: "auth.otp_email_unavailable" | "auth.otp_unavailable";
+                        detail: "auth.otp_unavailable" | "auth.otp_email_paused" | "auth.otp_email_unavailable";
                     };
                 };
             };
@@ -29485,6 +29556,8 @@ export interface operations {
                     "application/json": {
                         data: {
                             key: string;
+                            kind: string;
+                            overridable: string;
                             on: boolean;
                             visible: boolean;
                             reason: string;
@@ -29527,6 +29600,8 @@ export interface operations {
                     "application/json": {
                         data: {
                             key: string;
+                            kind: string;
+                            overridable: string;
                             on: boolean;
                             visible: boolean;
                             reason: string;
@@ -29568,6 +29643,8 @@ export interface operations {
                     "application/json": {
                         data: {
                             key: string;
+                            kind: string;
+                            overridable: string;
                             on: boolean;
                             visible: boolean;
                             reason: string;
@@ -33915,6 +33992,7 @@ export interface operations {
                                 };
                                 order: string[];
                                 listed: boolean;
+                                paused: string[];
                             };
                             sign_in: {
                                 sso: boolean;

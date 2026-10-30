@@ -44,7 +44,32 @@ final class FeatureGate
 
     public function decide(Tenant $tenant, Feature $feature): FeatureDecision
     {
-        $state = $this->platformStates()[$feature->value] ?? $feature->defaultState();
+        return $this->resolve($tenant, $feature, $this->platformStates()[$feature->value] ?? $feature->defaultState());
+    }
+
+    /**
+     * The features the platform has switched off that this organisation would
+     * otherwise have, for the banner that tells its admins (owner decision D2).
+     * One its plan never included, or that was revoked for it, is not news.
+     *
+     * @return list<string>
+     */
+    public function pausedFor(Tenant $tenant): array
+    {
+        $paused = [];
+
+        foreach (Feature::cases() as $feature) {
+            if (($this->platformStates()[$feature->value] ?? $feature->defaultState()) === FeatureState::Disabled
+                && $this->resolve($tenant, $feature, FeatureState::Enabled)->on) {
+                $paused[] = $feature->value;
+            }
+        }
+
+        return $paused;
+    }
+
+    private function resolve(Tenant $tenant, Feature $feature, FeatureState $state): FeatureDecision
+    {
         $override = $this->overridesFor($tenant)[$feature->value] ?? null;
 
         if ($state === FeatureState::Disabled) {
@@ -63,7 +88,8 @@ final class FeatureGate
             return FeatureDecision::off(FeatureReason::NotInRollout);
         }
 
-        if (! $this->plans->allows($tenant, $feature->planFeature())) {
+        $plan = $feature->planFeature();
+        if ($plan !== null && ! $this->plans->allows($tenant, $plan)) {
             return FeatureDecision::off(FeatureReason::Plan);
         }
 
@@ -73,6 +99,23 @@ final class FeatureGate
     public function allows(Tenant $tenant, Feature $feature): bool
     {
         return $this->decide($tenant, $feature)->on;
+    }
+
+    /**
+     * For a surface that may have no organisation: the self-registration form,
+     * an email sign-in code asked for on the apex. With none, only the platform
+     * state decides, and Restricted is off, because a rollout names
+     * organisations and there is none to find in it.
+     */
+    public function allowsFor(?Tenant $tenant, Feature $feature): bool
+    {
+        if ($tenant !== null) {
+            return $this->allows($tenant, $feature);
+        }
+
+        $state = $this->platformStates()[$feature->value] ?? $feature->defaultState();
+
+        return $state === FeatureState::Enabled || $state === FeatureState::Hidden;
     }
 
     /** Forgets what this request read, after it changed a switch itself. */

@@ -223,9 +223,11 @@ describe('no rows means the plan gate, unchanged', function () {
         $tenant = gateTenant(['attendance', 'payroll', 'reports']);
         $gate = freshGate();
 
+        // A feature no plan decides is on: with no rows, nothing else can say no.
         foreach (Feature::cases() as $feature) {
+            $plan = $feature->planFeature();
             expect($gate->allows($tenant, $feature))
-                ->toBe(app(PlanFeatureService::class)->allows($tenant, $feature->planFeature()), $feature->value);
+                ->toBe($plan === null || app(PlanFeatureService::class)->allows($tenant, $plan), $feature->value);
         }
     });
 });
@@ -245,7 +247,7 @@ describe('the route gate', function () {
             ->assertJsonPath('type', 'https://ethr.et/errors/feature-unavailable')
             ->assertJsonPath('code', 'feature-unavailable')
             ->assertJsonPath('reason', 'platform_disabled')
-            ->assertJsonPath('detail', __('billing.feature_unavailable', ['feature' => __('billing.features.payroll')]));
+            ->assertJsonPath('detail', __('billing.feature_paused', ['feature' => __('billing.features.payroll')]));
     });
 
     test('a plan refusal keeps the plan gate\'s own answer', function () {

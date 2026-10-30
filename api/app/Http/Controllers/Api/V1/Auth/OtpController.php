@@ -45,7 +45,11 @@ class OtpController extends Controller
                 'type' => 'https://ethr.et/errors/otp-unavailable',
                 'title' => 'OTP Unavailable',
                 'status' => 503,
-                'detail' => __($channel === OtpService::CHANNEL_EMAIL ? 'auth.otp_email_unavailable' : 'auth.otp_unavailable'),
+                'detail' => __(match (true) {
+                    $channel !== OtpService::CHANNEL_EMAIL => 'auth.otp_unavailable',
+                    $this->otp->mailConfigured() => 'auth.otp_email_paused',
+                    default => 'auth.otp_email_unavailable',
+                }),
             ], 503);
         }
 

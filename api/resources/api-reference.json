@@ -10508,6 +10508,12 @@
                                                 ]
                                             }
                                         },
+                                        "paused_features": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
                                         "tenant": {
                                             "anyOf": [
                                                 {
@@ -10527,6 +10533,7 @@
                                         "permissions",
                                         "plan_features",
                                         "features",
+                                        "paused_features",
                                         "tenant",
                                         "upload_limit_bytes"
                                     ]
