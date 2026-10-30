@@ -38,8 +38,12 @@ export function NotificationBell() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-4 w-4" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative text-muted-foreground hover:text-foreground"
+        >
+          <Bell className="h-4 w-4" aria-hidden />
           {count > 0 && (
             <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
               {count > 99 ? "99+" : count}

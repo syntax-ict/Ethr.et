@@ -1511,19 +1511,14 @@
   "branch_rules.saved": "Branch rules saved",
   "branch_rules.title": "Rules by branch",
   "calendar.day": "Day",
-  "calendar.ec": "EC",
-  "calendar.ethiopian_active": "Ethiopian calendar. Click for Gregorian.",
   "calendar.ethiopian_day": "Ethiopian day",
   "calendar.ethiopian_entry_hint": "Enter the date in the Ethiopian calendar",
   "calendar.ethiopian_month": "Ethiopian month",
   "calendar.ethiopian_year": "Ethiopian year",
-  "calendar.gc": "GC",
-  "calendar.gregorian_active": "Gregorian calendar. Click for Ethiopian.",
   "calendar.month": "Month",
   "calendar.next_month": "Next month",
   "calendar.previous_month": "Previous month",
   "calendar.today": "Today",
-  "calendar.toggle": "Toggle calendar system",
   "calendar.year": "Year",
   "command.actions": "Quick Actions",
   "command.add_employee": "Add Employee",
@@ -6429,5 +6424,6 @@
   "analytics_page.points": "pts",
   "analytics_page.today_rate": "Today :rate%",
   "analytics_page.no_one_scheduled_today": "No one scheduled today",
-  "features.paused_banner": "ETHR has switched off :features for now. Your records are kept, and nothing needs doing on your side."
+  "features.paused_banner": "ETHR has switched off :features for now. Your records are kept, and nothing needs doing on your side.",
+  "header.language_calendar": "Language and calendar"
 }
