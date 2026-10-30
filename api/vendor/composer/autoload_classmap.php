@@ -1072,6 +1072,7 @@ return array(
     'App\\Support\\TenantLanding' => $baseDir . '/app/Support/TenantLanding.php',
     'App\\Support\\TenantSecurityPolicy' => $baseDir . '/app/Support/TenantSecurityPolicy.php',
     'App\\Support\\TenantTime' => $baseDir . '/app/Support/TenantTime.php',
+    'App\\Support\\ThrottleIdentity' => $baseDir . '/app/Support/ThrottleIdentity.php',
     'App\\Support\\UploadLimit' => $baseDir . '/app/Support/UploadLimit.php',
     'App\\Support\\VoiceLabels' => $baseDir . '/app/Support/VoiceLabels.php',
     'App\\Support\\WebhookEvents' => $baseDir . '/app/Support/WebhookEvents.php',

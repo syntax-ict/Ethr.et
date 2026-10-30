@@ -70,6 +70,7 @@ use App\Support\Mail\SmtpTransportWithCaFile;
 use App\Support\Scramble\DescribeApiDocument;
 use App\Support\Scramble\GroupOperationsByDomain;
 use App\Support\Scramble\TypeLoadedRelationOverlays;
+use App\Support\ThrottleIdentity;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -316,11 +317,11 @@ class AppServiceProvider extends ServiceProvider
         // Guessing one account's password stays at 10/min (and
         // RateLimitLoginAttempts adds a 15-minute lockout on failures); the
         // per-IP ceiling still bounds spraying many accounts from one address.
+        // ThrottleIdentity: a phone number counts once however it is written.
         RateLimiter::for('auth', function (Request $request) {
-            $account = mb_strtolower(trim((string) ($request->input('identifier')
+            $account = ThrottleIdentity::of($request->input('identifier')
                 ?? $request->input('email')
-                ?? $request->input('phone')
-                ?? '')));
+                ?? $request->input('phone'));
 
             return [
                 Limit::perMinute(10)->by('auth-account:'.$account.'|'.$request->ip()),
@@ -382,14 +383,23 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
 
+        // Per address asked for, by email or phone, else per caller; a phone
+        // number counts once however it is written. Each code is an SMS against
+        // the platform's shared daily cap, so one address is also held to 10 an
+        // hour and one caller to 30 a minute across addresses: rewriting one
+        // number used to empty the whole platform's cap in minutes (security
+        // review 2026-10-30).
         RateLimiter::for('otp', function (Request $request) {
-            // Per address asked for, by email or phone, else per caller.
             $email = $request->input('email');
             $key = is_string($email) && $email !== ''
-                ? 'email:'.mb_strtolower(trim($email))
-                : $request->input('phone', $request->ip());
+                ? 'email:'.ThrottleIdentity::of($email)
+                : 'phone:'.(ThrottleIdentity::of($request->input('phone')) ?: $request->ip());
 
-            return Limit::perMinute(3)->by($key);
+            return [
+                Limit::perMinute(3)->by('otp:'.$key),
+                Limit::perHour(10)->by('otp-hour:'.$key),
+                Limit::perMinute(30)->by('otp-ip:'.$request->ip()),
+            ];
         });
 
         RateLimiter::for('payroll-process', function (Request $request) {
