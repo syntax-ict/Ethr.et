@@ -107,7 +107,10 @@ enum NextStepId: string
     /**
      * The step a failing `ReadinessScorer` check becomes. A check the scorer
      * grows that is not mapped here simply does not surface, rather than
-     * surfacing with copy nobody wrote.
+     * surfacing with copy nobody wrote. The scorer no longer has an
+     * `admin_present` check (an active administrator implies one), so
+     * SetupAdminPresent is never produced; the case stays because stored
+     * dismissals may name it.
      */
     public static function fromReadinessCheck(string $check): ?self
     {
@@ -121,7 +124,6 @@ enum NextStepId: string
             'has_employees' => self::SetupEmployees,
             'employees_have_department' => self::SetupEmployeeDepartments,
             'attendance_source_configured' => self::SetupAttendanceSource,
-            'admin_present' => self::SetupAdminPresent,
             'active_admin' => self::SetupAdminActive,
             default => null,
         };

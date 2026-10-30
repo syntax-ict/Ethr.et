@@ -1026,6 +1026,7 @@ return array(
     'App\\Support\\Cents' => $baseDir . '/app/Support/Cents.php',
     'App\\Support\\CopyName' => $baseDir . '/app/Support/CopyName.php',
     'App\\Support\\Csv' => $baseDir . '/app/Support/Csv.php',
+    'App\\Support\\DepartmentMatch' => $baseDir . '/app/Support/DepartmentMatch.php',
     'App\\Support\\DeviceClock' => $baseDir . '/app/Support/DeviceClock.php',
     'App\\Support\\DeviceProof' => $baseDir . '/app/Support/DeviceProof.php',
     'App\\Support\\DeviceSimulator' => $baseDir . '/app/Support/DeviceSimulator.php',

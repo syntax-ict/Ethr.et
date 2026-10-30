@@ -1760,6 +1760,7 @@ class ComposerStaticInit870e919e58412b109fb9aa8379549848
         'App\\Support\\Cents' => __DIR__ . '/../..' . '/app/Support/Cents.php',
         'App\\Support\\CopyName' => __DIR__ . '/../..' . '/app/Support/CopyName.php',
         'App\\Support\\Csv' => __DIR__ . '/../..' . '/app/Support/Csv.php',
+        'App\\Support\\DepartmentMatch' => __DIR__ . '/../..' . '/app/Support/DepartmentMatch.php',
         'App\\Support\\DeviceClock' => __DIR__ . '/../..' . '/app/Support/DeviceClock.php',
         'App\\Support\\DeviceProof' => __DIR__ . '/../..' . '/app/Support/DeviceProof.php',
         'App\\Support\\DeviceSimulator' => __DIR__ . '/../..' . '/app/Support/DeviceSimulator.php',
