@@ -87,8 +87,17 @@ export function OrganisationSnapshot() {
           icon={CalendarCheck}
           tone="success"
           label={t("dashboard.present_today", "Present Today")}
-          value={`${data?.attendance_rate.today ?? 0}%`}
-          hint={`${data?.attendance_rate.period ?? 0}% ${t("dashboard.this_month", "this month")}`}
+          // Null when no one was expected at work: a rest day or holiday.
+          value={
+            data?.attendance_rate.today == null
+              ? t("analytics_page.no_one_scheduled", "No one scheduled")
+              : `${data.attendance_rate.today}%`
+          }
+          hint={
+            data?.attendance_rate.period == null
+              ? undefined
+              : `${data.attendance_rate.period}% ${t("dashboard.this_month", "this month")}`
+          }
           spark={presentSpark}
           href="/attendance"
         />

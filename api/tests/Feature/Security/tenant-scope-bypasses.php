@@ -11,6 +11,12 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-29, analytics figures: six fewer, all in `Services/Analytics/
+ * ExecutiveDashboardService`. The six payroll run lookups became one
+ * `countedRuns()`, which states `tenant_id` and the counted statuses on the
+ * same chain, and the attendance rate's two record queries became one
+ * `attendedShare()`, which states `tenant_id`. 178/72.)
+ *
  * (2026-10-29, get help: seven more, all in `Services/Support/
  * PlatformSupportInbox`, the platform console's reads of support requests
  * organisations passed to ETHR. The list, its status counts and the lookup of
@@ -277,7 +283,7 @@ return [
     'Services/Admin/PlatformAnalyticsService.php' => 3,
     'Services/Analytics/BranchAnalyticsService.php' => 5,
     'Services/Analytics/DepartmentAnalyticsService.php' => 5,
-    'Services/Analytics/ExecutiveDashboardService.php' => 22,
+    'Services/Analytics/ExecutiveDashboardService.php' => 16,
     'Services/Attendance/AttendanceEngine.php' => 2,
     // Retention sweep: deletes expired passkey challenges across every
     // organisation from the scheduler; selects and returns nothing.

@@ -17913,8 +17913,8 @@ export interface operations {
                             }[];
                         };
                         attendance_rate: {
-                            today: number;
-                            period: number;
+                            today: number | null;
+                            period: number | null;
                         };
                         payroll_summary: {
                             gross_cents: number;

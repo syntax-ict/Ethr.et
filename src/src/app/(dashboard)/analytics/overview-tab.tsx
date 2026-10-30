@@ -57,8 +57,20 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
             <StatCard
               icon={UserCheck}
               label={t("analytics_page.attendance_rate")}
-              value={`${data.attendance_rate.today}%`}
-              hint={t("analytics_page.today")}
+              // Null when no one was expected at work today.
+              value={
+                data.attendance_rate.today == null
+                  ? t("analytics_page.no_one_scheduled", "No one scheduled")
+                  : `${data.attendance_rate.today}%`
+              }
+              hint={
+                data.attendance_rate.today == null
+                  ? t(
+                      "analytics_page.no_one_scheduled_hint",
+                      "Rest day or holiday",
+                    )
+                  : t("analytics_page.today")
+              }
               tone="success"
             />
             <StatCard
