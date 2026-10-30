@@ -998,6 +998,7 @@ return array(
     'App\\Services\\Push\\WebPushSender' => $baseDir . '/app/Services/Push/WebPushSender.php',
     'App\\Services\\RecruitmentService' => $baseDir . '/app/Services/RecruitmentService.php',
     'App\\Services\\Report\\ReportEngine' => $baseDir . '/app/Services/Report/ReportEngine.php',
+    'App\\Services\\Report\\ReportPresets' => $baseDir . '/app/Services/Report/ReportPresets.php',
     'App\\Services\\RetirementCaseService' => $baseDir . '/app/Services/RetirementCaseService.php',
     'App\\Services\\Shift\\ShiftRotationResolver' => $baseDir . '/app/Services/Shift/ShiftRotationResolver.php',
     'App\\Services\\Sms\\ConfiguredSmsSender' => $baseDir . '/app/Services/Sms/ConfiguredSmsSender.php',

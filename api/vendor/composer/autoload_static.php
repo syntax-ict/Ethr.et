@@ -1732,6 +1732,7 @@ class ComposerStaticInit870e919e58412b109fb9aa8379549848
         'App\\Services\\Push\\WebPushSender' => __DIR__ . '/../..' . '/app/Services/Push/WebPushSender.php',
         'App\\Services\\RecruitmentService' => __DIR__ . '/../..' . '/app/Services/RecruitmentService.php',
         'App\\Services\\Report\\ReportEngine' => __DIR__ . '/../..' . '/app/Services/Report/ReportEngine.php',
+        'App\\Services\\Report\\ReportPresets' => __DIR__ . '/../..' . '/app/Services/Report/ReportPresets.php',
         'App\\Services\\RetirementCaseService' => __DIR__ . '/../..' . '/app/Services/RetirementCaseService.php',
         'App\\Services\\Shift\\ShiftRotationResolver' => __DIR__ . '/../..' . '/app/Services/Shift/ShiftRotationResolver.php',
         'App\\Services\\Sms\\ConfiguredSmsSender' => __DIR__ . '/../..' . '/app/Services/Sms/ConfiguredSmsSender.php',

@@ -397,7 +397,7 @@ final class RunRegisterService
      *
      * @return array<string, mixed>
      */
-    private function row(PayrollEntry $entry): array
+    public function row(PayrollEntry $entry): array
     {
         // The `array` cast: read as the loosely-typed attribute so the shape
         // checks below stay honest under analysis.
