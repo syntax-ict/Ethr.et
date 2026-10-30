@@ -8,6 +8,7 @@ import { useExecutiveAttendance } from "@/features/dashboard/executive-api";
 import { useT } from "@/lib/i18n/useT";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { dayKeyLabel } from "./axis-format";
+import type { DateRange } from "./period";
 import {
   AreaChart,
   Area,
@@ -31,10 +32,16 @@ import {
 } from "@/components/dashboard/chart-theme";
 import { ChartCard } from "@/components/dashboard/chart-card";
 
-export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
+export function AttendanceTab({
+  branchPublicId,
+  range,
+}: {
+  branchPublicId?: string;
+  range: DateRange;
+}) {
   const { t, locale } = useT();
   const { calendar } = useCalendar();
-  const query = useExecutiveAttendance({ branchPublicId });
+  const query = useExecutiveAttendance({ branchPublicId, ...range });
 
   // Every section below hides itself when it has no rows, so with no
   // attendance in the period the tab rendered an empty grid and nothing else.

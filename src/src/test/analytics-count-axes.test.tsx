@@ -8,6 +8,7 @@ import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { OverviewTab } from "@/app/(dashboard)/analytics/overview-tab";
 import { WorkforceTab } from "@/app/(dashboard)/analytics/workforce-tab";
 import { AttendanceTab } from "@/app/(dashboard)/analytics/attendance-tab";
+import { periodFor } from "@/app/(dashboard)/analytics/period";
 
 /**
  * Audit N34: "Hires Over Time" labelled its Y axis 0, 0.75, 1.5 — fractions of
@@ -96,7 +97,12 @@ describe("analytics head-count charts", () => {
         }),
       ),
     );
-    renderTab(<OverviewTab />);
+    renderTab(
+      <OverviewTab
+        period={periodFor("last_month", "gregorian", "2026-10-30")}
+        periodLabel="September 2026"
+      />,
+    );
 
     expect(await yAxes(2)).toEqual(["false", "false"]);
   });
@@ -136,7 +142,11 @@ describe("analytics head-count charts", () => {
         }),
       ),
     );
-    renderTab(<AttendanceTab />);
+    renderTab(
+      <AttendanceTab
+        range={periodFor("last_month", "gregorian", "2026-10-30").current}
+      />,
+    );
 
     expect(await yAxes(1)).toEqual(["false"]);
   });

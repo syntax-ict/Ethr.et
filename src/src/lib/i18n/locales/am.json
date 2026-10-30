@@ -6399,5 +6399,14 @@
   "support.console_none_open": "ETHRን የሚጠብቅ ምንም የለም።",
   "support.console_not_found_desc": "እዚህ ያሉት አንድ ድርጅት ወደ ETHR ያስተላለፋቸው ጥያቄዎች ብቻ ናቸው።",
   "analytics_page.no_one_scheduled": "የተመደበ የለም",
-  "analytics_page.no_one_scheduled_hint": "የዕረፍት ቀን ወይም በዓል"
+  "analytics_page.period": "ጊዜ",
+  "analytics_page.period_this_month": "ይህ ወር",
+  "analytics_page.period_last_month": "ያለፈው ወር",
+  "analytics_page.period_last_3_months": "ያለፉት 3 ወራት",
+  "analytics_page.period_last_12_months": "ያለፉት 12 ወራት",
+  "analytics_page.period_range": "ከ:from እስከ :to",
+  "analytics_page.vs_previous_period": "ከቀደመው ጊዜ ጋር",
+  "analytics_page.points": "ነጥብ",
+  "analytics_page.today_rate": "ዛሬ :rate%",
+  "analytics_page.no_one_scheduled_today": "ዛሬ የተመደበ የለም"
 }

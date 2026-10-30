@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { CalendarProvider } from "@/lib/calendar/calendar-context";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
@@ -32,8 +33,12 @@ function renderAt(path: string, page: ReactNode) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  // The dashboard shell's calendar: Analytics counts its periods in the
+  // viewer's calendar, so it reads the provider every page sits inside.
   return render(
-    <QueryClientProvider client={client}>{page}</QueryClientProvider>,
+    <QueryClientProvider client={client}>
+      <CalendarProvider>{page}</CalendarProvider>
+    </QueryClientProvider>,
   );
 }
 

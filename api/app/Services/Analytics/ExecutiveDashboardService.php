@@ -243,25 +243,26 @@ final class ExecutiveDashboardService
             ->whereDate('date', '<=', $last->toDateString())
             ->whereNotNull('check_in')
             ->where('status', '!=', AttendanceStatus::VOIDED)
+            // Plain rows: a year is tens of thousands of records, and a model
+            // per row with a date cast per read cost more than the query.
+            ->toBase()
             ->get(['employee_id', 'date']);
 
         foreach ($records as $record) {
-            $attended[$record->date->format('Y-m-d')][$record->employee_id] = true;
+            $attended[substr((string) $record->date, 0, 10)][(int) $record->employee_id] = true;
         }
 
         $expected = 0;
         $present = 0;
 
-        for ($day = $first->copy(); $day->lessThanOrEqualTo($last); $day = $day->copy()->addDay()) {
-            $key = $day->format('Y-m-d');
-
-            foreach ($this->expectedDays->onDate($employees, $day) as $id => $kind) {
+        foreach ($this->expectedDays->between($employees, $first, $last) as $day => $kinds) {
+            foreach ($kinds as $id => $kind) {
                 if ($kind !== ExpectedDay::WORKDAY) {
                     continue;
                 }
 
                 $expected++;
-                if (isset($attended[$key][$id])) {
+                if (isset($attended[$day][$id])) {
                     $present++;
                 }
             }
@@ -294,14 +295,44 @@ final class ExecutiveDashboardService
      */
     private const COUNTED_RUN_STATUSES = ['completed', ...PayrollRun::RELEASED_STATUSES];
 
-    /** @return Builder<PayrollRun> */
+    /**
+     * The counted runs that belong to [$from, $to]: those whose period's
+     * middle day falls inside it, the rule `localizedPeriodLabel()` names a
+     * run's month by. Until 2026-10-30 a run had to fit wholly inside the
+     * range, so an Ethiopian month (Tikimt is 11 October to 9 November) held
+     * no Gregorian-month run at all, and an organisation paying on Ethiopian
+     * months had none in any Gregorian one. A run's middle lies in exactly
+     * one month of either calendar.
+     *
+     * @return Builder<PayrollRun>
+     */
     private function countedRuns(int $tenantId, Carbon $from, Carbon $to): Builder
     {
-        return PayrollRun::withoutGlobalScope('tenant')
+        $first = $from->toDateString();
+        $last = $to->toDateString();
+
+        $ids = PayrollRun::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
             ->whereIn('status', self::COUNTED_RUN_STATUSES)
-            ->whereDate('period_start', '>=', $from)
-            ->whereDate('period_end', '<=', $to);
+            ->whereDate('period_start', '<=', $last)
+            ->whereDate('period_end', '>=', $first)
+            ->get(['id', 'period_start', 'period_end'])
+            ->filter(function (PayrollRun $run) use ($first, $last): bool {
+                if ($run->period_start === null || $run->period_end === null) {
+                    return false;
+                }
+
+                $middle = $run->period_start->copy()
+                    ->addDays(intdiv((int) $run->period_start->diffInDays($run->period_end), 2))
+                    ->toDateString();
+
+                return $middle >= $first && $middle <= $last;
+            })
+            ->modelKeys();
+
+        return PayrollRun::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->whereIn('id', $ids);
     }
 
     private function payrollSummary(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
@@ -346,12 +377,9 @@ final class ExecutiveDashboardService
     {
         $row = PayrollEntry::withoutGlobalScope('tenant')
             ->where('payroll_entries.tenant_id', $tenantId)
-            ->join('payroll_runs', 'payroll_entries.payroll_run_id', '=', 'payroll_runs.id')
+            ->whereIn('payroll_entries.payroll_run_id', $this->countedRuns($tenantId, $from, $to)->pluck('id'))
             ->join('employees', 'payroll_entries.employee_id', '=', 'employees.id')
             ->where('employees.branch_id', $branchId)
-            ->whereIn('payroll_runs.status', self::COUNTED_RUN_STATUSES)
-            ->whereDate('payroll_runs.period_start', '>=', $from)
-            ->whereDate('payroll_runs.period_end', '<=', $to)
             ->selectRaw('
                 coalesce(sum(payroll_entries.gross_cents), 0) as gross_cents,
                 coalesce(sum(payroll_entries.net_cents), 0) as net_cents,

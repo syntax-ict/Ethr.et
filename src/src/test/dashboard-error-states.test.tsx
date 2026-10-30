@@ -9,6 +9,7 @@ import { OverviewTab } from "@/app/(dashboard)/analytics/overview-tab";
 import { AttendanceTab } from "@/app/(dashboard)/analytics/attendance-tab";
 import { PayrollTab } from "@/app/(dashboard)/analytics/payroll-tab";
 import { WorkforceTab } from "@/app/(dashboard)/analytics/workforce-tab";
+import { periodFor } from "@/app/(dashboard)/analytics/period";
 
 /**
  * These views used to guard with `if (isLoading || !data) return <Skeleton />`.
@@ -34,17 +35,30 @@ const CASES = [
   {
     name: "OverviewTab",
     url: "*/api/v1/dashboard/executive",
-    element: <OverviewTab />,
+    element: (
+      <OverviewTab
+        period={periodFor("last_month", "gregorian", "2026-10-30")}
+        periodLabel="September 2026"
+      />
+    ),
   },
   {
     name: "AttendanceTab",
     url: "*/api/v1/dashboard/executive/attendance",
-    element: <AttendanceTab />,
+    element: (
+      <AttendanceTab
+        range={periodFor("last_month", "gregorian", "2026-10-30").current}
+      />
+    ),
   },
   {
     name: "PayrollTab",
     url: "*/api/v1/dashboard/executive/payroll",
-    element: <PayrollTab />,
+    element: (
+      <PayrollTab
+        range={periodFor("last_month", "gregorian", "2026-10-30").current}
+      />
+    ),
   },
   {
     name: "WorkforceTab",

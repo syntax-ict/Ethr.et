@@ -61,9 +61,10 @@ final class ExpectedDays
 
         $leave = $this->leaveDays($employee->tenant_id, [$employee->id], $from, $to)[$employee->id] ?? [];
 
+        $window = $this->window($employee);
         $days = [];
         foreach ($working as $day => $works) {
-            $days[$day] = $this->classify($employee, $day, $works, isset($holidays[$day]), isset($leave[$day]));
+            $days[$day] = $this->classify(self::within($window, $day), $works, isset($holidays[$day]), isset($leave[$day]));
         }
 
         return $days;
@@ -99,8 +100,7 @@ final class ExpectedDays
             );
 
             $kinds[$employee->id] = $this->classify(
-                $employee,
-                $day,
+                self::within($this->window($employee), $day),
                 $working[$employee->id] ?? false,
                 isset($holidaysByBranch[$branch ?? 0][$day]),
                 isset($leave[$employee->id][$day]),
@@ -110,9 +110,60 @@ final class ExpectedDays
         return $kinds;
     }
 
-    private function classify(Employee $employee, string $day, bool $works, bool $holiday, bool $onLeave): ExpectedDay
+    /**
+     * onDate() for every date in [$from, $to], with each lookup made once for
+     * the whole range: the assignments, the holidays of each branch present
+     * and the approved leave. Analytics asks this for up to a year.
+     *
+     * @param  Collection<int, Employee>  $employees  all of one tenant
+     * @return array<string, array<int, ExpectedDay>> Y-m-d => employee id => kind
+     */
+    public function between(Collection $employees, CarbonInterface $from, CarbonInterface $to): array
     {
-        if (! $this->employedOn($employee, $day)) {
+        $first = $employees->first();
+
+        if ($first === null) {
+            return [];
+        }
+
+        $working = $this->shifts->workingBetween($employees, $from, $to, $this->workingWeek($first));
+        $leave = $this->leaveDays($first->tenant_id, $employees->pluck('id')->all(), $from, $to);
+
+        $holidaysByBranch = [];
+        $kinds = [];
+
+        // Attributes are read once per employee, outside the day loop: each
+        // read goes through Eloquent's accessors, and a year of 150 people
+        // made three of them per day cost 1.7 seconds.
+        foreach ($employees as $employee) {
+            $id = $employee->id;
+            $branch = $employee->branch_id ?? 0;
+            $holidaysByBranch[$branch] ??= $this->holidays->getHolidayDates(
+                $employee->tenant_id,
+                Carbon::parse($from->format('Y-m-d')),
+                Carbon::parse($to->format('Y-m-d')),
+                $employee->branch_id,
+            );
+            $holidays = $holidaysByBranch[$branch];
+            $onLeave = $leave[$id] ?? [];
+            $window = $this->window($employee);
+
+            foreach ($working[$id] ?? [] as $day => $works) {
+                $kinds[$day][$id] = $this->classify(
+                    self::within($window, $day),
+                    $works,
+                    isset($holidays[$day]),
+                    isset($onLeave[$day]),
+                );
+            }
+        }
+
+        return $kinds;
+    }
+
+    private function classify(bool $employed, bool $works, bool $holiday, bool $onLeave): ExpectedDay
+    {
+        if (! $employed) {
             return ExpectedDay::NOT_EMPLOYED;
         }
 
@@ -128,21 +179,37 @@ final class ExpectedDays
     }
 
     /**
-     * Inside the hire and termination dates. Someone who has left or been
-     * suspended with no termination date on file cannot be dated, so they are
-     * expected on no day rather than absent on every one.
+     * The days an employee is on the books: from the hire date to the
+     * termination date. Someone who has left or been suspended with no
+     * termination date on file cannot be dated, so they are expected on no
+     * day rather than absent on every one.
+     *
+     * Read once per employee: a year of an organisation is tens of thousands
+     * of days, and each read of a cast attribute builds a new Carbon.
+     *
+     * @return array{hired: ?string, ends: ?string, undated: bool}
      */
-    private function employedOn(Employee $employee, string $day): bool
+    private function window(Employee $employee): array
     {
-        if ($employee->hire_date !== null && $day < $employee->hire_date->format('Y-m-d')) {
+        return [
+            'hired' => $employee->hire_date?->format('Y-m-d'),
+            'ends' => $employee->termination_date?->format('Y-m-d'),
+            'undated' => in_array($employee->status, [...EmployeeStatus::leaving(), EmployeeStatus::SUSPENDED], true),
+        ];
+    }
+
+    /** @param  array{hired: ?string, ends: ?string, undated: bool}  $window */
+    private static function within(array $window, string $day): bool
+    {
+        if ($window['hired'] !== null && $day < $window['hired']) {
             return false;
         }
 
-        if ($employee->termination_date !== null) {
-            return $day <= $employee->termination_date->format('Y-m-d');
+        if ($window['ends'] !== null) {
+            return $day <= $window['ends'];
         }
 
-        return ! in_array($employee->status, [...EmployeeStatus::leaving(), EmployeeStatus::SUSPENDED], true);
+        return ! $window['undated'];
     }
 
     /** @return list<int> */
