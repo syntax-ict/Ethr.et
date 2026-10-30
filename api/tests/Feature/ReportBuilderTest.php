@@ -39,7 +39,7 @@ test('hr admin can export report as csv', function () {
 
     $response->assertOk();
     expect($response->headers->get('Content-Type'))->toContain('text/csv');
-    expect($response->getContent())->toContain('name,email');
+    expect($response->getContent())->toContain('Name,Email');
 });
 
 test('hr admin can export report as pdf', function () {

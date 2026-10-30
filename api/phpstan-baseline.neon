@@ -799,12 +799,6 @@ parameters:
 			path: app/Models/Employee.php
 
 		-
-			message: '#^Method App\\Models\\Employee\:\:costCenter\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/Employee.php
-
-		-
 			message: '#^Method App\\Models\\Employee\:\:directReports\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1015,18 +1009,6 @@ parameters:
 			path: app/Models/LeaveBalance.php
 
 		-
-			message: '#^Method App\\Models\\LeaveBalance\:\:employee\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/LeaveBalance.php
-
-		-
-			message: '#^Method App\\Models\\LeaveBalance\:\:leaveType\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/LeaveBalance.php
-
-		-
 			message: '#^Method App\\Models\\LeaveBalance\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1124,12 +1106,6 @@ parameters:
 
 		-
 			message: '#^Class App\\Models\\PayrollEntry uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/PayrollEntry.php
-
-		-
-			message: '#^Method App\\Models\\PayrollEntry\:\:employee\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/PayrollEntry.php
@@ -1698,24 +1674,6 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Services/Payroll/PayslipPdfService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Report/ReportEngine.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\LeaveBalance\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Services/Report/ReportEngine.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\LeaveBalance\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 1
-			path: app/Services/Report/ReportEngine.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'

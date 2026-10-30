@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Report;
 
+use App\Exceptions\TenantRequired;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Report\GenerateReportRequest;
 use App\Http\Requests\Report\SaveReportRequest;
@@ -13,6 +14,7 @@ use App\Models\SavedReport;
 use App\Models\ScheduledReport;
 use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
+use App\Services\Report\ReportPresets;
 use App\Support\Csv;
 use App\Support\StringList;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -33,6 +35,19 @@ class ReportController extends Controller
         Gate::authorize('report.generate');
 
         return response()->json(['sources' => $this->engine->sources()]);
+    }
+
+    /**
+     * Ready-made reports for this organisation: standard ones, and those
+     * suited to its type and how its people work, recommended first.
+     */
+    public function presets(Request $request, ReportPresets $presets): JsonResponse
+    {
+        Gate::authorize('report.generate');
+
+        $tenant = app(CurrentTenant::class)->get() ?? throw new TenantRequired;
+
+        return response()->json($presets->for($tenant, $request->user()));
     }
 
     public function generate(GenerateReportRequest $request): JsonResponse
@@ -85,6 +100,7 @@ class ReportController extends Controller
     /** @param array<int, array<string, mixed>> $rows */
     private function exportPdf(array $rows, string $filename): Response
     {
+        $rows = $this->engine->presentable($rows);
         $columns = $rows === [] ? [] : array_keys($rows[0]);
         $pdf = Pdf::loadView('reports.export', ['columns' => $columns, 'rows' => $rows]);
         $pdf->setPaper('a4', 'landscape');
