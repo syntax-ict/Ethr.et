@@ -56,9 +56,9 @@ class IssueActivationCodeRequest extends FormRequest
 
             if ($actor->mfa_enabled) {
                 $code = (string) $this->input('mfa_code', '');
-                $secret = (string) $actor->mfa_secret;
 
-                if ($code === '' || $secret === '' || ! app(MfaService::class)->verify($secret, $code)) {
+                // verifyFor counts a wrong code toward the account's lockout.
+                if ($code === '' || (string) $actor->mfa_secret === '' || ! app(MfaService::class)->verifyFor($actor, $code)) {
                     $validator->errors()->add('mfa_code', __('validation.current_password'));
                 }
             }
