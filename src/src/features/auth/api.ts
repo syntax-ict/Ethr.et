@@ -1,10 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 import type { User } from "@/api/types";
 import { clearApiCache } from "@/lib/api-cache";
+import {
+  clearOfflineIdentity,
+  readOfflineIdentity,
+  saveOfflineIdentity,
+} from "./offline-identity";
 
-interface MeResponse {
+export interface MeResponse {
   user: User;
   /** Abilities resolved server-side from the base role or custom role. */
   permissions: string[];
@@ -36,16 +42,42 @@ interface MeResponse {
       accent_color?: string;
     } | null;
   } | null;
+  /**
+   * Not from the API: set when the server could not be reached and this is
+   * the identity kept on the device (`offline-identity.ts`).
+   */
+  from_device?: boolean;
+}
+
+/**
+ * No answer at all (offline, timed out) or the server failing, as opposed to
+ * an answer about the session. Only these fall back to the kept identity; a
+ * 401 is the server saying this browser is not signed in, and is never
+ * covered up.
+ */
+function serverUnreachable(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  return !error.response || error.response.status >= 500;
 }
 
 const meQueryOptions = {
   queryKey: ["auth", "me"],
-  queryFn: async () => {
-    const { data } = await apiClient.get<MeResponse>("/auth/me");
-    return data;
+  queryFn: async (): Promise<MeResponse> => {
+    try {
+      const { data } = await apiClient.get<MeResponse>("/auth/me");
+      saveOfflineIdentity(data);
+      return data;
+    } catch (error) {
+      const kept = serverUnreachable(error) ? readOfflineIdentity() : null;
+      if (kept) return kept;
+      throw error;
+    }
   },
   retry: false,
-  staleTime: 5 * 60 * 1000,
+  // The kept identity is stale at once, so the first chance to reach the
+  // server (reconnecting, a remount) replaces it with the real answer.
+  staleTime: (query: { state: { data?: MeResponse } }) =>
+    query.state.data?.from_device ? 0 : 5 * 60 * 1000,
 } as const;
 
 export function useCurrentUser() {
@@ -193,6 +225,7 @@ export function useLogout() {
     // edge case.
     onSettled: async () => {
       queryClient.clear();
+      clearOfflineIdentity();
       await clearApiCache();
       window.location.href = "/login";
     },

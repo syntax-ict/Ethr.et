@@ -2,9 +2,22 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { isAxiosError } from "axios";
 import { useCurrentUser } from "@/features/auth/api";
+import { clearOfflineIdentity } from "@/features/auth/offline-identity";
 import { useT } from "@/lib/i18n/useT";
 import { Loader2 } from "lucide-react";
+
+/**
+ * The server's answer that this browser is not signed in: 401, or 419 for an
+ * expired session. Anything else, a network error above all, says nothing
+ * about the session.
+ */
+function isSignedOut(error: unknown): boolean {
+  if (!isAxiosError(error)) return false;
+  const status = error.response?.status;
+  return status === 401 || status === 419;
+}
 
 /**
  * The gate in front of every authenticated screen — it wraps the whole
@@ -13,13 +26,16 @@ import { Loader2 } from "lucide-react";
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { t } = useT();
-  const { data: user, isLoading, isError } = useCurrentUser();
+  const { data: user, isLoading, error } = useCurrentUser();
+  const signedOut = isSignedOut(error);
 
   useEffect(() => {
-    if (!isLoading && (isError || !user)) {
+    if (isLoading) return;
+    if (signedOut) clearOfflineIdentity();
+    if (signedOut || !user) {
       router.replace("/login");
     }
-  }, [isLoading, isError, user, router]);
+  }, [isLoading, signedOut, user, router]);
 
   if (isLoading) {
     return (
@@ -37,12 +53,18 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // `isError` as well as `!user`, not just `!user`. TanStack keeps the last
+  // `signedOut` as well as `!user`, not just `!user`. TanStack keeps the last
   // successful `data` when a refetch fails, so a session that has just been
-  // revoked or expired leaves `user` populated while `isError` flips true —
+  // revoked or expired leaves `user` populated while the refetch answers 401 —
   // and checking only `!user` kept the dashboard on screen until the redirect
   // above landed, for exactly the user whose access had just been taken away.
-  if (isError || !user) {
+  //
+  // Only the server's verdict counts, not any error. Offline, /auth/me gets no
+  // answer at all (the service worker never stores it), and treating that as
+  // signed out sent a field worker who opened the installed app with no
+  // signal, or kept it open past the five-minute refetch, to /login, where
+  // nobody can sign in offline. A failure with no verdict keeps the last user.
+  if (signedOut || !user) {
     return null;
   }
 

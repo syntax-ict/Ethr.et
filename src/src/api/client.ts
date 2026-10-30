@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
+import { clearOfflineIdentity } from "@/features/auth/offline-identity";
 import { clearApiCache } from "@/lib/api-cache";
 import { hostContext } from "@/lib/auth/host-context";
 import { getLocale } from "@/lib/i18n/translations";
@@ -206,6 +207,7 @@ apiClient.interceptors.response.use(
 
         return apiClient(originalRequest);
       } catch {
+        clearOfflineIdentity();
         await clearApiCache();
         window.location.href = "/login";
       }
