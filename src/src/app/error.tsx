@@ -24,10 +24,14 @@ export default function GlobalError({
   const { t } = useT();
 
   useEffect(() => {
-    Sentry.captureException(error, {
-      tags: { boundary: "root" },
-      extra: { digest: error.digest },
-    });
+    // Guarded on the DSN so a build without one carries no Sentry code (see
+    // instrumentation-client.ts).
+    if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+      Sentry.captureException(error, {
+        tags: { boundary: "root" },
+        extra: { digest: error.digest },
+      });
+    }
   }, [error]);
 
   return (
