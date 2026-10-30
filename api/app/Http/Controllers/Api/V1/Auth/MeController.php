@@ -27,11 +27,14 @@ class MeController extends Controller
         $user = $request->user();
         /** @var Employee|null $employee */
         $employee = $user->employee;
+        // An account with no employee record shows the name it gave (the
+        // administrator who registered the organisation), not nothing.
+        $name = $employee->name ?? $user->display_name;
 
         return response()->json([
             'user' => [
                 'public_id' => $user->public_id,
-                'name' => $employee?->name,
+                'name' => $name,
                 'name_am' => $employee?->name_am,
                 'email' => $user->email,
                 'phone' => $user->phone,

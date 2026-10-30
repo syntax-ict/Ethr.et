@@ -10449,7 +10449,6 @@ export interface components {
              */
             password: string;
             organization_type?: string | null;
-            template_slug?: string | null;
             password_confirmation: string;
         };
         /** RejectCorrectionRequest */
@@ -10772,8 +10771,9 @@ export interface components {
                 email?: string | null;
                 phone?: string | null;
                 employee_code?: string | null;
-                /** Format: date-time */
+                /** Format: date */
                 hire_date?: string | null;
+                department?: string | null;
             }[];
         };
         /** StatutoryLayoutResource */
@@ -12450,6 +12450,7 @@ export interface components {
         UserResource: {
             public_id: string;
             email: string | null;
+            display_name: string | null;
             username: string | null;
             phone: string | null;
             role: components["schemas"]["UserRole"];
@@ -29101,6 +29102,7 @@ export interface operations {
                         updated_at: string | null;
                         showcase_consented_at: string | null;
                         showcase_hidden: boolean;
+                        showcase_established: boolean;
                         deleted_at: string | null;
                         usage: {
                             employees: string;
@@ -32931,6 +32933,9 @@ export interface operations {
                         shown: string;
                         hidden_by_platform: boolean;
                         active: boolean;
+                        established: boolean;
+                        /** @constant */
+                        min_employees: 5;
                     };
                 };
             };
@@ -32962,6 +32967,9 @@ export interface operations {
                         shown: string;
                         hidden_by_platform: boolean;
                         active: boolean;
+                        established: boolean;
+                        /** @constant */
+                        min_employees: 5;
                     };
                 };
             };
@@ -34646,6 +34654,7 @@ export interface operations {
                         user: {
                             public_id: string;
                             email: string | null;
+                            display_name: string | null;
                             phone: string | null;
                             locale: string;
                             role: components["schemas"]["UserRole"];

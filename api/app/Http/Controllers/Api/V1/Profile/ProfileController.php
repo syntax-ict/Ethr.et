@@ -45,6 +45,7 @@ class ProfileController extends Controller
             'user' => [
                 'public_id' => $user->public_id,
                 'email' => $user->email,
+                'display_name' => $user->display_name,
                 'phone' => $user->phone,
                 'locale' => $user->locale,
                 'role' => $user->role,
