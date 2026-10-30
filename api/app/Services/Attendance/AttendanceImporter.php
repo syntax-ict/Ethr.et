@@ -6,13 +6,16 @@ namespace App\Services\Attendance;
 
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
+use App\Enums\OrgScope;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
+use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\Payroll\PayrollPeriodLock;
 use App\Support\Csv;
 use App\Support\TenantTime;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 
 final class AttendanceImporter
@@ -36,7 +39,7 @@ final class AttendanceImporter
      *
      * @scramble-return array{rows: list<array{employee_code: string, date: string, check_in_time: string, check_out_time?: string, line: int, errors: list<string>, valid: bool}>, valid: int, invalid: int, errors: list<string>}
      */
-    public function preview(UploadedFile $file): array
+    public function preview(UploadedFile $file, ?User $by = null): array
     {
         $lines = Csv::lines((string) file_get_contents($file->getRealPath()));
 
@@ -82,9 +85,11 @@ final class AttendanceImporter
             }
 
             if (empty($rowErrors)) {
-                $employee = Employee::where('employee_code', $row['employee_code'])->first();
+                $employee = $this->employees($by)->where('employee_code', $row['employee_code'])->first();
                 if (! $employee) {
                     $rowErrors[] = "Employee '{$row['employee_code']}' not found";
+                } elseif ($by !== null && $employee->id === $by->employee_id) {
+                    $rowErrors[] = __('attendance.import_row_self', ['row' => $i + 2]);
                 }
             }
 
@@ -109,7 +114,7 @@ final class AttendanceImporter
         ];
     }
 
-    public function commit(string $importKey, array $rows): array
+    public function commit(string $importKey, array $rows, ?User $by = null): array
     {
         $tenant = app(CurrentTenant::class)->get();
         $zone = TenantTime::zone($tenant);
@@ -131,9 +136,14 @@ final class AttendanceImporter
                 continue;
             }
 
-            $employee = Employee::where('employee_code', $row['employee_code'])->first();
+            $employee = $this->employees($by)->where('employee_code', $row['employee_code'])->first();
             if (! $employee) {
                 $errors[] = "Row {$i}: Employee '{$row['employee_code']}' not found";
+
+                continue;
+            }
+            if ($by !== null && $employee->id === $by->employee_id) {
+                $errors[] = __('attendance.import_row_self', ['row' => $i]);
 
                 continue;
             }
@@ -191,5 +201,21 @@ final class AttendanceImporter
             'skipped' => $skipped,
             'errors' => $errors,
         ];
+    }
+
+    /**
+     * The employees a row may name: those the importer's scope reaches, since
+     * attendance.manage can be given to a role scoped to one branch. Someone
+     * outside it reads as not found, the same as a code that does not exist.
+     *
+     * @return Builder<Employee>
+     */
+    private function employees(?User $by): Builder
+    {
+        $query = Employee::query();
+
+        return $by === null || $by->orgScope() === OrgScope::ALL
+            ? $query
+            : $by->scopeAccessibleEmployees($query);
     }
 }
