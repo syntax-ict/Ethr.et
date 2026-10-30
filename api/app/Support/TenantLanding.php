@@ -139,14 +139,14 @@ final class TenantLanding
 
     /**
      * Whether the organisation's portal pages may appear in search results
-     * and in its sitemap: it is in use (active, or a trial not yet ended) and
+     * and in its sitemap: it is established (Tenant::scopeEstablished) and
      * has not switched listing off. One rule for the page head, the
      * `X-Robots-Tag` header and the sitemap, so a suspended organisation or
      * an ended trial leaves all three at once.
      */
     public static function indexable(Tenant $tenant): bool
     {
-        return $tenant->isOperational() && self::present($tenant)['listed'];
+        return self::present($tenant)['listed'] && $tenant->isEstablished();
     }
 
     /**

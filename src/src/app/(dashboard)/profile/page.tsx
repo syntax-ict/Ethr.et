@@ -67,7 +67,8 @@ function ProfileOverview({
   const employee = profile.employee;
   const user = profile.user;
   const pendingUpdates = profile.pending_updates ?? [];
-  const displayName = employee?.name ?? user.email?.split("@")[0] ?? "";
+  const displayName =
+    employee?.name ?? user.display_name ?? user.email?.split("@")[0] ?? "";
 
   return (
     <div className="space-y-6">

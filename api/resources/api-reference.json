@@ -35598,6 +35598,13 @@
                                         },
                                         "active": {
                                             "type": "boolean"
+                                        },
+                                        "established": {
+                                            "type": "boolean"
+                                        },
+                                        "min_employees": {
+                                            "type": "integer",
+                                            "const": 5
                                         }
                                     },
                                     "required": [
@@ -35605,7 +35612,9 @@
                                         "consented_at",
                                         "shown",
                                         "hidden_by_platform",
-                                        "active"
+                                        "active",
+                                        "established",
+                                        "min_employees"
                                     ]
                                 }
                             }
@@ -50115,7 +50124,14 @@
                                         "string",
                                         "null"
                                     ],
-                                    "format": "date-time"
+                                    "format": "date"
+                                },
+                                "department": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
                                 }
                             }
                         },

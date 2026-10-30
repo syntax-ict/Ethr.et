@@ -100,7 +100,7 @@ export function ReadinessStep({ onLive }: { onLive?: () => void }) {
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               {Object.entries(report.categories).map(([name, cat]) => (
                 <Card key={name}>
                   <CardContent className="p-4">
@@ -127,7 +127,7 @@ export function ReadinessStep({ onLive }: { onLive?: () => void }) {
                             <Circle className="h-3.5 w-3.5 shrink-0" />
                           )}
                           <span className={c.passed ? "" : "text-foreground"}>
-                            {c.label}
+                            {t(`setup2.check_${c.id}`, c.label)}
                           </span>
                         </li>
                       ))}
@@ -149,7 +149,7 @@ export function ReadinessStep({ onLive }: { onLive?: () => void }) {
                       className="flex items-center justify-between gap-2"
                     >
                       <span className="text-sm text-muted-foreground">
-                        {gap.label}
+                        {t(`setup2.check_${gap.id}`, gap.label)}
                       </span>
                       <Button
                         asChild

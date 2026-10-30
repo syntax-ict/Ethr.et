@@ -55,21 +55,25 @@ class ShowcaseConsentController extends Controller
     }
 
     /**
-     * @return array{listed: bool, consented_at: string|null, shown: bool, hidden_by_platform: bool, active: bool}
+     * @return array{listed: bool, consented_at: string|null, shown: bool, hidden_by_platform: bool, active: bool, established: bool, min_employees: int}
      */
     private function state(Tenant $tenant): array
     {
-        // Active, or a free trial that has not ended (Tenant::isOperational).
+        // Active, or a free trial that has not ended (Tenant::isOperational);
+        // a trial is named only once it has people (Tenant::isEstablished).
         $active = $tenant->isOperational();
+        $established = $tenant->isEstablished();
         $hidden = $tenant->showcase_hidden_at !== null;
         $listed = $tenant->showcase_consented_at !== null;
 
         return [
             'listed' => $listed,
             'consented_at' => $tenant->showcase_consented_at?->toIso8601String(),
-            'shown' => $listed && $active && ! $hidden,
+            'shown' => $listed && $established && ! $hidden,
             'hidden_by_platform' => $hidden,
             'active' => $active,
+            'established' => $established,
+            'min_employees' => Tenant::PUBLIC_MIN_EMPLOYEES,
         ];
     }
 }

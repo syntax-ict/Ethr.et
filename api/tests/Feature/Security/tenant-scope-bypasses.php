@@ -11,6 +11,16 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-10-30, onboarding review: two more, both in `Models/Tenant.php`. A
+ * trial organisation is named in public (Trusted by, the portals sitemap,
+ * `index` on its portal) only once it holds `PUBLIC_MIN_EMPLOYEES` people, and
+ * the pages that ask resolve no tenant. `scopeEstablished()` counts employees
+ * through `whereHas('employees')`, correlated on `employees.tenant_id =
+ * tenants.id`; `isEstablished()` counts through `$this->employees()`, keyed
+ * on the tenant in hand. Both return a count, never a row. `ReadinessScorer`
+ * stays at eleven: its employee reads now share one builder stating
+ * `tenant_id`, and a salary check reads contracts stating it too. 186/72.)
+ *
  * (2026-10-29, get help: seven more, all in `Services/Support/
  * PlatformSupportInbox`, the platform console's reads of support requests
  * organisations passed to ETHR. The list, its status counts and the lookup of
@@ -271,7 +281,7 @@ return [
     // kiosk terminal has no login to name the tenant otherwise (N47).
     'Models/KioskSession.php' => 1,
     'Models/PersonalAccessToken.php' => 1,
-    'Models/Tenant.php' => 2,
+    'Models/Tenant.php' => 4,
     'Notifications/Concerns/RespectsNotificationPreferences.php' => 1,
     'Services/Accounting/AccountingExportService.php' => 1,
     'Services/Admin/PlatformAnalyticsService.php' => 3,

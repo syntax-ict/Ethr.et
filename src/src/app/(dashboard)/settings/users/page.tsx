@@ -323,7 +323,7 @@ export default function UsersSettingsPage() {
                   cells: [
                     <div key="u">
                       <span className="block font-medium text-foreground">
-                        {u.employee?.name ?? u.email}
+                        {u.employee?.name ?? u.display_name ?? u.email}
                       </span>
                       <span className="block text-xs text-muted-foreground">
                         {u.email}
