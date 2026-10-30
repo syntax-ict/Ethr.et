@@ -50,7 +50,13 @@ class ProfilePreferencesController extends Controller
             $changes['locale'] = $data['locale'];
         }
 
+        // `users.locale` defaults to "en" and several sign-up paths write "en",
+        // so the column alone cannot say whether anyone chose it. The marker
+        // does: only a chosen language follows the user to a new device.
         $display = array_intersect_key($data, self::DEFAULTS);
+        if (isset($data['locale'])) {
+            $display['locale_chosen'] = true;
+        }
         if ($display !== []) {
             // Merge, not replace: sending only `theme` must not drop the calendar.
             $changes['preferences'] = array_merge(
@@ -68,7 +74,7 @@ class ProfilePreferencesController extends Controller
     }
 
     /**
-     * @return array{locale: string, theme: string, calendar: string, punch_reminders: bool, auto_check_in: bool}
+     * @return array{locale: string, locale_chosen: bool, theme: string, calendar: string, punch_reminders: bool, auto_check_in: bool}
      */
     public static function present(User $user): array
     {
@@ -76,6 +82,7 @@ class ProfilePreferencesController extends Controller
 
         return [
             'locale' => $user->locale ?? 'en',
+            'locale_chosen' => ($stored['locale_chosen'] ?? false) === true,
             'theme' => is_string($stored['theme'] ?? null) ? $stored['theme'] : self::DEFAULTS['theme'],
             'calendar' => CalendarPreference::forUser($user),
             'punch_reminders' => (bool) ($stored['punch_reminders'] ?? self::DEFAULTS['punch_reminders']),
