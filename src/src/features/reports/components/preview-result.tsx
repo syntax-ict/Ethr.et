@@ -5,6 +5,8 @@ import { useCalendar } from "@/lib/calendar/calendar-context";
 import {
   formatReportCell,
   reportFieldLabel,
+  reportGroupLabel,
+  reportSourceLabel,
 } from "@/features/reports/field-labels";
 import { FileSpreadsheet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +37,7 @@ export function PreviewResult({ result }: { result: ReportResult }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
-            <span className="capitalize">{result.source}</span> ·{" "}
+            <span>{reportSourceLabel(t, result.source)}</span> ·{" "}
             {t("reports_page.records_count", ":count records", {
               count: result.total,
             })}
@@ -64,7 +66,8 @@ export function PreviewResult({ result }: { result: ReportResult }) {
             <div className="flex flex-wrap gap-2">
               {Object.entries(groups).map(([key, count]) => (
                 <Badge key={key} variant="outline" className="text-xs">
-                  {key}: <span className="ml-1 font-semibold">{count}</span>
+                  {reportGroupLabel(t, key)}:{" "}
+                  <span className="ml-1 font-semibold">{count}</span>
                 </Badge>
               ))}
             </div>
@@ -76,7 +79,7 @@ export function PreviewResult({ result }: { result: ReportResult }) {
                 {Object.entries(groupSums).map(([key, sums]) => (
                   <div key={key} className="text-xs">
                     <span className="font-semibold text-foreground">
-                      {key}:
+                      {reportGroupLabel(t, key)}:
                     </span>{" "}
                     {Object.entries(sums)
                       .map(

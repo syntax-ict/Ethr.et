@@ -109,18 +109,6 @@ export function ReportFilterValue({
     );
   }
 
-  if (field === "month") {
-    return (
-      <Input
-        type="month"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={label}
-        className="h-8 flex-1"
-      />
-    );
-  }
-
   if (field === "year") {
     return (
       <Input

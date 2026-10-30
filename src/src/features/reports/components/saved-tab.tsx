@@ -41,7 +41,10 @@ import {
 } from "@/features/reports/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
-import { reportFieldLabel } from "@/features/reports/field-labels";
+import {
+  reportFieldLabel,
+  reportSourceLabel,
+} from "@/features/reports/field-labels";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
@@ -115,8 +118,8 @@ export function SavedTab() {
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">{r.name}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <Badge variant="outline" className="capitalize">
-                      {r.config.source}
+                    <Badge variant="outline">
+                      {reportSourceLabel(t, r.config.source)}
                     </Badge>
                     {r.config.columns && (
                       <span>
