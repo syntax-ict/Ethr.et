@@ -100,10 +100,16 @@ export function ShowcaseCard() {
                         "settings.showcase.not_active",
                         "It is shown while your trial or subscription is active.",
                       )
-                    : t(
-                        "settings.showcase.hidden",
-                        "ETHR is not showing it at the moment.",
-                      )}
+                    : !data.established
+                      ? t(
+                          "settings.showcase.not_established",
+                          "It is shown once :count people are in ETHR.",
+                          { count: data.min_employees },
+                        )
+                      : t(
+                          "settings.showcase.hidden",
+                          "ETHR is not showing it at the moment.",
+                        )}
               </p>
             )}
           </>

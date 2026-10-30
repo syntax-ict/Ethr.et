@@ -32,6 +32,8 @@ interface MeResponse {
     name: string;
     subdomain: string;
     status: string;
+    /** The kind of organisation sign-up recorded (`bank`, `hospital`, ...). */
+    type?: string | null;
     /**
      * IANA zone the tenant displays timestamps in, e.g. `Africa/Addis_Ababa`.
      * `TenantResource` has always sent this; the type simply did not declare

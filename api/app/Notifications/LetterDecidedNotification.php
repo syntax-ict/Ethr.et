@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\EmploymentLetterRequest;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -27,7 +28,7 @@ class LetterDecidedNotification extends Notification
         return [
             'letter_id' => $this->letter->public_id,
             'status' => $this->letter->status,
-            'message' => $this->line(),
+            ...$this->line(),
             'url' => '/profile/documents',
         ];
     }
@@ -36,14 +37,15 @@ class LetterDecidedNotification extends Notification
     {
         return (new MailMessage)
             ->subject(__('letters.mail_subject_decided'))
-            ->line($this->line())
+            ->line($this->line()['message'])
             ->action(__('letters.open'), FrontendUrl::forNotifiable($notifiable, '/profile/documents'));
     }
 
-    private function line(): string
+    /** @return array{message: string, message_key: string, message_params: array<string, scalar|null>, message_labels?: array<string, string>, message_count?: int} */
+    private function line(): array
     {
         return $this->letter->status === EmploymentLetterRequest::ISSUED
-            ? __('letters.issued')
-            : __('letters.rejected', ['reason' => (string) $this->letter->rejection_reason]);
+            ? NotificationMessage::make('letters.issued')
+            : NotificationMessage::make('letters.rejected', ['reason' => (string) $this->letter->rejection_reason]);
     }
 }

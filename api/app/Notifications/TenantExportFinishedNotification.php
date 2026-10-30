@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\TenantExport;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -38,7 +39,7 @@ class TenantExportFinishedNotification extends Notification
             'type' => 'tenant_export',
             'export_id' => $this->export->public_id,
             'status' => $this->export->status,
-            'message' => $this->body(),
+            ...$this->body(),
             'url' => '/settings/data-export',
         ];
     }
@@ -49,14 +50,15 @@ class TenantExportFinishedNotification extends Notification
 
         return (new MailMessage)
             ->subject(__($ready ? 'export.ready_subject' : 'export.failed_subject'))
-            ->line($this->body())
+            ->line($this->body()['message'])
             ->action(__('export.open'), FrontendUrl::forNotifiable($notifiable, '/settings/data-export'));
     }
 
-    private function body(): string
+    /** @return array{message: string, message_key: string, message_params: array<string, scalar|null>, message_labels?: array<string, string>, message_count?: int} */
+    private function body(): array
     {
         return $this->export->status === TenantExport::READY
-            ? __('export.ready_body', ['days' => TenantExport::EXPIRES_DAYS])
-            : __('export.failed_body');
+            ? NotificationMessage::make('export.ready_body', ['days' => TenantExport::EXPIRES_DAYS])
+            : NotificationMessage::make('export.failed_body');
     }
 }

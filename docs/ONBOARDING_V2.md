@@ -112,7 +112,7 @@ offset paging for a full page of punches inside one second, which needs real
 hardware to verify. See `DEVICE_INTEGRATION.md` → *Paging through a device*.
 
 **Slice 8 — Readiness & Go Live. ✅ DONE (backend).**
-`ReadinessScorer` — a deterministic weighted rubric over real counts across configuration / data / security, each failing check carrying a remediation deep link. `GET /onboarding/readiness` and `POST /onboarding/go-live` (marks step 7, completes onboarding). `ReadinessScorerTest`. **Launch screen UI deferred (contract ready).**
+`ReadinessScorer` — a deterministic weighted rubric over real counts across configuration / data / payroll / security, each failing check carrying a remediation deep link. Since 2026-10-30 the checks about people ask about all current employees (a department, a salary, a TIN, a bank account), the setup's own choices are asked about directly (the plan applied, an employer TIN, administrators on two-step sign-in), and payroll is scored when the plan includes it: sign-up creates shifts, leave types and an administrator by itself, so existence-only checks passed before anyone had set anything up. `GET /onboarding/readiness` and `POST /onboarding/go-live` (marks step 7, completes onboarding). `ReadinessScorerTest`. **Launch screen UI deferred (contract ready).**
 
 **Slice 9 — Documentation. ✅ DONE.**
 See `INDUSTRY_TEMPLATES.md`, `DEVICE_INTEGRATION.md`, `IDENTITY_RESOLUTION.md`, `MIGRATION.md`, `FRONTEND.md`; `ARCHITECTURE.md` and `DATABASE.md` updated.

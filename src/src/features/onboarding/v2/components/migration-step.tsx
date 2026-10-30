@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Loader2, HardDrive, FileText, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,24 +58,47 @@ function outcomeTone(outcome: MatchOutcome | null): string {
   }
 }
 
-/** Parse pasted lines: "name, email, phone, employee_code" (extra columns ignored). */
-function parseRows(text: string): Record<string, unknown>[] {
-  return text
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Parse pasted lines: "name, email, phone, employee number, hire date,
+ * department", any of them but the name left empty (extra columns ignored).
+ * The hire date is Gregorian YYYY-MM-DD only: a line with any other shape is
+ * returned in `badDates` rather than sent, because 03/04/2019 reads as a
+ * different day in different places, and a missing date becomes today, which
+ * restarts the person's service for leave and severance (2026-10-30).
+ */
+export function parseRows(text: string): {
+  rows: Record<string, unknown>[];
+  badDates: number[];
+} {
+  const rows: Record<string, unknown>[] = [];
+  const badDates: number[] = [];
+
+  text
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean)
-    .map((line) => {
-      const [name, email, phone, employee_code] = line
+    .forEach((line, index) => {
+      const [name, email, phone, employee_code, hire_date, department] = line
         .split(",")
         .map((c) => c.trim());
-      return {
+      if (!name) return;
+      if (hire_date && !ISO_DATE.test(hire_date)) {
+        badDates.push(index + 1);
+        return;
+      }
+      rows.push({
         name,
         email: email || undefined,
         phone: phone || undefined,
         employee_code: employee_code || undefined,
-      };
-    })
-    .filter((r) => r.name);
+        hire_date: hire_date || undefined,
+        department: department || undefined,
+      });
+    });
+
+  return { rows, badDates };
 }
 
 /**
@@ -115,7 +139,17 @@ export function MigrationStep({
   }
 
   async function stageCsv() {
-    const rows = parseRows(csv);
+    const { rows, badDates } = parseRows(csv);
+    if (badDates.length > 0) {
+      toast.error(
+        t(
+          "setup2.bad_hire_date",
+          "Line :lines: write the hire date as YYYY-MM-DD, for example 2019-07-08.",
+          { lines: badDates.join(", ") },
+        ),
+      );
+      return;
+    }
     if (rows.length === 0) {
       toast.error(t("setup2.no_rows", "Add at least one row (name required)"));
       return;
@@ -123,8 +157,10 @@ export function MigrationStep({
     try {
       const b = await stageRows.mutateAsync({ rows });
       setBatchId(b.public_id);
-    } catch {
-      toast.error(t("setup2.stage_failed", "Could not stage rows"));
+    } catch (err) {
+      toast.error(
+        apiErrorMessage(err, t("setup2.stage_failed", "Could not stage rows")),
+      );
     }
   }
 
@@ -240,14 +276,25 @@ export function MigrationStep({
                 value={csv}
                 onChange={(e) => setCsv(e.target.value)}
                 rows={5}
-                placeholder={"Abebe Kebede, abebe@acme.et, 0911223344, EMP-1"}
+                placeholder={
+                  "Abebe Kebede, abebe@acme.et, 0911223344, EMP-1, 2019-07-08, Finance"
+                }
                 className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <p className="text-xs text-muted-foreground">
                 {t(
                   "setup2.csv_hint",
-                  "One person per line: name, email, phone, employee number.",
+                  "One person per line: name, email, phone, employee number, hire date (YYYY-MM-DD), department. Leave a column empty to skip it. Without a hire date, today is used.",
                 )}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t("setup2.import_instead", "Have a spreadsheet?")}{" "}
+                <Link
+                  href="/employees/import"
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {t("setup2.import_link", "Use the employee import")}
+                </Link>
               </p>
               <Button
                 className="w-full"
