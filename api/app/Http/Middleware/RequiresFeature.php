@@ -9,6 +9,7 @@ use App\Enums\FeatureReason;
 use App\Services\CurrentTenant;
 use App\Services\Features\FeatureGate;
 use App\Services\PlanFeatureService;
+use App\Support\FeatureUnavailable;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -60,19 +61,11 @@ class RequiresFeature
 
         // A plan refusal keeps the plan gate's own answer, which names the
         // upgrade; every other reason is the platform's, and says so.
-        if ($decision->reason === FeatureReason::Plan) {
-            $this->plans->assertAllows($tenant, $resolved->planFeature());
+        $plan = $resolved->planFeature();
+        if ($decision->reason === FeatureReason::Plan && $plan !== null) {
+            $this->plans->assertAllows($tenant, $plan);
         }
 
-        return response()->json([
-            'type' => 'https://ethr.et/errors/feature-unavailable',
-            'title' => 'Feature Unavailable',
-            'status' => 403,
-            'detail' => __('billing.feature_unavailable', [
-                'feature' => __('billing.features.'.$resolved->value),
-            ]),
-            'code' => 'feature-unavailable',
-            'reason' => $decision->reason->value,
-        ], 403)->withHeaders(['Content-Type' => 'application/problem+json']);
+        return FeatureUnavailable::response($resolved, $decision->reason);
     }
 }

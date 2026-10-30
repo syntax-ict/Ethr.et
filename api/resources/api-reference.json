@@ -10508,6 +10508,12 @@
                                                 ]
                                             }
                                         },
+                                        "paused_features": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
                                         "tenant": {
                                             "anyOf": [
                                                 {
@@ -10527,6 +10533,7 @@
                                         "permissions",
                                         "plan_features",
                                         "features",
+                                        "paused_features",
                                         "tenant",
                                         "upload_limit_bytes"
                                     ]
@@ -11190,6 +11197,24 @@
                 "tags": [
                     "Dashboards & Reporting"
                 ],
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -11245,10 +11270,16 @@
                                             "type": "object",
                                             "properties": {
                                                 "today": {
-                                                    "type": "number"
+                                                    "type": [
+                                                        "number",
+                                                        "null"
+                                                    ]
                                                 },
                                                 "period": {
-                                                    "type": "number"
+                                                    "type": [
+                                                        "number",
+                                                        "null"
+                                                    ]
                                                 }
                                             },
                                             "required": [
@@ -11352,6 +11383,9 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -11365,6 +11399,24 @@
                 "summary": "Attendance executive",
                 "tags": [
                     "Dashboards & Reporting"
+                ],
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
                 ],
                 "responses": {
                     "200": {
@@ -11463,6 +11515,9 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -11766,6 +11821,24 @@
                 "tags": [
                     "Dashboards & Reporting"
                 ],
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -11904,6 +11977,9 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -33937,7 +34013,11 @@
                                                             "prefixItems": [
                                                                 {
                                                                     "type": "string",
-                                                                    "const": "month"
+                                                                    "const": "from"
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "to"
                                                                 },
                                                                 {
                                                                     "type": "string",
@@ -33948,8 +34028,8 @@
                                                                     "const": "branch"
                                                                 }
                                                             ],
-                                                            "minItems": 3,
-                                                            "maxItems": 3,
+                                                            "minItems": 4,
+                                                            "maxItems": 4,
                                                             "additionalItems": false
                                                         }
                                                     },

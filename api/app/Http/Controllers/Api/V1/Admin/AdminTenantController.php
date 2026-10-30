@@ -396,7 +396,7 @@ class AdminTenantController extends Controller
     }
 
     /**
-     * @return list<array{key: string, on: bool, visible: bool, reason: string, override: array{mode: string, reason: string, expires_at: string|null, expired: bool, changed_at: string|null}|null}>
+     * @return list<array{key: string, kind: string, overridable: bool, on: bool, visible: bool, reason: string, override: array{mode: string, reason: string, expires_at: string|null, expired: bool, changed_at: string|null}|null}>
      */
     private function featureRows(Tenant $tenant, FeatureGate $gate, FeatureControls $controls): array
     {
@@ -410,6 +410,8 @@ class AdminTenantController extends Controller
 
             $rows[] = [
                 'key' => $feature->value,
+                'kind' => $feature->kind()->value,
+                'overridable' => $feature->overridable(),
                 'on' => $decision->on,
                 'visible' => $decision->visible,
                 'reason' => $decision->reason->value,

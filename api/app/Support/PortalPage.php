@@ -27,14 +27,12 @@ final class PortalPage
     /** The sign-in portal. */
     public static function respond(Tenant $tenant, string $file): Response
     {
-        $landing = TenantLanding::present($tenant);
-
         // The organisation's own head: what a search result or a shared link
         // shows, and the structured data behind it. Only the public vacancies
         // the feed lists get a JobPosting; the tenant is set for that query
         // and released after, as a queued job would.
-        [$head, $ownIcon] = self::withTenant($tenant, function () use ($tenant, $landing): array {
-            $vacancies = $landing['sections']['vacancies']
+        [$head, $ownIcon] = self::withTenant($tenant, function () use ($tenant): array {
+            $vacancies = TenantLanding::publicSections($tenant)['vacancies']
                 ? Vacancy::query()->publiclyListed()->orderByDesc('published_at')->limit(self::JOB_POSTINGS)->get()->all()
                 : [];
 
@@ -45,6 +43,16 @@ final class PortalPage
     }
 
     /**
+     * 503 for a section the platform switched off, so a search engine keeps
+     * the page and tries later and the page says "temporarily unavailable"
+     * (owner decision D7); 404 for one the organisation does not show.
+     */
+    private static function missingStatus(Tenant $tenant, string $section): int
+    {
+        return in_array($section, TenantLanding::paused($tenant), true) ? 503 : 404;
+    }
+
+    /**
      * The organisation's news page. With its news section off there is no
      * such page: the file is still sent, so the visitor sees the page's own
      * "no news here" state and a way home, but as a 404 that no search engine
@@ -52,9 +60,8 @@ final class PortalPage
      */
     public static function news(Tenant $tenant, string $file): Response
     {
-        $landing = TenantLanding::present($tenant);
-        if (! $landing['sections']['announcements']) {
-            return self::plain($file, 404);
+        if (! TenantLanding::publicSections($tenant)['announcements']) {
+            return self::plain($file, self::missingStatus($tenant, 'announcements'));
         }
 
         $head = PortalHead::news($tenant);
@@ -70,9 +77,8 @@ final class PortalPage
      */
     public static function article(Tenant $tenant, string $file, string $publicId): Response
     {
-        $landing = TenantLanding::present($tenant);
-        if (! $landing['sections']['announcements']) {
-            return self::plain($file, 404);
+        if (! TenantLanding::publicSections($tenant)['announcements']) {
+            return self::plain($file, self::missingStatus($tenant, 'announcements'));
         }
 
         $head = self::withTenant($tenant, function () use ($tenant, $publicId): ?string {

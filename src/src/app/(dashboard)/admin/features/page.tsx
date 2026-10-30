@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
@@ -24,8 +25,10 @@ import {
 } from "@/features/admin/components/feature-reason-dialog";
 import {
   FEATURE_LABEL_FALLBACK,
+  featureLabelKey,
   usePlatformFeatures,
   useUpdateFeatureState,
+  type FeatureKind,
   type FeatureState,
   type PlatformFeature,
 } from "@/features/admin/features";
@@ -35,13 +38,23 @@ import { useT } from "@/lib/i18n/useT";
 
 /**
  * Hidden is left out until the screen reads `visible` (design §9, PR 4):
- * offered now, it would change nothing an organisation sees.
+ * offered now, it would change nothing an organisation sees. Restricted is
+ * left out for a feature no organisation can be granted, where it would mean
+ * the same as Disabled.
  */
-const OFFERED_STATES: readonly FeatureState[] = [
-  "enabled",
-  "restricted",
-  "disabled",
-];
+function offeredStates(feature: PlatformFeature): readonly FeatureState[] {
+  return feature.overridable
+    ? ["enabled", "restricted", "disabled"]
+    : ["enabled", "disabled"];
+}
+
+const KINDS: readonly FeatureKind[] = ["module", "integration", "public"];
+
+const KIND_FALLBACK: Record<FeatureKind, string> = {
+  module: "Modules",
+  integration: "Integrations",
+  public: "Public pages",
+};
 
 const STATE_FALLBACK: Record<FeatureState, string> = {
   enabled: "Enabled",
@@ -106,16 +119,41 @@ export default function FeatureControlsPage() {
           isEmpty={() => false}
         >
           {(features) => (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  {t("admin_features.title", "Features")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <FeatureTable features={features} onChange={setEditing} />
-              </CardContent>
-            </Card>
+            <>
+              {KINDS.map((kind) => (
+                <Card key={kind}>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {t(`admin_features.kind_${kind}`, KIND_FALLBACK[kind])}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <FeatureTable
+                      caption={t(
+                        `admin_features.kind_${kind}`,
+                        KIND_FALLBACK[kind],
+                      )}
+                      features={features.filter((f) => f.kind === kind)}
+                      onChange={setEditing}
+                    />
+                    {kind === "integration" && (
+                      <p className="border-t px-4 py-3 text-sm text-muted-foreground">
+                        {t(
+                          "admin_features.sms_elsewhere",
+                          "Text messages are switched on their own page, with a test step and a daily cap.",
+                        )}{" "}
+                        <Link
+                          href="/admin/sms"
+                          className="font-medium text-primary underline-offset-4 hover:underline"
+                        >
+                          {t("admin_features.sms_link", "Open SMS")}
+                        </Link>
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </>
           )}
         </QueryBoundary>
 
@@ -131,9 +169,11 @@ export default function FeatureControlsPage() {
 }
 
 function FeatureTable({
+  caption,
   features,
   onChange,
 }: {
+  caption: string;
   features: PlatformFeature[];
   onChange: (feature: PlatformFeature) => void;
 }) {
@@ -142,7 +182,7 @@ function FeatureTable({
 
   return (
     <SimpleTable
-      caption={t("admin_features.title", "Features")}
+      caption={caption}
       headers={[
         t("admin_features.feature", "Feature"),
         t("admin_features.state", "State"),
@@ -155,7 +195,7 @@ function FeatureTable({
         cells: [
           <span key="f" className="font-medium text-foreground">
             {t(
-              `admin_plans.feature.${feature.key}`,
+              featureLabelKey(feature.key),
               FEATURE_LABEL_FALLBACK[feature.key],
             )}
           </span>,
@@ -190,7 +230,7 @@ function FeatureTable({
             onClick={() => onChange(feature)}
             aria-label={t("admin_features.change_aria", "Change :feature", {
               feature: t(
-                `admin_plans.feature.${feature.key}`,
+                featureLabelKey(feature.key),
                 FEATURE_LABEL_FALLBACK[feature.key],
               ),
             })}
@@ -216,7 +256,7 @@ function ChangeStateDialog({
   const [state, setState] = useState<FeatureState>(feature.state);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const label = t(
-    `admin_plans.feature.${feature.key}`,
+    featureLabelKey(feature.key),
     FEATURE_LABEL_FALLBACK[feature.key],
   );
 
@@ -281,7 +321,7 @@ function ChangeStateDialog({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {OFFERED_STATES.map((option) => (
+            {offeredStates(feature).map((option) => (
               <SelectItem key={option} value={option}>
                 {t(`admin_features.state_${option}`, STATE_FALLBACK[option])}
               </SelectItem>

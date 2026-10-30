@@ -22,7 +22,7 @@ export default function AuditLogsPage() {
         />
       ) : (
         <div className="space-y-6">
-          <PlanFeatureNotice />
+          <PlanFeatureNotice feature="audit_log" />
         </div>
       )}
     </RoleGate>

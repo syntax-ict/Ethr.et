@@ -101,7 +101,7 @@ export default function PayrollPage() {
           }
         />
 
-        {!hasPayroll && <PlanFeatureNotice />}
+        {!hasPayroll && <PlanFeatureNotice feature="payroll" />}
 
         <div className="flex flex-wrap gap-1.5 border-b border-border/60 pb-3">
           <Button asChild variant="ghost" size="sm" className="h-8">

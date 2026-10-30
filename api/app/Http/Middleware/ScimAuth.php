@@ -4,16 +4,22 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\Feature;
 use App\Models\ApiKey;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
+use App\Services\Features\FeatureGate;
+use App\Support\FeatureUnavailable;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class ScimAuth
 {
-    public function __construct(private readonly CurrentTenant $currentTenant) {}
+    public function __construct(
+        private readonly CurrentTenant $currentTenant,
+        private readonly FeatureGate $features,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -39,6 +45,16 @@ class ScimAuth
         $tenant = Tenant::find($apiKey->tenant_id);
         if ($tenant === null || ! $tenant->isActive()) {
             return $this->error('This tenant account is not active', 403);
+        }
+
+        // Switched off by the platform, the identity provider is told to come
+        // back later: a 503 is retried, where a 403 could make it stop syncing
+        // users for good. In SCIM's own error shape, as the rest of this is.
+        if (! $this->features->allows($tenant, Feature::Scim)) {
+            $response = $this->error('SCIM provisioning is temporarily unavailable', 503);
+            $response->headers->set('Retry-After', (string) FeatureUnavailable::RETRY_AFTER_SECONDS);
+
+            return $response;
         }
 
         $apiKey->update(['last_used_at' => now()]);

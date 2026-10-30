@@ -6,14 +6,19 @@ namespace App\Services\Analytics;
 
 use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
+use App\Enums\ExpectedDay;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\LeaveBalance;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
+use App\Models\Tenant;
+use App\Services\Attendance\ExpectedDays;
+use App\Support\TenantTime;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -27,6 +32,10 @@ use Illuminate\Support\Facades\DB;
  */
 final class ExecutiveDashboardService
 {
+    public function __construct(
+        private readonly ExpectedDays $expectedDays,
+    ) {}
+
     public function overview(int $tenantId, Carbon $from, Carbon $to, ?int $branchId = null): array
     {
         return [
@@ -190,39 +199,76 @@ final class ExecutiveDashboardService
         ];
     }
 
+    /**
+     * Check-ins against the days people were expected at work, by the rule the
+     * attendance screen uses (`ExpectedDays`): leavers, approved leave,
+     * holidays and rest days are not expected. Until 2026-10-29 the base was
+     * every active employee on every Monday to Friday of the period, future
+     * days included, so a Sunday read 0% and the period rate mid-month was
+     * about half the real one. "Today" is the organisation's date, not UTC's.
+     *
+     * Null when nobody was expected: no one to attend is not 0% attendance.
+     */
     private function attendanceRate(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
     {
-        $activeCount = $this->scopedEmployees($tenantId, $branchId)
-            ->whereIn('status', self::ACTIVE_STATUSES)
-            ->count();
+        $employees = $this->scopedEmployees($tenantId, $branchId)
+            ->get(['id', 'tenant_id', 'department_id', 'branch_id', 'status', 'hire_date', 'termination_date']);
 
-        if ($activeCount === 0) {
-            return ['today' => 0.0, 'period' => 0.0];
-        }
-
-        $todayQuery = AttendanceRecord::withoutGlobalScope('tenant')
-            ->where('attendance_records.tenant_id', $tenantId)
-            ->whereDate('attendance_records.date', Carbon::today())
-            ->where('attendance_records.status', '!=', AttendanceStatus::VOIDED);
-        $this->joinBranch($todayQuery, $branchId);
-        $todayPresent = $todayQuery->distinct()->count('attendance_records.employee_id');
-
-        $workingDays = max(1, $from->diffInWeekdays($to));
-
-        $periodQuery = AttendanceRecord::withoutGlobalScope('tenant')
-            ->where('attendance_records.tenant_id', $tenantId)
-            ->whereDate('attendance_records.date', '>=', $from)
-            ->whereDate('attendance_records.date', '<=', $to)
-            // A voided record is a merged duplicate; counting it counted one
-            // day twice.
-            ->where('attendance_records.status', '!=', AttendanceStatus::VOIDED);
-        $this->joinBranch($periodQuery, $branchId);
-        $periodPresent = $periodQuery->count();
+        $today = Carbon::parse(TenantTime::today(Tenant::query()->find($tenantId))->format('Y-m-d'));
+        $last = $to->lessThan($today) ? $to->copy()->startOfDay() : $today->copy();
 
         return [
-            'today' => round(($todayPresent / $activeCount) * 100, 1),
-            'period' => round(($periodPresent / ($activeCount * $workingDays)) * 100, 1),
+            'today' => $this->attendedShare($tenantId, $employees, $today, $today),
+            'period' => $this->attendedShare($tenantId, $employees, $from->copy()->startOfDay(), $last),
         ];
+    }
+
+    /**
+     * Expected employee-days in [$first, $last] that have a check-in, as a
+     * percentage. A check-in on a rest day counts on neither side.
+     *
+     * @param  Collection<int, Employee>  $employees  all of one tenant
+     */
+    private function attendedShare(int $tenantId, Collection $employees, Carbon $first, Carbon $last): ?float
+    {
+        if ($employees->isEmpty() || $first->greaterThan($last)) {
+            return null;
+        }
+
+        $attended = [];
+        $records = AttendanceRecord::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->whereIn('employee_id', $employees->pluck('id'))
+            ->whereDate('date', '>=', $first->toDateString())
+            ->whereDate('date', '<=', $last->toDateString())
+            ->whereNotNull('check_in')
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            // Plain rows: a year is tens of thousands of records, and a model
+            // per row with a date cast per read cost more than the query.
+            ->toBase()
+            ->get(['employee_id', 'date']);
+
+        foreach ($records as $record) {
+            $attended[substr((string) $record->date, 0, 10)][(int) $record->employee_id] = true;
+        }
+
+        $expected = 0;
+        $present = 0;
+
+        foreach ($this->expectedDays->between($employees, $first, $last) as $day => $kinds) {
+            foreach ($kinds as $id => $kind) {
+                if ($kind !== ExpectedDay::WORKDAY) {
+                    continue;
+                }
+
+                $expected++;
+                if (isset($attended[$day][$id])) {
+                    $present++;
+                }
+            }
+        }
+
+        return $expected > 0 ? round(($present / $expected) * 100, 1) : null;
     }
 
     /**
@@ -240,44 +286,82 @@ final class ExecutiveDashboardService
             ->where('employees.branch_id', $branchId);
     }
 
+    /**
+     * The runs a payroll figure counts: calculated, approved or paid. A run
+     * still processing has no totals yet, and a voided one was replaced; until
+     * 2026-10-29 the period totals, the overview card and the department and
+     * cost-centre splits counted both, so a voided and re-run month counted
+     * twice. The trends already filtered this way.
+     */
+    private const COUNTED_RUN_STATUSES = ['completed', ...PayrollRun::RELEASED_STATUSES];
+
+    /**
+     * The counted runs that belong to [$from, $to]: those whose period's
+     * middle day falls inside it, the rule `localizedPeriodLabel()` names a
+     * run's month by. Until 2026-10-30 a run had to fit wholly inside the
+     * range, so an Ethiopian month (Tikimt is 11 October to 9 November) held
+     * no Gregorian-month run at all, and an organisation paying on Ethiopian
+     * months had none in any Gregorian one. A run's middle lies in exactly
+     * one month of either calendar.
+     *
+     * @return Builder<PayrollRun>
+     */
+    private function countedRuns(int $tenantId, Carbon $from, Carbon $to): Builder
+    {
+        $first = $from->toDateString();
+        $last = $to->toDateString();
+
+        $ids = PayrollRun::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->whereIn('status', self::COUNTED_RUN_STATUSES)
+            ->whereDate('period_start', '<=', $last)
+            ->whereDate('period_end', '>=', $first)
+            ->get(['id', 'period_start', 'period_end'])
+            ->filter(function (PayrollRun $run) use ($first, $last): bool {
+                if ($run->period_start === null || $run->period_end === null) {
+                    return false;
+                }
+
+                $middle = $run->period_start->copy()
+                    ->addDays(intdiv((int) $run->period_start->diffInDays($run->period_end), 2))
+                    ->toDateString();
+
+                return $middle >= $first && $middle <= $last;
+            })
+            ->modelKeys();
+
+        return PayrollRun::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->whereIn('id', $ids);
+    }
+
     private function payrollSummary(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
     {
+        // NoOverflow: the 31st of a month minus one month is otherwise the
+        // 1st of the same month.
+        $previousFrom = $from->copy()->subMonthNoOverflow();
+        $previousTo = $to->copy()->subMonthNoOverflow();
+
         if ($branchId === null) {
-            $currentRun = PayrollRun::withoutGlobalScope('tenant')
-                ->where('tenant_id', $tenantId)
-                ->whereDate('period_start', '>=', $from)
-                ->whereDate('period_end', '<=', $to)
-                ->orderByDesc('period_start')
-                ->first();
-
-            $previousFrom = $from->copy()->subMonth();
-            $previousTo = $to->copy()->subMonth();
-
-            $previousRun = PayrollRun::withoutGlobalScope('tenant')
-                ->where('tenant_id', $tenantId)
-                ->whereDate('period_start', '>=', $previousFrom)
-                ->whereDate('period_end', '<=', $previousTo)
-                ->orderByDesc('period_start')
-                ->first();
+            $current = $this->countedRuns($tenantId, $from, $to)->get();
+            // An off-cycle run pays some of the same people again, so the
+            // largest run is the count, not the sum.
+            $employeeCount = (int) ($current->max('employee_count') ?? 0);
+            $previous = $this->countedRuns($tenantId, $previousFrom, $previousTo)->get();
 
             return [
-                'gross_cents' => $currentRun?->gross_total_cents ?? 0,
-                'net_cents' => $currentRun?->net_total_cents ?? 0,
-                'tax_cents' => $currentRun?->tax_total_cents ?? 0,
-                'previous_gross_cents' => $previousRun?->gross_total_cents ?? 0,
-                'employee_count' => $currentRun?->employee_count ?? 0,
+                'gross_cents' => (int) $current->sum('gross_total_cents'),
+                'net_cents' => (int) $current->sum('net_total_cents'),
+                'tax_cents' => (int) $current->sum('tax_total_cents'),
+                'previous_gross_cents' => (int) $previous->sum('gross_total_cents'),
+                'employee_count' => $employeeCount,
             ];
         }
 
         // Branch-scoped: the run's precomputed totals are tenant-wide, so sum
         // directly from entries joined to the branch's employees instead.
         $current = $this->branchPayrollTotals($tenantId, $branchId, $from, $to);
-        $previous = $this->branchPayrollTotals(
-            $tenantId,
-            $branchId,
-            $from->copy()->subMonth(),
-            $to->copy()->subMonth(),
-        );
+        $previous = $this->branchPayrollTotals($tenantId, $branchId, $previousFrom, $previousTo);
 
         return [
             'gross_cents' => $current['gross_cents'],
@@ -293,11 +377,9 @@ final class ExecutiveDashboardService
     {
         $row = PayrollEntry::withoutGlobalScope('tenant')
             ->where('payroll_entries.tenant_id', $tenantId)
-            ->join('payroll_runs', 'payroll_entries.payroll_run_id', '=', 'payroll_runs.id')
+            ->whereIn('payroll_entries.payroll_run_id', $this->countedRuns($tenantId, $from, $to)->pluck('id'))
             ->join('employees', 'payroll_entries.employee_id', '=', 'employees.id')
             ->where('employees.branch_id', $branchId)
-            ->whereDate('payroll_runs.period_start', '>=', $from)
-            ->whereDate('payroll_runs.period_end', '<=', $to)
             ->selectRaw('
                 coalesce(sum(payroll_entries.gross_cents), 0) as gross_cents,
                 coalesce(sum(payroll_entries.net_cents), 0) as net_cents,
@@ -341,7 +423,9 @@ final class ExecutiveDashboardService
     {
         $months = [];
         for ($i = 5; $i >= 0; $i--) {
-            $month = Carbon::now()->subMonths($i);
+            // From the 1st: on the 31st, now() minus one month is the 1st of
+            // this month, and the chart showed it twice and skipped the last.
+            $month = Carbon::now()->startOfMonth()->subMonths($i);
             $hires = $this->scopedEmployees($tenantId, $branchId)
                 ->whereYear('hire_date', $month->year)
                 ->whereMonth('hire_date', $month->month)
@@ -389,7 +473,9 @@ final class ExecutiveDashboardService
         $query = AttendanceRecord::withoutGlobalScope('tenant')
             ->where('attendance_records.tenant_id', $tenantId)
             ->whereDate('attendance_records.date', '>=', $from)
-            ->whereDate('attendance_records.date', '<=', $to);
+            ->whereDate('attendance_records.date', '<=', $to)
+            // A voided record is a merged duplicate.
+            ->where('attendance_records.status', '!=', AttendanceStatus::VOIDED);
         $this->joinBranch($query, $branchId);
 
         return $query
@@ -410,6 +496,7 @@ final class ExecutiveDashboardService
             ->where('attendance_records.tenant_id', $tenantId)
             ->whereDate('attendance_records.date', '>=', $from)
             ->whereDate('attendance_records.date', '<=', $to)
+            ->where('attendance_records.status', '!=', AttendanceStatus::VOIDED)
             ->join('employees', 'attendance_records.employee_id', '=', 'employees.id')
             ->join('departments', 'employees.department_id', '=', 'departments.id');
 
@@ -433,7 +520,9 @@ final class ExecutiveDashboardService
         $query = AttendanceRecord::withoutGlobalScope('tenant')
             ->where('attendance_records.tenant_id', $tenantId)
             ->whereDate('attendance_records.date', '>=', $from)
-            ->whereDate('attendance_records.date', '<=', $to);
+            ->whereDate('attendance_records.date', '<=', $to)
+            // A voided record is a merged duplicate.
+            ->where('attendance_records.status', '!=', AttendanceStatus::VOIDED);
         $this->joinBranch($query, $branchId);
 
         return $query
@@ -481,7 +570,7 @@ final class ExecutiveDashboardService
         if ($branchId === null) {
             return PayrollRun::withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenantId)
-                ->whereIn('status', ['completed', ...PayrollRun::RELEASED_STATUSES])
+                ->whereIn('status', self::COUNTED_RUN_STATUSES)
                 ->orderByDesc('period_start')
                 ->limit(12)
                 ->get()
@@ -501,7 +590,7 @@ final class ExecutiveDashboardService
             ->join('payroll_runs', 'payroll_entries.payroll_run_id', '=', 'payroll_runs.id')
             ->join('employees', 'payroll_entries.employee_id', '=', 'employees.id')
             ->where('employees.branch_id', $branchId)
-            ->whereIn('payroll_runs.status', ['completed', ...PayrollRun::RELEASED_STATUSES])
+            ->whereIn('payroll_runs.status', self::COUNTED_RUN_STATUSES)
             ->selectRaw('
                 payroll_runs.id as run_id,
                 payroll_runs.period_label as period,
@@ -543,7 +632,7 @@ final class ExecutiveDashboardService
             ->where('payroll_entries.tenant_id', $tenantId)
             ->join('payroll_runs', 'payroll_entries.payroll_run_id', '=', 'payroll_runs.id')
             ->join('employees', 'payroll_entries.employee_id', '=', 'employees.id')
-            ->whereIn('payroll_runs.status', ['completed', ...PayrollRun::RELEASED_STATUSES]);
+            ->whereIn('payroll_runs.status', self::COUNTED_RUN_STATUSES);
 
         if ($branchId !== null) {
             $query->where('employees.branch_id', $branchId);
@@ -604,11 +693,7 @@ final class ExecutiveDashboardService
 
     private function payrollByDepartment(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
     {
-        $runs = PayrollRun::withoutGlobalScope('tenant')
-            ->where('tenant_id', $tenantId)
-            ->whereDate('period_start', '>=', $from)
-            ->whereDate('period_end', '<=', $to)
-            ->pluck('id');
+        $runs = $this->countedRuns($tenantId, $from, $to)->pluck('id');
 
         if ($runs->isEmpty()) {
             return [];
@@ -637,11 +722,7 @@ final class ExecutiveDashboardService
 
     private function payrollByCostCenter(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
     {
-        $runs = PayrollRun::withoutGlobalScope('tenant')
-            ->where('tenant_id', $tenantId)
-            ->whereDate('period_start', '>=', $from)
-            ->whereDate('period_end', '<=', $to)
-            ->pluck('id');
+        $runs = $this->countedRuns($tenantId, $from, $to)->pluck('id');
 
         if ($runs->isEmpty()) {
             return [];
@@ -675,11 +756,7 @@ final class ExecutiveDashboardService
     private function payrollTotals(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
     {
         if ($branchId === null) {
-            $runs = PayrollRun::withoutGlobalScope('tenant')
-                ->where('tenant_id', $tenantId)
-                ->whereDate('period_start', '>=', $from)
-                ->whereDate('period_end', '<=', $to)
-                ->get();
+            $runs = $this->countedRuns($tenantId, $from, $to)->get();
 
             return [
                 'total_gross_cents' => (int) $runs->sum('gross_total_cents'),
@@ -691,10 +768,7 @@ final class ExecutiveDashboardService
 
         $totals = $this->branchPayrollTotals($tenantId, $branchId, $from, $to);
 
-        $runCount = PayrollRun::withoutGlobalScope('tenant')
-            ->where('tenant_id', $tenantId)
-            ->whereDate('period_start', '>=', $from)
-            ->whereDate('period_end', '<=', $to)
+        $runCount = $this->countedRuns($tenantId, $from, $to)
             ->whereHas('entries', function ($q) use ($branchId) {
                 $q->whereHas('employee', fn ($eq) => $eq->where('branch_id', $branchId));
             })

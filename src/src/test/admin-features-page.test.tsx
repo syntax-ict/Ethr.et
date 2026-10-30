@@ -22,6 +22,8 @@ vi.mock("@/components/shared/role-gate", () => ({
 function feature(overrides: Partial<PlatformFeature> = {}): PlatformFeature {
   return {
     key: "payroll",
+    kind: "module",
+    overridable: true,
     state: "enabled",
     default_state: "enabled",
     reason: null,
@@ -150,6 +152,61 @@ describe("feature controls page", () => {
       (o) => o.textContent,
     );
     expect(options).toEqual(["Enabled", "Restricted", "Disabled"]);
+  });
+
+  it("groups features by kind and points to the SMS page", async () => {
+    serve([
+      feature(),
+      feature({ key: "scim", kind: "integration" }),
+      feature({ key: "public_news", kind: "public" }),
+    ]);
+    renderPage();
+
+    expect(
+      within(await screen.findByRole("table", { name: "Modules" })).getByText(
+        "Payroll",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("table", { name: "Integrations" })).getByText(
+        "SCIM provisioning",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("table", { name: "Public pages" })).getByText(
+        "Public news page",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open SMS" })).toHaveAttribute(
+      "href",
+      "/admin/sms",
+    );
+  });
+
+  it("does not offer a rollout for sign-up, which no organisation can be granted", async () => {
+    serve([
+      feature({
+        key: "self_registration",
+        kind: "integration",
+        overridable: false,
+      }),
+    ]);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Change New organisation sign-up",
+      }),
+    );
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("combobox"),
+    );
+
+    const options = (await screen.findAllByRole("option")).map(
+      (o) => o.textContent,
+    );
+    expect(options).toEqual(["Enabled", "Disabled"]);
   });
 
   it("shows the server's field error under the reason", async () => {

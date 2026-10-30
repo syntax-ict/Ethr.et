@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { reportFieldLabel } from "@/features/reports/field-labels";
+import {
+  reportFieldLabel,
+  reportSourceLabel,
+} from "@/features/reports/field-labels";
 import {
   Download,
   Loader2,
@@ -16,8 +19,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useGenerateReport,
@@ -33,6 +34,13 @@ import { buildCsv, centsAsAmount, saveCsv } from "@/lib/utils/csv-export";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
 import { PreviewResult } from "@/features/reports/components/preview-result";
+import {
+  ReportMonthPicker,
+  currentReportMonth,
+  reportMonthRange,
+  type ReportMonth,
+} from "@/features/reports/components/report-month-picker";
+import { useCalendar } from "@/lib/calendar/calendar-context";
 
 type T = ReturnType<typeof useT>["t"];
 
@@ -179,39 +187,26 @@ const PRESET_TEXT: Record<string, (t: T) => { title: string; desc: string }> = {
 function presetText(t: T, preset: ReportPreset) {
   return (
     PRESET_TEXT[preset.key]?.(t) ?? {
-      title: reportFieldLabel(t, preset.source),
+      title: reportSourceLabel(t, preset.source),
       desc: "",
     }
   );
 }
 
-/** `YYYY-MM` of the current month, on the reader's clock. */
-function thisMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
 /**
- * The preset's config for the chosen month. The timesheet takes the month
- * itself; attendance, absences and payroll take its first and last day.
- * Employees and leave have no period.
+ * The preset's config for the chosen month: its first and last day, which a
+ * month in either calendar has. Employees and leave have no period.
  */
-function forMonth(config: ReportConfig, month: string): ReportConfig {
-  if (!/^\d{4}-\d{2}$/.test(month)) return config;
-  const [year, mon] = month.split("-").map(Number);
-  const last = new Date(year, mon, 0).getDate();
-  const range = {
-    from: `${month}-01`,
-    to: `${month}-${String(last).padStart(2, "0")}`,
-  };
-
+function forMonth(config: ReportConfig, month: ReportMonth): ReportConfig {
   switch (config.source) {
     case "timesheet":
-      return { ...config, filters: { ...config.filters, month } };
     case "attendance":
     case "absences":
     case "payroll":
-      return { ...config, filters: { ...config.filters, ...range } };
+      return {
+        ...config,
+        filters: { ...config.filters, ...reportMonthRange(month) },
+      };
     default:
       return config;
   }
@@ -221,7 +216,14 @@ export function QuickTab() {
   const { t } = useT();
   const presets = useReportPresets();
   const generate = useGenerateReport();
-  const [month, setMonth] = useState(thisMonth);
+  const { calendar } = useCalendar();
+  const [picked, setPicked] = useState<ReportMonth>(() =>
+    currentReportMonth(calendar),
+  );
+  // Switching calendar starts again from this month in the new calendar: a
+  // Gregorian month number means nothing as an Ethiopian one.
+  const month =
+    picked.calendar === calendar ? picked : currentReportMonth(calendar);
   const [running, setRunning] = useState<string | null>(null);
 
   function handleGenerate(preset: ReportPreset) {
@@ -295,16 +297,10 @@ export function QuickTab() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1">
-          <Label htmlFor="quick-report-month">
+          <p className="text-sm font-medium">
             {t("reports_page.fields.month", "Month")}
-          </Label>
-          <Input
-            id="quick-report-month"
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="h-9 w-44"
-          />
+          </p>
+          <ReportMonthPicker value={month} onChange={setPicked} />
         </div>
         <p className="pb-2 text-xs text-muted-foreground">
           {t(

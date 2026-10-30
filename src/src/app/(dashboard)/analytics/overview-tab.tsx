@@ -28,11 +28,33 @@ import { CompactCurrency } from "@/components/shared/currency-display";
 import { useExecutiveOverview } from "@/features/dashboard/executive-api";
 import { ComplianceCard } from "@/features/dashboard/components/compliance-card";
 import { DepartmentDrillDownDialog } from "@/features/dashboard/components/department-drilldown-dialog";
+import type { Period } from "./period";
 
-export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
+/** One decimal, so a change of rate reads as 2.4 rather than 2.4000000001. */
+function oneDecimal(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+export function OverviewTab({
+  branchPublicId,
+  period,
+  periodLabel,
+}: {
+  branchPublicId?: string;
+  period: Period;
+  periodLabel: string;
+}) {
   const { t, locale } = useT();
-  const query = useExecutiveOverview({ branchPublicId });
+  const query = useExecutiveOverview({ branchPublicId, ...period.current });
+  // The same figures for the period before, to compare with. Its failure
+  // only hides the comparisons, so it has no boundary of its own.
+  const previous = useExecutiveOverview({
+    branchPublicId,
+    ...period.previous,
+  }).data;
   const [drilldownDept, setDrilldownDept] = useState<string | null>(null);
+  const versus = t("analytics_page.vs_previous_period", "vs previous period");
+  const points = ` ${t("analytics_page.points", "pts")}`;
 
   // isEmpty is disabled: each section below decides for itself whether it has
   // anything to show, so the dashboard as a whole is never "empty".
@@ -54,18 +76,70 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
               })}
               tone="primary"
             />
+            {/* The period's rate, against the days people were expected;
+                null when no one was. Today's rate is the line underneath. */}
             <StatCard
               icon={UserCheck}
               label={t("analytics_page.attendance_rate")}
-              value={`${data.attendance_rate.today}%`}
-              hint={t("analytics_page.today")}
+              value={
+                data.attendance_rate.period == null
+                  ? t("analytics_page.no_one_scheduled", "No one scheduled")
+                  : `${data.attendance_rate.period}%`
+              }
+              hint={
+                data.attendance_rate.today == null
+                  ? t(
+                      "analytics_page.no_one_scheduled_today",
+                      "No one scheduled today",
+                    )
+                  : t("analytics_page.today_rate", "Today :rate%", {
+                      rate: data.attendance_rate.today,
+                    })
+              }
+              delta={
+                data.attendance_rate.period != null &&
+                previous?.attendance_rate.period != null
+                  ? {
+                      value: oneDecimal(
+                        data.attendance_rate.period -
+                          previous.attendance_rate.period,
+                      ),
+                      unit: points,
+                      label: versus,
+                    }
+                  : undefined
+              }
               tone="success"
             />
+            {/* Payroll and exits are counts, so a period still running is
+                not compared with a finished one. */}
             <StatCard
               icon={Wallet}
               label={t("analytics_page.payroll_net")}
-              value={<CompactCurrency cents={data.payroll_summary.net_cents} />}
-              hint={t("analytics_page.current_month")}
+              value={
+                data.payroll_summary.net_cents > 0 ? (
+                  <CompactCurrency cents={data.payroll_summary.net_cents} />
+                ) : (
+                  t("dashboard.payroll_not_run", "Not run yet")
+                )
+              }
+              hint={periodLabel}
+              delta={
+                period.complete &&
+                data.payroll_summary.net_cents > 0 &&
+                (previous?.payroll_summary.net_cents ?? 0) > 0 &&
+                previous
+                  ? {
+                      value: oneDecimal(
+                        ((data.payroll_summary.net_cents -
+                          previous.payroll_summary.net_cents) /
+                          previous.payroll_summary.net_cents) *
+                          100,
+                      ),
+                      label: versus,
+                    }
+                  : undefined
+              }
               tone="info"
             />
             <StatCard
@@ -75,6 +149,18 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
               hint={t("analytics_page.exits_count", ":count exits", {
                 count: data.turnover.exits,
               })}
+              delta={
+                period.complete && previous
+                  ? {
+                      value: oneDecimal(
+                        data.turnover.rate - previous.turnover.rate,
+                      ),
+                      unit: points,
+                      label: versus,
+                      positiveIsGood: false,
+                    }
+                  : undefined
+              }
               tone="warning"
             />
           </div>

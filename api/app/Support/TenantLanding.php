@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Enums\Feature;
 use App\Models\Tenant;
+use App\Services\Features\FeatureGate;
 
 /**
  * An organisation's portal settings, as they may be shown to anyone.
@@ -135,6 +137,50 @@ final class TenantLanding
             'order' => self::order($landing['order'] ?? null),
             'listed' => ($landing['listed'] ?? true) === true,
         ];
+    }
+
+    /** The sections a platform switch can take off the public pages. */
+    private const PUBLIC_SWITCHES = ['announcements' => Feature::PublicNews, 'vacancies' => Feature::PublicVacancies];
+
+    /**
+     * The sections the public pages show: the organisation's own choice, less
+     * any the platform has switched off for it. Public surfaces read this; the
+     * settings editor reads {@see present()}, so saving the form never stores
+     * the platform's switch as the organisation's choice, and the choice comes
+     * back with the switch.
+     *
+     * @return array<string, bool>
+     */
+    public static function publicSections(Tenant $tenant): array
+    {
+        $sections = self::present($tenant)['sections'];
+        foreach (self::paused($tenant) as $section) {
+            $sections[$section] = false;
+        }
+
+        return $sections;
+    }
+
+    /**
+     * The sections the organisation shows that the platform has switched off,
+     * so a page can say "temporarily unavailable" instead of looking missing
+     * (owner decision D7).
+     *
+     * @return list<string>
+     */
+    public static function paused(Tenant $tenant): array
+    {
+        $sections = self::present($tenant)['sections'];
+        $features = app(FeatureGate::class);
+
+        $paused = [];
+        foreach (self::PUBLIC_SWITCHES as $section => $feature) {
+            if (($sections[$section] ?? false) && ! $features->allows($tenant, $feature)) {
+                $paused[] = $section;
+            }
+        }
+
+        return $paused;
     }
 
     /**

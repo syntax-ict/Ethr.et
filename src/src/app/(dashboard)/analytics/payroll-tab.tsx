@@ -28,10 +28,17 @@ import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { CompactCurrency } from "@/components/shared/currency-display";
 import { birrTick, birrTooltip } from "./axis-format";
+import type { DateRange } from "./period";
 
-export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
+export function PayrollTab({
+  branchPublicId,
+  range,
+}: {
+  branchPublicId?: string;
+  range: DateRange;
+}) {
   const { t } = useT();
-  const query = useExecutivePayroll({ branchPublicId });
+  const query = useExecutivePayroll({ branchPublicId, ...range });
   const forecast = useExecutiveForecast(branchPublicId);
 
   // isEmpty is disabled: each chart below hides itself when it has no rows, so

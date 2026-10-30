@@ -24,6 +24,7 @@ import {
 } from "@/features/admin/components/feature-reason-dialog";
 import {
   FEATURE_LABEL_FALLBACK,
+  featureLabelKey,
   useRemoveTenantFeatureOverride,
   useSetTenantFeatureOverride,
   useTenantFeatures,
@@ -77,13 +78,16 @@ export function TenantFeaturesCard({
   const [removing, setRemoving] = useState<TenantFeature | null>(null);
 
   const label = (feature: TenantFeature) =>
-    t(
-      `admin_plans.feature.${feature.key}`,
-      FEATURE_LABEL_FALLBACK[feature.key],
-    );
+    t(featureLabelKey(feature.key), FEATURE_LABEL_FALLBACK[feature.key]);
 
   function exception(feature: TenantFeature): string {
     const override = feature.override;
+    if (!feature.overridable) {
+      return t(
+        "admin_features.not_overridable",
+        "Decided for every organisation at once",
+      );
+    }
     if (override === null) return t("admin_features.no_exception", "None");
     if (override.expired) {
       return t("admin_features.exception_expired", "Ended :date", {
@@ -163,38 +167,39 @@ export function TenantFeaturesCard({
                     {exception(feature)}
                   </span>,
                 ],
-                actions: readOnly ? undefined : (
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSetting(feature)}
-                      aria-label={t(
-                        "admin_features.set_exception_aria",
-                        "Set an exception for :feature",
-                        { feature: label(feature) },
-                      )}
-                    >
-                      {active
-                        ? t("admin_features.change", "Change")
-                        : t("admin_features.set_exception", "Set exception")}
-                    </Button>
-                    {active && (
+                actions:
+                  readOnly || !feature.overridable ? undefined : (
+                    <div className="flex justify-end gap-2">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        onClick={() => setRemoving(feature)}
+                        onClick={() => setSetting(feature)}
                         aria-label={t(
-                          "admin_features.remove_exception_aria",
-                          "Remove the exception for :feature",
+                          "admin_features.set_exception_aria",
+                          "Set an exception for :feature",
                           { feature: label(feature) },
                         )}
                       >
-                        {t("admin_features.remove", "Remove")}
+                        {active
+                          ? t("admin_features.change", "Change")
+                          : t("admin_features.set_exception", "Set exception")}
                       </Button>
-                    )}
-                  </div>
-                ),
+                      {active && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setRemoving(feature)}
+                          aria-label={t(
+                            "admin_features.remove_exception_aria",
+                            "Remove the exception for :feature",
+                            { feature: label(feature) },
+                          )}
+                        >
+                          {t("admin_features.remove", "Remove")}
+                        </Button>
+                      )}
+                    </div>
+                  ),
               };
             })}
           />

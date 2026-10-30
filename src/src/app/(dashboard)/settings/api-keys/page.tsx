@@ -210,7 +210,7 @@ export default function ApiKeysPage() {
           }
         />
 
-        {!hasApiAccess && <PlanFeatureNotice />}
+        {!hasApiAccess && <PlanFeatureNotice feature="api_access" />}
 
         {newKey && (
           <Card className="border-2 border-status-warning/40 bg-status-warning/5">

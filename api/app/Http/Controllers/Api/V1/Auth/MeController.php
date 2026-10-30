@@ -57,6 +57,9 @@ class MeController extends Controller
             'features' => $currentTenant->resolved()
                 ? $this->features->decisionsFor($currentTenant->get())
                 : null,
+            'paused_features' => $currentTenant->resolved()
+                ? $this->features->pausedFor($currentTenant->get())
+                : [],
             'tenant' => $currentTenant->resolved()
                 ? new TenantResource($currentTenant->get())
                 : null,

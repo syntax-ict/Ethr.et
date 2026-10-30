@@ -10,7 +10,22 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
  * A switch takes effect on the organisation's next request. Every change
  * takes a reason, which goes into the audit log with the admin's name.
  */
-export type FeatureKey = components["schemas"]["PlanFeature"];
+export type PlanFeatureKey = components["schemas"]["PlanFeature"];
+
+/** The catalogue, `App\Enums\Feature`: the plan features, then what no plan decides. */
+export type FeatureKey =
+  | PlanFeatureKey
+  | "webhooks_outbound"
+  | "web_push"
+  | "email_sign_in_codes"
+  | "attendance_selfies"
+  | "kiosk_check_in"
+  | "self_registration"
+  | "scim"
+  | "device_webhooks_inbound"
+  | "public_news"
+  | "public_vacancies";
+export type FeatureKind = "module" | "integration" | "public";
 export type FeatureState = "enabled" | "hidden" | "restricted" | "disabled";
 export type FeatureOverrideMode = "grant" | "revoke";
 export type FeatureReason =
@@ -21,7 +36,11 @@ export type FeatureReason =
   | "not_in_rollout"
   | "plan";
 
-/** English fallbacks for `admin_plans.feature.<key>`, shared with the plans page. */
+/**
+ * English fallbacks for each feature's name, shared with the plans page. A
+ * plan feature is named under `admin_plans.feature.<key>`, the rest under
+ * `admin_features.name.<key>`; {@link featureLabelKey} picks.
+ */
 export const FEATURE_LABEL_FALLBACK: Record<FeatureKey, string> = {
   employee_management: "Employee management",
   attendance: "Attendance",
@@ -34,10 +53,44 @@ export const FEATURE_LABEL_FALLBACK: Record<FeatureKey, string> = {
   api_access: "API access",
   webhooks: "Webhooks",
   custom_domain: "Custom domain (add-on)",
+  webhooks_outbound: "Webhook delivery",
+  web_push: "Phone notifications",
+  email_sign_in_codes: "Sign-in codes by email",
+  attendance_selfies: "Attendance selfies",
+  kiosk_check_in: "Kiosk check-in",
+  self_registration: "New organisation sign-up",
+  scim: "SCIM provisioning",
+  device_webhooks_inbound: "Attendance terminals",
+  public_news: "Public news page",
+  public_vacancies: "Public vacancies",
 };
+
+const PLAN_FEATURES = new Set<string>([
+  "employee_management",
+  "attendance",
+  "leave",
+  "notifications",
+  "payroll",
+  "reports",
+  "custom_reports",
+  "audit_log",
+  "api_access",
+  "webhooks",
+  "custom_domain",
+] satisfies PlanFeatureKey[]);
+
+/** The translation key for a feature's name. */
+export function featureLabelKey(key: FeatureKey): string {
+  return PLAN_FEATURES.has(key)
+    ? `admin_plans.feature.${key}`
+    : `admin_features.name.${key}`;
+}
 
 export interface PlatformFeature {
   key: FeatureKey;
+  kind: FeatureKind;
+  /** False when only the platform state decides it: no grant, no rollout. */
+  overridable: boolean;
   state: FeatureState;
   default_state: FeatureState;
   reason: string | null;
@@ -56,6 +109,8 @@ export interface TenantFeatureOverride {
 
 export interface TenantFeature {
   key: FeatureKey;
+  kind: FeatureKind;
+  overridable: boolean;
   on: boolean;
   visible: boolean;
   reason: FeatureReason;

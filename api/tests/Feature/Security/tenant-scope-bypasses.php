@@ -19,7 +19,18 @@ declare(strict_types=1);
  * tenants.id`; `isEstablished()` counts through `$this->employees()`, keyed
  * on the tenant in hand. Both return a count, never a row. `ReadinessScorer`
  * stays at eleven: its employee reads now share one builder stating
- * `tenant_id`, and a salary check reads contracts stating it too. 186/72.)
+ * `tenant_id`, and a salary check reads contracts stating it too. 181/72.)
+ * (2026-10-30, analytics periods: one more, in `ExecutiveDashboardService::
+ * countedRuns()`. It now picks the runs whose middle day falls in the period,
+ * which a query cannot say on every engine, so it reads the overlapping runs
+ * stating `tenant_id`, filters them in PHP, and returns a builder over the
+ * chosen ids that states `tenant_id` again. 179/72.)
+ *
+ * (2026-10-29, analytics figures: six fewer, all in `Services/Analytics/
+ * ExecutiveDashboardService`. The six payroll run lookups became one
+ * `countedRuns()`, which states `tenant_id` and the counted statuses on the
+ * same chain, and the attendance rate's two record queries became one
+ * `attendedShare()`, which states `tenant_id`. 178/72.)
  *
  * (2026-10-29, get help: seven more, all in `Services/Support/
  * PlatformSupportInbox`, the platform console's reads of support requests
@@ -287,7 +298,7 @@ return [
     'Services/Admin/PlatformAnalyticsService.php' => 3,
     'Services/Analytics/BranchAnalyticsService.php' => 5,
     'Services/Analytics/DepartmentAnalyticsService.php' => 5,
-    'Services/Analytics/ExecutiveDashboardService.php' => 22,
+    'Services/Analytics/ExecutiveDashboardService.php' => 17,
     'Services/Attendance/AttendanceEngine.php' => 2,
     // Retention sweep: deletes expired passkey challenges across every
     // organisation from the scheduler; selects and returns nothing.
