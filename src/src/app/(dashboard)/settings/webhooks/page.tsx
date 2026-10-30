@@ -215,7 +215,7 @@ export default function WebhooksPage() {
           }
         />
 
-        {!hasWebhooks && <PlanFeatureNotice />}
+        {!hasWebhooks && <PlanFeatureNotice feature="webhooks" />}
 
         {newSecret && (
           <Card className="border-2 border-status-warning/40 bg-status-warning/5">

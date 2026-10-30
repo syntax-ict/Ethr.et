@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Feature;
 use App\Models\AttendanceIntegrityFlag;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
@@ -95,6 +96,23 @@ it('records a sealed punch made during an outage, at the moment it was made', fu
     // Sent again after a retry: the same punch, not a second one.
     syncKiosk($tenant, $session, [['idempotency_key' => 'kiosk-off-1', 'sealed' => $sealed, 'grant' => $config['grant']]])
         ->assertJsonPath('results.0.status', 'duplicate');
+});
+
+it('still records a punch made offline when kiosk check-in is switched off before it syncs', function () {
+    // A record captured while the feature was on is never discarded
+    // (docs/FEATURE-CONTROL-CENTER-DESIGN.md §6): the switch refuses new
+    // punches at the kiosk, not ones already waiting on the terminal.
+    Carbon::setTestNow('2026-10-13 07:00:00');
+    [$tenant, $session, $config] = offlineKiosk();
+    $sealed = sealPunch($config['public_key'], [
+        'c' => 'K-OFF', 'p' => '4821', 't' => 'check_in', 'at' => '2026-10-13T06:00:00Z', 'k' => 'kiosk-off-switched',
+    ]);
+
+    switchFeature(Feature::KioskCheckIn);
+
+    syncKiosk($tenant, $session, [['idempotency_key' => 'kiosk-off-switched', 'sealed' => $sealed, 'grant' => $config['grant']]])
+        ->assertOk()
+        ->assertJsonPath('results.0.status', 'created');
 });
 
 it('checks the PIN at sync as it would have been checked live', function () {

@@ -14,6 +14,17 @@ interface MeResponse {
    * 403; this lets the screen say so first (audit N66).
    */
   plan_features?: string[] | null;
+  /**
+   * Features the platform has switched off for now that this organisation
+   * would otherwise have (FeatureGate::pausedFor), for the banner that tells
+   * its admins (owner decision D2).
+   */
+  paused_features?: string[];
+  /**
+   * Every feature's decision for this organisation (FeatureGate::decide), so
+   * a screen can tell "not in your plan" from "switched off by ETHR".
+   */
+  features?: Record<string, { on: boolean; reason: string }> | null;
   /** The largest upload the server accepts, in bytes (PHP's own limits). */
   upload_limit_bytes?: number;
   tenant: {
@@ -21,6 +32,8 @@ interface MeResponse {
     name: string;
     subdomain: string;
     status: string;
+    /** The kind of organisation sign-up recorded (`bank`, `hospital`, ...). */
+    type?: string | null;
     /**
      * IANA zone the tenant displays timestamps in, e.g. `Africa/Addis_Ababa`.
      * `TenantResource` has always sent this; the type simply did not declare
@@ -94,6 +107,27 @@ export function usePlanFeatures() {
       features === null || features.includes(feature),
     isLoading: query.isLoading,
   };
+}
+
+/**
+ * Why a feature is off for this organisation (`plan`, `platform_disabled`,
+ * `revoked`, `not_in_rollout`), or null when it is on or not yet known.
+ */
+export function useFeatureOffReason(feature: string): string | null {
+  const { data } = useQuery({
+    ...meQueryOptions,
+    select: (me: MeResponse) => me.features?.[feature] ?? null,
+  });
+  return data && !data.on ? data.reason : null;
+}
+
+/** Features the platform has switched off for now; empty while loading. */
+export function usePausedFeatures(): string[] {
+  const { data } = useQuery({
+    ...meQueryOptions,
+    select: (me: MeResponse) => me.paused_features ?? [],
+  });
+  return data ?? [];
 }
 
 export function useCurrentPermissions() {

@@ -1,6 +1,6 @@
 # Platform Feature Control Center — design
 
-**Prepared:** 2026-10-28 · **Status: OWNER DECIDED, 2026-10-28** — all seven decisions in §10 taken as recommended. Ready to build from PR 1 in §9; nothing here is built yet.
+**Prepared:** 2026-10-28 · **Status: OWNER DECIDED, 2026-10-28** — all seven decisions in §10 taken as recommended. **Built:** PR 1 (#460) and PR 2 (#464) are merged and live; PR 3, the integration and public-surface switches, is on `feat/feature-kill-switches` (2026-10-30). PR 4, Hidden on the screen, is not started, so the console does not offer Hidden yet.
 
 **Method, same rule as every document in this tree:** the current state in §1 was read out of the source, with the file named so it can be checked. Nothing was measured against a running build. Where a choke point is named in §6 but was not read, it says so.
 

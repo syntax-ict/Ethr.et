@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\Feature;
+use App\Models\Tenant;
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
+use App\Services\Features\FeatureGate;
+use App\Support\FeatureUnavailable;
 use App\Support\WebhookTargets;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -79,6 +83,20 @@ class DispatchWebhookJob implements ShouldQueue
                 ->find($this->deliveryId);
 
         if (! $webhook || ! $delivery) {
+            return;
+        }
+
+        // Held, not failed, while delivery is switched off for this
+        // organisation: losing a delivery is damage (design §6, posture
+        // `release`). A fresh copy is queued rather than this one released,
+        // because a release spends one of the six tries, and a switch left off
+        // for an hour would use them all and fail deliveries nobody refused.
+        $tenant = Tenant::query()->find($this->tenantId);
+        if ($tenant !== null && ! app(FeatureGate::class)->allows($tenant, Feature::WebhooksOutbound)) {
+            self::dispatch($this->webhookId, $this->event, $this->payload, $this->deliveryId, $this->tenantId)
+                ->onQueue('default')
+                ->delay(now()->addSeconds(FeatureUnavailable::RETRY_AFTER_SECONDS));
+
             return;
         }
 

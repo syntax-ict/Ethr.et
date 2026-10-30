@@ -73,6 +73,7 @@ class AuthService
             $user = User::create([
                 'tenant_id' => $tenant->id,
                 'email' => $data['admin_email'],
+                'display_name' => $data['admin_name'],
                 'phone' => $data['admin_phone'] ?? null,
                 'password' => Hash::make($data['password']),
                 'password_changed_at' => now(),

@@ -59,12 +59,14 @@ class AdminFeatureController extends Controller
 
     /**
      * @param  array{grants: int, revokes: int}|null  $counts
-     * @return array{key: string, state: string, default_state: string, reason: string|null, changed_at: string|null, grants: int, revokes: int}
+     * @return array{key: string, kind: string, overridable: bool, state: string, default_state: string, reason: string|null, changed_at: string|null, grants: int, revokes: int}
      */
     private function present(Feature $feature, ?PlatformFeatureState $row, ?array $counts): array
     {
         return [
             'key' => $feature->value,
+            'kind' => $feature->kind()->value,
+            'overridable' => $feature->overridable(),
             'state' => ($row !== null ? $row->state : $feature->defaultState())->value,
             'default_state' => $feature->defaultState()->value,
             'reason' => $row?->reason,

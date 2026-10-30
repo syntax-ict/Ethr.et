@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Services\Auth;
 
 use App\Contracts\SmsSender;
+use App\Enums\Feature;
 use App\Models\AuditLog;
 use App\Models\OtpCode;
 use App\Models\User;
 use App\Notifications\SignInCodeNotification;
+use App\Services\CurrentTenant;
+use App\Services\Features\FeatureGate;
 use App\Services\Sms\SmsNumber;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -38,15 +41,28 @@ class OtpService
     /** Mailers that accept a message without delivering it anywhere. */
     private const UNDELIVERED_MAILERS = ['log', 'array'];
 
-    public function __construct(private readonly SmsSender $sms) {}
+    public function __construct(
+        private readonly SmsSender $sms,
+        private readonly FeatureGate $features,
+        private readonly CurrentTenant $currentTenant,
+    ) {}
 
     public function isAvailable(string $channel = self::CHANNEL_SMS): bool
     {
+        // Switched off by the platform reads as no mail: the sign-in page hides
+        // the button, and a request is told to use the password instead.
         if ($channel === self::CHANNEL_EMAIL) {
-            return ! in_array(config('mail.default'), self::UNDELIVERED_MAILERS, true);
+            return $this->mailConfigured()
+                && $this->features->allowsFor($this->currentTenant->get(), Feature::EmailSignInCodes);
         }
 
         return $this->sms->isAvailable();
+    }
+
+    /** Whether this install can send mail at all, whatever the platform switch says. */
+    public function mailConfigured(): bool
+    {
+        return ! in_array(config('mail.default'), self::UNDELIVERED_MAILERS, true);
     }
 
     /**

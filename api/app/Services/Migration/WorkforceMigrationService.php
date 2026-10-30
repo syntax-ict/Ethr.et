@@ -14,6 +14,7 @@ use App\Services\Device\DeviceManager;
 use App\Services\Identity\IdentityMatch;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
+use App\Support\DepartmentMatch;
 use App\Support\EthiopianPhone;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -123,7 +124,9 @@ final class WorkforceMigrationService
 
         $totals = ['created' => 0, 'merged' => 0, 'skipped' => 0, 'deferred' => 0];
 
-        DB::transaction(function () use ($batch, &$totals): void {
+        $departments = DepartmentMatch::forTenant($batch->tenant_id);
+
+        DB::transaction(function () use ($batch, $departments, &$totals): void {
             foreach ($batch->rows()->get() as $row) {
                 // Read via getAttribute so the array-cast's loose static type does
                 // not defeat the guard (the value is an array at runtime).
@@ -133,7 +136,7 @@ final class WorkforceMigrationService
 
                 switch ($row->action) {
                     case MigrationStagingRow::ACTION_CREATE:
-                        $employee = $this->createEmployee($raw, $batch->tenant_id);
+                        $employee = $this->createEmployee($raw, $batch->tenant_id, $departments);
                         $this->resolver->link($employee, $signals, 1.0, verified: true);
                         $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
                         $totals['created']++;
@@ -299,9 +302,13 @@ final class WorkforceMigrationService
     }
 
     /**
+     * A department is matched by code or name (DepartmentMatch). A pasted list
+     * was checked when it was staged; a device's own department names are
+     * not, so one the organisation does not have leaves the person unassigned.
+     *
      * @param  array<string, mixed>  $raw
      */
-    private function createEmployee(array $raw, int $tenantId): Employee
+    private function createEmployee(array $raw, int $tenantId, DepartmentMatch $departments): Employee
     {
         return Employee::create([
             'tenant_id' => $tenantId,
@@ -311,6 +318,7 @@ final class WorkforceMigrationService
             'employee_code' => isset($raw['employee_code']) ? (string) $raw['employee_code'] : null,
             'badge_number' => isset($raw['badge_number']) ? (string) $raw['badge_number'] : null,
             'hire_date' => isset($raw['hire_date']) ? (string) $raw['hire_date'] : now()->toDateString(),
+            'department_id' => $departments->id(isset($raw['department']) ? (string) $raw['department'] : null),
             'status' => EmployeeStatus::HIRED,
         ]);
     }

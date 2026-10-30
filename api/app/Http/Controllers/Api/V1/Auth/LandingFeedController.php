@@ -50,7 +50,7 @@ class LandingFeedController extends Controller
     {
         $tenant = $currentTenant->get();
         $landing = $tenant !== null ? TenantLanding::present($tenant) : null;
-        $sections = $landing['sections'] ?? ['announcements' => false, 'vacancies' => false, 'holidays' => false, 'contact' => false, 'about' => false];
+        $sections = $tenant !== null ? TenantLanding::publicSections($tenant) : ['announcements' => false, 'vacancies' => false, 'holidays' => false, 'contact' => false, 'about' => false];
 
         // The organisation's places, only when it chose to show them: the
         // name, city and phone a visitor would look for, nothing about who
@@ -135,7 +135,7 @@ class LandingFeedController extends Controller
     public function news(LandingNewsRequest $request, CurrentTenant $currentTenant): JsonResponse
     {
         $tenant = $currentTenant->get();
-        if ($tenant === null || ! TenantLanding::present($tenant)['sections']['announcements']) {
+        if ($tenant === null || ! TenantLanding::publicSections($tenant)['announcements']) {
             throw (new ModelNotFoundException)->setModel(Announcement::class);
         }
 
@@ -186,7 +186,7 @@ class LandingFeedController extends Controller
     public function announcement(CurrentTenant $currentTenant, string $announcement): JsonResponse
     {
         $tenant = $currentTenant->get();
-        $model = $tenant === null || ! TenantLanding::present($tenant)['sections']['announcements']
+        $model = $tenant === null || ! TenantLanding::publicSections($tenant)['announcements']
             ? null
             : Announcement::query()
                 ->publiclyListed()
@@ -258,7 +258,7 @@ class LandingFeedController extends Controller
     public function vacancy(CurrentTenant $currentTenant, string $vacancy): JsonResponse
     {
         $tenant = $currentTenant->get();
-        $model = $tenant === null || ! TenantLanding::present($tenant)['sections']['vacancies']
+        $model = $tenant === null || ! TenantLanding::publicSections($tenant)['vacancies']
             ? null
             : Vacancy::query()
                 ->publiclyListed()

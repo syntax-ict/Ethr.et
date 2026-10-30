@@ -800,15 +800,10 @@ function TenantDetail({ id }: { id: string }) {
                             "admin_tenant_detail_page.showcase_hidden",
                             "Hidden by the platform",
                           )
-                        : !(
-                              tenant.status === "active" ||
-                              (tenant.status === "trial" &&
-                                (!tenant.trial_ends_at ||
-                                  new Date(tenant.trial_ends_at) >= new Date()))
-                            )
+                        : !tenant.showcase_established
                           ? t(
                               "admin_tenant_detail_page.showcase_inactive",
-                              "Shown once active",
+                              "Shown once in use",
                             )
                           : t(
                               "admin_tenant_detail_page.showcase_shown",

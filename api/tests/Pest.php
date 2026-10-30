@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\Feature;
+use App\Enums\FeatureState;
+use App\Models\PlatformFeatureState;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\Features\FeatureGate;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -64,4 +68,16 @@ function selfieDataUrl(int $width = 400, int $height = 400): string
     imagedestroy($image);
 
     return 'data:image/jpeg;base64,'.base64_encode($binary);
+}
+
+/**
+ * Sets a feature's platform state as the console would, and has the scoped
+ * FeatureGate forget what it read, so the next check sees the change. Only the
+ * gate: forgetting every scoped instance would forget the current tenant too.
+ */
+function switchFeature(Feature $feature, FeatureState $state = FeatureState::Disabled): void
+{
+    PlatformFeatureState::query()->updateOrCreate(['key' => $feature->value], ['state' => $state]);
+
+    app(FeatureGate::class)->flush();
 }

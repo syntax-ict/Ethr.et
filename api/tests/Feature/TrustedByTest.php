@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Models\AuditLog;
+use App\Models\Employee;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Support\FrontendUrl;
@@ -34,10 +35,17 @@ it('names every operational organisation from creation, unless it opted out or i
     $optedOut = showcaseTenant(['name' => 'Opted Out PLC']);
     $optedOut->forceFill(['showcase_consented_at' => null])->save();
 
-    // A free trial that has not ended is named (owner decision 2026-10-18);
-    // one that has ended is not.
+    // A free trial that has not ended is named (owner decision 2026-10-18)
+    // once it has people in it (onboarding review 2026-10-30); one that has
+    // ended is not.
     $trial = showcaseTenant(['name' => 'Trial PLC', 'status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->addDays(10)]);
     $trial->forceFill(['showcase_consented_at' => now()])->save();
+    Employee::factory()->count(Tenant::PUBLIC_MIN_EMPLOYEES)->create(['tenant_id' => $trial->id]);
+
+    // Registered a minute ago with no email checked, and nearly empty: not
+    // named yet, whatever it calls itself.
+    $fresh = showcaseTenant(['name' => 'Fresh Trial PLC', 'status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->addDays(10)]);
+    Employee::factory()->count(Tenant::PUBLIC_MIN_EMPLOYEES - 1)->create(['tenant_id' => $fresh->id]);
 
     $expired = showcaseTenant(['name' => 'Expired Trial PLC', 'status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->subDay()]);
     $expired->forceFill(['showcase_consented_at' => now()])->save();

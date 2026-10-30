@@ -57,6 +57,8 @@ export function NewsArticle({ routeId }: { routeId: string }) {
     (axios.isAxiosError(article.error) &&
       article.error.response?.status === 404);
   const newsHref = links.news ?? links.home;
+  // See NewsListing: switched off by the platform for now (owner decision D7).
+  const paused = host.tenantLanding?.paused?.includes("announcements") ?? false;
 
   return (
     <PortalChrome
@@ -99,11 +101,22 @@ export function NewsArticle({ routeId }: { routeId: string }) {
           {notFound ? (
             <NewsState
               icon={FileQuestion}
-              title={t("news.not_found_title", "This story is not available")}
-              description={t(
-                "news.not_found_desc",
-                "It may have been unpublished, or the link is not complete.",
-              )}
+              title={
+                paused
+                  ? t("news.paused_title", "News is temporarily unavailable")
+                  : t("news.not_found_title", "This story is not available")
+              }
+              description={
+                paused
+                  ? t(
+                      "news.paused_desc",
+                      "This page is switched off for a while. Please check back later.",
+                    )
+                  : t(
+                      "news.not_found_desc",
+                      "It may have been unpublished, or the link is not complete.",
+                    )
+              }
               action={
                 <Button asChild variant="outline">
                   <a href={newsHref}>{t("news.all_news", "See all news")}</a>

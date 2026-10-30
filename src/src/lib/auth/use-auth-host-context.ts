@@ -97,6 +97,12 @@ export interface TenantLanding {
   sections?: Partial<Record<PortalSection, boolean>> | null;
   order?: PortalSection[] | null;
   listed?: boolean;
+  /**
+   * Sections the organisation shows that the platform has switched off for
+   * now, so a page says "temporarily unavailable" rather than looking
+   * missing (owner decision D7).
+   */
+  paused?: PortalSection[];
 }
 
 export type TenantRequest =

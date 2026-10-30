@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Listeners;
 
+use App\Enums\Feature;
 use App\Jobs\SendWebPush;
 use App\Models\PushSubscription;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Features\FeatureGate;
 use App\Services\Push\WebPushSender;
 use Illuminate\Notifications\Events\NotificationSent;
 
@@ -22,7 +25,10 @@ use Illuminate\Notifications\Events\NotificationSent;
  */
 class PushDatabaseNotification
 {
-    public function __construct(private readonly WebPushSender $sender) {}
+    public function __construct(
+        private readonly WebPushSender $sender,
+        private readonly FeatureGate $features,
+    ) {}
 
     public function handle(NotificationSent $event): void
     {
@@ -32,6 +38,14 @@ class PushDatabaseNotification
 
         $user = $event->notifiable;
         if ($user->tenant_id === null) {
+            return;
+        }
+
+        // Dropped while phone notifications are switched off: a push about a
+        // punch an hour ago is worth nothing (design §6, posture `drop`). The
+        // notification itself is still on the bell.
+        $tenant = Tenant::query()->find($user->tenant_id);
+        if ($tenant === null || ! $this->features->allows($tenant, Feature::WebPush)) {
             return;
         }
 

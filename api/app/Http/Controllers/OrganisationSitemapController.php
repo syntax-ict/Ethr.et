@@ -15,7 +15,7 @@ use Illuminate\Http\Response;
 
 /**
  * The sitemap of organisation portals, named beside the site's own in
- * robots.txt: one entry per organisation that is in use and has not
+ * robots.txt: one entry per organisation that is established and has not
  * switched listing off (TenantLanding::indexable, owner decision
  * 2026-10-26), at its canonical sign-in address, with its English and
  * Amharic alternates. An organisation that switched it off, or is no longer
@@ -38,7 +38,7 @@ class OrganisationSitemapController extends Controller
     public function __invoke(): Response
     {
         $entries = Tenant::query()
-            ->operational()
+            ->established()
             ->orderBy('subdomain')
             ->cursor()
             // The listing switch is read as the page reads it: a missing
@@ -74,7 +74,7 @@ class OrganisationSitemapController extends Controller
      */
     private static function news(Tenant $tenant): array
     {
-        if (! TenantLanding::present($tenant)['sections']['announcements']
+        if (! TenantLanding::publicSections($tenant)['announcements']
             || FrontendUrl::canonicalOrigin($tenant) === null) {
             return [];
         }

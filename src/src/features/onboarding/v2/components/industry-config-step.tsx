@@ -25,6 +25,7 @@ import {
 } from "../api";
 import type { ConfigurationPlan, ConfigurationProfile } from "../types";
 import { SourceLabel } from "./source-label";
+import { useCurrentTenant } from "@/features/auth/api";
 
 const SECTION_TITLES: Record<string, [string, string]> = {
   branches: ["setup2.section_branches", "Branches"],
@@ -55,7 +56,8 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   const preview = usePreviewConfiguration();
   const apply = useApplyConfiguration();
 
-  const [selected, setSelected] = useState<string | null>(null);
+  const { data: tenant } = useCurrentTenant();
+  const [chosen, setChosen] = useState<string | null>(null);
   const [employeeCount, setEmployeeCount] = useState("");
   const [region, setRegion] = useState("");
   // null = the industry's usual profile; set only when the admin changes it,
@@ -73,6 +75,16 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     return groups;
   }, [industriesQuery]);
 
+  // Sign-up already asked what kind of organisation this is. Where that answer
+  // is an industry here (bank, hospital, hotel, ...) it starts selected, so
+  // the question is not asked twice (onboarding review 2026-10-30).
+  const suggested = (industriesQuery.data ?? []).some(
+    (ind) => ind.key === tenant?.type,
+  )
+    ? (tenant?.type ?? null)
+    : null;
+  const selected = chosen ?? suggested;
+
   const selectedIndustry = (industriesQuery.data ?? []).find(
     (ind) => ind.key === selected,
   );
@@ -82,7 +94,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     locale === "am" ? p.label_am : p.label;
 
   function chooseIndustry(key: string) {
-    setSelected(key);
+    setChosen(key);
     setWorkforceProfile(null);
     setPolicyProfile(null);
   }

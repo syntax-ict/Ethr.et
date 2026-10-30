@@ -144,21 +144,52 @@ class Tenant extends Model
     public const SHOWCASE_CACHE_TTL = 600;
 
     /**
-     * Organisations ETHR names on its public site: operational ones (active,
-     * or in a free trial that has not ended; owner decision 2026-10-18) that
-     * have not switched it off, and that the platform has not hidden. Every
-     * organisation is listed from creation (owner decision 2026-10-26), so a
-     * null `showcase_consented_at` now means it opted out. An expired trial, a
-     * suspension or a cancellation takes the name down.
+     * The people a trial organisation must have before ETHR names it in
+     * public. Sign-up checks no email and no CAPTCHA, so without a floor
+     * anyone could put any name on the ethr.et landing page and in the
+     * sitemap within a minute of registering (onboarding review 2026-10-30).
+     */
+    public const PUBLIC_MIN_EMPLOYEES = 5;
+
+    /**
+     * Organisations ETHR names on its public site: established ones
+     * (scopeEstablished) that have not switched it off, and that the platform
+     * has not hidden. Every organisation consents from creation (owner
+     * decision 2026-10-26), so a null `showcase_consented_at` means it opted
+     * out. An expired trial, a suspension or a cancellation takes the name
+     * down.
      *
      * @param  Builder<Tenant>  $query
      * @return Builder<Tenant>
      */
     public function scopeShowcased(Builder $query): Builder
     {
-        return $query->operational()
+        return $query->established()
             ->whereNotNull('showcase_consented_at')
             ->whereNull('showcase_hidden_at');
+    }
+
+    /**
+     * Organisations in use, as the public site means it: active (a paying
+     * customer the platform converted), or a trial that has not ended and
+     * already holds PUBLIC_MIN_EMPLOYEES people. The employee count is read
+     * across tenants on purpose, correlated on `employees.tenant_id`, because
+     * the public pages that ask resolve no tenant.
+     *
+     * @param  Builder<Tenant>  $query
+     * @return Builder<Tenant>
+     */
+    public function scopeEstablished(Builder $query): Builder
+    {
+        return $query->operational()->where(function (Builder $query): void {
+            $query->where('status', TenantStatus::ACTIVE)
+                ->orWhereHas(
+                    'employees',
+                    fn (Builder $employees) => $employees->withoutGlobalScope('tenant'),
+                    '>=',
+                    self::PUBLIC_MIN_EMPLOYEES,
+                );
+        });
     }
 
     /** The row-level twin of scopeOperational(): active, or a trial that has not ended. */
@@ -166,6 +197,17 @@ class Tenant extends Model
     {
         return $this->status === TenantStatus::ACTIVE
             || ($this->status === TenantStatus::TRIAL && ($this->trial_ends_at === null || Carbon::parse($this->trial_ends_at)->gte(now())));
+    }
+
+    /** The row-level twin of scopeEstablished(). */
+    public function isEstablished(): bool
+    {
+        if (! $this->isOperational()) {
+            return false;
+        }
+
+        return $this->status === TenantStatus::ACTIVE
+            || $this->employees()->withoutGlobalScope('tenant')->count() >= self::PUBLIC_MIN_EMPLOYEES;
     }
 
     /**

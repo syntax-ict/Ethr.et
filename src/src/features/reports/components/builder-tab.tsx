@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { reportFieldLabel } from "@/features/reports/field-labels";
+import {
+  reportFieldLabel,
+  reportSourceLabel,
+} from "@/features/reports/field-labels";
 import {
   Download,
   Loader2,
@@ -184,9 +187,9 @@ export function BuilderTab() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(sources).map(([key, meta]) => (
+                {Object.keys(sources).map((key) => (
                   <SelectItem key={key} value={key}>
-                    {meta.label}
+                    {reportSourceLabel(t, key)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -550,7 +553,7 @@ export function SaveReportDialog({
                 <span className="text-muted-foreground">
                   {t("reports_page.source")}:
                 </span>{" "}
-                <span className="font-mono">{config.source}</span>
+                <span>{reportSourceLabel(t, config.source)}</span>
               </p>
               {config.columns && (
                 <p>
