@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -42,7 +43,7 @@ class ApprovalEscalatedNotification extends Notification
         return [
             'request_type' => $this->requestType,
             'hours' => $this->hours,
-            'message' => $this->line(),
+            ...$this->line(),
             'url' => '/approvals',
         ];
     }
@@ -51,26 +52,27 @@ class ApprovalEscalatedNotification extends Notification
     {
         return (new MailMessage)
             ->subject(__('notification.approval_escalated_subject'))
-            ->line($this->line())
+            ->line($this->line()['message'])
             ->line(__('notification.approval_escalated_hint'))
             ->action(__('notification.approval_escalated_action'), FrontendUrl::forNotifiable($notifiable, '/approvals'));
     }
 
-    private function line(): string
+    /** @return array{message: string, message_key: string, message_params: array<string, scalar|null>, message_labels?: array<string, string>, message_count?: int} */
+    private function line(): array
     {
         // Literal keys, so the translation-key sweep can see each one.
         $type = match ($this->requestType) {
-            'correction' => __('approval.type_correction'),
-            'profile_update' => __('approval.type_profile_update'),
-            'overtime' => __('approval.type_overtime'),
-            default => __('approval.type_leave'),
+            'correction' => 'approval.type_correction',
+            'profile_update' => 'approval.type_profile_update',
+            'overtime' => 'approval.type_overtime',
+            default => 'approval.type_leave',
         };
 
-        return __('notification.inapp.approval_escalated', [
-            'type' => $type,
+        return NotificationMessage::make('notification.inapp.approval_escalated', [
+            'type' => $this->requestType,
             'name' => $this->employeeName,
             'approver' => $this->approverName,
             'hours' => $this->hours,
-        ]);
+        ], ['type' => $type]);
     }
 }

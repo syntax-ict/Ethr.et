@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\AttendanceDevice;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -39,18 +40,18 @@ class AttendanceDeviceDecidedNotification extends Notification
     {
         $reason = trim((string) $this->reason);
         $message = match (true) {
-            $this->outcome === AttendanceDevice::ACTIVE => __('notification.inapp.phone_approved'),
-            $this->outcome === AttendanceDevice::REJECTED && $reason === '' => __('notification.inapp.phone_rejected'),
-            $this->outcome === AttendanceDevice::REJECTED => __('notification.inapp.phone_rejected_reason', ['reason' => $reason]),
-            $reason === '' => __('notification.inapp.phone_revoked'),
-            default => __('notification.inapp.phone_revoked_reason', ['reason' => $reason]),
+            $this->outcome === AttendanceDevice::ACTIVE => NotificationMessage::make('notification.inapp.phone_approved'),
+            $this->outcome === AttendanceDevice::REJECTED && $reason === '' => NotificationMessage::make('notification.inapp.phone_rejected'),
+            $this->outcome === AttendanceDevice::REJECTED => NotificationMessage::make('notification.inapp.phone_rejected_reason', ['reason' => $reason]),
+            $reason === '' => NotificationMessage::make('notification.inapp.phone_revoked'),
+            default => NotificationMessage::make('notification.inapp.phone_revoked_reason', ['reason' => $reason]),
         };
 
         return [
             'device_id' => $this->device->public_id,
             'action' => $this->outcome,
             'reason' => $reason === '' ? null : $reason,
-            'message' => $message,
+            ...$message,
             'url' => '/attendance/mobile',
         ];
     }
