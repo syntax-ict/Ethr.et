@@ -317,3 +317,44 @@ test('the team summary leaves out holidays, rest days and days ahead', function 
         ->and($data['2026-10-12'])->toMatchArray(['present' => 1, 'absent' => 0, 'rate' => 100])
         ->and($data['2026-10-13'])->toMatchArray(['present' => 0, 'absent' => 1, 'rate' => 0]);
 });
+
+test('a range gives each day the answer that day alone gives', function () {
+    // Analytics reads a year at once through between(); it must agree with
+    // onDate() on every day: shifts that start mid-range, a branch holiday,
+    // leave across a weekend and someone who left in the middle.
+    $tenant = createTenant();
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $department = Department::factory()->create(['tenant_id' => $tenant->id]);
+    $sixDay = Shift::factory()->create(['tenant_id' => $tenant->id, 'working_days' => '1,2,3,4,5,6']);
+    ShiftAssignment::factory()->create([
+        'tenant_id' => $tenant->id,
+        'shift_id' => $sixDay->id,
+        'assignable_type' => Department::class,
+        'assignable_id' => $department->id,
+        'effective_from' => '2026-10-07',
+    ]);
+    Holiday::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'date' => '2026-10-13', 'is_active' => true]);
+
+    $people = collect([
+        Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01']),
+        Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01', 'department_id' => $department->id, 'branch_id' => $branch->id]),
+        Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2026-10-08']),
+        Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01', 'status' => EmployeeStatus::RESIGNED, 'termination_date' => '2026-10-09']),
+    ]);
+    LeaveRequest::factory()->approved()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $people[0]->id,
+        'leave_type_id' => edLeaveType($tenant),
+        'start_date' => '2026-10-09',
+        'end_date' => '2026-10-13',
+        'days' => 3,
+    ]);
+
+    $expected = app(ExpectedDays::class);
+    $range = $expected->between($people, Carbon::parse('2026-10-05'), Carbon::parse('2026-10-18'));
+
+    expect(array_keys($range))->toHaveCount(14);
+    foreach ($range as $day => $kinds) {
+        expect($kinds)->toBe($expected->onDate($people, Carbon::parse($day)), $day);
+    }
+});

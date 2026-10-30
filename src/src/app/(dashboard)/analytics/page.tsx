@@ -1,11 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { Download, Mail } from "lucide-react";
+import { CalendarRange, Download, Mail } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { BranchScopeSelector } from "@/features/dashboard/components/branch-scope-selector";
@@ -14,6 +21,15 @@ import { useExecutiveOverview } from "@/features/dashboard/executive-api";
 import { downloadCsv } from "@/lib/utils/csv-export";
 import { useT } from "@/lib/i18n/useT";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
+import { useTenantTimezone } from "@/lib/hooks/useTenantTimezone";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import {
+  PERIOD_PRESETS,
+  monthLabel,
+  periodFor,
+  todayIn,
+  type PeriodPreset,
+} from "./period";
 
 const LazyOverviewTab = dynamic(
   () => import("./overview-tab").then((m) => ({ default: m.OverviewTab })),
@@ -40,16 +56,43 @@ const ANALYTICS_TABS = [
 ] as const;
 
 export default function AnalyticsPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { calendar } = useCalendar();
+  const timeZone = useTenantTimezone();
   const [tab, setTab] = useQueryTab(ANALYTICS_TABS, "overview");
   const [branchPublicId, setBranchPublicId] = useState<string | undefined>();
   const [digestOpen, setDigestOpen] = useState(false);
+  const [preset, setPreset] = useState<PeriodPreset>("this_month");
+
+  // Until 2026-10-30 every figure was this month with no way to change it,
+  // and nothing on the page said which month.
+  const period = useMemo(
+    () => periodFor(preset, calendar, todayIn(timeZone)),
+    [preset, calendar, timeZone],
+  );
+  const presetLabels: Record<PeriodPreset, string> = {
+    this_month: t("analytics_page.period_this_month", "This month"),
+    last_month: t("analytics_page.period_last_month", "Last month"),
+    last_3_months: t("analytics_page.period_last_3_months", "Last 3 months"),
+    last_12_months: t("analytics_page.period_last_12_months", "Last 12 months"),
+  };
+  const periodLabel =
+    period.first.year === period.last.year &&
+    period.first.month === period.last.month
+      ? monthLabel(period.last, calendar, locale)
+      : t("analytics_page.period_range", ":from to :to", {
+          from: monthLabel(period.first, calendar, locale),
+          to: monthLabel(period.last, calendar, locale),
+        });
 
   // Shared with the Overview tab's own query — same key, same cache entry, so
   // this doesn't cost a second request. Exports the tenant-level summary
   // regardless of which tab is active, since that's what a CEO/HR Director
   // hands off in a meeting: the headline numbers, not one chart's raw rows.
-  const overview = useExecutiveOverview({ branchPublicId });
+  const overview = useExecutiveOverview({
+    branchPublicId,
+    ...period.current,
+  });
 
   function handleExport() {
     const data = overview.data;
@@ -58,6 +101,8 @@ export default function AnalyticsPage() {
     downloadCsv(
       `ethr-executive-summary-${new Date().toISOString().slice(0, 10)}.csv`,
       [
+        { metric: "Period from", value: period.current.from },
+        { metric: "Period to", value: period.current.to },
         {
           metric: "Headcount (active)",
           value: data.headcount.active,
@@ -69,6 +114,10 @@ export default function AnalyticsPage() {
         {
           metric: "Attendance rate today (%)",
           value: data.attendance_rate.today,
+        },
+        {
+          metric: "Attendance rate in period (%)",
+          value: data.attendance_rate.period,
         },
         {
           metric: "Payroll net (ETB cents)",
@@ -98,6 +147,34 @@ export default function AnalyticsPage() {
         <PageActions
           actions={
             <div className="flex flex-wrap items-center gap-2">
+              <Select
+                value={preset}
+                onValueChange={(v) => {
+                  const match = PERIOD_PRESETS.find((p) => p === v);
+                  if (match) setPreset(match);
+                }}
+              >
+                <SelectTrigger
+                  className="w-full sm:w-48"
+                  aria-label={t("analytics_page.period", "Period")}
+                >
+                  <CalendarRange
+                    className="mr-1.5 h-3.5 w-3.5 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PERIOD_PRESETS.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {presetLabels[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">
+                {periodLabel}
+              </span>
               <BranchScopeSelector
                 value={branchPublicId}
                 onChange={setBranchPublicId}
@@ -144,13 +221,23 @@ export default function AnalyticsPage() {
           </TabsList>
 
           <TabsContent value="overview" className="mt-4">
-            <LazyOverviewTab branchPublicId={branchPublicId} />
+            <LazyOverviewTab
+              branchPublicId={branchPublicId}
+              period={period}
+              periodLabel={periodLabel}
+            />
           </TabsContent>
           <TabsContent value="attendance" className="mt-4">
-            <LazyAttendanceTab branchPublicId={branchPublicId} />
+            <LazyAttendanceTab
+              branchPublicId={branchPublicId}
+              range={period.current}
+            />
           </TabsContent>
           <TabsContent value="payroll" className="mt-4">
-            <LazyPayrollTab branchPublicId={branchPublicId} />
+            <LazyPayrollTab
+              branchPublicId={branchPublicId}
+              range={period.current}
+            />
           </TabsContent>
           <TabsContent value="workforce" className="mt-4">
             <LazyWorkforceTab branchPublicId={branchPublicId} />
