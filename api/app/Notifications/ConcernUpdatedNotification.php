@@ -7,7 +7,7 @@ namespace App\Notifications;
 use App\Models\Concern;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
-use App\Support\VoiceLabels;
+use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -42,7 +42,7 @@ class ConcernUpdatedNotification extends Notification implements ShouldQueue
         return [
             'type' => 'concern_'.$this->event,
             'concern_public_id' => $this->concern->public_id,
-            'message' => $this->message(),
+            ...$this->message(),
             'url' => $this->link(),
         ];
     }
@@ -51,21 +51,23 @@ class ConcernUpdatedNotification extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject(__('voice.notify.updated_subject'))
-            ->line($this->message())
+            ->line($this->message()['message'])
             ->action(__('voice.notify.open'), FrontendUrl::forNotifiable($notifiable, $this->link()));
     }
 
-    private function message(): string
+    /** @return array{message: string, message_key: string, message_params: array<string, scalar|null>, message_labels?: array<string, string>, message_count?: int} */
+    private function message(): array
     {
         $params = [
             'subject' => $this->concern->subject,
-            'status' => VoiceLabels::pick(__('voice.status'), $this->concern->status),
+            'status' => $this->concern->status,
         ];
+        $labels = ['status' => 'voice.status.'.$this->concern->status];
 
         return match ($this->event) {
-            'hr_replied' => __('voice.notify.hr_replied', $params),
-            'reporter_replied' => __('voice.notify.reporter_replied', $params),
-            default => __('voice.notify.status_changed', $params),
+            'hr_replied' => NotificationMessage::make('voice.notify.hr_replied', $params, $labels),
+            'reporter_replied' => NotificationMessage::make('voice.notify.reporter_replied', $params, $labels),
+            default => NotificationMessage::make('voice.notify.status_changed', $params, $labels),
         };
     }
 

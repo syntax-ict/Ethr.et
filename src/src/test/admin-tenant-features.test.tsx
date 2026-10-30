@@ -20,6 +20,8 @@ const ID = "01HZTENANT001";
 function row(overrides: Partial<TenantFeature> = {}): TenantFeature {
   return {
     key: "payroll",
+    kind: "module",
+    overridable: true,
     on: false,
     visible: false,
     reason: "plan",
@@ -188,6 +190,28 @@ describe("an organisation's features in the console", () => {
     expect(
       await screen.findByText("Not in this organisation's plan"),
     ).toBeInTheDocument();
+  });
+
+  it("offers no exception for a feature decided for every organisation at once", async () => {
+    serve([
+      row({
+        key: "self_registration",
+        kind: "integration",
+        overridable: false,
+        on: true,
+        visible: true,
+        reason: "enabled",
+      }),
+    ]);
+    renderCard();
+
+    const signUp = (
+      await screen.findByText("New organisation sign-up")
+    ).closest("tr")!;
+    expect(
+      within(signUp).getByText("Decided for every organisation at once"),
+    ).toBeInTheDocument();
+    expect(within(signUp).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("offers no changes without MFA or for a deleted organisation", async () => {

@@ -41,7 +41,11 @@ class TenantContextController extends Controller
                 'subdomain' => $tenant->subdomain,
                 'logo_path' => $tenant->logoUrl(),
                 'brand' => TenantBrand::present($tenant),
-                'landing' => TenantLanding::present($tenant),
+                'landing' => [
+                    ...TenantLanding::present($tenant),
+                    'sections' => TenantLanding::publicSections($tenant),
+                    'paused' => TenantLanding::paused($tenant),
+                ],
                 'sign_in' => [
                     'sso' => SsoSetting::query()->where('is_enabled', true)->exists(),
                     'otp' => $otp->isAvailable(),

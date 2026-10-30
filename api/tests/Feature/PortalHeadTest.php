@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\TenantStatus;
+use App\Models\Employee;
 use App\Models\Tenant;
 use App\Models\Vacancy;
 use App\Services\CurrentTenant;
@@ -195,7 +196,10 @@ it('draws a preview image once per version and serves it immutable, and refuses 
 
 it('lists every organisation in use in the portals sitemap unless it switched listing off, at its canonical address', function () {
     portalTenant();
-    Tenant::factory()->create(['subdomain' => 'trialco', 'status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->addWeek(), 'landing' => null]);
+    $trial = Tenant::factory()->create(['subdomain' => 'trialco', 'status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->addWeek(), 'landing' => null]);
+    Employee::factory()->count(Tenant::PUBLIC_MIN_EMPLOYEES)->create(['tenant_id' => $trial->id]);
+    // A trial nobody has been added to yet is not listed (onboarding review 2026-10-30).
+    Tenant::factory()->create(['subdomain' => 'newco', 'status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->addWeek(), 'landing' => null]);
     Tenant::factory()->create(['subdomain' => 'quiet', 'landing' => ['background' => 'brand', 'listed' => false]]);
     Tenant::factory()->create(['subdomain' => 'gone', 'status' => TenantStatus::SUSPENDED, 'landing' => ['background' => 'brand', 'listed' => true]]);
     Tenant::factory()->create(['subdomain' => 'lapsed', 'status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->subDay(), 'landing' => ['background' => 'brand']]);
@@ -206,8 +210,9 @@ it('lists every organisation in use in the portals sitemap unless it switched li
     expect($response->headers->get('Content-Type'))->toStartWith('application/xml')
         ->and($xml)->toContain('<loc>https://www.ethr.et/acme</loc>')
         ->toContain('hreflang="am" href="https://www.ethr.et/acme?lang=am"')
-        // A current trial with no portal settings saved yet is listed too.
+        // A current trial with people and no portal settings saved yet is listed too.
         ->toContain('<loc>https://www.ethr.et/trialco</loc>')
+        ->not->toContain('newco')
         ->not->toContain('quiet')
         ->not->toContain('gone')
         ->not->toContain('lapsed');

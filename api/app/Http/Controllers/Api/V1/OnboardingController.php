@@ -40,17 +40,17 @@ class OnboardingController extends Controller
             return $this->noTenantContext();
         }
 
+        // A read writes nothing: an organisation that has not started is shown
+        // a fresh record that is not stored. The steps that complete something
+        // create the row (firstOrCreate in the Onboarding controllers).
         $progress = OnboardingProgress::where('tenant_id', $this->currentTenant->id())
-            ->first();
-
-        if (! $progress) {
-            $progress = OnboardingProgress::create([
-                'tenant_id' => $this->currentTenant->id(),
+            ->first()
+            ?? new OnboardingProgress([
                 'current_step' => 1,
                 'completed_steps' => [],
                 'step_data' => [],
+                'completed_at' => null,
             ]);
-        }
 
         return response()->json($progress);
     }

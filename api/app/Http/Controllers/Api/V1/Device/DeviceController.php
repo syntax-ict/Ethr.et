@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Device;
 
 use App\Enums\AttendanceSource;
+use App\Enums\Feature;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Device\ImportHistoryRequest;
 use App\Http\Requests\Device\StoreDeviceRequest;
@@ -24,7 +25,10 @@ use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\HikvisionEvent;
 use App\Services\Device\UnmatchedPunches;
 use App\Services\Device\ZktecoAdapter;
+use App\Services\Features\FeatureDecision;
+use App\Services\Features\FeatureGate;
 use App\Services\PlanLimitService;
+use App\Support\FeatureUnavailable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -370,6 +374,11 @@ class DeviceController extends Controller
             return response()->json(['status' => 'unauthorized'], 401);
         }
 
+        $inbound = $this->inboundDecision($device);
+        if ($inbound !== null && ! $inbound->on) {
+            return FeatureUnavailable::response(Feature::DeviceWebhooksInbound, $inbound->reason, 503);
+        }
+
         // Heartbeats and door events arrive on the same URL and name nobody;
         // they are acknowledged and not recorded. The direction is the
         // terminal's own `attendanceStatus` (HikvisionEvent) — this recorded
@@ -418,6 +427,11 @@ class DeviceController extends Controller
             return response()->json(['status' => 'unauthorized'], 401);
         }
 
+        $inbound = $this->inboundDecision($device);
+        if ($inbound !== null && ! $inbound->on) {
+            return FeatureUnavailable::response(Feature::DeviceWebhooksInbound, $inbound->reason, 503);
+        }
+
         $payload = $request->all();
         $records = $payload['records'] ?? [$payload];
 
@@ -445,6 +459,11 @@ class DeviceController extends Controller
             return response()->json(['status' => 'unauthorized'], 401);
         }
 
+        $inbound = $this->inboundDecision($device);
+        if ($inbound !== null && ! $inbound->on) {
+            return FeatureUnavailable::response(Feature::DeviceWebhooksInbound, $inbound->reason, 503);
+        }
+
         $payload = $request->all();
         $events = $payload['EventCollection'] ?? $payload['events'] ?? [$payload];
 
@@ -464,6 +483,20 @@ class DeviceController extends Controller
         $this->markWebhookReceived($device);
 
         return response()->json(['status' => 'processed', 'count' => $processed], 200);
+    }
+
+    /**
+     * Whether attendance terminals are on for the device's organisation. Off,
+     * each handler answers 503, which a terminal retries: it buffers its
+     * punches and sends them again, where a 403 would teach some firmware to
+     * drop them (design §6). The refusal is written in each handler, like its
+     * other answers, so Scramble reads it.
+     */
+    private function inboundDecision(Device $device): ?FeatureDecision
+    {
+        $tenant = Tenant::query()->find($device->tenant_id);
+
+        return $tenant === null ? null : app(FeatureGate::class)->decide($tenant, Feature::DeviceWebhooksInbound);
     }
 
     private function markWebhookReceived(Device $device): void

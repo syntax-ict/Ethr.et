@@ -40,6 +40,7 @@ return [
     'otp_unavailable' => 'Verification codes cannot be sent — no SMS gateway is configured.',
     'otp_message' => 'Your ETHR verification code is :code. It expires in :minutes minutes.',
     'otp_email_unavailable' => 'Sign-in codes cannot be emailed — no mail server is configured.',
+    'otp_email_paused' => 'Sign-in codes by email are switched off for now. Sign in with your password.',
     'sms_mobile_only' => 'Text-message codes go only to mobile numbers (starting 9 or 7). Use your mobile number, or get the code by email.',
     'otp_email_subject' => 'Your ETHR sign-in code: :code',
     'otp_email_intro' => 'Use this code to sign in to :organisation on ETHR:',

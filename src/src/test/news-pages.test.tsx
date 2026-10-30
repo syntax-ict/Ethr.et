@@ -232,6 +232,26 @@ describe("<NewsListing>", () => {
     ).toHaveAttribute("href", "/acme");
   });
 
+  it("says news is paused for now when the platform switched it off", async () => {
+    const host = organisation("acme", "Acme");
+    hostContextValue.mockReturnValue({
+      ...host,
+      tenantLanding: { ...host.tenantLanding!, paused: ["announcements"] },
+    });
+    server.use(
+      http.get(
+        "*/auth/tenant-landing/news",
+        () => new HttpResponse(null, { status: 404 }),
+      ),
+    );
+    renderWith(<NewsListing />);
+
+    expect(
+      await screen.findByText("News is temporarily unavailable"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No news here")).not.toBeInTheDocument();
+  });
+
   it("offers to try again when the news could not be loaded", async () => {
     let calls = 0;
     server.use(

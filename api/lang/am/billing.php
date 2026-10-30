@@ -11,7 +11,10 @@ return [
 
     'feature_not_in_plan' => 'ዕቅድዎ :feature አያካትትም። ለመጠቀም ያሻሽሉ።',
     'feature_unavailable' => 'ድርጅትዎ በአሁኑ ጊዜ :feature መጠቀም አይችልም።',
+    'feature_paused' => 'ETHR :featureን ለጊዜው አጥፍቷል። ቆይተው እንደገና ይሞክሩ።',
 
+    'feature_not_overridable' => 'ይህ ባህሪ ለሁሉም ድርጅቶች በአንድ ጊዜ ይወሰናል፤ ለአንድ ድርጅት ሊሰጥ ወይም ሊነሳ አይችልም።',
+    'feature_no_rollout' => 'ይህ ባህሪ በደረጃ የሚለቀቅላቸው ድርጅቶች የሉትም። ንቁ ወይም የተዘጋ ይምረጡ።',
     'features' => [
         'attendance' => 'የመገኘት ክትትል',
         'leave' => 'የፈቃድ አስተዳደር',
@@ -24,5 +27,15 @@ return [
         'custom_reports' => 'ብጁ ሪፖርቶች',
         'audit_log' => 'የኦዲት መዝገብ',
         'custom_domain' => 'የራስ ዶሜይን',
+        'webhooks_outbound' => 'የዌብሁክ መላክ',
+        'web_push' => 'የስልክ ማሳወቂያዎች',
+        'email_sign_in_codes' => 'በኢሜይል የመግቢያ ኮዶች',
+        'attendance_selfies' => 'የመገኘት ፎቶዎች',
+        'kiosk_check_in' => 'የኪዮስክ መግቢያ',
+        'self_registration' => 'የአዲስ ድርጅት ምዝገባ',
+        'scim' => 'የSCIM አቅርቦት',
+        'device_webhooks_inbound' => 'የመገኘት መሣሪያዎች',
+        'public_news' => 'የሕዝብ ዜና ገጽ',
+        'public_vacancies' => 'የሕዝብ ክፍት የሥራ ቦታዎች',
     ],
 ];

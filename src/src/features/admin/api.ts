@@ -35,6 +35,8 @@ export interface AdminTenant {
   showcase_consented_at: string | null;
   /** The platform's veto on naming it there. */
   showcase_hidden: boolean;
+  /** Active, or a trial that already has enough people to be named in public. */
+  showcase_established?: boolean;
 }
 
 /**
