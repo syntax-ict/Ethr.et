@@ -47,7 +47,7 @@ export function useT() {
   // replaced by real translations. The setState is inside a promise callback, not
   // synchronous in the effect body, so it costs one render only when a dictionary
   // actually arrives.
-  const [, setDictionaryVersion] = useState(0);
+  const [dictionaryVersion, setDictionaryVersion] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,7 +94,13 @@ export function useT() {
     ): string => {
       return translateStatic(key, locale, fallback, replacements);
     },
-    [locale],
+    // `dictionaryVersion` too, though the body never reads it: a new function
+    // is what tells a `useMemo` keyed on `t` that the strings changed. Keyed on
+    // `locale` alone, anything memoized before its dictionary arrived kept the
+    // fallbacks: switching an English dashboard to Amharic left the sidebar
+    // (`sidebar-nav.tsx`) in English (2026-10-31).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [locale, dictionaryVersion],
   );
 
   return { t: translate, locale };
