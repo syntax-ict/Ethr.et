@@ -36,6 +36,8 @@ return [
     'device_clock_invalid' => 'The device reported a time that is unreadable or in the future. Check the device clock.',
     'qr_already_used' => 'You have already used this QR code. Scan the current code on the screen.',
     'qr_use_limit_reached' => 'This QR code has been used the maximum number of times. Scan the current code on the screen.',
+    'manual_entry_self' => 'Someone else must enter your own attendance.',
+    'import_row_self' => 'Row :row: someone else must enter your own attendance.',
     'integrity_self_review' => 'You cannot review a flag on your own attendance.',
     'integrity_already_reviewed' => 'This flag has already been reviewed.',
     'punch_rejected' => [

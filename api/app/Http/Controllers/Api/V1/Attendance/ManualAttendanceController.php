@@ -29,6 +29,12 @@ class ManualAttendanceController extends Controller
         Gate::authorize('attendance.manage');
 
         $employee = Employee::where('public_id', $request->validated('employee_public_id'))->firstOrFail();
+        // attendance.manage can be given to a custom role scoped to one branch
+        // or department; it reaches only the people that scope reaches.
+        abort_unless($request->user()->canAccessEmployee($employee), 404);
+        // Entering your own hours is approving them, which corrections,
+        // conflicts and integrity flags already refuse.
+        abort_if($employee->id === $request->user()->employee_id, 403, __('attendance.manual_entry_self'));
 
         $zone = TenantTime::zone(app(CurrentTenant::class)->get());
         $date = $request->validated('date');
