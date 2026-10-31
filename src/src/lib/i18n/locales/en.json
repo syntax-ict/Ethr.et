@@ -5277,6 +5277,8 @@
   "setup2.migration_title": "Bring in your workforce",
   "setup2.no_rows": "Add at least one row (name required)",
   "setup2.none": "None",
+  "setup2.show_all_types": "Show every type of organisation",
+  "setup2.show_signup_types": "Show only the types that match your sign-up",
   "setup2.org_type": "Type of organisation",
   "setup2.outcome_ambiguous": "ambiguous",
   "setup2.outcome_matched": "matched",
