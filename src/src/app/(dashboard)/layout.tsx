@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { baseMetadata, RootShell, baseViewport } from "../root-shell";
 import { DEFAULT_LOCALE } from "@/lib/i18n/translations";
-import { AmharicDictionary } from "@/lib/i18n/amharic-dictionary";
+import { serverTranslate } from "@/lib/i18n/public-dictionary";
 import { DashboardShell } from "./dashboard-shell";
 
 export const viewport: Viewport = baseViewport;
@@ -19,6 +19,11 @@ export const metadata: Metadata = { ...baseMetadata, title: "ETHR" };
  * only signal — applied after hydration by `HtmlLangSync`, exactly as before.
  * Adding a `/am/dashboard` prefix would mean 64 more prerendered routes to
  * serve pages that are behind a login and never crawled.
+ *
+ * No dictionary is registered here. Every page below renders, before the
+ * browser knows who is reading, one loading screen with one string, so that
+ * string is all the server sends; `DashboardShell` then loads the reader's own
+ * language before it renders anything else (2026-10-31).
  */
 export default function DashboardLayout({
   children,
@@ -27,9 +32,15 @@ export default function DashboardLayout({
 }) {
   return (
     <RootShell lang={DEFAULT_LOCALE}>
-      <AmharicDictionary>
-        <DashboardShell>{children}</DashboardShell>
-      </AmharicDictionary>
+      <DashboardShell
+        loadingLabel={serverTranslate(
+          DEFAULT_LOCALE,
+          "common.loading",
+          "Loading...",
+        )}
+      >
+        {children}
+      </DashboardShell>
     </RootShell>
   );
 }

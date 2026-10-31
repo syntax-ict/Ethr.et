@@ -101,7 +101,9 @@ describe("working week", () => {
     expect(
       await screen.findByText(/only an organisation admin/i),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Mon" })).toBeDisabled();
+    // Awaited: the note shows once permissions are known, the days once the
+    // settings arrive. A spare re-render in `useT` used to hide the gap.
+    expect(await screen.findByRole("button", { name: "Mon" })).toBeDisabled();
   });
 });
 
