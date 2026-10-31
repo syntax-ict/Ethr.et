@@ -57,6 +57,17 @@ const nextConfig: NextConfig = {
    * of its responsibilities falls back to is written up in that file.
    */
   output: IS_STATIC_EXPORT ? "export" : "standalone",
+  /**
+   * Always defined, so the bundler writes the value in. Next inlines a
+   * `NEXT_PUBLIC_*` variable only when it is set; an unset one stayed a runtime
+   * `process.env` lookup, every `if (dsn)` guard survived the build, and the
+   * Sentry SDK shipped to every page of a release that has no DSN (115 KB of
+   * brotli, 2026-10-30). As an empty string the guards are constant-false and
+   * the SDK is dropped. See `instrumentation-client.ts`.
+   */
+  env: {
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN ?? "",
+  },
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {
@@ -183,7 +194,8 @@ const withSentry = withSentryConfig(withBundleAnalyzer(nextConfig), {
    *
    * Kept because it is correct and costs nothing, not because it moved the
    * number. Reducing Sentry further means giving up tracing, which is a
-   * product decision rather than a build-config one.
+   * product decision rather than a build-config one. That holds for a build
+   * with a DSN; a build without one carries no SDK at all (`env` above).
    */
   bundleSizeOptimizations: {
     excludeDebugStatements: true,
