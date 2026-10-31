@@ -18,13 +18,22 @@ class EmployeeContractResource extends JsonResource
         $endDate = $this->end_date === null ? null : Carbon::parse($this->end_date);
         $active = $this->status->value === 'active';
 
+        // Pay, shown as EmployeeResource shows it: to holders of
+        // employee.viewFinancial and to the employee themselves. A supervisor
+        // with employee.view read their team's contract salaries here, and a
+        // department admin a whole department's on the expiring watchlist.
+        $viewer = $request->user();
+        $showPay = $viewer !== null
+            && ($viewer->hasPermission('employee.viewFinancial')
+                || ($viewer->employee_id !== null && (int) $viewer->employee_id === (int) $this->employee_id));
+
         return [
             'public_id' => $this->public_id,
             'reference_number' => $this->reference_number,
             'contract_type' => $this->contract_type,
             'start_date' => $this->start_date->toDateString(),
             'end_date' => $endDate?->format('Y-m-d'),
-            'salary_cents' => $this->salary_cents,
+            'salary_cents' => $this->when($showPay, fn () => $this->salary_cents),
             'terms' => $this->terms,
             'status' => $this->status,
             'renewed_from_id' => $this->whenLoaded(

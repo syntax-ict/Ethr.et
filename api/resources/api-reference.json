@@ -19353,14 +19353,14 @@
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
-                    },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -45133,7 +45133,6 @@
                     "contract_type",
                     "start_date",
                     "end_date",
-                    "salary_cents",
                     "terms",
                     "status",
                     "ended_at",

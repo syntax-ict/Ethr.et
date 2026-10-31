@@ -8,6 +8,7 @@ import { apiClient } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
 import { useHydrated } from "@/lib/hooks/useHydrated";
+import { safeInternalPath } from "@/lib/utils/safe-path";
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/;
 
@@ -20,13 +21,6 @@ const KNOWN_ERRORS = [
   "not_configured",
   "seat_limit",
 ] as const;
-
-/** Only a path on this site; anything else is the dashboard. */
-function safeNext(next: string | null): string {
-  return next && /^\/(?![/\\])/.test(next) && !next.startsWith("/api")
-    ? next
-    : "/dashboard";
-}
 
 /**
  * Where the identity provider's sign-in lands (audit N60).
@@ -72,7 +66,9 @@ export function SsoReturn() {
     // is not its member), and must not leave this browser sending it.
     apiClient
       .get("/auth/me")
-      .then(() => router.replace(safeNext(params.get("next"))))
+      .then(() =>
+        router.replace(safeInternalPath(params.get("next"), "/dashboard")),
+      )
       .catch(() => {
         localStorage.removeItem("tenant");
         setSessionRefused(true);

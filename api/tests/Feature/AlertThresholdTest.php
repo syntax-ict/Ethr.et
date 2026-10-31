@@ -13,6 +13,7 @@ use App\Notifications\DashboardDigestNotification;
 use App\Services\Analytics\AlertEvaluator;
 use App\Services\Analytics\ExecutiveDashboardService;
 use App\Services\CurrentTenant;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -212,6 +213,10 @@ describe('triggered endpoint', function () {
 
 describe('digest integration', function () {
     it('includes a breached threshold in the digest email', function () {
+        // A working day. On a day no one is scheduled the digest has no
+        // attendance rate to compare, so the threshold cannot breach and the
+        // test failed every Saturday and Sunday in Addis Ababa (2026-10-31).
+        $this->travelTo(Carbon::parse('2026-10-28 10:00', 'Africa/Addis_Ababa'));
         Notification::fake();
 
         $tenant = createTenant();

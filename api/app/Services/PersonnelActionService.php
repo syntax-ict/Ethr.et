@@ -39,6 +39,21 @@ class PersonnelActionService
      *
      * @throws ValidationException when the action would change nothing.
      */
+    /**
+     * Whether recording this action would change the employee's pay: a new
+     * salary, a step, or a grade whose scale sets one. The controller asks it
+     * so such an action needs employee.updateFinancial, as a direct salary
+     * edit does.
+     *
+     * @param  array<string, mixed>  $data  Validated request data.
+     */
+    public function wouldChangePay(Employee $employee, array $data): bool
+    {
+        [, $apply] = $this->resolveChanges($employee, $data);
+
+        return array_key_exists('salary_cents', $apply) || array_key_exists('salary_step', $apply);
+    }
+
     public function record(Employee $employee, array $data, ?int $recordedBy): PersonnelAction
     {
         $type = $data['type'] instanceof PersonnelActionType

@@ -80,6 +80,16 @@ class StoreUserRequest extends FormRequest
             if (! $actor->isSuperAdmin() && $role->level() > $actor->role->level()) {
                 $v->errors()->add('role', __('user.errors.role_above_your_level'));
             }
+
+            // Two roles share level 70 with different jobs (audit N95): whoever
+            // processes payroll must not also change the accounts it pays into.
+            // Below the organisation admin, the other role at your level is
+            // not yours to hand out, or an HR admin could open a Finance admin
+            // account for themselves.
+            if (! $actor->isSuperAdmin() && $actor->role->level() < UserRole::TENANT_ADMIN->level()
+                && $role->level() === $actor->role->level() && $role !== $actor->role) {
+                $v->errors()->add('role', __('user.errors.role_beside_your_own'));
+            }
         });
     }
 }
