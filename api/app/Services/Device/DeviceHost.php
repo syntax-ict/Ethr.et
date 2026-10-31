@@ -43,6 +43,41 @@ final class DeviceHost
         return null;
     }
 
+    /**
+     * Checks the host as assertAllowed() does and returns the HTTP client
+     * options that connect to the addresses that check resolved
+     * (CURLOPT_RESOLVE), so the client does not look the name up a second
+     * time and reach an address nobody checked. Empty when there is nothing
+     * to pin: an IP address, or a deployment that allows private hosts.
+     *
+     * @return array<string, mixed>
+     */
+    public static function connectOptions(string $host, int|string $port): array
+    {
+        $host = trim($host, '[]');
+
+        if (! OutboundHost::isWellFormed($host)) {
+            throw new RuntimeException(__('device.host_malformed'));
+        }
+
+        if (self::privateHostsAllowed()) {
+            return [];
+        }
+
+        $addresses = OutboundHost::publicAddresses($host);
+        if ($addresses === null) {
+            throw new RuntimeException(__('device.host_internal'));
+        }
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            return [];
+        }
+        if ($addresses === []) {
+            throw new RuntimeException(__('device.host_unresolved'));
+        }
+
+        return ['curl' => [CURLOPT_RESOLVE => [OutboundHost::curlResolve($host, (int) $port, $addresses)]]];
+    }
+
     /** Checked again before every request: stored rows predate the rule, and DNS can change. */
     public static function assertAllowed(string $host): void
     {
@@ -58,7 +93,7 @@ final class DeviceHost
      * `ip` and `port` config keys (Hikvision, ZKTeco, Suprema).
      *
      * This only formats. It does not check the host: each adapter calls
-     * assertAllowed() on the line before, and must keep doing so. Validating
+     * connectOptions() on the line before, and must keep doing so. Validating
      * here as well would resolve the host twice per request. The generic
      * adapter does not use this. It is configured with a whole `base_url` and
      * joins request paths onto it, which needs a different check, the
