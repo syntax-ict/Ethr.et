@@ -1,12 +1,12 @@
 1:"$Sreact.fragment"
 2:"/_next/static/chunks/0a-rekt06v0sv.js"
 3:I[339756,["$2"],"default"]
-4:"/_next/static/chunks/1drqgi0-bn3tq.js"
+4:"/_next/static/chunks/3mhqjzvy7q4yl.js"
 5:"/_next/static/chunks/3ncw9n_u6uoby.js"
 6:I[758298,["$2","$4","$5"],"default"]
 7:I[837457,["$2"],"default"]
 8:"/_next/static/chunks/2hhm9x3a-gwsu.js"
-9:"/_next/static/chunks/0th235jxqoy7a.js"
+9:"/_next/static/chunks/1qy1p0ktdtu0t.js"
 a:"DictionaryRegistrar"
 b:I[398012,["$2","$8","$5","$9"],"$a"]
 c:I[481655,["$2","$8","$5","$9"],"NotFoundContent"]
@@ -20,9 +20,9 @@ c:I[481655,["$2","$8","$5","$9"],"NotFoundContent"]
 e:X
 11:X
 11:C
-12:[["children",{"s":"__PAGE__","h":160,"d":{"r":["$","$1","c",{"children":[["$","$Lb",null,{"locale":"am","dictionary":"$0:t:t:d:r:props:children:1:props:children:props:children:props:notFound:0:props:dictionary","children":["$","$Lc",null,{}]}],[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/2u2-d7x8ii4gi.css","precedence":"next"}],["$","script","script-0",{"src":"/_next/static/chunks/2hhm9x3a-gwsu.js","async":true}],["$","script","script-1",{"src":"/_next/static/chunks/3ncw9n_u6uoby.js","async":true}],["$","script","script-2",{"src":"/_next/static/chunks/0th235jxqoy7a.js","async":true}]],["$","$L13",null,{"children":["$","$14",null,{"name":"Next.MetadataOutlet","children":"$@15"}]}]]}],"p":"$@16","v":null,"s":"$e"}}]]
+12:[["children",{"s":"__PAGE__","h":160,"d":{"r":["$","$1","c",{"children":[["$","$Lb",null,{"locale":"am","dictionary":"$0:t:t:d:r:props:children:1:props:children:props:children:props:notFound:0:props:dictionary","children":["$","$Lc",null,{}]}],[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/2u2-d7x8ii4gi.css","precedence":"next"}],["$","script","script-0",{"src":"/_next/static/chunks/2hhm9x3a-gwsu.js","async":true}],["$","script","script-1",{"src":"/_next/static/chunks/3ncw9n_u6uoby.js","async":true}],["$","script","script-2",{"src":"/_next/static/chunks/1qy1p0ktdtu0t.js","async":true}]],["$","$L13",null,{"children":["$","$14",null,{"name":"Next.MetadataOutlet","children":"$@15"}]}]]}],"p":"$@16","v":null,"s":"$e"}}]]
 f:[["children",{"s":"/_not-found","h":96,"d":{"r":["$","$1","c",{"children":[null,["$","$L3",null,{"parallelRouterKey":"children","template":["$","$L7",null,{}]}]]}],"p":"$@10","v":"$11","s":"$e"},"c":"$Q12"}]]
-0:{"t":{"t":{"s":"","h":80,"d":{"r":["$","$1","c",{"children":[[["$","script","script-0",{"src":"/_next/static/chunks/0a-rekt06v0sv.js","async":true}]],["$","html",null,{"children":["$","body",null,{"children":["$","$L3",null,{"parallelRouterKey":"children","error":"$6","errorStyles":[],"errorScripts":[["$","script","script-0",{"src":"/_next/static/chunks/1drqgi0-bn3tq.js","async":true}],["$","script","script-1",{"src":"/_next/static/chunks/3ncw9n_u6uoby.js","async":true}]],"template":["$","$L7",null,{}],"notFound":[["$","$Lb",null,{"locale":"am","dictionary":{"not_found.back_home":"ወደ መነሻ ተመለስ","not_found.description":"የሚፈልጉት ገጽ የለም ወይም ተዛውሯል።","not_found.go_dashboard":"ወደ ዳሽቦርድ ሂድ","not_found.title":"ገጹ አልተገኘም"},"children":["$","$Lc",null,{}]}],[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/2u2-d7x8ii4gi.css","precedence":"next"}]]]}]}]}]]}],"p":"$@d","v":null,"s":"$e"},"c":"$Qf"},"h":{"r":["$","$1","h",{"children":[["$","meta",null,{"name":"robots","content":"noindex"}],["$","$L18",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","$L1a",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$14",null,{"name":"Next.Metadata","children":[]}]}],null]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"p":"$@1b","v":null,"s":"$e"}},"a":"$@1c","u":"$@1d","b":"L6BSPY7MGxVKFYdmwwtKI"}
+0:{"t":{"t":{"s":"","h":80,"d":{"r":["$","$1","c",{"children":[[["$","script","script-0",{"src":"/_next/static/chunks/0a-rekt06v0sv.js","async":true}]],["$","html",null,{"children":["$","body",null,{"children":["$","$L3",null,{"parallelRouterKey":"children","error":"$6","errorStyles":[],"errorScripts":[["$","script","script-0",{"src":"/_next/static/chunks/3mhqjzvy7q4yl.js","async":true}],["$","script","script-1",{"src":"/_next/static/chunks/3ncw9n_u6uoby.js","async":true}]],"template":["$","$L7",null,{}],"notFound":[["$","$Lb",null,{"locale":"am","dictionary":{"not_found.back_home":"ወደ መነሻ ተመለስ","not_found.description":"የሚፈልጉት ገጽ የለም ወይም ተዛውሯል።","not_found.go_dashboard":"ወደ ዳሽቦርድ ሂድ","not_found.title":"ገጹ አልተገኘም"},"children":["$","$Lc",null,{}]}],[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/2u2-d7x8ii4gi.css","precedence":"next"}]]]}]}]}]]}],"p":"$@d","v":null,"s":"$e"},"c":"$Qf"},"h":{"r":["$","$1","h",{"children":[["$","meta",null,{"name":"robots","content":"noindex"}],["$","$L18",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","$L1a",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$14",null,{"name":"Next.Metadata","children":[]}]}],null]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"p":"$@1b","v":null,"s":"$e"}},"a":"$@1c","u":"$@1d","b":"6Jx2xzc6s_t8hCeXWm_Yp"}
 15:null
 e:300
 1d:true
