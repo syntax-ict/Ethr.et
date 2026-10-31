@@ -245,12 +245,8 @@ class DispatchWebhookJob implements ShouldQueue
 
         $port = parse_url($url, PHP_URL_PORT)
             ?? (strtolower((string) parse_url($url, PHP_URL_SCHEME)) === 'http' ? 80 : 443);
-        $bracketed = array_map(
-            fn (string $ip): string => str_contains($ip, ':') ? "[{$ip}]" : $ip,
-            $addresses,
-        );
 
-        return ["{$host}:{$port}:".implode(',', $bracketed)];
+        return [OutboundHost::curlResolve($host, $port, $addresses)];
     }
 
     private function recordAttempt(WebhookDelivery $delivery, ?int $statusCode, string $body, int $attempt): void
