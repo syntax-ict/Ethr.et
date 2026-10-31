@@ -179,7 +179,7 @@ class AdmsController extends Controller
      */
     private function device(Request $request): ?Device
     {
-        $device = $this->resolver->resolve($request->query('SN'), $request->ip());
+        $device = $this->resolver->resolve($request->query('SN'), $request->ip(), $request->getHost());
         if ($device === null) {
             return null;
         }
