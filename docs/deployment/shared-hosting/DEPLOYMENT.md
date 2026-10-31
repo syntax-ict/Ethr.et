@@ -755,7 +755,7 @@ it needs one thing from outside.
 |---|---|
 | `POST /api/v1/cron/schedule` | runs `schedule:run` — the 14 entries in `routes/console.php` |
 | `POST /api/v1/cron/queue` | runs `queue:work --stop-when-empty`, bounded by `CRON_QUEUE_MAX_SECONDS` (default **50s**) |
-| Auth | `CRON_TOKEN`, presented as the `X-Cron-Token` header **or** a `?token=` query parameter |
+| Auth | `CRON_TOKEN`, presented as the `X-Cron-Token` header (the query string is not read since 2026-10-31) |
 | Route group | `throttle:cron` **then** `VerifyCronToken` — *that order is load-bearing* |
 | Overlap | a `Cache::lock` held for `CRON_LOCK_SECONDS` (default 110s); a second caller gets **409**, not a second worker |
 

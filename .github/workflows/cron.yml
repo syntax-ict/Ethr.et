@@ -97,9 +97,8 @@ jobs:
           # NEVER `set -x` in this job. It would echo the curl invocation, and
           # with it the token. The token is passed as a HEADER and never in the
           # URL for the same reason: a query string reaches access logs, Referer
-          # headers and error pages. VerifyCronToken accepts `?token=` because
-          # Plesk's fetch-a-URL task cannot set headers — this caller can, so it
-          # does.
+          # headers and error pages. VerifyCronToken reads only the header
+          # (since 2026-10-31), so a token in the URL would also be refused.
 
           # THREE states, not two, and conflating the first two is a defect I shipped
           # on 2026-09-27 and am fixing on 2026-09-28 before it can bite.

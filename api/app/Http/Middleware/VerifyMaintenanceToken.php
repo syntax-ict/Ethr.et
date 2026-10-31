@@ -17,9 +17,9 @@ use Symfony\Component\HttpFoundation\Response;
  *
  *   - its own secret, MAINTENANCE_TOKEN, meant to be set for a release and
  *     emptied afterwards;
- *   - the header only, never the query string. The cron routes accept
- *     `?token=` because Plesk's "Fetch a URL" task cannot set headers; a
- *     person running a release step can, and a URL ends up in access logs;
+ *   - the header only, never the query string, since a URL ends up in
+ *     access logs. The cron routes read only the header too, since
+ *     2026-10-31;
  *   - its own attempt limit, counted in the FILE cache before the token is
  *     compared. The routes sit outside the api group, so `api-global` does
  *     not apply, and the database cache store has no table before the first
