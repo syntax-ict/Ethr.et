@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, HardDrive, FileText, Check } from "lucide-react";
+import {
+  Loader2,
+  HardDrive,
+  FileSpreadsheet,
+  Check,
+  Download,
+  Upload,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -20,6 +27,7 @@ import { useConfirm } from "@/components/shared/use-confirm";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { useDevices } from "@/features/devices/api";
+import { saveCsv } from "@/lib/utils/csv-export";
 import {
   useCommitMigration,
   useMigrationBatch,
@@ -28,6 +36,12 @@ import {
   useStageFromRows,
 } from "../api";
 import type { MatchOutcome, StagingAction } from "../types";
+import {
+  parsePeople,
+  peopleTemplateCsv,
+  type PersonField,
+  type Problem,
+} from "../parse-people";
 import { MigrationLogins } from "./migration-logins";
 
 const ACTIONS: StagingAction[] = ["merge", "create", "skip", "defer"];
@@ -58,48 +72,17 @@ function outcomeTone(outcome: MatchOutcome | null): string {
   }
 }
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const FIELD_LABELS: Record<PersonField, [string, string]> = {
+  name: ["setup2.col_name", "Name"],
+  email: ["setup2.col_email", "Email"],
+  phone: ["setup2.col_phone", "Phone"],
+  employee_code: ["setup2.col_employee_code", "Employee number"],
+  hire_date: ["setup2.col_hire_date", "Hire date"],
+  department: ["setup2.col_department", "Department"],
+};
 
-/**
- * Parse pasted lines: "name, email, phone, employee number, hire date,
- * department", any of them but the name left empty (extra columns ignored).
- * The hire date is Gregorian YYYY-MM-DD only: a line with any other shape is
- * returned in `badDates` rather than sent, because 03/04/2019 reads as a
- * different day in different places, and a missing date becomes today, which
- * restarts the person's service for leave and severance (2026-10-30).
- */
-export function parseRows(text: string): {
-  rows: Record<string, unknown>[];
-  badDates: number[];
-} {
-  const rows: Record<string, unknown>[] = [];
-  const badDates: number[] = [];
-
-  text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .forEach((line, index) => {
-      const [name, email, phone, employee_code, hire_date, department] = line
-        .split(",")
-        .map((c) => c.trim());
-      if (!name) return;
-      if (hire_date && !ISO_DATE.test(hire_date)) {
-        badDates.push(index + 1);
-        return;
-      }
-      rows.push({
-        name,
-        email: email || undefined,
-        phone: phone || undefined,
-        employee_code: employee_code || undefined,
-        hire_date: hire_date || undefined,
-        department: department || undefined,
-      });
-    });
-
-  return { rows, badDates };
-}
+/** Problems shown under the list before the rest are counted. */
+const PROBLEMS_SHOWN = 5;
 
 /**
  * @param onCommitted Called when the reviewer moves on after the commit, from
@@ -124,14 +107,54 @@ export function MigrationStep({
   const [batchId, setBatchId] = useState<string | null>(null);
   const [deviceId, setDeviceId] = useState<string>(initialDeviceId ?? "");
   const [csv, setCsv] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const batchQuery = useMigrationBatch(batchId);
   const batch = batchQuery.data;
 
+  const devices = devicesQuery.data?.data ?? [];
+  // One device is the device: there is nothing to choose.
+  const device = deviceId || (devices.length === 1 ? devices[0].public_id : "");
+  const parsed = parsePeople(csv);
+
+  function problemText(problem: Problem): string {
+    switch (problem.kind) {
+      case "no_name":
+        return t("setup2.problem_no_name", "Line :line has no name.", {
+          line: problem.line,
+        });
+      case "bad_email":
+        return t(
+          "setup2.problem_bad_email",
+          "Line :line: :value is not an email address.",
+          { line: problem.line, value: problem.value ?? "" },
+        );
+      case "bad_date":
+        return t(
+          "setup2.problem_bad_date",
+          "Line :line: write the hire date :value as YYYY-MM-DD, for example 2019-07-08.",
+          { line: problem.line, value: problem.value ?? "" },
+        );
+    }
+  }
+
+  async function readFile(file: File) {
+    if (/\.xlsx?$/i.test(file.name)) {
+      toast.error(
+        t(
+          "setup2.xlsx_not_read",
+          "Excel files are not read directly. Select the rows in Excel, copy them and paste them here, or save the sheet as CSV.",
+        ),
+      );
+      return;
+    }
+    setCsv(await file.text());
+  }
+
   async function discoverDevice() {
-    if (!deviceId) return;
+    if (!device) return;
     try {
-      const b = await stageDevice.mutateAsync(deviceId);
+      const b = await stageDevice.mutateAsync(device);
       setBatchId(b.public_id);
     } catch {
       toast.error(t("setup2.stage_failed", "Could not read the device"));
@@ -139,21 +162,8 @@ export function MigrationStep({
   }
 
   async function stageCsv() {
-    const { rows, badDates } = parseRows(csv);
-    if (badDates.length > 0) {
-      toast.error(
-        t(
-          "setup2.bad_hire_date",
-          "Line :lines: write the hire date as YYYY-MM-DD, for example 2019-07-08.",
-          { lines: badDates.join(", ") },
-        ),
-      );
-      return;
-    }
-    if (rows.length === 0) {
-      toast.error(t("setup2.no_rows", "Add at least one row (name required)"));
-      return;
-    }
+    const { rows, problems } = parsed;
+    if (problems.length > 0 || rows.length === 0) return;
     try {
       const b = await stageRows.mutateAsync({ rows });
       setBatchId(b.public_id);
@@ -236,77 +246,190 @@ export function MigrationStep({
           <Card>
             <CardContent className="space-y-3 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <HardDrive className="h-4 w-4" />
+                <HardDrive className="h-4 w-4" aria-hidden="true" />
                 {t("setup2.from_device", "From an attendance device")}
               </div>
-              <Select value={deviceId} onValueChange={setDeviceId}>
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={t("setup2.select_device", "Select a device")}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {(devicesQuery.data?.data ?? []).map((d) => (
-                    <SelectItem key={d.public_id} value={d.public_id}>
-                      {d.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                className="w-full"
-                onClick={discoverDevice}
-                disabled={!deviceId || stageDevice.isPending}
-              >
-                {stageDevice.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                {t("setup2.discover", "Discover enrolled users")}
-              </Button>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "setup2.device_hint",
+                  "Everyone enrolled on the device is listed with their badge number, ready to match.",
+                )}
+              </p>
+              {devicesQuery.isSuccess && devices.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "setup2.no_device",
+                    "No attendance device is connected yet.",
+                  )}{" "}
+                  <Link
+                    href="/devices"
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    {t("setup2.connect_device", "Connect a device")}
+                  </Link>
+                </p>
+              ) : (
+                <>
+                  <Select value={device} onValueChange={setDeviceId}>
+                    <SelectTrigger
+                      aria-label={t("setup2.select_device", "Select a device")}
+                    >
+                      <SelectValue
+                        placeholder={t(
+                          "setup2.select_device",
+                          "Select a device",
+                        )}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {devices.map((d) => (
+                        <SelectItem key={d.public_id} value={d.public_id}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    className="w-full"
+                    onClick={discoverDevice}
+                    disabled={!device || stageDevice.isPending}
+                  >
+                    {stageDevice.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    {t("setup2.discover", "Discover enrolled users")}
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="space-y-3 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <FileText className="h-4 w-4" />
-                {t("setup2.from_list", "Paste a list")}
+                <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+                {t("setup2.from_sheet", "From a spreadsheet or list")}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "setup2.sheet_hint",
+                  "Copy the rows from Excel or Google Sheets and paste them here, or choose a CSV file. A first row of column names is recognised, in any order.",
+                )}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInput.current?.click()}
+                >
+                  <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
+                  {t("setup2.choose_csv", "Choose a CSV file")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    saveCsv("ethr-people-template.csv", peopleTemplateCsv())
+                  }
+                >
+                  <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+                  {t("setup2.download_template", "Download template")}
+                </Button>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept=".csv,.txt,text/csv,text/plain,.xlsx,.xls"
+                  className="hidden"
+                  data-testid="people-file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void readFile(file);
+                    e.target.value = "";
+                  }}
+                />
               </div>
               <textarea
                 value={csv}
                 onChange={(e) => setCsv(e.target.value)}
-                rows={5}
+                rows={6}
+                aria-label={t(
+                  "setup2.from_sheet",
+                  "From a spreadsheet or list",
+                )}
                 placeholder={
-                  "Abebe Kebede, abebe@acme.et, 0911223344, EMP-1, 2019-07-08, Finance"
+                  "Name, Email, Phone, Employee number, Hire date, Department\nAbebe Kebede, abebe@acme.et, 0911223344, EMP-1, 2019-07-08, Finance"
                 }
                 className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
+              {csv.trim() !== "" && (
+                <div className="space-y-1 text-xs" aria-live="polite">
+                  <p className="font-medium text-foreground">
+                    {parsed.rows.length === 1
+                      ? t("setup2.people_ready_one", "1 person ready")
+                      : t("setup2.people_ready", ":count people ready", {
+                          count: parsed.rows.length,
+                        })}
+                    {parsed.header && (
+                      <span className="font-normal text-muted-foreground">
+                        {" · "}
+                        {t("setup2.columns_read", "Columns: :columns", {
+                          columns: parsed.header
+                            .map((f) => t(...FIELD_LABELS[f]))
+                            .join(", "),
+                        })}
+                      </span>
+                    )}
+                  </p>
+                  {parsed.problems.length > 0 && (
+                    <ul className="space-y-0.5 text-destructive">
+                      {parsed.problems.slice(0, PROBLEMS_SHOWN).map((p) => (
+                        <li key={`${p.line}-${p.kind}`}>{problemText(p)}</li>
+                      ))}
+                      {parsed.problems.length > PROBLEMS_SHOWN && (
+                        <li>
+                          {t("setup2.more_problems", "and :count more", {
+                            count: parsed.problems.length - PROBLEMS_SHOWN,
+                          })}
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
                 {t(
                   "setup2.csv_hint",
-                  "One person per line: name, email, phone, employee number, hire date (YYYY-MM-DD), department. Leave a column empty to skip it. Without a hire date, today is used.",
+                  "Without column names, the order is: name, email, phone, employee number, hire date (YYYY-MM-DD), department. Only the name is required. Without a hire date, today is used.",
                 )}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t("setup2.import_instead", "Have a spreadsheet?")}{" "}
-                <Link
-                  href="/employees/import"
-                  className="font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  {t("setup2.import_link", "Use the employee import")}
-                </Link>
               </p>
               <Button
                 className="w-full"
-                variant="outline"
                 onClick={stageCsv}
-                disabled={stageRows.isPending}
+                disabled={
+                  stageRows.isPending ||
+                  parsed.rows.length === 0 ||
+                  parsed.problems.length > 0
+                }
               >
                 {stageRows.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
                 {t("setup2.stage_rows", "Stage for review")}
               </Button>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "setup2.import_instead",
+                  "Need salaries, contracts and bank details too?",
+                )}{" "}
+                <Link
+                  href="/employees/import"
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {t("setup2.import_link", "Use the full employee import")}
+                </Link>
+              </p>
             </CardContent>
           </Card>
         </div>
