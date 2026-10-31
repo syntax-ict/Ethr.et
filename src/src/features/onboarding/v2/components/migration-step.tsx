@@ -27,6 +27,7 @@ import { useConfirm } from "@/components/shared/use-confirm";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { useDevices } from "@/features/devices/api";
+import { departmentsApi } from "@/features/organization/api";
 import { saveCsv } from "@/lib/utils/csv-export";
 import {
   useCommitMigration,
@@ -37,6 +38,7 @@ import {
 } from "../api";
 import type { MatchOutcome, StagingAction } from "../types";
 import {
+  MAX_PEOPLE,
   parsePeople,
   peopleTemplateCsv,
   type PersonField,
@@ -115,7 +117,10 @@ export function MigrationStep({
   const devices = devicesQuery.data?.data ?? [];
   // One device is the device: there is nothing to choose.
   const device = deviceId || (devices.length === 1 ? devices[0].public_id : "");
-  const parsed = parsePeople(csv);
+  // The departments the list may name, so one the organisation does not have
+  // is reported before staging instead of refused by the server after.
+  const departmentsQuery = departmentsApi.useList();
+  const parsed = parsePeople(csv, departmentsQuery.data?.data);
 
   function problemText(problem: Problem): string {
     switch (problem.kind) {
@@ -134,6 +139,38 @@ export function MigrationStep({
           "setup2.problem_bad_date",
           "Line :line: write the hire date :value as YYYY-MM-DD, for example 2019-07-08.",
           { line: problem.line, value: problem.value ?? "" },
+        );
+      case "duplicate_code":
+        return t(
+          "setup2.problem_duplicate_code",
+          "Line :line: employee number :value is also on line :first. Each person needs their own.",
+          {
+            line: problem.line,
+            value: problem.value ?? "",
+            first: problem.firstLine ?? "",
+          },
+        );
+      case "duplicate_email":
+        return t(
+          "setup2.problem_duplicate_email",
+          "Line :line: :value is also on line :first. Each person needs their own email address.",
+          {
+            line: problem.line,
+            value: problem.value ?? "",
+            first: problem.firstLine ?? "",
+          },
+        );
+      case "unknown_department":
+        return t(
+          "setup2.problem_unknown_department",
+          "Line :line: there is no department :value. Use a department's name or code as it is in ETHR, or leave it empty.",
+          { line: problem.line, value: problem.value ?? "" },
+        );
+      case "too_many":
+        return t(
+          "setup2.problem_too_many",
+          "This list has :value people. Bring in at most :max at a time.",
+          { value: problem.value ?? "", max: MAX_PEOPLE },
         );
     }
   }
@@ -156,8 +193,15 @@ export function MigrationStep({
     try {
       const b = await stageDevice.mutateAsync(device);
       setBatchId(b.public_id);
-    } catch {
-      toast.error(t("setup2.stage_failed", "Could not read the device"));
+    } catch (err) {
+      // The server says why: the device is offline, its address does not
+      // resolve, or the organisation does not allow it.
+      toast.error(
+        apiErrorMessage(
+          err,
+          t("setup2.stage_failed", "Could not read the device"),
+        ),
+      );
     }
   }
 

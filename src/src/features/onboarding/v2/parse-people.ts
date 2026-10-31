@@ -18,13 +18,32 @@ export type PersonRow = Partial<Record<PersonField, string>> & {
   name: string;
 };
 
-export type ProblemKind = "no_name" | "bad_email" | "bad_date";
+export type ProblemKind =
+  | "no_name"
+  | "bad_email"
+  | "bad_date"
+  | "duplicate_code"
+  | "duplicate_email"
+  | "unknown_department"
+  | "too_many";
 
 export interface Problem {
   /** 1-based, counted as the reader sees it, the header row included. */
   line: number;
   kind: ProblemKind;
   value?: string;
+  /** For a duplicate: the line that has the same value first. */
+  firstLine?: number;
+}
+
+/** The most rows one staging request takes (StageRowsRequest). */
+export const MAX_PEOPLE = 2000;
+
+/** A department as the server matches it (DepartmentMatch): code, name or Amharic name. */
+export interface KnownDepartment {
+  code?: string | null;
+  name: string;
+  name_am?: string | null;
 }
 
 export interface ParsedPeople {
@@ -166,7 +185,15 @@ function headerOf(cells: string[]): (PersonField | null)[] | null {
   return fields;
 }
 
-export function parsePeople(text: string): ParsedPeople {
+/**
+ * @param departments The organisation's departments, when known. A department
+ *   the organisation does not have is then reported here rather than refused
+ *   by the server after staging. Unknown (undefined), no department is checked.
+ */
+export function parsePeople(
+  text: string,
+  departments?: KnownDepartment[],
+): ParsedPeople {
   const raw = text.replace(/^﻿/, "").split(/\r?\n/);
   const numbered = raw
     .map((line, index) => ({ line, number: index + 1 }))
@@ -180,6 +207,20 @@ export function parsePeople(text: string): ParsedPeople {
 
   const rows: PersonRow[] = [];
   const problems: Problem[] = [];
+  // Employee numbers and emails are unique per organisation, so one used
+  // twice would stage and then fail when the people are brought in.
+  const codeLines = new Map<string, number>();
+  const emailLines = new Map<string, number>();
+  const knownDepartments =
+    departments === undefined
+      ? null
+      : new Set(
+          departments.flatMap((d) =>
+            [d.code, d.name, d.name_am]
+              .filter((v): v is string => !!v && v.trim() !== "")
+              .map((v) => v.trim().toLowerCase()),
+          ),
+        );
 
   for (const { line, number } of body) {
     const cells = cellsOf(line, separator);
@@ -210,7 +251,49 @@ export function parsePeople(text: string): ParsedPeople {
       }
       record.hire_date = iso;
     }
+    const code = record.employee_code?.toLowerCase();
+    if (code !== undefined && codeLines.has(code)) {
+      problems.push({
+        line: number,
+        kind: "duplicate_code",
+        value: record.employee_code,
+        firstLine: codeLines.get(code),
+      });
+      continue;
+    }
+    const email = record.email?.toLowerCase();
+    if (email !== undefined && emailLines.has(email)) {
+      problems.push({
+        line: number,
+        kind: "duplicate_email",
+        value: record.email,
+        firstLine: emailLines.get(email),
+      });
+      continue;
+    }
+    if (
+      knownDepartments !== null &&
+      record.department &&
+      !knownDepartments.has(record.department.trim().toLowerCase())
+    ) {
+      problems.push({
+        line: number,
+        kind: "unknown_department",
+        value: record.department,
+      });
+      continue;
+    }
+    if (code !== undefined) codeLines.set(code, number);
+    if (email !== undefined) emailLines.set(email, number);
     rows.push(record as PersonRow);
+  }
+
+  if (rows.length > MAX_PEOPLE) {
+    problems.push({
+      line: body[body.length - 1].number,
+      kind: "too_many",
+      value: String(rows.length),
+    });
   }
 
   return {

@@ -109,4 +109,56 @@ describe("the guided setup's list of people", () => {
     ]);
     expect(rows).toHaveLength(1);
   });
+
+  it("names an employee number or email used twice, pointing at the first line", () => {
+    const { rows, problems } = parsePeople(
+      [
+        "Name,Email,Employee number",
+        "A,a@acme.et,EMP-1",
+        "B,b@acme.et,emp-1",
+        "C,A@ACME.ET,EMP-3",
+      ].join("\n"),
+    );
+
+    expect(rows.map((r) => r.name)).toEqual(["A"]);
+    expect(problems).toEqual([
+      { line: 3, kind: "duplicate_code", value: "emp-1", firstLine: 2 },
+      { line: 4, kind: "duplicate_email", value: "A@ACME.ET", firstLine: 2 },
+    ]);
+  });
+
+  it("checks departments against the organisation's, by code, name or Amharic name", () => {
+    const departments = [
+      { code: "FIN", name: "Finance", name_am: "ፋይናንስ" },
+      { code: null, name: "Sales", name_am: null },
+    ];
+    const { rows, problems } = parsePeople(
+      [
+        "Name,Department",
+        "A,fin",
+        "B,ፋይናንስ",
+        "C, sales ",
+        "D,Marketing",
+        "E,",
+      ].join("\n"),
+      departments,
+    );
+
+    expect(rows.map((r) => r.name)).toEqual(["A", "B", "C", "E"]);
+    expect(problems).toEqual([
+      { line: 5, kind: "unknown_department", value: "Marketing" },
+    ]);
+
+    // Departments not loaded yet: nothing is checked, the server still is.
+    expect(parsePeople("D, , , , , Marketing").problems).toEqual([]);
+  });
+
+  it("says when a list is over the limit one staging takes", () => {
+    const text = Array.from({ length: 2001 }, (_, i) => `Person ${i}`).join(
+      "\n",
+    );
+    const { problems } = parsePeople(text);
+
+    expect(problems).toEqual([{ line: 2001, kind: "too_many", value: "2001" }]);
+  });
 });

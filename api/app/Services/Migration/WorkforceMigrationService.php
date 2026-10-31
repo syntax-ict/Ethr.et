@@ -244,19 +244,23 @@ final class WorkforceMigrationService
             'match_confidence' => $match->confidence,
             'candidates' => $match->candidates,
             'resolved_employee_id' => $match->employee?->id,
-            'action' => $this->suggestedAction($match->outcome),
+            'action' => $this->suggestedAction($match->outcome, $displayName),
         ]);
     }
 
     /**
      * The default action for a verdict. A confident match merges; anything
-     * uncertain is deferred to a human; a clear new person is created.
+     * uncertain is deferred to a human; a clear new person is created, unless
+     * the source gave no name. A device often holds only an enrolment number,
+     * and every such row used to become an employee called "Unnamed".
      */
-    private function suggestedAction(string $outcome): string
+    private function suggestedAction(string $outcome, ?string $name): string
     {
         return match ($outcome) {
             IdentityMatch::MATCHED => MigrationStagingRow::ACTION_MERGE,
-            IdentityMatch::NEW => MigrationStagingRow::ACTION_CREATE,
+            IdentityMatch::NEW => trim((string) $name) === ''
+                ? MigrationStagingRow::ACTION_DEFER
+                : MigrationStagingRow::ACTION_CREATE,
             default => MigrationStagingRow::ACTION_DEFER, // probable, ambiguous
         };
     }
@@ -302,6 +306,24 @@ final class WorkforceMigrationService
     }
 
     /**
+     * The person's name, or one that tells nameless device users apart: they
+     * were all "Unnamed".
+     *
+     * @param  array<string, mixed>  $raw
+     */
+    private function nameOf(array $raw): string
+    {
+        $name = trim(isset($raw['name']) ? (string) $raw['name'] : '');
+        if ($name !== '') {
+            return $name;
+        }
+
+        $id = $raw['device_user_id'] ?? $raw['badge_number'] ?? $raw['employee_code'] ?? '?';
+
+        return __('onboarding.migration.device_user', ['id' => (string) $id]);
+    }
+
+    /**
      * A department is matched by code or name (DepartmentMatch). A pasted list
      * was checked when it was staged; a device's own department names are
      * not, so one the organisation does not have leaves the person unassigned.
@@ -312,7 +334,7 @@ final class WorkforceMigrationService
     {
         return Employee::create([
             'tenant_id' => $tenantId,
-            'name' => isset($raw['name']) ? (string) $raw['name'] : 'Unnamed',
+            'name' => $this->nameOf($raw),
             'email' => isset($raw['email']) ? (string) $raw['email'] : null,
             'phone' => EthiopianPhone::canonicalOrRaw(isset($raw['phone']) ? (string) $raw['phone'] : null),
             'employee_code' => isset($raw['employee_code']) ? (string) $raw['employee_code'] : null,
