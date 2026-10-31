@@ -32,7 +32,7 @@ class AttendanceImportController extends Controller
     {
         Gate::authorize('attendance.manage');
 
-        $result = $this->importer->preview($request->file('file'));
+        $result = $this->importer->preview($request->file('file'), $request->user());
 
         return response()->json($result);
     }
@@ -58,7 +58,8 @@ class AttendanceImportController extends Controller
 
         $result = $this->importer->commit(
             $request->validated('import_key'),
-            $request->validated('rows')
+            $request->validated('rows'),
+            $request->user(),
         );
 
         AuditLog::record('attendance.import.committed', null, [

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\UserRole;
 use App\Models\Employee;
 use App\Models\User;
+use Illuminate\Auth\Access\Response;
 
 class EmployeePolicy
 {
@@ -43,10 +45,20 @@ class EmployeePolicy
             && $user->canAccessEmployee($employee);
     }
 
-    public function updateFinancial(User $user, Employee $employee): bool
+    public function updateFinancial(User $user, Employee $employee): Response
     {
-        return $user->hasPermission('employee.updateFinancial')
-            && $user->canAccessEmployee($employee);
+        if (! $user->hasPermission('employee.updateFinancial') || ! $user->canAccessEmployee($employee)) {
+            return Response::deny();
+        }
+
+        // Your own salary, tax number and bank account are changed by someone
+        // else, as a profile change you file is reviewed by someone else. The
+        // organisation admin has no one above them, so they are not refused.
+        if ($employee->id === $user->employee_id && ! $user->isAtLeast(UserRole::TENANT_ADMIN)) {
+            return Response::deny(__('employee.cannot_change_own_pay'));
+        }
+
+        return Response::allow();
     }
 
     public function issueActivationCode(User $user, Employee $employee): bool
