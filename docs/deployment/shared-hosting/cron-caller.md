@@ -242,9 +242,9 @@ The comparison below is kept as the reasoning, with the chosen row marked.
 | **A third-party cron service** | that service's dashboard | two jobs. A stranger then holds a bearer credential — §5.3a states the blast radius |
 | **A laptop** | locally | not a production answer; named in `config/cron.php` for completeness |
 
-Present the token as the **`X-Cron-Token` header** wherever the caller can set headers.
-Where it cannot, `?token=…` on the query string is accepted — and puts the token in access
-logs and `Referer` headers, so treat a query-form token as rotatable from day one.
+Present the token as the **`X-Cron-Token` header**. A caller that cannot set headers cannot
+drive ETHR: `?token=…` on the query string was accepted until 2026-10-31 and is now ignored,
+because it puts the token in access logs and `Referer` headers (owner decision 2026-10-31).
 
 **POST, not GET.** A GET would be followed by a crawler or a link prefetcher.
 

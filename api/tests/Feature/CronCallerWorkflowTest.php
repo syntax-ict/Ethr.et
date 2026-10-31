@@ -20,9 +20,8 @@ declare(strict_types=1);
  *      returns **HTTP 200 with `status: "failed"`** when the artisan exit code is
  *      non-zero. A workflow that trusts the status code reports green while
  *      `schedule:run` fails every five minutes.
- *   3. Leaking the token. `VerifyCronToken` accepts `?token=` because Plesk's
- *      fetch-a-URL task cannot set headers; a query string reaches access logs
- *      and Referer headers. This caller can set a header, so it must.
+ *   3. Leaking the token. A query string reaches access logs and Referer
+ *      headers, and `VerifyCronToken` reads only the header (since 2026-10-31).
  *
  * None of the three produces a red build on its own. This test is what does.
  *
@@ -137,16 +136,15 @@ it('sends the token as a header and never in the URL', function () {
         'the workflow does not send the token as an X-Cron-Token header.'
     );
 
-    // `?token=` is supported by the application for Plesk's headerless fetch-a-URL
-    // task. This caller can set headers, so using the query string would put the
-    // secret into access logs for no benefit.
+    // The application reads the header only (since 2026-10-31), so a query
+    // string token would fail, and it would also put the secret into access logs.
     //
     // Checked against the comment-stripped text: the workflow explains this very
     // decision, so the raw file necessarily contains the string it forbids.
     expect($live)->not->toMatch(
         '/\?token=/',
         'the token must not travel in the query string from this caller — it reaches access '
-        .'logs and Referer headers. VerifyCronToken accepts it only for headerless callers.'
+        .'logs and Referer headers, and VerifyCronToken reads the header only.'
     );
 
     // `set -x` would echo the curl invocation, token included.

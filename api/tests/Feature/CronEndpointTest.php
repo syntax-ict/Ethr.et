@@ -63,16 +63,12 @@ it('accepts the token in the header', function () {
         ->assertJsonPath('status', 'ok');
 });
 
-it('accepts the token in the query string, because a URL-fetch task sets no headers', function () {
-    // This is the whole reason the query string is supported: Plesk's
-    // "Fetch a URL" task type cannot send a header. Dropping this would mean
-    // dropping the one caller the feature exists for.
-    Artisan::shouldReceive('call')->once()->with('ethr:schedule-run')->andReturn(0);
-    Artisan::shouldReceive('output')->andReturn('done');
+it('ignores a correct token in the query string, which access logs would keep', function () {
+    // Accepted until 2026-10-31 for a headerless URL-fetch task that was never
+    // used; both real callers send the header.
+    Artisan::shouldReceive('call')->never();
 
-    $this->postJson('/api/v1/cron/schedule?token='.CRON_TOKEN)
-        ->assertOk()
-        ->assertJsonPath('status', 'ok');
+    $this->postJson('/api/v1/cron/schedule?token='.CRON_TOKEN)->assertNotFound();
 });
 
 it('drains exactly the queues the application dispatches onto', function () {
@@ -134,7 +130,7 @@ it('releases the lock even when the command throws', function () {
 });
 
 it('rejects GET, so a crawler or link prefetcher cannot trigger a run', function () {
-    $this->get('/api/v1/cron/schedule?token='.CRON_TOKEN)->assertMethodNotAllowed();
+    $this->withHeader('X-Cron-Token', CRON_TOKEN)->get('/api/v1/cron/schedule')->assertMethodNotAllowed();
 });
 
 it('rate-limits rejected token attempts, not just accepted ones', function () {

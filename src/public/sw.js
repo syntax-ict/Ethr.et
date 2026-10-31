@@ -9,7 +9,11 @@
 // /dashboard?source=pwa, was never stored, and the fallback matched the exact
 // URL, query string included, so a cold start offline always got /offline.
 // Pages are now kept under their path alone, visited pages included.
-const CACHE_VERSION = 'ethr-v4';
+// v5 (2026-10-31): pay data is no longer stored (NEVER_CACHED_API), and this
+// removes the copies v4 already kept. Later the same day, stored API answers
+// gained a one-week limit (API_MAX_AGE_MS); copies without a stamp count as
+// expired, so no version change was needed to retire them.
+const CACHE_VERSION = 'ethr-v5';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;
 
@@ -23,7 +27,31 @@ const SHELL_STAMP = '/__ethr-shell-cached-at';
 // tenant, and /auth answers describe the signed-in account; neither may sit in
 // Cache Storage after the session ends (console QA F3). They still go to the
 // network as usual — only the offline copy is refused.
-const NEVER_CACHED_API = ['/api/v1/admin/', '/api/v1/auth/'];
+// Pay data joined them on 2026-10-31: payroll runs, other people's payslips,
+// bank accounts, contracts and reports. A copy outlives a session that ends
+// while the device is offline, and none of it is needed to punch in. Your own
+// payslips stay (OFFLINE_PAY_API), since /payroll/payslips is an offline page.
+const NEVER_CACHED_API = ['/api/v1/admin/', '/api/v1/auth/', '/api/v1/payroll/', '/api/v1/reports/'];
+const NEVER_CACHED_API_PARTS = ['/bank-details', '/contracts'];
+const OFFLINE_PAY_API = ['/api/v1/payroll/payslips/my'];
+
+// How long a stored API answer may be shown offline. The worker cannot tell
+// whether the session behind it has ended while the device has no signal, so
+// the copy carries its own limit: a week covers a field trip with no network,
+// and a lost or shared phone stops showing someone's records after it. Older
+// copies are deleted rather than served. Queued punches are not affected; they
+// live in IndexedDB and are sent whenever the network returns.
+const API_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const STORED_AT_HEADER = 'X-ETHR-Stored-At';
+const SWEEP_EVERY_MS = 60 * 60 * 1000;
+let lastSweep = 0;
+
+function neverCached(pathname) {
+  if (OFFLINE_PAY_API.some(path => pathname === path)) return false;
+
+  return NEVER_CACHED_API.some(prefix => pathname.startsWith(prefix))
+    || (pathname.startsWith('/api/') && NEVER_CACHED_API_PARTS.some(part => pathname.includes(part)));
+}
 
 // Shell assets to precache — these make the app load offline. /dashboard is
 // the manifest's start_url and the rest after it are its shortcuts, so each
@@ -76,7 +104,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (NEVER_CACHED_API.some(prefix => url.pathname.startsWith(prefix))) return;
+  if (neverCached(url.pathname)) return;
 
   // API calls: network-first, fall back to cached response
   if (url.pathname.startsWith('/api/')) {
@@ -400,16 +428,56 @@ self.addEventListener('notificationclick', (event) => {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 async function networkFirstWithCache(request, cacheName) {
   const cache = await caches.open(cacheName);
+  if (Date.now() - lastSweep > SWEEP_EVERY_MS) {
+    lastSweep = Date.now();
+    sweepExpired(cache);
+  }
   try {
     const response = await fetch(request);
-    if (response.ok) cache.put(request, response.clone());
+    if (response.ok) cache.put(request, await stamped(response.clone()));
+    // The session is over, so nothing stored under it may be served offline
+    // afterwards. The app clears the cache on a 401 it sees itself; this also
+    // covers requests the worker makes on its own.
+    if (response.status === 401) await caches.delete(cacheName);
     return response;
   } catch {
     const cached = await cache.match(request);
-    return cached ?? new Response(
+    if (cached && !expired(cached)) return cached;
+    if (cached) await cache.delete(request);
+    return new Response(
       JSON.stringify({ error: 'offline', message: 'No network connection' }),
       { status: 503, headers: { 'Content-Type': 'application/json' } }
     );
+  }
+}
+
+// A copy of the response that records when it was stored.
+async function stamped(response) {
+  const headers = new Headers(response.headers);
+  headers.set(STORED_AT_HEADER, String(Date.now()));
+  return new Response(await response.arrayBuffer(), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+// A copy with no stamp was stored before the limit existed, so its age is
+// unknown and it counts as expired.
+function expired(response) {
+  const storedAt = Number(response.headers.get(STORED_AT_HEADER));
+  return !storedAt || Date.now() - storedAt > API_MAX_AGE_MS;
+}
+
+// Deletes every expired copy, not only the ones someone asks for again.
+async function sweepExpired(cache) {
+  try {
+    for (const request of await cache.keys()) {
+      const response = await cache.match(request);
+      if (response && expired(response)) await cache.delete(request);
+    }
+  } catch {
+    // Cache Storage refused; the next sweep tries again.
   }
 }
 

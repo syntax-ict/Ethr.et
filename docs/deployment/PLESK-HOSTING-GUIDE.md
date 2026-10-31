@@ -282,8 +282,8 @@ the `jobs` table, and all 16 job classes implement `ShouldQueue`. Driving only t
 fills a queue that nothing drains.
 
 Set `CRON_TOKEN` in `.env` to at least 32 random characters and present it as the
-`X-Cron-Token` header. A `?token=` query form is accepted for callers that cannot set
-headers — it puts the token in access logs and `Referer`, so treat it as rotatable.
+`X-Cron-Token` header. The header is the only form read: a `?token=` query form was
+accepted until 2026-10-31 and is now ignored, because it puts the token in access logs.
 
 **A 404 means check your token**, not that the route is missing: an unconfigured deployment
 must not confirm these routes exist. `409` means the previous run is still going, which is

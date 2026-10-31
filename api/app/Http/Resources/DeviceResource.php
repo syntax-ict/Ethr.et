@@ -6,6 +6,7 @@ namespace App\Http\Resources;
 
 use App\Enums\UserRole;
 use App\Models\Device;
+use App\Models\Tenant;
 use App\Services\Device\AdmsDeviceResolver;
 use App\Services\Device\DeviceCommandQueue;
 use Illuminate\Http\Request;
@@ -46,7 +47,7 @@ class DeviceResource extends JsonResource
             'adms' => $this->when(
                 $this->adapter_type === AdmsDeviceResolver::ADAPTER && (bool) $request->user()?->isAtLeast(UserRole::TENANT_ADMIN),
                 fn () => [
-                    'server' => (string) parse_url((string) config('app.url'), PHP_URL_HOST),
+                    'server' => AdmsDeviceResolver::serverAddress(Tenant::query()->find($this->tenant_id)),
                     'last_rejected' => AdmsDeviceResolver::lastRejection($this->resource),
                 ],
             ),

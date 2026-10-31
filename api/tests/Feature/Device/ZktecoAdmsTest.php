@@ -256,3 +256,50 @@ describe('registering one', function () {
             ->assertJsonPath('accepts_commands', true);
     });
 });
+
+describe('on the organisation\'s own address', function () {
+    beforeEach(fn () => config(['app.domain' => 'ethr.test', 'tenancy.subdomains' => true]));
+
+    function admsAt(string $host): TestResponse
+    {
+        return test()->call('GET', "http://{$host}/iclock/cdata?SN=".ADMS_SN);
+    }
+
+    it('admits the terminal only when it calls the organisation\'s own subdomain', function () {
+        [$tenant] = admsSetup();
+        $other = createTenant();
+
+        admsAt("{$tenant->subdomain}.ethr.test")->assertOk();
+        admsAt('ethr.test')->assertStatus(401);
+        admsAt("{$other->subdomain}.ethr.test")->assertStatus(401);
+    });
+
+    it('admits it on the organisation\'s verified custom domain, and not on a pending one', function () {
+        [$tenant] = admsSetup();
+        $tenant->forceFill(['custom_domain' => 'hr.acme.test', 'custom_domain_verified_at' => now()])->save();
+
+        admsAt('hr.acme.test')->assertOk();
+
+        $tenant->forceFill(['custom_domain_verified_at' => null])->save();
+        admsAt('hr.acme.test')->assertStatus(401);
+    });
+
+    it('shows the refused address only for a terminal that called the organisation\'s own address', function () {
+        [$tenant, $device] = admsSetup(['webhook_ip_allowlist' => ['10.0.0.1']]);
+
+        admsAt('ethr.test')->assertStatus(401);
+        expect(AdmsDeviceResolver::lastRejection($device))->toBeNull();
+
+        admsAt("{$tenant->subdomain}.ethr.test")->assertStatus(401);
+        expect(AdmsDeviceResolver::lastRejection($device)['ip'] ?? null)->toBe('127.0.0.1');
+    });
+
+    it('tells the admin to enter the organisation\'s own address on the terminal', function () {
+        [$tenant, $device] = admsSetup();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}")
+            ->assertOk()
+            ->assertJsonPath('adms.server', "{$tenant->subdomain}.ethr.test");
+    });
+});

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Attendance;
 
 use App\Enums\EmployeeStatus;
+use App\Enums\OrgScope;
 use App\Exceptions\DeviceBindingRefused;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\DecideAttendanceDeviceRequest;
@@ -134,6 +135,8 @@ class AttendanceDeviceController extends Controller
             ->when($search !== '', fn ($q) => $q->whereHas('employee', fn ($e) => $e
                 ->where('name', 'like', '%'.$search.'%')
                 ->orWhere('employee_code', 'like', '%'.$search.'%')))
+            ->when($request->user()->orgScope() !== OrgScope::ALL, fn ($q) => $q
+                ->whereHas('employee', fn ($e) => $request->user()->scopeAccessibleEmployees($e)))
             ->orderByRaw("case when status = 'pending' then 0 else 1 end")
             ->latest('id')
             ->paginate((int) ($request->validated('per_page') ?? 25));
@@ -169,6 +172,7 @@ class AttendanceDeviceController extends Controller
 
         $search = trim((string) $request->validated('search'));
         $employees = $this->unregisteredQuery()
+            ->when($request->user()->orgScope() !== OrgScope::ALL, fn ($q) => $request->user()->scopeAccessibleEmployees($q))
             ->with('branch:id,name')
             ->withExists(['attendanceDevices as has_pending_phone' => fn ($q) => $q->where('status', AttendanceDevice::PENDING)])
             ->when($search !== '', fn ($q) => $q->where(fn ($e) => $e
@@ -183,6 +187,7 @@ class AttendanceDeviceController extends Controller
     public function approve(Request $request, AttendanceDevice $device): AttendanceDeviceResource
     {
         Gate::authorize('attendance.manage');
+        $this->reach($request, $device->employee);
         abort_unless($device->status === AttendanceDevice::PENDING, 409, __('attendance.device_not_pending'));
 
         return new AttendanceDeviceResource($this->gate->approve($device, (int) $request->user()->id)->load('employee'));
@@ -191,6 +196,7 @@ class AttendanceDeviceController extends Controller
     public function reject(DecideAttendanceDeviceRequest $request, AttendanceDevice $device): AttendanceDeviceResource
     {
         Gate::authorize('attendance.manage');
+        $this->reach($request, $device->employee);
         abort_unless($device->status === AttendanceDevice::PENDING, 409, __('attendance.device_not_pending'));
 
         return new AttendanceDeviceResource($this->gate->reject($device, $request->reason())->load('employee'));
@@ -199,6 +205,7 @@ class AttendanceDeviceController extends Controller
     public function revoke(DecideAttendanceDeviceRequest $request, AttendanceDevice $device): AttendanceDeviceResource
     {
         Gate::authorize('attendance.manage');
+        $this->reach($request, $device->employee);
         abort_unless($device->status === AttendanceDevice::ACTIVE, 409, __('attendance.device_not_active'));
 
         return new AttendanceDeviceResource($this->gate->revoke($device, $request->reason())->load('employee'));
@@ -208,6 +215,7 @@ class AttendanceDeviceController extends Controller
     public function exempt(UpdateAttendanceDeviceExemptionRequest $request, Employee $employee): JsonResponse
     {
         Gate::authorize('attendance.manage');
+        $this->reach($request, $employee);
 
         $until = $request->validated('until');
         $employee->forceFill(['attendance_device_exempt_until' => $until])->save();
@@ -217,6 +225,15 @@ class AttendanceDeviceController extends Controller
             'public_id' => $employee->public_id,
             'exempt_until' => $employee->attendance_device_exempt_until?->format('Y-m-d'),
         ]);
+    }
+
+    /**
+     * attendance.manage can be given to a custom role scoped to one branch or
+     * department; it decides only for the people that scope reaches.
+     */
+    private function reach(Request $request, ?Employee $employee): void
+    {
+        abort_unless($employee !== null && $request->user()->canAccessEmployee($employee), 404);
     }
 
     /** @return Builder<Employee> */
