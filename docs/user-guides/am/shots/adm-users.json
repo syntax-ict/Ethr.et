@@ -1,0 +1,23 @@
+{
+  "device": "desktop",
+  "width": 2560,
+  "height": 1600,
+  "path": "/settings/users",
+  "markers": [
+    {
+      "n": 1,
+      "x": 2222,
+      "y": 228,
+      "w": 298,
+      "h": 88,
+      "pin": "below"
+    },
+    {
+      "n": 2,
+      "x": 1779,
+      "y": 714,
+      "w": 350,
+      "h": 97
+    }
+  ]
+}
