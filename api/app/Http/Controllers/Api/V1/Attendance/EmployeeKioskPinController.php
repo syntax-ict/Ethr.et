@@ -24,6 +24,7 @@ class EmployeeKioskPinController extends Controller
     public function __invoke(UpdateKioskPinRequest $request, Employee $employee): JsonResponse
     {
         Gate::authorize('attendance.manage');
+        abort_unless($request->user()->canAccessEmployee($employee), 404);
 
         // Nothing in the API or the UI ever wrote `kiosk_pin`, so turning on
         // "Require PIN" refused every employee at every kiosk (audit N62).
