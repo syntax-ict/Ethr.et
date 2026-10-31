@@ -140,6 +140,116 @@ describe("IndustryConfigStep", () => {
   });
 });
 
+describe("IndustryConfigStep — follows the sign-up type", () => {
+  const catalog = [
+    {
+      key: "ministry",
+      label: "Ministry",
+      label_am: "ሚኒስቴር",
+      base: "government",
+      icon: "x",
+      group: "public_sector",
+    },
+    {
+      key: "woreda_administration",
+      label: "Woreda administration",
+      label_am: "ወረዳ አስተዳደር",
+      base: "government",
+      icon: "x",
+      group: "public_sector",
+    },
+    {
+      key: "bank",
+      label: "Bank",
+      label_am: "ባንክ",
+      base: "bank",
+      icon: "x",
+      group: "financial",
+    },
+    {
+      key: "insurance",
+      label: "Insurance",
+      label_am: "ኢንሹራንስ",
+      base: "bank",
+      icon: "x",
+      group: "financial",
+    },
+    {
+      key: "hotel",
+      label: "Hotel",
+      label_am: "ሆቴል",
+      base: "hotel",
+      icon: "x",
+      group: "hospitality",
+    },
+  ];
+
+  function signedUpAs(type: string) {
+    server.use(
+      http.get("*/api/v1/onboarding/industries", () =>
+        HttpResponse.json({ data: catalog }),
+      ),
+      http.get("*/auth/me", () =>
+        HttpResponse.json({
+          user: { public_id: "01HZUSER", name: "Abebe", role: "tenant_admin" },
+          permissions: [],
+          tenant: {
+            public_id: "01HZTENANT",
+            name: "Acme",
+            subdomain: "acme",
+            status: "trial",
+            type,
+          },
+        }),
+      ),
+    );
+  }
+
+  it("offers only government types to an organisation that signed up as government", async () => {
+    signedUpAs("government");
+    renderWithClient(<IndustryConfigStep />);
+
+    expect(
+      await screen.findByText("Woreda administration"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Ministry")).toBeInTheDocument();
+    expect(screen.queryByText("Bank")).not.toBeInTheDocument();
+    expect(screen.queryByText("Hotel")).not.toBeInTheDocument();
+    // Several government types, so none is chosen for them.
+    expect(screen.getByRole("radio", { name: "Ministry" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+
+    fireEvent.click(screen.getByText("Show every type of organisation"));
+    expect(screen.getByText("Bank")).toBeInTheDocument();
+    expect(screen.getByText("Hotel")).toBeInTheDocument();
+  });
+
+  it("starts a bank on Bank and offers the other financial types beside it", async () => {
+    signedUpAs("bank");
+    renderWithClient(<IndustryConfigStep />);
+
+    expect(await screen.findByRole("radio", { name: "Bank" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByText("Insurance")).toBeInTheDocument();
+    expect(screen.queryByText("Ministry")).not.toBeInTheDocument();
+  });
+
+  it("offers every type to an organisation that signed up as general", async () => {
+    signedUpAs("general");
+    renderWithClient(<IndustryConfigStep />);
+
+    expect(await screen.findByText("Ministry")).toBeInTheDocument();
+    expect(screen.getByText("Bank")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Show every type of organisation"),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("IndustryConfigStep — composed profiles and review", () => {
   it("shows the industry's usual profiles, sends only real choices, and holds apply until the review is read", async () => {
     const previewBodies: Record<string, unknown>[] = [];

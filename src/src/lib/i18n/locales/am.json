@@ -5277,6 +5277,8 @@
   "setup2.migration_title": "ሠራተኞችዎን ያስገቡ",
   "setup2.no_rows": "ቢያንስ አንድ መስመር ያክሉ (ስም ያስፈልጋል)",
   "setup2.none": "የለም",
+  "setup2.show_all_types": "ሁሉንም የድርጅት ዓይነቶች አሳይ",
+  "setup2.show_signup_types": "በምዝገባ ጊዜ ከመረጡት ጋር የሚዛመዱትን ብቻ አሳይ",
   "setup2.org_type": "የድርጅት ዓይነት",
   "setup2.outcome_ambiguous": "ግልጽ ያልሆነ",
   "setup2.outcome_matched": "ተዛምዷል",
