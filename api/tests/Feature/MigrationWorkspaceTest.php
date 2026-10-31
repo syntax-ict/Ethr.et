@@ -268,6 +268,43 @@ describe('migration endpoints', function () {
             'rows' => [['name' => 'X', 'employee_code' => 'X']],
         ])->assertForbidden();
     });
+
+    it('refuses a list that names one employee number or email twice, instead of failing at commit', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $url = "http://{$tenant->subdomain}.ethr.test/api/v1/onboarding/migration/rows";
+
+        test()->postJson($url, ['rows' => [
+            ['name' => 'Abebe Kebede', 'employee_code' => 'EMP-1'],
+            ['name' => 'Hanna Girma', 'employee_code' => 'emp-1'],
+        ]])->assertUnprocessable()->assertJsonValidationErrors('rows.1.employee_code');
+
+        test()->postJson($url, ['rows' => [
+            ['name' => 'Abebe Kebede', 'email' => 'a@acme.et'],
+            ['name' => 'Hanna Girma', 'email' => 'A@acme.et'],
+        ]])->assertUnprocessable()->assertJsonValidationErrors('rows.1.email');
+
+        expect(MigrationBatch::where('tenant_id', $tenant->id)->count())->toBe(0);
+    });
+});
+
+describe('a device user with no name', function () {
+    it('is held for review rather than created, and is named after its device number if created', function () {
+        $tenant = createTenant();
+
+        $batch = migrationService()->stageFromRows([
+            ['employee_code' => '17', 'badge_number' => '17'],
+        ], $tenant->id, 'manual');
+        $row = $batch->rows()->first();
+
+        expect($row->match_outcome)->toBe('new')
+            ->and($row->action)->toBe(MigrationStagingRow::ACTION_DEFER);
+
+        migrationService()->setAction($row, MigrationStagingRow::ACTION_CREATE);
+        migrationService()->commit($batch->refresh());
+
+        expect(Employee::where('tenant_id', $tenant->id)->value('name'))->toBe('Device user 17');
+    });
 });
 
 describe('staging purge', function () {
