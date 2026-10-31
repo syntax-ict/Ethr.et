@@ -10,6 +10,7 @@ use App\Models\Webhook;
 use App\Models\WebhookDelivery;
 use App\Services\Features\FeatureGate;
 use App\Support\FeatureUnavailable;
+use App\Support\OutboundHost;
 use App\Support\WebhookTargets;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -112,12 +113,22 @@ class DispatchWebhookJob implements ShouldQueue
         // created with a public URL could be repointed at an internal one, and
         // rows saved that way are still in the database. A host that now
         // resolves inside the network is refused the same way. Not retried —
-        // retrying cannot make an internal address external.
+        // retrying cannot make an internal address external. The connection
+        // then goes to the addresses checked here, not to a second lookup by
+        // the HTTP client, whose answer could differ.
         $host = parse_url((string) $webhook->url, PHP_URL_HOST);
-        if (! is_string($host) || WebhookTargets::refused(trim($host, '[]'))) {
+        $pin = is_string($host) ? $this->pinnedAddresses((string) $webhook->url, trim($host, '[]')) : null;
+        if ($pin === null) {
             $this->markFailed($delivery, null, 'Refused: the webhook URL points to an internal address', 0);
 
             return;
+        }
+        $attempt = $this->attempts();
+        if ($pin === false) {
+            $this->recordAttempt($delivery, null, 'The webhook host did not resolve', $attempt);
+
+            // Retried like any network error; failed() counts it at the end.
+            throw new RuntimeException('The webhook host did not resolve');
         }
 
         // The signed bytes are the bytes sent. Handing the client the array
@@ -135,13 +146,13 @@ class DispatchWebhookJob implements ShouldQueue
         // was for receivers built against it.
         $sentAt = (string) now()->getTimestamp();
         $timestampedSignature = 'sha256='.$webhook->sign($sentAt.'.'.$payloadJson);
-        $attempt = $this->attempts();
 
         try {
             // Redirects are not followed: the host was checked above, and a 3xx
             // can point anywhere, including inside the network (audit N18).
             $response = Http::timeout(10)
                 ->withoutRedirecting()
+                ->withOptions($pin === [] ? [] : ['curl' => [CURLOPT_RESOLVE => $pin]])
                 ->withHeaders([
                     'X-ETHR-Signature' => $signature,
                     'X-ETHR-Timestamp' => $sentAt,
@@ -198,6 +209,48 @@ class DispatchWebhookJob implements ShouldQueue
         // Any other 4xx, or a redirect: the same request gets the same answer.
         // Given up now, and counted once.
         $this->countFailedDelivery($webhook);
+    }
+
+    /**
+     * The CURLOPT_RESOLVE entry for this delivery: null when the host is
+     * refused, false when it resolves to nothing, and an empty list when there
+     * is nothing to pin (an IP literal, or a developer machine with private
+     * hosts allowed).
+     *
+     * @return list<string>|false|null
+     */
+    private function pinnedAddresses(string $url, string $host): array|false|null
+    {
+        if (WebhookTargets::privateHostsAllowed()) {
+            return [];
+        }
+
+        // curl converts a non-ASCII name before it looks the entry up, so a
+        // pin written in the original form would not match and curl would
+        // resolve the name itself.
+        if (preg_match('/[^!-~]/', $host) === 1) {
+            return null;
+        }
+
+        $addresses = OutboundHost::publicAddresses($host);
+        if ($addresses === null) {
+            return null;
+        }
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            return [];
+        }
+        if ($addresses === []) {
+            return false;
+        }
+
+        $port = parse_url($url, PHP_URL_PORT)
+            ?? (strtolower((string) parse_url($url, PHP_URL_SCHEME)) === 'http' ? 80 : 443);
+        $bracketed = array_map(
+            fn (string $ip): string => str_contains($ip, ':') ? "[{$ip}]" : $ip,
+            $addresses,
+        );
+
+        return ["{$host}:{$port}:".implode(',', $bracketed)];
     }
 
     private function recordAttempt(WebhookDelivery $delivery, ?int $statusCode, string $body, int $attempt): void
