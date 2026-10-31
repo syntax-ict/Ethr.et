@@ -164,6 +164,24 @@ class User extends Authenticatable implements HasLocalePreference
     }
 
     /**
+     * The key reset and invitation tokens are stored under. An email address
+     * is unique within an organisation, not across them, so keyed by email
+     * alone a link minted in one organisation was accepted by another's
+     * account with the same address, and asking for a link in one replaced a
+     * pending link in the other. The migration 2026_10_31_000001 moved the
+     * rows already stored.
+     */
+    public function getEmailForPasswordReset(): string
+    {
+        return self::passwordResetKey($this->tenant_id, (string) $this->email);
+    }
+
+    public static function passwordResetKey(?int $tenantId, string $email): string
+    {
+        return ($tenantId ?? 0).'|'.$email;
+    }
+
+    /**
      * The language notifications to this user are written in: their own
      * choice, else their organisation's default. Laravel renders every
      * channel, queued mail and the in-app record alike, inside this locale.
