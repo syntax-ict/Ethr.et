@@ -123,8 +123,10 @@ class LoginRequest extends FormRequest
 
         // An unknown identifier still pays for one bcrypt: answering before any
         // hashing told a timing attacker which accounts exist (security review
-        // 2026-10-30).
-        if (! $user) {
+        // 2026-10-30). Not a second one when the super admin check above has
+        // already hashed, or the platform admin's address took twice as long
+        // as any other on every organisation's sign-in page.
+        if (! $user && $superAdmin === null) {
             Hash::make(Str::random(40));
         }
 
