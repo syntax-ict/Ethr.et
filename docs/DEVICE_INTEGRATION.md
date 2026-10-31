@@ -275,7 +275,8 @@ it works from any office network to shared hosting, where ETHR cannot reach the
 terminal. Register it as **`zkteco_adms`** with its serial number and no address. Then,
 on the terminal, open **COMM → Cloud Server Setting**:
 
-- Server address: the application host (shown on the device page).
+- Server address: the organisation's own address, `{slug}.ethr.et` (shown on the device page).
+  A terminal set up with the shared host `ethr.et` is refused.
 - Port: 443 with HTTPS on, or 80 for firmware without HTTPS.
 - Enable domain name: on.
 
@@ -343,17 +344,23 @@ not call the list complete.
 A sent command that is not confirmed is offered again after 30 minutes and fails after
 three sends. The `.aspx` spellings some firmware uses are routed too.
 
-**Authentication: serial selects, IP allowlist admits.** ADMS sends its serial and nothing
-an administrator can configure, so this is the token-less webhook policy, applied
-strictly (`AdmsDeviceResolver`):
+**Authentication: serial selects, the organisation's address and the IP allowlist admit.**
+ADMS sends its serial, the host it was set up to call, and nothing else an administrator
+can configure, so this is the token-less webhook policy, applied strictly
+(`AdmsDeviceResolver`):
 
 - The serial is printed on the case and proves nothing on its own.
+- The request must arrive on the organisation's own address: its subdomain, or its
+  verified custom domain. Only someone at the terminal can set that, so registering
+  another organisation's serial first gains nothing (owner decision 2026-10-31). On a
+  deployment that serves neither, this step does not apply.
 - An empty allowlist admits nobody.
 - A serial held by two devices admits neither.
 - The allowlist accepts an IPv4 range (`196.188.0.0/16`), because office broadband
   addresses change. Nothing wider than /8 is accepted.
 - A refused attempt for a known serial is remembered for a week with its address. The
   device page shows it, because that address is usually the one the allowlist is missing.
+  Only attempts that reached the organisation's own address are remembered.
 
 **Every line is acknowledged**, an unknown PIN or a refused time included. A line answered
 with an error is sent again by the device indefinitely.

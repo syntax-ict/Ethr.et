@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Device;
 
 use App\Models\Device;
+use App\Models\Tenant;
+use App\Support\InstallMode;
+use App\Support\TenancyDomain;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -21,10 +24,19 @@ use Illuminate\Support\Facades\Log;
  * - The request must come from an address on the device's IP allowlist. An
  *   empty allowlist admits nobody (Device::webhookIpAllowed is fail-closed).
  * - Two devices with one serial authenticate neither.
+ * - The request must arrive on the organisation's own address (its
+ *   subdomain, or its verified custom domain), which is the server address
+ *   the device page tells the administrator to enter on the terminal. A
+ *   serial is printed on the case, so registering one proves nothing; the
+ *   address the terminal was set up to call does, because only someone at
+ *   the terminal can set it (owner decision 2026-10-31). Where the deployment
+ *   gives organisations no address of their own, this step does not apply.
  *
  * A refusal for a known serial is remembered for a week with the address it
  * came from, so the device page can say "tried to connect from 196.x.x.x" —
- * which is what an administrator needs to fill in the allowlist.
+ * which is what an administrator needs to fill in the allowlist. Only a
+ * request that reached the organisation's own address is remembered: one
+ * aimed elsewhere came from a terminal someone else set up.
  *
  * Pre-authentication and cross-tenant by nature, like the webhook lookup: the
  * tenant is not known until the device is found. The query states no
@@ -35,7 +47,7 @@ final class AdmsDeviceResolver
 {
     public const ADAPTER = 'zkteco_adms';
 
-    public function resolve(?string $serial, ?string $ip): ?Device
+    public function resolve(?string $serial, ?string $ip, ?string $host = null): ?Device
     {
         $serial = trim((string) $serial);
         if ($serial === '' || strlen($serial) > 64) {
@@ -56,6 +68,12 @@ final class AdmsDeviceResolver
 
         $device = $candidates->first();
 
+        if (! self::arrivedOnOwnAddress($device, $host)) {
+            $this->log($serial, $ip, 'not_own_address');
+
+            return null;
+        }
+
         if (! $device->webhookIpAllowed($ip)) {
             $this->log($serial, $ip, 'ip_not_allowlisted');
             Cache::put(self::rejectionKey($device), ['ip' => $ip, 'at' => now()->toIso8601String()], now()->addWeek());
@@ -64,6 +82,49 @@ final class AdmsDeviceResolver
         }
 
         return $device;
+    }
+
+    /**
+     * The server address to enter on the terminal: the organisation's
+     * subdomain, else its verified custom domain, else the shared host where
+     * the deployment serves neither.
+     */
+    public static function serverAddress(?Tenant $tenant): string
+    {
+        return self::ownAddresses($tenant)[0]
+            ?? (string) parse_url((string) config('app.url'), PHP_URL_HOST);
+    }
+
+    private static function arrivedOnOwnAddress(Device $device, ?string $host): bool
+    {
+        $own = self::ownAddresses(Tenant::query()->find($device->tenant_id));
+
+        return $own === [] || in_array(Tenant::normaliseDomain($host), $own, true);
+    }
+
+    /**
+     * Hosts that name this organisation alone, subdomain first: the subdomain
+     * is served by the platform's wildcard, while a custom domain also needs
+     * the hosting set up for it.
+     *
+     * @return list<string>
+     */
+    private static function ownAddresses(?Tenant $tenant): array
+    {
+        if ($tenant === null || InstallMode::single()) {
+            return [];
+        }
+
+        $addresses = [];
+        if (Tenant::subdomainsServed()) {
+            $addresses[] = $tenant->subdomain.'.'.TenancyDomain::root();
+        }
+        $custom = Tenant::normaliseDomain($tenant->custom_domain);
+        if ($custom !== null && $tenant->custom_domain_verified_at !== null) {
+            $addresses[] = $custom;
+        }
+
+        return $addresses;
     }
 
     /**
