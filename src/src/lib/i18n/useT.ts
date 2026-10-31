@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import {
   getLocale,
+  hasLocale,
   preloadLocale,
   syncDocumentLang,
   translateStatic,
@@ -47,7 +48,14 @@ export function useT() {
   // replaced by real translations. The setState is inside a promise callback, not
   // synchronous in the effect body, so it costs one render only when a dictionary
   // actually arrives.
+  //
+  // "Actually arrives" is decided by this render: one that already had the
+  // locale's strings has nothing to replace. It used to re-render on every
+  // mount regardless, which was only wasted work while `t` stayed the same
+  // function, and rebuilt every table's columns once `t` follows the dictionary
+  // (below), remounting their row buttons under the reader's first click.
   const [dictionaryVersion, setDictionaryVersion] = useState(0);
+  const renderedWithDictionary = hasLocale(locale);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +74,8 @@ export function useT() {
     // not the document's.
     if (!scoped) syncDocumentLang(locale);
 
+    if (renderedWithDictionary) return;
+
     preloadLocale(locale).then(() => {
       if (!cancelled) setDictionaryVersion((v) => v + 1);
     });
@@ -73,7 +83,7 @@ export function useT() {
     return () => {
       cancelled = true;
     };
-  }, [locale, scoped]);
+  }, [locale, scoped, renderedWithDictionary]);
 
   /**
    * `replacements` substitutes `:name` placeholders, matching the convention the
