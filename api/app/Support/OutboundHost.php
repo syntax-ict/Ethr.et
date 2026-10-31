@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Closure;
 use Symfony\Component\HttpFoundation\IpUtils;
 
 /**
@@ -19,9 +20,11 @@ use Symfony\Component\HttpFoundation\IpUtils;
  * - An IPv4-mapped IPv6 address (`::ffff:127.0.0.1`) reaches the IPv4 host it
  *   embeds, so it is judged by that address.
  *
- * This checks the name when it is saved and again before each request. It does
- * not pin the resolved address into the connection, so a hostname whose DNS
- * changes between the check and the connect (rebinding) is a residual gap.
+ * This checks the name when it is saved and again before each request. A caller
+ * that connects should take publicAddresses() and pin them into the connection
+ * (CURLOPT_RESOLVE), as webhook delivery does; checking the name and letting
+ * the client resolve it again leaves a gap when its DNS answer changes between
+ * the two.
  */
 final class OutboundHost
 {
@@ -33,26 +36,41 @@ final class OutboundHost
      */
     private const NOT_GLOBAL = ['100.64.0.0/10', '192.0.0.0/24', '198.18.0.0/15'];
 
+    /** @var (Closure(string): list<string>)|null */
+    private static ?Closure $resolver = null;
+
     public static function isInternal(string $host): bool
+    {
+        return self::publicAddresses($host) === null;
+    }
+
+    /**
+     * The addresses a connection to this host may use, from one lookup: null
+     * when the host is internal, the address itself for an IP literal, and an
+     * empty list for a name that resolves to nothing.
+     *
+     * @return list<string>|null
+     */
+    public static function publicAddresses(string $host): ?array
     {
         $host = strtolower(trim($host, "[] \t\n\r\0\x0B."));
 
         if ($host === '' || in_array($host, ['localhost', '0.0.0.0', '::', '::1'], true)) {
-            return true;
+            return null;
         }
 
         foreach (['.localhost', '.local', '.internal', '.localdomain'] as $suffix) {
             if (str_ends_with($host, $suffix)) {
-                return true;
+                return null;
             }
         }
 
         if (in_array($host, ['metadata.google.internal', 'metadata.goog'], true)) {
-            return true;
+            return null;
         }
 
         if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
-            return self::isPrivateIp($host);
+            return self::isPrivateIp($host) ? null : [$host];
         }
 
         // Any other all-numeric name is an IPv4 address in disguise, which
@@ -63,16 +81,28 @@ final class OutboundHost
         // (API/webhook end-to-end test, 2026-10-14, D8). No device or webhook
         // has a reason to be addressed that way.
         if (preg_match('/^((0x[0-9a-f]*|\d+)\.){0,3}(0x[0-9a-f]*|\d+)$/', $host) === 1) {
-            return true;
+            return null;
         }
 
-        foreach (self::resolve($host) as $ip) {
+        $ips = self::resolve($host);
+        foreach ($ips as $ip) {
             if (self::isPrivateIp($ip)) {
-                return true;
+                return null;
             }
         }
 
-        return false;
+        return $ips;
+    }
+
+    /**
+     * Replaces DNS for tests, which cannot rely on a real answer. Null
+     * restores it.
+     *
+     * @param  (Closure(string): list<string>)|null  $resolver
+     */
+    public static function resolveUsing(?Closure $resolver): void
+    {
+        self::$resolver = $resolver;
     }
 
     /**
@@ -123,6 +153,10 @@ final class OutboundHost
     /** @return list<string> */
     private static function resolve(string $host): array
     {
+        if (self::$resolver !== null) {
+            return (self::$resolver)($host);
+        }
+
         $ips = gethostbynamel($host) ?: [];
 
         $records = @dns_get_record($host, DNS_AAAA);

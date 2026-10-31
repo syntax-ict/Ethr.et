@@ -22,6 +22,7 @@ class EmployeeAttendanceModeController extends Controller
     public function __invoke(UpdateAttendanceModeRequest $request, Employee $employee): JsonResponse
     {
         Gate::authorize('attendance.manage');
+        abort_unless($request->user()->canAccessEmployee($employee), 404);
 
         $from = AttendancePolicy::modeOf($employee)->value;
         $mode = AttendanceMode::from($request->validated('attendance_mode'));

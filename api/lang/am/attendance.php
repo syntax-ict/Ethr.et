@@ -36,6 +36,8 @@ return [
     'device_clock_invalid' => 'መሳሪያው የማይነበብ ወይም የወደፊት ሰዓት ልኳል። የመሳሪያውን ሰዓት ያረጋግጡ።',
     'qr_already_used' => 'ይህን የQR ኮድ አስቀድመው ተጠቅመውበታል። በስክሪኑ ላይ ያለውን የአሁኑን ኮድ ይቃኙ።',
     'qr_use_limit_reached' => 'ይህ የQR ኮድ ከፍተኛውን የአጠቃቀም ብዛት ደርሷል። በስክሪኑ ላይ ያለውን የአሁኑን ኮድ ይቃኙ።',
+    'manual_entry_self' => 'የራስዎን የመገኘት መዝገብ ሌላ ሰው ማስገባት አለበት።',
+    'import_row_self' => 'ረድፍ :row: የራስዎን የመገኘት መዝገብ ሌላ ሰው ማስገባት አለበት።',
     'integrity_self_review' => 'በራስዎ የመገኘት መዝገብ ላይ ያለን ምልክት መገምገም አይችሉም።',
     'integrity_already_reviewed' => 'ይህ ምልክት አስቀድሞ ተገምግሟል።',
     'punch_rejected' => [
