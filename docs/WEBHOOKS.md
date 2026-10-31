@@ -224,10 +224,13 @@ too: `NO_PRIV_RANGE | NO_RES_RANGE` does not cover it.)*
 **Redirects are not followed** (`withoutRedirecting()`), verified end to end on 2026-10-14: a
 receiver answering `302` got one request, the delivery recorded `302`, and nothing was retried.
 
-One residual gap, stated rather than hidden:
-
-- **DNS rebinding.** The name is checked, then connected to separately; a name whose DNS
-  changes between the two is not caught (`OutboundHost.php` says so).
+**The connection goes to the addresses that were checked.** The job looks the name up once
+(`OutboundHost::publicAddresses()`), refuses it if any answer is internal, and hands curl those
+addresses through `CURLOPT_RESOLVE`, so the client does not look the name up a second time. TLS
+is still verified against the name. A name that resolves to nothing is retried like a network
+error, never sent unpinned, and a name with characters outside ASCII is refused, because curl
+converts it before matching the pinned entry *(2026-10-31; until then the name was checked and
+then resolved again by the client, a gap this section stated)*.
 
 ### Testing against a receiver on your own machine
 
