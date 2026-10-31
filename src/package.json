@@ -21,6 +21,8 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "guide:capture": "node scripts/user-guide/capture.mjs",
+    "guide:build": "node scripts/user-guide/build.mjs",
     "generate:api": "node scripts/generate-api.mjs",
     "build:shared-hosting": "node scripts/build-shared-hosting.mjs",
     "verify:static-export": "node scripts/verify-static-export.mjs",
