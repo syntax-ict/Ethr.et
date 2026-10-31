@@ -39,6 +39,22 @@ it('lets the terminal leave kiosk mode with the registered admin PIN, and audits
         ->toBe(1);
 });
 
+it('reads the kiosk token from the body or header, never the address', function () {
+    ['host' => $host, 'session' => $session] = kioskExitSetup();
+
+    $this->postJson("http://{$host}/api/v1/kiosk/exit?token={$session->token}", ['admin_pin' => '4821'])
+        ->assertUnauthorized();
+    $this->postJson("http://{$host}/api/v1/kiosk/authenticate?token={$session->token}")
+        ->assertUnauthorized();
+    $this->postJson("http://{$host}/api/v1/kiosk/check-in?kiosk_token={$session->token}", [
+        'employee_code' => 'EMP-1',
+        'type' => 'check_in',
+        'idempotency_key' => 'kiosk-query-1',
+    ])->assertUnauthorized();
+
+    expect(AuditLog::withoutGlobalScopes()->where('action', 'kiosk.exited')->exists())->toBeFalse();
+});
+
 it('refuses any other PIN, naming the field and nothing else', function () {
     ['host' => $host, 'session' => $session] = kioskExitSetup();
 

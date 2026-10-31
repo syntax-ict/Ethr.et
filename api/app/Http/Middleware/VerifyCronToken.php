@@ -19,10 +19,12 @@ use Symfony\Component\HttpFoundation\Response;
  * the day it lapsed, silently, which is the failure mode this whole workstream
  * keeps finding.
  *
- * WHY THE QUERY STRING IS ACCEPTED. Plesk's "Fetch a URL" task type sets no
- * headers. Refusing the query string would mean refusing the one caller this
- * exists for. It is accepted second, after the header, and the token is
- * stripped from anything that could log it — see `redactedUrl()`.
+ * THE HEADER ONLY. `?token=` was accepted for Plesk's "Fetch a URL" task,
+ * which sets no headers, until 2026-10-31. That caller never existed: the
+ * account has no Scheduled Tasks section (G0-D), and both real callers,
+ * GitHub Actions and cron-job.org, send the header. A token in the query
+ * string reaches access logs and Referer headers, so it is no longer read
+ * (owner decision 2026-10-31).
  *
  * The comparison is `hash_equals` over SHA-256 digests: constant-time, and
  * equal-length regardless of what was submitted, so neither the value nor its
@@ -53,7 +55,7 @@ class VerifyCronToken
             abort(404);
         }
 
-        $presented = (string) ($request->header(self::HEADER) ?? $request->query('token', ''));
+        $presented = (string) $request->header(self::HEADER, '');
 
         if (! hash_equals(hash('sha256', $expected), hash('sha256', $presented))) {
             logger()->warning('Rejected cron request with a bad or missing token.', [

@@ -100,6 +100,99 @@ describe("service worker API caching", () => {
     expect(deleted).toEqual(["ethr-v5-api"]);
   });
 
+  describe("offline answers expire after a week", () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const URL_TODAY = "https://acme.ethr.et/api/v1/attendance/today";
+
+    /** Runs public/sw.js with the given cache and network; returns what it answers. */
+    async function runWorker(
+      cache: Record<string, unknown>,
+      fetch: () => Promise<Response>,
+    ): Promise<Response | undefined> {
+      const source = readFileSync(
+        resolve(__dirname, "../../public/sw.js"),
+        "utf8",
+      );
+      const listeners: Record<string, FetchListener> = {};
+      const self = {
+        addEventListener: (type: string, listener: FetchListener) => {
+          listeners[type] = listener;
+        },
+      };
+      const caches = { open: async () => cache, match: async () => undefined };
+      new Function("self", "caches", "fetch", source)(self, caches, fetch);
+
+      let answered: Promise<Response> | undefined;
+      listeners.fetch({
+        request: new Request(URL_TODAY),
+        respondWith: (response) => {
+          answered = response as Promise<Response>;
+        },
+      });
+
+      return answered;
+    }
+
+    /** Offline, with one stored answer stamped at `storedAt` (null: no stamp). */
+    async function offlineAnswer(storedAt: number | null) {
+      const deleted: string[] = [];
+      const headers: Record<string, string> = {};
+      if (storedAt !== null) headers["X-ETHR-Stored-At"] = String(storedAt);
+      const response = await runWorker(
+        {
+          keys: async () => [],
+          match: async () => new Response('{"data":[]}', { headers }),
+          put: async () => {},
+          delete: async (request: Request) => {
+            deleted.push(new URL(request.url).pathname);
+            return true;
+          },
+        },
+        async () => {
+          throw new TypeError("Failed to fetch");
+        },
+      );
+
+      return { response, deleted };
+    }
+
+    it("serves an answer stored six days ago", async () => {
+      const { response, deleted } = await offlineAnswer(Date.now() - 6 * DAY);
+      expect(response?.status).toBe(200);
+      expect(deleted).toEqual([]);
+    });
+
+    it("deletes an answer stored eight days ago instead of serving it", async () => {
+      const { response, deleted } = await offlineAnswer(Date.now() - 8 * DAY);
+      expect(response?.status).toBe(503);
+      expect(deleted).toEqual(["/api/v1/attendance/today"]);
+    });
+
+    it("treats an answer stored before the limit existed as expired", async () => {
+      const { response, deleted } = await offlineAnswer(null);
+      expect(response?.status).toBe(503);
+      expect(deleted).toEqual(["/api/v1/attendance/today"]);
+    });
+
+    it("stamps what it stores with the time it was stored", async () => {
+      const put: Response[] = [];
+      await runWorker(
+        {
+          keys: async () => [],
+          match: async () => undefined,
+          put: async (_request: Request, response: Response) => {
+            put.push(response);
+          },
+        },
+        async () => new Response('{"data":[]}'),
+      );
+
+      const storedAt = Number(put[0]?.headers.get("X-ETHR-Stored-At"));
+      expect(Math.abs(Date.now() - storedAt)).toBeLessThan(5000);
+      expect(await put[0]?.text()).toBe('{"data":[]}');
+    });
+  });
+
   it("still keeps ordinary API responses for offline use", () => {
     expect(intercepts("/api/v1/employees")).toBe(true);
     expect(intercepts("/api/v1/attendance/today")).toBe(true);

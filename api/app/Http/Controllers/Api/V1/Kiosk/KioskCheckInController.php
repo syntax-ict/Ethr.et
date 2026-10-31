@@ -34,7 +34,8 @@ class KioskCheckInController extends Controller
 
     public function __invoke(KioskCheckInRequest $request): JsonResponse
     {
-        $kioskToken = $request->header('X-Kiosk-Token') ?? $request->query('kiosk_token');
+        // The header only: a token in the address reaches access logs.
+        $kioskToken = $request->header('X-Kiosk-Token');
 
         if (! $kioskToken) {
             return response()->json([

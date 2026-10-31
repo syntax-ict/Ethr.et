@@ -280,7 +280,7 @@ class AppServiceProvider extends ServiceProvider
         // terminal that holds the token. Five tries a minute per kiosk puts
         // every four-digit PIN more than a day away; each exit is audited.
         RateLimiter::for('kiosk-exit', function (Request $request) {
-            return Limit::perMinute(5)->by('kiosk-exit:'.hash('sha256', (string) $request->input('token')));
+            return Limit::perMinute(5)->by('kiosk-exit:'.hash('sha256', (string) $request->post('token')));
         });
 
         // Redeeming an in-person activation code. Per address, so one office
