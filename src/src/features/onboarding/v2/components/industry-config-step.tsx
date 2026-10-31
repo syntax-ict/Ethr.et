@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Loader2, X, Check, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,23 +66,32 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   const [policyProfile, setPolicyProfile] = useState<string | null>(null);
   const [plan, setPlan] = useState<ConfigurationPlan | null>(null);
   const [reviewed, setReviewed] = useState(false);
+  const [showAllTypes, setShowAllTypes] = useState(false);
 
-  const grouped = useMemo(() => {
-    const groups: Record<string, typeof industriesQuery.data> = {};
-    for (const ind of industriesQuery.data ?? []) {
-      (groups[ind.group] ??= []).push(ind);
-    }
-    return groups;
-  }, [industriesQuery]);
+  // Sign-up already asked what kind of organisation this is, so only the
+  // industries of that kind are offered: Government shows the ministries,
+  // bureaus and administrations, Bank shows banks, insurers and microfinance.
+  // A sign-up type is an industry key (bank, hospital) or the base several
+  // industries share (government). "General" names no kind and keeps them all.
+  const signupType = tenant?.type ?? null;
+  const allIndustries = industriesQuery.data ?? [];
+  const ofSignupType = allIndustries.filter(
+    (ind) => ind.key === signupType || ind.base === signupType,
+  );
+  const narrowed = !showAllTypes && ofSignupType.length > 0;
+  const shown = narrowed ? ofSignupType : allIndustries;
 
-  // Sign-up already asked what kind of organisation this is. Where that answer
-  // is an industry here (bank, hospital, hotel, ...) it starts selected, so
-  // the question is not asked twice (onboarding review 2026-10-30).
-  const suggested = (industriesQuery.data ?? []).some(
-    (ind) => ind.key === tenant?.type,
-  )
-    ? (tenant?.type ?? null)
-    : null;
+  const grouped: Record<string, typeof shown> = {};
+  for (const ind of shown) {
+    (grouped[ind.group] ??= []).push(ind);
+  }
+
+  // The sign-up answer starts selected where it names one industry: the
+  // industry with that key, or the only one of that kind (onboarding review
+  // 2026-10-30), so the question is not asked twice.
+  const suggested =
+    ofSignupType.find((ind) => ind.key === signupType)?.key ??
+    (ofSignupType.length === 1 ? ofSignupType[0].key : null);
   const selected = chosen ?? suggested;
 
   const selectedIndustry = (industriesQuery.data ?? []).find(
@@ -347,6 +356,24 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                     </div>
                   </div>
                 ))}
+                {ofSignupType.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto px-0 text-sm"
+                    onClick={() => setShowAllTypes((all) => !all)}
+                  >
+                    {narrowed
+                      ? t(
+                          "setup2.show_all_types",
+                          "Show every type of organisation",
+                        )
+                      : t(
+                          "setup2.show_signup_types",
+                          "Show only the types that match your sign-up",
+                        )}
+                  </Button>
+                )}
               </section>
 
               {selectedIndustry && (
