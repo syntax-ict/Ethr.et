@@ -131,11 +131,11 @@ final class ZktecoAdapter implements DeviceAdapter
         // it the way GenericHttpAdapter::config() does.
         $config = $device->getAttribute('connection_config');
         $config = is_array($config) ? $config : [];
-        DeviceHost::assertAllowed((string) ($config['ip'] ?? ''));
+        $pin = DeviceHost::connectOptions((string) ($config['ip'] ?? ''), (string) ($config['port'] ?? 80));
         $baseUrl = DeviceHost::baseUrl('http', (string) $config['ip'], (string) $config['port']);
 
         // connectTimeout bounds the TCP connect phase so an unreachable device fails fast.
-        $request = Http::connectTimeout(2)->timeout(10);
+        $request = Http::connectTimeout(2)->timeout(10)->withOptions($pin);
 
         if (! empty($config['api_key'])) {
             $request = $request->withHeaders(['Authorization' => "Bearer {$config['api_key']}"]);
