@@ -126,7 +126,9 @@ class KioskSessionController extends Controller
 
     public function authenticate(AuthenticateKioskRequest $request, KioskOfflineSeal $seal): JsonResponse
     {
-        $session = KioskSession::resolveActiveByToken((string) $request->input('token'));
+        // From the body only: input() also reads the query string, and a token
+        // in the address reaches access logs.
+        $session = KioskSession::resolveActiveByToken((string) $request->post('token'));
 
         if (! $session) {
             return response()->json([
@@ -176,7 +178,7 @@ class KioskSessionController extends Controller
      */
     public function exitKiosk(ExitKioskRequest $request): JsonResponse
     {
-        $session = KioskSession::resolveActiveByToken((string) $request->validated('token'));
+        $session = KioskSession::resolveActiveByToken((string) $request->post('token'));
 
         if (! $session) {
             return response()->json([
