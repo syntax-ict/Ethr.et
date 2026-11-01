@@ -217,11 +217,15 @@ describe("<MigrationStep>", () => {
     );
 
     const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    expect(textarea.placeholder).toContain("2019-07-07");
     fireEvent.click(screen.getByText("Ethiopian (E.C.)"));
     expect(
       screen.getByText("Ethiopian (E.C.)").closest("button"),
     ).toHaveAttribute("aria-pressed", "true");
-    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    // The example follows the choice: a Gregorian 2019 read as Ethiopian is years ahead.
+    expect(textarea.placeholder).toContain("Hire date (E.C.)");
+    expect(textarea.placeholder).toContain("2011-10-30");
     fireEvent.change(textarea, {
       target: {
         value: [
