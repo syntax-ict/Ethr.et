@@ -58,6 +58,7 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
+import { KioskLockGuide } from "@/features/kiosk/components/kiosk-lock-guide";
 
 export default function KioskSessionsPage() {
   const { t } = useT();
@@ -307,6 +308,8 @@ export default function KioskSessionsPage() {
           </div>
         )}
         <PaginationControls meta={sessions?.meta} onPageChange={setPage} />
+
+        <KioskLockGuide />
 
         {/* Register Dialog */}
         <Dialog open={showRegister} onOpenChange={setShowRegister}>

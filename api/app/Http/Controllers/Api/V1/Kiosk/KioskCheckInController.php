@@ -8,8 +8,7 @@ use App\Enums\AttendanceSource;
 use App\Enums\Feature;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\KioskCheckInRequest;
-use App\Http\Resources\AttendancePunchResource;
-use App\Models\AuditLog;
+use App\Http\Resources\KioskPunchResource;
 use App\Models\Employee;
 use App\Models\KioskSession;
 use App\Services\Attendance\AttendanceEngine;
@@ -17,19 +16,15 @@ use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\AttendancePolicy;
 use App\Services\CurrentTenant;
 use App\Services\Features\FeatureGate;
+use App\Services\Kiosk\KioskPinGuard;
 use App\Support\FeatureUnavailable;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
 
 class KioskCheckInController extends Controller
 {
-    public const PIN_ATTEMPTS = 5;
-
-    public const PIN_LOCK_SECONDS = 900;
-
     public function __construct(
         private readonly AttendanceEngine $engine,
+        private readonly KioskPinGuard $pins,
     ) {}
 
     public function __invoke(KioskCheckInRequest $request): JsonResponse
@@ -85,8 +80,9 @@ class KioskCheckInController extends Controller
         $settings = app(AttendancePolicy::class)->forBranch($session->branch_id);
 
         if ($settings->kiosk_pin_required) {
-            $pin = $request->validated('pin');
-            if (! $pin || ! $employee->kiosk_pin) {
+            $check = $this->pins->check($session, $employee, $request->validated('pin'));
+
+            if ($check === KioskPinGuard::MISSING) {
                 return response()->json([
                     'type' => 'https://ethr.et/errors/validation',
                     'title' => 'PIN Required',
@@ -95,26 +91,16 @@ class KioskCheckInController extends Controller
                 ], 422)->header('Content-Type', 'application/problem+json');
             }
 
-            // Five wrong PINs for one person at one kiosk lock that person
-            // there for 15 minutes. The route limiter counts per IP, and a
-            // kiosk is one IP for everyone in the queue, so it could neither
-            // stop a colleague guessing four digits nor avoid locking out
-            // the whole queue.
-            $lockKey = "kiosk-pin:{$session->id}:{$employee->id}";
-            if (RateLimiter::tooManyAttempts($lockKey, self::PIN_ATTEMPTS)) {
+            if ($check === KioskPinGuard::LOCKED) {
                 return response()->json([
                     'type' => 'https://ethr.et/errors/too-many-attempts',
                     'title' => 'PIN Locked',
                     'status' => 429,
                     'detail' => __('kiosk.pin_locked'),
-                ], 429, ['Content-Type' => 'application/problem+json', 'Retry-After' => RateLimiter::availableIn($lockKey)]);
+                ], 429, ['Content-Type' => 'application/problem+json', 'Retry-After' => $this->pins->availableIn($session, $employee)]);
             }
 
-            if (! Hash::check($pin, $employee->kiosk_pin)) {
-                if (RateLimiter::hit($lockKey, self::PIN_LOCK_SECONDS) >= self::PIN_ATTEMPTS) {
-                    AuditLog::record('kiosk.pin_locked', $employee, ['kiosk_session_id' => $session->id]);
-                }
-
+            if ($check === KioskPinGuard::WRONG) {
                 return response()->json([
                     'type' => 'https://ethr.et/errors/unauthorized',
                     'title' => 'Invalid PIN',
@@ -122,8 +108,6 @@ class KioskCheckInController extends Controller
                     'detail' => __('kiosk.invalid_pin'),
                 ], 401)->header('Content-Type', 'application/problem+json');
             }
-
-            RateLimiter::clear($lockKey);
         }
 
         if (! $settings->isMethodEnabled('kiosk')) {
@@ -150,9 +134,11 @@ class KioskCheckInController extends Controller
 
         $session->touchActivity();
 
-        $result->record->load('employee', 'shift');
-
-        $punch = new AttendancePunchResource($result->record, $result->wasDuplicate, $employee->name, $result->punch);
+        // Never the employee resource: this answer goes to a shared terminal
+        // that anyone can type a code into, and until 2026-11-01 it carried
+        // the person's email, phone, date of birth and nationality. The
+        // terminal needs to show who punched, and nothing more.
+        $punch = new KioskPunchResource($result->record, $employee, $result->wasDuplicate, $result->punch);
 
         if ($result->wasDuplicate || $result->punch === 'check_out') {
             return $punch->response()->setStatusCode(200);

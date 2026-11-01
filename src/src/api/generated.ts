@@ -303,6 +303,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kiosk/punches/{publicId}/not-me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Not me punches */
+        post: operations["kiosk.kioskReportPunch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kiosk/self-service": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The pass holder's own attendance for the last seven days, and their
+         *     leave balances this year
+         */
+        get: operations["kioskSelfService.show"];
+        put?: never;
+        /** Start self-service with an employee code and that person's kiosk PIN */
+        post: operations["kioskSelfService.start"];
+        /** End self-service now, rather than when the pass runs out */
+        delete: operations["kioskSelfService.end"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kiosk/self-service/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change the pass holder's own kiosk PIN. The current PIN is asked again:
+         *     a pass left open on the screen must not let the next person in the
+         *     queue choose someone else's PIN
+         */
+        put: operations["kioskSelfService.changePin"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/check-in": {
         parameters: {
             query?: never;
@@ -8618,9 +8678,9 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
             was_duplicate: boolean;
-            /** @enum {string} */
-            punch: "check_in" | "check_out";
-            employee_name?: string;
+            /** @constant */
+            punch: "check_in";
+            employee_name?: null;
         };
         /** AttendanceRecordResource */
         AttendanceRecordResource: {
@@ -8792,6 +8852,12 @@ export interface components {
         /** CancelRetirementCaseRequest */
         CancelRetirementCaseRequest: {
             notes?: string | null;
+        };
+        /** ChangeKioskPinRequest */
+        ChangeKioskPinRequest: {
+            current_pin: string;
+            pin: string;
+            pin_confirmation: string;
         };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
@@ -9614,6 +9680,14 @@ export interface components {
             possible_duplicates?: string;
             created_at: string | null;
         };
+        /** KioskAttendanceDayResource */
+        KioskAttendanceDayResource: {
+            date: string | null;
+            check_in: string | null;
+            check_out: string | null;
+            status: string;
+            worked_minutes: number;
+        };
         /** KioskAttendanceRequest */
         KioskAttendanceRequest: {
             idempotency_key: string;
@@ -9628,6 +9702,36 @@ export interface components {
             /** @enum {string} */
             type: "check_in" | "check_out" | "auto";
             pin?: string | null;
+        };
+        /** KioskLeaveBalanceResource */
+        KioskLeaveBalanceResource: {
+            leave_type: string | null;
+            leave_type_am: string | null;
+            entitled_days: string;
+            used_days: number;
+            pending_days: number;
+            remaining_days: number;
+        };
+        /** KioskPersonResource */
+        KioskPersonResource: {
+            name: string;
+            name_am: string | null;
+            position: string | null;
+            photo_url: string | null;
+        };
+        /** KioskPunchResource */
+        KioskPunchResource: {
+            public_id: string;
+            date: string | null;
+            check_in: string | null;
+            check_out: string | null;
+            source: string;
+            status: string;
+            /** @enum {string} */
+            punch: "check_in" | "check_out";
+            was_duplicate: boolean;
+            employee_name: string;
+            employee: components["schemas"]["KioskPersonResource"] | null;
         };
         /** KioskSessionResource */
         KioskSessionResource: {
@@ -10511,6 +10615,11 @@ export interface components {
                 deduction_cents: number;
             }[];
         };
+        /** ReportKioskPunchRequest */
+        ReportKioskPunchRequest: {
+            /** @enum {string} */
+            punch: "check_in" | "check_out";
+        };
         /** ReprocessPayrollRunRequest */
         ReprocessPayrollRunRequest: {
             idempotency_key: string;
@@ -10777,6 +10886,11 @@ export interface components {
                 hire_date?: string | null;
                 department?: string | null;
             }[];
+        };
+        /** StartKioskSelfServiceRequest */
+        StartKioskSelfServiceRequest: {
+            employee_code: string;
+            pin: string;
         };
         /** StatutoryLayoutResource */
         StatutoryLayoutResource: {
@@ -13259,22 +13373,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description `AttendancePunchResource` */
+            /** @description `KioskPunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendancePunchResource"];
+                    "application/json": components["schemas"]["KioskPunchResource"];
                 };
             };
-            /** @description `AttendancePunchResource` */
+            /** @description `KioskPunchResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendancePunchResource"];
+                    "application/json": components["schemas"]["KioskPunchResource"];
                 };
             };
             401: {
@@ -13495,6 +13609,287 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "kiosk.kioskReportPunch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportKioskPunchRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        status: "reported";
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/unauthorized";
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "This punch can no longer be reported here. Tell HR.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "kioskSelfService.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        employee: components["schemas"]["KioskPersonResource"];
+                        today: string;
+                        days: components["schemas"]["KioskAttendanceDayResource"][];
+                        leave_balances: components["schemas"]["KioskLeaveBalanceResource"][];
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        type: string;
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Your session at this kiosk has ended. Enter your code and PIN again.";
+                    } | {
+                        type: string;
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+        };
+    };
+    "kioskSelfService.start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartKioskSelfServiceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        pass: string;
+                        expires_at: string;
+                        employee: components["schemas"]["KioskPersonResource"];
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        type: string;
+                        /** @constant */
+                        title: "Invalid PIN";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "That code and PIN do not match. Check both and try again.";
+                    } | {
+                        type: string;
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/feature-unavailable";
+                        /** @constant */
+                        title: "Feature Unavailable";
+                        /** @constant */
+                        status: 403;
+                        detail: string;
+                        /** @constant */
+                        code: "feature-unavailable";
+                        reason: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        type: string;
+                        /** @constant */
+                        title: "PIN Locked";
+                        /** @constant */
+                        status: 429;
+                        /** @constant */
+                        detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                    };
+                };
+            };
+        };
+    };
+    "kioskSelfService.end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "kioskSelfService.changePin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeKioskPinRequest"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        type: string;
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Your session at this kiosk has ended. Enter your code and PIN again.";
+                    } | {
+                        type: string;
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        type: string;
+                        /** @constant */
+                        title: "PIN Locked";
+                        /** @constant */
+                        status: 429;
+                        /** @constant */
+                        detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                    };
+                };
+            };
         };
     };
     "attendance.checkIn": {
