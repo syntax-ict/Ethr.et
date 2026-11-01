@@ -227,7 +227,8 @@ describe("<CorrectionsPage> lists", () => {
     renderPage();
 
     expect(await screen.findByText("Abebe Kebede")).toBeInTheDocument();
-    expect(screen.getByText("2026-09-29")).toBeInTheDocument();
+    // The record's date in the reader's calendar, not the raw `Y-m-d`.
+    expect(screen.getByText(/^29 Sept? 2026$/)).toBeInTheDocument();
     // Original 08:30 → 17:00 EAT; requested check-in 08:00, check-out unchanged.
     expect(screen.getByText("08:30 → 17:00")).toBeInTheDocument();
     expect(screen.getByText("08:00 → —")).toBeInTheDocument();
@@ -285,7 +286,8 @@ describe("<CorrectionsPage> lists", () => {
     expect(
       await screen.findByText("Badge reader was offline"),
     ).toBeInTheDocument();
-    expect(screen.getByText("2026-09-29")).toBeInTheDocument();
+    // The record's date in the reader's calendar, not the raw `Y-m-d`.
+    expect(screen.getByText(/^29 Sept? 2026$/)).toBeInTheDocument();
     // Every row is the caller's own, so the employee column is not shown.
     expect(screen.queryByText("Abebe Kebede")).toBeNull();
     expect(screen.getAllByRole("tab")).toHaveLength(1);

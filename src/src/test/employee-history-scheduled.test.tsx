@@ -75,7 +75,9 @@ describe("scheduled personnel actions", () => {
     expect(await screen.findByText("Scheduled")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Takes effect on 2026-11-01. The employee record is unchanged until then.",
+        // The date in the reader's calendar, not the raw ISO day; outside a
+        // CalendarProvider that is Gregorian English.
+        "Takes effect on 01 Nov 2026. The employee record is unchanged until then.",
       ),
     ).toBeInTheDocument();
     expect(

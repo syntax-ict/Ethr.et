@@ -38,6 +38,7 @@ import { formatETB } from "@/lib/utils/currency";
 import { useT } from "@/lib/i18n/useT";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { localizedPeriodLabel } from "@/lib/calendar/period-label";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 
@@ -197,6 +198,7 @@ function ChartOfAccountsSection() {
 function JournalExportSection() {
   const { t, locale } = useT();
   const { calendar } = useCalendar();
+  const { formatDate } = useDateFormatters();
   const [selectedRun, setSelectedRun] = useState<string>("");
 
   const runsQuery = useAllPayrollRuns();
@@ -272,7 +274,7 @@ function JournalExportSection() {
                     {t("accounting_page.reference")}: {journalData.reference}
                   </span>
                   <span className="text-muted-foreground">
-                    {journalData.date}
+                    {journalData.date ? formatDate(journalData.date) : ""}
                   </span>
                   {journalData.is_balanced ? (
                     <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success-on-soft">

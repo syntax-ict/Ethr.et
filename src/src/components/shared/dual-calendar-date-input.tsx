@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCalendar } from "@/lib/calendar/calendar-context";
+import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
 import { useT } from "@/lib/i18n/useT";
 import {
   toEthiopian,
@@ -35,6 +35,14 @@ import { cn } from "@/lib/utils";
  *
  * This is the dual-calendar *input* the design system called for; the existing
  * `DualCalendarDate` is display-only.
+ *
+ * `min` and `max` hold in both modes. The native input enforces them itself;
+ * the Ethiopian entry offers only the months and days inside the range, moves
+ * a carried day or month into it, and never emits a typed year that falls
+ * wholly outside it. A value that arrives out of range is flagged, as the
+ * native input flags it, rather than silently changed.
+ *
+ * Outside a `CalendarProvider` it is Gregorian, as `useDateFormatters()` is.
  */
 
 interface DualCalendarDateInputProps {
@@ -67,6 +75,16 @@ function parseIso(
 function toIso(year: number, month: number, day: number): string {
   const p = (n: number, w = 2) => String(n).padStart(w, "0");
   return `${p(year, 4)}-${p(month)}-${p(day)}`;
+}
+
+/** `(year, month, day)` as one comparable number. */
+function ethKey(d: EthiopianDate): number {
+  return d.year * 10000 + d.month * 100 + d.day;
+}
+
+function isoToEthiopian(iso: string | undefined): EthiopianDate | null {
+  const parts = iso ? parseIso(iso) : null;
+  return parts ? toEthiopian(parts.year, parts.month, parts.day) : null;
 }
 
 const noSubscription = () => () => {};
@@ -102,7 +120,7 @@ export function DualCalendarDateInput({
   "aria-required": ariaRequired,
   "aria-describedby": ariaDescribedBy,
 }: DualCalendarDateInputProps) {
-  const { calendar } = useCalendar();
+  const calendar = useOptionalCalendar()?.calendar ?? "gregorian";
   const { t, locale } = useT();
   const generatedId = useId();
   const fieldId = id ?? generatedId;
@@ -119,6 +137,9 @@ export function DualCalendarDateInput({
   // next digit (production QA 2026-10-11, P5). A year is committed once it
   // has four digits; null means "show the committed value".
   const [yearDraft, setYearDraft] = useState<string | null>(null);
+  // A typed year whose every day falls outside min/max is not emitted, just
+  // as a native input will not submit one; this says why.
+  const [rejected, setRejected] = useState<"min" | "max" | null>(null);
 
   const parsed = parseIso(value);
 
@@ -166,12 +187,48 @@ export function DualCalendarDateInput({
     : null;
   const months = locale === "am" ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
 
+  const minEth = isoToEthiopian(min);
+  const maxEth = isoToEthiopian(max);
+  const minYear = minEth?.year;
+  const maxYear = maxEth?.year;
+  const outOfRange = (d: EthiopianDate) =>
+    (minEth != null && ethKey(d) < ethKey(minEth)) ||
+    (maxEth != null && ethKey(d) > ethKey(maxEth));
+  /** True when no day of `month` in `year` is inside min/max. */
+  const monthOutside = (year: number, month: number) =>
+    (minEth != null && year * 100 + month < minEth.year * 100 + minEth.month) ||
+    (maxEth != null && year * 100 + month > maxEth.year * 100 + maxEth.month);
+
   function emit(next: EthiopianDate) {
     // Clamp the day to the (possibly shorter, e.g. Pagume) month length.
     const maxDay = daysInEthiopianMonth(next.year, next.month);
-    const day = Math.min(Math.max(next.day, 1), maxDay);
-    const greg = toGregorian(next.year, next.month, day);
+    let date: EthiopianDate = {
+      ...next,
+      day: Math.min(Math.max(next.day, 1), maxDay),
+    };
+    if (minYear != null && date.year < minYear) {
+      setRejected("min");
+      return;
+    }
+    if (maxYear != null && date.year > maxYear) {
+      setRejected("max");
+      return;
+    }
+    // The year is allowed; a month or day carried over from before moves to
+    // the nearest end of the range rather than being emitted outside it.
+    if (minEth && ethKey(date) < ethKey(minEth)) date = minEth;
+    if (maxEth && ethKey(date) > ethKey(maxEth)) date = maxEth;
+    setRejected(null);
+    const greg = toGregorian(date.year, date.month, date.day);
     onChange(toIso(greg.getFullYear(), greg.getMonth() + 1, greg.getDate()));
+  }
+
+  /** The year a month or day picked into an empty field lands in. */
+  function defaultYear(): number {
+    let year = todayEthYear();
+    if (minYear != null) year = Math.max(year, minYear);
+    if (maxYear != null) year = Math.min(year, maxYear);
+    return year;
   }
 
   const currentYear = eth?.year ?? "";
@@ -179,6 +236,24 @@ export function DualCalendarDateInput({
   const currentDay = eth?.day ?? "";
   // Day options depend on the selected month (Pagume is 5 or 6 days).
   const dayCount = eth != null ? daysInEthiopianMonth(eth.year, eth.month) : 30;
+  const optionYear = eth?.year ?? defaultYear();
+  const rangeIssue: "min" | "max" | null =
+    rejected ??
+    (eth == null || !outOfRange(eth)
+      ? null
+      : minEth != null && ethKey(eth) < ethKey(minEth)
+        ? "min"
+        : "max");
+  const rangeMessage =
+    rangeIssue === "min" && minEth
+      ? t("calendar.date_on_or_after", "Choose a date on or after :date", {
+          date: formatEthiopian(minEth, locale),
+        })
+      : rangeIssue === "max" && maxEth
+        ? t("calendar.date_on_or_before", "Choose a date on or before :date", {
+            date: formatEthiopian(maxEth, locale),
+          })
+        : null;
 
   return (
     <div className={className}>
@@ -196,9 +271,11 @@ export function DualCalendarDateInput({
           // The label from FormField points at this control (it carries
           // `fieldId`), so the invalid/described wiring belongs here rather
           // than on the month or day selects beside it.
-          aria-invalid={ariaInvalid}
+          aria-invalid={ariaInvalid || rangeIssue != null || undefined}
           aria-required={ariaRequired}
           aria-describedby={ariaDescribedBy}
+          min={minYear}
+          max={maxYear}
           placeholder={t("calendar.year", "Year")}
           className="w-20"
           value={yearDraft ?? currentYear}
@@ -212,14 +289,17 @@ export function DualCalendarDateInput({
               day: eth?.day ?? 1,
             });
           }}
-          onBlur={() => setYearDraft(null)}
+          onBlur={() => {
+            setYearDraft(null);
+            setRejected(null);
+          }}
         />
         <Select
           disabled={disabled}
           value={currentMonth === "" ? undefined : String(currentMonth)}
           onValueChange={(v) =>
             emit({
-              year: eth?.year ?? todayEthYear(),
+              year: optionYear,
               month: Number(v),
               day: eth?.day ?? 1,
             })
@@ -235,7 +315,11 @@ export function DualCalendarDateInput({
           </SelectTrigger>
           <SelectContent>
             {months.map((name, i) => (
-              <SelectItem key={name} value={String(i + 1)}>
+              <SelectItem
+                key={name}
+                value={String(i + 1)}
+                disabled={monthOutside(optionYear, i + 1)}
+              >
                 {name}
               </SelectItem>
             ))}
@@ -246,7 +330,7 @@ export function DualCalendarDateInput({
           value={currentDay === "" ? undefined : String(currentDay)}
           onValueChange={(v) =>
             emit({
-              year: eth?.year ?? todayEthYear(),
+              year: optionYear,
               month: eth?.month ?? 1,
               day: Number(v),
             })
@@ -260,7 +344,14 @@ export function DualCalendarDateInput({
           </SelectTrigger>
           <SelectContent>
             {Array.from({ length: dayCount }, (_, i) => i + 1).map((d) => (
-              <SelectItem key={d} value={String(d)}>
+              <SelectItem
+                key={d}
+                value={String(d)}
+                disabled={
+                  eth != null &&
+                  outOfRange({ year: eth.year, month: eth.month, day: d })
+                }
+              >
                 {d}
               </SelectItem>
             ))}
@@ -274,6 +365,11 @@ export function DualCalendarDateInput({
             "Enter the date in the Ethiopian calendar",
           )}
       </p>
+      {rangeMessage && (
+        <p role="alert" className="mt-1 text-xs text-destructive">
+          {rangeMessage}
+        </p>
+      )}
     </div>
   );
 }

@@ -50,6 +50,8 @@ import {
 import { parseWorkingDays, toHHMM } from "@/features/shifts/dates";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { ClockTimeInput } from "@/components/shared/clock-time-input";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -60,7 +62,8 @@ import { ErrorState } from "@/components/shared/error-state";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { FilterBar } from "@/components/shared/filter-bar";
 
-const DAY_LABELS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** A date on each ISO weekday (1 = Monday), for naming it in the reader's language. */
+const WEEKDAY_DATE = (d: number) => `2024-01-0${d}`;
 const DEFAULT_WORKING_DAYS = "1,2,3,4,5";
 
 interface ShiftForm {
@@ -109,6 +112,7 @@ function workedHours(
 
 export default function ShiftsPage() {
   const { t } = useT();
+  const { formatTimeOfDay, formatWeekday, clock } = useDateFormatters();
   const { requestConfirm, confirmDialog } = useConfirm();
   const { hasPermission } = usePermissions();
   // Deleting is `shift.delete`, a tenant-admin grant; this page admits HR
@@ -328,14 +332,14 @@ export default function ShiftsPage() {
                         )}
                       </div>
                       <p className="mt-2 whitespace-nowrap text-xl font-semibold tabular-nums tracking-tight text-foreground">
-                        {toHHMM(shift.start_time)}
+                        {formatTimeOfDay(shift.start_time)}
                         <span
                           className="mx-1.5 text-muted-foreground"
                           aria-hidden="true"
                         >
                           –
                         </span>
-                        {toHHMM(shift.end_time)}
+                        {formatTimeOfDay(shift.end_time)}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {workedHours(
@@ -427,7 +431,7 @@ export default function ShiftsPage() {
                               : "bg-muted text-muted-foreground",
                           )}
                         >
-                          {DAY_LABELS[d]}
+                          {formatWeekday(WEEKDAY_DATE(d))}
                         </span>
                       );
                     })}
@@ -500,19 +504,19 @@ export default function ShiftsPage() {
                 </div>
               </div>
 
-              {/* Times */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Times. The Ethiopian clock's hour, minute and period need a full row. */}
+              <div
+                className={cn("grid gap-3", clock === "24h" && "grid-cols-2")}
+              >
                 <div>
                   <Label htmlFor="start-time-required">
                     {t("shifts_page.start_time_required")}
                   </Label>
-                  <Input
+                  <ClockTimeInput
                     id="start-time-required"
-                    type="time"
+                    aria-label={t("shifts_page.start_time_required")}
                     value={form.start_time}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, start_time: e.target.value }))
-                    }
+                    onChange={(v) => setForm((f) => ({ ...f, start_time: v }))}
                     className="mt-1"
                   />
                 </div>
@@ -520,13 +524,11 @@ export default function ShiftsPage() {
                   <Label htmlFor="end-time-required">
                     {t("shifts_page.end_time_required")}
                   </Label>
-                  <Input
+                  <ClockTimeInput
                     id="end-time-required"
-                    type="time"
+                    aria-label={t("shifts_page.end_time_required")}
                     value={form.end_time}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, end_time: e.target.value }))
-                    }
+                    onChange={(v) => setForm((f) => ({ ...f, end_time: v }))}
                     className="mt-1"
                   />
                 </div>
@@ -632,7 +634,7 @@ export default function ShiftsPage() {
                           : "bg-background text-muted-foreground border-input hover:bg-muted",
                       )}
                     >
-                      {DAY_LABELS[d]}
+                      {formatWeekday(WEEKDAY_DATE(d))}
                     </button>
                   ))}
                 </div>

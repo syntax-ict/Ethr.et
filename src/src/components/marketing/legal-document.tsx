@@ -5,7 +5,7 @@ import {
   LEGAL_REVIEW_REQUIRED,
   type LegalDocument,
 } from "@/lib/legal/documents";
-import { formatDateOnly } from "@/lib/utils/date";
+import { publicDate } from "@/lib/calendar/public-calendar";
 import { useT } from "@/lib/i18n/useT";
 
 /**
@@ -16,10 +16,11 @@ import { useT } from "@/lib/i18n/useT";
  * `useT`, so a reader on the Amharic site gets an Amharic frame and an explicit
  * Amharic explanation of why the body is not, rather than silent English.
  *
- * `formatDateOnly` formats the effective date rather than the string being
- * written out longhand: it is a calendar date, and rendering one through a
- * timezone-aware formatter is what once turned an invoice due date of
- * "2026-10-01" into "30 Sept 2026" for anyone behind UTC.
+ * `publicDate` formats the effective date rather than the string being
+ * written out longhand: it is a calendar date, read as written (rendering one
+ * through a timezone-aware formatter is what once turned an invoice due date
+ * of "2026-10-01" into "30 Sept 2026" for anyone behind UTC), and it follows
+ * the page language's calendar, Ethiopian on the Amharic site.
  */
 export function LegalDocumentView({ document }: { document: LegalDocument }) {
   const { t, locale } = useT();
@@ -42,7 +43,7 @@ export function LegalDocumentView({ document }: { document: LegalDocument }) {
           <p className="mt-6 text-sm text-muted-foreground">
             {t("marketing.legal.effective", "In effect from")}{" "}
             <time dateTime={document.effectiveDate} className="font-medium">
-              {formatDateOnly(document.effectiveDate)}
+              {publicDate(document.effectiveDate, locale)}
             </time>
           </p>
         </div>

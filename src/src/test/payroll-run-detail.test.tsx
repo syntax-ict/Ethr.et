@@ -491,9 +491,25 @@ describe("<PayrollRunDetail> confirming payment", () => {
       await screen.findByRole("button", { name: /Confirm payment/ }),
     );
     const dialog = await screen.findByRole("dialog");
-    const date = within(dialog).getByLabelText("Date paid");
-    await user.clear(date);
-    await user.type(date, "2026-10-09");
+    // The reader's calendar is Ethiopian by default, so the date is entered
+    // as one: 9 October 2026 is Meskerem 29, 2019.
+    const year = within(dialog).getByRole("spinbutton", {
+      name: "Date paid, Ethiopian year",
+    });
+    await user.clear(year);
+    await user.type(year, "2019");
+    await user.click(
+      within(dialog).getByRole("combobox", {
+        name: "Date paid, Ethiopian month",
+      }),
+    );
+    await user.click(screen.getByRole("option", { name: "Meskerem" }));
+    await user.click(
+      within(dialog).getByRole("combobox", {
+        name: "Date paid, Ethiopian day",
+      }),
+    );
+    await user.click(screen.getByRole("option", { name: "29" }));
     await user.type(
       within(dialog).getByLabelText("Bank reference"),
       "CBE-BATCH-0042",

@@ -31,6 +31,7 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { formatETB } from "@/lib/utils/currency";
 import {
   useEmployeeContracts,
@@ -139,6 +140,7 @@ function ContractCard({
   contract: EmployeeContract;
 }) {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const [renewOpen, setRenewOpen] = useState(false);
   const endContract = useEndContract(employeeId);
 
@@ -182,8 +184,8 @@ function ContractCard({
         </div>
 
         <p className="text-sm text-muted-foreground">
-          {c.start_date}
-          {c.end_date ? ` → ${c.end_date}` : ""}
+          {formatDate(c.start_date)}
+          {c.end_date ? ` → ${formatDate(c.end_date)}` : ""}
           {c.status === "active" &&
             c.days_until_expiry !== null &&
             ` (${t("employee.contracts.days_left", ":count days left", { count: c.days_until_expiry })})`}

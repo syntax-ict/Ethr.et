@@ -34,7 +34,8 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAssignableEmployees, useShifts } from "@/features/shifts/api";
-import { addDaysIso, todayIso, toHHMM } from "@/features/shifts/dates";
+import { addDaysIso, todayIso } from "@/features/shifts/dates";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   useShiftRotations,
@@ -650,6 +651,7 @@ function RotationPreviewDialog({
   onClose: () => void;
 }) {
   const { t } = useT();
+  const { formatDate, formatTimeOfDay } = useDateFormatters();
   const [anchor, setAnchor] = useState(todayIso());
 
   // Two cycles, so the repeat itself is visible rather than inferred.
@@ -702,7 +704,7 @@ function RotationPreviewDialog({
                   key: day.date,
                   className: day.is_rest_day ? "bg-muted/40" : undefined,
                   cells: [
-                    day.date,
+                    formatDate(day.date),
                     day.is_rest_day ? (
                       <span
                         key="r"
@@ -715,8 +717,8 @@ function RotationPreviewDialog({
                       <span key="s">
                         {day.shift?.name}{" "}
                         <span className="text-xs text-muted-foreground">
-                          {toHHMM(day.shift?.start_time)}–
-                          {toHHMM(day.shift?.end_time)}
+                          {formatTimeOfDay(day.shift?.start_time ?? "")}–
+                          {formatTimeOfDay(day.shift?.end_time ?? "")}
                         </span>
                       </span>
                     ),

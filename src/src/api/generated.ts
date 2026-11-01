@@ -10044,6 +10044,8 @@ export interface components {
         PayrollEntryResource: {
             public_id: string;
             period_label?: string;
+            period_start?: string | null;
+            period_end?: string | null;
             employee?: components["schemas"]["EmployeeResource"] | null;
             employee_public_id: string | null;
             basic_salary_cents: number;
@@ -28029,6 +28031,8 @@ export interface operations {
                     "application/json": {
                         data: (components["schemas"]["PayrollEntryResource"] & {
                             period_label: string;
+                            period_start: string | null;
+                            period_end: string | null;
                             employee: components["schemas"]["EmployeeResource"] | null;
                         })[];
                         links: {
@@ -28085,6 +28089,8 @@ export interface operations {
                     "application/json": {
                         data: (components["schemas"]["PayrollEntryResource"] & {
                             period_label: string;
+                            period_start: string | null;
+                            period_end: string | null;
                             employee: components["schemas"]["EmployeeResource"] | null;
                         })[];
                         links: {

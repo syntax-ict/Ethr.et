@@ -75,7 +75,7 @@ describe("<AttendanceTimelineTab>", () => {
     renderTab();
 
     expect(await screen.findByText("8.0")).toBeInTheDocument();
-    expect(screen.getByText("2026-01-05 to 2026-01-06")).toBeInTheDocument();
+    expect(screen.getByText("05 Jan 2026 to 06 Jan 2026")).toBeInTheDocument();
     await waitFor(() => expect(seen).toHaveLength(1));
     expect(seen[0].get("from")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(seen[0].get("to")).toMatch(/^\d{4}-\d{2}-\d{2}$/);

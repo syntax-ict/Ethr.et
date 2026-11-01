@@ -17,7 +17,7 @@ import {
 } from "@/features/data-export/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { useT } from "@/lib/i18n/useT";
-import { formatDateTime } from "@/lib/utils/date";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 
 type BadgeVariant = "info" | "success" | "warning" | "neutral";
 
@@ -37,6 +37,7 @@ function formatSize(bytes: number | null): string {
 
 export default function DataExportPage() {
   const { t } = useT();
+  const { formatDateTime } = useDateFormatters();
   const exports = useDataExports();
   const request = useRequestDataExport();
   const [downloading, setDownloading] = useState<string | null>(null);

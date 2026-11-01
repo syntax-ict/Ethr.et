@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -15,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -161,12 +161,21 @@ export default function OvertimeRequestsPage() {
                   required
                   error={fieldMessage(t, errors.date?.message)}
                 >
-                  <Input
-                    {...register("date")}
-                    type="date"
-                    min={today()}
-                    className="mt-1"
-                  />
+                  {(controlProps) => (
+                    <Controller
+                      name="date"
+                      control={control}
+                      render={({ field }) => (
+                        <DualCalendarDateInput
+                          {...controlProps}
+                          value={field.value}
+                          onChange={field.onChange}
+                          min={today()}
+                          className="mt-1"
+                        />
+                      )}
+                    />
+                  )}
                 </FormField>
                 <Controller
                   name="planned_minutes"

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -346,12 +346,11 @@ function SetExceptionDialog({
           <Label htmlFor={untilId}>
             {t("admin_features.until", "Ends on")}
           </Label>
-          <Input
+          <DualCalendarDateInput
             id={untilId}
-            type="date"
             min={daysFromNow(1)}
             value={until}
-            onChange={(e) => setUntil(e.target.value)}
+            onChange={setUntil}
             aria-invalid={errors.expires_at ? true : undefined}
           />
           <p className="text-xs text-muted-foreground">

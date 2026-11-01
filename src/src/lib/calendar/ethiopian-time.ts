@@ -101,27 +101,36 @@ export function ethiopianPeriodLabel(
   return (PERIOD_LABELS[locale] ?? PERIOD_LABELS.en)[period];
 }
 
-/** `1:30 ጠዋት`; in English, `1:30 morning`. */
+/** `1:30 ጠዋት`; in English, `1:30 morning`. With `second`, `1:30:07 ጠዋት`. */
 export function formatEthiopianClock(
   hour24: number,
   minute: number,
   locale: string,
+  second?: number,
 ): string {
   const time = toEthiopianClock(hour24, minute);
   const mm = String(time.minute).padStart(2, "0");
-  return `${time.hour}:${mm} ${ethiopianPeriodLabel(time.period, locale)}`;
+  return `${time.hour}:${mm}${seconds(second)} ${ethiopianPeriodLabel(time.period, locale)}`;
 }
 
-/** `06:00`, or `12:00 ጠዋት`, for a 24-hour hour and minute. */
+function seconds(second: number | undefined): string {
+  return second === undefined ? "" : `:${String(second).padStart(2, "0")}`;
+}
+
+/**
+ * `06:00`, or `12:00 ጠዋት`, for a 24-hour hour and minute. With `second`, a
+ * running clock: `06:00:07`, or `12:00:07 ጠዋት`.
+ */
 export function formatClock(
   hour24: number,
   minute: number,
   clock: ClockSystem,
   locale: string,
+  second?: number,
 ): string {
   if (clock === "ethiopian")
-    return formatEthiopianClock(hour24, minute, locale);
-  return `${String(hour24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    return formatEthiopianClock(hour24, minute, locale, second);
+  return `${String(hour24).padStart(2, "0")}:${String(minute).padStart(2, "0")}${seconds(second)}`;
 }
 
 /**

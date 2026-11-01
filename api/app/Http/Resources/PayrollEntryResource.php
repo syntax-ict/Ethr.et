@@ -16,6 +16,8 @@ class PayrollEntryResource extends JsonResource
         return [
             'public_id' => $this->public_id,
             'period_label' => $this->whenLoaded('payrollRun', fn () => $this->payrollRun?->period_label),
+            'period_start' => $this->whenLoaded('payrollRun', fn () => $this->payrollRun?->period_start?->toDateString()),
+            'period_end' => $this->whenLoaded('payrollRun', fn () => $this->payrollRun?->period_end?->toDateString()),
             'employee' => new EmployeeResource($this->whenLoaded('employee')),
             'employee_public_id' => $this->employee?->public_id,
             'basic_salary_cents' => $this->basic_salary_cents,
