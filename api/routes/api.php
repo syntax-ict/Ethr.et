@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
 use App\Http\Controllers\Api\V1\Admin\AdminStatutoryLayoutController;
 use App\Http\Controllers\Api\V1\Admin\AdminSupportController;
 use App\Http\Controllers\Api\V1\Admin\AdminTenantController;
+use App\Http\Controllers\Api\V1\Admin\BackupStorageController;
 use App\Http\Controllers\Api\V1\Admin\PlatformSettingsController;
 use App\Http\Controllers\Api\V1\Admin\SmsDeliveryController;
 use App\Http\Controllers\Api\V1\Analytics\AnalyticsController;
@@ -1032,6 +1033,17 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::post('/sms/gateways/{slot}/test', [SmsDeliveryController::class, 'testGateway'])
                 ->where('slot', 'primary|secondary')
                 ->middleware('throttle:sms-test');
+
+            // Off-host backup storage: the bucket, a connection test, the
+            // archive key and the switch. Testing and showing the key each
+            // have their own limit; the key opens every copy.
+            Route::get('/backups', [BackupStorageController::class, 'show']);
+            Route::put('/backups/storage', [BackupStorageController::class, 'saveStorage']);
+            Route::put('/backups/settings', [BackupStorageController::class, 'updateSettings']);
+            Route::post('/backups/storage/test', [BackupStorageController::class, 'testStorage'])
+                ->middleware('throttle:backup-storage-test');
+            Route::post('/backups/key', [BackupStorageController::class, 'revealKey'])
+                ->middleware('throttle:backup-key');
 
             // The plan catalog the public pricing page renders. Safe to expose
             // as an editable surface only because subscriptions.price_cents now

@@ -425,6 +425,15 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perHour(10)->by('sms-test:'.($request->user()?->id ?: $request->ip()));
         });
 
+        // Each test writes to storage the platform pays for.
+        RateLimiter::for('backup-storage-test', function (Request $request) {
+            return Limit::perHour(10)->by('backup-storage-test:'.($request->user()?->id ?: $request->ip()));
+        });
+
+        RateLimiter::for('backup-key', function (Request $request) {
+            return Limit::perHour(5)->by('backup-key:'.($request->user()?->id ?: $request->ip()));
+        });
+
         RateLimiter::for('webhooks-test', function (Request $request) {
             return Limit::perHour(10)->by('tenant:'.($request->user()?->tenant_id ?: $request->ip()));
         });

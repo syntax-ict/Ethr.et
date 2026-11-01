@@ -427,6 +427,13 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "SMS delivery",
     description: "Gateways, routing and the daily limit for text messages",
   },
+  "/admin/backups": {
+    section: "Admin",
+    parent: { label: "Admin Console", href: "/admin" },
+    label: "Backups",
+    description:
+      "Where nightly backups are copied off the server, and the key that opens them",
+  },
   "/admin/features": {
     section: "Admin",
     parent: { label: "Admin Console", href: "/admin" },

@@ -178,6 +178,13 @@ function OperationsView({
         state={status.backups.state}
         reasons={status.backups.reasons}
         t={t}
+        action={
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/admin/backups">
+              {t("operations_page.backup_settings", "Backup storage")}
+            </Link>
+          </Button>
+        }
       >
         <Rows>
           <Row
