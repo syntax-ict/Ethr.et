@@ -195,7 +195,9 @@ Route::get('/health', HealthController::class)->middleware('throttle:health');
 // VerifyCronToken 404s when CRON_TOKEN is unset, so an unconfigured
 // deployment does not advertise that they exist. POST, not GET: these are not
 // safe or idempotent, and a GET would be followed by a link-prefetcher or a
-// crawler that stumbled on the URL.
+// crawler that stumbled on the URL. `/backup` is the exception, and a GET,
+// because it only reads: an uptime monitor calls it with the same header and
+// is told by a 503 that backups have stopped.
 Route::prefix('cron')
     // ORDER IS LOAD-BEARING. throttle FIRST: VerifyCronToken abort(404)s a bad
     // token, and middleware runs in the order listed, so with the token check
@@ -205,6 +207,7 @@ Route::prefix('cron')
     ->group(function () {
         Route::post('/schedule', [CronRunController::class, 'schedule']);
         Route::post('/queue', [CronRunController::class, 'queue']);
+        Route::get('/backup', [CronRunController::class, 'backup']);
     });
 
 // Public endpoints
