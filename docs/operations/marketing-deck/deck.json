@@ -1,0 +1,17 @@
+{
+  "v": 4,
+  "createdOnFiles": { "v": 1, "at": "2026-10-31T12:00:00Z" },
+  "lists": "css",
+  "title": "ETHR for HR Teams",
+  "order": ["cover", "problems", "statement", "attendance", "offline", "payroll", "selfservice", "language", "records", "trust", "setup", "pricing", "close"],
+  "sections": {
+    "s1": { "description": "Why an Ethiopian HR office needs a system built for it", "start": "cover" },
+    "s2": { "description": "What ETHR does: attendance, offline, payroll, self-service, language, records", "start": "attendance" },
+    "s3": { "description": "Trust, getting started and pricing", "start": "trust" }
+  },
+  "faces": {
+    "inter": { "family": "Inter", "href": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" },
+    "noto-sans-ethiopic": { "family": "Noto Sans Ethiopic", "href": "https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@400;600;700&display=swap" }
+  },
+  "designSystems": []
+}

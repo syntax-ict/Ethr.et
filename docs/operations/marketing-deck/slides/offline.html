@@ -1,0 +1,41 @@
+<section id="offline" data-transition="fade" style="background:#0a2e4a;color:#f4f7fa;font-family:'Inter', 'Noto Sans Ethiopic', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:center;gap:40px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#e8a838">Works offline</p>
+<h2 style="font-size:72px;font-weight:800;line-height:1.1;letter-spacing:-1px;color:#f4f7fa;width:860px">Keeps working when the network does not</h2>
+<p style="font-size:32px;line-height:1.45;color:#bfd3e3;width:820px">Check-ins queue on the device and upload themselves the moment the connection returns. Nothing is typed twice, and no branch loses a day of records.</p>
+<div style="display:flex;flex-direction:row;gap:16px">
+<p style="font-size:24px;font-weight:600;color:#fbbf24;background:#3a2a07;padding:10px 24px;border-radius:999px">ከመስመር ውጪ · Offline</p>
+<p style="font-size:24px;font-weight:600;color:#6ee7b7;background:#0f3d2b;padding:10px 24px;border-radius:999px">ተመሳስሏል · Synced</p>
+</div>
+<x-embed style="position:absolute;left:1080px;top:128px;width:712px;height:824px"><!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:transparent;overflow:hidden;font-family:"Segoe UI",Inter,system-ui,sans-serif;color:#e8eef4}
+.cloud{position:absolute;left:206px;top:20px;width:300px;height:150px;border-radius:80px;background:#13405f;border:3px solid #2f6b93;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;transition:all .6s}
+.cloud.ok{background:#0f3d2b;border-color:#34d399;color:#6ee7b7}
+.link{position:absolute;left:354px;top:176px;width:4px;height:250px;background:repeating-linear-gradient(#2f6b93 0 14px,transparent 14px 28px);transition:opacity .6s}
+.cut{opacity:.15}
+.ph{position:absolute;left:186px;top:420px;width:340px;height:390px;border-radius:44px;background:#0b1f31;border:8px solid #1d405c;padding:30px 26px;display:flex;flex-direction:column;gap:16px}
+.st{font-size:24px;padding:6px 16px;border-radius:999px;align-self:flex-start;transition:all .5s}
+.off{background:#3a2a07;color:#fbbf24}.on{background:#0f3d2b;color:#6ee7b7}
+.q{display:flex;flex-wrap:wrap;gap:12px;min-height:150px;align-content:flex-start}
+.it{width:58px;height:58px;border-radius:14px;background:#e8a838;animation:pop .4s ease-out;transition:transform .9s ease-in,opacity .9s}
+.fly{transform:translateY(-480px) scale(.5);opacity:0}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.n{font-size:26px;color:#9fb6c9}
+.n b{font-size:40px;color:#f4f7fa}
+</style></head><body>
+<div class="cloud" id="c">ETHR</div>
+<div class="link cut" id="k"></div>
+<div class="ph"><span class="st off" id="s">Offline</span><div class="q" id="q"></div><div class="n"><b id="n">0</b> waiting to upload</div></div>
+<script>
+var q=document.getElementById("q"),n=document.getElementById("n"),s=document.getElementById("s"),k=document.getElementById("k"),c=document.getElementById("c"),t=0;
+function loop(){t++;
+if(t<=8){if(t==1){q.innerHTML="";s.className="st off";s.textContent="Offline";k.className="link cut";c.className="cloud";c.textContent="ETHR"}
+if(t>1&&t<=7){var e=document.createElement("div");e.className="it";q.appendChild(e);n.textContent=q.children.length}}
+if(t==9){s.className="st on";s.textContent="Back online";k.className="link"}
+if(t==10){var a=q.children;for(var i=0;i<a.length;i++)(function(x,d){setTimeout(function(){x.className="it fly"},d*140)})(a[i],i)}
+if(t==12){n.textContent="0";s.textContent="Synced";c.className="cloud ok";c.textContent="6 records saved"}
+if(t==15)t=0}
+setInterval(loop,700);
+</script></body></html></x-embed>
+<aside>Watch the animation: the phone has no network, so six check-ins queue on it. When the connection returns, they upload on their own and the server confirms them. This is the one thing a regional branch manager cares about most.</aside>
+</section>
