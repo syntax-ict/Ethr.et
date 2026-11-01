@@ -395,7 +395,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                     </Label>
                     <div className="mt-1 flex items-center gap-2">
                       <code className="flex-1 rounded border bg-muted/50 px-3 py-2 text-xs font-mono break-all">
-                        {device.webhook_url ?? "N/A"}
+                        {device.webhook_url ?? t("common.none", "None")}
                       </code>
                       <Button
                         variant="outline"

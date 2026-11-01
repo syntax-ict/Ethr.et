@@ -188,7 +188,9 @@ describe("<LandingCard>", () => {
     fireEvent.change(screen.getByLabelText("Telegram"), {
       target: { value: "https://t.me/acme" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /save sign-in page/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /save public website/i }),
+    );
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({
@@ -241,7 +243,9 @@ describe("<LandingCard>", () => {
     fireEvent.click(screen.getByRole("switch", { name: "About us" }));
     await waitFor(() => expect(preview().querySelector("#about")).toBeNull());
 
-    fireEvent.click(screen.getByRole("button", { name: /save sign-in page/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /save public website/i }),
+    );
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({
       order: [
@@ -297,7 +301,9 @@ describe("<LandingCard>", () => {
     );
     expect(within(preview()).getByText("When is payday?")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /save sign-in page/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /save public website/i }),
+    );
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({
       faqs: [
@@ -350,7 +356,9 @@ describe("<LandingCard>", () => {
       within(preview()).getByRole("heading", { level: 3, name: "Pump repair" }),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /save sign-in page/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /save public website/i }),
+    );
     await waitFor(() => expect(body).not.toBeNull());
     // The second, left blank, is not sent.
     expect(body).toMatchObject({
@@ -406,7 +414,9 @@ describe("<LandingCard>", () => {
     fireEvent.change(screen.getByLabelText("LinkedIn"), {
       target: { value: "https://evil.example/linkedin" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /save sign-in page/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /save public website/i }),
+    );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "This link must be on linkedin.com.",
@@ -424,7 +434,7 @@ describe("<LandingCard>", () => {
       "Upload a cover photo to use the photo background.",
     );
     expect(
-      screen.getByRole("button", { name: /save sign-in page/i }),
+      screen.getByRole("button", { name: /save public website/i }),
     ).toBeDisabled();
   });
 
@@ -451,7 +461,7 @@ describe("<LandingCard>", () => {
     expect(hero.style.objectPosition).toBe("30% 60%");
     expect(screen.getByText("Your cover photo is in use")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /save sign-in page/i }),
+      screen.getByRole("button", { name: /save public website/i }),
     ).toBeEnabled();
   });
 
