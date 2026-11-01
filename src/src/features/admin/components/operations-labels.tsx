@@ -199,7 +199,7 @@ export function reasonLabel(t: Translate, code: string): string {
     case "off_host_not_configured":
       return t(
         "operations_page.reason.off_host_not_configured",
-        "Backups are kept only on this host. Set up off-host storage (the AWS_* settings) so a copy survives losing the host.",
+        "Backups are kept only on this host. Set up off-host storage on the Backups page so a copy survives losing the host.",
       );
     case "off_host_key_missing":
       return t(
@@ -215,6 +215,11 @@ export function reasonLabel(t: Translate, code: string): string {
       return t(
         "operations_page.reason.off_host_stale",
         "The last off-host copy is more than a day old.",
+      );
+    case "off_host_switched_off":
+      return t(
+        "operations_page.reason.off_host_switched_off",
+        "Off-host storage is saved on the Backups page but switched off, so copies stay on this host.",
       );
     case "off_host_failing":
       return t(
