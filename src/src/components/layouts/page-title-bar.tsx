@@ -7,6 +7,7 @@ import {
   getRouteMeta,
   routeI18nKey,
   routeI18nPath,
+  routeText,
   sectionI18nKey,
 } from "@/lib/route-meta";
 import { useT } from "@/lib/i18n/useT";
@@ -36,10 +37,7 @@ export function PageTitleBar() {
   if (!meta) return null;
 
   const keyPath = routeI18nPath(pathname, meta);
-  const label = t(routeI18nKey(keyPath, "label"), meta.label);
-  const description = meta.description
-    ? t(routeI18nKey(keyPath, "desc"), meta.description)
-    : undefined;
+  const { label, description } = routeText(pathname, meta, can, t);
 
   const crumbs: Array<{ label: string; href?: string }> = [];
 
@@ -61,8 +59,13 @@ export function PageTitleBar() {
     crumbs.push({ label: t(sectionI18nKey(meta.section), meta.section) });
   }
   if (meta.parent) {
+    // The parent as its own title bar names it for this person: an employee's
+    // Mobile Check-in sits under My Attendance, not under everyone's records.
+    const parentMeta = getRouteMeta(meta.parent.href);
     crumbs.push({
-      label: t(routeI18nKey(meta.parent.href, "label"), meta.parent.label),
+      label: parentMeta
+        ? routeText(meta.parent.href, parentMeta, can, t).label
+        : t(routeI18nKey(meta.parent.href, "label"), meta.parent.label),
       href: meta.parent.href,
     });
   }

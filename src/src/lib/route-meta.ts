@@ -1,3 +1,5 @@
+import type { CanFlag } from "@/lib/hooks/usePermissions";
+
 export interface RouteMeta {
   label: string;
   description?: string;
@@ -10,6 +12,11 @@ export interface RouteMeta {
    * dictionary, so every record page fell back to English.
    */
   i18nPath?: string;
+  /**
+   * The same URL for someone without the `unless` ability, when the page then
+   * shows only their own records. Its keys are `route.<path>.own.*`.
+   */
+  own?: { unless: CanFlag; label: string; description?: string };
 }
 
 /** The path a route's translation keys are built from. */
@@ -38,12 +45,23 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     description: "Configure your workspace step by step",
   },
 
-  // ── Workspace (employee self-service) ──────────────────────────────
+  // One URL, two pages. Whoever may view all attendance gets everyone's
+  // records, filed under Operations; everyone else gets their own, filed under
+  // Workspace. The page switches on the same ability, and so does its title:
+  // an employee was told to "track and manage employee attendance records".
   "/attendance": {
-    section: "Workspace",
-    label: "My Attendance",
-    description: "Your check-ins, check-outs, and timesheet history",
+    section: "Operations",
+    label: "Attendance",
+    description:
+      "Everyone's check-ins and check-outs, by day, source and status",
+    own: {
+      unless: "viewAllAttendance",
+      label: "My Attendance",
+      description: "Your check-ins, check-outs, and timesheet history",
+    },
   },
+
+  // ── Workspace (employee self-service) ──────────────────────────────
   "/attendance/mobile": {
     section: "Workspace",
     parent: { label: "My Attendance", href: "/attendance" },
@@ -508,6 +526,27 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     description: "Choose which notifications you receive and how",
   },
 };
+
+/**
+ * What a page is called, and its one line, for the person looking. The title
+ * bar, the tab title and the header all read this, so they cannot disagree.
+ */
+export function routeText(
+  pathname: string,
+  meta: RouteMeta,
+  can: Partial<Record<CanFlag, boolean>>,
+  t: (key: string, fallback: string) => string,
+): { label: string; description?: string } {
+  const own = meta.own && !can[meta.own.unless] ? meta.own : null;
+  const keyPath = routeI18nPath(pathname, meta) + (own ? "/own" : "");
+  const copy = own ?? meta;
+  return {
+    label: t(routeI18nKey(keyPath, "label"), copy.label),
+    description: copy.description
+      ? t(routeI18nKey(keyPath, "desc"), copy.description)
+      : undefined,
+  };
+}
 
 export function routeI18nKey(path: string, field: "label" | "desc"): string {
   const slug =
