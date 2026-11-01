@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\OvertimeRequest;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\NotificationMessage;
+use App\Support\ReaderDates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -46,7 +47,7 @@ class OvertimeRequestedNotification extends Notification
                 'name' => (string) $this->request->employee?->name,
                 'date' => $this->request->date->format('Y-m-d'),
                 'hours' => round($this->request->planned_minutes / 60, 1),
-            ]),
+            ], dates: ['date' => 'date'], reader: ReaderDates::for($notifiable)),
             'url' => '/approvals',
         ];
     }

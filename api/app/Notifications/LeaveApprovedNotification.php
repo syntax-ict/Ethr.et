@@ -53,7 +53,7 @@ class LeaveApprovedNotification extends Notification
         return NotificationTemplates::mail(
             'leave_approved',
             $this->leaveRequest->tenant_id,
-            $this->leaveTemplateValues($this->leaveRequest),
+            $this->leaveTemplateValues($this->leaveRequest, $notifiable),
         );
     }
 }

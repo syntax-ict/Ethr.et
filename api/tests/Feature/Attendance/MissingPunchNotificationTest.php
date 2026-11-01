@@ -71,9 +71,12 @@ it('describes a missing check-out by the employee\'s public id, name and the day
             'employee_name' => 'Abebe Kebede',
             'date' => '2026-10-05',
             'type' => 'missing_check_out',
-            'message' => 'Abebe Kebede did not check out on 2026-10-05.',
+            // The day in the reader's calendar, Ethiopian by default; the
+            // date itself is stored as a value.
+            'message' => 'Abebe Kebede did not check out on Meskerem 25, 2019.',
             'message_key' => 'notification.inapp.missing_check_out',
             'message_params' => ['name' => 'Abebe Kebede', 'date' => '2026-10-05'],
+            'message_dates' => ['date' => 'date'],
             'url' => '/attendance',
         ]);
 });
@@ -84,8 +87,8 @@ it('words a missing check-in differently from a missing check-out', function () 
 
     $notification = new MissingPunchNotification($employee, '2026-10-05', 'missing_check_in');
 
-    expect($notification->toArray($to)['message'])->toBe('Abebe Kebede did not check in on 2026-10-05.')
-        ->and(implode(' ', $notification->toMail($to)->introLines))->toContain('missing a check-in for 2026-10-05');
+    expect($notification->toArray($to)['message'])->toBe('Abebe Kebede did not check in on Meskerem 25, 2019.')
+        ->and(implode(' ', $notification->toMail($to)->introLines))->toContain('missing a check-in for Meskerem 25, 2019');
 });
 
 // ── Channels and preferences ────────────────────────────────────────────────
@@ -200,17 +203,18 @@ it('gives the email a real subject line in every locale', function () {
 
         foreach (['missing_check_out', 'missing_check_in'] as $type) {
             $mail = (new MissingPunchNotification($employee, '2026-10-05', $type))->toMail($user);
+            $day = $locale === 'am' ? 'መስከረም 25, 2019' : 'Meskerem 25, 2019';
 
             expect($mail->subject)->not->toStartWith('notification.')
-                ->and($mail->subject)->toContain('2026-10-05')
+                ->and($mail->subject)->toContain($day)
                 ->and(implode(' ', $mail->introLines))->toContain('Abebe Kebede')
-                ->and(implode(' ', $mail->introLines))->toContain('2026-10-05');
+                ->and(implode(' ', $mail->introLines))->toContain($day);
         }
     }
 
     app()->setLocale('en');
     expect((new MissingPunchNotification($employee, '2026-10-05', 'missing_check_in'))->toMail($user)->subject)
-        ->toBe('Missing check-in — 2026-10-05');
+        ->toBe('Missing check-in — Meskerem 25, 2019');
 });
 
 it('uses only translation keys that exist in both locales, in every notification', function () {

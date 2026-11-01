@@ -8,7 +8,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
-use App\Support\TenantTime;
+use App\Support\ReaderDates;
 use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -64,11 +64,10 @@ class AttendancePhotosDueForDeletionNotification extends Notification
     private function message(object $notifiable): array
     {
         $tenant = $notifiable instanceof User && $notifiable->tenant instanceof Tenant ? $notifiable->tenant : null;
-        $when = $this->deleteAfter->copy()->setTimezone(TenantTime::zone($tenant))->format('Y-m-d H:i');
 
         return NotificationMessage::make('attendance.photo_retention.message', [
             'count' => $this->count,
-            'when' => $when,
-        ], count: $this->count);
+            'when' => $this->deleteAfter->copy()->utc()->toIso8601String(),
+        ], count: $this->count, dates: ['when' => 'datetime'], reader: ReaderDates::for($notifiable, tenant: $tenant));
     }
 }

@@ -16,9 +16,9 @@ use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
 use App\Services\Report\ReportPresets;
 use App\Support\Csv;
+use App\Support\ScheduleSlot;
 use App\Support\StringList;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -174,7 +174,7 @@ class ReportController extends Controller
             'saved_report_id' => $report->id,
             'frequency' => $request->input('frequency'),
             'recipients' => $request->input('recipients'),
-            'next_run_at' => $this->calculateNextRun($request->input('frequency')),
+            'next_run_at' => ScheduleSlot::next($request->input('frequency'), $tenant),
         ]);
 
         AuditLog::record('report.scheduled', $scheduled);
@@ -214,14 +214,5 @@ class ReportController extends Controller
         $scheduledReport->update(['is_active' => false]);
 
         return response()->json(null, 204);
-    }
-
-    private function calculateNextRun(string $frequency): Carbon
-    {
-        return match ($frequency) {
-            'daily' => now()->addDay()->startOfDay()->addHours(6),
-            'weekly' => now()->next('Monday')->startOfDay()->addHours(6),
-            'monthly' => now()->addMonth()->startOfMonth()->addHours(6),
-        };
     }
 }

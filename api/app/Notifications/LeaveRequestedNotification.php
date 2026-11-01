@@ -56,7 +56,7 @@ class LeaveRequestedNotification extends Notification
         return NotificationTemplates::mail(
             'leave_requested',
             $this->leaveRequest->tenant_id,
-            $this->leaveTemplateValues($this->leaveRequest),
+            $this->leaveTemplateValues($this->leaveRequest, $notifiable),
         )->action(__('notification.review_request'), FrontendUrl::forNotifiable($notifiable, '/approvals'));
     }
 }

@@ -164,7 +164,7 @@ final class SendInvitationJob implements ShouldQueue
         return __('user.invitation.sms', [
             'org' => $tenant->name,
             'url' => FrontendUrl::at($tenant, 'login'),
-        ], $user->locale ?: 'en');
+        ], $user->preferredLocale() ?? 'en');
     }
 
     /** The SMS cap is counted per day in Addis Ababa (SmsSend::countToday). */
