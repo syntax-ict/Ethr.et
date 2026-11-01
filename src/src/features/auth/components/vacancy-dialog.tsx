@@ -7,7 +7,7 @@ import {
 } from "@/features/auth/landing-feed";
 import type { TenantRequest } from "@/lib/auth/use-auth-host-context";
 import { useT } from "@/lib/i18n/useT";
-import { formatDateOnly } from "@/lib/utils/date";
+import { publicDate } from "@/lib/calendar/public-calendar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -45,7 +45,7 @@ export function VacancyDialog({
   publicId: string | null;
   onClose: () => void;
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { data, isLoading, isError } = useLandingVacancy(request, publicId);
 
   return (
@@ -107,7 +107,7 @@ export function VacancyDialog({
                   {data.closes_on && (
                     <span>
                       {t("landing.closes", "Closes :date", {
-                        date: formatDateOnly(data.closes_on),
+                        date: publicDate(data.closes_on, locale),
                       })}
                     </span>
                   )}

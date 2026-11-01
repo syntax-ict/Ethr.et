@@ -11,6 +11,8 @@ import {
   formatCalendarDate,
   formatCalendarDateTime,
   formatClockTime,
+  formatCalendarDayMonth,
+  formatCalendarWeekday,
   timeAgo,
 } from "@/lib/utils/date";
 
@@ -69,6 +71,7 @@ export function useDateFormatters() {
   return {
     timeZone,
     formatDate,
+    calendar,
     clock,
     formatDateTime: useCallback(
       (dateStr: string) =>
@@ -78,6 +81,24 @@ export function useDateFormatters() {
     formatTime: useCallback(
       (dateStr: string) => formatClockTime(dateStr, timeZone, clock, locale),
       [timeZone, clock, locale],
+    ),
+    /** A running clock with seconds, for an instant such as `new Date()`. */
+    formatClockWithSeconds: useCallback(
+      (dateStr: string) =>
+        formatClockTime(dateStr, timeZone, clock, locale, { seconds: true }),
+      [timeZone, clock, locale],
+    ),
+    /** The weekday name, in the reader's language. */
+    formatWeekday: useCallback(
+      (dateStr: string, style: "long" | "short" = "short") =>
+        formatCalendarWeekday(dateStr, timeZone, locale, style),
+      [timeZone, locale],
+    ),
+    /** Day and month without the year, in the reader's calendar. */
+    formatDayMonth: useCallback(
+      (dateStr: string) =>
+        formatCalendarDayMonth(dateStr, timeZone, calendar, locale),
+      [timeZone, calendar, locale],
     ),
     /** A stored time of day such as a shift start (`06:00:00`). */
     formatTimeOfDay: useCallback(

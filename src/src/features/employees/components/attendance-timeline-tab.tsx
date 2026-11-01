@@ -9,6 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { todayIn } from "@/lib/utils/date";
 import {
   useEmployeeAttendanceTimeline,
   type AttendanceTimelineDay as TimelineDay,
@@ -22,6 +24,32 @@ const STATUS_BG: Record<string, string> = {
   on_leave: "bg-primary/60 hover:bg-primary/60",
   weekend: "bg-muted hover:bg-muted-foreground/20",
 };
+
+/** A Monday to Sunday run of dates, for naming the grid's rows. */
+const WEEK_OF_DATES = [
+  "2024-01-01",
+  "2024-01-02",
+  "2024-01-03",
+  "2024-01-04",
+  "2024-01-05",
+  "2024-01-06",
+  "2024-01-07",
+];
+
+/** `Y-m-d`, `days` before another `Y-m-d`. */
+function daysBefore(day: string, days: number): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d - days)).toISOString().slice(0, 10);
+}
+
+/**
+ * The timeline sends a punch as a bare `H:i:s` read in UTC, the server's
+ * zone. Put it back on its day as an instant so it shows in the tenant's zone
+ * and the reader's clock rather than as a UTC wall time.
+ */
+function punchInstant(date: string, time: string): string {
+  return `${date}T${time.length === 5 ? `${time}:00` : time}Z`;
+}
 
 /** A blank cell padding the grid out to whole Monday-to-Sunday weeks. */
 const PADDING_DAY: TimelineDay = {
@@ -37,12 +65,12 @@ const PADDING_DAY: TimelineDay = {
 
 export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
+  const { timeZone, formatDate, formatTime, formatWeekday } =
+    useDateFormatters();
+  // Today where the organisation is, not in the browser's zone or UTC.
   const [range, setRange] = useState<{ from: string; to: string }>(() => {
-    const to = new Date().toISOString().split("T")[0];
-    const from = new Date(Date.now() - 90 * 86400000)
-      .toISOString()
-      .split("T")[0];
-    return { from, to };
+    const to = todayIn(timeZone);
+    return { from: daysBefore(to, 90), to };
   });
   const [selectedDay, setSelectedDay] = useState<TimelineDay | null>(null);
 
@@ -76,7 +104,7 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
   const weeks: TimelineDay[][] = [];
   let currentWeek: TimelineDay[] = [];
   const firstDate = new Date(data.days[0]?.date ?? range.from);
-  const firstDow = (firstDate.getDay() + 6) % 7;
+  const firstDow = (firstDate.getUTCDay() + 6) % 7;
   for (let i = 0; i < firstDow; i++) {
     currentWeek.push(PADDING_DAY);
   }
@@ -105,7 +133,10 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
             {t("employee.attendance.timeline_title", "Attendance Timeline")}
           </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
-            {data.range.from} to {data.range.to}
+            {t("employee.attendance.range", ":from to :to", {
+              from: formatDate(data.range.from),
+              to: formatDate(data.range.to),
+            })}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -149,12 +180,12 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
         <div className="overflow-x-auto pb-2">
           <div className="flex gap-2">
             <div className="flex flex-col gap-1 pt-0">
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+              {WEEK_OF_DATES.map((d) => (
                 <div
                   key={d}
                   className="h-4 text-[10px] font-medium text-muted-foreground leading-none flex items-center w-6"
                 >
-                  {d}
+                  {formatWeekday(d)}
                 </div>
               ))}
             </div>
@@ -171,7 +202,11 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
                         key={di}
                         onClick={() => !isEmpty && setSelectedDay(day)}
                         disabled={isEmpty}
-                        title={isEmpty ? "" : `${day.date}: ${day.status}`}
+                        title={
+                          isEmpty
+                            ? ""
+                            : `${formatDate(day.date)}: ${day.status}`
+                        }
                         className={cn(
                           "h-4 w-4 rounded-sm transition-colors",
                           bg,
@@ -222,7 +257,7 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-semibold text-foreground">
-                  {selectedDay.date}
+                  {formatDate(selectedDay.date)}
                 </p>
                 <p className="text-xs text-muted-foreground capitalize">
                   {selectedDay.status.replace("_", " ")}
@@ -245,7 +280,11 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
                   <span className="text-muted-foreground">
                     {t("employee.attendance.in", "In:")}
                   </span>
-                  <span className="font-mono">{selectedDay.check_in}</span>
+                  <span className="font-mono">
+                    {formatTime(
+                      punchInstant(selectedDay.date, selectedDay.check_in),
+                    )}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <ClockIcon className="h-3 w-3 text-status-warning" />
@@ -253,7 +292,11 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
                     {t("employee.attendance.out", "Out:")}
                   </span>
                   <span className="font-mono">
-                    {selectedDay.check_out ?? "—"}
+                    {selectedDay.check_out
+                      ? formatTime(
+                          punchInstant(selectedDay.date, selectedDay.check_out),
+                        )
+                      : "—"}
                   </span>
                 </div>
                 {selectedDay.worked_minutes != null && (

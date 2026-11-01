@@ -44,6 +44,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageActions } from "@/components/shared/page-actions";
+import { DateTimeInput } from "@/components/shared/date-time-input";
 import { EmptyState } from "@/components/shared/empty-state";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
@@ -414,6 +415,20 @@ export default function AnnouncementsPage() {
     if (form.publishing === "schedule" && !form.publishAt) {
       toast.error(
         t("announcements.schedule_needs_time", "Choose when to publish"),
+      );
+      return;
+    }
+    // The native datetime-local input refused a past time through `min`; the
+    // separate date and time fields cannot, so the check is made here.
+    if (
+      form.publishing === "schedule" &&
+      new Date(form.publishAt).getTime() <= Date.now()
+    ) {
+      toast.error(
+        t(
+          "announcements.schedule_in_past",
+          "Choose a time that has not passed yet",
+        ),
       );
       return;
     }
@@ -1225,16 +1240,21 @@ export default function AnnouncementsPage() {
                   <Label htmlFor="announcement-publish-at">
                     {t("announcements.publish_at", "Publish at")}
                   </Label>
-                  <Input
+                  <DateTimeInput
                     id="announcement-publish-at"
-                    type="datetime-local"
                     value={form.publishAt}
-                    min={toLocalInput(new Date().toISOString())}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, publishAt: e.target.value }))
+                    minDate={toLocalInput(new Date().toISOString()).slice(
+                      0,
+                      10,
+                    )}
+                    onChange={(publishAt) =>
+                      setForm((p) => ({ ...p, publishAt }))
                     }
                     required
-                    className="mt-1"
+                    timeLabel={t(
+                      "announcements.publish_time",
+                      "Time to publish",
+                    )}
                   />
                 </div>
               )}

@@ -12,10 +12,34 @@ import { downloadPayslip, useMyPayslips } from "@/features/payroll/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { ErrorState } from "@/components/shared/error-state";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { localizedPeriodLabel } from "@/lib/calendar/period-label";
+import { storedPeriodLabel } from "@/lib/calendar/stored-period-label";
 
 export default function MyPayslipsPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { calendar } = useDateFormatters();
   const [page, setPage] = useState(1);
+  // The run's month in the reader's calendar and language, not the stored
+  // English label: an Amharic reader on the Ethiopian calendar sees ጥቅምት 2019.
+  // The run's own dates decide the month; a cached answer from before
+  // `PayrollEntryResource` sent them falls back to reading the label.
+  const periodLabel = (entry: {
+    period_label?: string;
+    period_start?: string | null;
+    period_end?: string | null;
+  }) =>
+    entry.period_start
+      ? localizedPeriodLabel(
+          entry.period_label,
+          entry.period_start,
+          entry.period_end,
+          calendar,
+          locale,
+        )
+      : entry.period_label
+        ? storedPeriodLabel(entry.period_label, calendar, locale)
+        : undefined;
   const { data, isLoading, isError, refetch } = useMyPayslips({ page });
 
   return (
@@ -41,7 +65,7 @@ export default function MyPayslipsPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">
-                    {entry.period_label ??
+                    {periodLabel(entry) ??
                       t("payroll_page.payslips_page.payslip_title")}
                   </CardTitle>
                   <Button
@@ -69,7 +93,7 @@ export default function MyPayslipsPage() {
                         "payroll_page.payslips_page.download",
                         "Download payslip",
                       ),
-                      entry.period_label,
+                      periodLabel(entry),
                     ]
                       .filter(Boolean)
                       .join(" · ")}

@@ -28,7 +28,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -68,6 +67,8 @@ import { nextPunch } from "@/lib/attendance/next-punch";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { ClockTimeInput } from "@/components/shared/clock-time-input";
+import { todayIn } from "@/lib/utils/date";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { toast } from "sonner";
@@ -665,9 +666,12 @@ function ManualEntryDialog({
   onClose: () => void;
 }) {
   const { t } = useT();
+  const { timeZone, clock } = useDateFormatters();
+  // Today where the organisation is, not in UTC: before 03:00 in Addis the
+  // UTC date is still yesterday.
   const [form, setForm] = useState({
     employee_public_id: "",
-    date: new Date().toISOString().split("T")[0],
+    date: todayIn(timeZone),
     check_in: "09:00",
     check_out: "17:00",
     reason: "",
@@ -690,7 +694,7 @@ function ManualEntryDialog({
           onClose();
           setForm({
             employee_public_id: "",
-            date: new Date().toISOString().split("T")[0],
+            date: todayIn(timeZone),
             check_in: "09:00",
             check_out: "17:00",
             reason: "",
@@ -734,7 +738,12 @@ function ManualEntryDialog({
               enabled={open}
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          {/* The Ethiopian clock's hour, minute and period need a full row. */}
+          <div
+            className={
+              clock === "24h" ? "grid grid-cols-3 gap-3" : "grid gap-3"
+            }
+          >
             <div>
               <Label>{t("attendance.date_required", "Date *")}</Label>
               <DualCalendarDateInput
@@ -748,13 +757,11 @@ function ManualEntryDialog({
               <Label htmlFor="check-in-required">
                 {t("attendance.check_in_required", "Check In *")}
               </Label>
-              <Input
+              <ClockTimeInput
                 id="check-in-required"
-                type="time"
+                aria-label={t("attendance.check_in_required", "Check In *")}
                 value={form.check_in}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, check_in: e.target.value }))
-                }
+                onChange={(v) => setForm((p) => ({ ...p, check_in: v }))}
                 required
                 className="mt-1"
               />
@@ -763,13 +770,11 @@ function ManualEntryDialog({
               <Label htmlFor="check-out">
                 {t("common.check_out", "Check Out")}
               </Label>
-              <Input
+              <ClockTimeInput
                 id="check-out"
-                type="time"
+                aria-label={t("common.check_out", "Check Out")}
                 value={form.check_out}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, check_out: e.target.value }))
-                }
+                onChange={(v) => setForm((p) => ({ ...p, check_out: v }))}
                 className="mt-1"
               />
             </div>

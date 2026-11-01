@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -768,11 +769,10 @@ function VacancyForm({
               <Label htmlFor="vacancy-closes">
                 {t("vacancies.closes_label", "Applications close")}
               </Label>
-              <Input
+              <DualCalendarDateInput
                 id="vacancy-closes"
-                type="date"
                 value={form.closes_on}
-                onChange={(e) => set("closes_on", e.target.value)}
+                onChange={(iso) => set("closes_on", iso)}
                 className="mt-1"
               />
               {fieldError("closes_on")}

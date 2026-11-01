@@ -26,6 +26,7 @@ import {
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 
 /**
  * Activate, or recover, an employee who has no email and no phone, face to face.
@@ -48,6 +49,7 @@ export function IssueActivationCodeButton({
   phone: string | null | undefined;
 }) {
   const { t } = useT();
+  const { formatDateTime } = useDateFormatters();
   const { hasPermission } = usePermissions();
   const [open, setOpen] = useState(false);
   const [attested, setAttested] = useState(false);
@@ -198,7 +200,7 @@ export function IssueActivationCodeButton({
               </p>
               <p className="text-xs text-muted-foreground">
                 {t("activation_code.expires", "Expires :time", {
-                  time: new Date(issued.expires_at).toLocaleString(),
+                  time: formatDateTime(issued.expires_at),
                 })}
               </p>
               <DialogFooter className="gap-2 sm:justify-between">

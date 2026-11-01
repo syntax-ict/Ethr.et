@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { EthrLogoTile } from "@/components/shared/ethr-logo";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { pickLocalised } from "@/features/marketing/site-content";
 import { SITE_URL } from "@/lib/site-url";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -735,14 +736,18 @@ function Field({
       <Label className="text-xs" htmlFor={id}>
         {label}
       </Label>
-      <Input
-        id={id}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={mono ? "font-mono" : undefined}
-      />
+      {type === "date" ? (
+        <DualCalendarDateInput id={id} value={value} onChange={onChange} />
+      ) : (
+        <Input
+          id={id}
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={mono ? "font-mono" : undefined}
+        />
+      )}
     </div>
   );
 }

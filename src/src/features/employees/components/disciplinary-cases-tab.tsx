@@ -32,6 +32,7 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   useEmployeeDisciplinaryCases,
@@ -194,6 +195,7 @@ function CaseCard({
   case: DisciplinaryCase;
 }) {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const { can } = usePermissions();
   const [noteText, setNoteText] = useState("");
   const [decisionOpen, setDecisionOpen] = useState(false);
@@ -259,7 +261,7 @@ function CaseCard({
             {t(`employee.discipline.status.${c.status}`, c.status)}
           </Badge>
           <span className="text-sm text-muted-foreground">
-            {c.incident_date}
+            {c.incident_date ? formatDate(c.incident_date) : ""}
           </span>
           {c.reference_number && (
             <span className="ml-auto font-mono text-xs text-muted-foreground">
@@ -298,7 +300,8 @@ function CaseCard({
                   {t("employee.discipline.field.sanction", "Sanction")}:
                 </span>{" "}
                 {sanctionLabel(c.sanction_type, t)}
-                {c.sanction_effective_date && ` (${c.sanction_effective_date})`}
+                {c.sanction_effective_date &&
+                  ` (${formatDate(c.sanction_effective_date)})`}
               </p>
             )}
           </div>

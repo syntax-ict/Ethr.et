@@ -36,7 +36,8 @@ import {
   useShifts,
   type ShiftAssignment,
 } from "@/features/shifts/api";
-import { todayIso, toHHMM } from "@/features/shifts/dates";
+import { todayIso } from "@/features/shifts/dates";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useConfirm } from "@/components/shared/use-confirm";
@@ -74,6 +75,7 @@ function AssignmentsContent() {
   const { t, locale } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
   const { formatDate: formatCalendarDate } = useCalendar();
+  const { formatTimeOfDay } = useDateFormatters();
   // The card printed raw ISO dates while the form beside it set them in the
   // user's calendar (audit N30). Built from parts, not `new Date(iso)`: that is
   // UTC midnight, which is the previous day anywhere west of UTC.
@@ -294,7 +296,7 @@ function AssignmentsContent() {
                     </div>
                     <p className="mt-0.5 text-sm text-muted-foreground">
                       {a.shift &&
-                        `${toHHMM(a.shift.start_time)} – ${toHHMM(a.shift.end_time)} · `}
+                        `${formatTimeOfDay(a.shift.start_time)} – ${formatTimeOfDay(a.shift.end_time)} · `}
                       {t("shift_assignments_page.from")}{" "}
                       {showDate(a.effective_from)}
                       {a.effective_to
@@ -366,7 +368,8 @@ function AssignmentsContent() {
                 <SelectContent>
                   {shiftList.map((s) => (
                     <SelectItem key={s.public_id} value={s.public_id}>
-                      {s.name} ({toHHMM(s.start_time)}–{toHHMM(s.end_time)})
+                      {s.name} ({formatTimeOfDay(s.start_time)}–
+                      {formatTimeOfDay(s.end_time)})
                     </SelectItem>
                   ))}
                 </SelectContent>

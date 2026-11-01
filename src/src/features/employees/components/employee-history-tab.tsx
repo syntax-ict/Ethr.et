@@ -34,6 +34,7 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { formatETB } from "@/lib/utils/currency";
 import {
@@ -186,6 +187,7 @@ function Timeline({
   canCancel: boolean;
 }) {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const cancel = useCancelPersonnelAction(employeeId);
   const [cancelling, setCancelling] = useState<PersonnelAction | null>(null);
   return (
@@ -212,8 +214,10 @@ function Timeline({
                       </Badge>
                     )}
                     <span className="text-sm text-muted-foreground">
-                      {action.effective_date}
-                      {action.end_date ? ` → ${action.end_date}` : ""}
+                      {formatDate(action.effective_date)}
+                      {action.end_date
+                        ? ` → ${formatDate(action.end_date)}`
+                        : ""}
                     </span>
                     {action.reference_number && (
                       <span className="ml-auto font-mono text-xs text-muted-foreground">
@@ -261,7 +265,7 @@ function Timeline({
                         {t(
                           "employee.history.scheduled_note",
                           "Takes effect on :date. The employee record is unchanged until then.",
-                          { date: action.effective_date },
+                          { date: formatDate(action.effective_date) },
                         )}
                       </p>
                       {canCancel && (
@@ -402,6 +406,7 @@ function RecordActionDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const record = useRecordPersonnelAction(employeeId);
   const { data: grades } = gradesApi.useList();
   const { data: positions } = positionsApi.useList();
@@ -449,7 +454,7 @@ function RecordActionDialog({
     toast.success(
       saved.is_scheduled
         ? t("employee.history.recorded_scheduled", "Scheduled for :date", {
-            date: saved.effective_date,
+            date: formatDate(saved.effective_date),
           })
         : t("employee.history.recorded", "Action recorded"),
     );

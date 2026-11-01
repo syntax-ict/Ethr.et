@@ -20,10 +20,22 @@ import {
   addDaysIso,
   localIsoDate,
   mondayOf,
-  toHHMM,
+  parseIsoDate,
 } from "@/features/shifts/dates";
 import { buildRoster } from "@/features/shifts/roster";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import type { CalendarSystem } from "@/lib/calendar/calendar-context";
+import {
+  daysInEthiopianMonth,
+  toEthiopian,
+  toGregorian,
+} from "@/lib/calendar/ethiopian";
+import {
+  monthLabel,
+  monthOf,
+  type CalendarMonth,
+} from "@/app/(dashboard)/analytics/period";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { ErrorState } from "@/components/shared/error-state";
@@ -48,37 +60,62 @@ function shiftColour(name: string): string {
   return SHIFT_COLOURS[Math.abs(hash) % SHIFT_COLOURS.length];
 }
 
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+/** A date on each weekday, Sunday first (`getDay()` order), for naming it. */
+const WEEKDAY_DATES = [
+  "2024-01-07",
+  "2024-01-01",
+  "2024-01-02",
+  "2024-01-03",
+  "2024-01-04",
+  "2024-01-05",
+  "2024-01-06",
 ];
 
-const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function startOfMonth(y: number, m: number): Date {
-  return new Date(y, m, 1);
+/**
+ * The first and last Gregorian dates of a month in the reader's calendar:
+ * Tikimt runs 30 days from 11 October, not 1 to 31 October.
+ */
+function monthFirstDay(m: CalendarMonth, calendar: CalendarSystem): string {
+  if (calendar === "ethiopian") {
+    return localIsoDate(toGregorian(m.year, m.month, 1));
+  }
+  const first = new Date(2000, 0, 1);
+  first.setFullYear(m.year, m.month - 1, 1);
+  return localIsoDate(first);
 }
 
-function daysInMonth(y: number, m: number): number {
-  return new Date(y, m + 1, 0).getDate();
+function monthLastDay(m: CalendarMonth, calendar: CalendarSystem): string {
+  if (calendar === "ethiopian") {
+    return localIsoDate(
+      toGregorian(m.year, m.month, daysInEthiopianMonth(m.year, m.month)),
+    );
+  }
+  const last = new Date(2000, 0, 1);
+  last.setFullYear(m.year, m.month, 0);
+  return localIsoDate(last);
+}
+
+/** The day of the month a date is, in the reader's calendar. */
+function dayNumber(date: Date, calendar: CalendarSystem): number {
+  if (calendar !== "ethiopian") return date.getDate();
+  return toEthiopian(date.getFullYear(), date.getMonth() + 1, date.getDate())
+    .day;
 }
 
 export default function RosterPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const {
+    calendar,
+    formatDate,
+    formatDayMonth,
+    formatTimeOfDay,
+    formatWeekday,
+  } = useDateFormatters();
   const today = new Date();
   const todayKey = localIsoDate(today);
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth());
+  // Any day of the month on screen. A date rather than a month number, so the
+  // view follows the reader's calendar even when it loads after this does.
+  const [anchor, setAnchor] = useState(todayKey);
   const [view, setView] = useState<"month" | "week">("month");
 
   // For week view: the Monday of the week being shown. Computed as
@@ -86,8 +123,8 @@ export default function RosterPage() {
   // Monday, so on Sundays "this week" showed the following one.
   const [weekStart, setWeekStart] = useState(() => mondayOf(today));
 
-  const monthFrom = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-  const monthTo = localIsoDate(new Date(year, month + 1, 0));
+  const monthFrom = monthFirstDay(monthOf(anchor, calendar), calendar);
+  const monthTo = monthLastDay(monthOf(anchor, calendar), calendar);
 
   const weekFrom = localIsoDate(weekStart);
   const weekTo = addDaysIso(weekFrom, 6);
@@ -118,12 +155,13 @@ export default function RosterPage() {
 
   // ── Month view ──
   const monthDays = useMemo(() => {
-    const total = daysInMonth(year, month);
-    const first = startOfMonth(year, month).getDay(); // 0=Sun
+    const first = parseIsoDate(monthFrom).getDay(); // 0=Sun
     const days: (Date | null)[] = Array(first).fill(null);
-    for (let d = 1; d <= total; d++) days.push(new Date(year, month, d));
+    for (let day = monthFrom; day <= monthTo; day = addDaysIso(day, 1)) {
+      days.push(parseIsoDate(day));
+    }
     return days;
-  }, [year, month]);
+  }, [monthFrom, monthTo]);
 
   // ── Week view ──
   const weekDays = useMemo(() => {
@@ -134,17 +172,13 @@ export default function RosterPage() {
     });
   }, [weekStart]);
 
+  // The day before this month starts is in the previous one; the day after
+  // it ends, in the next.
   function prevMonth() {
-    if (month === 0) {
-      setYear((y) => y - 1);
-      setMonth(11);
-    } else setMonth((m) => m - 1);
+    setAnchor(addDaysIso(monthFrom, -1));
   }
   function nextMonth() {
-    if (month === 11) {
-      setYear((y) => y + 1);
-      setMonth(0);
-    } else setMonth((m) => m + 1);
+    setAnchor(addDaysIso(monthTo, 1));
   }
   function prevWeek() {
     setWeekStart((d) => {
@@ -187,7 +221,7 @@ export default function RosterPage() {
             isToday ? "text-primary" : "text-muted-foreground",
           )}
         >
-          {date.getDate()}
+          {dayNumber(date, calendar)}
         </p>
         {shifts.slice(0, 2).map((s, i) => (
           <div
@@ -196,7 +230,7 @@ export default function RosterPage() {
               "mb-1 rounded px-1.5 py-0.5 text-xs font-medium truncate border",
               shiftColour(s.name),
             )}
-            title={`${s.name} ${s.start}–${s.end} (${s.type})`}
+            title={`${s.name} ${formatTimeOfDay(s.start)}–${formatTimeOfDay(s.end)} (${s.type})`}
           >
             {s.name}
           </div>
@@ -253,8 +287,8 @@ export default function RosterPage() {
             </Button>
             <span className="min-w-[180px] text-center font-semibold">
               {view === "month"
-                ? `${MONTH_NAMES[month]} ${year}`
-                : `${weekFrom} – ${weekTo}`}
+                ? monthLabel(monthOf(anchor, calendar), calendar, locale)
+                : `${formatDayMonth(weekFrom)} – ${formatDate(weekTo)}`}
             </span>
             <Button
               variant="outline"
@@ -268,8 +302,7 @@ export default function RosterPage() {
               variant="ghost"
               size="sm"
               onClick={() => {
-                setYear(today.getFullYear());
-                setMonth(today.getMonth());
+                setAnchor(todayKey);
                 setWeekStart(mondayOf(today));
               }}
             >
@@ -323,7 +356,8 @@ export default function RosterPage() {
                       useful thing in the chip — they stay at full opacity and
                       are set apart by weight instead. */}
                   <span className="font-normal tabular-nums">
-                    {toHHMM(s.start_time)}–{toHHMM(s.end_time)}
+                    {formatTimeOfDay(s.start_time)}–
+                    {formatTimeOfDay(s.end_time)}
                   </span>
                   {s.is_default && (
                     <Badge
@@ -346,12 +380,12 @@ export default function RosterPage() {
           // ── Month grid ──
           <div>
             <div className="grid grid-cols-7 gap-1 mb-1">
-              {DAY_SHORT.map((d) => (
+              {WEEKDAY_DATES.map((d) => (
                 <div
                   key={d}
                   className="text-center text-xs font-medium text-muted-foreground py-1"
                 >
-                  {d}
+                  {formatWeekday(d)}
                 </div>
               ))}
             </div>
@@ -383,8 +417,8 @@ export default function RosterPage() {
                           : "text-muted-foreground font-medium",
                       )}
                     >
-                      <div>{DAY_SHORT[date.getDay()]}</div>
-                      <div className="text-xl">{date.getDate()}</div>
+                      <div>{formatWeekday(key)}</div>
+                      <div className="text-xl">{dayNumber(date, calendar)}</div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-3 pt-0 space-y-1.5">
@@ -398,7 +432,7 @@ export default function RosterPage() {
                       >
                         <p className="font-semibold">{s.name}</p>
                         <p className="opacity-80">
-                          {s.start}–{s.end}
+                          {formatTimeOfDay(s.start)}–{formatTimeOfDay(s.end)}
                         </p>
                         <p className="opacity-60 capitalize">{s.type}</p>
                       </div>
@@ -412,8 +446,8 @@ export default function RosterPage() {
                       >
                         <p className="font-semibold">{defaultShift.name}</p>
                         <p className="opacity-80">
-                          {toHHMM(defaultShift.start_time)}–
-                          {toHHMM(defaultShift.end_time)}
+                          {formatTimeOfDay(defaultShift.start_time)}–
+                          {formatTimeOfDay(defaultShift.end_time)}
                         </p>
                         <p className="opacity-60">
                           {t("shift_roster_page.default_lc")}

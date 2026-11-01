@@ -7,6 +7,8 @@ import {
   useExecutiveForecast,
 } from "@/features/dashboard/executive-api";
 import { useT } from "@/lib/i18n/useT";
+import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
+import { storedPeriodLabel } from "@/lib/calendar/stored-period-label";
 import { Wallet } from "lucide-react";
 import {
   BarChart,
@@ -37,7 +39,12 @@ export function PayrollTab({
   branchPublicId?: string;
   range: DateRange;
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const calendar = useOptionalCalendar()?.calendar ?? "gregorian";
+  // Each point is a run's stored English label ("October 2026"); the axis
+  // names the month in the reader's calendar and language instead.
+  const periodName = (stored: string) =>
+    storedPeriodLabel(stored, calendar, locale);
   const query = useExecutivePayroll({ branchPublicId, ...range });
   const forecast = useExecutiveForecast(branchPublicId);
 
@@ -126,13 +133,13 @@ export function PayrollTab({
                   barGap={4}
                   data={[
                     ...data.monthly_trend.map((m) => ({
-                      period: m.period,
+                      period: periodName(m.period),
                       Net: m.net_cents / 100,
                       Gross: m.gross_cents / 100,
                     })),
                     ...(forecast.data?.payroll_gross.projected ?? []).map(
                       (p) => ({
-                        period: p.label,
+                        period: periodName(p.label),
                         Projected: p.value / 100,
                       }),
                     ),
@@ -177,7 +184,7 @@ export function PayrollTab({
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart
                   data={data.overtime_trend.map((o) => ({
-                    period: o.period,
+                    period: periodName(o.period),
                     Overtime: o.overtime_cents / 100,
                   }))}
                 >

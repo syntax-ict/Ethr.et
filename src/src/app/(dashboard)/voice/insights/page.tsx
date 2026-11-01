@@ -62,6 +62,26 @@ import { ErrorState } from "@/components/shared/error-state";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 /**
+ * The Monday an ISO week (`2026-W42`, as `PulseResponse::weekOf` writes it)
+ * starts on, as `Y-m-d`, so the week can be named in the reader's calendar
+ * rather than as a Gregorian week number. Null for any other shape.
+ */
+function isoWeekStart(week: string): string | null {
+  const match = /^(\d{4})-W(\d{2})$/.exec(week);
+  if (!match) return null;
+  const year = Number(match[1]);
+  // 4 January is always in week 1.
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const monday = new Date(jan4);
+  monday.setUTCDate(
+    jan4.getUTCDate() -
+      ((jan4.getUTCDay() + 6) % 7) +
+      (Number(match[2]) - 1) * 7,
+  );
+  return monday.toISOString().slice(0, 10);
+}
+
+/**
  * Employee voice for HR: how people say work is going, and the concerns they
  * raised. Pulse results appear only for groups of five or more, and an
  * anonymous concern never names its author - here or anywhere.
@@ -93,6 +113,12 @@ export default function VoiceInsightsPage() {
 
 function PulseOverview() {
   const { t } = useT();
+  const { formatDayMonth } = useDateFormatters();
+  // "Tikimt 22" or "2 Nov": the day the week starts, in the reader's calendar.
+  const weekLabel = (week: string) => {
+    const start = isoWeekStart(week);
+    return start ? formatDayMonth(start) : week;
+  };
   const { data, isLoading, isError, refetch } = usePulseInsights();
   const { data: concerns } = useConcerns("all", 1);
   const open = (concerns?.counts.new ?? 0) + (concerns?.counts.in_review ?? 0);
@@ -185,7 +211,7 @@ function PulseOverview() {
                 <XAxis
                   dataKey="week"
                   {...axisProps}
-                  tickFormatter={(w: string) => w.slice(5)}
+                  tickFormatter={weekLabel}
                 />
                 <YAxis
                   {...axisProps}
@@ -193,7 +219,10 @@ function PulseOverview() {
                   ticks={[1, 2, 3, 4, 5]}
                   width={32}
                 />
-                <Tooltip {...lineTooltipProps} />
+                <Tooltip
+                  {...lineTooltipProps}
+                  labelFormatter={(w) => weekLabel(String(w))}
+                />
                 <Area
                   type="monotone"
                   dataKey="average"
@@ -278,7 +307,10 @@ function PulseOverview() {
               >
                 <p className="whitespace-pre-line">{c.comment}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {c.week} · {c.score}/5
+                  {t("voice.week_of", "Week of :date", {
+                    date: weekLabel(c.week),
+                  })}{" "}
+                  · {c.score}/5
                   {c.tags.length > 0 &&
                     ` · ${c.tags.map((tag) => t(`voice.tag.${tag}`, tag)).join(", ")}`}
                 </p>

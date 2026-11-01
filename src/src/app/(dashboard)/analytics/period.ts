@@ -105,18 +105,8 @@ export function monthOf(day: string, calendar: CalendarSystem): CalendarMonth {
   return { year: y, month: m };
 }
 
-/**
- * Today's date where the organisation is, as `Y-m-d`. The browser's own date
- * is a day out for anyone viewing from another zone near midnight.
- */
-export function todayIn(timeZone: string, now: Date = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-}
+// Lives with the other date helpers since every screen's "today" uses it.
+export { todayIn } from "@/lib/utils/date";
 
 export function periodFor(
   preset: PeriodPreset,
