@@ -9,6 +9,7 @@ use App\Models\PayrollRun;
 use App\Models\StatutoryLayout;
 use App\Models\Tenant;
 use App\Support\Csv;
+use App\Support\ReaderDates;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -337,13 +338,17 @@ final class StatutorySchedules
      */
     private function header(PayrollRun $run, ?Tenant $tenant, array $layout, array $basis): array
     {
+        // The agency's layout is English; its period and date follow the
+        // organisation's calendar, as the agency's own forms do.
+        $dates = ReaderDates::forTenant($tenant, 'en');
+
         return [
             'title' => $layout['title'],
             'agency' => $layout['agency'],
             'employer_name' => $tenant === null ? '' : (string) $tenant->name,
             'employer_tin' => $tenant === null ? null : self::setting($tenant, 'employer_tin'),
             'tax_center' => $tenant === null ? null : self::setting($tenant, 'tax_center'),
-            'period' => (string) $run->period_label,
+            'period' => $dates->periodOf($run),
             'status' => match ($run->status) {
                 'paid' => 'Approved and paid',
                 'approved' => 'Approved',
@@ -354,7 +359,7 @@ final class StatutorySchedules
             'notice' => $layout['note']
                 ?? 'Layout prepared by ETHR; to be confirmed with the agency before filing (owner action O3).',
             'layout_effective_from' => $layout['effective_from'],
-            'generated_at' => now('Africa/Addis_Ababa')->format('d/m/Y H:i'),
+            'generated_at' => $dates->dateTime(now()),
         ];
     }
 

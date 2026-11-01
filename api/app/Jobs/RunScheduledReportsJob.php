@@ -13,6 +13,7 @@ use App\Notifications\ScheduledReportNotification;
 use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
 use App\Support\Csv;
+use App\Support\ReaderDates;
 use App\Support\ScheduleSlot;
 use App\Traits\SendsNotifications;
 use Illuminate\Bus\Queueable;
@@ -135,13 +136,15 @@ class RunScheduledReportsJob implements ShouldQueue
             throw new RuntimeException('The person who saved this report can no longer run it.');
         }
 
-        $result = $engine->generate($tenant->id, $config, $creator);
+        // Written for the organisation: recipients are addresses, not users.
+        $reader = ReaderDates::forTenant($tenant, self::organisationLocale($tenant->id));
+        $result = $engine->generate($tenant->id, $config, $creator, $reader);
         $rows = $result['data'] ?? [];
         $carriesPay = $source === 'payroll'
             || ($rows !== [] && array_key_exists('salary_cents', $rows[0]));
         $withheld = 0;
         $rowCount = count($rows);
-        $csv = Csv::forSpreadsheet($engine->toCsv($rows));
+        $csv = Csv::forSpreadsheet($engine->toCsv($rows, $reader));
         $filename = Str::slug($saved->name).'-'.now()->format('Y-m-d').'.csv';
 
         $rawRecipients = $schedule->getAttribute('recipients');

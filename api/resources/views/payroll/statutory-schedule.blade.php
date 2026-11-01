@@ -71,6 +71,6 @@
         <tr><td>Prepared by</td><td>Checked by</td><td>Authorised signature and stamp</td></tr>
     </table>
 
-    <p class="footer">Generated {{ $header['generated_at'] }} (EAT) by ETHR. Amounts in ETB.</p>
+    <p class="footer">Generated {{ $header['generated_at'] }} by ETHR. Amounts in ETB.</p>
 </body>
 </html>
