@@ -1331,6 +1331,8 @@ class ComposerStaticInit870e919e58412b109fb9aa8379549848
         'App\\Http\\Resources\\HolidayResource' => __DIR__ . '/../..' . '/app/Http/Resources/HolidayResource.php',
         'App\\Http\\Resources\\JobApplicationEventResource' => __DIR__ . '/../..' . '/app/Http/Resources/JobApplicationEventResource.php',
         'App\\Http\\Resources\\JobApplicationResource' => __DIR__ . '/../..' . '/app/Http/Resources/JobApplicationResource.php',
+        'App\\Http\\Resources\\KioskPersonResource' => __DIR__ . '/../..' . '/app/Http/Resources/KioskPersonResource.php',
+        'App\\Http\\Resources\\KioskPunchResource' => __DIR__ . '/../..' . '/app/Http/Resources/KioskPunchResource.php',
         'App\\Http\\Resources\\KioskSessionResource' => __DIR__ . '/../..' . '/app/Http/Resources/KioskSessionResource.php',
         'App\\Http\\Resources\\LeaveBalanceResource' => __DIR__ . '/../..' . '/app/Http/Resources/LeaveBalanceResource.php',
         'App\\Http\\Resources\\LeaveRequestResource' => __DIR__ . '/../..' . '/app/Http/Resources/LeaveRequestResource.php',

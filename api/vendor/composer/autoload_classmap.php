@@ -597,6 +597,8 @@ return array(
     'App\\Http\\Resources\\HolidayResource' => $baseDir . '/app/Http/Resources/HolidayResource.php',
     'App\\Http\\Resources\\JobApplicationEventResource' => $baseDir . '/app/Http/Resources/JobApplicationEventResource.php',
     'App\\Http\\Resources\\JobApplicationResource' => $baseDir . '/app/Http/Resources/JobApplicationResource.php',
+    'App\\Http\\Resources\\KioskPersonResource' => $baseDir . '/app/Http/Resources/KioskPersonResource.php',
+    'App\\Http\\Resources\\KioskPunchResource' => $baseDir . '/app/Http/Resources/KioskPunchResource.php',
     'App\\Http\\Resources\\KioskSessionResource' => $baseDir . '/app/Http/Resources/KioskSessionResource.php',
     'App\\Http\\Resources\\LeaveBalanceResource' => $baseDir . '/app/Http/Resources/LeaveBalanceResource.php',
     'App\\Http\\Resources\\LeaveRequestResource' => $baseDir . '/app/Http/Resources/LeaveRequestResource.php',
