@@ -94,3 +94,7 @@ src/e2e/.auth/
 # password and a CRON_TOKEN. Nothing in it is evidence about the Ethio Telecom host —
 # it is my Apache, my MariaDB and my grants. Delete the directory to undo.
 .local-production/
+
+# User-guide build leftovers: the page survey and the HTML printed to PDF.
+docs/user-guides/.survey/
+docs/user-guides/am/pdf/.*.html

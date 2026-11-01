@@ -25,11 +25,26 @@ class StageRowsRequest extends FormRequest
             'rows' => ['required', 'array', 'min:1', 'max:2000'],
             'rows.*' => ['array'],
             'rows.*.name' => ['nullable', 'string', 'max:255'],
-            'rows.*.email' => ['nullable', 'email', 'max:255'],
+            'rows.*.email' => ['nullable', 'email', 'max:255', 'distinct:ignore_case'],
             'rows.*.phone' => ['nullable', 'string', 'max:50'],
-            'rows.*.employee_code' => ['nullable', 'string', 'max:50'],
+            'rows.*.employee_code' => ['nullable', 'string', 'max:50', 'distinct:ignore_case'],
             'rows.*.hire_date' => ['nullable', 'date_format:Y-m-d'],
             'rows.*.department' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    /**
+     * Employee numbers are unique per organisation, so a list naming one
+     * twice used to stage and then fail at commit with a server error. It is
+     * refused here, before anything is staged.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'rows.*.employee_code.distinct' => __('onboarding.migration.duplicate_code'),
+            'rows.*.email.distinct' => __('onboarding.migration.duplicate_email'),
         ];
     }
 

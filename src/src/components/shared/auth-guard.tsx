@@ -6,7 +6,7 @@ import { isAxiosError } from "axios";
 import { useCurrentUser } from "@/features/auth/api";
 import { clearOfflineIdentity } from "@/features/auth/offline-identity";
 import { useT } from "@/lib/i18n/useT";
-import { Loader2 } from "lucide-react";
+import { AppLoadingScreen } from "./app-loading-screen";
 
 /**
  * The server's answer that this browser is not signed in: 401, or 419 for an
@@ -38,19 +38,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [isLoading, signedOut, user, router]);
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">E</span>
-          </div>
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">
-            {t("common.loading", "Loading...")}
-          </p>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen label={t("common.loading", "Loading...")} />;
   }
 
   // `signedOut` as well as `!user`, not just `!user`. TanStack keeps the last

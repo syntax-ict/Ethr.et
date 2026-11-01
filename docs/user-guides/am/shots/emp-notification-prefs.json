@@ -1,0 +1,15 @@
+{
+  "device": "desktop",
+  "width": 2560,
+  "height": 1600,
+  "path": "/notifications/preferences",
+  "markers": [
+    {
+      "n": 1,
+      "x": 2158,
+      "y": 228,
+      "w": 362,
+      "h": 88
+    }
+  ]
+}
