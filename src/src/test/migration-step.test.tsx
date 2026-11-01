@@ -135,6 +135,9 @@ describe("<MigrationStep>", () => {
       "href",
       "/devices",
     );
+    // No empty device card beside the list: there is nothing to choose.
+    expect(screen.queryByText("Discover enrolled users")).toBeNull();
+    expect(screen.queryByText("From an attendance device")).toBeNull();
     first.unmount();
 
     let staged = "";
@@ -196,6 +199,49 @@ describe("<MigrationStep>", () => {
     expect(stage).toBeDisabled();
     fireEvent.click(stage);
     expect(posted).toBe(false);
+  });
+
+  it("reads hire dates in the calendar chosen, sends them in Gregorian, and says who has none", async () => {
+    let body: { rows: Record<string, string>[] } | null = null;
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", async ({ request }) => {
+        body = (await request.json()) as { rows: Record<string, string>[] };
+        return HttpResponse.json(AMBIGUOUS_BATCH, { status: 201 });
+      }),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(AMBIGUOUS_BATCH),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.click(screen.getByText("Ethiopian (E.C.)"));
+    expect(
+      screen.getByText("Ethiopian (E.C.)").closest("button"),
+    ).toHaveAttribute("aria-pressed", "true");
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, {
+      target: {
+        value: [
+          "Name\tHire date",
+          "Abebe Kebede\t2011-10-30",
+          "Hanna Girma\t",
+        ].join("\n"),
+      },
+    });
+
+    expect(screen.getByText(/2 people ready/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/1 person has no hire date. Today will be used/),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Stage for review"));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body!.rows[0]).toMatchObject({
+      name: "Abebe Kebede",
+      hire_date: "2019-07-07",
+    });
   });
 
   it("reads a chosen CSV file into the list", async () => {

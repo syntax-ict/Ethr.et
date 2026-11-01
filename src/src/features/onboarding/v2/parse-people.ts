@@ -9,7 +9,15 @@
  * which, in any order; without one the columns are read in the documented
  * order. Each line that cannot be sent is reported with its line number and
  * the reason, so it can be fixed before staging rather than after.
+ *
+ * Hire dates may be written in the Ethiopian or the Gregorian calendar, and
+ * the two look the same: 2011-10-30 is a valid date in both, eight years
+ * apart. Which one is meant comes from the column name when it says
+ * ("Hire date (E.C.)"), otherwise from the choice beside the list, and the
+ * dates are sent to the server in Gregorian.
  */
+
+import { daysInEthiopianMonth, toGregorian } from "@/lib/calendar/ethiopian";
 
 export type PersonField =
   "name" | "email" | "phone" | "employee_code" | "hire_date" | "department";
@@ -46,11 +54,19 @@ export interface KnownDepartment {
   name_am?: string | null;
 }
 
+export type DateCalendar = "ethiopian" | "gregorian";
+
 export interface ParsedPeople {
   rows: PersonRow[];
   problems: Problem[];
   /** The columns in the order read, or null when no header row was found. */
   header: PersonField[] | null;
+  /** The calendar hire dates were read in: the column name's, else the one chosen. */
+  calendar: DateCalendar;
+  /** True when the column name said which calendar, overriding the choice. */
+  calendarFromHeader: boolean;
+  /** Rows ready to send that have no hire date, so the server uses today. */
+  withoutHireDate: number;
 }
 
 export const DEFAULT_ORDER: PersonField[] = [
@@ -121,22 +137,73 @@ function normalise(value: string): string {
   return value.toLowerCase().replace(/[\s._\-/#:()]+/g, "");
 }
 
+/** "E.C.", "EC", "ዓ.ም" name the Ethiopian calendar; "G.C.", "GC", "AD" the Gregorian. */
+const CALENDAR_MARKS: [string, DateCalendar][] = [
+  ["ec", "ethiopian"],
+  ["ዓም", "ethiopian"],
+  ["gc", "gregorian"],
+  ["ad", "gregorian"],
+];
+
+/** A header cell's field, and the calendar it names, if any ("Hire date (E.C.)"). */
+function columnOf(cell: string): {
+  field: PersonField | null;
+  calendar: DateCalendar | null;
+} {
+  const key = normalise(cell);
+  if (ALIASES[key]) return { field: ALIASES[key], calendar: null };
+  for (const [mark, calendar] of CALENDAR_MARKS) {
+    if (
+      key.endsWith(mark) &&
+      ALIASES[key.slice(0, -mark.length)] === "hire_date"
+    ) {
+      return { field: "hire_date", calendar };
+    }
+  }
+  return { field: null, calendar: null };
+}
+
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function iso(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${String(date.getFullYear()).padStart(4, "0")}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 /**
- * Gregorian YYYY-MM-DD, also written with slashes or dots. Day-first and
- * month-first forms are refused rather than guessed: 03/04/2019 is a
- * different day in different places, and a wrong hire date moves leave and
- * severance (2026-10-30).
+ * YYYY-MM-DD, also written with slashes or dots, in the calendar given, as a
+ * Gregorian YYYY-MM-DD. A trailing "E.C." or "G.C." on the value decides for
+ * that value. Day-first and month-first forms are refused rather than
+ * guessed: 03/04/2019 is a different day in different places, and a wrong
+ * hire date moves leave and severance (2026-10-30). A day the month does not
+ * have (February 30, Pagume 7) is refused too.
  */
-function isoDate(value: string): string | null {
-  const m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(value);
+function isoDate(value: string, calendar: DateCalendar): string | null {
+  const m =
+    /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\s*([A-Za-z.\u1200-\u137F]*)$/.exec(
+      value.trim(),
+    );
   if (!m) return null;
-  const [, y, mo, d] = m;
+  const [, y, mo, d, mark] = m;
+  let used = calendar;
+  if (mark !== "") {
+    const named = CALENDAR_MARKS.find(([k]) => normalise(mark) === k);
+    if (!named) return null;
+    used = named[1];
+  }
+  const year = Number(y);
   const month = Number(mo);
   const day = Number(d);
-  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-  return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  if (used === "ethiopian") {
+    if (month < 1 || month > 13) return null;
+    if (day < 1 || day > daysInEthiopianMonth(year, month)) return null;
+    return iso(toGregorian(year, month, day));
+  }
+  if (month < 1 || month > 12 || day < 1) return null;
+  const date = new Date(2000, 0, 1);
+  date.setFullYear(year, month - 1, day);
+  if (date.getMonth() !== month - 1) return null;
+  return iso(date);
 }
 
 function separatorOf(lines: string[]): string {
@@ -178,31 +245,51 @@ function cellsOf(line: string, separator: string): string[] {
 }
 
 /** A first row is a header when it names the name column and holds no data that looks like a person. */
-function headerOf(cells: string[]): (PersonField | null)[] | null {
-  const fields = cells.map((c) => ALIASES[normalise(c)] ?? null);
+function headerOf(
+  cells: string[],
+): { fields: (PersonField | null)[]; calendar: DateCalendar | null } | null {
+  const columns = cells.map(columnOf);
+  const fields = columns.map((c) => c.field);
   if (!fields.includes("name")) return null;
-  if (cells.some((c) => EMAIL.test(c) || isoDate(c) !== null)) return null;
-  return fields;
+  if (cells.some((c) => EMAIL.test(c) || isoDate(c, "gregorian") !== null)) {
+    return null;
+  }
+  return {
+    fields,
+    calendar: columns.find((c) => c.calendar !== null)?.calendar ?? null,
+  };
 }
 
 /**
  * @param departments The organisation's departments, when known. A department
  *   the organisation does not have is then reported here rather than refused
  *   by the server after staging. Unknown (undefined), no department is checked.
+ * @param chosen The calendar hire dates are in, unless the column name says.
  */
 export function parsePeople(
   text: string,
   departments?: KnownDepartment[],
+  chosen: DateCalendar = "gregorian",
 ): ParsedPeople {
   const raw = text.replace(/^﻿/, "").split(/\r?\n/);
   const numbered = raw
     .map((line, index) => ({ line, number: index + 1 }))
     .filter(({ line }) => line.trim() !== "");
-  if (numbered.length === 0) return { rows: [], problems: [], header: null };
+  if (numbered.length === 0) {
+    return {
+      rows: [],
+      problems: [],
+      header: null,
+      calendar: chosen,
+      calendarFromHeader: false,
+      withoutHireDate: 0,
+    };
+  }
 
   const separator = separatorOf(numbered.map((n) => n.line));
   const header = headerOf(cellsOf(numbered[0].line, separator));
-  const columns: (PersonField | null)[] = header ?? DEFAULT_ORDER;
+  const columns: (PersonField | null)[] = header?.fields ?? DEFAULT_ORDER;
+  const calendar = header?.calendar ?? chosen;
   const body = header ? numbered.slice(1) : numbered;
 
   const rows: PersonRow[] = [];
@@ -240,8 +327,8 @@ export function parsePeople(
       continue;
     }
     if (record.hire_date) {
-      const iso = isoDate(record.hire_date);
-      if (iso === null) {
+      const gregorian = isoDate(record.hire_date, calendar);
+      if (gregorian === null) {
         problems.push({
           line: number,
           kind: "bad_date",
@@ -249,7 +336,7 @@ export function parsePeople(
         });
         continue;
       }
-      record.hire_date = iso;
+      record.hire_date = gregorian;
     }
     const code = record.employee_code?.toLowerCase();
     if (code !== undefined && codeLines.has(code)) {
@@ -299,14 +386,25 @@ export function parsePeople(
   return {
     rows,
     problems,
-    header: header?.filter((f): f is PersonField => f !== null) ?? null,
+    header: header?.fields.filter((f): f is PersonField => f !== null) ?? null,
+    calendar,
+    calendarFromHeader: header?.calendar != null,
+    withoutHireDate: rows.filter((r) => !r.hire_date).length,
   };
 }
 
-/** A CSV with the column names the parser reads, and one example person. */
-export function peopleTemplateCsv(): string {
+/**
+ * A CSV with the column names the parser reads, and one example person. The
+ * hire date column names its calendar, so the file says how to read itself
+ * wherever it is filled in.
+ */
+export function peopleTemplateCsv(
+  calendar: DateCalendar = "gregorian",
+): string {
   return [
-    "Name,Email,Phone,Employee number,Hire date,Department",
-    "Abebe Kebede,abebe@example.et,0911223344,EMP-001,2019-07-08,Finance",
+    calendar === "ethiopian"
+      ? "Name,Email,Phone,Employee number,Hire date (E.C.),Department"
+      : "Name,Email,Phone,Employee number,Hire date (G.C.),Department",
+    `Abebe Kebede,abebe@example.et,0911223344,EMP-001,${calendar === "ethiopian" ? "2011-10-30" : "2019-07-07"},Finance`,
   ].join("\r\n");
 }

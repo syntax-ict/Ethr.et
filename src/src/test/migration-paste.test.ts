@@ -161,4 +161,86 @@ describe("the guided setup's list of people", () => {
 
     expect(problems).toEqual([{ line: 2001, kind: "too_many", value: "2001" }]);
   });
+
+  it("reads Ethiopian hire dates when that calendar is chosen, and sends them in Gregorian", () => {
+    const text = [
+      "Name,Hire date",
+      "A,2011-10-30",
+      "B,2011-13-06",
+      "C,2012-13-06",
+      "D,2011-14-01",
+      "E,2019-07-07 G.C.",
+    ].join("\n");
+    const { rows, problems, calendar, calendarFromHeader } = parsePeople(
+      text,
+      undefined,
+      "ethiopian",
+    );
+
+    expect(calendar).toBe("ethiopian");
+    expect(calendarFromHeader).toBe(false);
+    expect(rows).toEqual([
+      { name: "A", hire_date: "2019-07-07" },
+      // Pagume 6 exists only in a leap year: 2011 is one, 2012 is not.
+      { name: "B", hire_date: "2019-09-11" },
+      { name: "E", hire_date: "2019-07-07" },
+    ]);
+    expect(problems).toEqual([
+      { line: 4, kind: "bad_date", value: "2012-13-06" },
+      { line: 5, kind: "bad_date", value: "2011-14-01" },
+    ]);
+  });
+
+  it("takes the calendar from the column name over the choice", () => {
+    const ec = parsePeople(
+      "Name,Hire date (E.C.)\nA,2011-10-30",
+      undefined,
+      "gregorian",
+    );
+    expect(ec.calendar).toBe("ethiopian");
+    expect(ec.calendarFromHeader).toBe(true);
+    expect(ec.header).toEqual(["name", "hire_date"]);
+    expect(ec.rows).toEqual([{ name: "A", hire_date: "2019-07-07" }]);
+
+    const gc = parsePeople(
+      "Name;የተቀጠረበት ቀን GC\nA;2019-07-07",
+      undefined,
+      "ethiopian",
+    );
+    expect(gc.calendar).toBe("gregorian");
+    expect(gc.rows).toEqual([{ name: "A", hire_date: "2019-07-07" }]);
+  });
+
+  it("refuses a Gregorian day the month does not have", () => {
+    expect(parsePeople("A, , , , 2019-02-29").problems).toEqual([
+      { line: 1, kind: "bad_date", value: "2019-02-29" },
+    ]);
+    expect(parsePeople("A, , , , 2020-02-29").rows).toEqual([
+      { name: "A", hire_date: "2020-02-29" },
+    ]);
+  });
+
+  it("counts the people who will be given today as their hire date", () => {
+    expect(
+      parsePeople("Name,Hire date\nA,2019-07-07\nB,\nC").withoutHireDate,
+    ).toBe(2);
+  });
+
+  it("writes a template in either calendar that reads back as the same day", () => {
+    const ec = parsePeople(
+      peopleTemplateCsv("ethiopian"),
+      undefined,
+      "gregorian",
+    );
+    const gc = parsePeople(
+      peopleTemplateCsv("gregorian"),
+      undefined,
+      "ethiopian",
+    );
+
+    expect(ec.problems).toEqual([]);
+    expect(gc.problems).toEqual([]);
+    expect(ec.rows[0].hire_date).toBe("2019-07-07");
+    expect(gc.rows[0].hire_date).toBe("2019-07-07");
+  });
 });

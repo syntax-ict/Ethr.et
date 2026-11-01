@@ -113,7 +113,7 @@ final class SetupProvider implements StepProvider
 
         $progress = OnboardingProgress::query()->first();
         $guided = OnboardingStep::guided();
-        $finished = array_intersect($guided, (array) ($progress->completed_steps ?? []));
+        $finished = array_intersect($guided, OnboardingProgress::completedStepsFor($progress, $tenant->id));
 
         return [
             'done' => count($finished),
