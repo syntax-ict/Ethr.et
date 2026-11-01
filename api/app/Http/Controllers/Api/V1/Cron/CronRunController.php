@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Cron;
 
 use App\Services\Observability\CronRunner;
 use App\Services\Observability\QueueHealth;
+use App\Support\BackupHealth;
 use Dedoc\Scramble\Attributes\ExcludeRouteFromDocs;
 use Illuminate\Http\JsonResponse;
 
@@ -58,6 +59,26 @@ class CronRunController
         $health->recordExternalTick();
 
         return $this->respond('queue', fn (): ?array => $runner->queue((int) config('cron.queue_max_seconds', 25)));
+    }
+
+    /**
+     * Whether ETHR is being backed up, for an uptime monitor: 503 while the
+     * backups are in a critical state, so the monitor's own failure email is
+     * the alarm. /health cannot carry this, because its 503 means "the
+     * application is down" and a missed backup does not.
+     *
+     * It reads only. It records no tick, because it does not drive the
+     * scheduler and must not make a dead scheduler caller look alive.
+     */
+    #[ExcludeRouteFromDocs]
+    public function backup(BackupHealth $health): JsonResponse
+    {
+        $snapshot = $health->snapshot();
+
+        return response()->json(
+            ['task' => 'backup-check'] + $snapshot,
+            $snapshot['state'] === BackupHealth::CRITICAL ? 503 : 200,
+        );
     }
 
     /**
