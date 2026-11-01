@@ -115,46 +115,69 @@ export function ContactContent() {
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-5">
-            {/* Contact info */}
-            <div className="lg:col-span-2">
-              <h2 className="text-lg font-semibold text-foreground">
-                {t("marketing.contact.get_in_touch", "Get in Touch")}
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {t(
-                  "marketing.contact.response_time",
-                  "We typically respond within 24 hours.",
-                )}
-              </p>
+            {/* Contact info. With no channel entered in the console the column
+                was a "Get in Touch" heading over nothing, so it goes and the
+                form takes the width. */}
+            {contactChannels.length > 0 && (
+              <div className="lg:col-span-2">
+                <h2 className="text-lg font-semibold text-foreground">
+                  {t("marketing.contact.get_in_touch", "Get in Touch")}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {t(
+                    "marketing.contact.response_time",
+                    "We typically respond within 24 hours.",
+                  )}
+                </p>
 
-              <div className="mt-8 space-y-6">
-                {contactChannels.map((channel) => {
-                  const Icon = channel.icon;
-                  return (
-                    <div key={channel.key} className="flex items-start gap-4">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                        <Icon className="h-5 w-5 text-primary" />
+                <div className="mt-8 space-y-6">
+                  {contactChannels.map((channel) => {
+                    const Icon = channel.icon;
+                    return (
+                      <div key={channel.key} className="flex items-start gap-4">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                          <Icon className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-foreground">
+                            {channel.key === "office"
+                              ? t("marketing.contact.office", "Office")
+                              : channel.key === "email"
+                                ? t("common.email", "Email")
+                                : t("common.phone", "Phone")}
+                          </h3>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {channel.key === "office" ? (
+                              channel.value
+                            ) : (
+                              <a
+                                href={
+                                  channel.key === "email"
+                                    ? `mailto:${channel.value}`
+                                    : `tel:${channel.value?.replace(/\s+/g, "")}`
+                                }
+                                className="hover:text-foreground hover:underline"
+                              >
+                                {channel.value}
+                              </a>
+                            )}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-sm font-medium text-foreground">
-                          {channel.key === "office"
-                            ? t("marketing.contact.office", "Office")
-                            : channel.key === "email"
-                              ? t("common.email", "Email")
-                              : t("common.phone", "Phone")}
-                        </h3>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {channel.value}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Form */}
-            <div className="lg:col-span-3">
+            <div
+              className={
+                contactChannels.length > 0
+                  ? "lg:col-span-3"
+                  : "mx-auto w-full max-w-2xl lg:col-span-5"
+              }
+            >
               <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm sm:p-8">
                 <h2 className="text-lg font-semibold text-foreground">
                   {t("marketing.contact.form_title", "Send us a message")}

@@ -100,6 +100,25 @@ describe("contact form", () => {
     );
     renderContact(false);
 
-    expect(await screen.findByText("hello@ethr.et")).toBeInTheDocument();
+    expect(await screen.findByText("hello@ethr.et")).toHaveAttribute(
+      "href",
+      "mailto:hello@ethr.et",
+    );
+  });
+
+  it("draws no Get in Touch column when no contact detail is published", async () => {
+    server.use(
+      http.get("*/api/v1/site-content", () =>
+        HttpResponse.json({ data: EMPTY_SITE_CONTENT }),
+      ),
+    );
+    renderContact(false);
+
+    expect(
+      await screen.findByRole("heading", { name: /send us a message/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /get in touch/i }),
+    ).not.toBeInTheDocument();
   });
 });
