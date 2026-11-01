@@ -21,6 +21,7 @@ export type OperationsArea = Exclude<
 /** Rendering order, most likely to need action first. */
 export const OPERATIONS_AREAS: OperationsArea[] = [
   "background",
+  "backups",
   "delivery",
   "release",
   "failed_jobs",
