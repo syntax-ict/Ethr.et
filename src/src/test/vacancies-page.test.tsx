@@ -114,4 +114,54 @@ describe("Vacancies page", () => {
     fireEvent.click(screen.getByRole("button", { name: /^close$/i }));
     await waitFor(() => expect(body).toEqual({ status: "closed" }));
   });
+
+  it("lets HR put a vacancy on the public website, and marks the ones that are", async () => {
+    canManage.mockReturnValue(true);
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.get("*/vacancies", () =>
+        HttpResponse.json(
+          page([
+            vacancy({ visibility: "public" }),
+            vacancy({ public_id: "v2", title: "Shift lead" }),
+          ]),
+        ),
+      ),
+      http.post("*/vacancies", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          vacancy({ public_id: "v3", title: "Welder", visibility: "public" }),
+          { status: 201 },
+        );
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText("Machine operator")).toBeInTheDocument();
+    // Only the public one carries the mark.
+    expect(screen.getAllByText("On website")).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /post vacancy/i }));
+    fireEvent.change(await screen.findByLabelText(/^title$/i), {
+      target: { value: "Welder" },
+    });
+    fireEvent.change(screen.getByLabelText(/about the role/i), {
+      target: { value: "Weld frames." },
+    });
+    fireEvent.click(screen.getByRole("combobox", { name: /who can see it/i }));
+    fireEvent.click(
+      await screen.findByRole("option", {
+        name: "Employees and the organisation's public website",
+      }),
+    );
+    expect(
+      screen.getByText(/anyone can read it under open positions/i),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /save vacancy/i }));
+    await waitFor(() =>
+      expect(body).toMatchObject({ title: "Welder", visibility: "public" }),
+    );
+  });
 });
