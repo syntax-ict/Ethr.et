@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
+  DatabaseBackup,
   Mail,
   Package,
   RefreshCw,
@@ -169,6 +170,42 @@ function OperationsView({
             </tbody>
           </table>
         </div>
+      </Panel>
+
+      <Panel
+        id="backups"
+        icon={<DatabaseBackup className="h-4 w-4" />}
+        state={status.backups.state}
+        reasons={status.backups.reasons}
+        t={t}
+      >
+        <Rows>
+          <Row
+            label={t("operations_page.last_backup", "Last backup")}
+            value={when(status.backups.last_backup_at)}
+          />
+          <Row
+            label={t(
+              "operations_page.last_backup_failed",
+              "Last backup failure",
+            )}
+            value={when(status.backups.last_failed_at)}
+          />
+          <Row
+            label={t("operations_page.off_host_disk", "Off-host storage")}
+            value={
+              status.backups.off_host.configured ? (
+                <code>{status.backups.off_host.disk}</code>
+              ) : (
+                t("operations_page.not_configured", "Not configured")
+              )
+            }
+          />
+          <Row
+            label={t("operations_page.off_host_copy", "Last off-host copy")}
+            value={when(status.backups.off_host.last_copied_at)}
+          />
+        </Rows>
       </Panel>
 
       <Panel

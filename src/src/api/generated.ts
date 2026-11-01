@@ -29898,6 +29898,20 @@ export interface operations {
                             }[];
                             disk_free_gb: number | null;
                         };
+                        backups: {
+                            /** @enum {string} */
+                            state: "ok" | "warning" | "critical" | "unknown";
+                            reasons: string[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: string | null;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                last_copied_at: string | null;
+                            };
+                        };
                     };
                 };
             };
