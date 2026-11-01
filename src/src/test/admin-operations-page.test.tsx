@@ -48,6 +48,15 @@ function status(overrides: Partial<OperationsStatus> = {}): OperationsStatus {
       ],
     },
     failed_jobs: { state: "ok", reasons: [], count: 0, last_failed_at: null },
+    backups: {
+      state: "ok",
+      reasons: [],
+      last_backup_at: NOW,
+      age_seconds: 3600,
+      last_failed_at: null,
+      last_failed_stage: null,
+      off_host: { configured: true, disk: "s3", last_copied_at: NOW },
+    },
     delivery: {
       state: "ok",
       reasons: [],
