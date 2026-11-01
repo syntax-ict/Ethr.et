@@ -28,7 +28,7 @@ class BackupCommand extends Command
         {--label= : Suffix for the backup directory name}
         {--keep= : How many backups to retain locally; defaults to config backup.keep}
         {--off-host : Fail unless an encrypted archive reaches the off-host disk (copied anyway whenever one is configured)}
-        {--disk= : Which disk to copy to; defaults to config backup.off_host_disk}';
+        {--disk= : Which .env disk to copy to; defaults to the console storage, then config backup.off_host_disk}';
 
     protected $description = 'Back up the database and employee documents';
 
@@ -97,7 +97,7 @@ class BackupCommand extends Command
      */
     private function copyOffHost(BackupService $backups, string $path): bool
     {
-        $disk = (string) ($this->option('disk') ?: config('backup.off_host_disk'));
+        $disk = $this->option('disk') ? (string) $this->option('disk') : null;
         $blocker = $backups->offHostBlocker($disk);
 
         if ($blocker !== null && ! $this->option('off-host')) {
@@ -113,7 +113,7 @@ class BackupCommand extends Command
         try {
             $copy = $backups->copyOffHost($path, $disk);
             BackupHealth::recordOffHostCopy($copy['copied_at']);
-            $this->line('  off-host  '.$disk.':'.$copy['key'].' ('.$this->humanBytes($copy['bytes']).', encrypted)');
+            $this->line('  off-host  '.$copy['disk'].':'.$copy['key'].' ('.$this->humanBytes($copy['bytes']).', encrypted)');
 
             $removed = $backups->pruneOffHost((int) config('backup.off_host_keep', 14), $disk);
             if ($removed !== []) {

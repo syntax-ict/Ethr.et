@@ -117,8 +117,9 @@ final class BackupHealth
             $critical[] = 'backup_failing';
         }
 
-        $disk = (string) config('backup.off_host_disk');
-        $blocker = $this->backups->offHostBlocker($disk);
+        $target = $this->backups->offHostTarget();
+        $disk = $target['name'];
+        $blocker = $target['blocker'];
         $copiedAt = $this->latestOf(
             $this->parse($latest['off_host']['copied_at'] ?? null),
             $this->parse(HealthSignals::store()->get(self::COPIED_KEY)),

@@ -17,15 +17,16 @@ use Throwable;
  *   php artisan ethr:backup:unpack backups/ethr-20261102-010004.tar.gz.ethrbak --from-disk
  *   php artisan ethr:backup:unpack /path/to/downloaded.ethrbak --key=base64:...
  *
- * `--key` is for a new host whose .env does not have the old key yet.
+ * `--key` is for a new host that does not have the old key yet: the one the
+ * console's Backups page showed, or the old BACKUP_ENCRYPTION_KEY.
  */
 class BackupUnpackCommand extends Command
 {
     protected $signature = 'ethr:backup:unpack
         {archive : A local .ethrbak file, or with --from-disk its key on the off-host disk}
         {--from-disk : Fetch the archive from the off-host disk first}
-        {--disk= : Which disk; defaults to config backup.off_host_disk}
-        {--key= : The BACKUP_ENCRYPTION_KEY the archive was made with, when it is not the configured one}';
+        {--disk= : Which .env disk; defaults to the console storage, then config backup.off_host_disk}
+        {--key= : The key the archive was made with, when it is not the configured one}';
 
     protected $description = 'Decrypt and unpack an off-host backup so ethr:restore can use it';
 
@@ -47,12 +48,10 @@ class BackupUnpackCommand extends Command
             $cipher = new BackupCipher($key);
         }
 
-        $disk = $this->option('from-disk')
-            ? (string) ($this->option('disk') ?: config('backup.off_host_disk'))
-            : null;
+        $disk = $this->option('disk') ? (string) $this->option('disk') : null;
 
         try {
-            $name = $backups->unpack((string) $this->argument('archive'), $disk, $cipher);
+            $name = $backups->unpack((string) $this->argument('archive'), $cipher, (bool) $this->option('from-disk'), $disk);
         } catch (Throwable $e) {
             $this->error('Unpack FAILED: '.$e->getMessage());
 
