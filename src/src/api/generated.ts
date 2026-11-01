@@ -12160,6 +12160,8 @@ export interface components {
             theme?: "light" | "dark" | "system" | "high-contrast" | null;
             /** @enum {string|null} */
             calendar?: "gregorian" | "ethiopian" | "dual" | null;
+            /** @enum {string|null} */
+            clock?: "auto" | "ethiopian" | "24h" | null;
             punch_reminders?: boolean | null;
             auto_check_in?: boolean | null;
         };
@@ -12212,6 +12214,8 @@ export interface components {
                 session_timeout_minutes?: number;
                 /** @enum {string} */
                 calendar?: "ethiopian" | "gregorian";
+                /** @enum {string} */
+                clock?: "auto" | "ethiopian" | "24h";
                 employee_number_format?: string;
                 invitation_reminders?: boolean;
             };
@@ -16689,6 +16693,7 @@ export interface operations {
                                 locale_chosen: boolean;
                                 theme: string | "system";
                                 calendar: string;
+                                clock: string;
                                 punch_reminders: boolean;
                                 auto_check_in: boolean;
                             };
@@ -31497,6 +31502,7 @@ export interface operations {
                         display: {
                             /** @enum {string} */
                             calendar: "gregorian" | "ethiopian";
+                            clock: string;
                         };
                         employees: {
                             number_format: string;
@@ -34687,6 +34693,7 @@ export interface operations {
                             locale_chosen: boolean;
                             theme: string | "system";
                             calendar: string;
+                            clock: string;
                             punch_reminders: boolean;
                             auto_check_in: boolean;
                         };
@@ -34831,6 +34838,7 @@ export interface operations {
                         locale_chosen: boolean;
                         theme: string | "system";
                         calendar: string;
+                        clock: string;
                         punch_reminders: boolean;
                         auto_check_in: boolean;
                     };

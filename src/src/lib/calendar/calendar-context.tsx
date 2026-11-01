@@ -9,10 +9,12 @@ import {
   type ReactNode,
 } from "react";
 import { toEthiopian, formatEthiopian } from "./ethiopian";
+import { toClockPreference, type ClockPreference } from "./ethiopian-time";
 
 export type CalendarSystem = "ethiopian" | "gregorian";
 
 const STORAGE_KEY = "ethr.calendar";
+const CLOCK_STORAGE_KEY = "ethr.clock";
 
 /**
  * The display mode for a stored calendar preference.
@@ -29,6 +31,9 @@ interface CalendarContextValue {
   calendar: CalendarSystem;
   setCalendar: (system: CalendarSystem) => void;
   toggle: () => void;
+  /** The clock chosen, `auto` included; `useDateFormatters` settles `auto` against the language. */
+  clockPreference: ClockPreference;
+  setClockPreference: (clock: ClockPreference) => void;
   formatDate: (date: Date, locale?: string) => string;
   formatDateDual: (
     date: Date,
@@ -47,8 +52,17 @@ function readStoredCalendar(): CalendarSystem {
   }
 }
 
+function readStoredClock(): ClockPreference {
+  if (typeof window === "undefined") return "auto";
+  try {
+    return toClockPreference(localStorage.getItem(CLOCK_STORAGE_KEY));
+  } catch {
+    return "auto";
+  }
+}
+
 /**
- * Holds the calendar dates are displayed in.
+ * Holds the calendar dates are displayed in, and the clock times are.
  *
  * The source of truth is the signed-in user's preference (`/auth/me` →
  * `preferences.calendar`, which falls back to the organisation's default) and
@@ -63,6 +77,18 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     setCalendarState(system);
     try {
       localStorage.setItem(STORAGE_KEY, system);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const [clockPreference, setClockState] =
+    useState<ClockPreference>(readStoredClock);
+
+  const setClockPreference = useCallback((clock: ClockPreference) => {
+    setClockState(clock);
+    try {
+      localStorage.setItem(CLOCK_STORAGE_KEY, clock);
     } catch {
       /* ignore */
     }
@@ -111,8 +137,24 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<CalendarContextValue>(
-    () => ({ calendar, setCalendar, toggle, formatDate, formatDateDual }),
-    [calendar, setCalendar, toggle, formatDate, formatDateDual],
+    () => ({
+      calendar,
+      setCalendar,
+      toggle,
+      clockPreference,
+      setClockPreference,
+      formatDate,
+      formatDateDual,
+    }),
+    [
+      calendar,
+      setCalendar,
+      toggle,
+      clockPreference,
+      setClockPreference,
+      formatDate,
+      formatDateDual,
+    ],
   );
 
   return (
