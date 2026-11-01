@@ -365,7 +365,8 @@ test('an administrator is shown the configuration still missing, with the wizard
         ->and($steps->keys()->all())->not->toContain('setup_employees', 'setup_admin_present', 'setup_admin_active')
         ->and($steps['setup_branch']['group'])->toBe('setup')
         ->and($steps['setup_branch']['href'])->toBe('/organization')
-        ->and($response->json('setup'))->toBe(['done' => 0, 'total' => 4, 'complete' => false]);
+        // People counts: the administrator's own employee record is a current employee.
+        ->and($response->json('setup'))->toBe(['done' => 1, 'total' => 4, 'complete' => false]);
 });
 
 test('a configured organisation has no setup steps left', function () {

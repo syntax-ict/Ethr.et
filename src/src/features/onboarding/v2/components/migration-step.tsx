@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { useDevices } from "@/features/devices/api";
 import { departmentsApi } from "@/features/organization/api";
 import { saveCsv } from "@/lib/utils/csv-export";
+import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
 import {
   useCommitMigration,
   useMigrationBatch,
@@ -39,6 +40,7 @@ import {
 import type { MatchOutcome, StagingAction } from "../types";
 import {
   MAX_PEOPLE,
+  type DateCalendar,
   parsePeople,
   peopleTemplateCsv,
   type PersonField,
@@ -120,7 +122,15 @@ export function MigrationStep({
   // The departments the list may name, so one the organisation does not have
   // is reported before staging instead of refused by the server after.
   const departmentsQuery = departmentsApi.useList();
-  const parsed = parsePeople(csv, departmentsQuery.data?.data);
+  // Hire dates are read in the reader's own calendar unless they say otherwise:
+  // an Ethiopian 2011-10-30 read as Gregorian is eight years out.
+  const preferred = useOptionalCalendar()?.calendar ?? "gregorian";
+  const [chosenCalendar, setChosenCalendar] = useState<DateCalendar | null>(
+    null,
+  );
+  const dateCalendar = chosenCalendar ?? preferred;
+  const parsed = parsePeople(csv, departmentsQuery.data?.data, dateCalendar);
+  const noDevice = devicesQuery.isSuccess && devices.length === 0;
 
   function problemText(problem: Problem): string {
     switch (problem.kind) {
@@ -135,11 +145,17 @@ export function MigrationStep({
           { line: problem.line, value: problem.value ?? "" },
         );
       case "bad_date":
-        return t(
-          "setup2.problem_bad_date",
-          "Line :line: write the hire date :value as YYYY-MM-DD, for example 2019-07-08.",
-          { line: problem.line, value: problem.value ?? "" },
-        );
+        return parsed.calendar === "ethiopian"
+          ? t(
+              "setup2.problem_bad_date_ec",
+              "Line :line: :value is not an Ethiopian calendar date. Write it as YYYY-MM-DD, for example 2011-10-30.",
+              { line: problem.line, value: problem.value ?? "" },
+            )
+          : t(
+              "setup2.problem_bad_date",
+              "Line :line: write the hire date :value as YYYY-MM-DD, for example 2019-07-08.",
+              { line: problem.line, value: problem.value ?? "" },
+            );
       case "duplicate_code":
         return t(
           "setup2.problem_duplicate_code",
@@ -286,33 +302,20 @@ export function MigrationStep({
       </div>
 
       {!batch && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <HardDrive className="h-4 w-4" aria-hidden="true" />
-                {t("setup2.from_device", "From an attendance device")}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t(
-                  "setup2.device_hint",
-                  "Everyone enrolled on the device is listed with their badge number, ready to match.",
-                )}
-              </p>
-              {devicesQuery.isSuccess && devices.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+        <div className={noDevice ? "space-y-4" : "grid gap-4 lg:grid-cols-2"}>
+          {!noDevice && (
+            <Card>
+              <CardContent className="space-y-3 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <HardDrive className="h-4 w-4" aria-hidden="true" />
+                  {t("setup2.from_device", "From an attendance device")}
+                </div>
+                <p className="text-xs text-muted-foreground">
                   {t(
-                    "setup2.no_device",
-                    "No attendance device is connected yet.",
-                  )}{" "}
-                  <Link
-                    href="/devices"
-                    className="font-medium text-primary underline-offset-4 hover:underline"
-                  >
-                    {t("setup2.connect_device", "Connect a device")}
-                  </Link>
+                    "setup2.device_hint",
+                    "Everyone enrolled on the device is listed with their badge number, ready to match.",
+                  )}
                 </p>
-              ) : (
                 <>
                   <Select value={device} onValueChange={setDeviceId}>
                     <SelectTrigger
@@ -344,9 +347,9 @@ export function MigrationStep({
                     {t("setup2.discover", "Discover enrolled users")}
                   </Button>
                 </>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardContent className="space-y-3 p-4">
@@ -375,7 +378,10 @@ export function MigrationStep({
                   variant="ghost"
                   size="sm"
                   onClick={() =>
-                    saveCsv("ethr-people-template.csv", peopleTemplateCsv())
+                    saveCsv(
+                      "ethr-people-template.csv",
+                      peopleTemplateCsv(dateCalendar),
+                    )
                   }
                 >
                   <Download className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -393,6 +399,29 @@ export function MigrationStep({
                     e.target.value = "";
                   }}
                 />
+              </div>
+              <div
+                role="group"
+                aria-label={t("setup2.dates_in", "Hire dates are in")}
+                className="flex flex-wrap items-center gap-2 text-xs"
+              >
+                <span className="text-muted-foreground">
+                  {t("setup2.dates_in", "Hire dates are in")}
+                </span>
+                {(["ethiopian", "gregorian"] as const).map((c) => (
+                  <Button
+                    key={c}
+                    type="button"
+                    size="sm"
+                    variant={dateCalendar === c ? "default" : "outline"}
+                    aria-pressed={dateCalendar === c}
+                    onClick={() => setChosenCalendar(c)}
+                  >
+                    {c === "ethiopian"
+                      ? t("setup2.calendar_ec", "Ethiopian (E.C.)")
+                      : t("setup2.calendar_gc", "Gregorian (G.C.)")}
+                  </Button>
+                ))}
               </div>
               <textarea
                 value={csv}
@@ -426,6 +455,33 @@ export function MigrationStep({
                       </span>
                     )}
                   </p>
+                  {parsed.calendarFromHeader && (
+                    <p className="text-muted-foreground">
+                      {parsed.calendar === "ethiopian"
+                        ? t(
+                            "setup2.dates_from_header_ec",
+                            "Hire dates are read as Ethiopian (E.C.), as the column name says.",
+                          )
+                        : t(
+                            "setup2.dates_from_header_gc",
+                            "Hire dates are read as Gregorian (G.C.), as the column name says.",
+                          )}
+                    </p>
+                  )}
+                  {parsed.withoutHireDate > 0 && (
+                    <p className="text-warning-on-soft">
+                      {parsed.withoutHireDate === 1
+                        ? t(
+                            "setup2.no_hire_date_one",
+                            "1 person has no hire date. Today will be used, which affects leave and length of service.",
+                          )
+                        : t(
+                            "setup2.no_hire_date",
+                            ":count people have no hire date. Today will be used, which affects leave and length of service.",
+                            { count: parsed.withoutHireDate },
+                          )}
+                    </p>
+                  )}
                   {parsed.problems.length > 0 && (
                     <ul className="space-y-0.5 text-destructive">
                       {parsed.problems.slice(0, PROBLEMS_SHOWN).map((p) => (
@@ -445,7 +501,7 @@ export function MigrationStep({
               <p className="text-xs text-muted-foreground">
                 {t(
                   "setup2.csv_hint",
-                  "Without column names, the order is: name, email, phone, employee number, hire date (YYYY-MM-DD), department. Only the name is required. Without a hire date, today is used.",
+                  "Without column names, the order is: name, email, phone, employee number, hire date (YYYY-MM-DD), department. Only the name is required.",
                 )}
               </p>
               <Button
@@ -476,6 +532,21 @@ export function MigrationStep({
               </p>
             </CardContent>
           </Card>
+          {noDevice && (
+            <p className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+              <HardDrive className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {t(
+                "setup2.no_device_row",
+                "Using a fingerprint or face terminal? Connect a ZKTeco terminal and everyone enrolled on it can be brought in from here.",
+              )}
+              <Link
+                href="/devices"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {t("setup2.connect_device", "Connect a device")}
+              </Link>
+            </p>
+          )}
         </div>
       )}
 
