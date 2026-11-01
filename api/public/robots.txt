@@ -4,8 +4,7 @@ Disallow: /api/
 Disallow: /dashboard
 Disallow: /admin
 Disallow: /register
-Disallow: /forgot-password
-Disallow: /reset-password
+Disallow: /login/
 
 Host: https://www.ethr.et
 Sitemap: https://www.ethr.et/sitemap.xml
