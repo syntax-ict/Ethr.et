@@ -1,0 +1,50 @@
+<section id="payroll" data-transition="fade" style="background:#f6f8fa;color:#0f172a;font-family:'Inter', 'Noto Sans Ethiopic', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:44px">
+<div style="display:flex;flex-direction:column;gap:16px;width:880px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#0f4c75">Payroll and payslips</p>
+<h2 style="font-size:72px;font-weight:800;line-height:1.1;letter-spacing:-1px;color:#0a2e4a">Payroll under Ethiopian law, checked before anyone is paid</h2>
+</div>
+<div style="display:flex;flex-direction:column;gap:22px;width:880px">
+<div style="display:flex;flex-direction:row;gap:20px;align-items:center"><x-icon name="CheckCircle" style="color:#0f4c75;width:40px;height:40px"></x-icon><p style="font-size:32px;color:#0f172a">Income tax under Proclamation 1395/2025</p></div>
+<div style="display:flex;flex-direction:row;gap:20px;align-items:center"><x-icon name="CheckCircle" style="color:#0f4c75;width:40px;height:40px"></x-icon><p style="font-size:32px;color:#0f172a">Pension, overtime and Pagume proration</p></div>
+<div style="display:flex;flex-direction:row;gap:20px;align-items:center"><x-icon name="CheckCircle" style="color:#0f4c75;width:40px;height:40px"></x-icon><p style="font-size:32px;color:#0f172a">A calculation trail on every payslip</p></div>
+<div style="display:flex;flex-direction:row;gap:20px;align-items:center"><x-icon name="CheckCircle" style="color:#0f4c75;width:40px;height:40px"></x-icon><p style="font-size:32px;color:#0f172a">Approval before employees see it</p></div>
+</div>
+<x-embed style="position:absolute;left:1132px;top:128px;width:660px;height:824px"><!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:transparent;overflow:hidden;font-family:"Segoe UI",Inter,system-ui,sans-serif}
+.slip{position:absolute;inset:0;background:#fff;border:1px solid #e2e8f0;border-radius:32px;box-shadow:0 24px 60px rgba(15,76,117,.12);padding:44px 40px;display:flex;flex-direction:column;gap:22px;overflow:hidden}
+.hd{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #eef2f6;padding-bottom:18px}
+.hd b{font-size:36px;color:#0a2e4a}.hd span{font-size:24px;color:#64748b;font-family:"Nyala","Ebrima","Noto Sans Ethiopic",sans-serif}
+.ln{display:flex;flex-direction:column;gap:10px;opacity:.25;transition:opacity .5s}
+.ln.on{opacity:1}
+.lb{display:flex;justify-content:space-between;font-size:26px;color:#0f172a}
+.lb em{font-style:normal;font-size:24px;color:#047857}
+.bar{height:16px;border-radius:8px;background:#eef2f6;overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:8px;transition:width 1s ease-out}
+.on .bar i{width:var(--w)}
+.g i{background:#0f4c75}.t i{background:#e8a838}.p i{background:#3282b8}.n i{background:#10b981}
+.net{border-top:2px dashed #e2e8f0;padding-top:20px}
+.net .lb{font-size:32px;font-weight:700;color:#0a2e4a}
+.stamp{position:absolute;right:40px;bottom:44px;font-size:32px;font-weight:800;color:#047857;border:5px solid #047857;border-radius:16px;padding:8px 24px;transform:rotate(-8deg) scale(1.6);opacity:0;transition:all .35s cubic-bezier(.3,1.6,.6,1)}
+.stamp.on{transform:rotate(-8deg) scale(1);opacity:1}
+.tr{font-size:24px;color:#64748b}
+</style></head><body><div class="slip">
+<div class="hd"><b>Payslip</b><span id="m">ጥቅምት 2019</span></div>
+<div class="ln" id="l1"><div class="lb">Gross pay<em>Calculated</em></div><div class="bar g"><i style="--w:100%"></i></div></div>
+<div class="ln" id="l2"><div class="lb">Overtime from attendance<em>Calculated</em></div><div class="bar g"><i style="--w:22%"></i></div></div>
+<div class="ln" id="l3"><div class="lb">Income tax, Proc. 1395/2025<em>Applied</em></div><div class="bar t"><i style="--w:28%"></i></div></div>
+<div class="ln" id="l4"><div class="lb">Pension<em>Applied</em></div><div class="bar p"><i style="--w:12%"></i></div></div>
+<div class="ln net" id="l5"><div class="lb">Net pay<em>Ready</em></div><div class="bar n"><i style="--w:70%"></i></div></div>
+<div class="tr" id="tr">Illustration, not to scale</div>
+<div class="stamp" id="st">APPROVED</div>
+</div><script>
+var M=["መስከረም","ጥቅምት","ኅዳር","ታኅሣሥ","ጥር","የካቲት","መጋቢት","ሚያዝያ","ግንቦት","ሰኔ","ሐምሌ","ነሐሴ","ጳጉሜን"];
+(function(){var d=new Date(),a=Math.floor((14-(d.getMonth()+1))/12),y=d.getFullYear()+4800-a,m=d.getMonth()+1+12*a-3,j=d.getDate()+Math.floor((153*m+2)/5)+365*y+Math.floor(y/4)-Math.floor(y/100)+Math.floor(y/400)-32045,r=(j-1723856)%1461,n=r%365+365*Math.floor(r/1460);document.getElementById("m").textContent=M[Math.floor(n/30)]+" "+(4*Math.floor((j-1723856)/1461)+Math.floor(r/365)-Math.floor(r/1460))})();
+var t=0;function loop(){t++;
+if(t>=1&&t<=5)document.getElementById("l"+t).className=document.getElementById("l"+t).className.replace(" on","")+" on";
+if(t==7)document.getElementById("st").className="stamp on";
+if(t==12){for(var i=1;i<=5;i++){var e=document.getElementById("l"+i);e.className=e.className.replace(" on","")}document.getElementById("st").className="stamp";t=0}}
+setInterval(loop,750);
+</script></body></html></x-embed>
+<aside>The payslip on the right builds itself line by line: gross, overtime taken straight from attendance, income tax, pension, then net, and only then the approval stamp. The bars are an illustration, not real amounts. The message for finance: nobody works the tax ladder in a spreadsheet any more, and every figure can be traced back to its calculation.</aside>
+</section>
