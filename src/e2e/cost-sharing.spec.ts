@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { api } from './helpers';
+import { api, fillCalendarDate } from './helpers';
 
 /**
  * Higher-education cost sharing: record an obligation against an employee
@@ -34,7 +34,7 @@ test.describe('Payroll — cost sharing', () => {
     await page.getByRole('option', { name: new RegExp(employee.name) }).first().click();
     await dialog.getByLabel('Total Obligation (ETB)').fill('1200');
     await dialog.getByLabel('Deduction Rate (%)').fill('10');
-    await dialog.getByLabel('Started On').fill(new Date().toISOString().slice(0, 10));
+    await fillCalendarDate(dialog, page, 'Started On', new Date().toISOString().slice(0, 10));
     await dialog.getByRole('button', { name: 'Record Obligation' }).click();
 
     await expect(page.getByText('Cost-sharing obligation recorded')).toBeVisible();
