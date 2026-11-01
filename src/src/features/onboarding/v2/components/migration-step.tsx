@@ -432,7 +432,9 @@ export function MigrationStep({
                   "From a spreadsheet or list",
                 )}
                 placeholder={
-                  "Name, Email, Phone, Employee number, Hire date, Department\nAbebe Kebede, abebe@acme.et, 0911223344, EMP-1, 2019-07-08, Finance"
+                  dateCalendar === "ethiopian"
+                    ? "Name, Email, Phone, Employee number, Hire date (E.C.), Department\nAbebe Kebede, abebe@acme.et, 0911223344, EMP-1, 2011-10-30, Finance"
+                    : "Name, Email, Phone, Employee number, Hire date (G.C.), Department\nAbebe Kebede, abebe@acme.et, 0911223344, EMP-1, 2019-07-07, Finance"
                 }
                 className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
