@@ -38,6 +38,10 @@ function nightShiftEmployee(): array
         'shift_id' => $shift->id,
         'assignable_type' => Employee::class,
         'assignable_id' => $employee->id,
+        // The punches below are dated October 2026. The factory starts an
+        // assignment on the first of the real current month, which from
+        // November on is after every punch, and leaves them all pending.
+        'effective_from' => '2026-10-01',
     ]);
     test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
 

@@ -123,4 +123,154 @@ describe("<MigrationStep>", () => {
       employee_public_id: "01HZEMP0000000000000001",
     });
   });
+
+  it("points to adding a device when there is none, and picks the only one", async () => {
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+    const first = renderWithClient(<MigrationStep />);
+    expect(await screen.findByText("Connect a device")).toHaveAttribute(
+      "href",
+      "/devices",
+    );
+    // No empty device card beside the list: there is nothing to choose.
+    expect(screen.queryByText("Discover enrolled users")).toBeNull();
+    expect(screen.queryByText("From an attendance device")).toBeNull();
+    first.unmount();
+
+    let staged = "";
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({
+          data: [{ public_id: "01HZDEV1", name: "Gate terminal" }],
+          meta: {},
+          links: {},
+        }),
+      ),
+      http.post("*/onboarding/migration/devices/:device", ({ params }) => {
+        staged = String(params.device);
+        return HttpResponse.json(AMBIGUOUS_BATCH, { status: 201 });
+      }),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(AMBIGUOUS_BATCH),
+      ),
+    );
+    renderWithClient(<MigrationStep />);
+    const discover = await screen.findByText("Discover enrolled users");
+    await waitFor(() => expect(discover.closest("button")).toBeEnabled());
+    fireEvent.click(discover);
+    await waitFor(() => expect(staged).toBe("01HZDEV1"));
+  });
+
+  it("shows who is ready and which lines need fixing, and stages nothing until they are fixed", async () => {
+    let posted = false;
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () => {
+        posted = true;
+        return HttpResponse.json(AMBIGUOUS_BATCH, { status: 201 });
+      }),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, {
+      target: {
+        value: [
+          "Name\tHire date",
+          "Abebe Kebede\t2019-07-08",
+          "Hanna Girma\t08/07/2019",
+        ].join("\n"),
+      },
+    });
+
+    expect(screen.getByText(/1 person ready/)).toBeInTheDocument();
+    expect(screen.getByText(/Columns: Name, Hire date/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Line 3: write the hire date 08\/07\/2019 as YYYY-MM-DD/,
+      ),
+    ).toBeInTheDocument();
+    const stage = screen.getByText("Stage for review").closest("button")!;
+    expect(stage).toBeDisabled();
+    fireEvent.click(stage);
+    expect(posted).toBe(false);
+  });
+
+  it("reads hire dates in the calendar chosen, sends them in Gregorian, and says who has none", async () => {
+    let body: { rows: Record<string, string>[] } | null = null;
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", async ({ request }) => {
+        body = (await request.json()) as { rows: Record<string, string>[] };
+        return HttpResponse.json(AMBIGUOUS_BATCH, { status: 201 });
+      }),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(AMBIGUOUS_BATCH),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    expect(textarea.placeholder).toContain("2019-07-07");
+    fireEvent.click(screen.getByText("Ethiopian (E.C.)"));
+    expect(
+      screen.getByText("Ethiopian (E.C.)").closest("button"),
+    ).toHaveAttribute("aria-pressed", "true");
+    // The example follows the choice: a Gregorian 2019 read as Ethiopian is years ahead.
+    expect(textarea.placeholder).toContain("Hire date (E.C.)");
+    expect(textarea.placeholder).toContain("2011-10-30");
+    fireEvent.change(textarea, {
+      target: {
+        value: [
+          "Name\tHire date",
+          "Abebe Kebede\t2011-10-30",
+          "Hanna Girma\t",
+        ].join("\n"),
+      },
+    });
+
+    expect(screen.getByText(/2 people ready/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/1 person has no hire date. Today will be used/),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Stage for review"));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body!.rows[0]).toMatchObject({
+      name: "Abebe Kebede",
+      hire_date: "2019-07-07",
+    });
+  });
+
+  it("reads a chosen CSV file into the list", async () => {
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const input = screen.getByTestId("people-file") as HTMLInputElement;
+    const file = new File(
+      ["Name,Email\nAbebe Kebede,abebe@acme.et"],
+      "staff.csv",
+      {
+        type: "text/csv",
+      },
+    );
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() =>
+      expect(
+        (container.querySelector("textarea") as HTMLTextAreaElement).value,
+      ).toContain("Abebe Kebede"),
+    );
+    expect(screen.getByText(/1 person ready/)).toBeInTheDocument();
+  });
 });

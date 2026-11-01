@@ -1,0 +1,24 @@
+{
+  "device": "desktop",
+  "width": 2560,
+  "height": 1600,
+  "path": "/settings/holidays",
+  "markers": [
+    {
+      "n": 1,
+      "x": 1762,
+      "y": 228,
+      "w": 482,
+      "h": 88,
+      "pin": "below"
+    },
+    {
+      "n": 2,
+      "x": 2244,
+      "y": 228,
+      "w": 276,
+      "h": 88,
+      "pin": "below"
+    }
+  ]
+}

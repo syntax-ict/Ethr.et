@@ -1,0 +1,62 @@
+<section id="attendance" data-transition="fade" style="background:#f6f8fa;color:#0f172a;font-family:'Inter', 'Noto Sans Ethiopic', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:16px;width:860px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#0f4c75">Attendance and shifts</p>
+<h2 style="font-size:72px;font-weight:800;line-height:1.1;letter-spacing:-1px;color:#0a2e4a">Check in from anywhere, with the time and place recorded</h2>
+</div>
+<div style="display:flex;flex-direction:column;gap:20px;width:860px">
+<div style="display:flex;flex-direction:row;align-items:center;gap:24px">
+<div style="width:72px;height:72px;background:#e8f1f8;border-radius:18px;display:flex;align-items:center;justify-content:center"><x-icon name="Users" style="color:#0f4c75;width:40px;height:40px"></x-icon></div>
+<p style="font-size:32px;color:#0f172a"><b>Phone</b> <span style="color:#475569">for staff on the move</span></p>
+</div>
+<div style="display:flex;flex-direction:row;align-items:center;gap:24px">
+<div style="width:72px;height:72px;background:#e8f1f8;border-radius:18px;display:flex;align-items:center;justify-content:center"><x-icon name="Home" style="color:#0f4c75;width:40px;height:40px"></x-icon></div>
+<p style="font-size:32px;color:#0f172a"><b>Shared kiosk</b> <span style="color:#475569">on the factory floor</span></p>
+</div>
+<div style="display:flex;flex-direction:row;align-items:center;gap:24px">
+<div style="width:72px;height:72px;background:#e8f1f8;border-radius:18px;display:flex;align-items:center;justify-content:center"><x-icon name="Search" style="color:#0f4c75;width:40px;height:40px"></x-icon></div>
+<p style="font-size:32px;color:#0f172a"><b>QR code</b> <span style="color:#475569">at the site entrance</span></p>
+</div>
+<div style="display:flex;flex-direction:row;align-items:center;gap:24px">
+<div style="width:72px;height:72px;background:#e8f1f8;border-radius:18px;display:flex;align-items:center;justify-content:center"><x-icon name="Globe" style="color:#0f4c75;width:40px;height:40px"></x-icon></div>
+<p style="font-size:32px;color:#0f172a"><b>Web</b> <span style="color:#475569">for the office</span></p>
+</div>
+</div>
+<p style="font-size:24px;line-height:1.45;color:#475569;width:860px">Rotating and night shifts included. Overtime is counted from the record, not from memory.</p>
+<x-embed style="position:absolute;left:1100px;top:128px;width:692px;height:824px"><!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:transparent;overflow:hidden;font-family:"Segoe UI",Inter,system-ui,sans-serif}
+.card{position:absolute;inset:0;background:#ffffff;border:1px solid #e2e8f0;border-radius:32px;box-shadow:0 24px 60px rgba(15,76,117,.12);padding:40px;display:flex;flex-direction:column;gap:20px}
+.hd{display:flex;justify-content:space-between;align-items:center}
+.hd b{font-size:32px;color:#0a2e4a}
+.live{font-size:24px;color:#047857;display:flex;align-items:center;gap:10px}
+.dot{width:14px;height:14px;border-radius:50%;background:#10b981;animation:b 1.2s infinite}
+@keyframes b{50%{opacity:.25}}
+.stats{display:flex;gap:16px}
+.st{flex:1;background:#f1f6fa;border-radius:18px;padding:16px 20px}
+.st small{display:block;font-size:24px;color:#475569}
+.st span{font-size:44px;font-weight:700;color:#0f4c75;font-variant-numeric:tabular-nums}
+.list{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center;gap:16px;padding:14px 18px;border-radius:16px;background:#fbfcfd;border:1px solid #edf1f5;animation:in .6s ease-out}
+@keyframes in{from{transform:translateY(-30px);opacity:0}to{transform:none;opacity:1}}
+.av{width:52px;height:52px;border-radius:50%;background:#0f4c75;color:#fff;font-size:24px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+.nm{flex:1;font-size:24px;color:#0f172a;line-height:1.25}
+.nm i{display:block;font-style:normal;color:#64748b}
+.tm{font-size:28px;font-weight:700;color:#0a2e4a;font-variant-numeric:tabular-nums}
+.ft{font-size:24px;color:#64748b}
+</style></head><body><div class="card">
+<div class="hd"><b>Today</b><span class="live"><span class="dot"></span>Live</span></div>
+<div class="stats"><div class="st"><small>On site</small><span id="on">41</span></div><div class="st"><small>Late</small><span id="la">3</span></div><div class="st"><small>On leave</small><span>2</span></div></div>
+<div class="list" id="l"></div>
+<div class="ft">Illustration</div>
+</div><script>
+var P=[["AB","Bole branch","Phone"],["MT","Factory floor","Kiosk"],["SG","Adama site","QR code"],["HK","Head office","Web"],["YD","Factory floor","Kiosk"],["LT","Bole branch","Phone"],["ET","Adama site","QR code"],["NW","Head office","Web"]];
+var i=0,on=41,l=document.getElementById("l");
+function p(x){return(x<10?"0":"")+x}
+function add(){var n=new Date(),d=new Date(n.getTime()+n.getTimezoneOffset()*6e4+3*36e5),r=P[i%P.length];i++;
+var e=document.createElement("div");e.className="row";e.innerHTML='<div class="av">'+r[0]+'</div><div class="nm">Checked in<i>'+r[1]+' · '+r[2]+'</i></div><div class="tm">'+p(d.getHours())+':'+p(d.getMinutes())+'</div>';
+l.insertBefore(e,l.firstChild);while(l.children.length>5)l.removeChild(l.lastChild);
+on++;if(on>58)on=41;document.getElementById("on").textContent=on}
+for(var k=0;k<4;k++)add();setInterval(add,2200);
+</script></body></html></x-embed>
+<aside>Four ways in: phone, shared kiosk, QR code and web. The panel on the right is an illustration of the live attendance view, ticking in real time. The point for HR: the record is made at the moment of check-in, with the time and the place, so overtime stops being a month-end argument.</aside>
+</section>

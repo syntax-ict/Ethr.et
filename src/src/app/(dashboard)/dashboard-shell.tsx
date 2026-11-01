@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AppSidebar } from "@/components/layouts/app-sidebar";
 import { AppHeader } from "@/components/layouts/app-header";
 import { PageTitleBar } from "@/components/layouts/page-title-bar";
@@ -21,6 +22,8 @@ import { LocalePreferenceSync } from "@/components/shared/locale-preference-sync
 import { useCurrentUser } from "@/features/auth/api";
 import { PunchReminders } from "@/features/attendance/components/punch-reminders";
 import { useT } from "@/lib/i18n/useT";
+import { getLocale, preloadLocale } from "@/lib/i18n/translations";
+import { AppLoadingScreen } from "@/components/shared/app-loading-screen";
 import { useDocumentTitle } from "@/lib/hooks/useDocumentTitle";
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
@@ -75,6 +78,39 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Started when this module evaluates, before React hydrates, so the reader's
+// dictionary downloads alongside the rest of the page rather than after it.
+if (typeof window !== "undefined") void preloadLocale(getLocale());
+
+/**
+ * True once the reader's own dictionary is in memory, and never false again.
+ *
+ * This shell used to register the whole of `am.json` before rendering, so an
+ * English reader downloaded 514 KB of Amharic (89 KB brotli) on every visit and
+ * then `en.json` as well. Now it loads only the reader's language, through the
+ * same lazy import every other locale uses. `preloadLocale` also settles when
+ * the import fails, offline with nothing cached, and the English fallbacks
+ * render then, as they always did for an English reader.
+ *
+ * Only the first opening waits: a later language switch re-renders from the
+ * store as before and never takes the app down to this screen.
+ */
+function useReaderDictionary(): boolean {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    preloadLocale(getLocale()).then(() => {
+      if (!cancelled) setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return ready;
+}
+
 /**
  * The authenticated application shell.
  *
@@ -82,8 +118,22 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
  * its own root, and a root layout has to render `<html>`/`<body>` and export
  * `metadata`, neither of which a `"use client"` module can do. The layout file
  * is therefore a thin server component and everything below is unchanged.
+ *
+ * `loadingLabel` is the loading screen's text in Amharic, from the server. The
+ * prerendered HTML of every dashboard page is that screen, and until a
+ * dictionary arrives the browser has no other way to render it identically.
  */
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+export function DashboardShell({
+  children,
+  loadingLabel,
+}: {
+  children: React.ReactNode;
+  loadingLabel: string;
+}) {
+  const ready = useReaderDictionary();
+
+  if (!ready) return <AppLoadingScreen label={loadingLabel} />;
+
   return (
     <AuthGuard>
       <TenantBrandingProvider>

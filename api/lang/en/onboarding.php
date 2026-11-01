@@ -16,4 +16,11 @@ return [
         'seasonal_contracts' => 'Seasonal workers are usually on fixed-term contracts. Record each worker\'s contract and its end date on their employee record; a template does not create contracts.',
         'rotation_crews' => 'The 2-2-2-2 rotation covers every shift only when four crews are assigned to it with start dates two days apart.',
     ],
+
+    // The People step of the guided setup.
+    'migration' => [
+        'duplicate_code' => 'Two lines have the same employee number. Each person needs their own.',
+        'duplicate_email' => 'Two lines have the same email address. Each person needs their own.',
+        'device_user' => 'Device user :id',
+    ],
 ];

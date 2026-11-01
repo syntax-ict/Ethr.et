@@ -246,6 +246,14 @@ export function registerLocale(
   loaded[code] = loaded[code] ? { ...loaded[code], ...data } : data;
 }
 
+/**
+ * Whether any of a locale's strings are in memory: the whole file, or the
+ * projection a public page registers, which is all that page will ever load.
+ */
+export function hasLocale(locale: string): boolean {
+  return locale in loaded;
+}
+
 export function preloadLocale(locale: string): Promise<void> {
   ensureLocaleLoaded(locale);
   return loadPromises[locale] ?? Promise.resolve();

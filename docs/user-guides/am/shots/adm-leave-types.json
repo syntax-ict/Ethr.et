@@ -1,0 +1,23 @@
+{
+  "device": "desktop",
+  "width": 2560,
+  "height": 1600,
+  "path": "/settings/leave-types",
+  "markers": [
+    {
+      "n": 1,
+      "x": 1114,
+      "y": 440,
+      "w": 592,
+      "h": 64
+    },
+    {
+      "n": 2,
+      "x": 2160,
+      "y": 228,
+      "w": 360,
+      "h": 88,
+      "pin": "below"
+    }
+  ]
+}

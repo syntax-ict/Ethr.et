@@ -1,0 +1,23 @@
+{
+  "device": "desktop",
+  "width": 2560,
+  "height": 1600,
+  "path": "/payroll/payslips",
+  "markers": [
+    {
+      "n": 1,
+      "x": 602,
+      "y": 772,
+      "w": 138,
+      "h": 56
+    },
+    {
+      "n": 2,
+      "x": 1382,
+      "y": 440,
+      "w": 96,
+      "h": 80,
+      "pin": "below"
+    }
+  ]
+}

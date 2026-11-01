@@ -1,18 +1,35 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 
 import NotFound from "@/app/not-found";
+import DashboardLayout from "@/app/(dashboard)/layout";
+import { DashboardShell } from "@/app/(dashboard)/dashboard-shell";
+import { AppLoadingScreen } from "@/components/shared/app-loading-screen";
 import am from "@/lib/i18n/locales/am.json";
 
+// What lies past the dictionary gate is not this file's business, and the root
+// shell loads `next/font`, which only runs under Next.
+vi.mock("@/components/shared/auth-guard", () => ({
+  AuthGuard: () => <p>past the dictionary</p>,
+}));
+vi.mock("@/app/root-shell", () => ({
+  RootShell: ({ children }: { children: React.ReactNode }) => children,
+  baseMetadata: {},
+  baseViewport: {},
+}));
+
 /**
- * The whole Amharic dictionary belongs to the app shells only.
+ * The whole Amharic dictionary belongs to three app shells only.
  *
  * `am.json` is the largest file the browser can be sent: 514 KB, 89 KB of
- * brotli. The app shells need all of it on their first render and register it
- * through `AmharicDictionary`; a public page gets a projection from its server
- * layout (`public-dictionary.ts`). One more client importer anywhere outside
+ * brotli. The sign-in, kiosk and offline shells prerender real forms in
+ * Amharic and register all of it through `AmharicDictionary`; the dashboard
+ * prerenders only a loading screen and loads the reader's own language
+ * (2026-10-31); a public page gets a projection from its server layout
+ * (`public-dictionary.ts`). One more client importer anywhere outside
  * the shells puts the file on the pages that importer reaches, and nothing
  * would show it: the root `not-found.tsx` did, and since that page's code
  * ships with every route, every visitor to the English public site downloaded
@@ -43,10 +60,9 @@ function importersOf(pattern: RegExp): string[] {
 }
 
 describe("the Amharic dictionary", () => {
-  it("is registered whole by the app shells and nothing else", () => {
+  it("is registered whole by the shells that prerender forms, and nothing else", () => {
     expect(importersOf(/amharic-dictionary/)).toEqual([
       "app/(auth)/layout.tsx",
-      "app/(dashboard)/layout.tsx",
       "app/kiosk/layout.tsx",
       "app/offline/layout.tsx",
     ]);
@@ -94,5 +110,39 @@ describe("the 404 page", () => {
     const page = readFileSync(join(SRC, "app/not-found.tsx"), "utf8");
 
     expect(page).not.toMatch(/^["']use client["']/m);
+  });
+});
+
+describe("the dashboard shell", () => {
+  it("gets its one prerendered string in Amharic from the server", () => {
+    const shell = DashboardLayout({ children: null }).props.children;
+
+    expect(shell.type).toBe(DashboardShell);
+    expect(shell.props.loadingLabel).toBe(am["common.loading"]);
+  });
+
+  it("renders first exactly the loading screen the prerendered HTML holds", () => {
+    // The server render, which hydration must match: nothing past the gate.
+    const html = renderToString(
+      <DashboardShell loadingLabel={am["common.loading"]}>
+        <p>a page</p>
+      </DashboardShell>,
+    );
+
+    expect(html).toBe(
+      renderToString(<AppLoadingScreen label={am["common.loading"]} />),
+    );
+  });
+
+  it("opens once the reader's dictionary is in memory", async () => {
+    render(
+      <DashboardShell loadingLabel={am["common.loading"]}>
+        <p>a page</p>
+      </DashboardShell>,
+    );
+
+    expect(screen.getByText(am["common.loading"])).toBeInTheDocument();
+    expect(await screen.findByText("past the dictionary")).toBeInTheDocument();
+    expect(screen.queryByText(am["common.loading"])).not.toBeInTheDocument();
   });
 });
