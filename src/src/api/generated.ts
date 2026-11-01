@@ -8707,9 +8707,9 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
             was_duplicate: boolean;
-            /** @enum {string} */
-            punch: "check_in" | "check_out";
-            employee_name?: string;
+            /** @constant */
+            punch: "check_in";
+            employee_name?: null;
         };
         /** AttendanceRecordResource */
         AttendanceRecordResource: {
@@ -9717,6 +9717,27 @@ export interface components {
             /** @enum {string} */
             type: "check_in" | "check_out" | "auto";
             pin?: string | null;
+        };
+        /** KioskPersonResource */
+        KioskPersonResource: {
+            name: string;
+            name_am: string | null;
+            position: string | null;
+            photo_url: string | null;
+        };
+        /** KioskPunchResource */
+        KioskPunchResource: {
+            public_id: string;
+            date: string | null;
+            check_in: string | null;
+            check_out: string | null;
+            source: string;
+            status: string;
+            /** @enum {string} */
+            punch: "check_in" | "check_out";
+            was_duplicate: boolean;
+            employee_name: string;
+            employee: components["schemas"]["KioskPersonResource"] | null;
         };
         /** KioskSessionResource */
         KioskSessionResource: {
@@ -13357,22 +13378,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description `AttendancePunchResource` */
+            /** @description `KioskPunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendancePunchResource"];
+                    "application/json": components["schemas"]["KioskPunchResource"];
                 };
             };
-            /** @description `AttendancePunchResource` */
+            /** @description `KioskPunchResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendancePunchResource"];
+                    "application/json": components["schemas"]["KioskPunchResource"];
                 };
             };
             401: {
