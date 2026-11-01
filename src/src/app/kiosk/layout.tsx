@@ -3,7 +3,13 @@ import { baseMetadata, RootShell, baseViewport } from "../root-shell";
 import { DEFAULT_LOCALE } from "@/lib/i18n/translations";
 import { AmharicDictionary } from "@/lib/i18n/amharic-dictionary";
 
-export const viewport: Viewport = baseViewport;
+// No pinch zoom on a shared terminal: a zoomed-in punch screen stays that
+// way for the next person, who cannot see the keypad.
+export const viewport: Viewport = {
+  ...baseViewport,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export const metadata: Metadata = {
   ...baseMetadata,

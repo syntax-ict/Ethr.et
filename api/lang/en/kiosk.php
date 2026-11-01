@@ -11,4 +11,8 @@ return [
     'pin_locked' => 'Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.',
     'offline_unreadable' => 'This offline punch could not be read. Punch again.',
     'offline_failed' => 'This offline punch could not be recorded. Ask HR to enter it.',
+    'self_service_refused' => 'That code and PIN do not match. Check both and try again.',
+    'self_service_no_pin' => 'You do not have a kiosk PIN yet. Ask HR to set one.',
+    'self_service_expired' => 'Your session at this kiosk has ended. Enter your code and PIN again.',
+    'report_too_late' => 'This punch can no longer be reported here. Tell HR.',
 ];

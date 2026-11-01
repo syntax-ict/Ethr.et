@@ -91,6 +91,8 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Holiday\HolidayController;
 use App\Http\Controllers\Api\V1\Import\BalanceImportController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskCheckInController;
+use App\Http\Controllers\Api\V1\Kiosk\KioskReportPunchController;
+use App\Http\Controllers\Api\V1\Kiosk\KioskSelfServiceController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSessionController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSyncController;
 use App\Http\Controllers\Api\V1\Leave\LeaveRequestController;
@@ -340,6 +342,11 @@ Route::prefix('kiosk')->middleware('throttle:api')->group(function () {
     Route::post('/check-in', KioskCheckInController::class);
     Route::post('/sync', KioskSyncController::class);
     Route::post('/exit', [KioskSessionController::class, 'exitKiosk'])->middleware('throttle:kiosk-exit');
+    Route::post('/punches/{publicId}/not-me', KioskReportPunchController::class);
+    Route::post('/self-service', [KioskSelfServiceController::class, 'start']);
+    Route::get('/self-service', [KioskSelfServiceController::class, 'show']);
+    Route::delete('/self-service', [KioskSelfServiceController::class, 'end']);
+    Route::put('/self-service/pin', [KioskSelfServiceController::class, 'changePin']);
 });
 
 // Authenticated routes

@@ -15,7 +15,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * with AttendancePunchResource, which carries the whole employee record; the
  * kiosk did too until 2026-11-01.
  *
- * `punch` is what a terminal that sent `auto` reads to greet the person.
+ * `punch` is what a terminal that sent `auto` reads to greet the person, and
+ * `public_id` is what it sends back when the person says the punch was not
+ * theirs.
  *
  * @mixin AttendanceRecord
  */
@@ -39,8 +41,8 @@ class KioskPunchResource extends JsonResource
             'date' => $this->date?->format('Y-m-d'),
             'check_in' => $this->check_in?->toIso8601String(),
             'check_out' => $this->check_out?->toIso8601String(),
-            'source' => $this->source->value,
-            'status' => $this->status->value,
+            'source' => $this->source?->value,
+            'status' => $this->status?->value,
             'punch' => $this->punch,
             'was_duplicate' => $this->wasDuplicate,
             'employee_name' => $this->employee->name,

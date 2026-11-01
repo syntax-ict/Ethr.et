@@ -5,15 +5,15 @@ import {
   LogIn,
   LogOut,
   ArrowLeftRight,
-  CheckCircle2,
   XCircle,
   Clock,
   KeyRound,
-  Maximize,
   Lock,
   Loader2,
   WifiOff,
   CloudUpload,
+  Hand,
+  UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,8 +29,19 @@ import { resolveClock } from "@/lib/calendar/ethiopian-time";
 import {
   authenticateKiosk,
   kioskPunch,
+  reportKioskPunch,
   verifyKioskExit,
+  type KioskPunchResult,
 } from "@/features/kiosk/api";
+import {
+  EXIT_HOLD_MS,
+  useHold,
+  useIdle,
+  useKioskLock,
+} from "@/features/kiosk/kiosk-lock";
+import { KioskKeypad, PinDots } from "@/features/kiosk/components/kiosk-keypad";
+import { KioskPunchResultCard } from "@/features/kiosk/components/kiosk-punch-result";
+import { KioskSelfService } from "@/features/kiosk/components/kiosk-self-service";
 import {
   cacheKioskConfig,
   cachedKioskConfig,
@@ -45,7 +56,7 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 
-type Screen = "setup" | "kiosk" | "lock";
+type Screen = "setup" | "kiosk" | "lock" | "self_service";
 type CheckMode = "idle" | "checking" | "success" | "error";
 
 interface KioskConfig {
@@ -63,6 +74,13 @@ interface KioskConfig {
 
 /** `employee_code` is `max:30` in StoreEmployeeRequest; the kiosk accepts the same. */
 const EMPLOYEE_CODE_MAX = 30;
+
+/** A half-typed code or PIN is wiped after this long untouched. */
+const INPUT_IDLE_MS = 20_000;
+/** The punch screen goes to its resting clock after this long untouched. */
+const SLEEP_IDLE_MS = 60_000;
+/** Time to notice the wrong face and press "Not you?". */
+const REPORT_WINDOW_SECONDS = 8;
 
 export default function KioskPage() {
   const { t, locale } = useT();
@@ -95,6 +113,15 @@ export default function KioskPage() {
   // The time the server recorded for the last punch, or the terminal's own
   // when it was saved offline.
   const [recordedAt, setRecordedAt] = useState<string | null>(null);
+  // Who the last punch was for, and which punch, for the confirmation and
+  // for "Not you?". Null for a punch saved offline.
+  const [lastPunch, setLastPunch] = useState<{
+    result: KioskPunchResult;
+    punch: "check_in" | "check_out";
+  } | null>(null);
+  // The resting screen: the first touch only wakes it, so brushing against
+  // the terminal presses nothing.
+  const [sleeping, setSleeping] = useState(false);
 
   // Lock screen
   const [adminPin, setAdminPin] = useState("");
@@ -134,14 +161,17 @@ export default function KioskPage() {
           setMessage("");
           setType("auto");
           setRecordedAt(null);
+          setLastPunch(null);
         },
-        (config?.autoResetSeconds ?? 4) * 1000,
+        (lastPunch
+          ? Math.max(config?.autoResetSeconds ?? 4, REPORT_WINDOW_SECONDS)
+          : (config?.autoResetSeconds ?? 4)) * 1000,
       );
       return () => {
         if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
       };
     }
-  }, [mode, config?.autoResetSeconds]);
+  }, [mode, config?.autoResetSeconds, lastPunch]);
 
   async function authenticateToken(token: string) {
     setSetupLoading(true);
@@ -261,10 +291,19 @@ export default function KioskPage() {
         idempotency_key: idempotencyKey,
       });
       const empName =
+        (locale === "am" ? data.employee?.name_am : null) ??
         data.employee_name ??
         data.employee?.name ??
         t("kiosk_page.default_employee");
       const punched = type === "auto" ? data.punch : type;
+      setLastPunch(
+        data.public_id
+          ? {
+              result: data,
+              punch: punched === "check_out" ? "check_out" : "check_in",
+            }
+          : null,
+      );
       setRecordedAt(
         (punched === "check_out" ? data.check_out : data.check_in) ?? null,
       );
@@ -284,7 +323,7 @@ export default function KioskPage() {
       setMessage(apiErrorDetail(err) ?? t("kiosk_page.check_failed"));
       setMode("error");
     }
-  }, [code, config, pin, showPin, type, t]);
+  }, [code, config, pin, showPin, type, t, locale]);
 
   // Send what waited whenever the connection is back: on the browser's
   // "online" event, and every 30 seconds in case that event never comes.
@@ -322,15 +361,35 @@ export default function KioskPage() {
     };
   }, [config, screen]);
 
-  function enterFullscreen() {
-    document.documentElement.requestFullscreen?.().catch(() => {});
-  }
+  const { fullscreen, fullscreenSupported, enterFullscreen } = useKioskLock(
+    screen !== "setup",
+  );
 
-  function handleLockExit() {
+  const handleLockExit = useCallback(() => {
     setScreen("lock");
     setAdminPin("");
     setLockError("");
-  }
+  }, []);
+  const exitHold = useHold(EXIT_HOLD_MS, handleLockExit);
+
+  const punchScreenIdle = screen === "kiosk" && mode === "idle";
+  useIdle(
+    INPUT_IDLE_MS,
+    () => {
+      setCode("");
+      setPin("");
+      setShowPin(false);
+      setType("auto");
+    },
+    punchScreenIdle && (code !== "" || pin !== "" || type !== "auto"),
+  );
+  useIdle(SLEEP_IDLE_MS, () => setSleeping(true), punchScreenIdle && !sleeping);
+
+  // Shown over the punch screen when it is resting, or when it has dropped
+  // out of full screen. The tap that dismisses it asks for full screen
+  // again, since browsers grant it only from a tap.
+  const covered =
+    screen === "kiosk" && (sleeping || (fullscreenSupported && !fullscreen));
 
   // The server compares the PIN set when the kiosk was registered. Until
   // 2026-10-09 this screen accepted any four digits (redundancy audit R1).
@@ -485,17 +544,35 @@ export default function KioskPage() {
       {/* Header */}
       <header className="border-b bg-card px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
-            E
-          </div>
-          <div>
-            <p className="text-lg font-bold">
-              {config?.tenantName ?? t("kiosk_page.default_title")}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {config?.branchName ?? t("kiosk_page.unknown_branch")}
-            </p>
-          </div>
+          {/* The way out of kiosk mode: hold the name for three seconds. A
+              visible Exit button was one tap from the admin PIN screen for
+              anyone in the queue. The Kiosks page tells admins where it is. */}
+          <button
+            type="button"
+            className="relative flex items-center gap-3 rounded-xl text-left touch-none"
+            aria-label={t("kiosk_page.exit_hold")}
+            title={t("kiosk_page.exit_hold")}
+            {...exitHold.handlers}
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
+              E
+            </span>
+            <span>
+              <span className="block text-lg font-bold">
+                {config?.tenantName ?? t("kiosk_page.default_title")}
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                {config?.branchName ?? t("kiosk_page.unknown_branch")}
+              </span>
+            </span>
+            {exitHold.progress > 0 && (
+              <span
+                className="absolute -bottom-2 left-0 h-1 rounded-full bg-primary"
+                style={{ width: `${Math.round(exitHold.progress * 100)}%` }}
+                aria-hidden="true"
+              />
+            )}
+          </button>
           {(offline || pending > 0) && (
             <span
               className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-3 py-1 text-xs font-medium text-warning-on-soft"
@@ -535,48 +612,39 @@ export default function KioskPage() {
               )}
             </p>
           </div>
-          <div className="flex flex-col gap-1 ml-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={enterFullscreen}
-              title={t("kiosk_page.fullscreen")}
-              aria-label={t("kiosk_page.fullscreen")}
-            >
-              <Maximize className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLockExit}
-              title={t("kiosk_page.exit")}
-              aria-label={t("kiosk_page.exit")}
-            >
-              <Lock className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </header>
 
       {/* Main */}
       <main className="flex-1 flex items-center justify-center p-6">
-        {mode === "success" ? (
-          <div className="text-center space-y-6 animate-in zoom-in duration-300">
-            <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-success-soft">
-              <CheckCircle2 className="h-20 w-20 text-success" />
-            </div>
-            <p className="text-4xl font-bold text-foreground">{message}</p>
-            <p className="text-sm text-muted-foreground">
-              {t("kiosk_page.recorded_at", undefined, {
-                time: formatClockTime(
-                  recordedAt ?? nowIso,
-                  DEFAULT_TIMEZONE,
-                  clock,
-                  locale,
-                ),
-              })}
-            </p>
-          </div>
+        {screen === "self_service" && config ? (
+          <KioskSelfService
+            token={config.token}
+            timeZone={DEFAULT_TIMEZONE}
+            calendar={calendar}
+            clock={clock}
+            onClose={() => setScreen("kiosk")}
+          />
+        ) : mode === "success" ? (
+          <KioskPunchResultCard
+            message={message}
+            time={formatClockTime(
+              recordedAt ?? nowIso,
+              DEFAULT_TIMEZONE,
+              clock,
+              locale,
+            )}
+            person={lastPunch?.result.employee ?? null}
+            canReport={lastPunch !== null && !offline}
+            onReport={async () => {
+              if (!config || !lastPunch?.result.public_id) return;
+              await reportKioskPunch(
+                config.token,
+                lastPunch.result.public_id,
+                lastPunch.punch,
+              );
+            }}
+          />
         ) : mode === "error" ? (
           <div className="text-center space-y-6 animate-in zoom-in duration-300">
             <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-destructive-soft">
@@ -642,19 +710,7 @@ export default function KioskPage() {
                 </Label>
                 <div className="mt-3 flex justify-center gap-2">
                   {showPin ? (
-                    Array.from({ length: 6 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={cn(
-                          "h-12 w-8 rounded border-2 flex items-center justify-center text-2xl font-mono font-bold",
-                          pin[i]
-                            ? "border-primary bg-primary/5"
-                            : "border-muted",
-                        )}
-                      >
-                        {pin[i] ? "•" : ""}
-                      </div>
-                    ))
+                    <PinDots value={pin} />
                   ) : (
                     // A text field, not eight digit boxes: employee codes
                     // are any string up to 30 characters (the demo format
@@ -691,45 +747,12 @@ export default function KioskPage() {
               </CardContent>
             </Card>
 
-            {/* Number pad */}
-            <div className="grid grid-cols-3 gap-3">
-              {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
-                <Button
-                  key={d}
-                  variant="outline"
-                  className="h-16 text-2xl font-bold"
-                  onClick={() => pressDigit(d)}
-                  disabled={mode === "checking"}
-                >
-                  {d}
-                </Button>
-              ))}
-              <Button
-                variant="outline"
-                className="h-16"
-                onClick={clear}
-                disabled={mode === "checking"}
-              >
-                {t("kiosk_page.clear")}
-              </Button>
-              <Button
-                variant="outline"
-                className="h-16 text-2xl font-bold"
-                onClick={() => pressDigit("0")}
-                disabled={mode === "checking"}
-              >
-                0
-              </Button>
-              <Button
-                variant="outline"
-                className="h-16"
-                onClick={backspace}
-                disabled={mode === "checking"}
-                aria-label={t("kiosk_page.delete_digit")}
-              >
-                ⌫
-              </Button>
-            </div>
+            <KioskKeypad
+              onDigit={pressDigit}
+              onClear={clear}
+              onBackspace={backspace}
+              disabled={mode === "checking"}
+            />
 
             <Button
               className="w-full h-14 text-lg"
@@ -756,9 +779,49 @@ export default function KioskPage() {
                 t("common.check_out")
               )}
             </Button>
+
+            <Button
+              variant="ghost"
+              className="w-full h-12 text-base"
+              onClick={() => {
+                setCode("");
+                setPin("");
+                setShowPin(false);
+                setScreen("self_service");
+              }}
+              disabled={mode === "checking" || offline}
+            >
+              <UserRound className="mr-2 h-5 w-5" />
+              {t("kiosk_page.self_service_entry")}
+            </Button>
           </div>
         )}
       </main>
+
+      {covered && (
+        <button
+          type="button"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background/95 backdrop-blur-sm"
+          aria-label={t("kiosk_page.tap_to_start")}
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setSleeping(false);
+            enterFullscreen();
+          }}
+        >
+          <span className="text-7xl font-bold font-mono tabular-nums">
+            {formatClockTime(nowIso, DEFAULT_TIMEZONE, clock, locale)}
+          </span>
+          <span className="text-xl text-muted-foreground">
+            {formatCalendarWeekday(nowIso, DEFAULT_TIMEZONE, locale, "long")},{" "}
+            {formatCalendarDayMonth(nowIso, DEFAULT_TIMEZONE, calendar, locale)}
+          </span>
+          <span className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-lg font-semibold text-primary-foreground">
+            <Hand className="h-5 w-5" aria-hidden="true" />
+            {t("kiosk_page.tap_to_start")}
+          </span>
+        </button>
+      )}
 
       <footer className="border-t bg-muted/30 px-6 py-2 text-center text-xs text-muted-foreground">
         {config?.pinRequired
