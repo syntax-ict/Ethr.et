@@ -185,6 +185,8 @@ a measured figure is how figures drift.
 
 [`user-guide.md`](user-guide.md) · [`admin-guide.md`](admin-guide.md) · [`manager-guide.md`](manager-guide.md)
 
+In Amharic, illustrated, as PDF: [`user-guides/am/`](user-guides/am/README.md), for employees, managers and administrators. Screenshots are taken from the running app, so the guides are rebuilt with a release rather than redrawn.
+
 ---
 
 ## Three naming problems, stated rather than fixed
