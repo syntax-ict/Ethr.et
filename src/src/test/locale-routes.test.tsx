@@ -497,8 +497,16 @@ describe("robots", () => {
       "/dashboard",
       "/admin",
       "/register",
-      "/forgot-password",
-      "/reset-password",
+      "/login/",
     ]);
+  });
+
+  it("names only paths that are routes", () => {
+    // "/forgot-password" and "/reset-password" were listed while the pages
+    // lived at /login/forgot and /login/reset, so the rule matched nothing.
+    const rules = robots().rules;
+    const rule = Array.isArray(rules) ? rules[0]! : rules;
+    expect(rule.disallow).not.toContain("/forgot-password");
+    expect(rule.disallow).not.toContain("/reset-password");
   });
 });

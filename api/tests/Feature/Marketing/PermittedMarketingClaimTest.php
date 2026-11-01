@@ -27,7 +27,6 @@ test('every forbidden claim is refused', function (string $text) {
     'Biometric devices supported',
     'Fingerprint check-in',
     'Import from Excel',
-    'Multi-level approval chains',
     'Delegate approvals while on leave',
     'Maker-checker on every payroll',
     'Full compliance with Proclamation 1321/2024',
@@ -50,6 +49,7 @@ test('the claims the audit allowed pass', function (string $text) {
     'Income tax under Proclamation 1395/2025, pension and Pagume proration.',
     'Check in from a phone, a shared kiosk, a QR code or the web, even offline.',
     'Managers decide requests from one approvals inbox.',
+    'Multi-level approval chains',
     'ሠራተኞች ከስልክ፣ ከኪዮስክ ወይም ከድር ይገባሉ።',
 ]);
 

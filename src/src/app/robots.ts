@@ -46,8 +46,10 @@ export default function robots(): MetadataRoute.Robots {
           // host. The apex /login carries `noindex` itself, which a crawler can
           // only read if it is allowed to fetch the page.
           "/register",
-          "/forgot-password",
-          "/reset-password",
+          // The sign-in sub-steps (forgot, reset, activate, code, MFA, SSO).
+          // The trailing slash keeps /login itself crawlable. This replaced
+          // "/forgot-password" and "/reset-password", which are not routes.
+          "/login/",
         ],
       },
     ],

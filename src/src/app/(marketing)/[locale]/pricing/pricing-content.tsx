@@ -102,10 +102,12 @@ export function PricingContent() {
   );
 
   function priceParts(plan: Plan): { amount: string; period: string } {
+    // A zero-price plan is free for as long as it is chosen, not a trial: the
+    // trial is the same six months on every plan, uncapped (PlanLimitService).
     if (plan.price_cents === 0) {
       return {
         amount: t("marketing.pricing_page.free", "Free"),
-        period: t("marketing.pricing_page.starter_period", "6-month trial"),
+        period: t("marketing.pricing_page.starter_period", "No monthly fee"),
       };
     }
     return {
