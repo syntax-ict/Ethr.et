@@ -21,7 +21,7 @@ class KioskAttendanceDayResource extends JsonResource
             'date' => $this->date?->format('Y-m-d'),
             'check_in' => $this->check_in?->toIso8601String(),
             'check_out' => $this->check_out?->toIso8601String(),
-            'status' => $this->status?->value,
+            'status' => $this->status->value,
             'worked_minutes' => $this->workedMinutes(),
         ];
     }
