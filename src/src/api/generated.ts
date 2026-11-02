@@ -1637,6 +1637,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List backups */
+        get: operations["backupStorage.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Storage backups */
+        put: operations["backupStorage.saveStorage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update setting */
+        put: operations["backupStorage.updateSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/storage/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test storage */
+        post: operations["backupStorage.testStorage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The archive key, for the admin to keep away from the host. The console
+         *     already demands MFA; this is audited and rate limited on top, because
+         *     with the key and a copy anyone can read every tenant's data
+         */
+        post: operations["backupStorage.revealKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/imports/balances/{kind}/template": {
         parameters: {
             query?: never;
@@ -8618,9 +8707,9 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
             was_duplicate: boolean;
-            /** @enum {string} */
-            punch: "check_in" | "check_out";
-            employee_name?: string;
+            /** @constant */
+            punch: "check_in";
+            employee_name?: null;
         };
         /** AttendanceRecordResource */
         AttendanceRecordResource: {
@@ -9629,6 +9718,27 @@ export interface components {
             type: "check_in" | "check_out" | "auto";
             pin?: string | null;
         };
+        /** KioskPersonResource */
+        KioskPersonResource: {
+            name: string;
+            name_am: string | null;
+            position: string | null;
+            photo_url: string | null;
+        };
+        /** KioskPunchResource */
+        KioskPunchResource: {
+            public_id: string;
+            date: string | null;
+            check_in: string | null;
+            check_out: string | null;
+            source: string;
+            status: string;
+            /** @enum {string} */
+            punch: "check_in" | "check_out";
+            was_duplicate: boolean;
+            employee_name: string;
+            employee: components["schemas"]["KioskPersonResource"] | null;
+        };
         /** KioskSessionResource */
         KioskSessionResource: {
             public_id: string;
@@ -10613,6 +10723,16 @@ export interface components {
             is_active?: boolean;
             employee_public_ids?: string[];
             department_public_ids?: string[];
+        };
+        /** SaveBackupStorageRequest */
+        SaveBackupStorageRequest: {
+            /** Format: uri */
+            endpoint: string;
+            region: string;
+            bucket: string;
+            access_key_id: string;
+            secret_access_key?: string | null;
+            path_style: boolean;
         };
         /** SaveReportRequest */
         SaveReportRequest: {
@@ -11684,6 +11804,11 @@ export interface components {
             /** @enum {string} */
             device_binding?: "off" | "flag" | "enforce";
             office_networks?: string[] | null;
+        };
+        /** UpdateBackupSettingsRequest */
+        UpdateBackupSettingsRequest: {
+            enabled?: boolean;
+            key_saved?: boolean;
         };
         /**
          * UpdateBranchAttendanceRequest
@@ -13257,22 +13382,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description `AttendancePunchResource` */
+            /** @description `KioskPunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendancePunchResource"];
+                    "application/json": components["schemas"]["KioskPunchResource"];
                 };
             };
-            /** @description `AttendancePunchResource` */
+            /** @description `KioskPunchResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendancePunchResource"];
+                    "application/json": components["schemas"]["KioskPunchResource"];
                 };
             };
             401: {
@@ -16980,6 +17105,318 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "backupStorage.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "backupStorage.saveStorage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveBackupStorageRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "backupStorage.updateSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateBackupSettingsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "backupStorage.testStorage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "backupStorage.revealKey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        key: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "balanceImport.template": {
@@ -29867,6 +30304,9 @@ export interface operations {
                                 last_sent_at: string | null;
                                 last_failed_at: string | null;
                                 tls: string | null;
+                                sent_today: number;
+                                held_today: number;
+                                daily_cap: number;
                             };
                         };
                         release: {
@@ -29902,6 +30342,30 @@ export interface operations {
                                 response_ms: number | null;
                             }[];
                             disk_free_gb: number | null;
+                        };
+                        backups: {
+                            /** @enum {string} */
+                            state: "ok" | "warning" | "critical" | "unknown";
+                            reasons: string[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: string | null;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
                         };
                     };
                 };

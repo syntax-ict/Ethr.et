@@ -41,8 +41,8 @@ export async function verifyKioskExit(
   );
 }
 
-/** The punched record, whether it was a replay, and whose punch it was. */
-export type KioskPunchResult = components["schemas"]["AttendancePunchResource"];
+/** The punch, whether it was a replay, and who it was for (name, title, face). */
+export type KioskPunchResult = components["schemas"]["KioskPunchResource"];
 
 export async function kioskPunch(
   token: string,

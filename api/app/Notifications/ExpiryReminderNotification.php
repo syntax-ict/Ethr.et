@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Notifications\Contracts\BulkMail;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
 use App\Support\ReaderDates;
@@ -16,7 +17,7 @@ use Illuminate\Notifications\Notification;
  * One notice listing the contracts, probation periods and documents due for
  * this person today (SendExpiryRemindersJob).
  */
-class ExpiryReminderNotification extends Notification
+class ExpiryReminderNotification extends Notification implements BulkMail
 {
     use Queueable, RespectsNotificationPreferences;
 

@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\Tenant;
 use App\Models\User;
+use App\Notifications\Contracts\BulkMail;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
 use App\Support\ReaderDates;
@@ -23,7 +24,7 @@ use Illuminate\Notifications\Notification;
  * policy promises before a photo is deleted, and muting it would let photos
  * go unseen.
  */
-class AttendancePhotosDueForDeletionNotification extends Notification
+class AttendancePhotosDueForDeletionNotification extends Notification implements BulkMail
 {
     use Queueable;
 

@@ -132,6 +132,26 @@ return [
 
     'contact_inbox' => env('CONTACT_INBOX'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Daily Send Budget
+    |--------------------------------------------------------------------------
+    |
+    | Every organisation sends from one mailbox, and the provider caps how
+    | much it sends a day. Set MAIL_DAILY_CAP to that cap (0 turns the budget
+    | off). Bulk mail (BulkMail) stops at MAIL_BULK_SHARE percent of it, other
+    | mail at 90%, and essential mail (EssentialMail: sign-in codes, resets,
+    | activation) is never held. See App\Support\Mail\MailBudget.
+    |
+    | 500 is a cautious guess: the Ethio Telecom cap has not been read from
+    | the panel yet (CUTOVER-CHECKLIST G0-H).
+    |
+    */
+
+    'daily_cap' => (int) env('MAIL_DAILY_CAP', 500),
+
+    'bulk_share' => (int) env('MAIL_BULK_SHARE', 60),
+
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),

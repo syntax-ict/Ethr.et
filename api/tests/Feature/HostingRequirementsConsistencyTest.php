@@ -160,6 +160,7 @@ it('keeps the shared-hosting env template from dropping a key', function () {
         'LOG_DAILY_DAYS',
         'LOG_LEVEL',
         'LOG_STACK',
+        'MAIL_DAILY_CAP',
         'MAIL_FROM_ADDRESS',
         'MAIL_FROM_NAME',
         'MAIL_HOST',

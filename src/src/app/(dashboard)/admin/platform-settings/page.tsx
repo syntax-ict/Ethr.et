@@ -382,6 +382,7 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
             label={t("site_content.contact_phone", "Contact phone")}
             value={form.contact_phone}
             onChange={set("contact_phone")}
+            placeholder="+251 920 273 166, +251 920 212 200"
           />
           <Field
             label={t("site_content.office_address", "Office address")}

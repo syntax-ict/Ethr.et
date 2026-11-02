@@ -6,6 +6,8 @@ namespace App\Services\Admin;
 
 use App\Http\Middleware\VerifyMaintenanceToken;
 use App\Services\Observability\QueueHealth;
+use App\Support\BackupHealth;
+use App\Support\Mail\MailBudget;
 use App\Support\Mail\MailHealth;
 use App\Support\ReleaseStamp;
 use Illuminate\Support\Carbon;
@@ -63,6 +65,7 @@ final class OperationsStatusService
     public function __construct(
         private readonly SystemHealthService $system,
         private readonly QueueHealth $queues,
+        private readonly BackupHealth $backupHealth,
     ) {}
 
     /**
@@ -71,9 +74,10 @@ final class OperationsStatusService
      *     checked_at: string,
      *     background: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, scheduler: array{last_run_at: string|null, age_seconds: int|null, state: 'ok'|'warning'|'critical'|'unknown'}, external_caller: array{last_run_at: string|null, age_seconds: int|null, state: 'ok'|'warning'|'critical'|'unknown'}, page_traffic: array{last_run_at: string|null, age_seconds: int|null}, last_drain_at: string|null, queues: list<array{name: string, depth: int|null, oldest_waiting_seconds: int|null, state: 'ok'|'warning'|'critical'|'unknown'}>},
      *     failed_jobs: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, count: int|null, last_failed_at: string|null},
-     *     delivery: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, mail: array{mailer: string, last_sent_at: string|null, last_failed_at: string|null, tls: string|null}},
+     *     delivery: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, mail: array{mailer: string, last_sent_at: string|null, last_failed_at: string|null, tls: string|null, sent_today: int, held_today: int, daily_cap: int}},
      *     release: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, environment: string, commit: string|null, built_at: string|null, pending_migrations: int|null, config_cached_at: string|null, routes_cached_at: string|null, debug: bool, queue_connection: string, broadcast_connection: string, maintenance_routes_open: bool, cron_token_set: bool, php: array{version: string, upload_max_filesize: string, post_max_size: string, memory_limit: string, max_execution_time: string}},
-     *     services: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, checks: list<array{name: string, status: string, response_ms: int|null}>, disk_free_gb: float|null}
+     *     services: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, checks: list<array{name: string, status: string, response_ms: int|null}>, disk_free_gb: float|null},
+     *     backups: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, last_backup_at: string|null, age_seconds: int|null, last_failed_at: string|null, last_failed_stage: string|null, off_host: array{configured: bool, disk: string, last_copied_at: string|null}, disk: array{measured_at: string, quota_bytes: int, total_bytes: int, database_bytes: int|null, documents_bytes: int, backups_bytes: int, logs_bytes: int, other_bytes: int}|null}
      * }
      */
     public function status(): array
@@ -83,6 +87,7 @@ final class OperationsStatusService
         $delivery = $this->delivery();
         $release = $this->release();
         $services = $this->services();
+        $backups = $this->backupHealth->snapshot();
 
         return [
             'status' => $this->worst([
@@ -91,6 +96,7 @@ final class OperationsStatusService
                 $delivery['state'],
                 $release['state'],
                 $services['state'],
+                $backups['state'],
             ]),
             'checked_at' => now()->toIso8601String(),
             'background' => $background,
@@ -98,6 +104,7 @@ final class OperationsStatusService
             'delivery' => $delivery,
             'release' => $release,
             'services' => $services,
+            'backups' => $backups,
         ];
     }
 
@@ -222,6 +229,22 @@ final class OperationsStatusService
             $reasons = [];
         }
 
+        // The day's mail against the mailbox's send cap (MailBudget). Held
+        // mail is amber, not red: the in-app notice went, only the email did
+        // not, and essential mail is never held.
+        $cap = MailBudget::cap();
+        $sentToday = MailBudget::sentToday();
+        $heldToday = MailBudget::heldToday();
+
+        if ($heldToday > 0) {
+            $reasons[] = 'mail_held';
+        } elseif ($cap > 0 && $sentToday >= intdiv($cap * MailBudget::NEAR_SHARE, 100)) {
+            $reasons[] = 'mail_cap_near';
+        }
+        if ($state !== self::CRITICAL && ($heldToday > 0 || in_array('mail_cap_near', $reasons, true))) {
+            $state = self::WARNING;
+        }
+
         return [
             'state' => $state,
             'reasons' => $reasons,
@@ -230,6 +253,9 @@ final class OperationsStatusService
                 'last_sent_at' => $sent,
                 'last_failed_at' => $failed,
                 'tls' => $mail['tls'],
+                'sent_today' => $sentToday,
+                'held_today' => $heldToday,
+                'daily_cap' => $cap,
             ],
         ];
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Notifications\Contracts\EssentialMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -14,7 +15,7 @@ use Illuminate\Notifications\Notification;
  * whoever holds the permission; the email is how the owner finds out if they
  * did not ask for it.
  */
-class MfaResetNotification extends Notification
+class MfaResetNotification extends Notification implements EssentialMail
 {
     use Queueable;
 

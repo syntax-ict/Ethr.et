@@ -205,7 +205,7 @@ a substitute for the hostname.
 |---|---|---|---|---|---|
 | Transactional mail | `MAIL_MAILER=smtp`, `MAIL_FROM_ADDRESS=noreply@ethr.et` | **COMPATIBLE** — one mailbox suffices | — | `api/.env.shared-hosting.example` |
 | Outbound 587/465 open | — | **UNVERIFIED** | **Yes if closed** — password reset, approval reminders, digests and scheduled reports all die silently | G0-H NOT VERIFIED |
-| Send-rate cap | Nothing in the code respects one | **UNVERIFIED** | Possible | G0-H *mailbox send cap — known* row blank. Fan-out jobs (`NotifyAnnouncementAudienceJob`, `SendApprovalRemindersJob`) are the exposure |
+| Send-rate cap | `MAIL_DAILY_CAP` (default 500) since 2026-11-02: bulk mail stops at `MAIL_BULK_SHARE`%, other mail at 90%, sign-in mail never (`MailBudget`) | **UNVERIFIED** | Possible | G0-H *mailbox send cap — known* row blank, so 500 is a guess until the panel is read. The exposure is mail that fans out (payslips released, the missing-punch scan, approval reminders); announcements are in-app only |
 | SMS | `SMS_DRIVER=log`, `SMS_DAILY_LIMIT_PER_USER=5`, Ethio Telecom endpoint blank | **COMPATIBLE** — inert until configured | — | `api/.env.shared-hosting.example`; `config/sms.php` |
 
 ---
