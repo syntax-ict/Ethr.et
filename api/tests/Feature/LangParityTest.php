@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Support\Locales;
+
 /**
- * Every backend message exists in Amharic, and is Amharic (2026-10-14).
+ * Every backend message exists in Amharic and in Oromo, and is written in that
+ * language (Amharic 2026-10-14, Oromo 2026-11-02).
  *
  * `am/validation.php` held 10 of 146 keys, so every framework message — "is
  * required", "must be a date" — reached an Amharic reader in English through
@@ -17,6 +20,9 @@ const LANG_SAME_IN_BOTH = [
     'approval.profile_update_summary', // ":field: :old → :new" — a format
     'validation.custom.attribute-name.rule-name', // Laravel's own example stub
 ];
+
+/** Every translation the product ships besides English (`Locales::SHIPPED`). */
+const LANG_TRANSLATIONS = ['am', 'om'];
 
 function flattenLang(array $lines, string $prefix = ''): array
 {
@@ -33,50 +39,93 @@ function flattenLang(array $lines, string $prefix = ''): array
     return $out;
 }
 
-/** @return array<string, array{en: array<string, mixed>, am: array<string, mixed>}> */
-function langFiles(): array
+/** @return array<string, array{en: array<string, mixed>, translated: array<string, mixed>}> */
+function langFiles(string $locale): array
 {
     $files = [];
     foreach (glob(lang_path('en/*.php')) ?: [] as $path) {
         $name = basename($path, '.php');
-        $am = lang_path("am/{$name}.php");
+        $translated = lang_path("{$locale}/{$name}.php");
         $files[$name] = [
             'en' => flattenLang(require $path),
-            'am' => is_file($am) ? flattenLang(require $am) : [],
+            'translated' => is_file($translated) ? flattenLang(require $translated) : [],
         ];
     }
 
     return $files;
 }
 
-it('has every English message in Amharic', function () {
+it('ships every translation the product offers', function () {
+    expect(array_values(array_diff(Locales::SHIPPED, ['en'])))->toBe(LANG_TRANSLATIONS);
+});
+
+it('has every English message in each translation', function (string $locale) {
     $missing = [];
-    foreach (langFiles() as $name => $pair) {
-        foreach (array_keys(array_diff_key($pair['en'], $pair['am'])) as $key) {
+    foreach (langFiles($locale) as $name => $pair) {
+        foreach (array_keys(array_diff_key($pair['en'], $pair['translated'])) as $key) {
             $missing[] = "{$name}.{$key}";
         }
     }
 
     expect($missing)->toBe([]);
-});
+})->with(LANG_TRANSLATIONS);
 
-it('does not ship English text in the Amharic files', function () {
+it('has no message in a translation that English lacks', function (string $locale) {
+    $extra = [];
+    foreach (langFiles($locale) as $name => $pair) {
+        foreach (array_keys(array_diff_key($pair['translated'], $pair['en'])) as $key) {
+            $extra[] = "{$name}.{$key}";
+        }
+    }
+
+    expect($extra)->toBe([]);
+})->with(LANG_TRANSLATIONS);
+
+it('keeps every :placeholder of the English message', function (string $locale) {
+    $names = static function (string $line): array {
+        preg_match_all('/:[a-z_]+/i', $line, $m);
+        sort($m[0]);
+
+        return $m[0];
+    };
+
+    $dropped = [];
+    foreach (langFiles($locale) as $name => $pair) {
+        foreach ($pair['en'] as $key => $value) {
+            $translated = $pair['translated'][$key] ?? null;
+            if (is_string($value) && is_string($translated) && $names($value) !== $names($translated)) {
+                $dropped[] = "{$name}.{$key}";
+            }
+        }
+    }
+
+    expect($dropped)->toBe([]);
+})->with(LANG_TRANSLATIONS);
+
+it('does not ship English text in a translation', function (string $locale) {
     $same = [];
-    foreach (langFiles() as $name => $pair) {
+    foreach (langFiles($locale) as $name => $pair) {
         foreach ($pair['en'] as $key => $value) {
             $path = "{$name}.{$key}";
-            if (($pair['am'][$key] ?? null) === $value && ! in_array($path, LANG_SAME_IN_BOTH, true)) {
+            if (($pair['translated'][$key] ?? null) === $value && ! in_array($path, LANG_SAME_IN_BOTH, true)) {
                 $same[] = $path;
             }
         }
     }
 
     expect($same)->toBe([]);
-});
+})->with(LANG_TRANSLATIONS);
 
 it('answers a validation error in Amharic', function () {
     $this->withHeader('Accept-Language', 'am')
         ->postJson('/api/v1/auth/login', [])
         ->assertUnprocessable()
         ->assertJsonPath('errors.email.0', fn (string $message) => str_contains($message, 'ያስፈልጋል'));
+});
+
+it('answers a validation error in Oromo', function () {
+    $this->withHeader('Accept-Language', 'om')
+        ->postJson('/api/v1/auth/login', [])
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.email.0', fn (string $message) => str_contains($message, 'barbaachisaadha'));
 });

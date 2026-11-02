@@ -11,6 +11,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\LetterDecidedNotification;
 use App\Notifications\LetterRequestedNotification;
+use App\Support\Locales;
 use App\Support\ReaderDates;
 use App\Traits\SendsNotifications;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -41,7 +42,7 @@ final class EmploymentLetters
             'purpose' => $data['purpose'],
             'addressed_to' => $data['addressed_to'] ?? null,
             'include_salary' => (bool) ($data['include_salary'] ?? false),
-            'language' => ($data['language'] ?? 'en') === 'am' ? 'am' : 'en',
+            'language' => Locales::orDefault($data['language'] ?? null),
             'status' => EmploymentLetterRequest::PENDING,
         ]);
 
@@ -121,7 +122,7 @@ final class EmploymentLetters
             ->findOrFail($letter->employee_id);
         $tenant = Tenant::query()->findOrFail($letter->tenant_id);
         $letter->loadMissing('decider');
-        $locale = $letter->language === 'am' ? 'am' : 'en';
+        $locale = Locales::orDefault($letter->language);
         // Dates in the organisation's calendar. An Ethiopian date is followed
         // by the Gregorian one, since a bank or an embassy reads the letter.
         $reader = ReaderDates::forTenant($tenant, $locale);

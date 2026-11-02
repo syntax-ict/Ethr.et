@@ -64,6 +64,7 @@ final class PortalHead
             '<link rel="canonical" href="'.$e($url).'">',
             '<link rel="alternate" hreflang="en" href="'.$e($url.'?lang=en').'">',
             '<link rel="alternate" hreflang="am" href="'.$e($url.'?lang=am').'">',
+            '<link rel="alternate" hreflang="om" href="'.$e($url.'?lang=om').'">',
             '<link rel="alternate" hreflang="x-default" href="'.$e($url).'">',
             '<meta name="theme-color" content="'.$e($colour).'">',
         ];
@@ -223,6 +224,7 @@ final class PortalHead
             '<link rel="canonical" href="'.$e($url).'">',
             '<link rel="alternate" hreflang="en" href="'.$e($url.$joiner.'lang=en').'">',
             '<link rel="alternate" hreflang="am" href="'.$e($url.$joiner.'lang=am').'">',
+            '<link rel="alternate" hreflang="om" href="'.$e($url.$joiner.'lang=om').'">',
             '<link rel="alternate" hreflang="x-default" href="'.$e($url).'">',
             '<meta name="theme-color" content="'.$e($colour).'">',
         ];
