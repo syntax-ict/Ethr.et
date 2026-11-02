@@ -107,6 +107,12 @@ step "3. Document root — api/public"
 rm -f "$PUBLIC/robots.txt"
 cp -R "$REPO_ROOT/src/out/." "$PUBLIC/"
 
+# Brotli copies at the strongest level, which .htaccess serves in place of the
+# host's own compression. One test file for now: whether the host's nginx
+# passes an already-compressed response through untouched is unmeasured, and
+# if it compressed it again every script would break.
+node "$REPO_ROOT/scripts/shared-hosting/precompress.mjs" "$PUBLIC" br-probe.js
+
 # Laravel's stock public/.htaccess is replaced by the rendered deployment rules.
 php "$REPO_ROOT/scripts/shared-hosting/render-htaccess.php" \
   --target=static-export --admin-host="$ADMIN_HOST" -o "$PUBLIC/.htaccess"

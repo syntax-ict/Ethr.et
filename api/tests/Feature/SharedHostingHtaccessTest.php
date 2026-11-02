@@ -401,6 +401,33 @@ it('makes pages and their payloads revalidate, so a release reaches browsers tha
         ->and($block)->toContain('</FilesMatch>');
 });
 
+it('serves the pre-compressed copy only of the test file, and only to a browser that accepts brotli', function () {
+    // A .br copy served without its encoding is unreadable, and one the host's
+    // nginx compressed again would break every script it covered. So the rule
+    // names br-probe.js alone until the host has been measured (2026-11-02),
+    // and widening it must be a conscious change to this test.
+    $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
+
+    $rule = ethrHtaccessIndexOf($directives, 'RewriteRule ^(br-probe\.js)$ $1.br [L]');
+
+    expect($rule)->not->toBeNull('the pre-compressed copy rule is gone')
+        ->and($directives[$rule - 2])->toBe('RewriteCond %{HTTP:Accept-Encoding} \bbr\b')
+        ->and($directives[$rule - 1])->toBe('RewriteCond %{REQUEST_FILENAME}.br -f')
+        ->and(array_filter($directives, fn (string $line) => str_contains($line, '.br [')))->toHaveCount(1);
+
+    // It must answer before anything that could rewrite the request elsewhere.
+    $frontController = ethrHtaccessIndexOf($directives, 'RewriteRule ^ index.php [L]');
+    expect($rule)->toBeLessThan($frontController);
+
+    $encoding = ethrHtaccessIndexOf($directives, '<Files "br-probe.js.br">');
+    expect($encoding)->not->toBeNull('the copy has no encoding')
+        ->and($directives[$encoding + 1])->toBe('AddEncoding br .br');
+
+    $vary = ethrHtaccessIndexOf($directives, '<FilesMatch "^br-probe\.js(\.br)?$">');
+    expect($vary)->not->toBeNull('the answers do not name Accept-Encoding in Vary')
+        ->and($directives[$vary + 1])->toBe('Header append Vary Accept-Encoding');
+});
+
 it('promotes exactly the sentinel lines and no prose', function () {
     $root = dirname(base_path());
     $template = (string) file_get_contents($root.'/docs/deployment/shared-hosting/.htaccess');
