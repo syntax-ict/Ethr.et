@@ -8,7 +8,8 @@
 // left the dashboard's scripts about 10% larger than this (measured 2026-11-02),
 // and .htaccess serves the .br copy instead where it exists and the browser
 // accepts brotli. It fails rather than skipping when a named path is missing,
-// so a renamed file cannot quietly turn the copy off.
+// so a renamed file cannot quietly turn the copy off. A file the copy would not
+// make smaller gets none, and .htaccess then serves the file itself.
 import { readFileSync, writeFileSync, statSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { brotliCompressSync, constants } from "node:zlib";
@@ -28,6 +29,7 @@ function* files(path) {
 }
 
 let count = 0;
+let written = 0;
 let before = 0;
 let after = 0;
 for (const path of paths) {
@@ -46,15 +48,17 @@ for (const path of paths) {
         [constants.BROTLI_PARAM_SIZE_HINT]: source.length,
       },
     });
-    writeFileSync(`${file}.br`, packed);
     count += 1;
+    if (packed.length >= source.length) continue;
+    writeFileSync(`${file}.br`, packed);
+    written += 1;
     before += source.length;
     after += packed.length;
-    if (count <= 3) console.log(`  ${relative(root, file)}: ${source.length} -> ${packed.length} bytes`);
+    if (written <= 3) console.log(`  ${relative(root, file)}: ${source.length} -> ${packed.length} bytes`);
   }
 }
 if (count === 0) {
   console.error("precompress: no .js or .css file under the named paths");
   process.exit(1);
 }
-console.log(`  ${count} file(s), ${before} -> ${after} bytes brotli`);
+console.log(`  ${written} of ${count} file(s) copied, ${before} -> ${after} bytes brotli`);
