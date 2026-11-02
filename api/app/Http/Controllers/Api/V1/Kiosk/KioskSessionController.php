@@ -160,6 +160,11 @@ class KioskSessionController extends Controller
             'settings' => [
                 'pin_required' => (bool) $settings->kiosk_pin_required,
                 'auto_reset_seconds' => (int) $settings->kiosk_auto_reset_seconds,
+                'sound' => match ($settings->kiosk_sound) {
+                    'off' => 'off',
+                    'voice' => 'voice',
+                    default => 'tones',
+                },
             ],
             // For punching through a power cut or a dropped connection: the
             // key the terminal seals offline punches with, and the grant that

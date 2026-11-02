@@ -25,6 +25,7 @@ import {
 } from "../api";
 import { useIdle } from "../kiosk-lock";
 import { KioskKeypad, PinDots } from "./kiosk-keypad";
+import type { KioskCue } from "../kiosk-sound";
 
 /** A self-service screen left alone this long signs the person out. */
 export const SELF_SERVICE_IDLE_MS = 30_000;
@@ -48,12 +49,15 @@ export function KioskSelfService({
   timeZone,
   calendar,
   clock,
+  onCue,
   onClose,
 }: {
   token: string;
   timeZone: string;
   calendar: CalendarSystem;
   clock: ClockSystem;
+  /** The kiosk's sound for a result; the kiosk page owns the setting. */
+  onCue?: (cue: KioskCue) => void;
   onClose: () => void;
 }) {
   const { t, locale } = useT();
@@ -108,6 +112,11 @@ export function KioskSelfService({
     } catch (err) {
       setPin("");
       setError(apiErrorDetail(err) ?? t("kiosk_page.self_service_failed"));
+      onCue?.(
+        (err as { response?: { status?: number } })?.response?.status === 429
+          ? "locked"
+          : "error",
+      );
     } finally {
       setBusy(false);
     }
@@ -117,6 +126,7 @@ export function KioskSelfService({
     if (!pass.current) return close();
     if (pins.next !== pins.confirm) {
       setError(t("kiosk_page.pin_mismatch"));
+      onCue?.("error");
       return;
     }
     setBusy(true);
@@ -130,10 +140,16 @@ export function KioskSelfService({
       setPins({ current: "", next: "", confirm: "" });
       setNotice(t("kiosk_page.pin_changed"));
       setStep("summary");
+      onCue?.("saved");
     } catch (err) {
       setPins({ current: "", next: "", confirm: "" });
       setPinField("current");
       setError(apiErrorDetail(err) ?? t("kiosk_page.self_service_failed"));
+      onCue?.(
+        (err as { response?: { status?: number } })?.response?.status === 429
+          ? "locked"
+          : "error",
+      );
     } finally {
       setBusy(false);
     }

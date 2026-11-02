@@ -43260,6 +43260,14 @@
                     "kiosk_auto_reset_seconds": {
                         "type": "integer"
                     },
+                    "kiosk_sound": {
+                        "type": "string",
+                        "enum": [
+                            "off",
+                            "voice",
+                            "tones"
+                        ]
+                    },
                     "ot_daily_cap_minutes": {
                         "type": "integer"
                     },
@@ -43344,6 +43352,7 @@
                     "mobile_accuracy_threshold_meters",
                     "offline_sync_enabled",
                     "kiosk_auto_reset_seconds",
+                    "kiosk_sound",
                     "ot_daily_cap_minutes",
                     "overtime_requires_approval",
                     "lateness_deduction_enabled",
@@ -52904,6 +52913,14 @@
                         "type": "integer",
                         "minimum": 2,
                         "maximum": 30
+                    },
+                    "kiosk_sound": {
+                        "type": "string",
+                        "enum": [
+                            "off",
+                            "tones",
+                            "voice"
+                        ]
                     },
                     "ot_daily_cap_minutes": {
                         "type": "integer",

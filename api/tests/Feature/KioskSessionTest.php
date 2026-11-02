@@ -148,6 +148,30 @@ test('kiosk authenticate succeeds with valid token', function () {
         ->assertJsonPath('tenant.subdomain', $tenant->subdomain);
 });
 
+test('kiosk authenticate tells the terminal what sound to make', function () {
+    $tenant = createTenant();
+    $session = KioskSession::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id,
+        'status' => 'active',
+    ]);
+    $url = "http://{$tenant->subdomain}.ethr.test/api/v1/kiosk/authenticate";
+
+    test()->postJson($url, ['token' => $session->token])
+        ->assertOk()
+        ->assertJsonPath('settings.sound', 'tones');
+
+    AttendanceSetting::create([
+        ...AttendanceSetting::defaults(),
+        'tenant_id' => $tenant->id,
+        'kiosk_sound' => 'off',
+    ]);
+
+    test()->postJson($url, ['token' => $session->token])
+        ->assertOk()
+        ->assertJsonPath('settings.sound', 'off');
+});
+
 test('kiosk authenticate rejects invalid token', function () {
     $tenant = createTenant();
 
