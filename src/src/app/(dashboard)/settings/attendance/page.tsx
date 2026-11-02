@@ -568,6 +568,41 @@ export default function AttendanceSettingsPage() {
                     {t("attendance.settings_page.auto_reset_desc")}
                   </p>
                 </div>
+                {/* Stacked like the delay above: this card is a narrow
+                    column, and a row squeezed the description to a word a
+                    line. */}
+                <div>
+                  <Label htmlFor="kiosk-sound" className="text-sm">
+                    {t("attendance.settings_page.kiosk_sound")}
+                  </Label>
+                  <Select
+                    value={form.kiosk_sound}
+                    onValueChange={(v) =>
+                      setField(
+                        "kiosk_sound",
+                        v as AttendanceSettings["kiosk_sound"],
+                      )
+                    }
+                  >
+                    <SelectTrigger id="kiosk-sound" className="mt-1 w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="off">
+                        {t("attendance.settings_page.kiosk_sound_off")}
+                      </SelectItem>
+                      <SelectItem value="tones">
+                        {t("attendance.settings_page.kiosk_sound_tones")}
+                      </SelectItem>
+                      <SelectItem value="voice">
+                        {t("attendance.settings_page.kiosk_sound_voice")}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("attendance.settings_page.kiosk_sound_desc")}
+                  </p>
+                </div>
               </CardContent>
             </Card>
 

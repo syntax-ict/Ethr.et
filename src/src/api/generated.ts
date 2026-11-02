@@ -8814,6 +8814,8 @@ export interface components {
             mobile_accuracy_threshold_meters: number;
             offline_sync_enabled: boolean;
             kiosk_auto_reset_seconds: number;
+            /** @enum {string} */
+            kiosk_sound: "off" | "voice" | "tones";
             ot_daily_cap_minutes: number;
             overtime_requires_approval: boolean;
             lateness_deduction_enabled: boolean;
@@ -11880,6 +11882,8 @@ export interface components {
             mobile_accuracy_threshold_meters?: number;
             offline_sync_enabled?: boolean;
             kiosk_auto_reset_seconds?: number;
+            /** @enum {string} */
+            kiosk_sound?: "off" | "tones" | "voice";
             ot_daily_cap_minutes?: number;
             overtime_requires_approval?: boolean;
             lateness_deduction_enabled?: boolean;
@@ -13431,6 +13435,8 @@ export interface operations {
                         settings: {
                             pin_required: boolean;
                             auto_reset_seconds: number;
+                            /** @enum {string} */
+                            sound: "off" | "voice" | "tones";
                         };
                         /**
                          * @description For punching through a power cut or a dropped connection: the

@@ -77,6 +77,21 @@ test('update rejects out of range confidence threshold', function () {
     ])->assertUnprocessable();
 });
 
+test('the kiosk sound is tones until changed, and only off, tones or voice', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $url = "http://{$tenant->subdomain}.ethr.test/api/v1/attendance/settings";
+
+    test()->getJson($url)->assertOk()->assertJsonPath('kiosk_sound', 'tones');
+
+    test()->putJson($url, ['kiosk_sound' => 'voice'])
+        ->assertOk()
+        ->assertJsonPath('kiosk_sound', 'voice');
+
+    test()->putJson($url, ['kiosk_sound' => 'loud'])->assertUnprocessable();
+    expect(AttendanceSetting::first()->kiosk_sound)->toBe('voice');
+});
+
 test('update rejects invalid enabled methods', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
