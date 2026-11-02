@@ -30,6 +30,10 @@ class ProvisionTenant
                 'timezone' => 'Africa/Addis_Ababa',
                 'locale' => 'en',
                 'calendar' => 'ethiopian',
+                // Leave runs Meskerem to Pagume for a new organisation. One
+                // that existed before the setting stays on the Gregorian year
+                // its balances are numbered in (LeaveYear).
+                'leave_year' => 'ethiopian',
             ]),
         ]);
 

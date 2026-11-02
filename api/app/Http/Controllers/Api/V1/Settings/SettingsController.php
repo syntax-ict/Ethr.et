@@ -20,6 +20,7 @@ use App\Models\SsoSetting;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
+use App\Services\Leave\LeaveYear;
 use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\StatutorySchedules;
 use App\Services\TenantAddressService;
@@ -54,6 +55,7 @@ class SettingsController extends Controller
         // organisation's own setting where it has one, else the platform's for
         // its organisation type (StatutoryRules).
         $rules = app(StatutoryRules::class)->for($tenant, Carbon::today());
+        $leaveYear = LeaveYear::forTenant($tenant);
 
         return response()->json([
             'organization' => [
@@ -87,6 +89,8 @@ class SettingsController extends Controller
             // place.
             'leave' => [
                 'working_days' => $this->workingDays($tenant),
+                'leave_year' => $leaveYear->kind,
+                'leave_year_changeable' => LeaveYear::canChange($tenant->id),
             ],
             'payroll' => [
                 'pay_period' => (string) ($tenant->settings['pay_period'] ?? 'monthly'),

@@ -14,6 +14,7 @@ use App\Models\OnboardingProgress;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\User;
+use App\Services\Leave\LeaveYear;
 use Carbon\Carbon;
 
 final class EmployeeDashboardService
@@ -96,7 +97,7 @@ final class EmployeeDashboardService
 
         return LeaveBalance::query()
             ->where('employee_id', $employee->id)
-            ->where('year', Carbon::now()->year)
+            ->where('year', LeaveYear::forTenantId($employee->tenant_id)->current())
             ->whereHas('leaveType', fn ($q) => $q->where('kind', 'leave'))
             ->with('leaveType')
             ->orderByDesc('entitled_days')
