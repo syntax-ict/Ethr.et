@@ -4028,6 +4028,33 @@ PW_CHANNEL=chrome scripts/lighthouse-authenticated.sh
 `PW_CHANNEL=chrome` uses the installed Chrome where Playwright's own browser is not
 downloaded. Phase 5 compares against this table; budgets are added only then.
 
+### The host compresses less than a build could — measured 2026-11-02
+
+Live release `f0bb8f25f`. A local build of the same commit has byte-identical
+chunk names, and the signed-in dashboard loads the same 33 scripts locally and
+on syntaxtech.ethr.et. Locally, at brotli quality 11, they weigh 475 KB; as the
+host sends them they weigh 519 KB. The host's nginx compresses as it sends: a
+compressed answer arrives chunked with a weak ETag, while one that is not
+compressed carries a Content-Length and a strong one. Its level leaves a file
+about 10% larger (`2brrxhmqtcz0t.js`: 82,051 bytes at quality 11, 91,866
+served). Every local brotli figure in this document therefore understates the
+live download by about that much.
+
+Two side facts from the same headers: the compressed answer carries no
+`Vary: Accept-Encoding`, and a client that does not accept brotli gets no
+compression at all (gzip is not applied; the same file is 392,166 bytes).
+
+Apache does serve these files: they carry the `Cache-Control`, `Expires` and
+security headers our `.htaccess` sets. So the release can ship a quality-11
+copy and `.htaccess` can send it. Whether nginx passes an already-encoded
+answer through untouched is the one thing that cannot be measured anywhere but
+on the host, and if it encoded it again every script would break. Hence one
+test file first, `br-probe.js` (`scripts/shared-hosting/precompress.mjs`, and
+the "Pre-compressed copies" rules). Under the local Apache, with its own
+brotli filter on, the copy went out byte for byte with `Content-Encoding: br`
+and `Vary`, decoded to the original, and a client without brotli got the plain
+file.
+
 ---
 
 ## 25. History moved out of the root `CLAUDE.md` — **2026-10-28**
