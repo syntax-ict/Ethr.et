@@ -85,6 +85,18 @@
     RewriteCond %{REQUEST_URI} ^/\.well-known/acme-challenge/ [NC]
     RewriteRule ^ - [L]
 
+    # ── Pre-compressed copies ───────────────────────────────────────────────
+    # The release writes NAME.br beside a file at the strongest brotli level
+    # (scripts/shared-hosting/precompress.mjs). A browser that accepts brotli
+    # gets that copy; the host's nginx otherwise compresses as it sends, about
+    # 10% larger (2026-11-02). Only the test file br-probe.js until the host is
+    # shown to pass an already-compressed response through untouched: if nginx
+    # compressed it again, every script would break. The type and the encoding
+    # are set under "Pre-compressed copies" below.
+    RewriteCond %{HTTP:Accept-Encoding} \bbr\b
+    RewriteCond %{REQUEST_FILENAME}.br -f
+    RewriteRule ^(br-probe\.js)$ $1.br [L]
+
     # ── API and Sanctum routes → Laravel's front controller ─────────────────
     # Laravel's own public/.htaccess pattern: rewrite to index.php UNLESS the
     # request already matches a real file or directory. Since api/public/*
@@ -613,6 +625,23 @@
     <FilesMatch "\.(html|txt|json)$">
         ExpiresDefault "access"
         Header set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>
+
+# ── Pre-compressed copies ─────────────────────────────────────────────────
+# mod_mime reads both extensions of br-probe.js.br: .js gives the type and .br
+# the encoding. An encoding already set is what keeps a compressor from
+# encoding the copy a second time. Both answers to /br-probe.js name
+# Accept-Encoding in Vary, so a cache never hands the brotli copy to a browser
+# that did not ask for it.
+<IfModule mod_mime.c>
+    <Files "br-probe.js.br">
+        AddEncoding br .br
+    </Files>
+</IfModule>
+<IfModule mod_headers.c>
+    <FilesMatch "^br-probe\.js(\.br)?$">
+        Header append Vary Accept-Encoding
     </FilesMatch>
 </IfModule>
 
