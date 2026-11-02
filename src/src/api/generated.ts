@@ -13331,6 +13331,11 @@ export interface operations {
                             auto_reset_seconds: number;
                             /** @enum {string} */
                             sound: "off" | "voice" | "tones";
+                            code_format: {
+                                prefix: string;
+                                width: number;
+                                suffix: string;
+                            };
                         };
                         /**
                          * @description For punching through a power cut or a dropped connection: the
@@ -13547,6 +13552,11 @@ export interface operations {
                                 status: "error";
                                 /** @constant */
                                 detail: "Employee not found with the given code.";
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
+                                detail: "This number matches more than one person. Type your full code with the ABC key.";
                             } | {
                                 /** @constant */
                                 status: "error";

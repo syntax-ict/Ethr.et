@@ -9,11 +9,12 @@ use App\Exceptions\AttendanceRefused;
 use App\Exceptions\NoOpenCheckIn;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\KioskSyncRequest;
-use App\Models\Employee;
 use App\Models\KioskSession;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\AttendancePolicy;
+use App\Services\CurrentTenant;
+use App\Services\Kiosk\KioskEmployeeCode;
 use App\Services\Kiosk\KioskOfflineSeal;
 use App\Services\Kiosk\KioskPinGuard;
 use Carbon\Carbon;
@@ -37,6 +38,7 @@ class KioskSyncController extends Controller
         private readonly AttendanceEngine $engine,
         private readonly KioskOfflineSeal $seal,
         private readonly KioskPinGuard $pins,
+        private readonly KioskEmployeeCode $codes,
     ) {}
 
     public function __invoke(KioskSyncRequest $request): JsonResponse
@@ -92,7 +94,11 @@ class KioskSyncController extends Controller
             ])];
         }
 
-        $employee = Employee::where('employee_code', $punch['c'])->first();
+        $match = $this->codes->find(app(CurrentTenant::class)->get(), (string) $punch['c']);
+        if ($match->ambiguous) {
+            return ['status' => 'error', 'detail' => __('kiosk.code_ambiguous')];
+        }
+        $employee = $match->employee;
         if (! $employee) {
             return ['status' => 'error', 'detail' => __('attendance.employee_not_found')];
         }
