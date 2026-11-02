@@ -125,6 +125,35 @@ final class EmployeeNumbering
         }
     }
 
+    /**
+     * The full code a bare number stands for in this organisation's format:
+     * `12` and `0012` are both `EMP-0012` under `EMP-{SEQ:4}`. Null for
+     * anything but one to eight digits, or for zero.
+     */
+    public function fromNumber(Tenant $tenant, string $typed): ?string
+    {
+        if (preg_match('/^\d{1,8}$/', $typed) !== 1 || (int) $typed === 0) {
+            return null;
+        }
+
+        [$prefix, $width, $suffix] = $this->parts($this->format($tenant));
+
+        return $prefix.str_pad((string) (int) $typed, $width, '0', STR_PAD_LEFT).$suffix;
+    }
+
+    /**
+     * The format's fixed parts, for a screen that shows the whole code while
+     * only the number is typed.
+     *
+     * @return array{prefix: string, width: int, suffix: string}
+     */
+    public function shape(Tenant $tenant): array
+    {
+        [$prefix, $width, $suffix] = $this->parts($this->format($tenant));
+
+        return ['prefix' => $prefix, 'width' => $width, 'suffix' => $suffix];
+    }
+
     /** @return array{0: string, 1: int, 2: string} */
     private function parts(string $format): array
     {

@@ -46,6 +46,8 @@ import {
   useKioskSound,
   type KioskSoundMode,
 } from "@/features/kiosk/kiosk-sound";
+import { type KioskCodeFormat } from "@/features/kiosk/kiosk-code";
+import { KioskCodeHint } from "@/features/kiosk/components/kiosk-code-hint";
 import {
   cacheKioskConfig,
   cachedKioskConfig,
@@ -74,6 +76,8 @@ interface KioskConfig {
   autoResetSeconds: number;
   /** What the kiosk says on each result; absent from older caches. */
   sound?: KioskSoundMode;
+  /** The organisation's employee number format; absent from older caches. */
+  codeFormat?: KioskCodeFormat | null;
   /** For punching through a power cut or outage; absent from older caches. */
   offline?: KioskOfflineConfig | null;
 }
@@ -108,6 +112,11 @@ export default function KioskPage() {
   const [code, setCode] = useState("");
   const [pin, setPin] = useState("");
   const [showPin, setShowPin] = useState(false);
+  // The tablet's own keyboard, for a code outside the organisation's number
+  // format. Closed by default, so a tap on the code field does not throw a
+  // keyboard over the pad.
+  const [letters, setLetters] = useState(false);
+  const codeInputRef = useRef<HTMLInputElement | null>(null);
   // `auto` unless the person picks: a shared terminal cannot know, before
   // the code is typed, whether this person is arriving or leaving, and the
   // server does (KioskCheckInRequest). Starting on Check in made a leaver
@@ -164,6 +173,7 @@ export default function KioskPage() {
         () => {
           setMode("idle");
           setCode("");
+          setLetters(false);
           setPin("");
           setShowPin(false);
           setMessage("");
@@ -195,6 +205,7 @@ export default function KioskPage() {
         pinRequired: data.settings.pin_required,
         autoResetSeconds: data.settings.auto_reset_seconds,
         sound: data.settings.sound,
+        codeFormat: data.settings.code_format,
         offline: data.offline,
       };
       setConfig(cfg);
@@ -402,11 +413,13 @@ export default function KioskPage() {
     INPUT_IDLE_MS,
     () => {
       setCode("");
+      setLetters(false);
       setPin("");
       setShowPin(false);
       setType("auto");
     },
-    punchScreenIdle && (code !== "" || pin !== "" || type !== "auto"),
+    punchScreenIdle &&
+      (code !== "" || pin !== "" || type !== "auto" || letters),
   );
   useIdle(SLEEP_IDLE_MS, () => setSleeping(true), punchScreenIdle && !sleeping);
 
@@ -649,6 +662,7 @@ export default function KioskPage() {
             timeZone={DEFAULT_TIMEZONE}
             calendar={calendar}
             clock={clock}
+            codeFormat={config.codeFormat}
             onCue={play}
             onClose={() => setScreen("kiosk")}
           />
@@ -741,13 +755,14 @@ export default function KioskPage() {
                     <PinDots value={pin} />
                   ) : (
                     // A text field, not eight digit boxes: employee codes
-                    // are any string up to 30 characters (the demo format
-                    // is EMP-0001), and a digits-only, 8-long keypad left
-                    // most employees unable to clock in (audit N61). The
-                    // pad below still appends digits; letters and dashes
-                    // come from the tablet's own keyboard.
+                    // are any string up to 30 characters (audit N61). The
+                    // pad types the number alone, which stands for the full
+                    // code in the organisation's format (shown below);
+                    // letters come from the tablet's keyboard behind ABC.
                     <Input
+                      ref={codeInputRef}
                       aria-label={t("kiosk_page.employee_code")}
+                      inputMode={letters ? "text" : "none"}
                       value={code}
                       onChange={(e) =>
                         setCode(e.target.value.slice(0, EMPLOYEE_CODE_MAX))
@@ -761,6 +776,19 @@ export default function KioskPage() {
                     />
                   )}
                 </div>
+                {!showPin && (
+                  <KioskCodeHint
+                    code={code}
+                    format={config?.codeFormat}
+                    letters={letters}
+                    onLetters={() => {
+                      setLetters(true);
+                      // After the render that switches the field's keyboard
+                      // on, or the tablet opens the number-less one.
+                      window.setTimeout(() => codeInputRef.current?.focus(), 0);
+                    }}
+                  />
+                )}
                 {showPin && (
                   <button
                     className="mt-2 text-xs text-muted-foreground underline"
