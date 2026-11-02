@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\Employee;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Notifications\Contracts\BulkMail;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
 use App\Support\NotificationTemplates;
@@ -13,7 +14,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class MissingPunchNotification extends Notification
+class MissingPunchNotification extends Notification implements BulkMail
 {
     use Queueable, RespectsNotificationPreferences;
 

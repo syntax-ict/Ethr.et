@@ -111,6 +111,16 @@ export function reasonLabel(t: Translate, code: string): string {
         "operations_page.reason.mail_no_record",
         "No email has been sent or has failed since this was last recorded.",
       );
+    case "mail_held":
+      return t(
+        "operations_page.reason.mail_held",
+        "Some emails were held back today because the daily send cap is nearly used. Their in-app notices were delivered. Sign-in and password emails are never held.",
+      );
+    case "mail_cap_near":
+      return t(
+        "operations_page.reason.mail_cap_near",
+        "More than 80% of today's email cap is used. Bulk emails stop first, and sign-in emails keep the rest.",
+      );
     case "mail_failing":
       return t(
         "operations_page.reason.mail_failing",

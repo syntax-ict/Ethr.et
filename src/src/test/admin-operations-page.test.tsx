@@ -75,6 +75,9 @@ function status(overrides: Partial<OperationsStatus> = {}): OperationsStatus {
         last_sent_at: NOW,
         last_failed_at: null,
         tls: "pinned",
+        sent_today: 12,
+        held_today: 0,
+        daily_cap: 500,
       },
     },
     release: {
@@ -182,6 +185,28 @@ describe("Operations page", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(/the scheduler has never run/i),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the day's email against the cap, and why some was held", async () => {
+    const healthy = status();
+    respondWith(
+      status({
+        status: "warning",
+        delivery: {
+          ...healthy.delivery,
+          state: "warning",
+          reasons: ["mail_held"],
+          mail: { ...healthy.delivery.mail, sent_today: 300, held_today: 4 },
+        },
+      }),
+    );
+
+    renderWithClient(<OperationsPage />);
+
+    expect(await screen.findByText("300 of 500 a day")).toBeInTheDocument();
+    expect(
+      screen.getByText(/some emails were held back today/i),
     ).toBeInTheDocument();
   });
 

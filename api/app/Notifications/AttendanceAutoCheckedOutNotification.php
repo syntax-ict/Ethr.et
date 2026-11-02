@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\AttendanceRecord;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Notifications\Contracts\BulkMail;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
@@ -16,7 +17,7 @@ use Illuminate\Notifications\Notification;
  * Tells an employee their open check-in was closed for them at the end of
  * their shift, and how to correct it if they actually left at another time.
  */
-class AttendanceAutoCheckedOutNotification extends Notification
+class AttendanceAutoCheckedOutNotification extends Notification implements BulkMail
 {
     use Queueable, RespectsNotificationPreferences;
 

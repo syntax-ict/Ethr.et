@@ -30299,6 +30299,9 @@ export interface operations {
                                 last_sent_at: string | null;
                                 last_failed_at: string | null;
                                 tls: string | null;
+                                sent_today: number;
+                                held_today: number;
+                                daily_cap: number;
                             };
                         };
                         release: {
