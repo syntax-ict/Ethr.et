@@ -46,4 +46,20 @@ return [
      * new dependency.
      */
     'off_host_disk' => env('BACKUP_OFF_HOST_DISK', 's3'),
+
+    /*
+     * How many archives to keep on the off-host disk. Depth lives there, not
+     * on the 5 GB account: two weeks of nightly copies.
+     */
+    'off_host_keep' => (int) env('BACKUP_OFF_HOST_KEEP', 14),
+
+    /*
+     * The key every off-host archive is encrypted with (BackupCipher), as
+     * `base64:` and 32 bytes; `php artisan ethr:backup:key` makes one. Without
+     * it nothing is copied off the host: an unencrypted copy would hand every
+     * salary and identity document to whoever holds the bucket. Keep a copy of
+     * it away from the host too, or the archives cannot be opened when the
+     * host is the thing that was lost.
+     */
+    'encryption_key' => env('BACKUP_ENCRYPTION_KEY'),
 ];

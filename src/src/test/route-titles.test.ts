@@ -21,6 +21,13 @@ describe("route titles", () => {
         ...(meta.description && !(routeI18nKey(path, "desc") in dict)
           ? [`${path} desc`]
           : []),
+        ...(meta.own && !(routeI18nKey(`${path}/own`, "label") in dict)
+          ? [`${path} own label`]
+          : []),
+        ...(meta.own?.description &&
+        !(routeI18nKey(`${path}/own`, "desc") in dict)
+          ? [`${path} own desc`]
+          : []),
       ]);
       expect(missing).toEqual([]);
     },

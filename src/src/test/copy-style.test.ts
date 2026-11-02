@@ -26,6 +26,15 @@ describe.each([
     );
   });
 
+  // A spaced hyphen before a word is a long dash in disguise. A hyphen named
+  // as a character ("letters, digits, - _ . or /") is followed by another
+  // symbol and stays.
+  it("has no spaced hyphen standing in for a dash", () => {
+    expect(
+      entries.filter(([, v]) => /\s-\s(?=\p{L})/u.test(v)).map(([k]) => k),
+    ).toEqual([]);
+  });
+
   it("has no emoji", () => {
     expect(entries.filter(([, v]) => EMOJI.test(v)).map(([k]) => k)).toEqual(
       [],

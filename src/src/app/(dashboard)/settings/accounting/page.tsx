@@ -36,6 +36,7 @@ import { useAllPayrollRuns } from "@/features/payroll/api";
 import { saveCsv } from "@/lib/utils/csv-export";
 import { formatETB } from "@/lib/utils/currency";
 import { useT } from "@/lib/i18n/useT";
+import { statusLabelKeyOf } from "@/lib/status/registry";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { localizedPeriodLabel } from "@/lib/calendar/period-label";
 import { toast } from "sonner";
@@ -247,7 +248,7 @@ function JournalExportSection() {
                         calendar,
                         locale,
                       )}{" "}
-                      &middot; {run.status}
+                      &middot; {t(statusLabelKeyOf(run.status), run.status)}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -43008,13 +43008,10 @@
                     },
                     "punch": {
                         "type": "string",
-                        "enum": [
-                            "check_in",
-                            "check_out"
-                        ]
+                        "const": "check_in"
                     },
                     "employee_name": {
-                        "type": "string"
+                        "type": "null"
                     }
                 },
                 "required": [

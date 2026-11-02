@@ -34,8 +34,9 @@ beforeEach(() => {
   path.value = "/employees/01M496SQ1JPXTTW187E0Y0TTZW";
 });
 
-// The title bar reads the person's permissions to name the sidebar section
-// that holds the page, and those come from a query.
+// The title bar and the tab title read the person's permissions (to name the
+// sidebar section, and to tell everyone's records from their own), and those
+// come from a query.
 function withQueries({ children }: { children: ReactNode }) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -73,7 +74,7 @@ describe("detail pages are translated like the section they belong to", () => {
 
   it("titles the browser tab of a payroll run in Amharic", async () => {
     path.value = "/payroll/01M496VPDBNR3N3SW52E5SK3C7";
-    render(<TitleProbe />);
+    render(<TitleProbe />, { wrapper: withQueries });
 
     await waitFor(() =>
       expect(document.title.startsWith(dict["route.payroll.label"])).toBe(true),
@@ -85,7 +86,7 @@ describe("detail pages are translated like the section they belong to", () => {
   // (production, 2026-10-28).
   it("puts its title back when something later replaces it", async () => {
     path.value = "/admin/tenants/01M4NNB7QQY1CS1MR5S1DWWWCH";
-    render(<TitleProbe />);
+    render(<TitleProbe />, { wrapper: withQueries });
 
     const expected = dict["route.admin.tenants.label"];
     await waitFor(() => expect(document.title.startsWith(expected)).toBe(true));

@@ -54,6 +54,8 @@ export function areaLabel(t: Translate, area: OperationsArea): string {
       return t("operations_page.area.failed_jobs", "Failed jobs");
     case "services":
       return t("operations_page.area.services", "Services");
+    case "backups":
+      return t("operations_page.area.backups", "Backups");
   }
 }
 
@@ -173,6 +175,56 @@ export function reasonLabel(t: Translate, code: string): string {
       return t(
         "operations_page.reason.service_unhealthy",
         "A service check failed.",
+      );
+    case "backup_never_run":
+      return t(
+        "operations_page.reason.backup_never_run",
+        "No backup has been taken on this host.",
+      );
+    case "backup_stale":
+      return t(
+        "operations_page.reason.backup_stale",
+        "The last backup is more than a day old, so the nightly backup is not running.",
+      );
+    case "backup_failing":
+      return t(
+        "operations_page.reason.backup_failing",
+        "The last backup failed. Run ethr:backup and read its error.",
+      );
+    case "off_host_disk_missing":
+      return t(
+        "operations_page.reason.off_host_disk_missing",
+        "The storage named in BACKUP_OFF_HOST_DISK does not exist.",
+      );
+    case "off_host_not_configured":
+      return t(
+        "operations_page.reason.off_host_not_configured",
+        "Backups are kept only on this host. Set up off-host storage on the Backups page so a copy survives losing the host.",
+      );
+    case "off_host_key_missing":
+      return t(
+        "operations_page.reason.off_host_key_missing",
+        "BACKUP_ENCRYPTION_KEY is not set, so no copy leaves this host. Make one with ethr:backup:key.",
+      );
+    case "off_host_copy_missing":
+      return t(
+        "operations_page.reason.off_host_copy_missing",
+        "Off-host storage is set up and has no copy yet. The next nightly backup sends one.",
+      );
+    case "off_host_stale":
+      return t(
+        "operations_page.reason.off_host_stale",
+        "The last off-host copy is more than a day old.",
+      );
+    case "off_host_switched_off":
+      return t(
+        "operations_page.reason.off_host_switched_off",
+        "Off-host storage is saved on the Backups page but switched off, so copies stay on this host.",
+      );
+    case "off_host_failing":
+      return t(
+        "operations_page.reason.off_host_failing",
+        "The last copy to off-host storage failed. Check the storage settings and credentials.",
       );
     default:
       return code;

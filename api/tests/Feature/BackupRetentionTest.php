@@ -44,6 +44,7 @@ test('retention comes from config when --keep is omitted', function () {
 
     $service = Mockery::mock(BackupService::class);
     $service->shouldReceive('create')->once()->andReturn(backupResult());
+    $service->shouldReceive('offHostBlocker')->andReturn('off_host_not_configured');
     // The assertion. Against the old signature default this received 7.
     $service->shouldReceive('prune')->once()->with(3)->andReturn([]);
 
@@ -57,6 +58,7 @@ test('an explicit --keep still overrides the config', function () {
 
     $service = Mockery::mock(BackupService::class);
     $service->shouldReceive('create')->once()->andReturn(backupResult());
+    $service->shouldReceive('offHostBlocker')->andReturn('off_host_not_configured');
     $service->shouldReceive('prune')->once()->with(1)->andReturn([]);
 
     app()->instance(BackupService::class, $service);

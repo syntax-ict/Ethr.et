@@ -33,7 +33,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { useT } from "@/lib/i18n/useT";
 import { useSettingsLanding } from "@/components/layouts/settings-nav";
-import { getRouteMeta, routeI18nKey } from "@/lib/route-meta";
+import { getRouteMeta, routeText } from "@/lib/route-meta";
 import { isoToday, type NavContext } from "@/lib/navigation/registry";
 import { intentScore } from "@/lib/navigation/intent-match";
 import {
@@ -152,12 +152,10 @@ export function CommandPalette() {
         // The page's own one-line description, as the breadcrumb bar shows it.
         const path = row.href.split("?")[0];
         const meta = getRouteMeta(path);
-        return meta?.description !== undefined
-          ? {
-              ...row,
-              description: t(routeI18nKey(path, "desc"), meta.description),
-            }
-          : row;
+        const description = meta
+          ? routeText(path, meta, ctx.can, t).description
+          : undefined;
+        return description !== undefined ? { ...row, description } : row;
       }),
     [ctx, t],
   );
