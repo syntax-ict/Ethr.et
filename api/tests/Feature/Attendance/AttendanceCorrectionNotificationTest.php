@@ -193,7 +193,7 @@ it('tells the employee their correction was rejected, with the same notification
             $payload = $n->toArray($team['staffUser']);
 
             return $payload['action'] === 'rejected'
-                && $payload['message'] === 'Your attendance correction for 2026-10-05 was rejected.';
+                && $payload['message'] === 'Your attendance correction for Meskerem 25, 2019 was rejected.';
         }
     );
 });
@@ -224,9 +224,12 @@ it('names the corrected day in the outcome message', function () {
         'correction_id' => $correction->public_id,
         'date' => '2026-10-05',
         'action' => 'approved',
-        'message' => 'Your attendance correction for 2026-10-05 was approved.',
+        // Written in the reader's calendar (Ethiopian, the organisation's
+        // default); the date itself is stored as a value.
+        'message' => 'Your attendance correction for Meskerem 25, 2019 was approved.',
         'message_key' => 'notification.inapp.correction_approved',
         'message_params' => ['date' => '2026-10-05'],
+        'message_dates' => ['date' => 'date'],
         'url' => '/attendance/corrections',
     ]);
 });

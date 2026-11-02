@@ -8,6 +8,7 @@ use App\Models\AttendanceRecord;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
+use App\Support\ReaderDates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -51,7 +52,7 @@ class AttendancePunchRejectedNotification extends Notification implements Should
             ...NotificationMessage::make('attendance.punch_rejected.message', [
                 'date' => $this->record->date?->format('Y-m-d'),
                 'reason' => $this->reason,
-            ]),
+            ], dates: ['date' => 'date'], reader: ReaderDates::for($notifiable)),
             'url' => '/attendance/corrections',
         ];
     }
@@ -61,7 +62,7 @@ class AttendancePunchRejectedNotification extends Notification implements Should
         return (new MailMessage)
             ->subject(__('attendance.punch_rejected.subject'))
             ->line(__('attendance.punch_rejected.message', [
-                'date' => $this->record->date?->format('Y-m-d'),
+                'date' => ReaderDates::for($notifiable)->date($this->record->date?->format('Y-m-d')),
                 'reason' => $this->reason,
             ]))
             ->line(__('attendance.punch_rejected.correct_it'))

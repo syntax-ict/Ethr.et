@@ -13,13 +13,13 @@ use App\Notifications\ScheduledReportNotification;
 use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
 use App\Support\Csv;
+use App\Support\ScheduleSlot;
 use App\Traits\SendsNotifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -90,7 +90,7 @@ class RunScheduledReportsJob implements ShouldQueue
                 $schedule->forceFill([
                     'last_run_at' => now(),
                     'last_error' => Str::limit($e->getMessage(), self::MAX_ERROR, ''),
-                    'next_run_at' => $this->nextRun($schedule->frequency),
+                    'next_run_at' => ScheduleSlot::forTenantId($schedule->frequency, $schedule->tenant_id),
                 ])->save();
 
                 $this->notifyRecipientsOfFailure($schedule);
@@ -164,7 +164,7 @@ class RunScheduledReportsJob implements ShouldQueue
             // schedule, not necessarily user accounts in this tenant.
             $this->notify(
                 Notification::route('mail', $email),
-                new ScheduledReportNotification($saved->name, $rowCount, $csv, $filename),
+                (new ScheduledReportNotification($saved->name, $rowCount, $csv, $filename))->locale(self::organisationLocale($schedule->tenant_id)),
             );
         }
 
@@ -174,7 +174,7 @@ class RunScheduledReportsJob implements ShouldQueue
         $schedule->forceFill([
             'last_run_at' => now(),
             'last_error' => null,
-            'next_run_at' => $this->nextRun($schedule->frequency),
+            'next_run_at' => ScheduleSlot::forTenantId($schedule->frequency, $schedule->tenant_id),
         ])->save();
 
         Log::info('Scheduled report delivered', [
@@ -233,7 +233,7 @@ class RunScheduledReportsJob implements ShouldQueue
 
             $this->notify(
                 Notification::route('mail', $email),
-                new ScheduledReportFailedNotification($name),
+                (new ScheduledReportFailedNotification($name))->locale(self::organisationLocale($schedule->tenant_id)),
             );
         }
     }
@@ -260,13 +260,15 @@ class RunScheduledReportsJob implements ShouldQueue
         ]);
     }
 
-    private function nextRun(?string $frequency): Carbon
+    /**
+     * The language a free-text address is written to: the organisation's.
+     * An anonymous recipient has no preference of its own, so these went out
+     * in APP_LOCALE, English, to an Amharic organisation.
+     */
+    private static function organisationLocale(int|string|null $tenantId): string
     {
-        return match ($frequency) {
-            'daily' => now()->addDay(),
-            'weekly' => now()->addWeek(),
-            'monthly' => now()->addMonth(),
-            default => now()->addDay(),
-        };
+        $locale = $tenantId === null ? null : Tenant::query()->whereKey($tenantId)->value('default_locale');
+
+        return in_array($locale, ['en', 'am'], true) ? $locale : 'en';
     }
 }

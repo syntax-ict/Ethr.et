@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Notifications\Contracts\BulkMail;
 use App\Services\Analytics\AlertEvaluator;
 use App\Support\FrontendUrl;
+use App\Support\ReaderDates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -61,7 +62,7 @@ class DashboardDigestNotification extends Notification implements BulkMail
             ->subject(__('dashboard.digest_subject', ['frequency' => $this->frequency]))
             ->line(__('dashboard.digest_greeting', [
                 'frequency' => $this->frequency,
-                'date' => now()->toFormattedDateString(),
+                'date' => ReaderDates::for($notifiable)->date(now()),
             ]));
 
         if ($this->branchName !== null) {
