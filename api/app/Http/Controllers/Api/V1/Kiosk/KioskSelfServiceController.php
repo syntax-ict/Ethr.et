@@ -15,11 +15,11 @@ use App\Http\Resources\KioskLeaveBalanceResource;
 use App\Http\Resources\KioskPersonResource;
 use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
-use App\Models\Employee;
 use App\Models\KioskSession;
 use App\Models\LeaveBalance;
 use App\Services\CurrentTenant;
 use App\Services\Features\FeatureGate;
+use App\Services\Kiosk\KioskEmployeeCode;
 use App\Services\Kiosk\KioskPass;
 use App\Services\Kiosk\KioskPinGuard;
 use App\Support\FeatureUnavailable;
@@ -49,6 +49,7 @@ class KioskSelfServiceController extends Controller
     public function __construct(
         private readonly KioskPinGuard $pins,
         private readonly KioskPass $passes,
+        private readonly KioskEmployeeCode $codes,
     ) {}
 
     /**
@@ -67,7 +68,9 @@ class KioskSelfServiceController extends Controller
             return FeatureUnavailable::response(Feature::KioskCheckIn, $decision->reason);
         }
 
-        $employee = Employee::where('employee_code', $request->validated('employee_code'))->first();
+        // A bare number stands for the full code; one that could mean two
+        // people is refused like an unknown one.
+        $employee = $this->codes->find($tenant, (string) $request->validated('employee_code'))->employee;
 
         // One answer for an unknown code and a wrong PIN, so the screen does
         // not confirm which codes exist.

@@ -9,13 +9,13 @@ use App\Enums\Feature;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\KioskCheckInRequest;
 use App\Http\Resources\KioskPunchResource;
-use App\Models\Employee;
 use App\Models\KioskSession;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\AttendancePolicy;
 use App\Services\CurrentTenant;
 use App\Services\Features\FeatureGate;
+use App\Services\Kiosk\KioskEmployeeCode;
 use App\Services\Kiosk\KioskPinGuard;
 use App\Support\FeatureUnavailable;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +25,7 @@ class KioskCheckInController extends Controller
     public function __construct(
         private readonly AttendanceEngine $engine,
         private readonly KioskPinGuard $pins,
+        private readonly KioskEmployeeCode $codes,
     ) {}
 
     public function __invoke(KioskCheckInRequest $request): JsonResponse
@@ -64,7 +65,19 @@ class KioskCheckInController extends Controller
         // Plain tenant-scoped queries from here on. These two lookups used to
         // drop the scope and restate `tenant_id` from the session; the resolver
         // has now made the session's tenant current, so the scope says it.
-        $employee = Employee::where('employee_code', $request->validated('employee_code'))->first();
+        // A bare number stands for the full code (KioskEmployeeCode).
+        $match = $this->codes->find($tenant, (string) $request->validated('employee_code'));
+
+        if ($match->ambiguous) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/validation',
+                'title' => 'Ambiguous code',
+                'status' => 422,
+                'detail' => __('kiosk.code_ambiguous'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        $employee = $match->employee;
 
         if (! $employee) {
             return response()->json([

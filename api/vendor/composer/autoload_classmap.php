@@ -963,6 +963,8 @@ return array(
     'App\\Services\\Import\\EmployeeImporter' => $baseDir . '/app/Services/Import/EmployeeImporter.php',
     'App\\Services\\Invitations\\EmployeeLogins' => $baseDir . '/app/Services/Invitations/EmployeeLogins.php',
     'App\\Services\\Invitations\\InvitationDispatcher' => $baseDir . '/app/Services/Invitations/InvitationDispatcher.php',
+    'App\\Services\\Kiosk\\KioskCodeMatch' => $baseDir . '/app/Services/Kiosk/KioskCodeMatch.php',
+    'App\\Services\\Kiosk\\KioskEmployeeCode' => $baseDir . '/app/Services/Kiosk/KioskEmployeeCode.php',
     'App\\Services\\Kiosk\\KioskOfflineSeal' => $baseDir . '/app/Services/Kiosk/KioskOfflineSeal.php',
     'App\\Services\\Kiosk\\KioskPass' => $baseDir . '/app/Services/Kiosk/KioskPass.php',
     'App\\Services\\Kiosk\\KioskPinGuard' => $baseDir . '/app/Services/Kiosk/KioskPinGuard.php',

@@ -1697,6 +1697,8 @@ class ComposerStaticInit870e919e58412b109fb9aa8379549848
         'App\\Services\\Import\\EmployeeImporter' => __DIR__ . '/../..' . '/app/Services/Import/EmployeeImporter.php',
         'App\\Services\\Invitations\\EmployeeLogins' => __DIR__ . '/../..' . '/app/Services/Invitations/EmployeeLogins.php',
         'App\\Services\\Invitations\\InvitationDispatcher' => __DIR__ . '/../..' . '/app/Services/Invitations/InvitationDispatcher.php',
+        'App\\Services\\Kiosk\\KioskCodeMatch' => __DIR__ . '/../..' . '/app/Services/Kiosk/KioskCodeMatch.php',
+        'App\\Services\\Kiosk\\KioskEmployeeCode' => __DIR__ . '/../..' . '/app/Services/Kiosk/KioskEmployeeCode.php',
         'App\\Services\\Kiosk\\KioskOfflineSeal' => __DIR__ . '/../..' . '/app/Services/Kiosk/KioskOfflineSeal.php',
         'App\\Services\\Kiosk\\KioskPass' => __DIR__ . '/../..' . '/app/Services/Kiosk/KioskPass.php',
         'App\\Services\\Kiosk\\KioskPinGuard' => __DIR__ . '/../..' . '/app/Services/Kiosk/KioskPinGuard.php',
