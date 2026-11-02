@@ -4055,6 +4055,24 @@ brotli filter on, the copy went out byte for byte with `Content-Encoding: br`
 and `Vary`, decoded to the original, and a client without brotli got the plain
 file.
 
+**On the live host, release `15e5de350` (#537), the same day:** `www.ethr.et` and
+`syntaxtech.ethr.et` both answered `/br-probe.js` with brotli accepted as 200,
+`Content-Length: 1264` rather than chunked, a strong ETag,
+`Content-Encoding: br` and `Vary`, a body byte-identical to the build's `.br`
+that decoded to the file. nginx passes an answer that is already encoded
+through untouched. One difference from the local run: the answer without
+brotli carried no `Vary`, though Apache adds one, so something in front drops
+it there. The compressed answer, the one a cache must not hand on, keeps its
+`Vary`.
+
+The rule then covered every script and stylesheet under `_next/static`
+(226 files, 7.6 MB to 1.9 MB, about 19 s in the release build), and the probe
+file was removed. `NAME.js.br` is what Apache matches after the rewrite, so the
+year-long asset rule now reads `(\.br)?$`; without it every copy would have
+lost its caching. Under the local Apache, with the real export, `/login`, `/`
+and `/dashboard` loaded in Chrome with no failed request and no page error,
+the static scripts arriving as the build's copies.
+
 ---
 
 ## 25. History moved out of the root `CLAUDE.md` — **2026-10-28**
