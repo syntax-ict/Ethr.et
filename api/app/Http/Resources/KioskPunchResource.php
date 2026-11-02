@@ -15,7 +15,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * with AttendancePunchResource, which carries the whole employee record; the
  * kiosk did too until 2026-11-01.
  *
- * `punch` is what a terminal that sent `auto` reads to greet the person.
+ * `punch` is what a terminal that sent `auto` reads to greet the person, and
+ * `public_id` is what it sends back when the person says the punch was not
+ * theirs.
  *
  * @mixin AttendanceRecord
  */

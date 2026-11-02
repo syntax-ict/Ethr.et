@@ -1,9 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import KioskPage from "@/app/kiosk/page";
+import { EXIT_HOLD_MS } from "@/features/kiosk/kiosk-lock";
 
 /**
  * The lock screen asks for the admin PIN set when the kiosk was registered.
@@ -45,9 +46,21 @@ afterEach(() => {
   localStorage.removeItem("kiosk_token");
 });
 
+/**
+ * The way out is a three-second hold on the organisation's name (2026-11-01).
+ * A visible Exit button was one tap from the PIN screen for anyone in the queue.
+ */
 async function openLockScreen() {
   render(<KioskPage />);
-  await userEvent.click(await screen.findByRole("button", { name: /^Exit$/ }));
+  const name = await screen.findByRole("button", {
+    name: /hold for 3 seconds to exit/i,
+  });
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  fireEvent.pointerDown(name);
+  await act(async () => {
+    vi.advanceTimersByTime(EXIT_HOLD_MS);
+  });
+  vi.useRealTimers();
   return screen.findByPlaceholderText("Admin PIN");
 }
 
@@ -69,5 +82,24 @@ describe("leaving kiosk mode", () => {
     expect(await screen.findByText("Kiosk Setup")).toBeInTheDocument();
     expect(sentPins).toEqual(["4821"]);
     expect(localStorage.getItem("kiosk_token")).toBeNull();
+  });
+
+  it("ignores a tap on the name: only a full hold opens the PIN screen", async () => {
+    render(<KioskPage />);
+    const name = await screen.findByRole("button", {
+      name: /hold for 3 seconds to exit/i,
+    });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    fireEvent.pointerDown(name);
+    await act(async () => {
+      vi.advanceTimersByTime(EXIT_HOLD_MS - 500);
+    });
+    fireEvent.pointerUp(name);
+    await act(async () => {
+      vi.advanceTimersByTime(EXIT_HOLD_MS);
+    });
+    vi.useRealTimers();
+
+    expect(screen.queryByPlaceholderText("Admin PIN")).not.toBeInTheDocument();
   });
 });
