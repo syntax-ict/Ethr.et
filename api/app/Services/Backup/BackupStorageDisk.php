@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Backup;
 
 use App\Models\BackupStorageSetting;
+use App\Support\OutboundHost;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -20,9 +21,16 @@ class BackupStorageDisk
     /**
      * `throw` is off for the nightly copy, which checks the size that arrived
      * instead, and on for the test, so its message is the storage's own.
+     *
+     * The host is checked again here, not only when it was saved, because
+     * what a name resolves to can change after that.
      */
     public function build(BackupStorageSetting $settings, bool $throw = false): Filesystem
     {
+        if (OutboundHost::isInternal($settings->connectsTo())) {
+            throw new RuntimeException('The storage address points to an internal address.');
+        }
+
         return Storage::build([
             'driver' => 's3',
             'key' => $settings->access_key_id,

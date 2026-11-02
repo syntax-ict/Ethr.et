@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Notifications\Contracts\EssentialMail;
 use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -18,7 +19,7 @@ use Illuminate\Notifications\Notification;
  * anything to send or not — a response that came back slower when the address
  * belonged somewhere would leak what the identical message hides.
  */
-class OrganisationSignInLinksNotification extends Notification implements ShouldQueue
+class OrganisationSignInLinksNotification extends Notification implements EssentialMail, ShouldQueue
 {
     use Queueable;
 

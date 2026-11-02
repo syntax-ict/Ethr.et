@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Notifications\Contracts\EssentialMail;
 use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -17,7 +18,7 @@ use Illuminate\Notifications\Notification;
  * The link points at the same /login/reset page used by the forgot-password
  * flow — completing it flips the account from `invited` to `active`.
  */
-class AccountActivationNotification extends Notification
+class AccountActivationNotification extends Notification implements EssentialMail
 {
     use Queueable;
 

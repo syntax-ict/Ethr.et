@@ -98,7 +98,7 @@
       "measured_at": "2026-09-29",
       "method": "the M2 web probe run of 2026-09-29, rows H6 — see M2.method; output in host-evidence/probe-2026-09-29.json",
       "result": "PORTS HALF ONLY. H6 outbound HTTPS (443) VERIFIED; H6 outbound SMTP submission (587) VERIFIED; H6 outbound SMTP implicit TLS (465) VERIFIED. The mailbox send cap has not been read from the panel, so the gate stays open.",
-      "notes": "Ports 587/465 outbound from the probe, plus the mailbox send cap from the panel. Nothing in the code respects a send cap and NotifyAnnouncementAudienceJob / SendApprovalRemindersJob both fan out, so the cap is a real number to know."
+      "notes": "Ports 587/465 outbound from the probe, plus the mailbox send cap. 2026-11-02: the cap cannot be read in this Plesk panel (its mail settings answer \"Permission denied\"; the domain's mail is Ethio Telecom's mail system), so it has to come from Ethio Telecom support. Since 2026-11-02 the code holds bulk mail under MAIL_DAILY_CAP (default 500) and never holds sign-in mail (#534)."
     },
     "G0-I": {
       "state": "HOST ACTION REQUIRED",
@@ -115,11 +115,11 @@
       "notes": "The probe's Performance section (P1–P6). Related but separate: payroll runs inside the 50-second queue:work window against a budget of 500 employees < 30s measured on DEDICATED hardware, so a slow shared CPU is a product question, not just a number."
     },
     "Quotas": {
-      "state": "HOST ACTION REQUIRED",
-      "measured_at": "",
-      "method": "",
-      "result": "",
-      "notes": "Disk and bandwidth as the panel reports them, AND the deployment's footprint against them. BACKUP_KEEP=2 with prune-after-create means four copies of the document store at peak. A full quota presents as data corruption, not an outage: writes fail, reads succeed, logs fail first, /api/v1/health still returns 200."
+      "state": "PASS",
+      "measured_at": "2026-11-02",
+      "method": "read on the host: the Ethio Telecom hosting portal (myportal.ethiotelecom.et, Product Details, Resource Usage) and Plesk Websites & Domains, both in the owner's signed-in session",
+      "result": "Plan Linux Gold (not Bronze). Portal Resource Usage: Disk Space 643MB / 51200MB, Bandwidth 1184MB / UnlimitedMB (last updated 2026-10-31 12:51). Plesk Websites & Domains: ethr.et 681.3 MB disk, 53.2 MB/month traffic. Footprint about 1.3% of the disk quota.",
+      "notes": "The published Bronze figures (5 GB disk, 50 GB bandwidth) never applied: the account is Linux Gold. Since 2026-11-02 the nightly backup measures disk use against DISK_QUOTA_MB (production .env 51200) and the Backups panel turns amber at 70% and red at 85% (#532); production keeps BACKUP_KEEP=7. A full quota still presents as data corruption, not an outage, which is why the measurement is nightly and alarms through /cron/backup."
     },
     "Secrets": {
       "state": "PASS",

@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Notifications\Contracts\BulkMail;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class ApprovalReminderNotification extends Notification
+class ApprovalReminderNotification extends Notification implements BulkMail
 {
     use Queueable, RespectsNotificationPreferences;
 
