@@ -6,6 +6,7 @@ namespace App\Listeners;
 
 use App\Events\TenantCreated;
 use App\Services\Attendance\AttendanceBaseline;
+use App\Services\Leave\LeaveYear;
 use App\Services\Onboarding\OrganizationProvisioner;
 use Illuminate\Support\Facades\Log;
 
@@ -33,7 +34,7 @@ class ProvisionTenant
                 // Leave runs Meskerem to Pagume for a new organisation. One
                 // that existed before the setting stays on the Gregorian year
                 // its balances are numbered in (LeaveYear).
-                'leave_year' => 'ethiopian',
+                'leave_year' => LeaveYear::DEFAULT,
             ]),
         ]);
 
