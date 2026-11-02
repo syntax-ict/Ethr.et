@@ -18,6 +18,7 @@ use App\Events\TenantCreated;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Listeners\CloseLeaverLogin;
+use App\Listeners\HoldMailOverBudget;
 use App\Listeners\InvalidateDashboardCache;
 use App\Listeners\NotifyDeviceOffline;
 use App\Listeners\NotifyDeviceSyncFailed;
@@ -77,6 +78,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Event;
@@ -189,6 +191,7 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(TenantCreated::class, ProvisionTenant::class);
         Event::listen(NotificationSent::class, PushDatabaseNotification::class);
+        Event::listen(NotificationSending::class, HoldMailOverBudget::class);
         Event::listen(DeviceOffline::class, NotifyDeviceOffline::class);
         Event::listen(DeviceSyncFailed::class, NotifyDeviceSyncFailed::class);
         Event::listen(PayrollRunFailed::class, NotifyPayrollRunFailed::class);

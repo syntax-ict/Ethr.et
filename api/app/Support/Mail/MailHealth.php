@@ -27,6 +27,7 @@ final class MailHealth
     public static function recordSent(string $tls): void
     {
         self::write([self::SENT => now()->toIso8601String(), self::TLS => $tls]);
+        MailBudget::recordSent();
     }
 
     public static function recordFailure(): void
