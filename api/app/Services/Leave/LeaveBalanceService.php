@@ -33,40 +33,46 @@ final class LeaveBalanceService
     }
 
     /**
-     * Months of `$year`, up to and including `$throughMonth`, in which
-     * `$employee` was employed: from the hire month (or January) to the
-     * leaving month (or `$throughMonth`). A part month counts as a month.
+     * Months of leave year `$year`, up to and including `$throughMonth`, in
+     * which `$employee` was employed: from the hire month (or the year's
+     * first) to the leaving month (or `$throughMonth`). A part month counts
+     * as a month.
      */
-    public function monthsEmployed(Employee $employee, int $year, int $throughMonth): int
+    public function monthsEmployed(Employee $employee, int $year, int $throughMonth, ?LeaveYear $leaveYear = null): int
     {
+        $leaveYear ??= LeaveYear::forTenantId($employee->tenant_id);
+
         $first = 1;
         if ($employee->hire_date !== null) {
-            if ($employee->hire_date->year > $year) {
+            $hired = $leaveYear->yearOf($employee->hire_date);
+            if ($hired > $year) {
                 return 0;
             }
-            if ($employee->hire_date->year === $year) {
-                $first = $employee->hire_date->month;
+            if ($hired === $year) {
+                $first = $leaveYear->monthOf($employee->hire_date);
             }
         }
 
         $last = $throughMonth;
         if ($employee->termination_date !== null) {
-            if ($employee->termination_date->year < $year) {
+            $left = $leaveYear->yearOf($employee->termination_date);
+            if ($left < $year) {
                 return 0;
             }
-            if ($employee->termination_date->year === $year) {
-                $last = min($last, $employee->termination_date->month);
+            if ($left === $year) {
+                $last = min($last, $leaveYear->monthOf($employee->termination_date));
             }
         }
 
         return max(0, $last - $first + 1);
     }
 
-    public function getOrCreateBalance(Employee $employee, LeaveType $leaveType, int $year): LeaveBalance
+    /** `$year` is a leave year (LeaveYear): Ethiopian for an organisation on that calendar. */
+    public function getOrCreateBalance(Employee $employee, LeaveType $leaveType, int $year, ?LeaveYear $leaveYear = null): LeaveBalance
     {
         $initialEntitlement = $leaveType->accrual_type === AccrualType::MONTHLY
             ? 0
-            : $this->yearlyEntitlement($employee, $leaveType, Carbon::create($year, 1, 1));
+            : $this->yearlyEntitlement($employee, $leaveType, ($leaveYear ?? LeaveYear::forTenantId($employee->tenant_id))->starts($year));
 
         return LeaveBalance::firstOrCreate(
             [
@@ -96,8 +102,10 @@ final class LeaveBalanceService
             ->get();
 
         $accrued = 0;
-        $year = now()->year;
-        $currentMonth = now()->month;
+        $leaveYear = LeaveYear::forTenantId($tenantId);
+        $today = $leaveYear->today();
+        $year = $leaveYear->yearOf($today);
+        $currentMonth = $leaveYear->monthOf($today);
 
         // Accrual is for the months someone was employed this year, at the
         // entitlement their service has reached. Until 2026-10-20 every
@@ -105,7 +113,7 @@ final class LeaveBalanceService
         // March hire was credited January and February, a leaver went on
         // accruing for good, and a ten-year employee accrued what a new one
         // did (blueprint assessment LV2, LV6).
-        $asOf = Carbon::create($year, $currentMonth, 1)->endOfMonth();
+        $asOf = $leaveYear->monthEnds($year, $currentMonth);
 
         foreach ($leaveTypes as $leaveType) {
             $employees = Employee::query()
@@ -118,14 +126,14 @@ final class LeaveBalanceService
                     continue;
                 }
 
-                $months = $this->monthsEmployed($employee, $year, $currentMonth);
+                $months = $this->monthsEmployed($employee, $year, $currentMonth, $leaveYear);
                 if ($months === 0) {
                     continue;
                 }
 
                 $targetEntitled = round($this->yearlyEntitlement($employee, $leaveType, $asOf) * $months / 12, 1);
 
-                $balance = $this->getOrCreateBalance($employee, $leaveType, $year);
+                $balance = $this->getOrCreateBalance($employee, $leaveType, $year, $leaveYear);
                 $increment = round($targetEntitled - (float) $balance->entitled_days, 1);
 
                 if ($increment > 0) {
@@ -151,6 +159,7 @@ final class LeaveBalanceService
             ->get();
 
         $carried = 0;
+        $leaveYear = LeaveYear::forTenantId($tenantId);
 
         foreach ($leaveTypes as $leaveType) {
             $balances = LeaveBalance::query()
@@ -181,7 +190,7 @@ final class LeaveBalanceService
                     ? min($remaining, (float) $leaveType->max_carry_days)
                     : $remaining;
 
-                $newBalance = $this->getOrCreateBalance($employee, $leaveType, $toYear);
+                $newBalance = $this->getOrCreateBalance($employee, $leaveType, $toYear, $leaveYear);
                 $newBalance->update(['carried_days' => $carryDays]);
 
                 $carried++;

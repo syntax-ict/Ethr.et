@@ -15,6 +15,7 @@ use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Attendance\ExpectedDays;
+use App\Services\Leave\LeaveYear;
 use App\Services\Payroll\RunRegisterService;
 use App\Support\Csv;
 use App\Support\TenantTime;
@@ -608,7 +609,7 @@ final class ReportEngine
         $this->limitToReach($query, $tenantId, $viewer);
         $this->limitToUnits($query, $tenantId, $filters);
 
-        $year = $filters['year'] ?? Carbon::now()->year;
+        $year = $filters['year'] ?? LeaveYear::forTenantId($tenantId)->current();
         $query->where('year', $year);
 
         return $query->get()->map(fn ($b) => [

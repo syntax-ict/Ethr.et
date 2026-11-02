@@ -35082,10 +35082,22 @@
                                                     "items": {
                                                         "type": "integer"
                                                     }
+                                                },
+                                                "leave_year": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "ethiopian",
+                                                        "gregorian"
+                                                    ]
+                                                },
+                                                "leave_year_changeable": {
+                                                    "type": "boolean"
                                                 }
                                             },
                                             "required": [
-                                                "working_days"
+                                                "working_days",
+                                                "leave_year",
+                                                "leave_year_changeable"
                                             ]
                                         },
                                         "payroll": {
