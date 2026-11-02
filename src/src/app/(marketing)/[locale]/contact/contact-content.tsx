@@ -12,6 +12,16 @@ import { fieldErrors, type FieldErrors } from "@/lib/errors";
 import { useT } from "@/lib/i18n/useT";
 import { pickLocalised, useSiteContent } from "@/features/marketing/api";
 
+// The console has one Contact phone field. Several numbers go in it separated
+// by a comma, a semicolon or a slash, and each becomes its own call link: a
+// single `tel:` holding two numbers dials neither.
+export function phoneNumbers(value: string): string[] {
+  return value
+    .split(/[,;/]/)
+    .map((number) => number.trim())
+    .filter(Boolean);
+}
+
 export function ContactContent() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -149,17 +159,25 @@ export function ContactContent() {
                           <p className="mt-1 text-sm text-muted-foreground">
                             {channel.key === "office" ? (
                               channel.value
-                            ) : (
+                            ) : channel.key === "email" ? (
                               <a
-                                href={
-                                  channel.key === "email"
-                                    ? `mailto:${channel.value}`
-                                    : `tel:${channel.value?.replace(/\s+/g, "")}`
-                                }
+                                href={`mailto:${channel.value}`}
                                 className="hover:text-foreground hover:underline"
                               >
                                 {channel.value}
                               </a>
+                            ) : (
+                              phoneNumbers(channel.value ?? "").map(
+                                (number) => (
+                                  <a
+                                    key={number}
+                                    href={`tel:${number.replace(/\s+/g, "")}`}
+                                    className="block hover:text-foreground hover:underline"
+                                  >
+                                    {number}
+                                  </a>
+                                ),
+                              )
                             )}
                           </p>
                         </div>
