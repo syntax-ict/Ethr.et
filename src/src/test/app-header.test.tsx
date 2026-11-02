@@ -29,9 +29,17 @@ vi.mock("@/lib/i18n/translations", async (importOriginal) => ({
 
 const LONG_NAME = "Abay Textile and Garment Manufacturing Share Company";
 
+// The calendar item, not "Ethiopian time" in the time-of-day group.
+const ETHIOPIAN_CALENDAR = /^Ethiopian(?! time)/;
+
 function Shown() {
-  const { calendar } = useCalendar();
-  return <output aria-label="calendar in use">{calendar}</output>;
+  const { calendar, clockPreference } = useCalendar();
+  return (
+    <>
+      <output aria-label="calendar in use">{calendar}</output>
+      <output aria-label="clock in use">{clockPreference}</output>
+    </>
+  );
 }
 
 function renderHeader() {
@@ -91,7 +99,9 @@ async function openMenu() {
   const user = userEvent.setup();
   renderHeader();
   await user.click(
-    await screen.findByRole("button", { name: /language and calendar/i }),
+    await screen.findByRole("button", {
+      name: /language, calendar and time of day/i,
+    }),
   );
   await screen.findByRole("menu");
   return user;
@@ -102,7 +112,7 @@ describe("<AppHeader> language and calendar menu", () => {
     renderHeader();
 
     const trigger = await screen.findByRole("button", {
-      name: /language and calendar/i,
+      name: /language, calendar and time of day/i,
     });
     expect(trigger).toHaveTextContent("English · Ethiopian");
   });
@@ -118,7 +128,7 @@ describe("<AppHeader> language and calendar menu", () => {
       "false",
     );
     expect(
-      screen.getByRole("menuitemradio", { name: /^Ethiopian/ }),
+      screen.getByRole("menuitemradio", { name: ETHIOPIAN_CALENDAR }),
     ).toHaveAttribute("aria-checked", "true");
     expect(
       screen.getByRole("menuitemradio", { name: /^Gregorian/ }),
@@ -134,7 +144,7 @@ describe("<AppHeader> language and calendar menu", () => {
       await openMenu();
 
       expect(
-        screen.getByRole("menuitemradio", { name: /^Ethiopian/ }),
+        screen.getByRole("menuitemradio", { name: ETHIOPIAN_CALENDAR }),
       ).toHaveTextContent("Tikimt 20, 2019");
       expect(
         screen.getByRole("menuitemradio", { name: /^Gregorian/ }),
@@ -169,9 +179,33 @@ describe("<AppHeader> language and calendar menu", () => {
     await waitFor(() => expect(bodies).toEqual([{ calendar: "gregorian" }]));
   });
 
+  it("offers the time of day beside the calendar and stores it on the user", async () => {
+    // It was only on the Preferences page, where people who set the calendar
+    // here never looked for it.
+    const bodies = capturePreferences();
+    const user = await openMenu();
+
+    // English on the Ethiopian calendar: Automatic settles on 24-hour.
+    expect(
+      screen.getByRole("menuitemradio", { name: "Automatic (07:30)" }),
+    ).toHaveAttribute("aria-checked", "true");
+    await user.click(
+      screen.getByRole("menuitemradio", {
+        name: "Ethiopian time (1:30 morning)",
+      }),
+    );
+
+    expect(screen.getByLabelText("clock in use")).toHaveTextContent(
+      "ethiopian",
+    );
+    await waitFor(() => expect(bodies).toEqual([{ clock: "ethiopian" }]));
+  });
+
   it("no longer has the one-click calendar toggle", async () => {
     renderHeader();
-    await screen.findByRole("button", { name: /language and calendar/i });
+    await screen.findByRole("button", {
+      name: /language, calendar and time of day/i,
+    });
 
     expect(
       screen.queryByRole("button", { name: /toggle calendar/i }),

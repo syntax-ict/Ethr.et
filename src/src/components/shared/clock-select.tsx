@@ -13,7 +13,28 @@ import {
 } from "@/lib/calendar/ethiopian-time";
 import { useT } from "@/lib/i18n/useT";
 
-const CHOICES: readonly ClockPreference[] = ["auto", "ethiopian", "24h"];
+export const CLOCK_CHOICES: readonly ClockPreference[] = [
+  "auto",
+  "ethiopian",
+  "24h",
+];
+
+/**
+ * Each clock named the way a reader can tell them apart: 07:30 written as that
+ * clock writes it. Shared by this select and the header's language menu.
+ */
+export function useClockLabels(): Record<ClockPreference, string> {
+  const { t, locale } = useT();
+  return {
+    auto: t("clock.auto", "Automatic"),
+    ethiopian: t("clock.ethiopian", "Ethiopian time (:example)", {
+      example: formatClock(7, 30, "ethiopian", locale),
+    }),
+    "24h": t("clock.24h", "24-hour (:example)", {
+      example: formatClock(7, 30, "24h", locale),
+    }),
+  };
+}
 
 /**
  * Chooses how times of day are written: Ethiopian time, 24-hour, or `auto`.
@@ -35,17 +56,8 @@ export function ClockSelect({
   disabled?: boolean;
   className?: string;
 }) {
-  const { t, locale } = useT();
-  const ethiopian = formatClock(7, 30, "ethiopian", locale);
-  const twentyFour = formatClock(7, 30, "24h", locale);
-
-  const labels: Record<ClockPreference, string> = {
-    auto: t("clock.auto", "Automatic"),
-    ethiopian: t("clock.ethiopian", "Ethiopian time (:example)", {
-      example: ethiopian,
-    }),
-    "24h": t("clock.24h", "24-hour (:example)", { example: twentyFour }),
-  };
+  const { t } = useT();
+  const labels = useClockLabels();
 
   return (
     <div className="space-y-1">
@@ -58,7 +70,7 @@ export function ClockSelect({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {CHOICES.map((choice) => (
+          {CLOCK_CHOICES.map((choice) => (
             <SelectItem key={choice} value={choice}>
               {labels[choice]}
             </SelectItem>
