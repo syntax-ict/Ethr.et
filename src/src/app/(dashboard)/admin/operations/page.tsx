@@ -22,6 +22,7 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { cn } from "@/lib/utils";
+import { sizeLabel } from "@/lib/uploads/upload-limit";
 import {
   areasNeedingAttention,
   useAdminOperations,
@@ -212,6 +213,56 @@ function OperationsView({
             label={t("operations_page.off_host_copy", "Last off-host copy")}
             value={when(status.backups.off_host.last_copied_at)}
           />
+          <Row
+            label={t("operations_page.disk_use", "Disk use")}
+            value={
+              status.backups.disk === null
+                ? t(
+                    "operations_page.disk_not_measured",
+                    "Measured by the next nightly backup",
+                  )
+                : t(
+                    "operations_page.disk_of_quota",
+                    ":used of :quota (:percent%)",
+                    {
+                      used: diskSize(status.backups.disk.total_bytes),
+                      quota: diskSize(status.backups.disk.quota_bytes),
+                      percent: String(
+                        Math.round(
+                          (status.backups.disk.total_bytes /
+                            status.backups.disk.quota_bytes) *
+                            100,
+                        ),
+                      ),
+                    },
+                  )
+            }
+          />
+          {status.backups.disk !== null && (
+            <Row
+              label={t("operations_page.disk_parts", "Of which")}
+              value={
+                <span className="text-xs text-muted-foreground">
+                  {t(
+                    "operations_page.disk_breakdown",
+                    "database :database, documents :documents, backups :backups, other :other",
+                    {
+                      database:
+                        status.backups.disk.database_bytes === null
+                          ? t("operations_page.disk_unmeasured", "not measured")
+                          : diskSize(status.backups.disk.database_bytes),
+                      documents: diskSize(status.backups.disk.documents_bytes),
+                      backups: diskSize(status.backups.disk.backups_bytes),
+                      other: diskSize(
+                        status.backups.disk.logs_bytes +
+                          status.backups.disk.other_bytes,
+                      ),
+                    },
+                  )}
+                </span>
+              }
+            />
+          )}
         </Rows>
       </Panel>
 
@@ -505,6 +556,12 @@ function Panel({
       </CardContent>
     </Card>
   );
+}
+
+/** Disk sizes run to gigabytes, which sizeLabel (made for uploads) does not. */
+function diskSize(bytes: number): string {
+  const gb = bytes / 1024 ** 3;
+  return gb >= 1 ? `${gb.toFixed(1)} GB` : sizeLabel(bytes);
 }
 
 function Rows({ children }: { children: ReactNode }) {

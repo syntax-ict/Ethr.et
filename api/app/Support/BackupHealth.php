@@ -78,7 +78,8 @@ final class BackupHealth
      *     age_seconds: int|null,
      *     last_failed_at: string|null,
      *     last_failed_stage: string|null,
-     *     off_host: array{configured: bool, disk: string, last_copied_at: string|null}
+     *     off_host: array{configured: bool, disk: string, last_copied_at: string|null},
+     *     disk: array{measured_at: string, quota_bytes: int, total_bytes: int, database_bytes: int|null, documents_bytes: int, backups_bytes: int, logs_bytes: int, other_bytes: int}|null
      * }
      */
     public function snapshot(): array
@@ -146,6 +147,17 @@ final class BackupHealth
             $critical[] = 'off_host_failing';
         }
 
+        // Measured by the nightly backup (DiskUsage). Disk is here because
+        // backups are most of it, and because this area already reaches
+        // the outside monitor through /cron/backup.
+        $usage = DiskUsage::last();
+        $diskReason = $usage === null ? null : DiskUsage::reason($usage);
+        if ($diskReason === 'disk_critical') {
+            $critical[] = $diskReason;
+        } elseif ($diskReason === 'disk_high') {
+            $warning[] = $diskReason;
+        }
+
         return [
             'state' => match (true) {
                 $critical !== [] => self::CRITICAL,
@@ -162,6 +174,16 @@ final class BackupHealth
                 'configured' => $blocker === null,
                 'disk' => $disk,
                 'last_copied_at' => $copiedAt?->toIso8601String(),
+            ],
+            'disk' => $usage === null ? null : [
+                'measured_at' => (string) $usage['measured_at'],
+                'quota_bytes' => (int) $usage['quota_bytes'],
+                'total_bytes' => (int) $usage['total_bytes'],
+                'database_bytes' => isset($usage['database_bytes']) ? (int) $usage['database_bytes'] : null,
+                'documents_bytes' => (int) $usage['documents_bytes'],
+                'backups_bytes' => (int) $usage['backups_bytes'],
+                'logs_bytes' => (int) $usage['logs_bytes'],
+                'other_bytes' => (int) $usage['other_bytes'],
             ],
         ];
     }
