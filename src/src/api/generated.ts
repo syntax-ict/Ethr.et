@@ -17153,6 +17153,16 @@ export interface operations {
                                 disk: string;
                                 last_copied_at: string | null;
                             };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
                         };
                     };
                 };
@@ -17216,6 +17226,16 @@ export interface operations {
                                 disk: string;
                                 last_copied_at: string | null;
                             };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
                         };
                     };
                 };
@@ -17280,6 +17300,16 @@ export interface operations {
                                 disk: string;
                                 last_copied_at: string | null;
                             };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
                         };
                     };
                 };
@@ -17341,6 +17371,16 @@ export interface operations {
                                 disk: string;
                                 last_copied_at: string | null;
                             };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
                         };
                     };
                 };
@@ -30308,6 +30348,16 @@ export interface operations {
                                 disk: string;
                                 last_copied_at: string | null;
                             };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
                         };
                     };
                 };

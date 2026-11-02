@@ -221,6 +221,16 @@ export function reasonLabel(t: Translate, code: string): string {
         "operations_page.reason.off_host_switched_off",
         "Off-host storage is saved on the Backups page but switched off, so copies stay on this host.",
       );
+    case "disk_high":
+      return t(
+        "operations_page.reason.disk_high",
+        "More than 70% of the plan's disk is in use. Clear space or raise the plan before it fills.",
+      );
+    case "disk_critical":
+      return t(
+        "operations_page.reason.disk_critical",
+        "More than 85% of the plan's disk is in use. Uploads and the database stop when it fills, and the next backup may not fit.",
+      );
     case "off_host_failing":
       return t(
         "operations_page.reason.off_host_failing",

@@ -401,6 +401,15 @@ php artisan ethr:restore ethr-20261102-010004
 - **Operations centre**, *Backups* panel: the last backup, the last failure, and the last off-host copy. Red once 26 hours pass without a backup or without an off-host copy, and red when the last run failed. Red when no backup exists in production. Off production that is `unknown`.
 - **`GET /api/v1/cron/backup`** with the `X-Cron-Token` header: the same snapshot, **503 while backups are critical**. Point an uptime monitor at it (a cron-job.org job with failure email, like the health job) and its email is the alarm. `/health` does not carry this, because its 503 means the application is down.
 
+### Disk use on the plan's quota
+
+Since 2026-11-02 every nightly backup measures what ETHR uses of the plan's disk: the database, the documents, the local backups, the logs and the rest of the application, against `DISK_QUOTA_MB` (5120, the Bronze plan). Mail and anything outside the application share the quota and are not seen, so the thresholds are low:
+
+- **Amber at 70%, red at 85%** on the *Backups* panel, which shows the figure and its parts. Red reaches the outside monitor through `/cron/backup` like any other backup alarm.
+- **Before it copies anything**, the backup checks that another full copy of the database and the documents fits under 95%. If it does not, the oldest backups are pruned early, down to one, and if it still does not fit the run fails with *Not enough disk for another backup*. A missed night is reported; a full disk stops uploads and then the database.
+
+Set `DISK_QUOTA_MB` to the plan when it changes. The services panel's `disk_free_gb` is the server's own free space, which on shared hosting is not the plan's quota.
+
 ---
 
 ## What is tested, and what that does not cover

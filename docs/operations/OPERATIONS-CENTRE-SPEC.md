@@ -188,6 +188,10 @@ The off-host row stays amber on purpose. A backup that exists only on the host i
 the most important known gap on this page, and the panel should keep saying so until it is
 closed.
 
+Disk use on the plan's quota is on this panel too (2026-11-02), measured by the nightly backup:
+amber at 70%, red at 85%. Backups are most of what fills the disk, and this panel already reaches
+the outside monitor through `/cron/backup`. See BACKUP-RESTORE.md, *Disk use on the plan's quota*.
+
 ### Panel 6: Organisations: work stuck for a customer
 
 What a customer would phone about, listed by organisation and linked to the organisation page:
