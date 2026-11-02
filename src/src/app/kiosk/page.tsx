@@ -19,7 +19,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DEFAULT_TIMEZONE } from "@/lib/utils/date";
+import {
+  DEFAULT_TIMEZONE,
+  formatCalendarDayMonth,
+  formatCalendarWeekday,
+  formatClockTime,
+} from "@/lib/utils/date";
+import { resolveClock } from "@/lib/calendar/ethiopian-time";
 import {
   authenticateKiosk,
   kioskPunch,
@@ -59,7 +65,12 @@ interface KioskConfig {
 const EMPLOYEE_CODE_MAX = 30;
 
 export default function KioskPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
+  // A signed-out terminal has no person's preference to read, so it follows
+  // its display language: Amharic reads the Ethiopian calendar and clock,
+  // anything else Gregorian and 24-hour.
+  const calendar = locale === "am" ? "ethiopian" : "gregorian";
+  const clock = resolveClock("auto", calendar, locale);
   const [screen, setScreen] = useState<Screen>("setup");
   const [config, setConfig] = useState<KioskConfig | null>(null);
 
@@ -81,6 +92,9 @@ export default function KioskPage() {
   const [mode, setMode] = useState<CheckMode>("idle");
   const [message, setMessage] = useState("");
   const [now, setNow] = useState(new Date());
+  // The time the server recorded for the last punch, or the terminal's own
+  // when it was saved offline.
+  const [recordedAt, setRecordedAt] = useState<string | null>(null);
 
   // Lock screen
   const [adminPin, setAdminPin] = useState("");
@@ -119,6 +133,7 @@ export default function KioskPage() {
           setShowPin(false);
           setMessage("");
           setType("auto");
+          setRecordedAt(null);
         },
         (config?.autoResetSeconds ?? 4) * 1000,
       );
@@ -223,6 +238,8 @@ export default function KioskPage() {
         });
         setOffline(true);
         setPending((n) => n + 1);
+        // No server time to show: the terminal's own, when it was saved.
+        setRecordedAt(new Date().toISOString());
         setMode("success");
         setMessage(t("kiosk_page.saved_offline", undefined, { code }));
       } catch {
@@ -248,6 +265,9 @@ export default function KioskPage() {
         data.employee?.name ??
         t("kiosk_page.default_employee");
       const punched = type === "auto" ? data.punch : type;
+      setRecordedAt(
+        (punched === "check_out" ? data.check_out : data.check_in) ?? null,
+      );
       setMode("success");
       setMessage(
         t(
@@ -347,6 +367,8 @@ export default function KioskPage() {
       document.exitFullscreen?.().catch(() => {});
     }
   }
+
+  const nowIso = now.toISOString();
 
   // Setup screen
   if (screen === "setup") {
@@ -501,19 +523,16 @@ export default function KioskPage() {
         <div className="flex items-center gap-3">
           <div className="text-right">
             <p className="text-3xl font-bold font-mono tabular-nums">
-              {now.toLocaleTimeString("en-ET", {
-                hour: "2-digit",
-                minute: "2-digit",
-                timeZone: DEFAULT_TIMEZONE,
-              })}
+              {formatClockTime(nowIso, DEFAULT_TIMEZONE, clock, locale)}
             </p>
             <p className="text-xs text-muted-foreground">
-              {now.toLocaleDateString("en-ET", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-                timeZone: DEFAULT_TIMEZONE,
-              })}
+              {formatCalendarWeekday(nowIso, DEFAULT_TIMEZONE, locale, "long")},{" "}
+              {formatCalendarDayMonth(
+                nowIso,
+                DEFAULT_TIMEZONE,
+                calendar,
+                locale,
+              )}
             </p>
           </div>
           <div className="flex flex-col gap-1 ml-4">
@@ -549,11 +568,12 @@ export default function KioskPage() {
             <p className="text-4xl font-bold text-foreground">{message}</p>
             <p className="text-sm text-muted-foreground">
               {t("kiosk_page.recorded_at", undefined, {
-                time: now.toLocaleTimeString("en-ET", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  timeZone: DEFAULT_TIMEZONE,
-                }),
+                time: formatClockTime(
+                  recordedAt ?? nowIso,
+                  DEFAULT_TIMEZONE,
+                  clock,
+                  locale,
+                ),
               })}
             </p>
           </div>

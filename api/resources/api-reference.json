@@ -29790,6 +29790,18 @@
                                                             "period_label": {
                                                                 "type": "string"
                                                             },
+                                                            "period_start": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "period_end": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
                                                             "employee": {
                                                                 "anyOf": [
                                                                     {
@@ -29803,6 +29815,8 @@
                                                         },
                                                         "required": [
                                                             "period_label",
+                                                            "period_start",
+                                                            "period_end",
                                                             "employee"
                                                         ]
                                                     }
@@ -29994,6 +30008,18 @@
                                                             "period_label": {
                                                                 "type": "string"
                                                             },
+                                                            "period_start": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "period_end": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
                                                             "employee": {
                                                                 "anyOf": [
                                                                     {
@@ -30007,6 +30033,8 @@
                                                         },
                                                         "required": [
                                                             "period_label",
+                                                            "period_start",
+                                                            "period_end",
                                                             "employee"
                                                         ]
                                                     }
@@ -48268,6 +48296,18 @@
                     },
                     "period_label": {
                         "type": "string"
+                    },
+                    "period_start": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "period_end": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "employee": {
                         "anyOf": [

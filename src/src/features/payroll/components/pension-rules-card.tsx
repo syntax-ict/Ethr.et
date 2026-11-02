@@ -23,6 +23,8 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { todayIn } from "@/lib/utils/date";
 import { etbToCents, formatETB } from "@/lib/utils/currency";
 import {
   useCreatePensionRule,
@@ -45,7 +47,8 @@ interface RuleForm {
   effectiveFrom: string;
 }
 
-const EMPTY: RuleForm = {
+/** An empty form, dated today where the organisation is. */
+const emptyForm = (timeZone: string): RuleForm => ({
   scheme: "private",
   employeeRate: "",
   employerRate: "",
@@ -54,8 +57,8 @@ const EMPTY: RuleForm = {
   exemptNonNationals: true,
   minServiceDays: "",
   legalReference: "",
-  effectiveFrom: new Date().toISOString().slice(0, 10),
-};
+  effectiveFrom: todayIn(timeZone),
+});
 
 /**
  * Pension contribution rules, dated and with the law they come from — beside
@@ -66,11 +69,12 @@ const EMPTY: RuleForm = {
  */
 export function PensionRulesCard() {
   const { t } = useT();
+  const { formatDate, timeZone } = useDateFormatters();
   const query = usePensionRules();
   const create = useCreatePensionRule();
   const canManage = usePermissions().hasPermission("payroll.manageConfig");
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState<RuleForm>(EMPTY);
+  const [form, setForm] = useState<RuleForm>(() => emptyForm(timeZone));
 
   const schemeLabel = (scheme: string) =>
     ({
@@ -106,7 +110,7 @@ export function PensionRulesCard() {
         onSuccess: () => {
           toast.success(t("pension_rules.saved"));
           setAdding(false);
-          setForm(EMPTY);
+          setForm(emptyForm(timeZone));
         },
         onError: (err) =>
           toast.error(apiErrorMessage(err, t("pension_rules.save_failed"))),
@@ -195,13 +199,15 @@ export function PensionRulesCard() {
                         : formatETB(rule.ceiling_cents)}
                     </span>,
                     <span key="f" className="tabular-nums">
-                      {rule.effective_from}
+                      {rule.effective_from
+                        ? formatDate(rule.effective_from)
+                        : "—"}
                     </span>,
                     <span
                       key="t"
                       className="tabular-nums text-muted-foreground"
                     >
-                      {rule.effective_to ?? "—"}
+                      {rule.effective_to ? formatDate(rule.effective_to) : "—"}
                     </span>,
                     <div key="l" className="space-y-1">
                       <span className="text-sm">{rule.legal_reference}</span>
@@ -366,7 +372,7 @@ export function PensionRulesCard() {
                 variant="outline"
                 onClick={() => {
                   setAdding(false);
-                  setForm(EMPTY);
+                  setForm(emptyForm(timeZone));
                 }}
               >
                 {t("common.cancel")}

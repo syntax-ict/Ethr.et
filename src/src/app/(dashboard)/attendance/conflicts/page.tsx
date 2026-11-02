@@ -2,12 +2,6 @@
 
 import { useState } from "react";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
-import {
-  DEFAULT_TIMEZONE,
-  formatDateOnly,
-  formatTime as sharedFormatTime,
-  formatWeekday,
-} from "@/lib/utils/date";
 import { AlertTriangle, GitMerge, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -321,6 +315,7 @@ function ConflictCard({
   onResolve: () => void;
 }) {
   const { t } = useT();
+  const { formatDate, formatWeekday } = useDateFormatters();
   const isPending = conflict.resolution === "pending";
   // Both records are on one working day; the card named the person and two
   // times but never the day, so a reviewer could not tell which (2026-10-09).
@@ -337,7 +332,7 @@ function ConflictCard({
               </p>
               {day && (
                 <span className="text-xs text-muted-foreground">
-                  {formatWeekday(day)} {formatDateOnly(day)}
+                  {formatWeekday(day)} {formatDate(day)}
                 </span>
               )}
               {conflict.employee?.employee_code && (
@@ -405,8 +400,12 @@ function RecordSummary({
   record?: AttendanceRecord | null;
 }) {
   const { t } = useT();
-  // Punch times render in the tenant's timezone, not the browser's — §12g.
-  const { timeZone } = useDateFormatters();
+  // Punch times render in the tenant's timezone, not the browser's (§12g),
+  // in the reader's clock and calendar.
+  const { formatTime, formatDate } = useDateFormatters();
+  // A conflict record can carry a missing or malformed punch.
+  const timeOf = (iso: string | null | undefined) =>
+    iso && !Number.isNaN(new Date(iso).getTime()) ? formatTime(iso) : "—";
 
   if (!record) {
     return (
@@ -430,11 +429,10 @@ function RecordSummary({
         )}
       </div>
       <p className="mt-1 font-mono text-foreground">
-        {formatTime(record.check_in, timeZone)} →{" "}
-        {formatTime(record.check_out, timeZone)}
+        {timeOf(record.check_in)} → {timeOf(record.check_out)}
       </p>
       <p className="mt-1 text-muted-foreground">
-        {record.date ?? "—"}
+        {record.date ? formatDate(record.date) : "—"}
         {typeof record.worked_minutes === "number" && (
           <>
             {" · "}
@@ -446,22 +444,6 @@ function RecordSummary({
       </p>
     </div>
   );
-}
-
-/**
- * A module-level helper, so it takes the zone rather than reading a hook.
- *
- * Punch times display in the tenant's timezone (BASELINE §12g). The null and
- * NaN guards are why this exists rather than calling the shared `formatTime`
- * directly — a conflict record can carry a missing or malformed punch.
- */
-function formatTime(
-  iso: string | null | undefined,
-  timeZone: string = DEFAULT_TIMEZONE,
-): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "—" : sharedFormatTime(iso, timeZone);
 }
 
 /**

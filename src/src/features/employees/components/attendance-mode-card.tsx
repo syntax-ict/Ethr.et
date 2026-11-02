@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import {
   useSetAttendanceMode,
   useSetDeviceExemption,
@@ -143,15 +143,14 @@ export function AttendanceModeCard({ employee }: { employee: Employee }) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Input
-              type="date"
+            <DualCalendarDateInput
               className="w-40"
               aria-label={t(
                 "device_exemption.title",
                 "Punch without the registered phone",
               )}
               value={exemptUntil}
-              onChange={(e) => setExemptUntil(e.target.value)}
+              onChange={setExemptUntil}
             />
             <Button
               size="sm"

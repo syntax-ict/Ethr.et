@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/features/auth/api";
 import { useMyShift, type MyShift } from "@/features/attendance/api";
 import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import {
   reminderPlan,
   reminderStillDue,
@@ -89,6 +90,7 @@ export function PunchReminders() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { t } = useT();
+  const { formatTimeOfDay } = useDateFormatters();
 
   useEffect(() => {
     if (!shift) return;
@@ -117,16 +119,21 @@ export function PunchReminders() {
 
           const copy = COPY[reminder.kind];
           const title = t(copy.title[0], copy.title[1]);
+          // The shift's times in the reader's clock: 12:00 ጠዋት, or 06:00.
           const body = t(copy.body[0], copy.body[1], {
-            start: latest.shift?.start_time ?? "",
-            end: latest.shift?.end_time ?? "",
+            start: latest.shift?.start_time
+              ? formatTimeOfDay(latest.shift.start_time)
+              : "",
+            end: latest.shift?.end_time
+              ? formatTimeOfDay(latest.shift.end_time)
+              : "",
           });
           await notify(title, body, () => router.push("/attendance/mobile"), t);
         }, reminder.at.getTime() - now.getTime()),
       );
 
     return () => timers.forEach((id) => window.clearTimeout(id));
-  }, [shift, queryClient, router, t]);
+  }, [shift, queryClient, router, t, formatTimeOfDay]);
 
   return null;
 }

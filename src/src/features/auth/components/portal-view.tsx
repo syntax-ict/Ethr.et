@@ -53,8 +53,11 @@ import { paragraphs, segments } from "@/features/news/news-format";
 import type { LandingFeed } from "@/features/auth/landing-feed";
 import { SupportContacts } from "@/app/(auth)/auth-layout-client";
 import { VacancyMeta } from "./vacancy-dialog";
-import { formatDateOnly } from "@/lib/utils/date";
-import { toEthiopian, formatEthiopian } from "@/lib/calendar/ethiopian";
+import {
+  otherCalendar,
+  publicCalendar,
+  publicDate,
+} from "@/lib/calendar/public-calendar";
 
 export interface PortalViewProps {
   name: string | null;
@@ -482,7 +485,7 @@ function PortalSections({
                         {v.closes_on && (
                           <span>
                             {t("landing.closes", "Closes :date", {
-                              date: formatDateOnly(v.closes_on),
+                              date: publicDate(v.closes_on, locale),
                             })}
                           </span>
                         )}
@@ -903,7 +906,11 @@ function ContactSection({
   );
 }
 
-/** A holiday with its date in both calendars, whatever the viewer's setting. */
+/**
+ * A holiday with its date in both calendars, the page language's first
+ * (`publicCalendar`): Ethiopian then Gregorian in Amharic, the other way round
+ * in English.
+ */
 function HolidayRow({
   holiday,
   locale,
@@ -911,9 +918,9 @@ function HolidayRow({
   holiday: LandingFeed["holidays"][number];
   locale: string;
 }) {
-  const [y, m, d] = holiday.date.split("-").map(Number);
-  const ethiopian =
-    y && m && d ? formatEthiopian(toEthiopian(y, m, d), locale) : null;
+  const first = publicCalendar(locale);
+  const primary = publicDate(holiday.date, locale, first);
+  const secondary = publicDate(holiday.date, locale, otherCalendar(first));
 
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-1 bg-card px-4 py-3">
@@ -925,8 +932,8 @@ function HolidayRow({
         {(locale === "am" && holiday.name_am) || holiday.name}
       </span>
       <span className="text-xs tabular-nums text-muted-foreground">
-        {formatDateOnly(holiday.date)}
-        {ethiopian && <span className="ml-2">{ethiopian}</span>}
+        {primary}
+        {secondary !== primary && <span className="ml-2">{secondary}</span>}
       </span>
     </li>
   );

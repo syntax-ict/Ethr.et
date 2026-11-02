@@ -6596,5 +6596,19 @@
   "clock.24h": "24-hour (:example)",
   "clock.hint": "Automatic uses Ethiopian time when you read Amharic on the Ethiopian calendar, and 24-hour otherwise.",
   "profile.time_display": "Time of day",
-  "settings.clock_system": "Time of day"
+  "settings.clock_system": "Time of day",
+  "clock.time": "Time",
+  "clock.hour": "hour",
+  "clock.minute": "minute",
+  "clock.period": "part of the day",
+  "clock.equivalent": "24-hour: :time",
+  "calendar.date_on_or_after": "Choose a date on or after :date",
+  "calendar.date_on_or_before": "Choose a date on or before :date",
+  "announcements.publish_time": "Time to publish",
+  "announcements.schedule_in_past": "Choose a time that has not passed yet",
+  "recruitment.interview_time": "Interview time",
+  "recruitment.interview_when_needed": "Choose the day and time",
+  "employee.attendance.range": ":from to :to",
+  "leave_page.calendar_range": ":from – :to",
+  "voice.week_of": "Week of :date"
 }

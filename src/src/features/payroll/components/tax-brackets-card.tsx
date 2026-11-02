@@ -11,6 +11,8 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { todayIn } from "@/lib/utils/date";
 import { centsToETB, etbToCents, formatETB } from "@/lib/utils/currency";
 import { toast } from "sonner";
 import { useReplaceTaxBrackets, useTaxBrackets, type TaxBracket } from "../api";
@@ -49,10 +51,6 @@ function minCentsFor(rows: BracketRow[], index: number): number {
 function apiDetail(err: unknown): string | undefined {
   return (err as { response?: { data?: { detail?: string } } }).response?.data
     ?.detail;
-}
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 /**
@@ -188,11 +186,12 @@ function validateRows(
 
 export function TaxBracketsCard() {
   const { t } = useT();
+  const { timeZone } = useDateFormatters();
   const query = useTaxBrackets();
   const replaceBrackets = useReplaceTaxBrackets();
 
   const [rows, setRows] = useState<BracketRow[] | null>(null);
-  const [effectiveFrom, setEffectiveFrom] = useState(today());
+  const [effectiveFrom, setEffectiveFrom] = useState(() => todayIn(timeZone));
   const [rowErrors, setRowErrors] = useState<BracketErrors>({});
   const [summary, setSummary] = useState<string | null>(null);
 

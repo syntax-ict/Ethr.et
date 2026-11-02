@@ -56,6 +56,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import type { CanFlag } from "@/lib/hooks/usePermissions";
+import { DEFAULT_TIMEZONE, resolveTimeZone, todayIn } from "@/lib/utils/date";
 
 /**
  * The one list of where the app can take a person.
@@ -953,9 +954,14 @@ export const QUICK_ACTIONS: QuickAction[] = [
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Today as an ISO date, the way the team attendance page already reads it. */
-export function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
+/**
+ * Today as an ISO date where the organisation is. `toISOString()` gave the
+ * UTC date, which is yesterday in Addis Ababa until 03:00, so a destination
+ * that opens "today" opened the day before. Callers that know the tenant's
+ * zone pass it; the default is the platform's.
+ */
+export function isoToday(timeZone: string = DEFAULT_TIMEZONE): string {
+  return todayIn(resolveTimeZone(timeZone));
 }
 
 export function resolveHref(

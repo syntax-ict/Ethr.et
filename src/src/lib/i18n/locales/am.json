@@ -6596,5 +6596,19 @@
   "clock.24h": "24 ሰዓት (:example)",
   "clock.hint": "ራስ-ሰር ማለት በአማርኛና በኢትዮጵያ የቀን አቆጣጠር ሲጠቀሙ የኢትዮጵያ ሰዓት፣ ካልሆነ ደግሞ የ24 ሰዓት አቆጣጠር ነው።",
   "profile.time_display": "የሰዓት አቆጣጠር",
-  "settings.clock_system": "የሰዓት አቆጣጠር"
+  "settings.clock_system": "የሰዓት አቆጣጠር",
+  "clock.time": "ሰዓት",
+  "clock.hour": "ሰዓት",
+  "clock.minute": "ደቂቃ",
+  "clock.period": "የቀኑ ክፍል",
+  "clock.equivalent": "በ24 ሰዓት: :time",
+  "calendar.date_on_or_after": "ከ:date ወይም ከዚያ በኋላ ያለ ቀን ይምረጡ",
+  "calendar.date_on_or_before": "እስከ :date ድረስ ያለ ቀን ይምረጡ",
+  "announcements.publish_time": "የሚታተምበት ሰዓት",
+  "announcements.schedule_in_past": "ገና ያላለፈ ሰዓት ይምረጡ",
+  "recruitment.interview_time": "የቃለ መጠይቅ ሰዓት",
+  "recruitment.interview_when_needed": "ቀኑንና ሰዓቱን ይምረጡ",
+  "employee.attendance.range": ":from እስከ :to",
+  "leave_page.calendar_range": ":from እስከ :to",
+  "voice.week_of": ":date የሚጀምር ሳምንት"
 }

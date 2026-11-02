@@ -104,7 +104,7 @@ const SYNC_STATUS_ICON: Record<string, React.ReactNode> = {
 export function DeviceDetail({ routeId }: { routeId: string }) {
   const { t } = useT();
   // Punch times render in the tenant's timezone, not the browser's — §12g.
-  const { formatTime, timeAgo } = useDateFormatters();
+  const { formatDate, formatTime, timeAgo } = useDateFormatters();
   const id = useRouteId(routeId) ?? "";
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -619,7 +619,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                             )}
                           </div>,
                           <span key="d" className="text-muted-foreground">
-                            {ev.date}
+                            {ev.date ? formatDate(ev.date) : "—"}
                           </span>,
                           <span key="ci" className="text-muted-foreground">
                             {ev.check_in ? formatTime(ev.check_in) : "—"}

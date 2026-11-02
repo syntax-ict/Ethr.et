@@ -14,9 +14,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
+import { ClockTimeInput } from "@/components/shared/clock-time-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -212,7 +212,7 @@ function CorrectionsList({
   showEmployee: boolean;
 }) {
   const { t } = useT();
-  const { formatTime } = useDateFormatters();
+  const { formatTime, formatDate } = useDateFormatters();
 
   const corrections = data?.data ?? [];
   const time = (iso: string | null) => (iso ? formatTime(iso) : "—");
@@ -275,7 +275,7 @@ function CorrectionsList({
                   {c.employee?.name ?? "—"}
                 </span>,
                 <span key="d" className="text-muted-foreground">
-                  {p.date ?? "—"}
+                  {p.date ? formatDate(p.date) : "—"}
                 </span>,
                 <span key="in" className="tabular-nums text-muted-foreground">
                   {time(p.proposedIn)}
@@ -361,7 +361,7 @@ function PayrollImpactBadge({ correctionId }: { correctionId: string }) {
 
 function PendingReviewsTab({ canDecide }: { canDecide: boolean }) {
   const { t } = useT();
-  const { formatTime } = useDateFormatters();
+  const { formatTime, formatDate } = useDateFormatters();
   const [page, setPage] = useState(1);
   const [rejectFor, setRejectFor] = useState<AttendanceCorrection | null>(null);
 
@@ -456,7 +456,7 @@ function PendingReviewsTab({ canDecide }: { canDecide: boolean }) {
                       )}
                       {p.date && (
                         <Badge variant="outline" className="text-[10px]">
-                          {p.date}
+                          {formatDate(p.date)}
                         </Badge>
                       )}
                       <KindBadge kind={c.kind} />
@@ -593,7 +593,7 @@ function RequestDialog({
   onClose: () => void;
 }) {
   const { t } = useT();
-  const { timeZone, formatTime } = useDateFormatters();
+  const { timeZone, formatTime, clock } = useDateFormatters();
   const [form, setForm] = useState(EMPTY_FORM);
   // A day handed in by the address fills the form once, when it changes.
   const [seededDate, setSeededDate] = useState("");
@@ -706,18 +706,21 @@ function RequestDialog({
               </SelectContent>
             </Select>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          {/* The Ethiopian clock's hour, minute and period need a full row. */}
+          <div
+            className={
+              clock === "24h" ? "grid grid-cols-2 gap-4" : "grid gap-4"
+            }
+          >
             <div>
               <Label htmlFor="correct-check-in">
                 {t("attendance.corrections.correct_check_in")}
               </Label>
-              <Input
+              <ClockTimeInput
                 id="correct-check-in"
-                type="time"
+                aria-label={t("attendance.corrections.correct_check_in")}
                 value={form.check_in}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, check_in: e.target.value }))
-                }
+                onChange={(v) => setForm((p) => ({ ...p, check_in: v }))}
                 required={noRecord}
                 className="mt-1"
               />
@@ -726,13 +729,11 @@ function RequestDialog({
               <Label htmlFor="correct-check-out">
                 {t("attendance.corrections.correct_check_out")}
               </Label>
-              <Input
+              <ClockTimeInput
                 id="correct-check-out"
-                type="time"
+                aria-label={t("attendance.corrections.correct_check_out")}
                 value={form.check_out}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, check_out: e.target.value }))
-                }
+                onChange={(v) => setForm((p) => ({ ...p, check_out: v }))}
                 className="mt-1"
               />
             </div>
