@@ -82,11 +82,14 @@ it('has no message in a translation that English lacks', function (string $local
 })->with(LANG_TRANSLATIONS);
 
 it('keeps every :placeholder of the English message', function (string $locale) {
+    // The set of names, not their count: a plural line repeats `:count` in
+    // each form, and a language with one form (Amharic) writes it once.
     $names = static function (string $line): array {
         preg_match_all('/:[a-z_]+/i', $line, $m);
-        sort($m[0]);
+        $unique = array_values(array_unique($m[0]));
+        sort($unique);
 
-        return $m[0];
+        return $unique;
     };
 
     $dropped = [];

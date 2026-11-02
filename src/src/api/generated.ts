@@ -11382,7 +11382,7 @@ export interface components {
             addressed_to?: string | null;
             include_salary?: boolean;
             /** @enum {string} */
-            language?: "en" | "am";
+            language?: "en" | "am" | "om";
         };
         /** StoreLoanRequest */
         StoreLoanRequest: {
@@ -12570,7 +12570,7 @@ export interface components {
             status?: "active" | "inactive" | "suspended";
             custom_role_id?: string | null;
             /** @enum {string} */
-            locale?: "en" | "am";
+            locale?: "en" | "am" | "om";
         };
         /** UpdateWebhookRequest */
         UpdateWebhookRequest: {
