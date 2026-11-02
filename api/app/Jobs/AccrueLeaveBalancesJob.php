@@ -17,7 +17,8 @@ use Throwable;
 
 /**
  * Tops up monthly-accrual leave balances to the entitlement earned so far this
- * year. Runs on the 1st of each month.
+ * leave year. Runs daily: an Ethiopian month starts on the 10th, 11th or 12th
+ * of a Gregorian one, and a run on the 1st credited it three weeks late.
  *
  * Dispatched per-tenant so one tenant's failure cannot stall the others.
  * `accrueMonthly()` computes a target from the month number rather than adding

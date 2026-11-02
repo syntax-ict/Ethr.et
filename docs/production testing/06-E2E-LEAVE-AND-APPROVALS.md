@@ -32,8 +32,8 @@ Columns, personas and modes: see the [README](README.md#how-a-test-case-is-writt
 |---|---|---|---|---|---|
 | LB-001 | P1 | R | Balance cards | EMP: Leave | One card per type: remaining (large) and used of entitled |
 | LB-002 | P1 | R | Service increment | An employee hired 4 years and 2 months ago | Annual entitlement 18 (16 + 2) |
-| LB-003 | P2 | R | Monthly accrual | Check an annual balance before and after the 1st of the month (accrual at 00:30 UTC) | Raised towards entitlement × months employed this year ÷ 12, rounded to one decimal; never lowered |
-| LB-004 | P2 | R | Carry forward | After 1 January (01:00 UTC) | Carried = min(remaining, cap); it overwrites the previous carried figure |
+| LB-003 | P2 | R | Monthly accrual | Check an annual balance before and after a month of the leave year starts (the 1st, or the 1st of an Ethiopian month on the Ethiopian leave year; accrual runs daily at 00:30 UTC) | Raised towards entitlement × months employed this leave year ÷ 12, rounded to one decimal; never lowered |
+| LB-004 | P2 | R | Carry forward | In the first week of the leave year (1 January, or Meskerem 1 on the Ethiopian leave year), 01:00 UTC | Carried = min(remaining, cap); it overwrites the previous carried figure |
 | LB-005 | P1 | W | Opening balance import | HR: import leave balances; template headers `employee_code, leave_type_code, year, entitled_days, used_days, carried_days`; preview 3 rows, one with used greater than entitled + carried, one duplicate | Bad rows reported with reasons; **commit writes nothing while any row is invalid**; after fixing, balances replaced |
 | LB-006 | P2 | W | Year bounds | Import year 1999 | Refused (2000 to 2100) |
 | LB-007 | P2 | R | Rights | SUP opens the balance import | Refused (`leave.adjustBalance` is HR) |

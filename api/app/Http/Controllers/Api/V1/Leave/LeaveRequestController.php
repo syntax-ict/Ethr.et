@@ -20,6 +20,7 @@ use App\Services\Approval\ApprovalEngine;
 use App\Services\Leave\LeaveBalanceService;
 use App\Services\Leave\LeaveDayCalculator;
 use App\Services\Leave\LeaveDecisionService;
+use App\Services\Leave\LeaveYear;
 use App\Traits\DispatchesWebhooks;
 use App\Traits\SendsNotifications;
 use Carbon\Carbon;
@@ -105,8 +106,11 @@ class LeaveRequestController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
-        $year = $startDate->year;
-        $balance = $this->balanceService->getOrCreateBalance($employee, $leaveType, $year);
+        // The leave year the request starts in: Ethiopian for an organisation
+        // on that calendar, so a Meskerem request draws on the new year.
+        $leaveYear = LeaveYear::forTenantId($employee->tenant_id);
+        $year = $leaveYear->yearOf($startDate);
+        $balance = $this->balanceService->getOrCreateBalance($employee, $leaveType, $year, $leaveYear);
         $remaining = $balance->remainingDays();
 
         if ($leaveType->limitedByBalance() && $days > $remaining) {
@@ -228,7 +232,7 @@ class LeaveRequestController extends Controller
     public function balance(Request $request): AnonymousResourceCollection
     {
         $user = $request->user();
-        $year = $request->integer('year', now()->year);
+        $year = $request->integer('year', LeaveYear::forTenantId((int) $user->tenant_id)->current());
 
         $balances = LeaveBalance::query()
             ->where('employee_id', $user->employee_id)
@@ -243,7 +247,7 @@ class LeaveRequestController extends Controller
     {
         $this->authorize('viewAll', LeaveRequest::class);
 
-        $year = $request->integer('year', now()->year);
+        $year = $request->integer('year', LeaveYear::forTenantId($employee->tenant_id)->current());
 
         $balances = LeaveBalance::query()
             ->where('employee_id', $employee->id)
@@ -326,7 +330,7 @@ class LeaveRequestController extends Controller
         $balance = LeaveBalance::query()
             ->where('employee_id', $leaveRequest->employee_id)
             ->where('leave_type_id', $leaveRequest->leave_type_id)
-            ->where('year', $leaveRequest->start_date->year)
+            ->where('year', LeaveYear::forTenantId($leaveRequest->tenant_id)->yearOf($leaveRequest->start_date))
             ->first();
 
         if ($balance) {

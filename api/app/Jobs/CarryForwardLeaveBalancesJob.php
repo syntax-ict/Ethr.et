@@ -19,9 +19,9 @@ use Throwable;
  * Rolls unused leave from one balance year into the next, capped per leave type
  * at `max_carry_days`.
  *
- * `LeaveBalance.year` is the Gregorian calendar year — `accrueMonthly()` keys
- * off `now()->year` and accrues on a Jan–Dec curve — so the roll-over runs on
- * 1 January, keeping carry-over in step with accrual.
+ * `LeaveBalance.year` is the organisation's leave year (LeaveYear), Gregorian
+ * or Ethiopian, so the roll-over runs in the first week of that year: from
+ * 1 January or from Meskerem 1. It ran on 1 January for everyone.
  *
  * Dispatched per-tenant. Re-running is safe: the destination balance's
  * `carried_days` is assigned, not incremented.

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Requests\Settings;
 
 use App\Http\Requests\Payroll\Concerns\ValidatesPensionScheme;
+use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
+use App\Services\Leave\LeaveYear;
 use App\Support\CalendarPreference;
 use App\Support\ClockPreference;
 use App\Support\TenantSecurityPolicy;
@@ -41,6 +43,7 @@ class UpdateSettingsRequest extends FormRequest
             'settings.pension_scheme' => ['sometimes', 'string', 'max:30'],
             'settings.working_days' => ['sometimes', 'array', 'min:1'],
             'settings.working_days.*' => ['integer', 'distinct', 'between:1,7'],
+            'settings.leave_year' => ['sometimes', 'string', Rule::in(LeaveYear::CHOICES)],
             'settings.mfa_policy' => ['sometimes', 'string', Rule::in(TenantSecurityPolicy::MFA_POLICIES)],
             'settings.session_timeout_minutes' => ['sometimes', 'integer', $timeout],
             'settings.calendar' => ['sometimes', 'string', Rule::in(CalendarPreference::ORGANISATION_CHOICES)],
@@ -110,6 +113,7 @@ class UpdateSettingsRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $this->checkPensionScheme($validator, 'settings.pension_scheme');
+            $this->checkLeaveYear($validator);
 
             $settings = $this->input('settings');
             if (! is_array($settings)) {
@@ -126,5 +130,23 @@ class UpdateSettingsRequest extends FormRequest
                 }
             }
         });
+    }
+
+    /**
+     * A leave year changes only while nothing would be lost: once leave is
+     * used, pending or carried, the balances are numbered in the old year and
+     * moving would strand them (LeaveYear::canChange).
+     */
+    private function checkLeaveYear(Validator $validator): void
+    {
+        $wanted = $this->input('settings.leave_year');
+        $tenant = app(CurrentTenant::class)->get();
+        if (! is_string($wanted) || $tenant === null || $wanted === LeaveYear::forTenant($tenant)->kind) {
+            return;
+        }
+
+        if (! LeaveYear::canChange($tenant->id)) {
+            $validator->errors()->add('settings.leave_year', __('settings.leave_year_locked'));
+        }
     }
 }

@@ -12337,6 +12337,8 @@ export interface components {
                 pension_scheme?: string;
                 working_days?: number[];
                 /** @enum {string} */
+                leave_year?: "gregorian" | "ethiopian";
+                /** @enum {string} */
                 mfa_policy?: "disabled" | "optional" | "required";
                 session_timeout_minutes?: number;
                 /** @enum {string} */
@@ -31945,6 +31947,9 @@ export interface operations {
                          */
                         leave: {
                             working_days: number[];
+                            /** @enum {string} */
+                            leave_year: "ethiopian" | "gregorian";
+                            leave_year_changeable: boolean;
                         };
                         payroll: {
                             pay_period: string;

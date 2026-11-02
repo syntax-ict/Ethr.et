@@ -15,6 +15,7 @@ use App\Jobs\ScanMissingPunchesJob;
 use App\Jobs\SendApprovalRemindersJob;
 use App\Jobs\SendExpiryRemindersJob;
 use App\Models\Tenant;
+use App\Services\Leave\LeaveYear;
 use App\Services\Observability\QueueHealth;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -78,22 +79,30 @@ Schedule::call(function () {
     });
 })->dailyAt('15:30')->name('scan-missing-punches')->withoutOverlapping();
 
-// Accrue monthly leave entitlement on the 1st of each month — 00:30 UTC (03:30 EAT)
+// Accrue monthly leave entitlement — daily, 00:30 UTC (03:30 EAT). Daily, not on
+// the 1st: an Ethiopian leave month starts mid-Gregorian-month. The job tops up
+// to a target, so a run that finds nothing new changes nothing.
 Schedule::call(function () {
     Tenant::operational()->each(function (Tenant $tenant) {
         AccrueLeaveBalancesJob::dispatch($tenant->id)->onQueue('default');
     });
-})->monthlyOn(1, '00:30')->name('accrue-leave-balances')->withoutOverlapping();
+})->dailyAt('00:30')->name('accrue-leave-balances')->withoutOverlapping();
 
-// Carry unused leave into the new balance year on 1 January — 01:00 UTC (04:00 EAT).
-// Runs before that month's accrual has any effect on the new year's rows.
+// Carry unused leave into the new leave year — 01:00 UTC (04:00 EAT), on each of
+// the first seven days of the organisation's leave year (1 January, or Meskerem 1
+// on the Ethiopian year), so a missed run is caught up. The carry is assigned,
+// not added, so a repeat changes nothing.
 Schedule::call(function () {
-    $toYear = now()->year;
-    Tenant::operational()->each(function (Tenant $tenant) use ($toYear) {
+    Tenant::operational()->each(function (Tenant $tenant) {
+        $leaveYear = LeaveYear::forTenant($tenant);
+        if ($leaveYear->dayOfYear($leaveYear->today()) > 7) {
+            return;
+        }
+        $toYear = $leaveYear->current();
         CarryForwardLeaveBalancesJob::dispatch($tenant->id, $toYear - 1, $toYear)
             ->onQueue('default');
     });
-})->yearlyOn(1, 1, '01:00')->name('carry-forward-leave-balances')->withoutOverlapping();
+})->dailyAt('01:00')->name('carry-forward-leave-balances')->withoutOverlapping();
 
 // Next year's holidays for every tenant, on the 1st of each month — 01:30 UTC
 // (04:30 EAT). Monthly so a missed run or a new tenant is caught up; the roll
