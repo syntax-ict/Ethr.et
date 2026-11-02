@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useCurrentUser } from "@/features/auth/api";
 import { toCalendarSystem, useCalendar } from "@/lib/calendar/calendar-context";
+import { toClockPreference } from "@/lib/calendar/ethiopian-time";
 
 /**
  * Applies the signed-in user's calendar to the display (audit N33).
@@ -18,18 +19,27 @@ import { toCalendarSystem, useCalendar } from "@/lib/calendar/calendar-context";
  * made locally is not overwritten by a stale read, and an offline session keeps
  * the cached `localStorage` value until the server can answer.
  *
+ * The clock (Ethiopian time or 24-hour) is applied the same way, from
+ * `preferences.clock`.
+ *
  * Renders nothing. Mounted inside `CalendarProvider` in the authenticated shell
  * only — public pages make no `/auth/me` call.
  */
 export function CalendarPreferenceSync() {
   const { data: user } = useCurrentUser();
-  const { setCalendar } = useCalendar();
+  const { setCalendar, setClockPreference } = useCalendar();
   const preferred = user?.preferences?.calendar;
+  const preferredClock = user?.preferences?.clock;
 
   useEffect(() => {
     if (preferred === undefined) return;
     setCalendar(toCalendarSystem(preferred));
   }, [preferred, setCalendar]);
+
+  useEffect(() => {
+    if (preferredClock === undefined) return;
+    setClockPreference(toClockPreference(preferredClock));
+  }, [preferredClock, setClockPreference]);
 
   return null;
 }

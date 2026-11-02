@@ -6582,5 +6582,11 @@
   "route.employees.letters.label": "Letter requests",
   "route.employees.letters.desc": "Employment letters employees asked for",
   "route.profile.preferences.label": "Preferences",
-  "route.profile.preferences.desc": "Language, theme, and calendar display"
+  "route.profile.preferences.desc": "Language, theme, and calendar display",
+  "clock.auto": "Automatic",
+  "clock.ethiopian": "Ethiopian time (:example)",
+  "clock.24h": "24-hour (:example)",
+  "clock.hint": "Automatic uses Ethiopian time when you read Amharic on the Ethiopian calendar, and 24-hour otherwise.",
+  "profile.time_display": "Time of day",
+  "settings.clock_system": "Time of day"
 }

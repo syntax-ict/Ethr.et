@@ -6582,5 +6582,11 @@
   "route.employees.letters.label": "የደብዳቤ ጥያቄዎች",
   "route.employees.letters.desc": "ሰራተኞች የጠየቋቸው የሥራ ማረጋገጫ ደብዳቤዎች",
   "route.profile.preferences.label": "ምርጫዎች",
-  "route.profile.preferences.desc": "ቋንቋ፣ ገጽታ እና የቀን መቁጠሪያ አቀራረብ"
+  "route.profile.preferences.desc": "ቋንቋ፣ ገጽታ እና የቀን መቁጠሪያ አቀራረብ",
+  "clock.auto": "ራስ-ሰር",
+  "clock.ethiopian": "የኢትዮጵያ ሰዓት (:example)",
+  "clock.24h": "24 ሰዓት (:example)",
+  "clock.hint": "ራስ-ሰር ማለት በአማርኛና በኢትዮጵያ የቀን አቆጣጠር ሲጠቀሙ የኢትዮጵያ ሰዓት፣ ካልሆነ ደግሞ የ24 ሰዓት አቆጣጠር ነው።",
+  "profile.time_display": "የሰዓት አቆጣጠር",
+  "settings.clock_system": "የሰዓት አቆጣጠር"
 }

@@ -468,6 +468,7 @@ Rules for all forms:
 - Ethiopia does not observe DST. UTC+3 is constant year-round.
 - All date pickers: support dual calendar display (Gregorian + Ethiopian) when tenant enables it.
 - Leave day counting: must handle leave spanning Pagumen correctly.
+- Time of day: the Ethiopian clock (06:00 = 12:00 ጠዋት, 18:00 = 12:00 ምሽት) is for display and input only; store and transport UTC, 24-hour. The reader's clock is `auto` / `ethiopian` / `24h` (user, else `settings.clock`, else `auto`); `auto` is Ethiopian time for Amharic on the Ethiopian calendar. One rule each side: `ClockPreference::resolve()` and `resolveClock()`. Render times through `useDateFormatters()`, never `toLocaleTimeString`.
 - Amharic line-height: use 1.6-1.8 (vs 1.5 for Latin text).
 
 ---

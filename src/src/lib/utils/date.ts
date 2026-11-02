@@ -27,6 +27,7 @@
  * twice a year for them and would need changing if Ethiopia ever adopted one.
  */
 import { formatEthiopian, toEthiopian } from "@/lib/calendar/ethiopian";
+import { formatClock, type ClockSystem } from "@/lib/calendar/ethiopian-time";
 
 export const DEFAULT_TIMEZONE = "Africa/Addis_Ababa";
 
@@ -257,17 +258,46 @@ export function formatCalendarDate(
   return formatDate(dateStr, timeZone);
 }
 
-/** `formatCalendarDate` with the time of day in the tenant's zone, 24-hour. */
+/**
+ * The time of day an instant falls on in the tenant's zone, in the reader's
+ * clock: `07:30`, or `1:30 ጠዋት` on the Ethiopian clock. 24-hour is exactly
+ * `formatTime`.
+ */
+export function formatClockTime(
+  dateStr: string,
+  timeZone: string,
+  clock: ClockSystem,
+  locale: string,
+): string {
+  if (clock === "24h") return formatTime(dateStr, timeZone);
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return formatTime(dateStr, timeZone);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+    timeZone: resolveTimeZone(timeZone),
+  }).formatToParts(date);
+  const pick = (type: string) =>
+    Number(parts.find((p) => p.type === type)?.value);
+  return formatClock(pick("hour"), pick("minute"), clock, locale);
+}
+
+/**
+ * `formatCalendarDate` with the time of day in the tenant's zone, in the
+ * reader's clock (24-hour unless told otherwise).
+ */
 export function formatCalendarDateTime(
   dateStr: string,
   timeZone: string,
   calendar: DisplayCalendar,
   locale: string,
+  clock: ClockSystem = "24h",
 ): string {
-  if (calendar === "gregorian" && locale !== "am") {
+  if (calendar === "gregorian" && locale !== "am" && clock === "24h") {
     return formatDateTime(dateStr, timeZone);
   }
   if (!calendarDayParts(dateStr, timeZone))
     return formatDateTime(dateStr, timeZone);
-  return `${formatCalendarDate(dateStr, timeZone, calendar, locale)}, ${formatTime(dateStr, timeZone)}`;
+  return `${formatCalendarDate(dateStr, timeZone, calendar, locale)}, ${formatClockTime(dateStr, timeZone, clock, locale)}`;
 }
