@@ -43,6 +43,10 @@ import { KioskKeypad, PinDots } from "@/features/kiosk/components/kiosk-keypad";
 import { KioskPunchResultCard } from "@/features/kiosk/components/kiosk-punch-result";
 import { KioskSelfService } from "@/features/kiosk/components/kiosk-self-service";
 import {
+  useKioskSound,
+  type KioskSoundMode,
+} from "@/features/kiosk/kiosk-sound";
+import {
   cacheKioskConfig,
   cachedKioskConfig,
   forgetKioskConfig,
@@ -68,6 +72,8 @@ interface KioskConfig {
   branchName: string | null;
   pinRequired: boolean;
   autoResetSeconds: number;
+  /** What the kiosk says on each result; absent from older caches. */
+  sound?: KioskSoundMode;
   /** For punching through a power cut or outage; absent from older caches. */
   offline?: KioskOfflineConfig | null;
 }
@@ -128,6 +134,8 @@ export default function KioskPage() {
   const [lockError, setLockError] = useState("");
   const [lockLoading, setLockLoading] = useState(false);
 
+  const play = useKioskSound(config?.sound ?? "tones", locale, t);
+
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Offline: started from the cached configuration, or a punch could not
@@ -186,6 +194,7 @@ export default function KioskPage() {
         branchName: data.session.branch?.name ?? null,
         pinRequired: data.settings.pin_required,
         autoResetSeconds: data.settings.auto_reset_seconds,
+        sound: data.settings.sound,
         offline: data.offline,
       };
       setConfig(cfg);
@@ -257,6 +266,7 @@ export default function KioskPage() {
       if (!config?.offline) {
         setMessage(t("kiosk_page.offline_unavailable"));
         setMode("error");
+        play("error");
         return;
       }
       try {
@@ -272,9 +282,11 @@ export default function KioskPage() {
         setRecordedAt(new Date().toISOString());
         setMode("success");
         setMessage(t("kiosk_page.saved_offline", undefined, { code }));
+        play("saved");
       } catch {
         setMessage(t("kiosk_page.check_failed"));
         setMode("error");
+        play("error");
       }
     }
 
@@ -315,6 +327,13 @@ export default function KioskPage() {
           { name: empName },
         ),
       );
+      play(
+        data.was_duplicate
+          ? "duplicate"
+          : punched === "check_out"
+            ? "check_out"
+            : "check_in",
+      );
     } catch (err: unknown) {
       if (isUnreachable(err)) {
         await keepOffline();
@@ -322,8 +341,14 @@ export default function KioskPage() {
       }
       setMessage(apiErrorDetail(err) ?? t("kiosk_page.check_failed"));
       setMode("error");
+      // 429 is the five-wrong-PINs lock: another try will not help.
+      play(
+        (err as { response?: { status?: number } })?.response?.status === 429
+          ? "locked"
+          : "error",
+      );
     }
-  }, [code, config, pin, showPin, type, t, locale]);
+  }, [code, config, pin, showPin, type, t, locale, play]);
 
   // Send what waited whenever the connection is back: on the browser's
   // "online" event, and every 30 seconds in case that event never comes.
@@ -411,6 +436,7 @@ export default function KioskPage() {
       }
       setAdminPin("");
       setLockError(apiErrorMessage(err, t("kiosk_page.exit_failed")));
+      play("error");
     } finally {
       setLockLoading(false);
     }
@@ -623,6 +649,7 @@ export default function KioskPage() {
             timeZone={DEFAULT_TIMEZONE}
             calendar={calendar}
             clock={clock}
+            onCue={play}
             onClose={() => setScreen("kiosk")}
           />
         ) : mode === "success" ? (
@@ -643,6 +670,7 @@ export default function KioskPage() {
                 lastPunch.result.public_id,
                 lastPunch.punch,
               );
+              play("reported");
             }}
           />
         ) : mode === "error" ? (
