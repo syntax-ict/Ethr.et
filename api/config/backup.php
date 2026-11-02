@@ -41,6 +41,22 @@ return [
     'keep' => (int) env('BACKUP_KEEP', 2),
 
     /*
+     * The hosting plan's disk quota in MB: Bronze is 5 GB, shared by the
+     * database, the documents and these backups. DiskUsage measures against
+     * it nightly; the operations centre turns amber at 70% and red at 85%,
+     * and a backup that would pass 95% is refused rather than filling the
+     * disk the database writes to.
+     */
+    'disk_quota_mb' => (int) env('DISK_QUOTA_MB', 5120),
+
+    /*
+     * What DiskUsage walks: the application, by default. A relative path is
+     * relative to the application, which is how the test suite points it at
+     * a small folder instead of vendor/.
+     */
+    'disk_root' => env('DISK_MEASURE_ROOT'),
+
+    /*
      * Disk for off-host copies. Already wired through
      * league/flysystem-aws-s3-v3, so any S3-compatible endpoint works without a
      * new dependency.

@@ -63,6 +63,7 @@ function state(
         disk: "ethr-backups",
         last_copied_at: null,
       },
+      disk: null,
     },
     ...overrides,
   };
