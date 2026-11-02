@@ -107,8 +107,9 @@ it('lists each item in the e-mail', function () {
     Notification::assertSentTo($hr, ExpiryReminderNotification::class, function (ExpiryReminderNotification $n) use ($hr) {
         $text = implode("\n", $n->toMail($hr)->introLines);
 
-        return str_contains($text, 'Contract of Abebe Kebede ends on 2026-11-19.')
-            && str_contains($text, 'Probation of Selam Tesfaye ends on 2026-11-03.')
-            && str_contains($text, 'Work permit of Abebe Kebede expires on 2026-10-27.');
+        // In HR's calendar, the organisation's Ethiopian: 2026-11-19, 11-03, 10-27.
+        return str_contains($text, 'Contract of Abebe Kebede ends on Hidar 10, 2019.')
+            && str_contains($text, 'Probation of Selam Tesfaye ends on Tikimt 24, 2019.')
+            && str_contains($text, 'Work permit of Abebe Kebede expires on Tikimt 17, 2019.');
     });
 });

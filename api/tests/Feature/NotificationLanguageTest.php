@@ -65,8 +65,9 @@ it('writes an Amharic reader\'s notice in Amharic, with a link to open', functio
     ]);
 });
 
-// users.locale is NOT NULL (default `en`), so the organisation's language is
-// reached only when the stored value is one the product does not ship.
+// users.locale is NOT NULL (default `en`), so `en` alone does not say anyone
+// chose it: the organisation's language is used unless they did (the
+// `locale_chosen` marker), or the stored value is not one the product ships.
 it('falls back to the organisation\'s language when the reader\'s is not shipped', function () {
     $tenant = createTenant(['default_locale' => 'am']);
     $reader = createUser(['role' => UserRole::EMPLOYEE, 'locale' => 'om'], $tenant);
@@ -80,7 +81,7 @@ it('falls back to the organisation\'s language when the reader\'s is not shipped
 
 it('writes an English reader\'s notice in English', function () {
     $tenant = createTenant(['default_locale' => 'am']);
-    $reader = createUser(['role' => UserRole::EMPLOYEE, 'locale' => 'en'], $tenant);
+    $reader = createUser(['role' => UserRole::EMPLOYEE, 'locale' => 'en', 'preferences' => ['locale_chosen' => true]], $tenant);
 
     $reader->notify(new LeaveApprovedNotification(languageLeave($tenant->id)));
 

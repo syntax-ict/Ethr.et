@@ -25,6 +25,7 @@ use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\StatutorySchedules;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
+use App\Support\ClockPreference;
 use App\Support\TenantBrand;
 use App\Support\TenantLanding;
 use App\Support\TenantSecurityPolicy;
@@ -114,6 +115,7 @@ class SettingsController extends Controller
             ],
             'display' => [
                 'calendar' => $this->organisationCalendar($tenant),
+                'clock' => ClockPreference::forTenant($tenant),
             ],
             'employees' => [
                 'number_format' => $numbering->format($tenant),

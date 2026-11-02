@@ -46,6 +46,11 @@ import {
   type TenantSettings,
 } from "@/features/settings/api";
 import { type CalendarSystem } from "@/lib/calendar/calendar-context";
+import { ClockSelect } from "@/components/shared/clock-select";
+import {
+  toClockPreference,
+  type ClockPreference,
+} from "@/lib/calendar/ethiopian-time";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 
@@ -131,17 +136,22 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
    * chosen their own calendar picks it up from `/auth/me`.
    */
   function saveCalendar(calendar: CalendarSystem) {
-    updateSettings.mutate(
-      { calendar },
-      {
-        onSuccess: () => toast.success(t("settings.saved", "Settings saved")),
-        onError: (error) =>
-          toastError(
-            error,
-            t("settings.save_failed", "Failed to save settings"),
-          ),
-      },
-    );
+    saveDisplay({ calendar });
+  }
+
+  /** The organisation's default clock, on the same terms as its calendar. */
+  function saveClock(clock: ClockPreference) {
+    saveDisplay({ clock });
+  }
+
+  function saveDisplay(
+    display: { calendar: CalendarSystem } | { clock: ClockPreference },
+  ) {
+    updateSettings.mutate(display, {
+      onSuccess: () => toast.success(t("settings.saved", "Settings saved")),
+      onError: (error) =>
+        toastError(error, t("settings.save_failed", "Failed to save settings")),
+    });
   }
 
   function saveSso() {
@@ -273,6 +283,18 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                     "Controls date display across the application",
                   )}
                 </p>
+              </div>
+              <div>
+                <Label htmlFor="org-clock">
+                  {t("settings.clock_system", "Time of day")}
+                </Label>
+                <ClockSelect
+                  id="org-clock"
+                  className="mt-1"
+                  value={toClockPreference(data.display.clock)}
+                  onChange={saveClock}
+                  disabled={updateSettings.isPending}
+                />
               </div>
             </CardContent>
           </Card>

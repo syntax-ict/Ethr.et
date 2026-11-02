@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Services\Backup\BackupCipher;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Throwable;
@@ -80,11 +81,43 @@ class BackupStorageSetting extends Model
         }
     }
 
+    /**
+     * Null too when the stored key no longer decrypts (APP_KEY changed, or the
+     * database was restored onto another host): the copy is then reported as
+     * blocked, and the local backup and its prune still run.
+     */
     public function cipher(): ?BackupCipher
     {
-        $key = BackupCipher::decodeKey((string) $this->encryption_key);
+        try {
+            $key = BackupCipher::decodeKey((string) $this->encryption_key);
+        } catch (DecryptException) {
+            return null;
+        }
 
         return $key === null ? null : new BackupCipher($key);
+    }
+
+    /** Whether a secret is stored, read without decrypting it. */
+    public function hasSecret(): bool
+    {
+        return filled($this->getRawOriginal('secret_access_key'));
+    }
+
+    /**
+     * The host the S3 client connects to. With path-style addressing off it
+     * puts the bucket in the host name, so that name is what has to be
+     * external, not only the endpoint's.
+     */
+    public function connectsTo(): string
+    {
+        return self::hostFor((string) $this->endpoint, (string) $this->bucket, (bool) $this->path_style);
+    }
+
+    public static function hostFor(string $endpoint, string $bucket, bool $pathStyle): string
+    {
+        $host = (string) parse_url($endpoint, PHP_URL_HOST);
+
+        return $pathStyle ? $host : $bucket.'.'.$host;
     }
 
     public function isVerified(): bool

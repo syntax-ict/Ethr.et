@@ -181,7 +181,7 @@ class BackupStorageController extends Controller
                 'region' => $settings->region,
                 'bucket' => $settings->bucket,
                 'access_key_id' => $settings->access_key_id,
-                'secret_set' => filled($settings->secret_access_key),
+                'secret_set' => $settings->hasSecret(),
                 'path_style' => $settings->path_style,
                 'verified' => $settings->isVerified(),
                 'verified_at' => $settings->verified_at?->toIso8601String(),

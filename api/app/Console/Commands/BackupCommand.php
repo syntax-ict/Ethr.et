@@ -6,7 +6,9 @@ namespace App\Console\Commands;
 
 use App\Services\Backup\BackupService;
 use App\Support\BackupHealth;
+use App\Support\DiskUsage;
 use Illuminate\Console\Command;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -32,14 +34,23 @@ class BackupCommand extends Command
 
     protected $description = 'Back up the database and employee documents';
 
-    public function handle(BackupService $backups): int
+    public function handle(BackupService $backups, DiskUsage $disk): int
     {
         // The nightly run arrives through the web SAPI (/cron/schedule), whose
         // 30-second limit a backup plus an upload can outlast. A run cut off
         // half-way leaves a directory with no manifest and no copy.
         @set_time_limit(0);
 
+        // Falls back to config rather than to a signature default, so
+        // BACKUP_KEEP reaches this. It did not until 2026-09-23: the
+        // signature said `--keep=7`, which is never null, so config
+        // backup.keep and the BACKUP_KEEP env var were dead. An operator
+        // lowering retention on a 5 GB plan got 7 anyway, silently.
+        $keep = (int) ($this->option('keep') ?? config('backup.keep', 2));
+
         try {
+            $this->makeRoom($backups, $disk, $keep);
+
             $this->info('Backing up...');
             $result = $backups->create($this->option('label'));
             $m = $result['manifest'];
@@ -60,17 +71,14 @@ class BackupCommand extends Command
 
             $offHostFailed = ! $this->copyOffHost($backups, $result['path']);
 
-            // Falls back to config rather than to a signature default, so
-            // BACKUP_KEEP reaches this. It did not until 2026-09-23: the
-            // signature said `--keep=7`, which is never null, so config
-            // backup.keep and the BACKUP_KEEP env var were dead. An operator
-            // lowering retention on a 5 GB plan got 7 anyway, silently.
-            $keep = $this->option('keep') ?? config('backup.keep', 2);
-
-            $removed = $backups->prune((int) $keep);
+            $removed = $backups->prune($keep);
             if ($removed !== []) {
                 $this->line('  pruned    '.implode(', ', $removed));
             }
+
+            $usage = $disk->measure();
+            DiskUsage::record($usage);
+            $this->line('  disk      '.$this->humanBytes($usage['total_bytes']).' of '.$this->humanBytes($usage['quota_bytes']));
 
             $this->info('Done. Restore with: php artisan ethr:restore '.$result['name']);
 
@@ -84,6 +92,40 @@ class BackupCommand extends Command
             $this->error('Backup FAILED: '.$e->getMessage());
 
             return self::FAILURE;
+        }
+    }
+
+    /**
+     * A backup is a full copy of the database and of every document, written
+     * to the same quota they live on. When it would not fit, the oldest
+     * backups go first (one is always kept), and if it still would not fit
+     * the run stops here: a full disk takes uploads and then the database
+     * down with it, which is worse than a missed night that the operations
+     * centre reports.
+     */
+    private function makeRoom(BackupService $backups, DiskUsage $disk, int $keep): void
+    {
+        $usage = $disk->measure();
+        DiskUsage::record($usage);
+
+        if (DiskUsage::roomForBackup($usage)) {
+            return;
+        }
+
+        $removed = $backups->prune(max(1, $keep - 1));
+        if ($removed !== []) {
+            $this->warn('  pruned    '.implode(', ', $removed).' early, to make room');
+            $usage = $disk->measure();
+            DiskUsage::record($usage);
+        }
+
+        if (! DiskUsage::roomForBackup($usage)) {
+            throw new RuntimeException(sprintf(
+                'Not enough disk for another backup: %s used of %s, and a backup needs about %s more. Free space or raise DISK_QUOTA_MB to match the plan.',
+                $this->humanBytes($usage['total_bytes']),
+                $this->humanBytes($usage['quota_bytes']),
+                $this->humanBytes(($usage['database_bytes'] ?? 0) + $usage['documents_bytes']),
+            ));
         }
     }
 

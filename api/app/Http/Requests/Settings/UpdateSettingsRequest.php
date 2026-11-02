@@ -9,6 +9,7 @@ use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
 use App\Services\Leave\LeaveYear;
 use App\Support\CalendarPreference;
+use App\Support\ClockPreference;
 use App\Support\TenantSecurityPolicy;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -46,6 +47,7 @@ class UpdateSettingsRequest extends FormRequest
             'settings.mfa_policy' => ['sometimes', 'string', Rule::in(TenantSecurityPolicy::MFA_POLICIES)],
             'settings.session_timeout_minutes' => ['sometimes', 'integer', $timeout],
             'settings.calendar' => ['sometimes', 'string', Rule::in(CalendarPreference::ORGANISATION_CHOICES)],
+            'settings.clock' => ['sometimes', 'string', Rule::in(ClockPreference::CHOICES)],
             'settings.employee_number_format' => ['sometimes', 'string', 'max:40', 'regex:'.EmployeeNumbering::SHAPE],
             'settings.invitation_reminders' => ['sometimes', 'boolean'],
         ];

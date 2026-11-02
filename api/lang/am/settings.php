@@ -16,6 +16,7 @@ return [
         'mfa_policy' => 'የሁለት ደረጃ ማረጋገጫ መመሪያ',
         'session_timeout_minutes' => 'የክፍለ ጊዜ ማብቂያ',
         'calendar' => 'የቀን መቁጠሪያ ሥርዓት',
+        'clock' => 'የሰዓት አቆጣጠር',
         'employer_tin' => 'የአሠሪ የግብር ከፋይ መለያ ቁጥር',
         'tax_center' => 'የግብር ማዕከል',
         'pension_scheme' => 'የጡረታ ዕቅድ',

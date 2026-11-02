@@ -48,7 +48,7 @@ const MANDATORY = [
     'G0-H' => 'SMTP 587/465 + mailbox send cap',
     'G0-I' => 'MySQL version, DB_CONNECTION, charset',
     'G0-J' => 'CPU and database performance',
-    'Quotas' => '5 GB disk / 50 GB bandwidth',
+    'Quotas' => 'disk / bandwidth (Linux Gold: 50 GB / unlimited)',
     'Secrets' => 'Secret / artifact audit',
 ];
 

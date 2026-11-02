@@ -10420,6 +10420,9 @@
                                                         "calendar": {
                                                             "type": "string"
                                                         },
+                                                        "clock": {
+                                                            "type": "string"
+                                                        },
                                                         "punch_reminders": {
                                                             "type": "boolean"
                                                         },
@@ -10432,6 +10435,7 @@
                                                         "locale_chosen",
                                                         "theme",
                                                         "calendar",
+                                                        "clock",
                                                         "punch_reminders",
                                                         "auto_check_in"
                                                     ]
@@ -35176,10 +35180,14 @@
                                                         "gregorian",
                                                         "ethiopian"
                                                     ]
+                                                },
+                                                "clock": {
+                                                    "type": "string"
                                                 }
                                             },
                                             "required": [
-                                                "calendar"
+                                                "calendar",
+                                                "clock"
                                             ]
                                         },
                                         "employees": {

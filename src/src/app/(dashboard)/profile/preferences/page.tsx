@@ -28,6 +28,8 @@ import {
 } from "@/features/profile/api";
 import { useCurrentTenant } from "@/features/auth/api";
 import { toCalendarSystem, useCalendar } from "@/lib/calendar/calendar-context";
+import { ClockSelect } from "@/components/shared/clock-select";
+import { toClockPreference } from "@/lib/calendar/ethiopian-time";
 import { useT } from "@/lib/i18n/useT";
 import { setLocale } from "@/lib/i18n/translations";
 import { toast } from "sonner";
@@ -61,7 +63,7 @@ function Preferences({ profile }: { profile: ProfileResponse }) {
   const { t } = useT();
   const { theme, setTheme } = useTheme();
   const { data: tenant } = useCurrentTenant();
-  const { setCalendar } = useCalendar();
+  const { setCalendar, setClockPreference } = useCalendar();
   const save = useUpdatePreferences();
   const prefs = profile.preferences;
 
@@ -205,6 +207,18 @@ function Preferences({ profile }: { profile: ProfileResponse }) {
                 "Applies wherever you sign in. Until you choose, your organisation's default is used.",
               )}
             </p>
+            <div className="space-y-2 pt-2">
+              <Label htmlFor="clock">
+                {t("profile.time_display", "Time of day")}
+              </Label>
+              <ClockSelect
+                id="clock"
+                value={toClockPreference(prefs?.clock)}
+                onChange={(clock) =>
+                  void persist({ clock }, () => setClockPreference(clock))
+                }
+              />
+            </div>
           </CardContent>
         </Card>
       )}

@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
 use App\Support\NotificationTemplates;
+use App\Support\ReaderDates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -43,7 +44,7 @@ class TrialExpiringNotification extends Notification
 
         return NotificationTemplates::mail('trial_expiring', is_int($tenantId) || is_string($tenantId) ? $tenantId : null, [
             'days_remaining' => $this->daysRemaining,
-            'trial_ends_at' => $this->trialEndsAt,
-        ])->action('Upgrade Plan', FrontendUrl::forNotifiable($notifiable, '/billing'));
+            'trial_ends_at' => ReaderDates::for($notifiable)->date($this->trialEndsAt),
+        ])->action(__('notification.upgrade_plan'), FrontendUrl::forNotifiable($notifiable, '/billing'));
     }
 }
