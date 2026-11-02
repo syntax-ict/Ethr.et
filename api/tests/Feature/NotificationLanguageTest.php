@@ -70,7 +70,7 @@ it('writes an Amharic reader\'s notice in Amharic, with a link to open', functio
 // `locale_chosen` marker), or the stored value is not one the product ships.
 it('falls back to the organisation\'s language when the reader\'s is not shipped', function () {
     $tenant = createTenant(['default_locale' => 'am']);
-    $reader = createUser(['role' => UserRole::EMPLOYEE, 'locale' => 'om'], $tenant);
+    $reader = createUser(['role' => UserRole::EMPLOYEE, 'locale' => 'ti'], $tenant);
 
     expect($reader->preferredLocale())->toBe('am');
 
@@ -90,9 +90,21 @@ it('writes an English reader\'s notice in English', function () {
 
 it('ignores a stored language the product does not ship', function () {
     $tenant = createTenant(['default_locale' => 'en']);
-    $reader = createUser(['role' => UserRole::EMPLOYEE, 'locale' => 'om'], $tenant);
+    $reader = createUser(['role' => UserRole::EMPLOYEE, 'locale' => 'ti'], $tenant);
 
     expect($reader->preferredLocale())->toBe('en');
+});
+
+it('writes an Oromo reader\'s notice in Oromo', function () {
+    $tenant = createTenant(['default_locale' => 'am']);
+    $reader = createUser(['role' => UserRole::EMPLOYEE, 'locale' => 'om'], $tenant);
+
+    expect($reader->preferredLocale())->toBe('om');
+
+    $reader->notify(new LeaveApprovedNotification(languageLeave($tenant->id)));
+
+    expect(storedMessage($reader)['message'])->toBe(__('notification.inapp.leave_approved', [], 'om'))
+        ->not->toBe('Your leave request was approved.');
 });
 
 // The language switch in the header changes only the browser's locale, so a
