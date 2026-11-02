@@ -145,7 +145,8 @@ it('joins the frontend url and a path with exactly one slash', function () {
 it('sends the payslip email to the payslips page on the frontend', function () {
     config(['app.url' => 'https://api.ethr.test', 'app.frontend_url' => 'https://app.ethr.test']);
     $tenant = createTenant();
-    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'period_label' => 'Meskerem 2019']);
+    // The month is named from the run's dates, in the reader's calendar.
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'period_label' => 'Meskerem 2019', 'period_start' => '2026-09-11', 'period_end' => '2026-10-10']);
     $entry = PayrollEntry::factory()->create([
         'tenant_id' => $tenant->id,
         'payroll_run_id' => $run->id,

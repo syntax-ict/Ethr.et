@@ -9,6 +9,7 @@ use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Notifications\Contracts\BulkMail;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
+use App\Support\ReaderDates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -51,7 +52,7 @@ class AttendanceAutoCheckedOutNotification extends Notification implements BulkM
             ...NotificationMessage::make('attendance.auto_checkout.message', [
                 'date' => $this->record->date?->format('Y-m-d'),
                 'time' => $this->shiftEnd,
-            ]),
+            ], dates: ['date' => 'date', 'time' => 'time_of_day'], reader: ReaderDates::for($notifiable)),
             'url' => '/attendance/corrections',
         ];
     }
@@ -61,8 +62,8 @@ class AttendanceAutoCheckedOutNotification extends Notification implements BulkM
         return (new MailMessage)
             ->subject(__('attendance.auto_checkout.subject'))
             ->line(__('attendance.auto_checkout.message', [
-                'date' => $this->record->date?->format('Y-m-d'),
-                'time' => $this->shiftEnd,
+                'date' => ReaderDates::for($notifiable)->date($this->record->date?->format('Y-m-d')),
+                'time' => ReaderDates::for($notifiable)->timeOfDay($this->shiftEnd),
             ]))
             ->line(__('attendance.auto_checkout.correct_it'))
             ->action(

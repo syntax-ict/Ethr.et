@@ -10,6 +10,7 @@ use App\Notifications\Contracts\BulkMail;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
 use App\Support\NotificationTemplates;
+use App\Support\ReaderDates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -46,7 +47,7 @@ class MissingPunchNotification extends Notification implements BulkMail
             'employee_name' => $this->employee->name,
             'date' => $this->date,
             'type' => $this->type,
-            ...NotificationMessage::make($this->type === 'missing_check_out' ? 'notification.inapp.missing_check_out' : 'notification.inapp.missing_check_in', ['name' => $this->employee->name, 'date' => $this->date]),
+            ...NotificationMessage::make($this->type === 'missing_check_out' ? 'notification.inapp.missing_check_out' : 'notification.inapp.missing_check_in', ['name' => $this->employee->name, 'date' => $this->date], dates: ['date' => 'date'], reader: ReaderDates::for($notifiable)),
             'url' => '/attendance',
         ];
     }
@@ -60,8 +61,8 @@ class MissingPunchNotification extends Notification implements BulkMail
 
         return NotificationTemplates::mail('missing_punch', $this->employee->tenant_id, [
             'employee_name' => $this->employee->name,
-            'date' => $this->date,
+            'date' => ReaderDates::for($notifiable)->date($this->date),
             'punch_type' => $label,
-        ])->action('View Attendance', FrontendUrl::forNotifiable($notifiable, '/attendance'));
+        ])->action(__('notification.view_attendance'), FrontendUrl::forNotifiable($notifiable, '/attendance'));
     }
 }

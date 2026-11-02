@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\AttendanceCorrection;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\NotificationMessage;
+use App\Support\ReaderDates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -47,7 +48,7 @@ class AttendanceCorrectionApprovedNotification extends Notification
             'correction_id' => $this->correction->public_id,
             'date' => $date?->format('Y-m-d'),
             'action' => $action,
-            ...NotificationMessage::make($this->approved ? 'notification.inapp.correction_approved' : 'notification.inapp.correction_rejected', ['date' => $date?->format('Y-m-d') ?? '']),
+            ...NotificationMessage::make($this->approved ? 'notification.inapp.correction_approved' : 'notification.inapp.correction_rejected', ['date' => $date?->format('Y-m-d') ?? ''], dates: ['date' => 'date'], reader: ReaderDates::for($notifiable)),
             'url' => '/attendance/corrections',
         ];
     }
