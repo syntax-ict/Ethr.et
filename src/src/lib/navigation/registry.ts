@@ -32,6 +32,7 @@ import {
   ListChecks,
   LogIn,
   MessageCircleHeart,
+  DatabaseBackup,
   MessageSquareText,
   Play,
   Plus,
@@ -197,6 +198,14 @@ const PLATFORM_CHILDREN: Destination[] = [
     labelKey: "nav.sms_delivery",
     labelFallback: "SMS delivery",
     icon: MessageSquareText,
+    show: (c) => c.can.viewAdminConsole,
+  },
+  {
+    id: "backup_storage",
+    href: "/admin/backups",
+    labelKey: "nav.backup_storage",
+    labelFallback: "Backups",
+    icon: DatabaseBackup,
     show: (c) => c.can.viewAdminConsole,
   },
   {

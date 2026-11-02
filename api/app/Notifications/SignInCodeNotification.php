@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Notifications\Contracts\EssentialMail;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -14,7 +15,7 @@ use Illuminate\Notifications\Notification;
  * Sent with notifyNow() and never queued or retried: the code lives five
  * minutes, so a delivery that comes later is a code that no longer works.
  */
-class SignInCodeNotification extends Notification
+class SignInCodeNotification extends Notification implements EssentialMail
 {
     public function __construct(
         private readonly string $code,

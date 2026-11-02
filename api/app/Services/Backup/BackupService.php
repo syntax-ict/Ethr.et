@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Backup;
 
+use App\Models\BackupStorageSetting;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -41,6 +43,9 @@ use Throwable;
  * before go-live. The archive is encrypted first (BackupCipher), and the
  * nightly run copies whenever a disk and a key are configured; `unpack()`
  * turns a copy back into a directory `restore()` can read.
+ *
+ * Since 2026-11-02 the storage and the key can come from the platform console
+ * (BackupStorageSetting) instead of `.env`; offHostTarget() decides which.
  */
 class BackupService
 {
@@ -178,31 +183,72 @@ class BackupService
     }
 
     /**
-     * Why an off-host copy cannot be made right now, or null when it can.
+     * Where an off-host copy goes, and with which key.
      *
+     * Storage saved in the platform console wins; without it, the `.env` disk
+     * and BACKUP_ENCRYPTION_KEY. Naming a disk (`--disk`) asks for that `.env`
+     * disk whatever the console says.
+     *
+     * `blocker` says why no copy can be made right now, or null when one can.
      * Codes, not sentences: the operations centre translates them.
+     *
+     * @return array{source: 'console'|'env', name: string, blocker: string|null, cipher: BackupCipher|null, settings: BackupStorageSetting|null}
      */
+    public function offHostTarget(?string $disk = null): array
+    {
+        $console = $disk === null ? BackupStorageSetting::current() : null;
+
+        if ($console instanceof BackupStorageSetting) {
+            $cipher = $console->cipher();
+
+            return [
+                'source' => 'console',
+                'name' => $console->bucket,
+                'blocker' => match (true) {
+                    ! $console->enabled => 'off_host_switched_off',
+                    $cipher === null => 'off_host_key_missing',
+                    default => null,
+                },
+                'cipher' => $cipher,
+                'settings' => $console,
+            ];
+        }
+
+        $disk ??= (string) config('backup.off_host_disk');
+        $config = config("filesystems.disks.{$disk}");
+        $cipher = BackupCipher::fromConfig();
+
+        return [
+            'source' => 'env',
+            'name' => $disk,
+            'blocker' => match (true) {
+                ! is_array($config) => 'off_host_disk_missing',
+                // The s3 disk is always defined; it is configured only once it
+                // has a bucket and credentials. Any other driver is taken as
+                // configured.
+                ($config['driver'] ?? null) === 's3'
+                    && (empty($config['bucket']) || empty($config['key']) || empty($config['secret'])) => 'off_host_not_configured',
+                $cipher === null => 'off_host_key_missing',
+                default => null,
+            },
+            'cipher' => $cipher,
+            'settings' => null,
+        ];
+    }
+
     public function offHostBlocker(?string $disk = null): ?string
     {
-        $disk ??= (string) config('backup.off_host_disk');
-        $settings = config("filesystems.disks.{$disk}");
+        return $this->offHostTarget($disk)['blocker'];
+    }
 
-        if (! is_array($settings)) {
-            return 'off_host_disk_missing';
-        }
-
-        // The s3 disk is always defined; it is configured only once it has a
-        // bucket and credentials. Any other driver is taken as configured.
-        if (($settings['driver'] ?? null) === 's3'
-            && (empty($settings['bucket']) || empty($settings['key']) || empty($settings['secret']))) {
-            return 'off_host_not_configured';
-        }
-
-        if (BackupCipher::fromConfig() === null) {
-            return 'off_host_key_missing';
-        }
-
-        return null;
+    /**
+     * @param  array{source: 'console'|'env', name: string, blocker: string|null, cipher: BackupCipher|null, settings: BackupStorageSetting|null}  $target
+     */
+    private function offHostFilesystem(array $target): Filesystem
+    {
+        return $target['settings'] instanceof BackupStorageSetting
+            ? app(BackupStorageDisk::class)->build($target['settings'])
+            : Storage::disk($target['name']);
     }
 
     /**
@@ -220,15 +266,16 @@ class BackupService
      */
     public function copyOffHost(string $path, ?string $disk = null): array
     {
-        $disk ??= (string) config('backup.off_host_disk');
-        $blocker = $this->offHostBlocker($disk);
+        $target = $this->offHostTarget($disk);
+        $blocker = $target['blocker'];
 
         if ($blocker !== null) {
             throw new RuntimeException("No off-host copy was made ({$blocker}). See docs/deployment/BACKUP-RESTORE.md.");
         }
 
         /** @var BackupCipher $cipher */
-        $cipher = BackupCipher::fromConfig();
+        $cipher = $target['cipher'];
+        $disk = $target['name'];
         $archive = $this->archive($path);
         $encrypted = $archive.BackupCipher::EXTENSION;
 
@@ -239,7 +286,7 @@ class BackupService
             @unlink($archive);
             $bytes = (int) filesize($encrypted);
             $key = 'backups/'.basename($encrypted);
-            $storage = Storage::disk($disk);
+            $storage = $this->offHostFilesystem($target);
 
             $stream = fopen($encrypted, 'rb');
             try {
@@ -273,7 +320,7 @@ class BackupService
      */
     public function pruneOffHost(int $keep, ?string $disk = null): array
     {
-        $storage = Storage::disk($disk ?? (string) config('backup.off_host_disk'));
+        $storage = $this->offHostFilesystem($this->offHostTarget($disk));
 
         $archives = collect($storage->files('backups'))
             ->filter(fn (string $key): bool => (bool) preg_match('/^backups\/ethr-\d{8}-\d{6}[A-Za-z0-9_-]*\.(tar\.gz|zip)'.preg_quote(BackupCipher::EXTENSION, '/').'$/', $key))
@@ -292,16 +339,18 @@ class BackupService
 
     /**
      * Turn an off-host archive back into a backup directory that `ethr:restore`
-     * can read. `$source` is a local file, or a key on `$disk` when one is given.
+     * can read. `$source` is a local file, or with `$fromOffHost` a key on the
+     * off-host storage (`$disk` names an `.env` disk instead of the default).
      *
      * @return string the backup's name
      */
-    public function unpack(string $source, ?string $disk = null, ?BackupCipher $cipher = null): string
+    public function unpack(string $source, ?BackupCipher $cipher = null, bool $fromOffHost = false, ?string $disk = null): string
     {
-        $cipher ??= BackupCipher::fromConfig();
+        $target = $this->offHostTarget($disk);
+        $cipher ??= $target['cipher'];
 
         if ($cipher === null) {
-            throw new RuntimeException('BACKUP_ENCRYPTION_KEY is not set, so the archive cannot be decrypted.');
+            throw new RuntimeException('No backup encryption key is configured, so the archive cannot be decrypted. Pass --key.');
         }
 
         $root = $this->backupRoot();
@@ -317,11 +366,11 @@ class BackupService
         $fetched = false;
 
         try {
-            if ($disk !== null) {
-                $stream = Storage::disk($disk)->readStream($source);
+            if ($fromOffHost) {
+                $stream = $this->offHostFilesystem($target)->readStream($source);
 
                 if (! is_resource($stream)) {
-                    throw new RuntimeException("{$disk}:{$source} does not exist.");
+                    throw new RuntimeException("{$target['name']}:{$source} does not exist.");
                 }
 
                 $out = fopen($encrypted, 'wb');

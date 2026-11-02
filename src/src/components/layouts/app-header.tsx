@@ -92,14 +92,15 @@ const CALENDARS: readonly CalendarSystem[] = ["ethiopian", "gregorian"];
 const HEADER_ACTION =
   "h-9 text-muted-foreground hover:text-foreground [&_svg]:h-4 [&_svg]:w-4";
 
-import { getRouteMeta, routeI18nKey, routeI18nPath } from "@/lib/route-meta";
+import { getRouteMeta, routeText } from "@/lib/route-meta";
 
 function useCurrentPageLabel() {
   const pathname = usePathname();
   const { t } = useT();
+  const { can } = usePermissions();
   const meta = getRouteMeta(pathname);
   if (!meta) return t("common.page", "Page");
-  return t(routeI18nKey(routeI18nPath(pathname, meta), "label"), meta.label);
+  return routeText(pathname, meta, can, t).label;
 }
 
 export function AppHeader() {

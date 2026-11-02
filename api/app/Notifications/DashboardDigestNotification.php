@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Notifications\Contracts\BulkMail;
 use App\Services\Analytics\AlertEvaluator;
 use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
@@ -17,7 +18,7 @@ use Illuminate\Notifications\Notification;
  * currently breached, so a digest recipient sees both the routine summary
  * and anything that needs attention in one email.
  */
-class DashboardDigestNotification extends Notification
+class DashboardDigestNotification extends Notification implements BulkMail
 {
     use Queueable;
 
