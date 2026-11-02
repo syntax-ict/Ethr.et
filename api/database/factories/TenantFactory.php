@@ -24,6 +24,12 @@ class TenantFactory extends Factory
             'default_locale' => 'en',
             'timezone' => 'Africa/Addis_Ababa',
             'ethiopian_calendar' => true,
+            // An organisation whose leave is numbered in Gregorian years, as
+            // every organisation was before the Ethiopian year became the
+            // default (LeaveYear::DEFAULT). Fixtures across the suite write
+            // `'year' => now()->year`; EthiopianLeaveYearTest passes its own
+            // settings to test the default.
+            'settings' => ['leave_year' => 'gregorian'],
             'trial_ends_at' => now()->addDays(30),
         ];
     }
