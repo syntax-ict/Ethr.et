@@ -29,9 +29,17 @@ vi.mock("@/lib/i18n/translations", async (importOriginal) => ({
 
 const LONG_NAME = "Abay Textile and Garment Manufacturing Share Company";
 
+// The calendar item, not "Ethiopian time" in the time-of-day group.
+const ETHIOPIAN_CALENDAR = /^Ethiopian(?! time)/;
+
 function Shown() {
-  const { calendar } = useCalendar();
-  return <output aria-label="calendar in use">{calendar}</output>;
+  const { calendar, clockPreference } = useCalendar();
+  return (
+    <>
+      <output aria-label="calendar in use">{calendar}</output>
+      <output aria-label="clock in use">{clockPreference}</output>
+    </>
+  );
 }
 
 function renderHeader() {
@@ -118,7 +126,7 @@ describe("<AppHeader> language and calendar menu", () => {
       "false",
     );
     expect(
-      screen.getByRole("menuitemradio", { name: /^Ethiopian/ }),
+      screen.getByRole("menuitemradio", { name: ETHIOPIAN_CALENDAR }),
     ).toHaveAttribute("aria-checked", "true");
     expect(
       screen.getByRole("menuitemradio", { name: /^Gregorian/ }),
@@ -134,7 +142,7 @@ describe("<AppHeader> language and calendar menu", () => {
       await openMenu();
 
       expect(
-        screen.getByRole("menuitemradio", { name: /^Ethiopian/ }),
+        screen.getByRole("menuitemradio", { name: ETHIOPIAN_CALENDAR }),
       ).toHaveTextContent("Tikimt 20, 2019");
       expect(
         screen.getByRole("menuitemradio", { name: /^Gregorian/ }),
@@ -167,6 +175,27 @@ describe("<AppHeader> language and calendar menu", () => {
       "gregorian",
     );
     await waitFor(() => expect(bodies).toEqual([{ calendar: "gregorian" }]));
+  });
+
+  it("offers the time of day beside the calendar and stores it on the user", async () => {
+    // It was only on the Preferences page, where people who set the calendar
+    // here never looked for it.
+    const bodies = capturePreferences();
+    const user = await openMenu();
+
+    expect(
+      screen.getByRole("menuitemradio", { name: "Automatic" }),
+    ).toHaveAttribute("aria-checked", "true");
+    await user.click(
+      screen.getByRole("menuitemradio", {
+        name: "Ethiopian time (1:30 morning)",
+      }),
+    );
+
+    expect(screen.getByLabelText("clock in use")).toHaveTextContent(
+      "ethiopian",
+    );
+    await waitFor(() => expect(bodies).toEqual([{ clock: "ethiopian" }]));
   });
 
   it("no longer has the one-click calendar toggle", async () => {
