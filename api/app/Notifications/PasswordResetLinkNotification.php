@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Notifications\Contracts\EssentialMail;
 use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class PasswordResetLinkNotification extends Notification
+class PasswordResetLinkNotification extends Notification implements EssentialMail
 {
     use Queueable;
 

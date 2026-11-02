@@ -239,6 +239,23 @@ function OperationsView({
             label={t("operations_page.tls", "How the mail server was trusted")}
             value={status.delivery.mail.tls ?? "?"}
           />
+          <Row
+            label={t("operations_page.mail_sent_today", "Sent today")}
+            value={
+              status.delivery.mail.daily_cap > 0
+                ? t("operations_page.mail_of_cap", ":sent of :cap a day", {
+                    sent: String(status.delivery.mail.sent_today),
+                    cap: String(status.delivery.mail.daily_cap),
+                  })
+                : t("operations_page.mail_no_cap", ":sent, no daily cap set", {
+                    sent: String(status.delivery.mail.sent_today),
+                  })
+            }
+          />
+          <Row
+            label={t("operations_page.mail_held_today", "Held back today")}
+            value={String(status.delivery.mail.held_today)}
+          />
         </Rows>
       </Panel>
 
