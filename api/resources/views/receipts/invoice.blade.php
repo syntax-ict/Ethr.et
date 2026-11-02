@@ -50,16 +50,16 @@
       <table>
         <tr>
           <td class="meta">Invoice Date</td>
-          <td>{{ $invoice->created_at->format('d M Y') }}</td>
+          <td>{{ $dates->date($invoice->created_at) }}</td>
         </tr>
         <tr>
           <td class="meta">Due Date</td>
-          <td>{{ $invoice->due_date?->format('d M Y') ?? '—' }}</td>
+          <td>{{ $invoice->due_date ? $dates->date($invoice->due_date->toDateString()) : '—' }}</td>
         </tr>
         @if($invoice->paid_at)
         <tr>
           <td class="meta">Paid On</td>
-          <td>{{ \Carbon\Carbon::parse($invoice->paid_at)->format('d M Y') }}</td>
+          <td>{{ $dates->date($invoice->paid_at) }}</td>
         </tr>
         @endif
       </table>

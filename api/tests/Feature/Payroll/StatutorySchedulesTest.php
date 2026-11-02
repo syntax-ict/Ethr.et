@@ -52,6 +52,8 @@ it('totals the tax withheld to the run, and names who has no TIN', function () {
         ->assertJsonPath('totals.income_tax_cents', (int) $run->fresh()->tax_total_cents)
         ->assertJsonPath('header.employer_tin', '0098765432')
         ->assertJsonPath('header.tax_center', 'Bole Medium Taxpayers')
+        // October 2026 in the organisation's calendar, Ethiopian by default.
+        ->assertJsonPath('header.period', 'Tikimt 2019')
         ->assertJsonPath('header.approved', false)
         ->assertJsonPath('missing_tin', ['Dawit Haile'])
         ->assertJsonMissingPath('rows');

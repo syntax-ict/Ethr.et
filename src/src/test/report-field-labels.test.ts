@@ -48,4 +48,14 @@ describe("report cells — dates", () => {
     );
     expect(formatReportCell("hire_date", "2024-06-24")).toBe("2024-06-24");
   });
+
+  it("passes a timestamp through the instant formatter", () => {
+    const clock = (iso: string) => `CLOCK(${iso})`;
+    expect(
+      formatReportCell("check_in", "2026-10-02T06:00:00+00:00", eth, clock),
+    ).toBe("CLOCK(2026-10-02T06:00:00+00:00)");
+    expect(formatReportCell("hire_date", "2024-06-24", eth, clock)).toBe(
+      "ETH(2024-06-24)",
+    );
+  });
 });

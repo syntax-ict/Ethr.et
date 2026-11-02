@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ $locale }}">
 <head>
     <meta charset="UTF-8">
     <style>
+        @font-face { font-family: 'Noto Sans Ethiopic'; font-weight: normal; src: url('{{ resource_path('fonts/NotoSansEthiopic-Regular.ttf') }}') format('truetype'); }
+        @font-face { font-family: 'Noto Sans Ethiopic'; font-weight: bold; src: url('{{ resource_path('fonts/NotoSansEthiopic-Bold.ttf') }}') format('truetype'); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: DejaVu Sans, sans-serif; font-size: 9px; color: #0F172A; padding: 20px; }
+        body { font-family: 'DejaVu Sans', 'Noto Sans Ethiopic', sans-serif; font-size: 9px; color: #0F172A; padding: 20px; }
         .header { border-bottom: 2px solid #0F4C75; padding-bottom: 10px; margin-bottom: 15px; }
         .header h1 { font-size: 14px; color: #0F4C75; }
         .header p { font-size: 9px; color: #64748B; margin-top: 2px; }
@@ -16,8 +18,8 @@
 </head>
 <body>
     <div class="header">
-        <h1>ETHR Report Export</h1>
-        <p>Generated on {{ now()->timezone('Africa/Addis_Ababa')->format('d/m/Y H:i') }} (EAT)</p>
+        <h1>{{ __('report.pdf_title', [], $locale) }}</h1>
+        <p>{{ __('report.pdf_generated', ['date' => $generated_at], $locale) }}</p>
     </div>
 
     <table>
@@ -40,7 +42,7 @@
     </table>
 
     <div class="footer">
-        <p>{{ count($rows) }} record(s) &bull; Powered by ETHR</p>
+        <p>{{ trans_choice('report.pdf_rows', count($rows), [], $locale) }} &bull; {{ __('report.pdf_footer', [], $locale) }}</p>
     </div>
 </body>
 </html>

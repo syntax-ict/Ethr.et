@@ -11,6 +11,7 @@ use App\Models\Invoice;
 use App\Models\Plan;
 use App\Services\Billing\BillingService;
 use App\Services\CurrentTenant;
+use App\Support\ReaderDates;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -63,7 +64,7 @@ class BillingController extends Controller
         return response()->json($result);
     }
 
-    public function receipt(Invoice $invoice): Response
+    public function receipt(Request $request, Invoice $invoice): Response
     {
         Gate::authorize('billing.manage');
 
@@ -73,6 +74,8 @@ class BillingController extends Controller
             'invoice' => $invoice,
             'tenant' => $tenant,
             'line_items' => $invoice->line_items ?? [],
+            // The receipt is English; its dates are in the reader's calendar.
+            'dates' => ReaderDates::for($request->user(), 'en'),
         ]);
 
         $filename = 'receipt-'.$invoice->public_id.'.pdf';

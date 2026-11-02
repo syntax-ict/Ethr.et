@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ $locale }}">
 <head>
     <meta charset="UTF-8">
     <style>
@@ -18,7 +18,7 @@
         table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         th { background: #F1F5F9; text-align: left; padding: 6px 8px; font-size: 9px; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
         td { padding: 6px 8px; border-bottom: 1px solid #E2E8F0; }
-        .amount { text-align: right; font-family: monospace; }
+        .amount { text-align: right; font-family: 'DejaVu Sans Mono', 'Noto Sans Ethiopic', monospace; }
         .total-row td { font-weight: 700; border-top: 2px solid #0F4C75; border-bottom: none; }
         .net-row td { font-size: 12px; background: #F1F5F9; color: #0F4C75; }
         .footer { text-align: center; margin-top: 20px; font-size: 8px; color: #94A3B8; border-top: 1px solid #E2E8F0; padding-top: 8px; }
@@ -36,73 +36,73 @@
 </head>
 <body>
     @if($is_voided)
-    <div class="voided-watermark">VOIDED</div>
+    <div class="voided-watermark">{{ __('payslip.voided', [], $locale) }}</div>
     @endif
     <div class="header">
         <h1>{{ $tenant_name }}</h1>
-        <p>Payslip for {{ $period }}</p>
+        <p>{{ __('payslip.title', ['period' => $period], $locale) }}</p>
     </div>
 
     <table>
         <tr>
-            <td class="info-label">Employee</td>
+            <td class="info-label">{{ __('payslip.employee', [], $locale) }}</td>
             <td><strong>{{ $employee_name }}</strong></td>
-            <td class="info-label">Code</td>
+            <td class="info-label">{{ __('payslip.code', [], $locale) }}</td>
             <td><strong>{{ $employee_code }}</strong></td>
         </tr>
         <tr>
-            <td class="info-label">Department</td>
+            <td class="info-label">{{ __('payslip.department', [], $locale) }}</td>
             <td>{{ $department }}</td>
-            <td class="info-label">Position</td>
+            <td class="info-label">{{ __('payslip.position', [], $locale) }}</td>
             <td>{{ $position }}</td>
         </tr>
     </table>
 
     <table>
         <thead>
-            <tr><th colspan="2">Earnings</th></tr>
+            <tr><th colspan="2">{{ __('payslip.earnings', [], $locale) }}</th></tr>
         </thead>
         <tbody>
             <tr>
-                <td>Basic Salary</td>
-                <td class="amount">{{ number_format($basic_salary_cents / 100, 2) }} ETB</td>
+                <td>{{ __('payslip.basic_salary', [], $locale) }}</td>
+                <td class="amount">{{ number_format($basic_salary_cents / 100, 2) }} {{ __('payslip.currency', [], $locale) }}</td>
             </tr>
             @foreach($allowances as $allowance)
             <tr>
-                <td>{{ $allowance['name'] ?? $allowance['type'] ?? 'Allowance' }}</td>
-                <td class="amount">{{ number_format(($allowance['amount_cents'] ?? 0) / 100, 2) }} ETB</td>
+                <td>{{ $allowance['name'] ?? $allowance['type'] ?? __('payslip.allowance', [], $locale) }}</td>
+                <td class="amount">{{ number_format(($allowance['amount_cents'] ?? 0) / 100, 2) }} {{ __('payslip.currency', [], $locale) }}</td>
             </tr>
             @endforeach
             <tr class="total-row">
-                <td>Gross Salary</td>
-                <td class="amount">{{ number_format($gross_cents / 100, 2) }} ETB</td>
+                <td>{{ __('payslip.gross', [], $locale) }}</td>
+                <td class="amount">{{ number_format($gross_cents / 100, 2) }} {{ __('payslip.currency', [], $locale) }}</td>
             </tr>
         </tbody>
     </table>
 
     <table>
         <thead>
-            <tr><th colspan="2">Deductions</th></tr>
+            <tr><th colspan="2">{{ __('payslip.deductions', [], $locale) }}</th></tr>
         </thead>
         <tbody>
             <tr>
-                <td>Income Tax</td>
-                <td class="amount">{{ number_format($income_tax_cents / 100, 2) }} ETB</td>
+                <td>{{ __('payslip.income_tax', [], $locale) }}</td>
+                <td class="amount">{{ number_format($income_tax_cents / 100, 2) }} {{ __('payslip.currency', [], $locale) }}</td>
             </tr>
             <tr>
-                <td>Employee Pension{{ ($employee_pension_rate ?? null) ? ' ('.$employee_pension_rate.')' : '' }}</td>
-                <td class="amount">{{ number_format($employee_pension_cents / 100, 2) }} ETB</td>
+                <td>{{ __('payslip.employee_pension', [], $locale) }}{{ ($employee_pension_rate ?? null) ? ' ('.$employee_pension_rate.')' : '' }}</td>
+                <td class="amount">{{ number_format($employee_pension_cents / 100, 2) }} {{ __('payslip.currency', [], $locale) }}</td>
             </tr>
             @foreach($deductions as $deduction)
             <tr>
-                <td>{{ ucfirst($deduction['type'] ?? 'Other') }}</td>
-                <td class="amount">{{ number_format(($deduction['amount_cents'] ?? 0) / 100, 2) }} ETB</td>
+                <td>{{ $deduction['label'] }}</td>
+                <td class="amount">{{ number_format(($deduction['amount_cents'] ?? 0) / 100, 2) }} {{ __('payslip.currency', [], $locale) }}</td>
             </tr>
             @endforeach
             @if($other_deductions_cents > 0 && empty($deductions))
             <tr>
-                <td>Other Deductions</td>
-                <td class="amount">{{ number_format($other_deductions_cents / 100, 2) }} ETB</td>
+                <td>{{ __('payslip.other_deductions', [], $locale) }}</td>
+                <td class="amount">{{ number_format($other_deductions_cents / 100, 2) }} {{ __('payslip.currency', [], $locale) }}</td>
             </tr>
             @endif
         </tbody>
@@ -111,8 +111,8 @@
     <table>
         <tbody>
             <tr class="total-row net-row">
-                <td>Net Pay</td>
-                <td class="amount">{{ number_format($net_cents / 100, 2) }} ETB</td>
+                <td>{{ __('payslip.net', [], $locale) }}</td>
+                <td class="amount">{{ number_format($net_cents / 100, 2) }} {{ __('payslip.currency', [], $locale) }}</td>
             </tr>
         </tbody>
     </table>
@@ -120,15 +120,15 @@
     <table>
         <tbody>
             <tr>
-                <td class="info-label">Employer Pension Contribution{{ ($employer_pension_rate ?? null) ? ' ('.$employer_pension_rate.')' : '' }}</td>
-                <td class="amount" style="color: #64748B;">{{ number_format($employer_pension_cents / 100, 2) }} ETB</td>
+                <td class="info-label">{{ __('payslip.employer_pension', [], $locale) }}{{ ($employer_pension_rate ?? null) ? ' ('.$employer_pension_rate.')' : '' }}</td>
+                <td class="amount" style="color: #64748B;">{{ number_format($employer_pension_cents / 100, 2) }} {{ __('payslip.currency', [], $locale) }}</td>
             </tr>
         </tbody>
     </table>
 
     <div class="footer">
-        <p>Generated on {{ $generated_at }} (EAT) &bull; This is a computer-generated document</p>
-        <p>{{ $tenant_name }} &mdash; Powered by ETHR</p>
+        <p>{{ __('payslip.generated', ['date' => $generated_at], $locale) }}</p>
+        <p>{{ __('payslip.powered_by', ['organisation' => $tenant_name], $locale) }}</p>
     </div>
 </body>
 </html>

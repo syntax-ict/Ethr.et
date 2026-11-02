@@ -97,6 +97,12 @@ final class ReaderDates
         );
     }
 
+    /** The same reader on another calendar, for a document that prints both. */
+    public function withCalendar(string $calendar): self
+    {
+        return new self($calendar === 'gregorian' ? 'gregorian' : 'ethiopian', $this->clock, $this->locale, $this->timeZone);
+    }
+
     /**
      * A calendar date. A bare `Y-m-d` is read as written; an instant is read in
      * the organisation's zone, so 22:30 UTC is already the next day in Addis.
@@ -145,6 +151,20 @@ final class ReaderDates
         }
 
         return $this->clock($hour, $minute);
+    }
+
+    /**
+     * An instant as `Y-m-d H:i` in the organisation's zone: what a spreadsheet
+     * sorts and reads, whatever the reader's calendar and clock.
+     */
+    public function localStamp(CarbonInterface|string|null $value): string
+    {
+        $instant = $this->instant($value);
+        if ($instant === null) {
+            return is_string($value) ? $value : '';
+        }
+
+        return $instant->setTimezone($this->timeZone)->format('Y-m-d H:i');
     }
 
     public function dateTime(CarbonInterface|string|null $value): string
