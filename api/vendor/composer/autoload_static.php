@@ -1776,6 +1776,7 @@ class ComposerStaticInit870e919e58412b109fb9aa8379549848
         'App\\Support\\DeviceProof' => __DIR__ . '/../..' . '/app/Support/DeviceProof.php',
         'App\\Support\\DeviceSimulator' => __DIR__ . '/../..' . '/app/Support/DeviceSimulator.php',
         'App\\Support\\DeviceTime' => __DIR__ . '/../..' . '/app/Support/DeviceTime.php',
+        'App\\Support\\DiskUsage' => __DIR__ . '/../..' . '/app/Support/DiskUsage.php',
         'App\\Support\\DocumentDownload' => __DIR__ . '/../..' . '/app/Support/DocumentDownload.php',
         'App\\Support\\EmployeeGaps' => __DIR__ . '/../..' . '/app/Support/EmployeeGaps.php',
         'App\\Support\\EmployeeImportRow' => __DIR__ . '/../..' . '/app/Support/EmployeeImportRow.php',

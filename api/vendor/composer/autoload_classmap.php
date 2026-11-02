@@ -1042,6 +1042,7 @@ return array(
     'App\\Support\\DeviceProof' => $baseDir . '/app/Support/DeviceProof.php',
     'App\\Support\\DeviceSimulator' => $baseDir . '/app/Support/DeviceSimulator.php',
     'App\\Support\\DeviceTime' => $baseDir . '/app/Support/DeviceTime.php',
+    'App\\Support\\DiskUsage' => $baseDir . '/app/Support/DiskUsage.php',
     'App\\Support\\DocumentDownload' => $baseDir . '/app/Support/DocumentDownload.php',
     'App\\Support\\EmployeeGaps' => $baseDir . '/app/Support/EmployeeGaps.php',
     'App\\Support\\EmployeeImportRow' => $baseDir . '/app/Support/EmployeeImportRow.php',
