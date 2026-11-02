@@ -10,6 +10,7 @@ use App\Services\Backup\BackupCipher;
 use App\Services\Backup\BackupService;
 use App\Services\Backup\BackupStorageDisk;
 use App\Support\BackupHealth;
+use App\Support\OutboundHost;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -197,6 +198,29 @@ describe('secrets', function () {
             ->assertJsonValidationErrors('endpoint');
     })->with(['http://storage.example.com', 'https://127.0.0.1', 'https://localhost']);
 
+    it('refuses a bucket that puts the connection on an internal address', function () {
+        backupOperator();
+        OutboundHost::resolveUsing(fn (string $host) => $host === 'internal.storage.example.com' ? ['10.0.0.5'] : ['203.0.113.10']);
+
+        test()->putJson(BACKUP_CONSOLE.'/storage', storagePayload(['bucket' => 'internal', 'path_style' => false]))
+            ->assertUnprocessable()->assertJsonValidationErrors('bucket');
+        test()->putJson(BACKUP_CONSOLE.'/storage', storagePayload(['bucket' => 'internal', 'path_style' => true]))
+            ->assertOk();
+
+        OutboundHost::resolveUsing(null);
+    });
+
+    it('will not connect once the name has come to point inside', function () {
+        backupOperator();
+        test()->putJson(BACKUP_CONSOLE.'/storage', storagePayload())->assertOk();
+        OutboundHost::resolveUsing(fn () => ['127.0.0.1']);
+
+        expect((new BackupStorageDisk)->probe(BackupStorageSetting::current()))
+            ->toBe('The storage address points to an internal address.');
+
+        OutboundHost::resolveUsing(null);
+    });
+
     it('shows the key only through its own action, and records that it was shown', function () {
         $admin = backupOperator();
         test()->putJson(BACKUP_CONSOLE.'/storage', storagePayload())->assertOk();
@@ -328,6 +352,21 @@ describe('the nightly copy follows the console', function () {
         expect(fn () => $service->copyOffHost(consoleBackupDir('ethr-20261102-010000')))
             ->toThrow(RuntimeException::class, 'off_host_switched_off');
         expect(Storage::disk('s3')->allFiles())->toBe([]);
+    });
+
+    it('reports a key that no longer decrypts as missing, and still answers the page', function () {
+        backupOperator();
+        readyConsoleStorage();
+        test()->putJson(BACKUP_CONSOLE.'/settings', ['enabled' => true])->assertOk();
+        DB::table('backup_storage_settings')->update([
+            'encryption_key' => 'not-decryptable',
+            'secret_access_key' => 'not-decryptable',
+        ]);
+
+        expect(app(BackupService::class)->offHostBlocker())->toBe('off_host_key_missing');
+        test()->getJson(BACKUP_CONSOLE)->assertOk()
+            ->assertJsonPath('blocker', 'off_host_key_missing')
+            ->assertJsonPath('storage.secret_set', true);
     });
 
     it('reports the console storage in the operations centre', function () {
