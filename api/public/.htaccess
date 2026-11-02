@@ -87,15 +87,16 @@
 
     # ── Pre-compressed copies ───────────────────────────────────────────────
     # The release writes NAME.br beside a file at the strongest brotli level
-    # (scripts/shared-hosting/precompress.mjs). A browser that accepts brotli
-    # gets that copy; the host's nginx otherwise compresses as it sends, about
-    # 10% larger (2026-11-02). Only the test file br-probe.js until the host is
-    # shown to pass an already-compressed response through untouched: if nginx
-    # compressed it again, every script would break. The type and the encoding
-    # are set under "Pre-compressed copies" below.
+    # (scripts/shared-hosting/precompress.mjs), for every script and stylesheet
+    # under _next/static. A browser that accepts brotli gets that copy; the
+    # host's nginx otherwise compresses as it sends, about 10% larger
+    # (2026-11-02). nginx passes an answer that is already encoded through
+    # untouched: a test file, br-probe.js, was measured on the live host before
+    # this covered anything a page loads (BASELINE §24). The type, the encoding
+    # and the caching are set under "Pre-compressed copies" below.
     RewriteCond %{HTTP:Accept-Encoding} \bbr\b
     RewriteCond %{REQUEST_FILENAME}.br -f
-    RewriteRule ^(br-probe\.js)$ $1.br [L]
+    RewriteRule ^(_next/static/.+\.(js|css))$ $1.br [L]
 
     # ── API and Sanctum routes → Laravel's front controller ─────────────────
     # Laravel's own public/.htaccess pattern: rewrite to index.php UNLESS the
@@ -605,7 +606,9 @@
 # ── Static asset caching ──────────────────────────────────────────────────
 <IfModule mod_expires.c>
     ExpiresActive On
-    <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot)$">
+    # (\.br)? keeps the pre-compressed copy of a script on the same year-long
+    # rule: after the rewrite, the file Apache matches is NAME.js.br.
+    <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot)(\.br)?$">
         ExpiresDefault "access plus 1 year"
         Header set Cache-Control "public, immutable"
     </FilesMatch>
@@ -629,18 +632,18 @@
 </IfModule>
 
 # ── Pre-compressed copies ─────────────────────────────────────────────────
-# mod_mime reads both extensions of br-probe.js.br: .js gives the type and .br
-# the encoding. An encoding already set is what keeps a compressor from
-# encoding the copy a second time. Both answers to /br-probe.js name
+# mod_mime reads both extensions of NAME.js.br: .js gives the type and .br the
+# encoding. An encoding already set is what keeps a compressor from encoding
+# the copy a second time. Both answers to a script or stylesheet name
 # Accept-Encoding in Vary, so a cache never hands the brotli copy to a browser
 # that did not ask for it.
 <IfModule mod_mime.c>
-    <Files "br-probe.js.br">
+    <FilesMatch "\.(js|css)\.br$">
         AddEncoding br .br
-    </Files>
+    </FilesMatch>
 </IfModule>
 <IfModule mod_headers.c>
-    <FilesMatch "^br-probe\.js(\.br)?$">
+    <FilesMatch "\.(js|css)(\.br)?$">
         Header append Vary Accept-Encoding
     </FilesMatch>
 </IfModule>
