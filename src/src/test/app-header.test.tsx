@@ -99,7 +99,9 @@ async function openMenu() {
   const user = userEvent.setup();
   renderHeader();
   await user.click(
-    await screen.findByRole("button", { name: /language and calendar/i }),
+    await screen.findByRole("button", {
+      name: /language, calendar and time of day/i,
+    }),
   );
   await screen.findByRole("menu");
   return user;
@@ -110,7 +112,7 @@ describe("<AppHeader> language and calendar menu", () => {
     renderHeader();
 
     const trigger = await screen.findByRole("button", {
-      name: /language and calendar/i,
+      name: /language, calendar and time of day/i,
     });
     expect(trigger).toHaveTextContent("English · Ethiopian");
   });
@@ -183,8 +185,9 @@ describe("<AppHeader> language and calendar menu", () => {
     const bodies = capturePreferences();
     const user = await openMenu();
 
+    // English on the Ethiopian calendar: Automatic settles on 24-hour.
     expect(
-      screen.getByRole("menuitemradio", { name: "Automatic" }),
+      screen.getByRole("menuitemradio", { name: "Automatic (07:30)" }),
     ).toHaveAttribute("aria-checked", "true");
     await user.click(
       screen.getByRole("menuitemradio", {
@@ -200,7 +203,9 @@ describe("<AppHeader> language and calendar menu", () => {
 
   it("no longer has the one-click calendar toggle", async () => {
     renderHeader();
-    await screen.findByRole("button", { name: /language and calendar/i });
+    await screen.findByRole("button", {
+      name: /language, calendar and time of day/i,
+    });
 
     expect(
       screen.queryByRole("button", { name: /toggle calendar/i }),

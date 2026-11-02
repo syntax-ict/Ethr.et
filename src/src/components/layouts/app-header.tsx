@@ -60,7 +60,11 @@ import {
   useCalendar,
   type CalendarSystem,
 } from "@/lib/calendar/calendar-context";
-import type { ClockPreference } from "@/lib/calendar/ethiopian-time";
+import {
+  formatClock,
+  resolveClock,
+  type ClockPreference,
+} from "@/lib/calendar/ethiopian-time";
 import { useShortcutLabel } from "@/lib/hooks/usePlatformShortcut";
 import { useTenantTimezone } from "@/lib/hooks/useTenantTimezone";
 import { formatCalendarDate } from "@/lib/utils/date";
@@ -379,7 +383,9 @@ export function AppHeader() {
  * a checked radio item, and each calendar previews today's date before it is
  * chosen. The time of day sits with them because it was only on the
  * Preferences page, where people who switched the calendar here never looked
- * for it; each clock names 07:30 the way it writes it, as there.
+ * for it; each clock names 07:30 the way it writes it, as there, and
+ * Automatic names the clock it settles on for this reader right now, since the
+ * menu has no room for the Preferences page's hint.
  *
  * Every choice is applied at once and then stored on the user, as the
  * Preferences page does through the same context: a localStorage-only switch
@@ -393,6 +399,9 @@ function LanguageCalendarMenu() {
   const updatePreferences = useUpdatePreferences();
   const timeZone = useTenantTimezone();
   const clockLabels = useClockLabels();
+  const automatic = t("clock.auto_example", "Automatic (:example)", {
+    example: formatClock(7, 30, resolveClock("auto", calendar, locale), locale),
+  });
 
   const languageName =
     HEADER_LANGUAGES.find((lang) => lang.code === locale)?.nativeName ?? locale;
@@ -412,7 +421,10 @@ function LanguageCalendarMenu() {
         >
           <Globe aria-hidden />
           <span className="sr-only">
-            {t("header.language_calendar", "Language and calendar")}
+            {t(
+              "header.language_calendar",
+              "Language, calendar and time of day",
+            )}
           </span>{" "}
           {/* Read on phones too, where only the globe shows. */}
           <span className="sr-only text-xs font-medium sm:not-sr-only">
@@ -492,7 +504,7 @@ function LanguageCalendarMenu() {
               value={clock}
               className="cursor-pointer"
             >
-              {clockLabels[clock]}
+              {clock === "auto" ? automatic : clockLabels[clock]}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
