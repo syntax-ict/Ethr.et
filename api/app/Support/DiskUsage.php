@@ -24,7 +24,7 @@ use UnexpectedValueException;
  * anything outside the application are on the same quota and are not seen
  * here, so the thresholds are set low.
  */
-final class DiskUsage
+class DiskUsage
 {
     /** Amber: time to clear space or raise the plan. */
     public const WARNING_RATIO = 0.70;
@@ -158,8 +158,11 @@ final class DiskUsage
         return rtrim($root, '/\\');
     }
 
-    /** MariaDB reports its tables' size; SQLite is one file. Null when neither answers. */
-    private function databaseBytes(): ?int
+    /**
+     * MariaDB reports its tables' size; SQLite is one file. Null when neither
+     * answers. Protected so a test can hold it still across database engines.
+     */
+    protected function databaseBytes(): ?int
     {
         try {
             $driver = DB::connection()->getDriverName();

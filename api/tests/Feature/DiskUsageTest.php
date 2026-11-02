@@ -24,6 +24,16 @@ function diskSandbox(): string
     File::put($root.'/storage/backups/ethr-20261101-010000/database.sql', str_repeat('b', 3000));
     File::put($root.'/composer.json', str_repeat('o', 50));
 
+    // The suite also runs on MariaDB and MySQL, where the database has a
+    // real size; these figures are about the files.
+    app()->instance(DiskUsage::class, new class extends DiskUsage
+    {
+        protected function databaseBytes(): ?int
+        {
+            return null;
+        }
+    });
+
     test()->originalStoragePath = app()->storagePath();
     app()->useStoragePath($root.'/storage');
     config(['backup.disk_root' => $root, 'backup.path' => $root.'/storage/backups']);
@@ -57,7 +67,7 @@ function diskUsageAt(float $ratio): array
 it('counts each file once, under the part it sits in', function () {
     $root = diskSandbox();
 
-    $usage = (new DiskUsage)->measure();
+    $usage = app(DiskUsage::class)->measure();
 
     expect($usage)->toMatchArray([
         'documents_bytes' => 1000,
@@ -78,7 +88,7 @@ it('walks backups kept outside the application on their own', function () {
     File::put($outside.'/database.sql', str_repeat('b', 700));
     config(['backup.path' => $outside, 'backup.disk_root' => $root.'/storage/app']);
 
-    $usage = (new DiskUsage)->measure();
+    $usage = app(DiskUsage::class)->measure();
 
     expect($usage['backups_bytes'])->toBe(700)
         ->and($usage['documents_bytes'])->toBe(1000)
