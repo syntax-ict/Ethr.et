@@ -51,6 +51,8 @@ final class AttendanceRiskScorer
         'photo_missing' => 15,
         'device_clock_ahead' => 10,
         'low_confidence' => 10,
+        // Someone at the kiosk said the punch on screen was not theirs.
+        'kiosk_wrong_person' => 50,
         // Signals read here.
         'shared_device' => 35,
         'ip_burst' => 20,
