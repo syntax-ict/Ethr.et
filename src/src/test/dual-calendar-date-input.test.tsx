@@ -304,3 +304,157 @@ describe("<DualCalendarDateInput> names", () => {
     expect(month.parentElement).toHaveClass("flex-wrap");
   });
 });
+
+/**
+ * The native input enforces min/max itself; the Ethiopian entry used to ignore
+ * them, so an Ethiopian reader could pick a date the Gregorian reader could
+ * not. These pin that the Ethiopian entry keeps to the same range.
+ */
+describe("<DualCalendarDateInput> min and max in Ethiopian mode", () => {
+  beforeEach(() => {
+    localStorage.removeItem("ethr.calendar");
+  });
+
+  function isoOf(year: number, month: number, day: number): string {
+    const g = toGregorian(year, month, day);
+    return `${g.getFullYear()}-${String(g.getMonth() + 1).padStart(2, "0")}-${String(g.getDate()).padStart(2, "0")}`;
+  }
+
+  const year = () =>
+    screen.getByRole("spinbutton", { name: "Date, Ethiopian year" });
+
+  it("does not emit a typed year wholly before min, and says why", () => {
+    const onChange = vi.fn();
+    render(
+      <DualCalendarDateInput
+        value={isoOf(2019, 5, 10)}
+        min={isoOf(2018, 5, 15)}
+        onChange={onChange}
+        aria-label="Date"
+      />,
+      { wrapper: withCalendar("ethiopian") },
+    );
+
+    fireEvent.change(year(), { target: { value: "2017" } });
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Choose a date on or after Tir 15, 2018",
+    );
+    expect(year()).toHaveAttribute("aria-invalid", "true");
+    expect(year()).toHaveAttribute("min", "2018");
+  });
+
+  it("does not emit a typed year wholly after max", () => {
+    const onChange = vi.fn();
+    render(
+      <DualCalendarDateInput
+        value={isoOf(2018, 5, 10)}
+        max={isoOf(2019, 2, 3)}
+        onChange={onChange}
+        aria-label="Date"
+      />,
+      { wrapper: withCalendar("ethiopian") },
+    );
+
+    fireEvent.change(year(), { target: { value: "2020" } });
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Choose a date on or before Tikimt 3, 2019",
+    );
+  });
+
+  it("moves a carried day into range when the year itself is allowed", () => {
+    const onChange = vi.fn();
+    render(
+      <DualCalendarDateInput
+        value={isoOf(2019, 5, 10)}
+        min={isoOf(2018, 5, 15)}
+        onChange={onChange}
+        aria-label="Date"
+      />,
+      { wrapper: withCalendar("ethiopian") },
+    );
+
+    // Tir 10, 2018 is before the minimum; the nearest allowed day is Tir 15.
+    fireEvent.change(year(), { target: { value: "2018" } });
+
+    expect(onChange).toHaveBeenCalledWith(isoOf(2018, 5, 15));
+  });
+
+  it("offers only the months and days inside the range", async () => {
+    render(
+      <DualCalendarDateInput
+        value={isoOf(2018, 5, 20)}
+        min={isoOf(2018, 5, 15)}
+        max={isoOf(2018, 7, 1)}
+        onChange={vi.fn()}
+        aria-label="Date"
+      />,
+      { wrapper: withCalendar("ethiopian") },
+    );
+
+    await userEvent.click(
+      screen.getByRole("combobox", { name: "Date, Ethiopian month" }),
+    );
+    expect(screen.getByRole("option", { name: "Tahsas" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByRole("option", { name: "Tir" })).not.toHaveAttribute(
+      "aria-disabled",
+    );
+    expect(screen.getByRole("option", { name: "Megabit" })).not.toHaveAttribute(
+      "aria-disabled",
+    );
+    expect(screen.getByRole("option", { name: "Miyazia" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await userEvent.keyboard("{Escape}");
+
+    await userEvent.click(
+      screen.getByRole("combobox", { name: "Date, Ethiopian day" }),
+    );
+    expect(screen.getByRole("option", { name: "14" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByRole("option", { name: "15" })).not.toHaveAttribute(
+      "aria-disabled",
+    );
+  });
+
+  it("flags a value that arrives out of range without changing it", () => {
+    const onChange = vi.fn();
+    render(
+      <DualCalendarDateInput
+        value={isoOf(2018, 5, 10)}
+        min={isoOf(2018, 5, 15)}
+        onChange={onChange}
+        aria-label="Date"
+      />,
+      { wrapper: withCalendar("ethiopian") },
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Choose a date on or after Tir 15, 2018",
+    );
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("is a native date input outside a CalendarProvider", () => {
+    render(
+      <DualCalendarDateInput
+        value="2026-09-11"
+        onChange={vi.fn()}
+        aria-label="Date"
+      />,
+    );
+
+    expect((screen.getByLabelText("Date") as HTMLInputElement).type).toBe(
+      "date",
+    );
+  });
+});

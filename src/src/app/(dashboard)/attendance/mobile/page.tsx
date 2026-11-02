@@ -60,6 +60,12 @@ import {
 import { requestAttendanceSync } from "@/lib/hooks/useServiceWorker";
 import { tenantHeaderValue } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import {
+  formatCalendarDayMonth,
+  formatCalendarWeekday,
+  formatClockTime,
+} from "@/lib/utils/date";
 import { captureSelfie } from "@/lib/uploads/selfie";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import {
@@ -100,6 +106,12 @@ function formatDistance(meters: number): string {
  */
 export default function MobilePunchPage() {
   const { t, locale } = useT();
+  const {
+    timeZone,
+    calendar,
+    clock: readerClock,
+    formatTimeOfDay,
+  } = useDateFormatters();
   const { data: user } = useCurrentUser();
   const hasEmployee = Boolean(user?.employee_public_id);
   const shiftQuery = useMyShift(hasEmployee);
@@ -418,29 +430,16 @@ export default function MobilePunchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shift, position, isOnline]);
 
-  const zone = shift?.timezone;
-  const clock = new Intl.DateTimeFormat(locale, {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-    timeZone: zone,
-  }).format(now);
-  const dateLine = new Intl.DateTimeFormat(locale, {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: zone,
-  }).format(now);
+  // The shift's zone when the server sent one, else the tenant's; the reader's
+  // clock and calendar either way.
+  const zone = shift?.timezone ?? timeZone;
+  const nowIso = now.toISOString();
+  const clock = formatClockTime(nowIso, zone, readerClock, locale, {
+    seconds: true,
+  });
+  const dateLine = `${formatCalendarWeekday(nowIso, zone, locale, "long")}, ${formatCalendarDayMonth(nowIso, zone, calendar, locale)}`;
   const timeOf = (iso: string | null | undefined) =>
-    iso
-      ? new Intl.DateTimeFormat(locale, {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-          timeZone: zone,
-        }).format(new Date(iso))
-      : "";
+    iso ? formatClockTime(iso, zone, readerClock, locale) : "";
 
   if (done) {
     return (
@@ -552,7 +551,8 @@ export default function MobilePunchPage() {
             <span className="text-muted-foreground">
               {shift.shift.name} ·{" "}
               <span className="font-medium tabular-nums text-foreground">
-                {shift.shift.start_time}–{shift.shift.end_time}
+                {formatTimeOfDay(shift.shift.start_time)}–
+                {formatTimeOfDay(shift.shift.end_time)}
               </span>
             </span>
           ) : shift ? (

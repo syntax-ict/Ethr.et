@@ -144,6 +144,45 @@ describe("<OrganisationPortal>", () => {
     ).toHaveAttribute("href", "mailto:jobs@acme.et?subject=Machine%20operator");
   });
 
+  // A signed-out page follows its language: the Amharic portal writes a
+  // vacancy's closing day in the Ethiopian calendar, the English one in the
+  // Gregorian, in the card and in the opened vacancy alike.
+  it("dates a vacancy's closing day in the page language's calendar", async () => {
+    server.use(
+      http.get("*/auth/tenant-landing/feed", () => HttpResponse.json(feed)),
+      http.get("*/auth/tenant-landing/vacancies/v1", () =>
+        HttpResponse.json({ ...feed.vacancies[0], description: "Run it." }),
+      ),
+    );
+    localStorage.setItem("locale", "am");
+    window.dispatchEvent(new Event("locale-changed"));
+    try {
+      renderNews();
+
+      // 30 October 2026 is Tikimt 20, 2019.
+      expect(await screen.findByText(/ጥቅምት 20, 2019/)).toBeInTheDocument();
+      expect(screen.queryByText(/2026-10-30|Oct 2026/)).not.toBeInTheDocument();
+
+      fireEvent.click(
+        await screen.findByRole("button", { name: /machine operator/i }),
+      );
+      expect(await screen.findByText("Run it.")).toBeInTheDocument();
+      expect(screen.getAllByText(/ጥቅምት 20, 2019/)).toHaveLength(2);
+    } finally {
+      localStorage.removeItem("locale");
+      window.dispatchEvent(new Event("locale-changed"));
+    }
+  });
+
+  it("dates a vacancy in the Gregorian calendar on the English portal", async () => {
+    server.use(
+      http.get("*/auth/tenant-landing/feed", () => HttpResponse.json(feed)),
+    );
+    renderNews();
+
+    expect(await screen.findByText("Closes 30 Oct 2026")).toBeInTheDocument();
+  });
+
   it("renders markup as text, never as HTML", async () => {
     server.use(
       http.get("*/auth/tenant-landing/feed", () =>

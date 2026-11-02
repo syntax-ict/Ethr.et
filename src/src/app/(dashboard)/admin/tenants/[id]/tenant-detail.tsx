@@ -66,7 +66,6 @@ import {
 import { useCurrentUser } from "@/features/auth/api";
 import { formatETB } from "@/lib/utils/currency";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
-import { formatDateOnly } from "@/lib/utils/date";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -1119,9 +1118,12 @@ function TenantDetail({ id }: { id: string }) {
                     </span>,
                     <span key="d" className="text-muted-foreground">
                       {/* `Invoice::$casts` types due_date as `date` -- the day the
-                          invoice falls due, not a moment. It renders as
-                          written rather than being shifted into a zone. */}
-                      {inv.due_date ? formatDateOnly(inv.due_date) : "—"}
+                          invoice falls due, not a moment. Only the day part is
+                          passed, so it is read as written, never shifted into a
+                          zone, and shown in the reader's calendar. */}
+                      {inv.due_date
+                        ? formatDate(inv.due_date.slice(0, 10))
+                        : "—"}
                     </span>,
                     inv.status === "paid" ? (
                       <span key="m" />

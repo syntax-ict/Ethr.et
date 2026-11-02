@@ -1,10 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import LeavePage from "@/app/(dashboard)/leave/page";
+import { CalendarProvider } from "@/lib/calendar/calendar-context";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/leave",
@@ -30,9 +31,14 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
   }),
 }));
 
+/** Today in Addis Ababa, the zone the team calendar opens its month in. */
 function today(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Addis_Ababa",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 function teamRequest(name: string, status: string) {
@@ -75,16 +81,27 @@ function serveLeave(): string[] {
   return leaveTypeQueries;
 }
 
-function renderPage() {
+function renderPage({ calendar = false } = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <LeavePage />
+      {calendar ? (
+        <CalendarProvider>
+          <LeavePage />
+        </CalendarProvider>
+      ) : (
+        <LeavePage />
+      )}
     </QueryClientProvider>,
   );
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+  localStorage.removeItem("ethr.calendar");
+});
 
 describe("the team leave tab", () => {
   // The rows printed the API's "2026-10-22 — 2026-10-22" whatever calendar the
@@ -125,6 +142,32 @@ describe("the team leave tab", () => {
     // Badges print the first name.
     expect(await screen.findByText("Abebe")).toBeInTheDocument();
     expect(screen.queryByText("Sara")).not.toBeInTheDocument();
+  });
+
+  // The grid is a Gregorian month, but an Ethiopian-calendar reader saw
+  // "November 2026" over Gregorian day numbers.
+  it("heads the calendar with the Ethiopian range it covers", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-01T09:00:00Z"));
+    localStorage.setItem("ethr.calendar", "ethiopian");
+    serveLeave();
+    renderPage({ calendar: true });
+
+    await userEvent.click(await screen.findByRole("tab", { name: /team/i }));
+    await screen.findByText("Abebe Kebede");
+    await userEvent.click(
+      screen.getByRole("button", { name: /calendar view/i }),
+    );
+
+    // 1 to 30 November 2026 is Tikimt 22 to Hidar 21, 2019.
+    expect(
+      await screen.findByText("Tikimt 22 – Hidar 21, 2019"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("November 2026")).not.toBeInTheDocument();
+    // Each cell carries its Ethiopian day, and the month name on the 1st
+    // (10 November is Hidar 1).
+    expect(screen.getByText("Hidar")).toBeInTheDocument();
+    expect(screen.getByTitle("Hidar 1, 2019")).toHaveTextContent("1");
   });
 });
 

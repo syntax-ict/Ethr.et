@@ -5,6 +5,7 @@ import { GraduationCap, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -307,12 +308,11 @@ export default function CostSharingPage() {
                 <Label htmlFor="cs-started">
                   {t("payroll_page.cost_sharing_page.started_on")}
                 </Label>
-                <Input
+                <DualCalendarDateInput
                   id="cs-started"
-                  type="date"
                   value={form.started_on}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, started_on: e.target.value }))
+                  onChange={(iso) =>
+                    setForm((p) => ({ ...p, started_on: iso }))
                   }
                   required
                   className="mt-1"

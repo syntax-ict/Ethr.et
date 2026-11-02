@@ -19,7 +19,7 @@ import {
 } from "@/features/dashboard/executive-api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useCalendar } from "@/lib/calendar/calendar-context";
-import { formatWeekday } from "@/lib/utils/date";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -263,6 +263,7 @@ function TeamAttendanceTrend() {
   const { data, isLoading, isError, refetch } =
     useTeamAttendanceSummary("weekly");
   const { t } = useT();
+  const { formatWeekday } = useDateFormatters();
 
   if (isLoading) return <Skeleton className={cn(CHART_HEIGHT, "rounded-lg")} />;
   if (isError)
@@ -297,7 +298,8 @@ function TeamAttendanceTrend() {
     // it takes no timezone -- reading it through the host zone would name the
     // previous day's weekday anywhere behind UTC. `undefined` as the locale
     // also meant the axis was labelled in whatever language the browser was
-    // set to, which is not the language the rest of the chart is in.
+    // set to, which is not the language the rest of the chart is in. The
+    // hook's formatter names it in the reader's language.
     name: formatWeekday(day.date),
     present: day.present,
     late: day.late,

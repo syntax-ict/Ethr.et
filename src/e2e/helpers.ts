@@ -1,4 +1,5 @@
-import { chromium, Page } from '@playwright/test';
+import { chromium, Locator, Page } from '@playwright/test';
+import { ethiopianMonthName, formatEthiopian, toEthiopian } from '../src/lib/calendar/ethiopian';
 import crypto from 'crypto';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -257,4 +258,34 @@ export function totp(secretBase32: string, at = Date.now()): string {
   const hmac = crypto.createHmac('sha1', key).update(counter).digest();
   const offset = hmac[hmac.length - 1] & 0xf;
   return ((hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).toString().padStart(6, '0');
+}
+
+/**
+ * A Gregorian `Y-m-d` as the app writes it for an English reader on the
+ * Ethiopian calendar, the organisation default: `Tikimt 22, 2019`.
+ */
+export function ethiopianDateText(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  return formatEthiopian(toEthiopian(y, m, d), 'en');
+}
+
+/**
+ * Enters a Gregorian `Y-m-d` into the date field labelled `label`, in whichever
+ * calendar the field is showing. On the Ethiopian calendar the field is a
+ * year, a month and a day, each named "<label>, Ethiopian year" and so on.
+ */
+export async function fillCalendarDate(scope: Locator, page: Page, label: string, iso: string) {
+  const year = scope.getByLabel(`${label}, Ethiopian year`);
+  if ((await year.count()) === 0) {
+    await scope.getByLabel(label, { exact: true }).fill(iso);
+    return;
+  }
+
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  const eth = toEthiopian(y, m, d);
+  await year.fill(String(eth.year));
+  await scope.getByLabel(`${label}, Ethiopian month`).click();
+  await page.getByRole('option', { name: ethiopianMonthName(eth.month, 'en'), exact: true }).click();
+  await scope.getByLabel(`${label}, Ethiopian day`).click();
+  await page.getByRole('option', { name: String(eth.day), exact: true }).click();
 }

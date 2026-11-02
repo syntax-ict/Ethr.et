@@ -25,6 +25,8 @@ import {
 import { branchesApi, departmentsApi } from "@/features/organization/api";
 import { useBulkUpdateEmployees } from "@/features/employees/api";
 import { useT } from "@/lib/i18n/useT";
+import { useTenantTimezone } from "@/lib/hooks/useTenantTimezone";
+import { todayIn } from "@/lib/utils/date";
 import { apiErrorMessage } from "@/lib/api/error-message";
 
 type BulkField = "department_id" | "branch_id" | "status";
@@ -55,10 +57,6 @@ const NEEDS_REASON: readonly string[] = [
   "retired",
 ];
 
-function today(): string {
-  return new Date().toISOString().split("T")[0];
-}
-
 interface BulkActionsBarProps {
   selectedIds: string[];
   /** Called after a bulk action succeeds, so the caller can clear selection. */
@@ -70,6 +68,9 @@ export function BulkActionsBar({
   onComplete,
 }: BulkActionsBarProps) {
   const { t } = useT();
+  const timeZone = useTenantTimezone();
+  // Today where the organisation is, not the UTC date `toISOString()` gives.
+  const today = () => todayIn(timeZone);
   const [field, setField] = useState<BulkField | null>(null);
   const [value, setValue] = useState("");
   const [effectiveDate, setEffectiveDate] = useState(today);

@@ -12,7 +12,12 @@ import {
   toEthiopianClock,
   type EthiopianPeriod,
 } from "@/lib/calendar/ethiopian-time";
-import { formatCalendarDateTime, formatClockTime } from "@/lib/utils/date";
+import {
+  formatCalendarDateTime,
+  formatCalendarDayMonth,
+  formatCalendarWeekday,
+  formatClockTime,
+} from "@/lib/utils/date";
 import { CalendarProvider, useCalendar } from "@/lib/calendar/calendar-context";
 import { CalendarPreferenceSync } from "@/components/shared/calendar-preference-sync";
 
@@ -156,5 +161,35 @@ describe("the clock preference", () => {
       expect(screen.getByLabelText("clock in use")).toHaveTextContent("24h"),
     );
     expect(localStorage.getItem("ethr.clock")).toBe("24h");
+  });
+});
+
+describe("the shared date pieces", () => {
+  // Sunday 1 November 2026 is እሑድ, Tikimt 22, 2019.
+  const day = "2026-11-01";
+
+  it("name the weekday in the reader's language", () => {
+    expect(formatCalendarWeekday(day, ADDIS, "en", "long")).toBe("Sunday");
+    expect(formatCalendarWeekday(day, ADDIS, "am", "long")).toBe("እሑድ");
+  });
+
+  it("write day and month in the reader's calendar", () => {
+    expect(formatCalendarDayMonth(day, ADDIS, "ethiopian", "am")).toBe(
+      "ጥቅምት 22",
+    );
+    expect(formatCalendarDayMonth(day, ADDIS, "ethiopian", "en")).toBe(
+      "Tikimt 22",
+    );
+    expect(formatCalendarDayMonth(day, ADDIS, "gregorian", "en")).toBe("1 Nov");
+  });
+
+  it("run a clock with seconds on either clock", () => {
+    const instant = "2026-10-20T04:30:07Z";
+    expect(
+      formatClockTime(instant, ADDIS, "ethiopian", "am", { seconds: true }),
+    ).toBe("1:30:07 ጠዋት");
+    expect(
+      formatClockTime(instant, ADDIS, "24h", "am", { seconds: true }),
+    ).toBe("07:30:07");
   });
 });

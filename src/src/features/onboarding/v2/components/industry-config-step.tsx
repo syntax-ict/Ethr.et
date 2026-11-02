@@ -16,6 +16,7 @@ import {
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { toast } from "sonner";
 import {
   useApplyConfiguration,
@@ -51,6 +52,7 @@ const LIST_SECTIONS = [
 
 export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   const { t, locale } = useT();
+  const { formatTimeOfDay } = useDateFormatters();
   const industriesQuery = useIndustries();
   const profilesQuery = useConfigurationProfiles();
   const preview = usePreviewConfiguration();
@@ -116,7 +118,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
         locale === "am" ? (o.name_am ?? o.title_am ?? null) : null;
       const name = String(localName ?? o.name ?? o.title ?? o.code ?? "");
       if (section === "shifts" && o.start_time && o.end_time) {
-        return `${name} ${String(o.start_time)}–${String(o.end_time)}`;
+        return `${name} ${formatTimeOfDay(String(o.start_time))}–${formatTimeOfDay(String(o.end_time))}`;
       }
       if (section === "rotations" && typeof o.cycle_days === "number") {
         return `${name} · ${t("setup2.cycle_days", ":n-day cycle", { n: o.cycle_days })}`;

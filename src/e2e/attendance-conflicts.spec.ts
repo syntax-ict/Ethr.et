@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { api } from './helpers';
+import { api, ethiopianDateText } from './helpers';
 
 /**
  * An attendance conflict, from the clash to its resolution.
@@ -47,9 +47,10 @@ test.describe('Attendance conflicts', () => {
     }
 
     await page.goto('/attendance/conflicts');
+    // The weekday and the date, in the organisation's calendar: Ethiopian.
     const dayText = [
       new Date(day).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' }),
-      new Date(day).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }),
+      ethiopianDateText(day),
     ].join(' ');
     const card = page
       .locator('div')

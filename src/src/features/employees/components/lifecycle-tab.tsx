@@ -23,6 +23,8 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { Controller } from "react-hook-form";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { todayIn } from "@/lib/utils/date";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
@@ -75,10 +77,12 @@ const transitionSchema = z.object({
 });
 type TransitionValues = z.infer<typeof transitionSchema>;
 
-const emptyTransition = (): TransitionValues => ({
+// Today where the organisation is: `toISOString()` is the UTC date, which
+// is yesterday in Addis Ababa until 03:00.
+const emptyTransition = (timeZone: string): TransitionValues => ({
   to_status: "",
   reason: "",
-  effective_date: new Date().toISOString().split("T")[0],
+  effective_date: todayIn(timeZone),
 });
 
 export function LifecycleTab({
@@ -89,6 +93,7 @@ export function LifecycleTab({
   currentStatus: string;
 }) {
   const { t } = useT();
+  const { formatDate, timeZone } = useDateFormatters();
   const { can } = usePermissions();
   const canTransition = can.manageEmployees;
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -104,7 +109,7 @@ export function LifecycleTab({
     formState: { errors, isSubmitting },
   } = useZodForm<TransitionValues>({
     schema: transitionSchema,
-    defaultValues: emptyTransition(),
+    defaultValues: emptyTransition(timeZone),
   });
 
   const selectedStatus = watch("to_status");
@@ -126,7 +131,7 @@ export function LifecycleTab({
     });
     toast.success(t("employee.lifecycle.transitioned", "Status transitioned"));
     setDialogOpen(false);
-    reset(emptyTransition());
+    reset(emptyTransition(timeZone));
   }
 
   const allowed = ALLOWED_TRANSITIONS[currentStatus] ?? [];
@@ -250,7 +255,9 @@ export function LifecycleTab({
                               {STATUS_LABEL[tr.to_status ?? ""] ?? tr.to_status}
                             </Badge>
                             <span className="ml-auto text-xs text-muted-foreground">
-                              {tr.effective_date}
+                              {tr.effective_date
+                                ? formatDate(tr.effective_date)
+                                : ""}
                             </span>
                           </div>
                           {tr.reason && (

@@ -32,6 +32,7 @@ import { apiErrorDetail } from "@/lib/api/error-message";
 import { useOfflineStatus } from "@/lib/hooks/useOfflineStatus";
 import { fitSelfie } from "@/lib/uploads/selfie";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 
 /** A chosen photo, scaled and compressed to the selfie size limit. */
 async function photoFromFile(file: File): Promise<string> {
@@ -66,6 +67,7 @@ async function photoFromFile(file: File): Promise<string> {
  */
 export function VisitLogCard({ photoConsent }: { photoConsent: boolean }) {
   const { t } = useT();
+  const { formatTime } = useDateFormatters();
   const { isOnline } = useOfflineStatus();
   const log = useLogVisit();
   const { data: deviceState } = useAttendanceDevice();
@@ -215,10 +217,7 @@ export function VisitLogCard({ photoConsent }: { photoConsent: boolean }) {
                   {v.site_name ?? v.note ?? t("visits.unnamed", "Visit")}
                 </span>
                 <span className="shrink-0 tabular-nums">
-                  {new Date(v.occurred_at).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatTime(v.occurred_at)}
                 </span>
               </li>
             ))}

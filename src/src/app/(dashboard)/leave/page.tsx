@@ -56,6 +56,12 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { todayIn } from "@/lib/utils/date";
+import {
+  ethiopianMonthName,
+  formatEthiopian,
+  toEthiopian,
+} from "@/lib/calendar/ethiopian";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { ReasonDialog } from "@/components/shared/reason-dialog";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
@@ -610,17 +616,22 @@ const STATUS_COLORS: Record<string, string> = {
 
 function TeamLeaveCalendar({ requests }: { requests: LeaveRequest[] }) {
   const { t, locale } = useT();
+  const { calendar, timeZone, formatDate } = useDateFormatters();
+  // Today where the organisation is: the browser's own date is a day out for
+  // anyone viewing from another zone near midnight.
+  const todayStr = todayIn(timeZone);
   const [month, setMonth] = useState(() => {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() };
+    const [y, m] = todayStr.split("-").map(Number);
+    return { year: y, month: m - 1 };
   });
 
   const firstDay = new Date(month.year, month.month, 1);
   const lastDay = new Date(month.year, month.month + 1, 0);
   const startOffset = (firstDay.getDay() + 6) % 7; // Monday-based
   const daysInMonth = lastDay.getDate();
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const ethiopian = calendar === "ethiopian";
+  const ethiopianDay = (day: number) =>
+    toEthiopian(month.year, month.month + 1, day);
 
   function dateStr(day: number): string {
     return `${month.year}-${String(month.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -661,13 +672,26 @@ function TeamLeaveCalendar({ requests }: { requests: LeaveRequest[] }) {
   // `getDay()`/`getDate()`. Formatting it in another zone would desynchronise
   // the label from the grid beneath it and, for any zone behind the host, name
   // the previous month. Construction and formatting have to agree; they do.
-  const monthLabel = firstDay.toLocaleDateString(
-    locale === "am" ? "am-ET" : "en-US",
-    {
-      month: "long",
-      year: "numeric",
-    },
-  );
+  //
+  // The grid stays a Gregorian month. On the Ethiopian calendar the heading is
+  // the Ethiopian range it covers, "Tikimt 22 – Hidar 21, 2019", with the year
+  // on both ends when Meskerem 1 falls inside it.
+  const monthLabel = ethiopian
+    ? (() => {
+        const from = ethiopianDay(1);
+        const to = ethiopianDay(daysInMonth);
+        return t("leave_page.calendar_range", ":from – :to", {
+          from:
+            from.year === to.year
+              ? `${ethiopianMonthName(from.month, locale)} ${from.day}`
+              : formatEthiopian(from, locale),
+          to: formatEthiopian(to, locale),
+        });
+      })()
+    : firstDay.toLocaleDateString(locale === "am" ? "am-ET" : "en-US", {
+        month: "long",
+        year: "numeric",
+      });
 
   const cells: (number | null)[] = [];
   for (let i = 0; i < startOffset; i++) cells.push(null);
@@ -721,6 +745,7 @@ function TeamLeaveCalendar({ requests }: { requests: LeaveRequest[] }) {
             const leaves = leavesOnDay(day);
             const isToday = dateStr(day) === todayStr;
             const isWeekend = i % 7 >= 5;
+            const eth = ethiopian ? ethiopianDay(day) : null;
 
             return (
               <div
@@ -735,9 +760,15 @@ function TeamLeaveCalendar({ requests }: { requests: LeaveRequest[] }) {
                     "inline-flex h-5 w-5 items-center justify-center rounded-full text-xs",
                     isToday && "bg-primary text-primary-foreground font-bold",
                   )}
+                  title={formatDate(dateStr(day))}
                 >
-                  {day}
+                  {eth ? eth.day : day}
                 </span>
+                {eth?.day === 1 && (
+                  <span className="ml-1 text-xs font-medium text-muted-foreground">
+                    {ethiopianMonthName(eth.month, locale)}
+                  </span>
+                )}
                 <div className="mt-0.5 space-y-0.5">
                   {leaves.slice(0, 3).map((leave, j) => {
                     const name = leave.employee?.name ?? "?";

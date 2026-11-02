@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/select";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { EmptyState } from "@/components/shared/empty-state";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
+import { DateTimeInput } from "@/components/shared/date-time-input";
 import { ErrorState } from "@/components/shared/error-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
@@ -713,12 +715,11 @@ function MoveForm({
               <Label htmlFor="offer-start">
                 {t("recruitment.start_date", "Start date")}
               </Label>
-              <Input
+              <DualCalendarDateInput
                 id="offer-start"
-                type="date"
                 required
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={setStartDate}
               />
             </div>
             {can.updateEmployeeFinancial && (
@@ -835,12 +836,11 @@ function HireForm({
         <Label htmlFor="hire-date">
           {t("recruitment.start_date", "Start date")}
         </Label>
-        <Input
+        <DualCalendarDateInput
           id="hire-date"
-          type="date"
           required
           value={hireDate}
-          onChange={(e) => setHireDate(e.target.value)}
+          onChange={setHireDate}
         />
       </div>
       <label className="flex items-center gap-2 text-sm text-foreground">
@@ -857,12 +857,11 @@ function HireForm({
           <Label htmlFor="probation-end">
             {t("recruitment.probation_end", "Probation ends")}
           </Label>
-          <Input
+          <DualCalendarDateInput
             id="probation-end"
-            type="date"
             required
             value={probationEnd}
-            onChange={(e) => setProbationEnd(e.target.value)}
+            onChange={setProbationEnd}
           />
           <p className="text-xs text-muted-foreground">
             {t(
@@ -895,6 +894,14 @@ function RecordForm({ applicationId }: { applicationId: string }) {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Both halves of the interview time are needed; an Ethiopian-clock time
+    // is a select, which a browser does not hold back as `required`.
+    if (type === "interview" && when === "") {
+      toast.error(
+        t("recruitment.interview_when_needed", "Choose the day and time"),
+      );
+      return;
+    }
     record.mutate(
       {
         id: applicationId,
@@ -962,12 +969,12 @@ function RecordForm({ applicationId }: { applicationId: string }) {
             <Label htmlFor="interview-when">
               {t("recruitment.interview_when", "When")}
             </Label>
-            <Input
+            <DateTimeInput
               id="interview-when"
-              type="datetime-local"
               required
               value={when}
-              onChange={(e) => setWhen(e.target.value)}
+              onChange={setWhen}
+              timeLabel={t("recruitment.interview_time", "Interview time")}
             />
           </div>
           <div className="space-y-1.5">
