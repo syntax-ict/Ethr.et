@@ -2,8 +2,9 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { getRouteMeta, routeI18nKey, routeI18nPath } from "@/lib/route-meta";
+import { getRouteMeta, routeText } from "@/lib/route-meta";
 import { useT } from "@/lib/i18n/useT";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "ETHR";
 
@@ -35,16 +36,16 @@ const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "ETHR";
  */
 export function useDocumentTitle(): void {
   const pathname = usePathname();
-  const { t, locale } = useT();
+  const { t } = useT();
+  const { can } = usePermissions();
+  // Worked out here rather than in the effect: the label changes with the
+  // language and with who is looking, and the effect only needs to know when.
+  const meta = getRouteMeta(pathname);
+  const label = meta ? routeText(pathname, meta, can, t).label : null;
 
   useEffect(() => {
-    const meta = getRouteMeta(pathname);
-    if (!meta) return;
+    if (label === null) return;
 
-    const label = t(
-      routeI18nKey(routeI18nPath(pathname, meta), "label"),
-      meta.label,
-    );
     const title = `${label} · ${APP_NAME}`;
     const apply = () => {
       if (document.title !== title) document.title = title;
@@ -59,7 +60,5 @@ export function useDocumentTitle(): void {
     });
 
     return () => observer.disconnect();
-    // `locale` is a dependency because the title must be re-rendered in the new
-    // language when the user switches, not just on navigation.
-  }, [pathname, t, locale]);
+  }, [label]);
 }

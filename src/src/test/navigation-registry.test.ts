@@ -170,6 +170,7 @@ describe("what each person may open", () => {
       "/admin/audit",
       "/admin/platform-settings",
       "/admin/sms",
+      "/admin/backups",
       "/admin/features",
       "/admin/plans",
       "/admin/marketing",

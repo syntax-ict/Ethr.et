@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\BackupStorageSetting;
 use App\Models\Lead;
 use App\Models\MarketingItem;
 use App\Models\MarketingSection;
@@ -45,6 +46,8 @@ const GLOBAL_MODELS = [
     SmsGateway::class,           // console-configured HTTP gateways (credential encrypted)
     SmsSetting::class,           // the SMS switch, route and daily cap; one row
     SmsSend::class,              // accepted messages counted for the daily cap
+    // The backup is of the whole platform, so its off-host storage is too.
+    BackupStorageSetting::class, // off-host backup storage; one row, secret and key encrypted
     // Unlike every other entry here, this one is not a catalogue tenants read.
     // A lead comes from a prospect, so there is no tenant to own the row and no
     // tenant that should ever see it: the missing tenant_id is an absent owner,

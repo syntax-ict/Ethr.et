@@ -8,7 +8,7 @@ use App\Enums\AttendanceSource;
 use App\Enums\Feature;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\KioskCheckInRequest;
-use App\Http\Resources\AttendancePunchResource;
+use App\Http\Resources\KioskPunchResource;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\KioskSession;
@@ -150,9 +150,11 @@ class KioskCheckInController extends Controller
 
         $session->touchActivity();
 
-        $result->record->load('employee', 'shift');
-
-        $punch = new AttendancePunchResource($result->record, $result->wasDuplicate, $employee->name, $result->punch);
+        // Never the employee resource: this answer goes to a shared terminal
+        // that anyone can type a code into, and until 2026-11-01 it carried
+        // the person's email, phone, date of birth and nationality. The
+        // terminal needs to show who punched, and nothing more.
+        $punch = new KioskPunchResource($result->record, $employee, $result->wasDuplicate, $result->punch);
 
         if ($result->wasDuplicate || $result->punch === 'check_out') {
             return $punch->response()->setStatusCode(200);

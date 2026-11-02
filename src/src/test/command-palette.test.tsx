@@ -372,7 +372,20 @@ describe("CommandPalette tasks and pages", () => {
     const option = await screen.findByRole("option", {
       name: /attendance.*records/i,
     });
-    expect(option).toHaveTextContent(/track and manage employee attendance/i);
+    expect(option).toHaveTextContent(/everyone's check-ins and check-outs/i);
+  });
+
+  it("describes an employee's own attendance as theirs", async () => {
+    mockUser("employee");
+    mockSearch({});
+    renderPalette();
+
+    await openAndType("my attendance");
+    const option = await screen.findByRole("option", {
+      name: /my attendance/i,
+    });
+    expect(option).toHaveTextContent(/your check-ins, check-outs/i);
+    expect(option).not.toHaveTextContent(/everyone/i);
   });
 
   it("answers an ask typed in Amharic", async () => {
