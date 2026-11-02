@@ -47,7 +47,9 @@ final class LeaveYear
 
     public static function of(string $kind, string $timeZone = 'Africa/Addis_Ababa'): self
     {
-        return new self(in_array($kind, self::CHOICES, true) ? $kind : self::DEFAULT, $timeZone);
+        // Anything but Gregorian is the default. Written as two literals so
+        // the published API contract types `leave_year` as their enum.
+        return new self($kind !== self::GREGORIAN ? self::ETHIOPIAN : self::GREGORIAN, $timeZone);
     }
 
     public static function forTenant(?Tenant $tenant): self
