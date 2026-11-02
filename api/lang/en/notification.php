@@ -8,6 +8,8 @@ return [
 
     // Payroll notifications
     'view_payslip' => 'View Payslip',
+    'view_attendance' => 'View Attendance',
+    'upgrade_plan' => 'Upgrade Plan',
 
     // Attendance corrections
 

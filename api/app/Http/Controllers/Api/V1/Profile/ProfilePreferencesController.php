@@ -9,6 +9,7 @@ use App\Http\Requests\Profile\UpdateProfilePreferencesRequest;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Support\CalendarPreference;
+use App\Support\ClockPreference;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -21,6 +22,8 @@ use Illuminate\Http\JsonResponse;
  * The calendar read back is the one in force, not only the one stored: a user
  * who has not chosen inherits their organisation's (`CalendarPreference`). It
  * used to fall back to "gregorian" while the app displayed Ethiopian (N33).
+ * The clock works the same way (`ClockPreference`), except that its default,
+ * `auto`, is settled by whoever writes the time, in the language they write in.
  */
 class ProfilePreferencesController extends Controller
 {
@@ -30,11 +33,12 @@ class ProfilePreferencesController extends Controller
      * (AttendanceSetting). Reminders are on unless turned off; checking in
      * for someone is never assumed.
      *
-     * @var array{theme: string, calendar: string, punch_reminders: bool, auto_check_in: bool}
+     * @var array{theme: string, calendar: string, clock: string, punch_reminders: bool, auto_check_in: bool}
      */
     private const DEFAULTS = [
         'theme' => 'system',
         'calendar' => CalendarPreference::DEFAULT,
+        'clock' => ClockPreference::AUTO,
         'punch_reminders' => true,
         'auto_check_in' => false,
     ];
@@ -74,7 +78,7 @@ class ProfilePreferencesController extends Controller
     }
 
     /**
-     * @return array{locale: string, locale_chosen: bool, theme: string, calendar: string, punch_reminders: bool, auto_check_in: bool}
+     * @return array{locale: string, locale_chosen: bool, theme: string, calendar: string, clock: string, punch_reminders: bool, auto_check_in: bool}
      */
     public static function present(User $user): array
     {
@@ -85,6 +89,7 @@ class ProfilePreferencesController extends Controller
             'locale_chosen' => ($stored['locale_chosen'] ?? false) === true,
             'theme' => is_string($stored['theme'] ?? null) ? $stored['theme'] : self::DEFAULTS['theme'],
             'calendar' => CalendarPreference::forUser($user),
+            'clock' => ClockPreference::forUser($user),
             'punch_reminders' => (bool) ($stored['punch_reminders'] ?? self::DEFAULTS['punch_reminders']),
             'auto_check_in' => (bool) ($stored['auto_check_in'] ?? self::DEFAULTS['auto_check_in']),
         ];

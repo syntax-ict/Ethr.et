@@ -14,6 +14,7 @@ return [
         'mfa_policy' => 'MFA policy',
         'session_timeout_minutes' => 'session timeout',
         'calendar' => 'calendar system',
+        'clock' => 'time of day format',
         'employer_tin' => 'employer TIN',
         'tax_center' => 'tax centre',
         'pension_scheme' => 'pension scheme',

@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\OvertimeRequest;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\NotificationMessage;
+use App\Support\ReaderDates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -43,7 +44,7 @@ class OvertimeDecidedNotification extends Notification
             'overtime_request_id' => $this->request->public_id,
             'date' => $date,
             'action' => $this->approved ? 'approved' : 'rejected',
-            ...NotificationMessage::make($this->approved ? 'notification.inapp.overtime_approved' : 'notification.inapp.overtime_rejected', ['date' => $date]),
+            ...NotificationMessage::make($this->approved ? 'notification.inapp.overtime_approved' : 'notification.inapp.overtime_rejected', ['date' => $date], dates: ['date' => 'date'], reader: ReaderDates::for($notifiable)),
             'url' => '/attendance/overtime-requests',
         ];
     }

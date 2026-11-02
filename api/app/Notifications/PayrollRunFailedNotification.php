@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\PayrollRun;
 use App\Support\NotificationMessage;
+use App\Support\ReaderDates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -57,9 +58,9 @@ class PayrollRunFailedNotification extends Notification
             'period' => $this->payrollRun->period_label,
             'reason' => $this->reason,
             ...NotificationMessage::make('payroll.run_failed_body', [
-                'period' => (string) $this->payrollRun->period_label,
+                'period' => ReaderDates::periodValue($this->payrollRun),
                 'reason' => $this->reason,
-            ]),
+            ], dates: ['period' => 'period'], reader: ReaderDates::for($notifiable)),
             'url' => '/payroll/'.$this->payrollRun->public_id,
         ];
     }
@@ -67,9 +68,9 @@ class PayrollRunFailedNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject(__('payroll.run_failed_subject', ['period' => (string) $this->payrollRun->period_label]))
+            ->subject(__('payroll.run_failed_subject', ['period' => ReaderDates::for($notifiable)->periodOf($this->payrollRun)]))
             ->line(__('payroll.run_failed_body', [
-                'period' => (string) $this->payrollRun->period_label,
+                'period' => ReaderDates::for($notifiable)->periodOf($this->payrollRun),
                 'reason' => $this->reason,
             ]))
             ->line(__('payroll.run_failed_next_step'));
