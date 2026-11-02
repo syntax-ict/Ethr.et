@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import { useCalendar } from "@/lib/calendar/calendar-context";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { calendarDayParts } from "@/lib/utils/date";
 import {
   formatReportCell,
   reportFieldLabel,
@@ -24,6 +26,18 @@ export function PreviewResult({ result }: { result: ReportResult }) {
   const showDate = (iso: string) => {
     const [y, m, d] = iso.split("-").map(Number);
     return formatCalendarDate(new Date(y, m - 1, d), locale);
+  };
+  const { timeZone, formatTime, formatDateTime } = useDateFormatters();
+  // A check-in in the reader's clock, with its date only when it is not the
+  // row's own day: a check-out after midnight says which day it fell on.
+  const showInstant = (iso: string, day: unknown) => {
+    const parts = calendarDayParts(iso, timeZone);
+    const local = parts
+      ? `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`
+      : null;
+    return local !== null && local === day
+      ? formatTime(iso)
+      : formatDateTime(iso);
   };
   const headers = useMemo(
     () => (result.data.length > 0 ? Object.keys(result.data[0]) : []),
@@ -115,7 +129,9 @@ export function PreviewResult({ result }: { result: ReportResult }) {
                 key: String(i),
                 cells: headers.map((h) => (
                   <span key={h} className="whitespace-nowrap">
-                    {formatReportCell(h, row[h], showDate)}
+                    {formatReportCell(h, row[h], showDate, (iso) =>
+                      showInstant(iso, row.date),
+                    )}
                   </span>
                 )),
               }))}
