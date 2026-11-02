@@ -765,7 +765,7 @@ function TeamLeaveCalendar({ requests }: { requests: LeaveRequest[] }) {
                   {eth ? eth.day : day}
                 </span>
                 {eth?.day === 1 && (
-                  <span className="ml-1 text-[10px] font-medium text-muted-foreground">
+                  <span className="ml-1 text-xs font-medium text-muted-foreground">
                     {ethiopianMonthName(eth.month, locale)}
                   </span>
                 )}
