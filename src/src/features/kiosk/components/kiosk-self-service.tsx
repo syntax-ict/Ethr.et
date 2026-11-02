@@ -26,6 +26,8 @@ import {
 import { useIdle } from "../kiosk-lock";
 import { KioskKeypad, PinDots } from "./kiosk-keypad";
 import type { KioskCue } from "../kiosk-sound";
+import type { KioskCodeFormat } from "../kiosk-code";
+import { KioskCodeHint } from "./kiosk-code-hint";
 
 /** A self-service screen left alone this long signs the person out. */
 export const SELF_SERVICE_IDLE_MS = 30_000;
@@ -49,6 +51,7 @@ export function KioskSelfService({
   timeZone,
   calendar,
   clock,
+  codeFormat,
   onCue,
   onClose,
 }: {
@@ -56,6 +59,8 @@ export function KioskSelfService({
   timeZone: string;
   calendar: CalendarSystem;
   clock: ClockSystem;
+  /** The organisation's employee number format, for typing the number alone. */
+  codeFormat?: KioskCodeFormat | null;
   /** The kiosk's sound for a result; the kiosk page owns the setting. */
   onCue?: (cue: KioskCue) => void;
   onClose: () => void;
@@ -65,6 +70,8 @@ export function KioskSelfService({
   const [code, setCode] = useState("");
   const [pin, setPin] = useState("");
   const [field, setField] = useState<"code" | "pin">("code");
+  const [letters, setLetters] = useState(false);
+  const codeInputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [summary, setSummary] = useState<KioskSelfServiceSummary | null>(null);
@@ -203,13 +210,24 @@ export function KioskSelfService({
                   {t("kiosk_page.employee_code")}
                 </Label>
                 <Input
+                  ref={codeInputRef}
                   id="kiosk-self-code"
+                  inputMode={letters ? "text" : "none"}
                   value={code}
                   onChange={(e) => setCode(e.target.value.slice(0, CODE_MAX))}
                   autoComplete="off"
                   autoCapitalize="characters"
                   spellCheck={false}
                   className="h-14 text-center text-2xl font-mono font-bold"
+                />
+                <KioskCodeHint
+                  code={code}
+                  format={codeFormat}
+                  letters={letters}
+                  onLetters={() => {
+                    setLetters(true);
+                    window.setTimeout(() => codeInputRef.current?.focus(), 0);
+                  }}
                 />
               </>
             ) : (

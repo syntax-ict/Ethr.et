@@ -5,6 +5,7 @@ declare(strict_types=1);
 return [
     'token_required' => 'Kiosk session token is required.',
     'invalid_token' => 'Invalid or inactive kiosk session.',
+    'code_ambiguous' => 'This number matches more than one person. Type your full code with the ABC key.',
     'pin_required' => 'Employee PIN is required for kiosk check-in.',
     'invalid_pin' => 'Invalid employee PIN.',
     'invalid_admin_pin' => 'Incorrect admin PIN.',
