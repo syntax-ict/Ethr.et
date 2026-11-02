@@ -32,7 +32,7 @@ export function LeaveYearCard() {
   const { data, isLoading, isError, refetch } = useSettings();
   const save = useUpdateSettings();
 
-  const current = data?.leave?.leave_year ?? "gregorian";
+  const current = data?.leave?.leave_year ?? "ethiopian";
   const changeable = data?.leave?.leave_year_changeable ?? false;
   const editable = can.manageSettings && changeable;
 

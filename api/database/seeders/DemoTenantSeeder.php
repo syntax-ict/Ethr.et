@@ -22,6 +22,7 @@ use App\Models\Shift;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\Leave\LeaveYear;
 use App\Services\Onboarding\OrganizationProvisioner;
 use App\Services\Payroll\PayrollEngine;
 use Carbon\Carbon;
@@ -178,13 +179,14 @@ class DemoTenantSeeder extends Seeder
         // Unpaid, excused and business trip, as every organisation gets them.
         app(OrganizationProvisioner::class)->ensureSettlingLeaveTypes($tenant);
 
+        $leaveYear = LeaveYear::forTenant($tenant)->current();
         foreach ($employees as $employee) {
             foreach ($leaveTypes as $lt) {
                 LeaveBalance::create([
                     'tenant_id' => $tenant->id,
                     'employee_id' => $employee->id,
                     'leave_type_id' => $lt->id,
-                    'year' => now()->year,
+                    'year' => $leaveYear,
                     'entitled_days' => $lt->default_days,
                     'used_days' => fake()->numberBetween(0, 5),
                     'carried_days' => 0,

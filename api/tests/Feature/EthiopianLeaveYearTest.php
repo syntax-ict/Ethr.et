@@ -56,8 +56,9 @@ test('the Ethiopian leave year runs Meskerem 1 to the end of Pagume', function (
         ->and($gregorian->starts(2026)->toDateString())->toBe('2026-01-01');
 });
 
-test('an organisation without the setting keeps the Gregorian year its balances are numbered in', function () {
-    expect(LeaveYear::forTenant(createTenant(['settings' => []]))->kind)->toBe(LeaveYear::GREGORIAN);
+test('an organisation without the setting runs on the Ethiopian year', function () {
+    expect(LeaveYear::forTenant(createTenant(['settings' => []]))->kind)->toBe(LeaveYear::ETHIOPIAN)
+        ->and(LeaveYear::forTenant(null)->kind)->toBe(LeaveYear::ETHIOPIAN);
 });
 
 test('a new organisation is given the Ethiopian leave year', function () {
@@ -132,16 +133,16 @@ test('settings show the leave year and change it while nothing would be lost', f
     actingAsUser(['role' => UserRole::TENANT_ADMIN, 'mfa_enabled' => true], $tenant);
 
     test()->getJson(leaveYearUrl($tenant, 'settings'))->assertOk()
-        ->assertJsonPath('leave.leave_year', 'gregorian')
+        ->assertJsonPath('leave.leave_year', 'ethiopian')
         ->assertJsonPath('leave.leave_year_changeable', true);
 
-    test()->putJson(leaveYearUrl($tenant, 'settings'), ['settings' => ['leave_year' => 'ethiopian']])->assertOk();
+    test()->putJson(leaveYearUrl($tenant, 'settings'), ['settings' => ['leave_year' => 'gregorian']])->assertOk();
 
-    expect(LeaveYear::forTenant($tenant->fresh())->kind)->toBe(LeaveYear::ETHIOPIAN);
+    expect(LeaveYear::forTenant($tenant->fresh())->kind)->toBe(LeaveYear::GREGORIAN);
 });
 
 test('the leave year is locked once leave has been used', function () {
-    $tenant = createTenant(['settings' => []]);
+    $tenant = leaveYearTenant(LeaveYear::GREGORIAN);
     actingAsUser(['role' => UserRole::TENANT_ADMIN, 'mfa_enabled' => true], $tenant);
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
     LeaveBalance::factory()->create([
@@ -192,4 +193,53 @@ test('unused leave carries over in the first week of each organisation\'s own le
     expect(carriedOn('2027-01-03 09:00'))->toBe([$gregorian->id => [2026, 2027]]);
     // Past the first week of either year, nothing.
     expect(carriedOn('2026-11-02 09:00'))->toBe([]);
+});
+
+// ── Every existing organisation (2026-11-02) ──
+
+function recordLeave(Tenant $tenant, array $days): void
+{
+    LeaveBalance::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
+        'leave_type_id' => LeaveType::factory()->create(['tenant_id' => $tenant->id])->id,
+        'year' => 2026,
+        'entitled_days' => 16,
+        ...$days,
+    ]);
+}
+
+test('every organisation without a leave year is given one, and leave already recorded keeps its year', function () {
+    $fresh = createTenant(['settings' => null]);
+    $entitledOnly = createTenant(['settings' => ['calendar' => 'ethiopian']]);
+    recordLeave($entitledOnly, []);
+    $used = createTenant(['settings' => []]);
+    recordLeave($used, ['used_days' => 2]);
+    $pending = createTenant(['settings' => []]);
+    recordLeave($pending, ['pending_days' => 1]);
+    $carried = createTenant(['settings' => []]);
+    recordLeave($carried, ['carried_days' => 4]);
+    $chose = leaveYearTenant(LeaveYear::GREGORIAN);
+
+    (require database_path('migrations/2026_11_02_000001_give_every_organisation_a_leave_year.php'))->up();
+
+    $kind = fn (Tenant $tenant) => $tenant->fresh()->settings['leave_year'] ?? null;
+    expect($kind($fresh))->toBe(LeaveYear::ETHIOPIAN)
+        ->and($kind($entitledOnly))->toBe(LeaveYear::ETHIOPIAN)
+        ->and($entitledOnly->fresh()->settings['calendar'])->toBe('ethiopian')
+        ->and($kind($used))->toBe(LeaveYear::GREGORIAN)
+        ->and($kind($pending))->toBe(LeaveYear::GREGORIAN)
+        ->and($kind($carried))->toBe(LeaveYear::GREGORIAN)
+        // A choice already made is never replaced.
+        ->and($kind($chose))->toBe(LeaveYear::GREGORIAN);
+});
+
+test('whether a leave year can change does not depend on a resolved tenant', function () {
+    $tenant = createTenant(['settings' => []]);
+    recordLeave($tenant, ['used_days' => 1]);
+    app()->forgetScopedInstances();
+
+    expect(LeaveYear::canChange($tenant->id))->toBeFalse()
+        ->and(LeaveYear::forExisting($tenant->id))->toBe(LeaveYear::GREGORIAN)
+        ->and(LeaveYear::forExisting(createTenant()->id))->toBe(LeaveYear::ETHIOPIAN);
 });

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Leave;
 
-use App\Models\LeaveBalance;
 use App\Models\Tenant;
 use App\Services\Calendar\EthiopianCalendar;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The year an organisation's leave balances run on: Gregorian (1 January to
@@ -23,9 +23,11 @@ use Carbon\CarbonInterface;
  * Monthly accrual counts twelve months a year. Pagume, five or six days, is
  * part of the twelfth month (Nehase): it earns no thirteenth month's leave.
  *
- * An organisation without the setting is Gregorian, which is what every
- * organisation was before the setting existed; `ProvisionTenant` gives a new
- * organisation the Ethiopian year.
+ * Every organisation runs on the Ethiopian year unless it chose otherwise:
+ * `DEFAULT` is what an organisation without the setting gets. Organisations
+ * that existed before 2026-11-02 were given the setting explicitly by
+ * `forExisting()`, so one with leave already recorded under Gregorian year
+ * numbers kept them.
  */
 final class LeaveYear
 {
@@ -35,6 +37,9 @@ final class LeaveYear
 
     public const CHOICES = [self::GREGORIAN, self::ETHIOPIAN];
 
+    /** What an organisation without the setting runs on. */
+    public const DEFAULT = self::ETHIOPIAN;
+
     private function __construct(
         public readonly string $kind,
         private readonly string $timeZone,
@@ -42,7 +47,7 @@ final class LeaveYear
 
     public static function of(string $kind, string $timeZone = 'Africa/Addis_Ababa'): self
     {
-        return new self($kind === self::ETHIOPIAN ? self::ETHIOPIAN : self::GREGORIAN, $timeZone);
+        return new self(in_array($kind, self::CHOICES, true) ? $kind : self::DEFAULT, $timeZone);
     }
 
     public static function forTenant(?Tenant $tenant): self
@@ -52,7 +57,7 @@ final class LeaveYear
         $settings = $tenant?->getAttribute('settings');
         $kind = is_array($settings) ? ($settings['leave_year'] ?? null) : null;
 
-        return self::of(is_string($kind) ? $kind : self::GREGORIAN, (string) ($tenant?->timezone ?: 'Africa/Addis_Ababa'));
+        return self::of(is_string($kind) ? $kind : self::DEFAULT, (string) ($tenant?->timezone ?: 'Africa/Addis_Ababa'));
     }
 
     public static function forTenantId(int $tenantId): self
@@ -129,12 +134,25 @@ final class LeaveYear
      */
     public static function canChange(int $tenantId): bool
     {
-        return ! LeaveBalance::query()
+        // The query builder, not LeaveBalance: the tenant scope returns no
+        // rows when no tenant is resolved (a migration, the console), which
+        // would read as "nothing recorded" for every organisation.
+        return ! DB::table('leave_balances')
             ->where('tenant_id', $tenantId)
             ->where(fn ($q) => $q->where('used_days', '>', 0)
                 ->orWhere('pending_days', '>', 0)
                 ->orWhere('carried_days', '>', 0))
             ->exists();
+    }
+
+    /**
+     * The leave year an existing organisation should run on: the Ethiopian
+     * year, unless leave is already recorded under the Gregorian year numbers
+     * it ran on before the setting existed.
+     */
+    public static function forExisting(int $tenantId): string
+    {
+        return self::canChange($tenantId) ? self::DEFAULT : self::GREGORIAN;
     }
 
     private static function calendar(): EthiopianCalendar
