@@ -31,6 +31,12 @@ export interface EthiopianClockTime {
 
 const PERIOD_LABELS: Record<string, Record<EthiopianPeriod, string>> = {
   am: { morning: "ጠዋት", day: "ቀን", evening: "ምሽት", night: "ሌሊት" },
+  om: {
+    morning: "ganama",
+    day: "waaree booda",
+    evening: "galgala",
+    night: "halkan",
+  },
   en: {
     morning: "morning",
     day: "afternoon",
@@ -38,6 +44,9 @@ const PERIOD_LABELS: Record<string, Record<EthiopianPeriod, string>> = {
     night: "night",
   },
 };
+
+/** The languages whose readers count the day from dawn, when nothing says otherwise. */
+const ETHIOPIAN_CLOCK_LOCALES: readonly string[] = ["am", "om"];
 
 export const ETHIOPIAN_PERIODS: readonly EthiopianPeriod[] = [
   "morning",
@@ -52,9 +61,10 @@ export function toClockPreference(value: unknown): ClockPreference {
 }
 
 /**
- * The clock to write in. `auto` is Ethiopian time for an Amharic reader on the
- * Ethiopian calendar, and 24-hour for anyone else: someone reading English, or
- * who chose the Gregorian calendar, has said they read the international way.
+ * The clock to write in. `auto` is Ethiopian time for an Amharic or Oromo
+ * reader on the Ethiopian calendar, and 24-hour for anyone else: someone
+ * reading English, or who chose the Gregorian calendar, has said they read the
+ * international way.
  */
 export function resolveClock(
   preference: ClockPreference,
@@ -62,7 +72,9 @@ export function resolveClock(
   locale: string,
 ): ClockSystem {
   if (preference === "ethiopian" || preference === "24h") return preference;
-  return calendar === "ethiopian" && locale === "am" ? "ethiopian" : "24h";
+  return calendar === "ethiopian" && ETHIOPIAN_CLOCK_LOCALES.includes(locale)
+    ? "ethiopian"
+    : "24h";
 }
 
 function periodOf(hour24: number): EthiopianPeriod {

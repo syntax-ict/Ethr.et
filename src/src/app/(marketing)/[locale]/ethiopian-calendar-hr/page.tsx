@@ -20,7 +20,7 @@ export async function generateMetadata({
     {
       title: TITLE,
       description:
-        "HR and payroll that work in the Ethiopian calendar: 13 months, Pagume, Ethiopian holidays, and Amharic and English side by side.",
+        "HR and payroll that work in the Ethiopian calendar: 13 months, Pagume, Ethiopian holidays, and Amharic, Afaan Oromo and English side by side.",
     },
   );
 }

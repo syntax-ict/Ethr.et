@@ -16,11 +16,11 @@ import {
   toGregorian,
   formatEthiopian,
   daysInEthiopianMonth,
-  ETHIOPIAN_MONTHS,
-  ETHIOPIAN_MONTHS_AM,
+  ethiopianMonths,
   type EthiopianDate,
 } from "@/lib/calendar/ethiopian";
 import { cn } from "@/lib/utils";
+import { intlLocale } from "@/lib/i18n/config";
 
 /**
  * A drop-in replacement for `<Input type="date">` whose value contract is the
@@ -146,7 +146,7 @@ export function DualCalendarDateInput({
   // Secondary (opposite-calendar) readout of whatever is currently entered.
   const secondary = parsed
     ? calendar === "ethiopian"
-      ? new Intl.DateTimeFormat(locale === "am" ? "am-ET" : "en-US", {
+      ? new Intl.DateTimeFormat(intlLocale(locale), {
           year: "numeric",
           month: "long",
           day: "numeric",
@@ -185,7 +185,7 @@ export function DualCalendarDateInput({
   const eth: EthiopianDate | null = parsed
     ? toEthiopian(parsed.year, parsed.month, parsed.day)
     : null;
-  const months = locale === "am" ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
+  const months = ethiopianMonths(locale);
 
   const minEth = isoToEthiopian(min);
   const maxEth = isoToEthiopian(max);

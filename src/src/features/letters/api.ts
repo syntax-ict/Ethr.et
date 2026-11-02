@@ -1,6 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 
+/** The languages a letter is written in: `Locales::SHIPPED` on the server. */
+export const LETTER_LANGUAGES = ["en", "am", "om"] as const;
+export type LetterLanguage = (typeof LETTER_LANGUAGES)[number];
+
+export function toLetterLanguage(value: string): LetterLanguage {
+  return (LETTER_LANGUAGES as readonly string[]).includes(value)
+    ? (value as LetterLanguage)
+    : "en";
+}
+
 /** EmploymentLetters::present() on the server. */
 export interface LetterRequest {
   public_id: string;
@@ -8,7 +18,7 @@ export interface LetterRequest {
   purpose: string;
   addressed_to: string | null;
   include_salary: boolean;
-  language: "en" | "am";
+  language: LetterLanguage;
   status: "pending" | "issued" | "rejected";
   reference: string | null;
   rejection_reason: string | null;
@@ -20,7 +30,7 @@ export interface NewLetterRequest {
   purpose: string;
   addressed_to?: string;
   include_salary: boolean;
-  language: "en" | "am";
+  language: LetterLanguage;
 }
 
 const MY_KEY = ["profile", "letters"];

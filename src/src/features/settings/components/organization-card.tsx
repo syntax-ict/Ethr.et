@@ -268,6 +268,9 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                 <SelectItem value="am">
                   {t("settings.amharic", "Amharic")}
                 </SelectItem>
+                <SelectItem value="om">
+                  {t("settings.oromo", "Afaan Oromo")}
+                </SelectItem>
               </SelectContent>
             </Select>
             <p className="mt-1 text-xs text-muted-foreground">

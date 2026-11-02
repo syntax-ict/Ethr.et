@@ -1,8 +1,4 @@
-import {
-  ETHIOPIAN_MONTHS,
-  ETHIOPIAN_MONTHS_AM,
-  toEthiopian,
-} from "@/lib/calendar/ethiopian";
+import { ethiopianMonths, toEthiopian } from "@/lib/calendar/ethiopian";
 import type { CalendarSystem } from "@/lib/calendar/calendar-context";
 import { formatETB } from "@/lib/utils/currency";
 
@@ -79,7 +75,7 @@ export function dayKeyLabel(
 
   if (calendar === "ethiopian") {
     const eth = toEthiopian(year, month, day);
-    const months = locale === "am" ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
+    const months = ethiopianMonths(locale);
     return `${months[eth.month - 1]} ${eth.day}`;
   }
 

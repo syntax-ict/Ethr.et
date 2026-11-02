@@ -68,6 +68,7 @@ import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
+import { intlLocale } from "@/lib/i18n/config";
 
 function leaveTypeName(
   lt: LeaveBalance["leave_type"],
@@ -688,7 +689,7 @@ function TeamLeaveCalendar({ requests }: { requests: LeaveRequest[] }) {
           to: formatEthiopian(to, locale),
         });
       })()
-    : firstDay.toLocaleDateString(locale === "am" ? "am-ET" : "en-US", {
+    : firstDay.toLocaleDateString(intlLocale(locale), {
         month: "long",
         year: "numeric",
       });

@@ -80,9 +80,9 @@ describe("document language", () => {
     render(<Probe />);
 
     // setLocale refuses a `coming_soon` locale, so the attribute must not move
-    // to one either — an <html lang="om"> on a page rendered in Amharic would
+    // to one either — an <html lang="ti"> on a page rendered in Amharic would
     // be the same defect this file exists to prevent, pointed the other way.
-    setLocale("om");
+    setLocale("ti");
 
     expect(document.documentElement.lang).toBe(DEFAULT_LOCALE);
   });

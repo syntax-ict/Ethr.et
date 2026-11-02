@@ -18,7 +18,7 @@ export async function generateMetadata({
   return marketingMetadata(locale, "/", "home", {
     title: "HR, Payroll and Attendance Software for Ethiopia | ETHR",
     description:
-      "HR, payroll, attendance and leave software for Ethiopian organizations. Ethiopian income tax, pension and calendar built in. Works offline, in Amharic and English.",
+      "HR, payroll, attendance and leave software for Ethiopian organizations. Ethiopian income tax, pension and calendar built in. Works offline, in Amharic, Afaan Oromo and English.",
   });
 }
 

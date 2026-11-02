@@ -32,6 +32,7 @@ import {
   toEthiopian,
 } from "@/lib/calendar/ethiopian";
 import { formatClock, type ClockSystem } from "@/lib/calendar/ethiopian-time";
+import { intlLocale as intlTag } from "@/lib/i18n/config";
 
 export const DEFAULT_TIMEZONE = "Africa/Addis_Ababa";
 
@@ -249,7 +250,7 @@ export function calendarDayParts(
  * `useCalendar().formatDate` honoured it, so one screen could show both
  * calendars side by side (FRONTEND_REDESIGN_PLAN.md, problem 3). Gregorian
  * in English keeps the old `formatDate` output exactly; Gregorian in Amharic
- * uses Amharic month names; Ethiopian uses the app's own month names, as the
+ * or Oromo uses that language's month names; Ethiopian uses the app's own month names, as the
  * calendar screens already do.
  */
 export function formatCalendarDate(
@@ -263,10 +264,10 @@ export function formatCalendarDate(
   if (calendar === "ethiopian") {
     return formatEthiopian(toEthiopian(day.year, day.month, day.day), locale);
   }
-  if (locale === "am") {
+  if (locale !== "en") {
     return new Date(
       Date.UTC(day.year, day.month - 1, day.day),
-    ).toLocaleDateString("am-ET", {
+    ).toLocaleDateString(intlLocale(locale), {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -309,9 +310,9 @@ export function formatClockTime(
   );
 }
 
-/** The `Intl` locale for the app's language: Amharic, else British English. */
+/** The `Intl` locale for the app's language: `am-ET`/`om-ET`, else British English. */
 function intlLocale(locale: string): string {
-  return locale === "am" ? "am-ET" : "en-GB";
+  return intlTag(locale, "en-GB");
 }
 
 /**
@@ -368,7 +369,7 @@ export function formatCalendarDateTime(
   locale: string,
   clock: ClockSystem = "24h",
 ): string {
-  if (calendar === "gregorian" && locale !== "am" && clock === "24h") {
+  if (calendar === "gregorian" && locale === "en" && clock === "24h") {
     return formatDateTime(dateStr, timeZone);
   }
   if (!calendarDayParts(dateStr, timeZone))

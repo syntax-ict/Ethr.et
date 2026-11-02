@@ -80,7 +80,7 @@ export function ClockSelect({
       <p className="text-xs text-muted-foreground">
         {t(
           "clock.hint",
-          "Automatic uses Ethiopian time when you read Amharic on the Ethiopian calendar, and 24-hour otherwise.",
+          "Automatic uses Ethiopian time when you read Amharic or Afaan Oromo on the Ethiopian calendar, and 24-hour otherwise.",
         )}
       </p>
     </div>

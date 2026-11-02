@@ -21,9 +21,16 @@ import {
 } from "@/lib/calendar/ethiopian";
 import { cn } from "@/lib/utils";
 import { ErrorState } from "@/components/shared/error-state";
+import { intlLocale } from "@/lib/i18n/config";
 
 const WEEKDAYS_EN = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const WEEKDAYS_AM = ["እሁድ", "ሰኞ", "ማክሰ", "ረቡዕ", "ሐሙስ", "አርብ", "ቅዳሜ"];
+// Dilbata, Wiixata, Kibxata, Roobii, Kamiisa, Jimaata, Sanbata.
+const WEEKDAYS_OM = ["Dil", "Wix", "Kib", "Rob", "Kam", "Jim", "San"];
+const WEEKDAYS: Record<string, string[]> = {
+  am: WEEKDAYS_AM,
+  om: WEEKDAYS_OM,
+};
 
 function getDaysInGregorianMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
@@ -44,7 +51,7 @@ function GregorianGrid({
   holidays: Map<string, string>;
   locale: string;
 }) {
-  const weekdays = locale === "am" ? WEEKDAYS_AM : WEEKDAYS_EN;
+  const weekdays = WEEKDAYS[locale] ?? WEEKDAYS_EN;
   const now = new Date();
   const isCurrentMonth =
     viewYear === now.getFullYear() && viewMonth === now.getMonth();
@@ -111,7 +118,7 @@ function EthiopianGrid({
   holidays: Map<string, string>;
   locale: string;
 }) {
-  const weekdays = locale === "am" ? WEEKDAYS_AM : WEEKDAYS_EN;
+  const weekdays = WEEKDAYS[locale] ?? WEEKDAYS_EN;
   const ethToday = todayEthiopian();
   const isCurrentMonth =
     ethYear === ethToday.year && ethMonth === ethToday.month;
@@ -244,12 +251,12 @@ export function CalendarWidget() {
   if (isEthMode) {
     monthName = formatEthiopianMonthYear(ethView.year, ethView.month, locale);
     const gregStart = toGregorian(ethView.year, ethView.month, 1);
-    monthSubtitle = new Intl.DateTimeFormat(
-      locale === "am" ? "am-ET" : "en-US",
-      { month: "short", year: "numeric" },
-    ).format(gregStart);
+    monthSubtitle = new Intl.DateTimeFormat(intlLocale(locale), {
+      month: "short",
+      year: "numeric",
+    }).format(gregStart);
   } else {
-    monthName = new Intl.DateTimeFormat(locale === "am" ? "am-ET" : "en-US", {
+    monthName = new Intl.DateTimeFormat(intlLocale(locale), {
       month: "long",
       year: "numeric",
     }).format(new Date(gregYear, gregMonth, 1));

@@ -10,6 +10,11 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { useAdminMarketing } from "@/features/admin/api";
 import { SectionCard } from "@/features/admin/marketing/section-card";
 import { useT } from "@/lib/i18n/useT";
+import {
+  DEFAULT_LOCALE,
+  isAvailableLocale,
+  localeHref,
+} from "@/lib/i18n/config";
 
 /**
  * Super-admin editor for the public landing page.
@@ -25,7 +30,10 @@ import { useT } from "@/lib/i18n/useT";
 export default function AdminMarketingPage() {
   const { t, locale } = useT();
   const query = useAdminMarketing();
-  const liveHref = locale === "am" ? "/am" : "/en";
+  const liveHref = localeHref(
+    isAvailableLocale(locale) ? locale : DEFAULT_LOCALE,
+    "/",
+  );
 
   return (
     <RoleGate minRole="super_admin">
