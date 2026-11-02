@@ -6,20 +6,53 @@ namespace App\Services\Payroll;
 
 use App\Models\PayrollEntry;
 use App\Models\Tenant;
+use App\Support\ReaderDates;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Lang;
 
 final class PayslipPdfService
 {
-    public function generate(PayrollEntry $entry): string
+    /**
+     * The payslip written for `$reader`: in their language, with the period
+     * and the date in their calendar. Without one, for the organisation. It
+     * printed English and the stored Gregorian `period_label` for everyone.
+     */
+    public function generate(PayrollEntry $entry, ?ReaderDates $reader = null): string
+    {
+        $data = $this->data($entry, $reader);
+
+        // Ethiopic glyphs come from the bundled Noto Sans Ethiopic: DejaVu has
+        // none, so every Amharic name printed as empty boxes (audit N79).
+        // dompdf caches font metrics here and does not create the directory.
+        File::ensureDirectoryExists(storage_path('fonts'));
+
+        $pdf = Pdf::loadView('payslip', $data);
+        $pdf->setPaper('a5', 'portrait');
+        // Embed only the glyphs used: whole DejaVu and Ethiopic faces made
+        // each payslip over a megabyte.
+        $pdf->setOption('isFontSubsettingEnabled', true);
+
+        return $pdf->output();
+    }
+
+    /**
+     * What the payslip prints.
+     *
+     * @return array<string, mixed>
+     */
+    public function data(PayrollEntry $entry, ?ReaderDates $reader = null): array
     {
         $entry->loadMissing(['employee', 'payrollRun']);
 
         $tenant = Tenant::find($entry->tenant_id);
+        $reader ??= ReaderDates::forTenant($tenant);
+        $locale = $reader->locale;
 
-        $data = [
+        return [
+            'locale' => $locale,
             'tenant_name' => $tenant?->name ?? 'ETHR',
-            'period' => $entry->payrollRun->period_label,
+            'period' => $reader->periodOf($entry->payrollRun),
             // `name`: employees have no `full_name` column or accessor, so this
             // printed a blank name — the same defect BankExportService records.
             'employee_name' => $entry->employee->name ?? '',
@@ -39,24 +72,35 @@ final class PayslipPdfService
             'employee_pension_rate' => self::rate($entry, 'employee_rate'),
             'employer_pension_rate' => self::rate($entry, 'employer_rate'),
             'other_deductions_cents' => $entry->other_deductions_cents,
-            'deductions' => $entry->deductions ?? [],
+            'deductions' => self::deductionLines($entry->getAttribute('deductions'), $locale),
             'net_cents' => $entry->net_cents,
-            'generated_at' => now()->timezone('Africa/Addis_Ababa')->format('d/m/Y H:i'),
+            'generated_at' => $reader->dateTime(now()),
             'is_voided' => $entry->payrollRun->status === 'voided',
         ];
+    }
 
-        // Ethiopic glyphs come from the bundled Noto Sans Ethiopic: DejaVu has
-        // none, so every Amharic name printed as empty boxes (audit N79).
-        // dompdf caches font metrics here and does not create the directory.
-        File::ensureDirectoryExists(storage_path('fonts'));
+    /**
+     * Each deduction with a `label` in the reader's language: a loan read
+     * `Loan`, and cost sharing `Cost_sharing`, in either language.
+     *
+     * @return list<array<array-key, mixed>>
+     */
+    private static function deductionLines(mixed $deductions, string $locale): array
+    {
+        $lines = [];
+        foreach (is_array($deductions) ? $deductions : [] as $deduction) {
+            if (! is_array($deduction)) {
+                continue;
+            }
+            $type = is_string($deduction['type'] ?? null) ? $deduction['type'] : '';
+            $key = 'payslip.deduction_types.'.$type;
+            $deduction['label'] = $type !== '' && Lang::has($key, $locale)
+                ? (string) __($key, [], $locale)
+                : ucfirst(str_replace('_', ' ', $type));
+            $lines[] = $deduction;
+        }
 
-        $pdf = Pdf::loadView('payslip', $data);
-        $pdf->setPaper('a5', 'portrait');
-        // Embed only the glyphs used: whole DejaVu and Ethiopic faces made
-        // each payslip over a megabyte.
-        $pdf->setOption('isFontSubsettingEnabled', true);
-
-        return $pdf->output();
+        return $lines;
     }
 
     private static function rate(PayrollEntry $entry, string $key): ?string

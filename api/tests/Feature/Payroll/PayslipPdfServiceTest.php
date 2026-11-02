@@ -109,7 +109,9 @@ it('embeds an Ethiopic face for Amharic text, subset to a small file', function 
 it('hands the view the run, the amounts in cents and the tenant name', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-0042']);
-    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'period_label' => 'Tikimt 2019', 'status' => 'approved']);
+    // The period is named from the run's dates, not its stored label: Tikimt
+    // 2019 runs from 11 October to 9 November 2026.
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'period_label' => 'Tikimt 2019', 'period_start' => '2026-10-11', 'period_end' => '2026-11-09', 'status' => 'approved']);
     $entry = PayrollEntry::factory()->create([
         'tenant_id' => $tenant->id,
         'payroll_run_id' => $run->id,
