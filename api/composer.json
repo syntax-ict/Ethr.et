@@ -6,7 +6,7 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.3",
         "ext-gd": "*",
         "ext-pdo": "*",
         "ext-pdo_mysql": "*",
@@ -88,7 +88,7 @@
         "preferred-install": "dist",
         "sort-packages": true,
         "platform": {
-            "php": "8.2.12"
+            "php": "8.3.35"
         },
         "allow-plugins": {
             "pestphp/pest-plugin": true,
