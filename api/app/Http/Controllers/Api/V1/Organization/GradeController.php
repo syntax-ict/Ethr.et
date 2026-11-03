@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Organization;
 
+use App\Http\Controllers\Api\V1\Organization\Concerns\RefusesDeletingStaffedUnit;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Organization\StoreGradeRequest;
 use App\Http\Requests\Organization\UpdateGradeRequest;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Gate;
 
 class GradeController extends Controller
 {
+    use RefusesDeletingStaffedUnit;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('org.viewAny');
@@ -70,6 +73,10 @@ class GradeController extends Controller
     public function destroy(Grade $grade): JsonResponse
     {
         Gate::authorize('org.delete');
+
+        if ($refusal = $this->refuseIfStaffed('grade_id', $grade->id, 'grade')) {
+            return $refusal;
+        }
 
         $grade->delete();
 

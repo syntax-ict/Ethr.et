@@ -8,6 +8,7 @@ return [
     'deleted' => 'የሰራተኛ መዝገብ ተሰርዟል።',
     // English placeholder until the native-speaker review (audit N73).
     'supervisor_self' => 'ሠራተኛ የራሱ ተቆጣጣሪ መሆን አይችልም።',
+    'supervisor_loop' => 'ይህ ዙር ይፈጥራል፦ ይህ ሰው የተመረጠውን ሰው በቀጥታ ወይም በበታች ደረጃ ይቆጣጠራል።',
     'import_relation_not_found' => 'ረድፍ :row፦ :field ":value" አልተገኘም። በETHR ውስጥ ያለውን ኮድ ወይም ስም ይጠቀሙ።',
     'import_relation_ambiguous' => 'ረድፍ :row፦ ":value" የሚባሉ ከአንድ በላይ :field አሉ። ኮዱን ይጠቀሙ።',
     'import_duplicate_in_file' => 'ረድፍ :row፦ :field ":value" በዚህ ፋይል ረድፍ :first ላይ ተጠቅሟል።',
