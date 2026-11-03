@@ -77,8 +77,8 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           # 8.3, the host's PHP (8.3.35 on the Plesk panel), in every job.
-          # composer.json pins the platform to 8.2.12, the local XAMPP's, so
-          # the lock CI installs stays installable on a developer's machine.
+          # composer.json pins the platform to 8.3.35, the host's, so a lock
+          # built on a newer PHP never requires more than production runs.
           php-version: "8.3"
           # The 18 the application actually needs. gd is required by
           # FileStorageService for thumbnails; fileinfo by its MIME check.

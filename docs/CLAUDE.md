@@ -93,7 +93,7 @@ Enterprise-grade, multi-tenant, offline-first HCM SaaS for Ethiopian organizatio
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Backend | Laravel 12, PHP 8.2 locally, 8.3 in CI and production | Sanctum; Reverb is installed but off in production (see the banner above) |
+| Backend | Laravel 12, PHP 8.3 | Sanctum; Reverb is installed but off in production (see the banner above) |
 | Database | MariaDB 10.11 | SQLite in-memory for tests |
 | Cache / Queue / Session | `database` driver | No Redis, no Horizon; the queue is drained over HTTP by the GitHub Actions cron caller |
 | Frontend | Next.js 16, React 19, TypeScript strict | Tailwind CSS 4, shadcn/ui |
