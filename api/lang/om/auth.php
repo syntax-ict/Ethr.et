@@ -5,7 +5,7 @@ declare(strict_types=1);
 return [
     'failed' => 'Ragaaleen kun galmee keenya waliin wal hin simne.',
     'throttle' => 'Yaaliin seenuu baay\'eeteera. Maaloo sekondii :seconds booda irra deebi\'aa yaalaa.',
-    'logout_success' => 'Milkaa\'inaan baatameera.',
+    'logout_success' => 'Milkaa\'inaan ba\'ameera.',
     'mfa_required' => 'Mirkaneessi tarkaanfii hedduu barbaachisaadha.',
     'mfa_invalid' => 'Koodiin mirkaneessaa sirrii miti.',
     'mfa_enabled' => 'Mirkaneessi tarkaanfii lamaa banameera.',

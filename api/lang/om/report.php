@@ -48,7 +48,7 @@ return [
         'leave_type' => 'Gosa boqonnaa',
         'year' => 'Waggaa',
         'entitled_days' => 'Guyyoota mirgaa',
-        'used_days' => 'Guyyoota itti fayyadame',
+        'used_days' => 'Guyyoota itti fayyadamame',
         'remaining_days' => 'Guyyoota hafan',
         'period' => 'Yeroo',
         'basic_salary_cents' => 'Mindaa bu\'uuraa (ETB)',
