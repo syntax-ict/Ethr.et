@@ -20,13 +20,18 @@ export function IndustriesSection({ section }: { section: MarketingSection }) {
           <SectionIntro
             id="industries-heading"
             heading={
-              pickLocalised(locale, section.heading_am, section.heading) ??
-              section.heading
+              pickLocalised(
+                locale,
+                section.heading_am,
+                section.heading,
+                section.heading_om,
+              ) ?? section.heading
             }
             subheading={pickLocalised(
               locale,
               section.subheading_am,
               section.subheading,
+              section.subheading_om,
             )}
             className="lg:col-span-5"
           />
@@ -41,8 +46,12 @@ export function IndustriesSection({ section }: { section: MarketingSection }) {
                   {Icon && (
                     <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
                   )}
-                  {pickLocalised(locale, item.title_am, item.title) ??
-                    item.title}
+                  {pickLocalised(
+                    locale,
+                    item.title_am,
+                    item.title,
+                    item.title_om,
+                  ) ?? item.title}
                 </li>
               );
             })}

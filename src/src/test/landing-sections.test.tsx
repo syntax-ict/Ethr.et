@@ -6,6 +6,8 @@ import { CapabilitiesSection } from "@/components/marketing/landing/capabilities
 import { STORY_SLUGS } from "@/components/marketing/landing/problem-stories";
 import { SCENE_KEYS } from "@/components/marketing/landing/scenes";
 import { RouteLocaleProvider } from "@/lib/i18n/route-locale";
+import { registerLocale } from "@/lib/i18n/translations";
+import om from "@/lib/i18n/locales/om.json";
 import type { MarketingSection } from "@/lib/marketing/content";
 import { fixtureImage, marketingFixture } from "./fixtures/marketing-content";
 
@@ -75,6 +77,36 @@ describe("landing sections", () => {
     expect(screen.getByText("መንግሥት")).toBeInTheDocument();
     // A row with no Amharic falls back to English rather than to nothing.
     expect(screen.getByText("Healthcare")).toBeInTheDocument();
+  });
+
+  it("renders the operator's Oromo under the Oromo route, and English where there is none", () => {
+    const sections = marketingFixture().sections;
+    const capabilities = sections.find((s) => s.kind === "capabilities")!;
+    // The /om layout registers Oromo before anything renders; setup.ts
+    // registers only the default locale.
+    registerLocale("om", om as Record<string, string>);
+    capabilities.items[0].title_om = "Galmee hojjettootaa fi caasaa dhaabbataa";
+    capabilities.items[0].image = fixtureImage(capabilities.items[0].public_id);
+
+    withSections(<LandingContent />, sections, "om");
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Argama, kaffaltii mindaa fi Qabeenya Namaa, dhaabbilee Itoophiyaatiif kan qophaa'e",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Galmee hojjettootaa fi caasaa dhaabbataa"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", {
+        name: "Ogeessa Qabeenya Namaa faayilii hojjetaa guutuu qabdu",
+      }),
+    ).toBeInTheDocument();
+    // No Oromo for this row: English, never the Amharic and never nothing.
+    expect(screen.getByText("Healthcare")).toBeInTheDocument();
+    expect(screen.queryByText("መንግሥት")).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/marketing\.[a-z_.]+/);
   });
 
   it("falls back to English for a row with no Amharic, never to a raw key", () => {

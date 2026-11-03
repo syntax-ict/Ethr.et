@@ -61,6 +61,10 @@ class StoreMarketingItemRequest extends FormRequest
             'link_path' => ['sometimes', 'nullable', 'string', 'max:200', 'regex:/^\/[a-z0-9\-\/]*$/'],
             'image_alt' => ['sometimes', 'nullable', 'string', 'max:300', new PermittedMarketingClaim],
             'image_alt_am' => ['sometimes', 'nullable', 'string', 'max:300', new PermittedMarketingClaim],
+            'title_om' => ['sometimes', 'nullable', 'string', 'max:200', new PermittedMarketingClaim],
+            'body_om' => ['sometimes', 'nullable', 'string', 'max:1000', new PermittedMarketingClaim],
+            'detail_om' => ['sometimes', 'nullable', 'string', 'max:1000', new PermittedMarketingClaim],
+            'image_alt_om' => ['sometimes', 'nullable', 'string', 'max:300', new PermittedMarketingClaim],
             'is_published' => ['sometimes', 'boolean'],
         ];
     }
@@ -91,15 +95,15 @@ class StoreMarketingItemRequest extends FormRequest
             }
             $spec = MarketingContent::spec($kind);
 
-            $optional = ['icon', 'body', 'body_am', 'detail', 'detail_am', 'link_path'];
+            $optional = ['icon', 'body', 'body_am', 'body_om', 'detail', 'detail_am', 'detail_om', 'link_path'];
             foreach ($optional as $field) {
-                $base = str_ends_with($field, '_am') ? substr($field, 0, -3) : $field;
+                $base = preg_replace('/_(am|om)$/', '', $field) ?? $field;
                 if ($this->has($field) && $this->input($field) !== null && ! in_array($base, $spec['fields'], true)) {
                     $validator->errors()->add($field, __('validation.marketing_field_unused', ['kind' => $kind]));
                 }
             }
             if (! $spec['images']) {
-                foreach (['image_alt', 'image_alt_am'] as $field) {
+                foreach (['image_alt', 'image_alt_am', 'image_alt_om'] as $field) {
                     if ($this->has($field) && $this->input($field) !== null) {
                         $validator->errors()->add($field, __('validation.marketing_field_unused', ['kind' => $kind]));
                     }

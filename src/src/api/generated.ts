@@ -8366,6 +8366,9 @@ export interface components {
             body_am: string | null;
             detail: string | null;
             detail_am: string | null;
+            title_om: string | null;
+            body_om: string | null;
+            detail_om: string | null;
             link_path: string | null;
             image: {
                 url: string;
@@ -8374,6 +8377,7 @@ export interface components {
                 height: number;
                 alt: string | null;
                 alt_am: string | null;
+                alt_om: string | null;
             } | null;
         };
         /** AdminMarketingSectionResource */
@@ -8386,6 +8390,8 @@ export interface components {
             heading_am: string | null;
             subheading: string | null;
             subheading_am: string | null;
+            heading_om: string | null;
+            subheading_om: string | null;
             image: {
                 url: string;
                 srcset: string;
@@ -8393,6 +8399,7 @@ export interface components {
                 height: number;
                 alt: string | null;
                 alt_am: string | null;
+                alt_om: string | null;
             } | null;
             spec: {
                 fields: string[];
@@ -9982,6 +9989,9 @@ export interface components {
             body_am: string | null;
             detail: string | null;
             detail_am: string | null;
+            title_om: string | null;
+            body_om: string | null;
+            detail_om: string | null;
             link_path: string | null;
             image: {
                 url: string;
@@ -9990,6 +10000,7 @@ export interface components {
                 height: number;
                 alt: string | null;
                 alt_am: string | null;
+                alt_om: string | null;
             } | null;
         };
         /** MarketingSectionResource */
@@ -9999,6 +10010,8 @@ export interface components {
             heading_am: string | null;
             subheading: string | null;
             subheading_am: string | null;
+            heading_om: string | null;
+            subheading_om: string | null;
             image: {
                 url: string;
                 srcset: string;
@@ -10006,6 +10019,7 @@ export interface components {
                 height: number;
                 alt: string | null;
                 alt_am: string | null;
+                alt_om: string | null;
             } | null;
             items: components["schemas"]["MarketingItemResource"][];
         };
@@ -11426,6 +11440,10 @@ export interface components {
             link_path?: string | null;
             image_alt?: string | null;
             image_alt_am?: string | null;
+            title_om?: string | null;
+            body_om?: string | null;
+            detail_om?: string | null;
+            image_alt_om?: string | null;
             is_published?: boolean;
         };
         /**
@@ -12248,7 +12266,7 @@ export interface components {
          *
          *     The rules carry no inline comments: Scramble publishes a comment beside
          *     a rule as that field's description. Every text field takes
-         *     PermittedMarketingClaim, in both languages. The image alt fields are
+         *     PermittedMarketingClaim, in every language. The image alt fields are
          *     accepted only for a kind whose registry entry allows a section image,
          *     checked in withValidator(), which Scramble does not read.
          */
@@ -12260,6 +12278,9 @@ export interface components {
             is_published?: boolean;
             image_alt?: string | null;
             image_alt_am?: string | null;
+            heading_om?: string | null;
+            subheading_om?: string | null;
+            image_alt_om?: string | null;
         };
         /** UpdateNotificationTemplateRequest */
         UpdateNotificationTemplateRequest: {

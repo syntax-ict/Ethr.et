@@ -68,11 +68,14 @@ export function SectionCard({
   const ids = {
     heading: useId(),
     headingAm: useId(),
+    headingOm: useId(),
     subheading: useId(),
     subheadingAm: useId(),
+    subheadingOm: useId(),
     published: useId(),
     alt: useId(),
     altAm: useId(),
+    altOm: useId(),
     slug: useId(),
     title: useId(),
     titleAm: useId(),
@@ -81,11 +84,14 @@ export function SectionCard({
   const [form, setForm] = useState({
     heading: section.heading,
     heading_am: section.heading_am ?? "",
+    heading_om: section.heading_om ?? "",
     subheading: section.subheading ?? "",
     subheading_am: section.subheading_am ?? "",
+    subheading_om: section.subheading_om ?? "",
     is_published: section.is_published,
     image_alt: section.image?.alt ?? "",
     image_alt_am: section.image?.alt_am ?? "",
+    image_alt_om: section.image?.alt_om ?? "",
   });
   const set = <K extends keyof typeof form>(
     key: K,
@@ -102,13 +108,16 @@ export function SectionCard({
         kind: section.kind,
         heading: form.heading,
         heading_am: form.heading_am || null,
+        heading_om: form.heading_om || null,
         subheading: form.subheading || null,
         subheading_am: form.subheading_am || null,
+        subheading_om: form.subheading_om || null,
         is_published: form.is_published,
         ...(section.spec.section_image
           ? {
               image_alt: form.image_alt || null,
               image_alt_am: form.image_alt_am || null,
+              image_alt_om: form.image_alt_om || null,
             }
           : {}),
       },
@@ -207,7 +216,7 @@ export function SectionCard({
       </CardHeader>
 
       <CardContent className="space-y-5">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field
             id={ids.heading}
             label={t("admin_marketing.field.heading", "Heading")}
@@ -228,6 +237,20 @@ export function SectionCard({
               id={ids.headingAm}
               value={form.heading_am}
               onChange={(e) => set("heading_am", e.target.value)}
+            />
+          </Field>
+          <Field
+            id={ids.headingOm}
+            label={t(
+              "admin_marketing.field.heading_om",
+              "Heading (Afaan Oromo)",
+            )}
+            error={errors.heading_om}
+          >
+            <Input
+              id={ids.headingOm}
+              value={form.heading_om}
+              onChange={(e) => set("heading_om", e.target.value)}
             />
           </Field>
           <Field
@@ -257,6 +280,21 @@ export function SectionCard({
               onChange={(e) => set("subheading_am", e.target.value)}
             />
           </Field>
+          <Field
+            id={ids.subheadingOm}
+            label={t(
+              "admin_marketing.field.subheading_om",
+              "Sentence under it (Afaan Oromo)",
+            )}
+            error={errors.subheading_om}
+          >
+            <Textarea
+              id={ids.subheadingOm}
+              rows={3}
+              value={form.subheading_om}
+              onChange={(e) => set("subheading_om", e.target.value)}
+            />
+          </Field>
           {section.spec.section_image && (
             <>
               <Field
@@ -282,6 +320,20 @@ export function SectionCard({
                   id={ids.altAm}
                   value={form.image_alt_am}
                   onChange={(e) => set("image_alt_am", e.target.value)}
+                />
+              </Field>
+              <Field
+                id={ids.altOm}
+                label={t(
+                  "admin_marketing.field.alt_om",
+                  "Picture description (Afaan Oromo)",
+                )}
+                error={errors.image_alt_om}
+              >
+                <Input
+                  id={ids.altOm}
+                  value={form.image_alt_om}
+                  onChange={(e) => set("image_alt_om", e.target.value)}
                 />
               </Field>
             </>

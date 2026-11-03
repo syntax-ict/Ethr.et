@@ -36,7 +36,9 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(ROOT, "src/src/lib/marketing/content-snapshot.json");
 
-const IMAGE = { fields: ["url", "srcset", "width", "height", "alt", "alt_am"] };
+const IMAGE = {
+  fields: ["url", "srcset", "width", "height", "alt", "alt_am", "alt_om"],
+};
 const ITEM = {
   fields: [
     "public_id",
@@ -48,12 +50,23 @@ const ITEM = {
     "body_am",
     "detail",
     "detail_am",
+    "title_om",
+    "body_om",
+    "detail_om",
     "link_path",
   ],
   nested: { image: IMAGE },
 };
 const SECTION = {
-  fields: ["kind", "heading", "heading_am", "subheading", "subheading_am"],
+  fields: [
+    "kind",
+    "heading",
+    "heading_am",
+    "subheading",
+    "subheading_am",
+    "heading_om",
+    "subheading_om",
+  ],
   nested: { image: IMAGE, items: ITEM },
 };
 

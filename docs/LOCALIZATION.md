@@ -163,11 +163,24 @@ Waxabajjii, Adoolessa, Hagayya, Qaammee. Both sides hold the list once:
   Amharic reader gets built-in Amharic when only English was edited.
 - **Employment letters** can be requested in Oromo.
 
-**Not yet in Oromo — operator- and organisation-authored bilingual content.** Fields stored as an
-English/Amharic pair (`name`/`name_am` on departments, holidays, leave types; the public landing
-page's CMS sections; an organisation's portal and FAQ; plan selling points) have no Oromo column,
-so an Oromo reader sees the English. Adding one is a migration, a resource field, an editor field and
-`pickLocalised`/`localizedName` per family.
+- **The public landing page** has Oromo twins (`heading_om`, `subheading_om`, `title_om`,
+  `body_om`, `detail_om`, `image_alt_om` on `marketing_sections`/`marketing_items`), edited at
+  `/admin/marketing` beside the Amharic. Built-in Oromo copy is in
+  `api/database/seeders/assets/marketing/oromo.php`. `ProductionSeeder` writes it into a field only
+  while that field is empty and the English beside it is still the seeded English, so a release
+  gives `/om` its Oromo without ever pairing a translation with an operator's rewritten English.
+  An empty Oromo field shows the English (`pickLocalised`).
+
+**Organisation data has no Oromo column, on purpose.** Departments, branches, positions, leave
+types, holidays and shifts carry `name` plus `name_am` because Amharic needs a second script. Oromo
+is written in the Latin script, so an Oromo-speaking organisation types Oromo into `name` itself,
+which is what every reader sees. A third column would only help an organisation that keeps the
+same name in English *and* Oromo *and* Amharic.
+
+**Not yet in Oromo:** the site-wide labels in `platform_settings` (product name, tagline, office
+address, testimonial, payment instructions), plan descriptions and selling points, and an
+organisation's portal page and FAQ. An Oromo reader sees their English. Each is a migration, a
+resource field and an editor field, as the landing page's was.
 
 ### Dual Calendar Display
 
