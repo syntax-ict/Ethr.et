@@ -32,8 +32,13 @@ import { InstallAppBanner } from "@/components/shared/install-app";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useNearViewport } from "@/lib/hooks/useNearViewport";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
-import { useCalendar } from "@/lib/calendar/calendar-context";
+import {
+  type CalendarSystem,
+  useCalendar,
+} from "@/lib/calendar/calendar-context";
 import { dateFromIso } from "@/lib/calendar/date-from-iso";
+import { localizedPeriodLabel } from "@/lib/calendar/period-label";
+import { storedPeriodLabel } from "@/lib/calendar/stored-period-label";
 import { useT } from "@/lib/i18n/useT";
 import { localizedName } from "@/lib/i18n/localizedName";
 import { formatETB } from "@/lib/utils/currency";
@@ -140,11 +145,38 @@ export default function DashboardPage() {
   );
 }
 
+/**
+ * The payslip's month in the reader's calendar and language, as /payroll
+ * names it: the stored `period` is English Gregorian ("September 2026"), which
+ * an Ethiopian-calendar reader saw beside Meskerem everywhere else. The run's
+ * dates decide the month; an answer cached before the API sent them falls
+ * back to reading the label.
+ */
+function payslipPeriod(
+  payslip: {
+    period: string;
+    period_start?: string | null;
+    period_end?: string | null;
+  },
+  calendar: CalendarSystem,
+  locale: string,
+): string {
+  return payslip.period_start
+    ? localizedPeriodLabel(
+        payslip.period,
+        payslip.period_start,
+        payslip.period_end,
+        calendar,
+        locale,
+      )
+    : storedPeriodLabel(payslip.period, calendar, locale);
+}
+
 function SelfServiceKpis() {
   const { t, locale } = useT();
   const { data, isLoading, isError, refetch } = useEmployeeDashboard();
   const { formatTime } = useDateFormatters();
-  const { formatDate } = useCalendar();
+  const { calendar, formatDate } = useCalendar();
 
   // Without this a failed request fell through to the cards below, which
   // read a missing record as "Not Checked In" and an empty balance list.
@@ -228,7 +260,11 @@ function SelfServiceKpis() {
             ? formatETB(payslip.net_cents)
             : t("dashboard.none_yet", "None yet")
         }
-        sub={payslip?.period ?? t("dashboard.no_payslips", "No payslips")}
+        sub={
+          payslip
+            ? payslipPeriod(payslip, calendar, locale)
+            : t("dashboard.no_payslips", "No payslips")
+        }
       />
       <KpiCard
         icon={CalendarDays}

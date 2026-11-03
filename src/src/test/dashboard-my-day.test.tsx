@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -127,6 +127,55 @@ describe("Dashboard — today's check-in time", () => {
 
     expect(await screen.findByText("Since 08:30")).toBeInTheDocument();
     expect(screen.queryByText(/05:30:00/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The tile printed the stored `period` as it arrived: English Gregorian
+ * ("October 2026", `PayrollEngine` format('F Y')), while /payroll named the
+ * same run ጥቅምት 2019 for an Ethiopian-calendar reader (dashboard review,
+ * 2026-11-03). The run's dates now travel with it, and the month is derived
+ * the way /payroll derives it.
+ */
+describe("Dashboard — latest payslip tile", () => {
+  const PAYSLIP = {
+    period: "October 2026",
+    period_start: "2026-10-11",
+    period_end: "2026-11-10",
+    net_cents: 730_000,
+    gross_cents: 1_000_000,
+  };
+
+  afterEach(() => {
+    localStorage.removeItem("ethr.calendar");
+    localStorage.setItem("locale", "en");
+  });
+
+  it("names the month in the reader's calendar and language from the run's dates", async () => {
+    localStorage.setItem("locale", "am");
+    localStorage.setItem("ethr.calendar", "ethiopian");
+    renderWith(<DashboardPage />, { ...DASHBOARD, latest_payslip: PAYSLIP });
+
+    expect(await screen.findByText("ጥቅምት 2019")).toBeInTheDocument();
+    expect(screen.queryByText("October 2026")).not.toBeInTheDocument();
+  });
+
+  it("reads the month from the stored label when a cached answer has no dates", async () => {
+    localStorage.setItem("locale", "am");
+    localStorage.setItem("ethr.calendar", "ethiopian");
+    renderWith(<DashboardPage />, {
+      ...DASHBOARD,
+      latest_payslip: { ...PAYSLIP, period_start: null, period_end: null },
+    });
+
+    expect(await screen.findByText("ጥቅምት 2019")).toBeInTheDocument();
+  });
+
+  it("keeps the stored label for an English Gregorian reader", async () => {
+    localStorage.setItem("ethr.calendar", "gregorian");
+    renderWith(<DashboardPage />, { ...DASHBOARD, latest_payslip: PAYSLIP });
+
+    expect(await screen.findByText("October 2026")).toBeInTheDocument();
   });
 });
 
