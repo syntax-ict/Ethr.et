@@ -205,8 +205,13 @@ same name in English *and* Oromo *and* Amharic.
   Oromo for the three plans on the same rule as the landing page: only into an empty field whose
   English is still the seeded English.
 
-**Not yet in Oromo:** an organisation's own portal page and FAQ (`TenantLanding`), which the
-organisation writes in English and Amharic. An Oromo reader sees the English.
+- **An organisation's portal page** (`tenants.landing`, read through `TenantLanding`) takes Oromo
+  beside English and Amharic for every text it holds: the headline, message, about, address and
+  opening hours, and each question, answer, service and description. It is JSON, so no migration.
+  A question or service needs its words in at least one of the three languages. The portal shows
+  the reader's language, else English, else whichever language the organisation wrote
+  (`pickText` in `src/src/lib/auth/landing-text.ts`), so text written only in Oromo still reaches
+  an English reader.
 
 ### Dual Calendar Display
 
