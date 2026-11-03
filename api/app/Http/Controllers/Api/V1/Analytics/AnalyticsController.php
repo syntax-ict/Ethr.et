@@ -12,14 +12,17 @@ use App\Services\Analytics\DepartmentAnalyticsService;
 use App\Services\CurrentTenant;
 use App\Support\ExecutiveBranchScope;
 use Carbon\Carbon;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class AnalyticsController extends Controller
 {
     public function departments(Request $request, DepartmentAnalyticsService $service): JsonResponse
     {
-        abort_unless(ExecutiveBranchScope::isFull($request->user()), 403);
+        Gate::authorize('dashboard.executive');
+        throw_unless(ExecutiveBranchScope::isFull($request->user()), AuthorizationException::class);
 
         [$from, $to] = $this->dateRange($request);
         $tenantId = app(CurrentTenant::class)->requireId();
@@ -50,7 +53,8 @@ class AnalyticsController extends Controller
 
     public function branches(Request $request, BranchAnalyticsService $service): JsonResponse
     {
-        abort_unless(ExecutiveBranchScope::isFull($request->user()), 403);
+        Gate::authorize('dashboard.executive');
+        throw_unless(ExecutiveBranchScope::isFull($request->user()), AuthorizationException::class);
 
         [$from, $to] = $this->dateRange($request);
         $tenantId = app(CurrentTenant::class)->requireId();
@@ -60,7 +64,8 @@ class AnalyticsController extends Controller
 
     public function branchDetail(Request $request, Branch $branch, BranchAnalyticsService $service): JsonResponse
     {
-        abort_unless(ExecutiveBranchScope::isFull($request->user()), 403);
+        Gate::authorize('dashboard.executive');
+        throw_unless(ExecutiveBranchScope::isFull($request->user()), AuthorizationException::class);
 
         $tenantId = app(CurrentTenant::class)->requireId();
 
