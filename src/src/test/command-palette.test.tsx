@@ -10,6 +10,7 @@ import {
 } from "@/components/shared/command-palette";
 import { act } from "react";
 import type { GlobalSearchResult } from "@/features/search/api";
+import { todayIn } from "@/lib/utils/date";
 
 const pushMock = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -305,7 +306,8 @@ describe("CommandPalette tasks and pages", () => {
     expect(option).toHaveTextContent(/filtered to the people marked absent/i);
     await user.click(option);
 
-    const today = new Date().toISOString().slice(0, 10);
+    // Addis Ababa's today, not the UTC date (a day behind after 21:00 UTC).
+    const today = todayIn("Africa/Addis_Ababa");
     expect(pushMock).toHaveBeenLastCalledWith(
       `/attendance?status=absent&from=${today}&to=${today}`,
     );
