@@ -6,7 +6,7 @@
 | System under test | Production: `https://www.ethr.et` (apex and organisation addresses), `https://admin.ethr.et` (platform console) |
 | Release under test | The release tag being verified, `vYYYY.MM.DD.N`. Read it from `https://www.ethr.et/release.json` before starting |
 | Document owner | Product owner (Syntax ICT) |
-| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 and 2026-10-29 from `main` at `87d12d4d0` (section 2.3) |
+| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 and 2026-10-29 from `main` at `87d12d4d0`, and 2026-11-03 for the kiosk upgrade from `main` at `a136364e1` (section 2.3) |
 | Companion documents | [UAT guide](02-UAT-GUIDE.md), E2E specifications 03 to 09, [templates](10-TEMPLATES-AND-REFERENCE.md) |
 
 ---
@@ -87,6 +87,10 @@ recorded as Blocked, not Fail.
 | Health times survive a release's cache clear | #454 | OPC-008 |
 | Invitations for many people sent from the queue, with progress, reminders and the Not activated filter; a person with only a phone activated in person | #458 | INV-001 to INV-013, EMP-015, IMP-E-004, IMP-E-014, ACT-008, CON-P-023, ISO-013 |
 | Logins for employees brought in from a device, and the hire-date warning | #462 | MIG-001 to MIG-009, UAT-H13 |
+| The kiosk's punch answer carries only who punched, not the whole employee record | #516 | KIO-013 |
+| The kiosk shows who punched, takes "Not you?", locks its screen (3-second hold to exit), and offers self-service behind the employee's PIN | #540 | KIO-007, KIO-013 to KIO-022 |
+| A sound for every kiosk punch result, in the kiosk's language | #541 | KIO-023 |
+| Type only your number at the kiosk | #542 | KIO-024, KIO-025 |
 
 ## 3. Approach
 
