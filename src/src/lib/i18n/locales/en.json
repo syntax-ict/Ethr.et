@@ -11,6 +11,8 @@
   "accounting_page.debit_etb": "Debit (ETB)",
   "accounting_page.journal_export": "Journal Entry Export",
   "accounting_page.journal_export_desc": "Generate accounting journal entries for a payroll run and export to CSV.",
+  "accounting_page.key_loans_receivable": "Employee Loans Receivable",
+  "accounting_page.key_cost_sharing_payable": "Cost Sharing Payable",
   "accounting_page.key_net_salary_payable": "Net Salary Payable",
   "accounting_page.key_pension_expense": "Pension Expense (Employer)",
   "accounting_page.key_pension_payable_employee": "Pension Payable (Employee)",

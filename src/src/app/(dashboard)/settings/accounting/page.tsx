@@ -108,6 +108,8 @@ function ChartOfAccountsSection() {
     pension_payable_employee: t("accounting_page.key_pension_payable_employee"),
     pension_payable_employer: t("accounting_page.key_pension_payable_employer"),
     net_salary_payable: t("accounting_page.key_net_salary_payable"),
+    loans_receivable: t("accounting_page.key_loans_receivable"),
+    cost_sharing_payable: t("accounting_page.key_cost_sharing_payable"),
   };
 
   return (

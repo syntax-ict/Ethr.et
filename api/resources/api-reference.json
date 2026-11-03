@@ -53286,7 +53286,9 @@
                                         "tax_payable",
                                         "pension_payable_employee",
                                         "pension_payable_employer",
-                                        "net_salary_payable"
+                                        "net_salary_payable",
+                                        "loans_receivable",
+                                        "cost_sharing_payable"
                                     ]
                                 },
                                 "account_code": {

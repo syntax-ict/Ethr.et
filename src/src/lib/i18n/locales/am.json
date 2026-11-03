@@ -11,6 +11,8 @@
   "accounting_page.debit_etb": "ዴቢት (ETB)",
   "accounting_page.journal_export": "የመዝገብ ግቤት ላክ",
   "accounting_page.journal_export_desc": "ለደመወዝ ስሌት የሂሳብ መዝገብ ግቤቶችን ይፍጠሩ እና ወደ CSV ላኩ።",
+  "accounting_page.key_loans_receivable": "ከሠራተኞች የሚሰበሰብ ብድር",
+  "accounting_page.key_cost_sharing_payable": "የሚከፈል የወጪ መጋራት",
   "accounting_page.key_net_salary_payable": "የሚከፈል ተጣራ ደመወዝ",
   "accounting_page.key_pension_expense": "የጡረታ ወጪ (አሰሪ)",
   "accounting_page.key_pension_payable_employee": "የሚከፈል ጡረታ (ሰራተኛ)",

@@ -11,6 +11,8 @@
   "accounting_page.debit_etb": "Debiitii (ETB)",
   "accounting_page.journal_export": "Galmee Jornaalii Baasi",
   "accounting_page.journal_export_desc": "Raawwii kaffaltii mindaa tokkoof galmee jornaalii herregaa uumaatii gara CSV-tti baasaa.",
+  "accounting_page.key_loans_receivable": "Liqaa Hojjettootaa Sassaabamuu Qabu",
+  "accounting_page.key_cost_sharing_payable": "Qooddii Baasii Kaffalamuu Qabu",
   "accounting_page.key_net_salary_payable": "Mindaa Qulqulluu Kaffalamuu Qabu",
   "accounting_page.key_pension_expense": "Baasii Soorama (Dhaabbata)",
   "accounting_page.key_pension_payable_employee": "Soorama Kaffalamuu Qabu (Hojjetaa)",

@@ -11999,7 +11999,7 @@ export interface components {
         UpdateChartOfAccountsRequest: {
             accounts: {
                 /** @enum {string} */
-                key: "salary_expense" | "pension_expense" | "tax_payable" | "pension_payable_employee" | "pension_payable_employer" | "net_salary_payable";
+                key: "salary_expense" | "pension_expense" | "tax_payable" | "pension_payable_employee" | "pension_payable_employer" | "net_salary_payable" | "loans_receivable" | "cost_sharing_payable";
                 account_code: string;
                 account_name: string;
             }[];
