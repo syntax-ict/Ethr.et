@@ -1,7 +1,7 @@
 {
   "device": "desktop",
   "width": 2560,
-  "height": 1600,
+  "height": 3000,
   "path": "/profile/preferences",
   "markers": [
     {
@@ -21,7 +21,7 @@
     {
       "n": 3,
       "x": 602,
-      "y": 2099,
+      "y": 2306,
       "w": 204,
       "h": 88
     }

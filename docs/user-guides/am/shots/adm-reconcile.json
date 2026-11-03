@@ -1,0 +1,22 @@
+{
+  "device": "desktop",
+  "width": 2560,
+  "height": 1600,
+  "path": "/payroll?tab=reconcile",
+  "markers": [
+    {
+      "n": 1,
+      "x": 1802,
+      "y": 672,
+      "w": 136,
+      "h": 88
+    },
+    {
+      "n": 2,
+      "x": 2249,
+      "y": 994,
+      "w": 160,
+      "h": 80
+    }
+  ]
+}
