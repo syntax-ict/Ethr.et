@@ -4426,3 +4426,10 @@ happened: Dependabot's laravel/pint 1.32.1 (#545) needs `^8.3.0`, and every
 PHP check failed on 8.2. `composer.json` now sets `config.platform.php` to
 `8.2.12`, so Composer resolves for the oldest PHP the project runs on. Raise
 it when the local PHP moves to 8.3, which Laravel 13 (#522) needs anyway.
+
+**The local PHP moved to 8.3 on 2026-11-03.** XAMPP's `C:\xampp\php` is now the
+official PHP 8.3.36 build (thread-safe, x64), with XAMPP's own `php.ini` and the
+same 46 extensions; 8.2.12 is kept in `C:\xampp\php82` for rollback. The full
+backend sweep passed on it first: 394 of 394 test classes collected, 4,622
+tests. Every environment now runs 8.3, so `composer.json` requires `^8.3` and
+pins the platform to `8.3.35`, the host's, the oldest of the three.

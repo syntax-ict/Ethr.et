@@ -10,7 +10,7 @@ The Docker development stack (compose files, `docker/`, and the container-only s
 was **removed on 2026-09-30** by owner decision. Anything below that mentions it is
 history.
 
-Requirements: **XAMPP** (Apache 2.4, PHP 8.2+, MariaDB — installed at `C:\xampp`),
+Requirements: **XAMPP** (Apache 2.4, PHP 8.3+, MariaDB — installed at `C:\xampp`),
 **Node 24** (`.nvmrc`), **Composer**, and **Git Bash** to run the `scripts/*.sh` files.
 `composer install` needs a GitHub token — see the root [`CLAUDE.md`](../CLAUDE.md).
 
