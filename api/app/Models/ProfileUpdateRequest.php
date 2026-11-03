@@ -38,6 +38,13 @@ class ProfileUpdateRequest extends Model
     ];
 
     /**
+     * Gated fields that are pay data. Deciding a change to one needs
+     * `employee.updateFinancial`, the permission that edits them directly
+     * (A-Z review B-02): approving is how the edit lands.
+     */
+    public const PAY_FIELDS = ['tin', 'bank_name', 'bank_account_number'];
+
+    /**
      * Profile fields an employee may change on their own, applied immediately.
      *
      * Together with GATED_FIELDS this is the whole employee-editable surface, and

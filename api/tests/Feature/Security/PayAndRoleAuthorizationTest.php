@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\ProfileUpdateStatus;
 use App\Enums\UserRole;
 use App\Jobs\RunScheduledReportsJob;
 use App\Models\CustomRole;
@@ -13,6 +14,7 @@ use App\Models\ScheduledReport;
 use App\Models\Tenant;
 use App\Notifications\ScheduledReportNotification;
 use App\Services\CurrentTenant;
+use App\Services\Profile\ProfileUpdateRequestService;
 use App\Services\Report\ReportEngine;
 use Illuminate\Support\Facades\Notification;
 
@@ -230,4 +232,53 @@ test('a scheduled report is delivered when the worker has no tenant set', functi
     );
 
     Notification::assertSentOnDemand(ScheduledReportNotification::class);
+});
+
+describe('pay data on the other paths that write it', function () {
+    it('a change to a bank account is decided only by someone who may edit pay data', function () {
+        $tenant = createTenant();
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $requester = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+        test()->actingAs($requester);
+        $request = app(ProfileUpdateRequestService::class)
+            ->stage($employee, $requester, ['bank_account_number' => '1000123456789'])
+            ->firstOrFail();
+
+        $editor = createUser(['role' => UserRole::HR_ADMIN, 'custom_role_id' => payAuthzRole($tenant, ['employee.update', 'employee.viewAny'])->id], $tenant);
+        app('auth')->forgetGuards();
+        test()->actingAs($editor)
+            ->postJson(payAuthzUrl($tenant, "profile-update-requests/{$request->public_id}/review"), ['action' => 'approve'])
+            ->assertForbidden();
+
+        expect($request->fresh()->status)->toBe(ProfileUpdateStatus::PENDING);
+    });
+
+    it('a change to a name is still decided with employee.update alone', function () {
+        $tenant = createTenant();
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $requester = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+        test()->actingAs($requester);
+        $request = app(ProfileUpdateRequestService::class)->stage($employee, $requester, ['name' => 'New Name'])->firstOrFail();
+
+        $editor = createUser(['role' => UserRole::HR_ADMIN, 'custom_role_id' => payAuthzRole($tenant, ['employee.update', 'employee.viewAny'])->id], $tenant);
+        app('auth')->forgetGuards();
+        test()->actingAs($editor)
+            ->postJson(payAuthzUrl($tenant, "profile-update-requests/{$request->public_id}/review"), ['action' => 'approve'])
+            ->assertOk();
+    });
+
+    it('an import that sets salary needs the permission that edits pay data', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN, 'custom_role_id' => payAuthzRole($tenant, ['employee.create', 'employee.viewAny'])->id], $tenant);
+
+        test()->postJson(payAuthzUrl($tenant, 'employees/import/commit'), [
+            'import_key' => 'pay',
+            'rows' => [['name' => 'Abebe Kebede', 'hire_date' => '2026-01-01', 'salary' => '12000']],
+        ])->assertForbidden();
+
+        test()->postJson(payAuthzUrl($tenant, 'employees/import/commit'), [
+            'import_key' => 'no-pay',
+            'rows' => [['name' => 'Abebe Kebede', 'hire_date' => '2026-01-01']],
+        ])->assertCreated();
+    });
 });
