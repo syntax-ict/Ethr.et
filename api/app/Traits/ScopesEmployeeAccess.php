@@ -5,16 +5,26 @@ declare(strict_types=1);
 namespace App\Traits;
 
 use App\Enums\OrgScope;
+use App\Models\Department;
 use App\Models\Employee;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Provides org-hierarchy scoping for the User model.
- * DEPT_ADMIN sees only their department, SUPERVISOR sees only direct reports,
- * EMPLOYEE sees only self. Admins (TENANT_ADMIN, HR_ADMIN, FINANCE_ADMIN) see all.
+ * DEPT_ADMIN sees their department and the units under it, SUPERVISOR sees only
+ * direct reports, EMPLOYEE sees only self. Admins (TENANT_ADMIN, HR_ADMIN,
+ * FINANCE_ADMIN) see all.
+ *
+ * A department reaches down, never across: a directorate head sees the
+ * departments beneath the directorate and none beside it. Departments were
+ * matched exactly, so the head of a government directorate whose staff all sit
+ * in sub-units saw nobody. Team and branch stay exact: neither nests.
  */
 trait ScopesEmployeeAccess
 {
+    /** @var array<int, list<int>> department id => it and every department under it */
+    private array $departmentSubtrees = [];
+
     public function orgScope(): OrgScope
     {
         if ($this->custom_role_id) {
@@ -43,7 +53,8 @@ trait ScopesEmployeeAccess
 
         return match ($scope) {
             OrgScope::BRANCH => $employee->branch_id === $anchor,
-            OrgScope::DEPARTMENT => $employee->department_id === $anchor,
+            OrgScope::DEPARTMENT => $employee->department_id !== null
+                && in_array((int) $employee->department_id, $this->departmentSubtree($anchor), true),
             OrgScope::TEAM => $employee->team_id === $anchor,
             OrgScope::DIRECT_REPORTS => $employee->supervisor_id === $anchor
                 || $employee->id === $anchor,
@@ -80,7 +91,7 @@ trait ScopesEmployeeAccess
 
         return match ($scope) {
             OrgScope::BRANCH => $query->where('branch_id', $anchor),
-            OrgScope::DEPARTMENT => $query->where('department_id', $anchor),
+            OrgScope::DEPARTMENT => $query->whereIn('department_id', $this->departmentSubtree($anchor)),
             OrgScope::TEAM => $query->where('team_id', $anchor),
             OrgScope::DIRECT_REPORTS => $query->where(function (Builder $q) use ($anchor) {
                 $q->where('supervisor_id', $anchor)
@@ -88,6 +99,37 @@ trait ScopesEmployeeAccess
             }),
             OrgScope::SELF => $query->where('id', $anchor),
         };
+    }
+
+    /**
+     * The department and every department beneath it, walked one level at a
+     * time. The tenant is stated on the query as well as by the global scope,
+     * and an id already collected is never revisited, so a parent_id cycle
+     * ends the walk instead of looping.
+     *
+     * @return list<int>
+     */
+    private function departmentSubtree(int $departmentId): array
+    {
+        if (isset($this->departmentSubtrees[$departmentId])) {
+            return $this->departmentSubtrees[$departmentId];
+        }
+
+        $ids = [$departmentId];
+        $frontier = [$departmentId];
+
+        while ($frontier !== []) {
+            $frontier = Department::query()
+                ->where('tenant_id', $this->tenant_id)
+                ->whereIn('parent_id', $frontier)
+                ->whereNotIn('id', $ids)
+                ->pluck('id')
+                ->map(fn ($id): int => (int) $id)
+                ->all();
+            $ids = array_merge($ids, $frontier);
+        }
+
+        return $this->departmentSubtrees[$departmentId] = $ids;
     }
 
     /**

@@ -32,18 +32,27 @@ describe('permission gating', function () {
         $this->getJson('/api/v1/dashboard/executive')->assertOk();
     });
 
-    it('grants supervisor the regional view when they have a branch', function () {
+    it('grants a branch-scoped role the regional view when they have a branch', function () {
+        $tenant = createTenant();
+        $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+        actingAsRegional($tenant, $employee->id);
+
+        $this->getJson('/api/v1/dashboard/executive')->assertOk();
+    });
+
+    it('denies a supervisor, whose scope does not reach a branch', function () {
         $tenant = createTenant();
         $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
         $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
         actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $employee->id], $tenant);
 
-        $this->getJson('/api/v1/dashboard/executive')->assertOk();
+        $this->getJson('/api/v1/dashboard/executive')->assertForbidden();
     });
 
-    it('denies a supervisor with no branch assigned', function () {
+    it('denies a regional holder with no branch assigned', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsRegional($tenant, null);
 
         $this->getJson('/api/v1/dashboard/executive')->assertForbidden();
     });
@@ -96,7 +105,7 @@ describe('branch scoping', function () {
             'status' => EmployeeStatus::CONFIRMED,
         ]);
 
-        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $callerEmployee->id], $tenant);
+        actingAsRegional($tenant, $callerEmployee->id);
 
         // Own branch has 5 active employees (4 + the caller themselves).
         $response = $this->getJson('/api/v1/dashboard/executive?branch='.$otherBranch->public_id)
@@ -215,7 +224,7 @@ describe('department drill-down', function () {
     it('shows a regional holder their own branch only, whatever branch they ask for', function () {
         [$tenant, $own, $other, $department] = drillDownFixture();
         $caller = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $own->id]);
-        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $caller->id], $tenant);
+        actingAsRegional($tenant, $caller->id);
 
         $this->getJson("/api/v1/analytics/departments/{$department->public_id}?branch={$other->public_id}")
             ->assertOk()

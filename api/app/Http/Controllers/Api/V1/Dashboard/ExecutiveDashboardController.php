@@ -15,7 +15,6 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Gate;
 
 /**
  * Persona-scoped executive dashboards.
@@ -134,7 +133,7 @@ class ExecutiveDashboardController extends Controller
         // Stated here as well as in the scope: an authorization check belongs
         // where the route lands, where ControllerAuthorizationInventoryTest
         // can see it.
-        abort_unless(Gate::any(['dashboard.executive', 'dashboard.regional']), 403);
+        abort_unless(ExecutiveBranchScope::isFull($request->user()) || ExecutiveBranchScope::isRegional($request->user()), 403);
 
         return ExecutiveBranchScope::resolve($request);
     }
