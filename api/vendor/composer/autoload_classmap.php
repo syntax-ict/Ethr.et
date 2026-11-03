@@ -1072,6 +1072,7 @@ return array(
     'App\\Support\\ImageHash' => $baseDir . '/app/Support/ImageHash.php',
     'App\\Support\\InstallMode' => $baseDir . '/app/Support/InstallMode.php',
     'App\\Support\\LeaverAccess' => $baseDir . '/app/Support/LeaverAccess.php',
+    'App\\Support\\Locales' => $baseDir . '/app/Support/Locales.php',
     'App\\Support\\Mail\\CriticalMail' => $baseDir . '/app/Support/Mail/CriticalMail.php',
     'App\\Support\\Mail\\MailBudget' => $baseDir . '/app/Support/Mail/MailBudget.php',
     'App\\Support\\Mail\\MailHealth' => $baseDir . '/app/Support/Mail/MailHealth.php',

@@ -89,7 +89,7 @@ final class ExitClearanceTemplate
             $key = $line['key'] ?? null;
             $label = trim($line['label']);
             $builtIn = $key !== null && self::isBuiltIn($key)
-                && in_array($label, [self::label($key, 'en'), self::label($key, 'am')], true);
+                && in_array($label, array_map(fn (string $locale): string => self::label($key, $locale), Locales::SHIPPED), true);
 
             return [
                 'key' => $builtIn ? $key : null,

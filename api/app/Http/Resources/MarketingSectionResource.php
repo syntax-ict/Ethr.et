@@ -30,13 +30,15 @@ class MarketingSectionResource extends JsonResource
             'heading_am' => $this->heading_am,
             'subheading' => $this->subheading,
             'subheading_am' => $this->subheading_am,
+            'heading_om' => $this->heading_om,
+            'subheading_om' => $this->subheading_om,
             'image' => $this->image(),
             'items' => MarketingItemResource::collection($this->items),
         ];
     }
 
     /**
-     * @return array{url: string, srcset: string, width: int, height: int, alt: string|null, alt_am: string|null}|null
+     * @return array{url: string, srcset: string, width: int, height: int, alt: string|null, alt_am: string|null, alt_om: string|null}|null
      */
     private function image(): ?array
     {

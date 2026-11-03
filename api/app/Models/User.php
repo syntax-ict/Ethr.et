@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Support\Locales;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use App\Traits\ScopesEmployeeAccess;
@@ -204,7 +205,7 @@ class User extends Authenticatable implements HasLocalePreference
             || $this->locale !== 'en';
 
         foreach ($chosen ? [$this->locale, $tenantLocale] : [$tenantLocale, $this->locale] as $locale) {
-            if (in_array($locale, ['en', 'am'], true)) {
+            if (Locales::isShipped($locale)) {
                 return $locale;
             }
         }

@@ -1806,6 +1806,7 @@ class ComposerStaticInit870e919e58412b109fb9aa8379549848
         'App\\Support\\ImageHash' => __DIR__ . '/../..' . '/app/Support/ImageHash.php',
         'App\\Support\\InstallMode' => __DIR__ . '/../..' . '/app/Support/InstallMode.php',
         'App\\Support\\LeaverAccess' => __DIR__ . '/../..' . '/app/Support/LeaverAccess.php',
+        'App\\Support\\Locales' => __DIR__ . '/../..' . '/app/Support/Locales.php',
         'App\\Support\\Mail\\CriticalMail' => __DIR__ . '/../..' . '/app/Support/Mail/CriticalMail.php',
         'App\\Support\\Mail\\MailBudget' => __DIR__ . '/../..' . '/app/Support/Mail/MailBudget.php',
         'App\\Support\\Mail\\MailHealth' => __DIR__ . '/../..' . '/app/Support/Mail/MailHealth.php',

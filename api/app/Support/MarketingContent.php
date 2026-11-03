@@ -88,10 +88,10 @@ final class MarketingContent
     }
 
     /** Every text column an item has, in both languages. */
-    public const ITEM_TEXT_FIELDS = ['title', 'title_am', 'body', 'body_am', 'detail', 'detail_am', 'image_alt', 'image_alt_am'];
+    public const ITEM_TEXT_FIELDS = ['title', 'title_am', 'title_om', 'body', 'body_am', 'body_om', 'detail', 'detail_am', 'detail_om', 'image_alt', 'image_alt_am', 'image_alt_om'];
 
     /** Every text column a section has, in both languages. */
-    public const SECTION_TEXT_FIELDS = ['heading', 'heading_am', 'subheading', 'subheading_am', 'image_alt', 'image_alt_am'];
+    public const SECTION_TEXT_FIELDS = ['heading', 'heading_am', 'heading_om', 'subheading', 'subheading_am', 'subheading_om', 'image_alt', 'image_alt_am', 'image_alt_om'];
 
     /**
      * The widths an image is also encoded at, for `srcset`. The same two the
