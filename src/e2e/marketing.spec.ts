@@ -33,7 +33,7 @@ const PATHS = [
   "/privacy",
   "/terms",
 ];
-const LOCALES = ["en", "am"] as const;
+const LOCALES = ["en", "am", "om"] as const;
 
 // Anonymous means anonymous — override any storageState a project sets.
 test.use({ storageState: { cookies: [], origins: [] } });

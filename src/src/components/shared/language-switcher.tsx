@@ -114,7 +114,7 @@ export function LanguageSwitcher() {
                 <TooltipContent side="left">
                   {t(
                     "language.coming_soon_hint",
-                    "This language is not translated yet. English and Amharic are fully available.",
+                    "This language is not translated yet. English, Amharic and Afaan Oromo are fully available.",
                   )}
                 </TooltipContent>
               </Tooltip>

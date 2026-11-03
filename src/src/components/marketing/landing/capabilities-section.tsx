@@ -31,13 +31,18 @@ export function CapabilitiesSection({
         <SectionIntro
           id="capabilities-heading"
           heading={
-            pickLocalised(locale, section.heading_am, section.heading) ??
-            section.heading
+            pickLocalised(
+              locale,
+              section.heading_am,
+              section.heading,
+              section.heading_om,
+            ) ?? section.heading
           }
           subheading={pickLocalised(
             locale,
             section.subheading_am,
             section.subheading,
+            section.subheading_om,
           )}
         />
 
@@ -45,9 +50,20 @@ export function CapabilitiesSection({
           {section.items.map((item, index) => {
             const Icon = marketingIcon(item.icon);
             const title =
-              pickLocalised(locale, item.title_am, item.title) ?? item.title;
-            const body = pickLocalised(locale, item.body_am, item.body);
-            const value = pickLocalised(locale, item.detail_am, item.detail);
+              pickLocalised(locale, item.title_am, item.title, item.title_om) ??
+              item.title;
+            const body = pickLocalised(
+              locale,
+              item.body_am,
+              item.body,
+              item.body_om,
+            );
+            const value = pickLocalised(
+              locale,
+              item.detail_am,
+              item.detail,
+              item.detail_om,
+            );
             const flipped = index % 2 === 1;
 
             return (

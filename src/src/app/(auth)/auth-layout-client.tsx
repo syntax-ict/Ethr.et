@@ -13,7 +13,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useT } from "@/lib/i18n/useT";
-import { setLocale } from "@/lib/i18n/translations";
+import { isAvailableLocale, setLocale } from "@/lib/i18n/translations";
 import { LanguageSwitcher } from "@/components/shared/language-switcher";
 import { ProductStoryAnimation } from "@/components/shared/product-story-animation";
 import { OrgMark } from "@/components/shared/org-mark";
@@ -96,7 +96,7 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!organisation) return;
     const asked = new URLSearchParams(window.location.search).get("lang");
-    if (asked === "en" || asked === "am") {
+    if (asked && isAvailableLocale(asked)) {
       setLocale(asked);
       return;
     }

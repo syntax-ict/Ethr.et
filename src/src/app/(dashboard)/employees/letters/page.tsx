@@ -24,6 +24,7 @@ import {
   useRejectLetter,
   type LetterRequest,
 } from "@/features/letters/api";
+import { nativeLanguageName } from "@/lib/i18n/config";
 import { apiErrorDetail } from "@/lib/api/error-message";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
@@ -115,9 +116,7 @@ function LetterRow({ letter }: { letter: LetterRequest }) {
       {letter.include_salary && (
         <Badge variant="outline">{t("letters.with_salary")}</Badge>
       )}
-      <Badge variant="outline">
-        {letter.language === "am" ? "አማርኛ" : "English"}
-      </Badge>
+      <Badge variant="outline">{nativeLanguageName(letter.language)}</Badge>
       {letter.reference && (
         <Badge variant="secondary">{letter.reference}</Badge>
       )}

@@ -95,9 +95,9 @@ const REPORT_WINDOW_SECONDS = 8;
 export default function KioskPage() {
   const { t, locale } = useT();
   // A signed-out terminal has no person's preference to read, so it follows
-  // its display language: Amharic reads the Ethiopian calendar and clock,
-  // anything else Gregorian and 24-hour.
-  const calendar = locale === "am" ? "ethiopian" : "gregorian";
+  // its display language: Amharic and Oromo read the Ethiopian calendar and
+  // clock, English Gregorian and 24-hour.
+  const calendar = locale === "en" ? "gregorian" : "ethiopian";
   const clock = resolveClock("auto", calendar, locale);
   const [screen, setScreen] = useState<Screen>("setup");
   const [config, setConfig] = useState<KioskConfig | null>(null);

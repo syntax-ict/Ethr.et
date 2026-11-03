@@ -12,6 +12,7 @@ use App\Notifications\DashboardDigestNotification;
 use App\Services\Analytics\AlertEvaluator;
 use App\Services\Analytics\ExecutiveDashboardService;
 use App\Services\CurrentTenant;
+use App\Support\Locales;
 use App\Support\ScheduleSlot;
 use App\Traits\SendsNotifications;
 use Illuminate\Bus\Queueable;
@@ -193,6 +194,6 @@ class RunDashboardDigestsJob implements ShouldQueue
     {
         $locale = $tenantId === null ? null : Tenant::query()->whereKey($tenantId)->value('default_locale');
 
-        return in_array($locale, ['en', 'am'], true) ? $locale : 'en';
+        return Locales::orDefault($locale);
     }
 }

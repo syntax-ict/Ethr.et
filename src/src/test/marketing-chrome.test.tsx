@@ -63,9 +63,10 @@ describe("Marketing header", () => {
       expect.arrayContaining([
         expect.stringContaining("English"),
         expect.stringContaining("አማርኛ"),
+        expect.stringContaining("Afaan Oromoo"),
       ]),
     );
-    expect(enabled).toHaveLength(2);
+    expect(enabled).toHaveLength(3);
   });
 
   it("tells assistive technology whether the mobile menu is open", async () => {

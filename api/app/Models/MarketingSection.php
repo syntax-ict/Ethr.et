@@ -40,6 +40,9 @@ use Illuminate\Support\Facades\Cache;
  * @property array<int, string>|null $image_variants
  * @property string|null $image_alt
  * @property string|null $image_alt_am
+ * @property string|null $heading_om
+ * @property string|null $subheading_om
+ * @property string|null $image_alt_om
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -73,6 +76,9 @@ class MarketingSection extends Model
         'image_variants',
         'image_alt',
         'image_alt_am',
+        'heading_om',
+        'subheading_om',
+        'image_alt_om',
     ];
 
     protected $hidden = [

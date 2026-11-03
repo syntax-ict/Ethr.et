@@ -46,8 +46,8 @@ it('publishes a whitelist, and nothing a visitor has no use for', function () {
     $section = $response->json('data.sections.1');
     $item = $section['items'][0];
 
-    expect(array_keys($section))->toBe(['kind', 'heading', 'heading_am', 'subheading', 'subheading_am', 'image', 'items'])
-        ->and(array_keys($item))->toBe(['public_id', 'slug', 'icon', 'title', 'title_am', 'body', 'body_am', 'detail', 'detail_am', 'link_path', 'image'])
+    expect(array_keys($section))->toBe(['kind', 'heading', 'heading_am', 'subheading', 'subheading_am', 'heading_om', 'subheading_om', 'image', 'items'])
+        ->and(array_keys($item))->toBe(['public_id', 'slug', 'icon', 'title', 'title_am', 'body', 'body_am', 'detail', 'detail_am', 'title_om', 'body_om', 'detail_om', 'link_path', 'image'])
         ->and($item['image'])->toBeNull();
 
     $response->assertJsonMissingPath('data.sections.0.id')

@@ -10,6 +10,7 @@ import {
 } from "react";
 import { toEthiopian, formatEthiopian } from "./ethiopian";
 import { toClockPreference, type ClockPreference } from "./ethiopian-time";
+import { intlLocale } from "@/lib/i18n/config";
 
 export type CalendarSystem = "ethiopian" | "gregorian";
 
@@ -100,7 +101,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
 
   const formatGreg = useCallback(
     (date: Date, locale: string) =>
-      new Intl.DateTimeFormat(locale === "am" ? "am-ET" : "en-US", {
+      new Intl.DateTimeFormat(intlLocale(locale), {
         year: "numeric",
         month: "long",
         day: "numeric",

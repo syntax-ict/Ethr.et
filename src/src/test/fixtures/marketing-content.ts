@@ -24,6 +24,9 @@ function item(
     body_am: null,
     detail: null,
     detail_am: null,
+    title_om: null,
+    body_om: null,
+    detail_om: null,
     link_path: null,
     image: null,
     ...fields,
@@ -44,6 +47,9 @@ export function marketingFixture(): { sections: MarketingSection[] } {
           "Employees check in from a phone, a kiosk or the web, even without a network. Payroll follows Proclamation 1395/2025 and the Ethiopian calendar. Everything is in Amharic and English.",
         subheading_am:
           "ሠራተኞች ከስልክ፣ ከኪዮስክ ወይም ከድር ይገባሉ፤ አውታረ መረብ ባይኖርም። ደመወዝ አዋጅ 1395/2025ንና የኢትዮጵያን የቀን አቆጣጠር ይከተላል። ሁሉም በአማርኛና በእንግሊዝኛ ነው።",
+        heading_om:
+          "Argama, kaffaltii mindaa fi Qabeenya Namaa, dhaabbilee Itoophiyaatiif kan qophaa'e",
+        subheading_om: null,
         image: null,
         items: [],
       },
@@ -54,6 +60,8 @@ export function marketingFixture(): { sections: MarketingSection[] } {
         subheading:
           "Six things that go wrong today, each beside the way ETHR handles it.",
         subheading_am: "ዛሬ የሚበላሹ ስድስት ነገሮች፣ እያንዳንዳቸው ETHR ከሚይዛቸው መንገድ ጎን።",
+        heading_om: null,
+        subheading_om: null,
         image: null,
         items: [
           item("problems", "paper_attendance", {
@@ -114,6 +122,8 @@ export function marketingFixture(): { sections: MarketingSection[] } {
         subheading:
           "Five capabilities, each paired with the work it takes off your HR team.",
         subheading_am: "አምስት አቅሞች፤ እያንዳንዳቸው ከሰው ሀብት ቡድንዎ ከሚያቃልሉት ሥራ ጋር።",
+        heading_om: null,
+        subheading_om: null,
         image: null,
         items: [
           item("capabilities", "records", {
@@ -158,6 +168,8 @@ export function marketingFixture(): { sections: MarketingSection[] } {
         heading_am: "በደቂቃዎች ውስጥ ይጀምሩ",
         subheading: null,
         subheading_am: null,
+        heading_om: null,
+        subheading_om: null,
         image: null,
         items: [
           item("how_it_works", "register", {
@@ -180,6 +192,8 @@ export function marketingFixture(): { sections: MarketingSection[] } {
         heading_am: "ለኢትዮጵያ ኢንዱስትሪዎች የተዘጋጀ",
         subheading: "Pre-configured templates for your sector",
         subheading_am: "ለዘርፍዎ አስቀድሞ የተዋቀሩ ቅጦች",
+        heading_om: null,
+        subheading_om: null,
         image: null,
         items: [
           item("industries", "government", {
@@ -222,6 +236,8 @@ export function marketingFixture(): { sections: MarketingSection[] } {
         subheading:
           "ETHR keeps your organisation's data on servers in Ethiopia, on Ethio Telecom hosting or your own, as the Personal Data Protection Proclamation No. 1321/2024 requires. Your organisation stays in control of its data; ETHR supplies the safeguards below.",
         subheading_am: null,
+        heading_om: null,
+        subheading_om: null,
         image: null,
         items: [
           item("trust", "data_residency", {
@@ -252,6 +268,8 @@ export function marketingFixture(): { sections: MarketingSection[] } {
         heading_am: "የ6 ወር ነጻ ሙከራ ይጀምሩ",
         subheading: "No credit card required. Full access to all features.",
         subheading_am: "ክሬዲት ካርድ አያስፈልግም። ሁሉም ባህሪያት ሙሉ ተደራሽነት።",
+        heading_om: null,
+        subheading_om: null,
         image: null,
         items: [
           item("cta", "trial", { title: "6-month free trial" }),
@@ -272,5 +290,6 @@ export function fixtureImage(owner = "01TEST00000000000000000001") {
     height: 1000,
     alt: "An HR officer with a complete employee file",
     alt_am: "ሙሉ የሠራተኛ ፋይል የያዘች የሰው ሀብት ባለሙያ",
+    alt_om: "Ogeessa Qabeenya Namaa faayilii hojjetaa guutuu qabdu",
   };
 }

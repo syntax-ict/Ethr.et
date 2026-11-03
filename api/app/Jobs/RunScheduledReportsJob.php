@@ -13,6 +13,7 @@ use App\Notifications\ScheduledReportNotification;
 use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
 use App\Support\Csv;
+use App\Support\Locales;
 use App\Support\ReaderDates;
 use App\Support\ScheduleSlot;
 use App\Traits\SendsNotifications;
@@ -272,6 +273,6 @@ class RunScheduledReportsJob implements ShouldQueue
     {
         $locale = $tenantId === null ? null : Tenant::query()->whereKey($tenantId)->value('default_locale');
 
-        return in_array($locale, ['en', 'am'], true) ? $locale : 'en';
+        return Locales::orDefault($locale);
     }
 }

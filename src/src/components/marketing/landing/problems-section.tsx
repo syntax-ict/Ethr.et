@@ -30,7 +30,12 @@ const LEDGER_COLUMNS =
  */
 export function ProblemsSection({ section }: { section: MarketingSection }) {
   const { t, locale } = useT();
-  const heading = pickLocalised(locale, section.heading_am, section.heading);
+  const heading = pickLocalised(
+    locale,
+    section.heading_am,
+    section.heading,
+    section.heading_om,
+  );
 
   return (
     <section
@@ -45,6 +50,7 @@ export function ProblemsSection({ section }: { section: MarketingSection }) {
             locale,
             section.subheading_am,
             section.subheading,
+            section.subheading_om,
           )}
           tone="inverse"
         />
@@ -74,9 +80,16 @@ function LedgerRow({ item, locale }: { item: MarketingItem; locale: string }) {
   const { t } = useT();
   const href = useLocaleHref();
   const { ref, state } = useRevealOnce<HTMLLIElement>();
-  const title = pickLocalised(locale, item.title_am, item.title) ?? item.title;
-  const body = pickLocalised(locale, item.body_am, item.body);
-  const detail = pickLocalised(locale, item.detail_am, item.detail);
+  const title =
+    pickLocalised(locale, item.title_am, item.title, item.title_om) ??
+    item.title;
+  const body = pickLocalised(locale, item.body_am, item.body, item.body_om);
+  const detail = pickLocalised(
+    locale,
+    item.detail_am,
+    item.detail,
+    item.detail_om,
+  );
 
   return (
     <li

@@ -152,6 +152,10 @@ export function useProductMark(locale: string): ProductMark | null {
 /**
  * Picks the reader's language, falling back to English rather than to nothing.
  *
+ * `om` is optional because only the landing page's sections carry an Oromo
+ * twin; the site-wide labels (`platform_settings`) have Amharic alone, and an
+ * Oromo reader gets their English.
+ *
  * An operator who filled the English column and not the Amharic one has not
  * asked for the field to disappear — and Amharic is the locale the server
  * renders by default, so a null-on-missing rule would blank these for most
@@ -159,8 +163,11 @@ export function useProductMark(locale: string): ProductMark | null {
  */
 export function pickLocalised(
   locale: string,
-  am: string | null,
+  am: string | null | undefined,
   en: string | null,
+  om?: string | null,
 ): string | null {
-  return locale === "am" && am ? am : en;
+  if (locale === "am" && am) return am;
+  if (locale === "om" && om) return om;
+  return en;
 }

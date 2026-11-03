@@ -50,28 +50,36 @@ export function ItemEditor({
   const ids = {
     title: useId(),
     titleAm: useId(),
+    titleOm: useId(),
     body: useId(),
     bodyAm: useId(),
+    bodyOm: useId(),
     detail: useId(),
     detailAm: useId(),
+    detailOm: useId(),
     icon: useId(),
     link: useId(),
     alt: useId(),
     altAm: useId(),
+    altOm: useId(),
     published: useId(),
   };
 
   const [form, setForm] = useState({
     title: item.title,
     title_am: item.title_am ?? "",
+    title_om: item.title_om ?? "",
     body: item.body ?? "",
     body_am: item.body_am ?? "",
+    body_om: item.body_om ?? "",
     detail: item.detail ?? "",
     detail_am: item.detail_am ?? "",
+    detail_om: item.detail_om ?? "",
     icon: item.icon,
     link_path: item.link_path ?? "",
     image_alt: item.image?.alt ?? "",
     image_alt_am: item.image?.alt_am ?? "",
+    image_alt_om: item.image?.alt_om ?? "",
     is_published: item.is_published,
   });
   const set = <K extends keyof typeof form>(
@@ -88,11 +96,20 @@ export function ItemEditor({
         publicId: item.public_id,
         title: form.title,
         title_am: form.title_am || null,
+        title_om: form.title_om || null,
         ...(uses("body")
-          ? { body: form.body || null, body_am: form.body_am || null }
+          ? {
+              body: form.body || null,
+              body_am: form.body_am || null,
+              body_om: form.body_om || null,
+            }
           : {}),
         ...(uses("detail")
-          ? { detail: form.detail || null, detail_am: form.detail_am || null }
+          ? {
+              detail: form.detail || null,
+              detail_am: form.detail_am || null,
+              detail_om: form.detail_om || null,
+            }
           : {}),
         ...(uses("icon") ? { icon: form.icon } : {}),
         ...(uses("link_path") ? { link_path: form.link_path || null } : {}),
@@ -100,6 +117,7 @@ export function ItemEditor({
           ? {
               image_alt: form.image_alt || null,
               image_alt_am: form.image_alt_am || null,
+              image_alt_om: form.image_alt_om || null,
             }
           : {}),
         is_published: form.is_published,
@@ -170,7 +188,7 @@ export function ItemEditor({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field
           id={ids.title}
           label={t("admin_marketing.field.title", "Title")}
@@ -191,6 +209,17 @@ export function ItemEditor({
             id={ids.titleAm}
             value={form.title_am}
             onChange={(e) => set("title_am", e.target.value)}
+          />
+        </Field>
+        <Field
+          id={ids.titleOm}
+          label={t("admin_marketing.field.title_om", "Title (Afaan Oromo)")}
+          error={errors.title_om}
+        >
+          <Input
+            id={ids.titleOm}
+            value={form.title_om}
+            onChange={(e) => set("title_om", e.target.value)}
           />
         </Field>
 
@@ -218,6 +247,18 @@ export function ItemEditor({
                 rows={3}
                 value={form.body_am}
                 onChange={(e) => set("body_am", e.target.value)}
+              />
+            </Field>
+            <Field
+              id={ids.bodyOm}
+              label={t("admin_marketing.field.body_om", "Text (Afaan Oromo)")}
+              error={errors.body_om}
+            >
+              <Textarea
+                id={ids.bodyOm}
+                rows={3}
+                value={form.body_om}
+                onChange={(e) => set("body_om", e.target.value)}
               />
             </Field>
           </>
@@ -251,6 +292,21 @@ export function ItemEditor({
                 rows={3}
                 value={form.detail_am}
                 onChange={(e) => set("detail_am", e.target.value)}
+              />
+            </Field>
+            <Field
+              id={ids.detailOm}
+              label={t(
+                "admin_marketing.field.detail_om",
+                "Detail (Afaan Oromo)",
+              )}
+              error={errors.detail_om}
+            >
+              <Textarea
+                id={ids.detailOm}
+                rows={3}
+                value={form.detail_om}
+                onChange={(e) => set("detail_om", e.target.value)}
               />
             </Field>
           </>
@@ -313,6 +369,20 @@ export function ItemEditor({
                 id={ids.altAm}
                 value={form.image_alt_am}
                 onChange={(e) => set("image_alt_am", e.target.value)}
+              />
+            </Field>
+            <Field
+              id={ids.altOm}
+              label={t(
+                "admin_marketing.field.alt_om",
+                "Picture description (Afaan Oromo)",
+              )}
+              error={errors.image_alt_om}
+            >
+              <Input
+                id={ids.altOm}
+                value={form.image_alt_om}
+                onChange={(e) => set("image_alt_om", e.target.value)}
               />
             </Field>
           </>
