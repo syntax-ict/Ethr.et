@@ -28,7 +28,7 @@ return [
     'review_request' => 'Gaaffii Ilaali',
     'device_offline_subject' => 'Meeshaan baayoometrikii tokko toora ala ta\'eera',
     'device_sync_failed_subject' => 'Walsimsiisni meeshaa baayoometrikii hin milkoofne: :name',
-    'device_sync_failed_body' => 'Walsimsiisni meeshaa ":name" erga irra deebi\'amee yaalamee booda hin milkoofne, taateewwan argamaa tokkollee irraa hin sassaabamaa jiran. Meeshaan kana gabaase: :reason',
+    'device_sync_failed_body' => 'Walsimsiisni meeshaa ":name" erga irra deebi\'amee yaalamee booda hin milkoofne, taateewwan argamaa tokkollee isa irraa sassaabamaa hin jiran. Meeshaan kana gabaase: :reason',
     'device_action' => 'Haala meeshaa ilaali',
 
     // Billing
@@ -36,7 +36,7 @@ return [
     // (User::preferredLocale). Each carries a `url` the notification opens.
     'inapp' => [
         'attendance_high_risk' => ':name qabxii balaa :score qabuun galmeesse. Kaffaltii mindaa dura ilaalaa.',
-        'approval_reminder' => 'Raggaasisoota :count isin eegaa jiru. Inni dheeraan sa\'aatii :hours eegeera.',
+        'approval_reminder' => 'Raggaasisoonni :count isin eegaa jiru. Inni hundaa caalaa turee sa\'aatii :hours eegeera.',
         'approval_escalated' => ':type :name sa\'aatii :hours akka :approver murteessu eegeera.',
         'attendance_anomaly' => 'Argama :name irratti waan idilee hin taane: :type',
         'correction_approved' => 'Sirreeffamni argamaa keessan guyyaa :date raggaasifameera.',

@@ -35,7 +35,7 @@ return [
     'auto_check_in_outside' => 'Seensi ofumaan naannoo damee keessanii keessa akka jirtan barbaada.',
     'device_clock_invalid' => 'Meeshaan yeroo hin dubbifamne ykn gara fuulduraa gabaase. Sa\'aatii meeshaa sanaa mirkaneessaa.',
     'qr_already_used' => 'Koodii QR kana duraan fayyadamtaniirtu. Koodii amma iskiriinii irra jiru iskaan godhaa.',
-    'qr_use_limit_reached' => 'Koodiin QR kun baay\'ina olaanaa hayyamameef fayyadameera. Koodii amma iskiriinii irra jiru iskaan godhaa.',
+    'qr_use_limit_reached' => 'Koodiin QR kun hanga baay\'ina olaanaa hayyamameetti itti fayyadamameera. Koodii amma iskiriinii irra jiru iskaan godhaa.',
     'manual_entry_self' => 'Argama keessan nama biraatu galchuu qaba.',
     'import_row_self' => 'Toora :row: argama keessan nama biraatu galchuu qaba.',
     'integrity_self_review' => 'Mallattoo argama keessan irratti kaa\'ame ilaaluu hin dandeessan.',
