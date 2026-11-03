@@ -15,6 +15,7 @@ use App\Services\Approval\ApprovalEngine;
 use App\Support\ApprovalRefusal;
 use App\Traits\DispatchesWebhooks;
 use App\Traits\SendsNotifications;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Approving or rejecting a leave request — the one implementation behind both
@@ -60,28 +61,47 @@ class LeaveDecisionService
 
     public function approve(LeaveRequest $leaveRequest, User $by): void
     {
-        // A chain with steps still to go records this one and stays pending.
-        if (! $this->engine->approve($leaveRequest, $by)) {
+        // Decided once. The request is read again under a lock, so two
+        // approvers in the same second (or an approval racing the employee's
+        // cancel) cannot both pass the pending check: the days were taken
+        // from the balance twice (A-Z review E-01).
+        $decided = DB::transaction(function () use ($leaveRequest, $by): bool {
+            $locked = LeaveRequest::query()->whereKey($leaveRequest->getKey())->lockForUpdate()->first();
+            if ($locked === null || $locked->status !== LeaveStatus::PENDING) {
+                return false;
+            }
+
+            // A chain with steps still to go records this one and stays pending.
+            if (! $this->engine->approve($locked, $by)) {
+                return false;
+            }
+
+            $chain = $locked->approved_by ?? [];
+            $chain[] = [
+                'user_id' => $by->id,
+                'role' => $by->role->value,
+                'at' => now()->toIso8601String(),
+            ];
+
+            $locked->update([
+                'approved_by' => $chain,
+                'status' => LeaveStatus::APPROVED,
+            ]);
+
+            $balance = $this->balanceOf($locked);
+
+            if ($balance) {
+                $balance->decrement('pending_days', (float) $locked->days);
+                $balance->increment('used_days', (float) $locked->days);
+            }
+
+            return true;
+        });
+
+        $leaveRequest->refresh();
+
+        if (! $decided) {
             return;
-        }
-
-        $chain = $leaveRequest->approved_by ?? [];
-        $chain[] = [
-            'user_id' => $by->id,
-            'role' => $by->role->value,
-            'at' => now()->toIso8601String(),
-        ];
-
-        $leaveRequest->update([
-            'approved_by' => $chain,
-            'status' => LeaveStatus::APPROVED,
-        ]);
-
-        $balance = $this->balanceOf($leaveRequest);
-
-        if ($balance) {
-            $balance->decrement('pending_days', (float) $leaveRequest->days);
-            $balance->increment('used_days', (float) $leaveRequest->days);
         }
 
         AuditLog::record('leave.approved', $leaveRequest, [
@@ -100,18 +120,33 @@ class LeaveDecisionService
 
     public function reject(LeaveRequest $leaveRequest, User $by, string $reason): void
     {
-        $this->engine->reject($leaveRequest, $by, $reason);
+        $decided = DB::transaction(function () use ($leaveRequest, $by, $reason): bool {
+            $locked = LeaveRequest::query()->whereKey($leaveRequest->getKey())->lockForUpdate()->first();
+            if ($locked === null || $locked->status !== LeaveStatus::PENDING) {
+                return false;
+            }
 
-        $leaveRequest->update([
-            'status' => LeaveStatus::REJECTED,
-            'rejected_by' => $by->id,
-            'rejected_reason' => $reason,
-        ]);
+            $this->engine->reject($locked, $by, $reason);
 
-        $balance = $this->balanceOf($leaveRequest);
+            $locked->update([
+                'status' => LeaveStatus::REJECTED,
+                'rejected_by' => $by->id,
+                'rejected_reason' => $reason,
+            ]);
 
-        if ($balance) {
-            $balance->decrement('pending_days', (float) $leaveRequest->days);
+            $balance = $this->balanceOf($locked);
+
+            if ($balance) {
+                $balance->decrement('pending_days', (float) $locked->days);
+            }
+
+            return true;
+        });
+
+        $leaveRequest->refresh();
+
+        if (! $decided) {
+            return;
         }
 
         AuditLog::record('leave.rejected', $leaveRequest, [

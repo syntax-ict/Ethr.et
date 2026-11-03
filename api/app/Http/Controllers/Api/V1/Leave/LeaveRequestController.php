@@ -325,7 +325,23 @@ class LeaveRequestController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
-        $leaveRequest->update(['status' => LeaveStatus::CANCELLED]);
+        // Only from pending, in one statement: an approval landing at the
+        // same moment wins or loses as a whole (A-Z review E-01).
+        $cancelled = LeaveRequest::query()
+            ->whereKey($leaveRequest->getKey())
+            ->where('status', LeaveStatus::PENDING)
+            ->update(['status' => LeaveStatus::CANCELLED, 'updated_at' => now()]);
+
+        if ($cancelled === 0) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-state',
+                'title' => 'Invalid State',
+                'status' => 422,
+                'detail' => __('leave.not_pending'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        $leaveRequest->refresh();
 
         $balance = LeaveBalance::query()
             ->where('employee_id', $leaveRequest->employee_id)
