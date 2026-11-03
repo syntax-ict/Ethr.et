@@ -35,7 +35,7 @@
             "detail": "Staff check in from a phone, a shared kiosk, a QR code or the web, with the time and place recorded as it happens. Overtime is counted from the record, not from memory.",
             "detail_am": "ሠራተኞች ከስልክ፣ ከጋራ ኪዮስክ፣ በQR ኮድ ወይም ከድር ይገባሉ፤ ሰዓቱና ቦታው ወዲያው ይመዘገባል። የትርፍ ሰዓት ከመዝገቡ ይቆጠራል እንጂ ከትውስታ አይደለም።",
             "title_om": "Argama waraqaa irratti",
-            "body_om": "Galmeen shiftii booda mallattaa'a, sa'aatiin dabalataa dhuma ji'aatti falmisiisa, eenyutu sa'aatii 8:02 irratti bakka hojii ture namni tokkollee hin beeku.",
+            "body_om": "Galmeen shiftii barfatee mallattaa'a, sa'aatiin dabalataa dhuma ji'aatti falmisiisa, eenyutu sa'aatii 8:02 irratti bakka hojii ture namni tokkollee hin beeku.",
             "detail_om": "Hojjettoonni bilbilaan, kiyoskii waliinii, koodii QR ykn weebiidhaan seensa galmeessu; yeroo fi bakki akkuma raawwatameen galmaa'a. Sa'aatiin dabalataa galmee irraa lakkaa'ama malee yaadannoo irraa miti.",
             "link_path": "/attendance-system",
             "image": null
@@ -51,8 +51,8 @@
             "detail": "Income tax under Proclamation 1395/2025, pension and Pagume proration are applied automatically, with a calculation trail on every payslip and an approval before anyone sees it.",
             "detail_am": "በአዋጅ 1395/2025 መሠረት የገቢ ግብር፣ ጡረታና የጳጉሜን ተመጣጣኝ ክፍያ በራስ ሰር ይተገበራሉ፤ በእያንዳንዱ የደመወዝ ወረቀት ላይ የስሌት ዱካ አለ፣ ማንም ከማየቱ በፊትም ይጸድቃል።",
             "title_om": "Kaffaltii mindaa harkaan herregamu",
-            "body_om": "Ji'a ji'aan namni tokko sadarkaa gibira galii fi qoodinsa sooramaa shaqaa irratti herrega, seelii dogoggoraa tokko waraqaa mindaa irra ga'a.",
-            "detail_om": "Gibirri galii Labsii 1395/2025 jalatti, soorama fi qoodinsi Qaammee ofumaan raawwatamu; waraqaa mindaa hunda irratti karaan herregaa ni mul'ata, namni tokkollee osoo hin argin dura ni raggaasifama.",
+            "body_om": "Ji'a ji'aan namni tokko sadarkaa gibira galii fi qoodinsa sooramaa gabatee herregaa irratti herrega, seelii dogoggoraa tokko waraqaa mindaa irra ga'a.",
+            "detail_om": "Gibirri galii Labsii 1395/2025 jalatti, sooramni fi qoodinsi Qaammee ofumaan raawwatamu; waraqaa mindaa hunda irratti karaan herregaa ni mul'ata, namni tokkollee osoo hin argin dura ni raggaasifama.",
             "link_path": "/payroll-software",
             "image": null
           },
@@ -66,7 +66,7 @@
             "body_am": "ቀሪዎቹ አንድ ሰው ብቻ በሚከፍተው ፋይል ውስጥ ናቸው። ጥያቄ ያንን ሰው ይጠብቃል፤ የኢትዮጵያ የቀን አቆጣጠርም በእጅ ይቆጠራል።",
             "detail": "Employees see their own balance and request leave from a phone. Managers decide from one inbox, and the days are counted on the Ethiopian calendar, Pagume and holidays included.",
             "detail_am": "ሠራተኞች የራሳቸውን ቀሪ ያያሉ፣ ፈቃድን ከስልክ ይጠይቃሉ። ኃላፊዎች ከአንድ ሳጥን ይወስናሉ፤ ቀናቱ ጳጉሜንና በዓላትን ጨምሮ በኢትዮጵያ የቀን አቆጣጠር ይቆጠራሉ።",
-            "title_om": "Haftee boqonnaa shaqaa irratti",
+            "title_om": "Haftee boqonnaa gabatee herregaa irratti",
             "body_om": "Hafteen faayilii namni tokko qofti banuu danda'u keessa jira. Gaaffiin nama sana eeggata, Dhahni Itoophiyaas harkaan lakkaa'ama.",
             "detail_om": "Hojjettoonni haftee boqonnaa isaanii ilaalanii bilbilaan gaafatu. Hoogganoonni sanduuqa tokko irraa murteessu; guyyoonni Dhaha Itoophiyaatiin lakkaa'amu, Qaammee fi ayyaanota dabalatee.",
             "link_path": "/leave-management",
@@ -143,7 +143,7 @@
             "detail": "Establishes reliable workforce data",
             "detail_am": "አስተማማኝ የሠራተኛ መረጃ ይገነባል",
             "title_om": "Galmee hojjettootaa fi caasaa dhaabbataa",
-            "body_om": "Hojjetaa hundaaf faayilii dijitaalaa guutuu, waliigaltee, sanadootaa fi yaadachiisa xumuraa waliin. Lakkoofsi TIN fi odeeffannoon baankii ni iccitiin eegama; muummeewwan, dameewwan, gitawwan hojii fi sadarkaaleen keessan chaartii caasaa ta'u.",
+            "body_om": "Hojjetaa hundaaf faayilii dijitaalaa guutuu, waliigaltee, sanadootaa fi yaadachiisa xumuraa waliin. Lakkoofsi TIN fi odeeffannoon baankii icciitiidhaan kuufamu; muummeewwan, dameewwan, gitawwan hojii fi sadarkaaleen keessan chaartii caasaa ta'u.",
             "detail_om": "Daataa humna hojii amanamaa ta'e ni uuma",
             "link_path": null,
             "image": null
@@ -450,8 +450,8 @@
             "body_am": "የባንክ ሂሳብ፣ የግብር መለያ (ቲን) እና የብሔራዊ መታወቂያ ቁጥሮች በAES-256 ተመስጥረው ይቀመጣሉ።",
             "detail": null,
             "detail_am": null,
-            "title_om": "Iccitii yeroo kuufamu",
-            "body_om": "Lakkoofsi herrega baankii, TIN fi eenyummaa biyyoolessaa AES-256'n iccitiidhaan kuufamu.",
+            "title_om": "Icciitii yeroo kuufamu",
+            "body_om": "Lakkoofsi herrega baankii, TIN fi eenyummaa biyyoolessaa AES-256'n icciitiidhaan kuufamu.",
             "detail_om": null,
             "link_path": null,
             "image": null
@@ -497,7 +497,7 @@
         "subheading": "No credit card required. Full access to all features.",
         "subheading_am": "ክሬዲት ካርድ አያስፈልግም። ሁሉም ባህሪያት ሙሉ ተደራሽነት።",
         "heading_om": "Yaalii bilisaa ji'a 6 keessan jalqabaa",
-        "subheading_om": "Kaardiin liqii hin barbaachisu. Amaloota hunda guutummaatti argattu.",
+        "subheading_om": "Kaardiin liqii hin barbaachisu. Amaloota hunda guutummaatti argattan.",
         "image": null,
         "items": [
           {

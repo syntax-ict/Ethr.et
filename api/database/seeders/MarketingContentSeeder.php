@@ -29,8 +29,9 @@ use Illuminate\Support\Facades\Log;
  *
  * The Oromo copy lives in `assets/marketing/oromo.php` and is the one
  * exception to "leaves every existing row alone": a row that predates it gets
- * its Oromo, field by field, while that field is empty and the English beside
- * it is still the seeded English. An operator who rewrote the English has a
+ * its Oromo, field by field, while that field is empty, or still holds an
+ * earlier seeded wording listed in `oromo-superseded.php`, and the English
+ * beside it is still the seeded English. An operator who rewrote the English has a
  * page the translation no longer describes, so that field stays empty and the
  * page shows their English until they write the Oromo.
  */
@@ -41,6 +42,7 @@ class MarketingContentSeeder extends Seeder
     public function run(): void
     {
         $oromo = $this->oromo();
+        $superseded = $this->oromoSuperseded();
 
         $order = 1;
         foreach ($this->sections() as $kind => $section) {
@@ -49,7 +51,7 @@ class MarketingContentSeeder extends Seeder
 
             $sectionOromo = self::oromoFor($oromo, $kind);
             $row = MarketingSection::query()->firstOrCreate(['kind' => $kind], [...$section, ...$sectionOromo, 'sort_order' => $order++]);
-            self::backfillOromo($row, $section, $sectionOromo);
+            self::backfillOromo($row, $section, $sectionOromo, self::oromoFor($superseded, $kind));
 
             $position = 1;
             foreach ($items as $slug => $item) {
@@ -58,7 +60,7 @@ class MarketingContentSeeder extends Seeder
                     ['section_kind' => $kind, 'slug' => $slug],
                     [...$item, ...$itemOromo, 'sort_order' => $position++],
                 );
-                self::backfillOromo($row, $item, $itemOromo);
+                self::backfillOromo($row, $item, $itemOromo, self::oromoFor($superseded, "{$kind}.items.{$slug}"));
             }
         }
 
@@ -79,10 +81,25 @@ class MarketingContentSeeder extends Seeder
     }
 
     /**
+     * Earlier seeded wordings of the Oromo copy, which a re-seed may replace.
+     *
+     * @return array<string, list<string>>
+     */
+    public function oromoSuperseded(): array
+    {
+        /** @var array<string, list<string>> $earlier */
+        $earlier = require self::ASSETS_DIR.'/oromo-superseded.php';
+
+        return $earlier;
+    }
+
+    /**
      * The `_om` columns for one section (`hero`) or row (`hero.items.slug`).
      *
-     * @param  array<string, string>  $oromo
-     * @return array<string, string>
+     * @template T
+     *
+     * @param  array<string, T>  $oromo
+     * @return array<string, T>
      */
     private static function oromoFor(array $oromo, string $prefix): array
     {
@@ -97,17 +114,21 @@ class MarketingContentSeeder extends Seeder
     }
 
     /**
-     * Give an existing row the Oromo it lacks, only where the English beside
-     * each field is still the seeded English.
+     * Give an existing row the Oromo it lacks, or replace an earlier seeded
+     * wording, only where the English beside each field is still the seeded
+     * English.
      *
      * @param  array<string, mixed>  $seeded
      * @param  array<string, string>  $oromo
+     * @param  array<string, list<string>>  $superseded
      */
-    private static function backfillOromo(MarketingSection|MarketingItem $row, array $seeded, array $oromo): void
+    private static function backfillOromo(MarketingSection|MarketingItem $row, array $seeded, array $oromo, array $superseded = []): void
     {
         foreach ($oromo as $column => $text) {
             $english = substr($column, 0, -3);
-            if ($row->getAttribute($column) === null && isset($seeded[$english]) && $row->getAttribute($english) === $seeded[$english]) {
+            $current = $row->getAttribute($column);
+            $replaceable = $current === null || in_array($current, $superseded[$column] ?? [], true);
+            if ($replaceable && isset($seeded[$english]) && $row->getAttribute($english) === $seeded[$english]) {
                 $row->setAttribute($column, $text);
             }
         }
