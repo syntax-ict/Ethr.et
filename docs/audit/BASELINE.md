@@ -4433,3 +4433,21 @@ same 46 extensions; 8.2.12 is kept in `C:\xampp\php82` for rollback. The full
 backend sweep passed on it first: 394 of 394 test classes collected, 4,622
 tests. Every environment now runs 8.3, so `composer.json` requires `^8.3` and
 pins the platform to `8.3.35`, the host's, the oldest of the three.
+
+### 25f. A deploy without its migration — 2026-11-03
+
+The release of #552 (`9ee5876`, built 15:59 UTC) was deployed through Plesk Git
+without the maintenance `migrate` that follows it. #552 added `plans.description_om`
+and `plans.marketing_features_om`, and `PlanController::index` names both in its
+column list, so from that deploy on `GET https://www.ethr.et/api/v1/plans` answered
+`500 Server Error`. `/api/v1/health` stayed `healthy` and `/api/v1/site-content`
+answered 200 with every `_om` field null: a model attribute that is not there reads
+as null, an explicit column list fails. Health does not catch it; the plans endpoint
+does.
+
+So Deploy and `migrate` are one step, never two separated by a pause, and the check
+after a release is `release.json` showing the new commit **and**
+`GET /api/v1/plans` answering 200. A Claude Code session cannot do either half: it
+has no Plesk login and no `MAINTENANCE_TOKEN`, and no workflow can deploy (the only
+Actions secrets are `ETHR_CRON_*`). It hands the owner the steps in
+`docs/deployment/PLESK-GO-LIVE.md` → *Every release after this*, and checks the result.
