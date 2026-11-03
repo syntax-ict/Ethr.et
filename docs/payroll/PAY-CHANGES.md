@@ -17,6 +17,7 @@ by hand from the law and do not move at all.
 | Date | Change | Calculation log | Who is affected | Owner decision | Case |
 |---|---|---|---|---|---|
 | 2026-10-27 | Every amount is an exact fraction of cents, rounded once, half away from zero (`App\Support\Cents`), instead of a float passed to `round()` | 1.4 | Nobody measured: G1 to G7 and C1 to C6 are unchanged to the cent. A float could land a hair either side of a half, so a rare payslip may move by one cent | Payroll upgrade plan, upgrade 1 | none |
+| 2026-11-03 | Overtime is paid at the contract's hourly rate: monthly basic over `payroll.working_days_per_month` × `payroll.hours_per_day`, before proration, unpaid leave and lateness. It was taken from the basic after those, so an hour of overtime was worth less in a short month | 1.6 | Anyone with overtime who joined or left during the period, took unpaid leave, or had lateness deducted: their overtime rises by the share those took off basic. Everyone else is unchanged | Payroll upgrade plan, upgrade 5 (decision 3) | C1, C2 moved; golden G8 added |
 
 ## Also in calculation log 1.4
 
@@ -32,3 +33,8 @@ by hand from the law and do not move at all.
   `tenant_setting`), legal reference, whether confirmed, and the row it came from.
 - No figure moved: the parameters were seeded with the values the constants held, and
   G1 to G7 and C1 to C6 are unchanged.
+
+## Also in calculation log 1.6 (2026-11-03)
+
+- The overtime step carries `hourly_rate_base_cents`, the monthly basic its hourly rate was
+  taken from, so a payslip's overtime can be re-derived from its own log.

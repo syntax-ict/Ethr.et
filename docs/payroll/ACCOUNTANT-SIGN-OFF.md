@@ -38,7 +38,7 @@ entry's `calculation_log` and shown on the run page, calculator icon on each row
 1. Basic salary, prorated for a mid-period hire or termination.
 2. Pagume: `full_month` (the 5–6 days paid as part of the month) or `daily_rate`.
 3. Unpaid leave: monthly basic ÷ 22 working days × unpaid days, deducted from basic.
-4. Overtime: hourly rate = basic ÷ 22 ÷ 8, times the rate for the kind of hour (minimums
+4. Overtime: hourly rate = the contract's monthly basic ÷ 22 ÷ 8, before proration, unpaid leave and lateness, times the rate for the kind of hour (minimums
    1.5 normal, 1.75 night, 2.0 rest day, 2.5 public holiday — a tenant may set higher).
 5. Allowances: fixed amounts or a percentage of basic; each marked taxable or not.
 6. Gross = basic + overtime + allowances.
