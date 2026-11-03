@@ -51,6 +51,7 @@ class PlanController extends Controller
                 'slug',
                 'description',
                 'description_am',
+                'description_om',
                 'price_cents',
                 'currency',
                 'billing_interval',
@@ -60,6 +61,7 @@ class PlanController extends Controller
                 'features',
                 'marketing_features',
                 'marketing_features_am',
+                'marketing_features_om',
                 'is_popular',
                 'sort_order',
             ]);

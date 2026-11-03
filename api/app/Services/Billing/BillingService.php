@@ -320,6 +320,7 @@ final class BillingService
                 'account_name' => (string) $settings->bank_account_name,
                 'instructions' => $settings->payment_instructions,
                 'instructions_am' => $settings->payment_instructions_am,
+                'instructions_om' => $settings->payment_instructions_om,
             ] : null,
         ];
     }

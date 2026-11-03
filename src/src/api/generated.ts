@@ -10377,6 +10377,8 @@ export interface components {
             is_popular: boolean;
             marketing_features: string[] | null;
             marketing_features_am: string[] | null;
+            description_om: string | null;
+            marketing_features_om: string[] | null;
         };
         /**
          * PlanFeature
@@ -10404,6 +10406,7 @@ export interface components {
             slug: string;
             description: string | null;
             description_am: string | null;
+            description_om: string | null;
             price_cents: number;
             currency: string;
             billing_interval: string;
@@ -10413,6 +10416,7 @@ export interface components {
             features: string[] | null;
             marketing_features: string[] | null;
             marketing_features_am: string[] | null;
+            marketing_features_om: string[] | null;
             is_popular: boolean;
             sort_order: number;
         };
@@ -10424,16 +10428,20 @@ export interface components {
             bank_account_name: string | null;
             payment_instructions: string | null;
             payment_instructions_am: string | null;
+            payment_instructions_om: string | null;
             is_configured: boolean;
             platform_name: string | null;
             platform_name_am: string | null;
+            platform_name_om: string | null;
             tagline: string | null;
             tagline_am: string | null;
+            tagline_om: string | null;
             logo_url: string | null;
             contact_email: string | null;
             contact_phone: string | null;
             office_address: string | null;
             office_address_am: string | null;
+            office_address_om: string | null;
             social_linkedin: string | null;
             social_x: string | null;
             social_facebook: string | null;
@@ -10441,11 +10449,14 @@ export interface components {
             metric_employees: number | null;
             metric_uptime_note: string | null;
             metric_uptime_note_am: string | null;
+            metric_uptime_note_om: string | null;
             testimonial_quote: string | null;
             testimonial_quote_am: string | null;
+            testimonial_quote_om: string | null;
             testimonial_author: string | null;
             testimonial_role: string | null;
             testimonial_role_am: string | null;
+            testimonial_role_om: string | null;
             testimonial_organisation: string | null;
             /**
              * @description Published here and not by SiteContentResource: the operator has to
@@ -10458,6 +10469,7 @@ export interface components {
             product_mark_enabled: boolean;
             product_mark_label: string | null;
             product_mark_label_am: string | null;
+            product_mark_label_om: string | null;
             product_mark_url: string | null;
             /** Format: date-time */
             updated_at: string | null;
@@ -10961,13 +10973,16 @@ export interface components {
         SiteContentResource: {
             platform_name: string | null;
             platform_name_am: string | null;
+            platform_name_om: string | null;
             tagline: string | null;
             tagline_am: string | null;
+            tagline_om: string | null;
             logo_url: string | null;
             contact_email: string | null;
             contact_phone: string | null;
             office_address: string | null;
             office_address_am: string | null;
+            office_address_om: string | null;
             social_linkedin: string | null;
             social_x: string | null;
             social_facebook: string | null;
@@ -10975,15 +10990,19 @@ export interface components {
             metric_employees: number | null;
             metric_uptime_note: string | null;
             metric_uptime_note_am: string | null;
+            metric_uptime_note_om: string | null;
             testimonial_quote: string | null;
             testimonial_quote_am: string | null;
+            testimonial_quote_om: string | null;
             testimonial_author: string | null;
             testimonial_role: string | null;
             testimonial_role_am: string | null;
+            testimonial_role_om: string | null;
             testimonial_organisation: string | null;
             product_mark_enabled: boolean;
             product_mark_label: string | null;
             product_mark_label_am: string | null;
+            product_mark_label_om: string | null;
             product_mark_url: string | null;
         };
         /** StageRowsRequest */
@@ -11537,6 +11556,7 @@ export interface components {
             slug: string;
             description?: string | null;
             description_am?: string | null;
+            description_om?: string | null;
             price_cents: number;
             currency?: string;
             /** @enum {string} */
@@ -11547,6 +11567,7 @@ export interface components {
             features?: components["schemas"]["PlanFeature"][];
             marketing_features?: string[] | null;
             marketing_features_am?: string[] | null;
+            marketing_features_om?: string[] | null;
             is_active?: boolean;
             is_public?: boolean;
             is_popular?: boolean;
@@ -12342,10 +12363,13 @@ export interface components {
             bank_account_name?: string | null;
             payment_instructions?: string | null;
             payment_instructions_am?: string | null;
+            payment_instructions_om?: string | null;
             platform_name?: string | null;
             platform_name_am?: string | null;
+            platform_name_om?: string | null;
             tagline?: string | null;
             tagline_am?: string | null;
+            tagline_om?: string | null;
             /** Format: uri */
             logo_url?: string | null;
             /** Format: email */
@@ -12353,6 +12377,7 @@ export interface components {
             contact_phone?: string | null;
             office_address?: string | null;
             office_address_am?: string | null;
+            office_address_om?: string | null;
             /** Format: uri */
             social_linkedin?: string | null;
             /** Format: uri */
@@ -12363,11 +12388,14 @@ export interface components {
             metric_employees?: number | null;
             metric_uptime_note?: string | null;
             metric_uptime_note_am?: string | null;
+            metric_uptime_note_om?: string | null;
             testimonial_quote?: string | null;
             testimonial_quote_am?: string | null;
+            testimonial_quote_om?: string | null;
             testimonial_author?: string | null;
             testimonial_role?: string | null;
             testimonial_role_am?: string | null;
+            testimonial_role_om?: string | null;
             testimonial_organisation?: string | null;
             /** Format: date-time */
             testimonial_consented_on?: string | null;
@@ -12375,6 +12403,7 @@ export interface components {
             product_mark_enabled?: boolean;
             product_mark_label?: string | null;
             product_mark_label_am?: string | null;
+            product_mark_label_om?: string | null;
             /** Format: uri */
             product_mark_url?: string | null;
         };
@@ -18018,6 +18047,7 @@ export interface operations {
                             account_name: string;
                             instructions: string | null;
                             instructions_am: string | null;
+                            instructions_om: string | null;
                         } | null;
                     };
                 };

@@ -582,6 +582,7 @@ export interface PlatformSettings {
   bank_account_name: string | null;
   payment_instructions: string | null;
   payment_instructions_am: string | null;
+  payment_instructions_om: string | null;
   is_configured: boolean;
 
   // The facts the public marketing site states about ETHR. Same row and same
@@ -589,13 +590,16 @@ export interface PlatformSettings {
   // columns here rather than a new table.
   platform_name: string | null;
   platform_name_am: string | null;
+  platform_name_om: string | null;
   tagline: string | null;
   tagline_am: string | null;
+  tagline_om: string | null;
   logo_url: string | null;
   contact_email: string | null;
   contact_phone: string | null;
   office_address: string | null;
   office_address_am: string | null;
+  office_address_om: string | null;
   social_linkedin: string | null;
   social_x: string | null;
   social_facebook: string | null;
@@ -603,6 +607,7 @@ export interface PlatformSettings {
   metric_employees: number | null;
   metric_uptime_note: string | null;
   metric_uptime_note_am: string | null;
+  metric_uptime_note_om: string | null;
   has_published_metrics: boolean;
 
   // A customer quote, and the provenance that makes it one. The public endpoint
@@ -612,9 +617,11 @@ export interface PlatformSettings {
   // never emits it.
   testimonial_quote: string | null;
   testimonial_quote_am: string | null;
+  testimonial_quote_om: string | null;
   testimonial_author: string | null;
   testimonial_role: string | null;
   testimonial_role_am: string | null;
+  testimonial_role_om: string | null;
   testimonial_organisation: string | null;
   testimonial_consented_on: string | null;
   // A browser key for the map pickers (Google's design: restricted by
@@ -626,6 +633,7 @@ export interface PlatformSettings {
   product_mark_enabled: boolean;
   product_mark_label: string | null;
   product_mark_label_am: string | null;
+  product_mark_label_om: string | null;
   product_mark_url: string | null;
 
   updated_at: string | null;
@@ -678,6 +686,7 @@ export interface AdminPlan {
   slug: string;
   description: string | null;
   description_am: string | null;
+  description_om: string | null;
   price_cents: number;
   currency: string;
   billing_interval: string;
@@ -687,6 +696,7 @@ export interface AdminPlan {
   features: string[] | null;
   marketing_features: string[] | null;
   marketing_features_am: string[] | null;
+  marketing_features_om: string[] | null;
   is_active: boolean;
   is_public: boolean;
   is_popular: boolean;

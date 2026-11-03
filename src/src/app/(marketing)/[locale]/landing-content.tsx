@@ -53,9 +53,15 @@ export function LandingContent() {
     locale,
     site.testimonial_quote_am,
     site.testimonial_quote,
+    site.testimonial_quote_om,
   );
   const testimonialAttribution = [
-    pickLocalised(locale, site.testimonial_role_am, site.testimonial_role),
+    pickLocalised(
+      locale,
+      site.testimonial_role_am,
+      site.testimonial_role,
+      site.testimonial_role_om,
+    ),
     site.testimonial_organisation,
   ]
     .filter((part): part is string => Boolean(part))

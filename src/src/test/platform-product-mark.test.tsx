@@ -141,6 +141,7 @@ describe("the sidebar product mark in the platform console", () => {
       product_mark_enabled: false,
       product_mark_label: null,
       product_mark_label_am: null,
+      product_mark_label_om: null,
       product_mark_url: null,
     });
   });

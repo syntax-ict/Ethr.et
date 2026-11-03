@@ -10,13 +10,16 @@ import { useQuery } from "@tanstack/react-query";
 export interface SiteContent {
   platform_name: string | null;
   platform_name_am: string | null;
+  platform_name_om: string | null;
   tagline: string | null;
   tagline_am: string | null;
+  tagline_om: string | null;
   logo_url: string | null;
   contact_email: string | null;
   contact_phone: string | null;
   office_address: string | null;
   office_address_am: string | null;
+  office_address_om: string | null;
   social_linkedin: string | null;
   social_x: string | null;
   social_facebook: string | null;
@@ -24,6 +27,7 @@ export interface SiteContent {
   metric_employees: number | null;
   metric_uptime_note: string | null;
   metric_uptime_note_am: string | null;
+  metric_uptime_note_om: string | null;
   /**
    * All six arrive together or not at all. `SiteContentResource` refuses to
    * publish a quote without an author and a recorded consent date, so a
@@ -32,9 +36,11 @@ export interface SiteContent {
    */
   testimonial_quote: string | null;
   testimonial_quote_am: string | null;
+  testimonial_quote_om: string | null;
   testimonial_author: string | null;
   testimonial_role: string | null;
   testimonial_role_am: string | null;
+  testimonial_role_om: string | null;
   testimonial_organisation: string | null;
   /**
    * The "Powered by ETHR" mark at the foot of every organisation's sidebar,
@@ -44,6 +50,7 @@ export interface SiteContent {
   product_mark_enabled: boolean;
   product_mark_label: string | null;
   product_mark_label_am: string | null;
+  product_mark_label_om: string | null;
   product_mark_url: string | null;
 }
 
@@ -59,13 +66,16 @@ export interface SiteContent {
 export const EMPTY_SITE_CONTENT: SiteContent = {
   platform_name: null,
   platform_name_am: null,
+  platform_name_om: null,
   tagline: null,
   tagline_am: null,
+  tagline_om: null,
   logo_url: null,
   contact_email: null,
   contact_phone: null,
   office_address: null,
   office_address_am: null,
+  office_address_om: null,
   social_linkedin: null,
   social_x: null,
   social_facebook: null,
@@ -73,17 +83,21 @@ export const EMPTY_SITE_CONTENT: SiteContent = {
   metric_employees: null,
   metric_uptime_note: null,
   metric_uptime_note_am: null,
+  metric_uptime_note_om: null,
   testimonial_quote: null,
   testimonial_quote_am: null,
+  testimonial_quote_om: null,
   testimonial_author: null,
   testimonial_role: null,
   testimonial_role_am: null,
+  testimonial_role_om: null,
   testimonial_organisation: null,
   // On, like the column: the mark is the product's default, and a failed
   // fetch is not an operator's decision to hide it.
   product_mark_enabled: true,
   product_mark_label: null,
   product_mark_label_am: null,
+  product_mark_label_om: null,
   product_mark_url: null,
 };
 
@@ -143,6 +157,7 @@ export function useProductMark(locale: string): ProductMark | null {
       locale,
       site.product_mark_label_am,
       site.product_mark_label,
+      site.product_mark_label_om,
     ),
     url: site.product_mark_url,
     logoUrl: site.logo_url,
@@ -152,9 +167,8 @@ export function useProductMark(locale: string): ProductMark | null {
 /**
  * Picks the reader's language, falling back to English rather than to nothing.
  *
- * `om` is optional because only the landing page's sections carry an Oromo
- * twin; the site-wide labels (`platform_settings`) have Amharic alone, and an
- * Oromo reader gets their English.
+ * `om` is optional so a field that has no Oromo twin can still be picked;
+ * every platform-written field has one since 2026-11-03.
  *
  * An operator who filled the English column and not the Amharic one has not
  * asked for the field to disappear — and Amharic is the locale the server
