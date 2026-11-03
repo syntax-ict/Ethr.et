@@ -7,6 +7,7 @@ import {
   useExecutiveAttendance,
   useExecutiveOverview,
 } from "@/features/dashboard/executive-api";
+import { useThisMonth } from "@/features/dashboard/use-this-month";
 import { useT } from "@/lib/i18n/useT";
 import { formatETBCompact } from "@/lib/utils/currency";
 import { WidgetError } from "./widget-error";
@@ -20,11 +21,15 @@ import { WidgetError } from "./widget-error";
  * in today. These four answer the questions an admin opens the app with:
  * how many people, how many are here, what is waiting on me, what did we pay.
  * Each tile links to the screen that explains its number.
+ *
+ * "This month" is the reader's current month, the same window the Analytics
+ * page asks for, so the two screens agree about it.
  */
 export function OrganisationSnapshot() {
   const { t } = useT();
-  const overview = useExecutiveOverview();
-  const attendance = useExecutiveAttendance();
+  const period = useThisMonth();
+  const overview = useExecutiveOverview(period);
+  const attendance = useExecutiveAttendance(period);
   const manager = useManagerDashboard();
 
   const heading = (
