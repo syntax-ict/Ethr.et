@@ -23,6 +23,10 @@
 
 declare(strict_types=1);
 
+use App\Models\Employee;
+use App\Models\Tenant;
+use App\Services\CurrentTenant;
+use App\Services\Offboarding\ExitClearanceService;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -204,6 +208,125 @@ foreach ($accounts as [$seededEmail, $role, $employee]) {
     $userId = DB::table('users')->where('tenant_id', $tenantId)->where('email', $email)->value('id');
     DB::table('employees')->where('id', $employee)->update(['user_id' => $userId]);
 }
+
+// The admin guide's recruitment, contract, loan and exit pictures need rows
+// the demo seeder does not make. People outside the cast and the team stand
+// in, so the employee and manager pictures stay as they were.
+$hrUser = DB::table('users')->where('tenant_id', $tenantId)->where('employee_id', $castIds[2])->value('id');
+$adminUser = DB::table('users')->where('tenant_id', $tenantId)->where('employee_id', $castIds[3])->value('id');
+$others = DB::table('employees')->where('tenant_id', $tenantId)
+    ->whereNotIn('id', array_merge($castIds, $team))->orderBy('id')->pluck('id')->all();
+$finance = DB::table('departments')->where('tenant_id', $tenantId)->where('name', 'ፋይናንስ')->value('id');
+$sales = DB::table('departments')->where('tenant_id', $tenantId)->where('name', 'ሽያጭ')->value('id');
+$hq = DB::table('branches')->where('tenant_id', $tenantId)->where('code', 'HQ')->value('id');
+$stamp = ['created_at' => now(), 'updated_at' => now()];
+
+$vacancy = function (array $values) use ($tenantId, $hq, $hrUser, $stamp): int {
+    return (int) DB::table('vacancies')->insertGetId($values + [
+        'public_id' => (string) Str::ulid(),
+        'tenant_id' => $tenantId,
+        'branch_id' => $hq,
+        'employment_type' => 'full_time',
+        'positions' => 1,
+        'visibility' => 'internal',
+        'created_by' => $hrUser,
+    ] + $stamp);
+};
+$accountant = $vacancy([
+    'department_id' => $finance,
+    'title' => 'ከፍተኛ ሒሳብ ባለሙያ',
+    'description' => 'የወር የሒሳብ መዝጊያን፣ የግብር ሪፖርቶችን እና የደመወዝ ሒሳብን ያዘጋጃል።',
+    'requirements' => 'በሒሳብ አያያዝ የመጀመሪያ ዲግሪ እና የአምስት ዓመት ልምድ።',
+    'positions' => 2,
+    'status' => 'open',
+    'published_at' => now()->subDays(6),
+    'closes_on' => now()->addDays(20)->toDateString(),
+    'apply_email' => 'hr@'.$domain,
+]);
+$vacancy([
+    'department_id' => $sales,
+    'title' => 'የሽያጭ ተቆጣጣሪ',
+    'description' => 'የአዲስ አበባ የሽያጭ ቡድንን ይመራል።',
+    'status' => 'draft',
+]);
+
+$applicants = [
+    ['ቤተልሔም ታደሰ', 'email', 'applied'],
+    ['ሄኖክ በቀለ', 'referral', 'screening'],
+    ['ማኅሌት ግርማ', 'website', 'interview'],
+    ['ናሆም አሰፋ', 'email', 'offer'],
+];
+foreach ($applicants as $n => [$name, $source, $stage]) {
+    $application = (int) DB::table('job_applications')->insertGetId([
+        'public_id' => (string) Str::ulid(),
+        'tenant_id' => $tenantId,
+        'vacancy_id' => $accountant,
+        'name' => $name,
+        'email' => 'applicant'.($n + 1).'@'.$domain,
+        'phone' => '+25191100000'.($n + 1),
+        'source' => $source,
+        'stage' => $stage,
+        'created_by' => $hrUser,
+    ] + ($stage === 'offer' ? [
+        'offer_start_date' => now()->addDays(30)->toDateString(),
+        'offer_salary_cents' => 2_400_000,
+        'offer_notes' => 'የሁለት ወር የሙከራ ጊዜ።',
+        'offer_made_by' => $hrUser,
+        'offer_approved_by' => $adminUser,
+        'offer_approved_at' => now()->subDay(),
+    ] : []) + $stamp);
+    $event = fn (array $values) => DB::table('job_application_events')->insert($values + [
+        'public_id' => (string) Str::ulid(),
+        'tenant_id' => $tenantId,
+        'job_application_id' => $application,
+        'actor_id' => $hrUser,
+    ] + $stamp);
+    $event(['type' => 'created', 'to_stage' => 'applied']);
+    if ($stage === 'interview' || $stage === 'offer') {
+        $event(['type' => 'interview', 'note' => 'ጠንካራ የግብር ዕውቀት።', 'score' => 82, 'scheduled_at' => now()->subDays(2)]);
+    }
+}
+
+foreach ([12, 40, 75, -5] as $n => $days) {
+    DB::table('employee_contracts')->insert([
+        'public_id' => (string) Str::ulid(),
+        'tenant_id' => $tenantId,
+        'employee_id' => $others[$n],
+        'reference_number' => 'ውል/'.(101 + $n),
+        'contract_type' => 'fixed_term',
+        'start_date' => now()->addDays($days)->subYear()->toDateString(),
+        'end_date' => now()->addDays($days)->toDateString(),
+        'status' => 'active',
+        'created_by' => $hrUser,
+    ] + $stamp);
+}
+
+foreach ([[$others[4], 6_000_000, 4_500_000, 500_000], [$others[5], 2_000_000, 800_000, 200_000]] as [$borrower, $amount, $remaining, $monthly]) {
+    DB::table('employee_loans')->insert([
+        'public_id' => (string) Str::ulid(),
+        'tenant_id' => $tenantId,
+        'employee_id' => $borrower,
+        'amount_cents' => $amount,
+        'remaining_cents' => $remaining,
+        'monthly_deduction_cents' => $monthly,
+        'start_date' => now()->subMonths(3)->startOfMonth()->toDateString(),
+        'status' => 'active',
+        'reason' => 'የቤት ዕቃ',
+    ] + $stamp);
+}
+
+// One leaver, with the checklist the service builds from the template and
+// its first line already ticked, so the clearance shows progress.
+$leaver = $others[6];
+DB::table('employees')->where('id', $leaver)->update([
+    'status' => 'resigned',
+    'termination_date' => now()->addDays(10)->toDateString(),
+]);
+app(CurrentTenant::class)->set(Tenant::query()->findOrFail($tenantId));
+$clearance = app(ExitClearanceService::class)
+    ->start(Employee::query()->findOrFail($leaver), null, $hrUser);
+DB::table('exit_clearance_items')->where('exit_clearance_id', $clearance->id)->orderBy('position')->limit(1)
+    ->update(['done_at' => now(), 'done_by' => $hrUser]);
 
 echo "Dressed '{$database}': ".count($names)." people, accounts:\n";
 foreach ($accounts as [, $role, $employee]) {

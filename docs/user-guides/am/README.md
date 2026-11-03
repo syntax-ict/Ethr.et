@@ -16,7 +16,7 @@ The English guides in [`docs/user-guide.md`](../../user-guide.md), [`docs/manage
 
 The screenshots are taken from the running app, in Amharic and the Ethiopian calendar, against a scratch copy of the demo organisation. Nothing is drawn by hand, so a release that changes a screen is one command away from a matching guide.
 
-**1. A scratch database, seeded and dressed.** The demo seeder names people with English placeholder names; `prepare-data.php` renames the demo organisation to the fictional «ናሙና ድርጅት», gives everyone Ethiopian names in both scripts, makes one supervisor with a team of eight, and sets four accounts to Amharic and the Ethiopian calendar. It refuses to run against `ethr` or `ethr_local_prod`.
+**1. A scratch database, seeded and dressed.** The demo seeder names people with English placeholder names; `prepare-data.php` renames the demo organisation to the fictional «ናሙና ድርጅት», gives everyone Ethiopian names in both scripts, makes one supervisor with a team of eight, and sets four accounts to Amharic and the Ethiopian calendar. For the admin guide it adds what the seeder does not make: two vacancies with four applicants (one with an approved offer), four contracts ending, two loans and one leaver with an exit clearance. It refuses to run against `ethr` or `ethr_local_prod`.
 
 ```bash
 DB_DATABASE=ethr_guide php api/artisan migrate:fresh --seed --force
@@ -81,3 +81,10 @@ Screens that show English or Gregorian text inside the Amharic interface, seen w
 - Shift cards name the working days in English (Mon, Tue, Wed).
 - Holiday, shift, leave type, department and position names are shown from their English column on several screens; the guide database writes Amharic into both columns to hide it.
 - Interface wording worth a native speaker's look: «የይለፍ ቃል ረሳኽ?» (masculine, informal) and the reject button «ተቀበልም».
+
+Found while writing the admin guide's second edition (2026-11-01: recruitment, personnel actions, contracts, exit clearance, letters, devices, kiosk, photos, reconciliation, loans, the public page, integrations, Voice, billing):
+
+- **No vacancy could reach the public page.** The vacancy form had no visibility control since #225, so every vacancy was saved `internal` and the public page's «ክፍት የስራ ቦታዎች» section was always empty. Fixed in #510, which this edition's sections 5.1 and 11.4 describe.
+- History dates (the timeline, the scheduled note and toast) are printed `YYYY-MM-DD`, and the recruitment forms (closing date, offer start, hire date, probation end, interview time) use the browser's Gregorian date picker, whatever the reader's calendar.
+- No interface for cancelling or editing a loan, or cancelling a cost-sharing obligation, though the API has the first two; no webhook secret rotation or delivery replay.
+- Fixed in #513: the History dialog's two raw keys; «ታዳሚ» for attendance and «አሂድ» for a payroll run (now «መገኘት» and «ሂደት» throughout); the «አርትዕ» device hints; «PIN» spelt «ፒን»; the plan-change dialog's downgrade wording; the public page editor's name (now «ይፋዊ ድረ ገጽ»); `sent`, the accounting run status and `N/A` left in English; « - » used as a dash. API key abilities and webhook event names stay as identifiers on purpose: developers type them.
