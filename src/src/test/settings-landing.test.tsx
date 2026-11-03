@@ -36,21 +36,26 @@ vi.mock("sonner", () => ({
 const landing: TenantLandingSettings = {
   headline: null,
   headline_am: null,
+  headline_om: null,
   message: null,
   message_am: null,
+  message_om: null,
   support_email: null,
   support_phone: null,
   background: "brand",
   about: null,
   about_am: null,
+  about_om: null,
   founded_year: null,
   sector: null,
   staff_band: null,
   show_branch_count: false,
   address: null,
   address_am: null,
+  address_om: null,
   hours: null,
   hours_am: null,
+  hours_om: null,
   latitude: null,
   longitude: null,
   show_branches: false,
@@ -373,6 +378,47 @@ describe("<LandingCard>", () => {
     });
   });
 
+  it("writes the portal in Oromo and sends it, a question written only in Oromo included", async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.put("*/settings/landing", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...landing, ...body });
+      }),
+    );
+
+    renderCard();
+    fireEvent.change(screen.getByLabelText("Headline (Afaan Oromoo)"), {
+      target: { value: "  Baga nagaan dhuftan  " },
+    });
+    await user.click(screen.getByRole("tab", { name: "Questions" }));
+    await user.click(screen.getByRole("button", { name: "Add a question" }));
+    fireEvent.change(screen.getByLabelText("Question 1 (Afaan Oromoo)"), {
+      target: { value: "Mindaan yoom kaffalama?" },
+    });
+    fireEvent.change(screen.getByLabelText("Answer 1 (Afaan Oromoo)"), {
+      target: { value: "Guyyaa 28." },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /save public website/i }),
+    );
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({
+      headline_om: "Baga nagaan dhuftan",
+      faqs: [
+        {
+          question: null,
+          question_am: null,
+          question_om: "Mindaan yoom kaffalama?",
+          answer: null,
+          answer_om: "Guyyaa 28.",
+        },
+      ],
+    });
+  });
+
   it("stops adding at twelve questions", async () => {
     const user = userEvent.setup();
     renderCard({
@@ -381,8 +427,10 @@ describe("<LandingCard>", () => {
         faqs: Array.from({ length: 12 }, (_, i) => ({
           question: `Q${i}`,
           question_am: null,
+          question_om: null,
           answer: "A",
           answer_am: null,
+          answer_om: null,
         })),
       },
     });

@@ -12183,8 +12183,10 @@ export interface components {
         UpdateLandingRequest: {
             headline?: string | null;
             headline_am?: string | null;
+            headline_om?: string | null;
             message?: string | null;
             message_am?: string | null;
+            message_om?: string | null;
             /** Format: email */
             support_email?: string | null;
             support_phone?: string | null;
@@ -12192,6 +12194,7 @@ export interface components {
             background: "brand" | "gradient" | "pattern" | "image";
             about?: string | null;
             about_am?: string | null;
+            about_om?: string | null;
             founded_year?: number | null;
             /** @enum {string|null} */
             sector?: "agriculture" | "construction" | "education" | "finance" | "government" | "health" | "hospitality" | "logistics" | "manufacturing" | "media" | "mining" | "ngo" | "retail" | "services" | "technology" | "telecom" | "utilities" | "other" | null;
@@ -12200,8 +12203,10 @@ export interface components {
             show_branch_count?: boolean;
             address?: string | null;
             address_am?: string | null;
+            address_om?: string | null;
             hours?: string | null;
             hours_am?: string | null;
+            hours_om?: string | null;
             latitude?: number | null;
             longitude?: number | null;
             show_branches?: boolean;
@@ -12236,14 +12241,18 @@ export interface components {
             faqs?: {
                 question: string | null;
                 question_am: string | null;
+                question_om: string | null;
                 answer: string | null;
                 answer_am: string | null;
+                answer_om: string | null;
             }[];
             services?: {
                 title: string | null;
                 title_am: string | null;
+                title_om: string | null;
                 description: string | null;
                 description_am: string | null;
+                description_om: string | null;
             }[];
             listed?: boolean;
         };
@@ -32340,22 +32349,27 @@ export interface operations {
                         landing: {
                             headline: string | null;
                             headline_am: string | null;
+                            headline_om: string | null;
                             message: string | null;
                             message_am: string | null;
+                            message_om: string | null;
                             support_email: string | null;
                             support_phone: string | null;
                             /** @description A photo background with no cover uploaded is the brand colour. */
                             background: string;
                             about: string | null;
                             about_am: string | null;
+                            about_om: string | null;
                             founded_year: number | null;
                             sector: string | null;
                             staff_band: string | null;
                             show_branch_count: boolean;
                             address: string | null;
                             address_am: string | null;
+                            address_om: string | null;
                             hours: string | null;
                             hours_am: string | null;
+                            hours_om: string | null;
                             latitude: number | null;
                             longitude: number | null;
                             show_branches: boolean;
@@ -32365,14 +32379,18 @@ export interface operations {
                             faqs: {
                                 question: string | null;
                                 question_am: string | null;
+                                question_om: string | null;
                                 answer: string | null;
                                 answer_am: string | null;
+                                answer_om: string | null;
                             }[];
                             services: {
                                 title: string | null;
                                 title_am: string | null;
+                                title_om: string | null;
                                 description: string | null;
                                 description_am: string | null;
+                                description_om: string | null;
                             }[];
                             sections: {
                                 [key: string]: boolean;
@@ -32745,22 +32763,27 @@ export interface operations {
                     "application/json": {
                         headline: string | null;
                         headline_am: string | null;
+                        headline_om: string | null;
                         message: string | null;
                         message_am: string | null;
+                        message_om: string | null;
                         support_email: string | null;
                         support_phone: string | null;
                         /** @description A photo background with no cover uploaded is the brand colour. */
                         background: string;
                         about: string | null;
                         about_am: string | null;
+                        about_om: string | null;
                         founded_year: number | null;
                         sector: string | null;
                         staff_band: string | null;
                         show_branch_count: boolean;
                         address: string | null;
                         address_am: string | null;
+                        address_om: string | null;
                         hours: string | null;
                         hours_am: string | null;
+                        hours_om: string | null;
                         latitude: number | null;
                         longitude: number | null;
                         show_branches: boolean;
@@ -32770,14 +32793,18 @@ export interface operations {
                         faqs: {
                             question: string | null;
                             question_am: string | null;
+                            question_om: string | null;
                             answer: string | null;
                             answer_am: string | null;
+                            answer_om: string | null;
                         }[];
                         services: {
                             title: string | null;
                             title_am: string | null;
+                            title_om: string | null;
                             description: string | null;
                             description_am: string | null;
+                            description_om: string | null;
                         }[];
                         sections: {
                             [key: string]: boolean;
@@ -34902,22 +34929,27 @@ export interface operations {
                             landing: {
                                 headline: string | null;
                                 headline_am: string | null;
+                                headline_om: string | null;
                                 message: string | null;
                                 message_am: string | null;
+                                message_om: string | null;
                                 support_email: string | null;
                                 support_phone: string | null;
                                 /** @description A photo background with no cover uploaded is the brand colour. */
                                 background: string;
                                 about: string | null;
                                 about_am: string | null;
+                                about_om: string | null;
                                 founded_year: number | null;
                                 sector: string | null;
                                 staff_band: string | null;
                                 show_branch_count: boolean;
                                 address: string | null;
                                 address_am: string | null;
+                                address_om: string | null;
                                 hours: string | null;
                                 hours_am: string | null;
+                                hours_om: string | null;
                                 latitude: number | null;
                                 longitude: number | null;
                                 show_branches: boolean;
@@ -34927,14 +34959,18 @@ export interface operations {
                                 faqs: {
                                     question: string | null;
                                     question_am: string | null;
+                                    question_om: string | null;
                                     answer: string | null;
                                     answer_am: string | null;
+                                    answer_om: string | null;
                                 }[];
                                 services: {
                                     title: string | null;
                                     title_am: string | null;
+                                    title_om: string | null;
                                     description: string | null;
                                     description_am: string | null;
+                                    description_om: string | null;
                                 }[];
                                 sections: {
                                     [key: string]: boolean;
