@@ -316,3 +316,68 @@ export const BANNER = {
   am: "ለኢትዮጵያ ድርጅቶች የተሠራ የመገኘት፣ የደመወዝና የሰው ሀብት መድረክ",
   line: "Works offline · Amharic and English · Data stored in Ethiopia",
 };
+
+// Posts built on real screens from the demo organisation (source/screens/).
+// `shots` name files in assets/screenshots/; `{lang}` becomes en or am.
+// `layout` is one of browser, browsers, phone, phones (render.mjs).
+export const SCREEN_POSTS = [
+  {
+    id: "checkin",
+    layout: "phone",
+    shots: ["phone-checkin-{lang}"],
+    path: "/attendance-system",
+    en: { over: "Attendance", h: "Check in, anywhere" },
+    am: { over: "መገኘት", h: "የትም ቦታ ይግቡ" },
+  },
+  {
+    id: "payslips",
+    layout: "phone",
+    shots: ["phone-payslips-{lang}"],
+    path: "/payroll-software",
+    en: { over: "Payroll", h: "Employees download their payslips from any phone" },
+    am: { over: "ደመወዝ", h: "ሠራተኞች የደመወዝ ወረቀታቸውን ከማንኛውም ስልክ ያወርዳሉ" },
+  },
+  {
+    id: "leave",
+    layout: "phone",
+    shots: ["phone-leave-{lang}"],
+    path: "/leave-management",
+    en: { over: "Leave", h: "Staff see their balance before they ask" },
+    am: { over: "ፈቃድ", h: "ሠራተኞች ከመጠየቃቸው በፊት ቀሪያቸውን ያያሉ" },
+  },
+  {
+    id: "two-languages",
+    layout: "phones",
+    shots: ["phone-home-en", "phone-home-am"],
+    path: "/ethiopian-calendar-hr",
+    en: { over: "Amharic and English", h: "One system, two languages" },
+    am: { over: "አማርኛና እንግሊዝኛ", h: "አንድ ሥርዓት፣ ሁለት ቋንቋ" },
+  },
+  {
+    id: "dashboard",
+    layout: "browser",
+    shots: ["dashboard-{lang}"],
+    path: "/",
+    en: {
+      over: "Workforce analytics",
+      h: "Headcount, attendance, payroll cost and overtime on one dashboard",
+    },
+    am: { over: "የሠራተኛ ኃይል ትንተና", h: "የሠራተኛ ብዛት፣ የሥራ መገኘት፣ የደመወዝ ወጪና የትርፍ ሰዓት በአንድ ዳሽቦርድ" },
+  },
+  {
+    id: "attendance",
+    layout: "browser",
+    shots: ["attendance-{lang}"],
+    path: "/attendance-system",
+    en: { over: "Attendance", h: "ETHR turns each punch into hours, lateness and overtime" },
+    am: { over: "መገኘት", h: "ETHR እያንዳንዱን ምዝገባ ወደ ሰዓት፣ ማርፈድና ትርፍ ሰዓት ይቀይራል" },
+  },
+  {
+    id: "employees",
+    layout: "browsers",
+    shots: ["employees-en", "employees-am"],
+    path: "/ethiopian-calendar-hr",
+    en: { over: "Amharic and English", h: "Every screen in Amharic or English, chosen by each user" },
+    am: { over: "አማርኛና እንግሊዝኛ", h: "እያንዳንዱ ገጽ በአማርኛ ወይም በእንግሊዝኛ፣ እያንዳንዱ ተጠቃሚ በሚመርጠው" },
+  },
+];
