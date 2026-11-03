@@ -207,6 +207,10 @@ const TRANSLATIONS = {
     "notification_prefs_page.channel_sms", // SMS
     "webhooks_page.url", // URL
     "work_sites.radius_short", // ":m m" — metres
+    // Plan names are brands: billing and invoices print them as stored.
+    "marketing.pricing_page.starter", // Starter
+    "marketing.pricing_page.professional", // Professional
+    "marketing.pricing_page.enterprise", // Enterprise
   ],
 };
 const translations = Object.fromEntries(
