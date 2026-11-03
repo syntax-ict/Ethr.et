@@ -11,6 +11,7 @@ use App\Models\Permission;
 use App\Models\SavedReport;
 use App\Models\ScheduledReport;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Notifications\ScheduledReportNotification;
 use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
@@ -164,6 +165,33 @@ describe('roles at the same level', function () {
             ->assertUnprocessable()->assertJsonValidationErrors('status');
 
         expect($finance->fresh()->status)->toBe('active');
+    });
+
+    it('an HR admin cannot open a Finance admin account from the add-employee form either', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        test()->postJson(payAuthzUrl($tenant, 'employees'), [
+            'name' => 'Second account',
+            'email' => 'second@example.com',
+            'hire_date' => '2026-01-01',
+            'create_login' => true,
+            'user_role' => UserRole::FINANCE_ADMIN->value,
+        ])->assertCreated();
+
+        expect(User::where('email', 'second@example.com')->sole()->role)->toBe(UserRole::EMPLOYEE);
+    });
+
+    it('an HR admin cannot narrow a Finance admin with a custom role', function () {
+        $tenant = createTenant();
+        $finance = createUser(['role' => UserRole::FINANCE_ADMIN, 'status' => 'active'], $tenant);
+        $narrow = payAuthzRole($tenant, ['profile.view']);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        test()->patchJson(payAuthzUrl($tenant, "users/{$finance->public_id}"), ['custom_role_id' => $narrow->public_id])
+            ->assertUnprocessable()->assertJsonValidationErrors('custom_role_id');
+
+        expect($finance->fresh()->custom_role_id)->toBeNull();
     });
 
     it('an HR admin still manages the people below them', function () {
