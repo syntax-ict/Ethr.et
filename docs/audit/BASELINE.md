@@ -4413,3 +4413,16 @@ Backend suite on MySQL, Frontend, Documentation integrity and API contract all
 passing together, 51 runs after the first push. Treat that as a starting line,
 not a finish: five separate structural defects had to be fixed before a single
 gate executed, and every one of them was invisible from the working tree.
+
+### 25e. CI runs the host's PHP, locks stay installable locally — 2026-11-03
+
+Until 2026-11-03 every CI job ran PHP 8.2 while the host runs 8.3.35, so the
+suite never ran on the PHP that serves production. Only `release.yml`, which
+builds `vendor/`, used 8.3. Every job now uses 8.3.
+
+The local XAMPP is PHP 8.2.12, and nothing stopped a lock built on 8.3 (by CI,
+by Dependabot, or by a developer on a newer PHP) from requiring 8.3. It
+happened: Dependabot's laravel/pint 1.32.1 (#545) needs `^8.3.0`, and every
+PHP check failed on 8.2. `composer.json` now sets `config.platform.php` to
+`8.2.12`, so Composer resolves for the oldest PHP the project runs on. Raise
+it when the local PHP moves to 8.3, which Laravel 13 (#522) needs anyway.
