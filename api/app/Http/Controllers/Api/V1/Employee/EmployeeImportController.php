@@ -51,10 +51,13 @@ class EmployeeImportController extends Controller
 
         // Salary and TIN are pay data, as on the add-employee form: a file
         // that sets either needs the permission that edits them (A-Z review B-03).
+        /** @var list<array<string, mixed>> $rows */
         $rows = $request->validated('rows');
-        if (collect($rows)->contains(fn (array $row): bool => EmployeeImportRow::salaryCents($row) !== null
-            || (isset($row['tin']) && $row['tin'] !== ''))) {
-            Gate::authorize('employee.updateFinancial');
+        foreach ($rows as $row) {
+            if (EmployeeImportRow::salaryCents($row) !== null || (isset($row['tin']) && $row['tin'] !== '')) {
+                Gate::authorize('employee.updateFinancial');
+                break;
+            }
         }
 
         // Enforced on the whole batch up front, not per row: a partial commit
