@@ -5,6 +5,7 @@ import {
   toGregorian,
 } from "@/lib/calendar/ethiopian";
 import type { CalendarSystem } from "@/lib/calendar/calendar-context";
+import { intlLocale } from "@/lib/i18n/config";
 
 /**
  * The periods the Analytics page offers, in whole months of the viewer's
@@ -145,7 +146,7 @@ export function monthLabel(
   if (calendar === "ethiopian") {
     return formatEthiopianMonthYear(m.year, m.month, locale);
   }
-  return new Intl.DateTimeFormat(locale === "am" ? "am" : "en", {
+  return new Intl.DateTimeFormat(intlLocale(locale, "en"), {
     month: "long",
     year: "numeric",
   }).format(gregorianDate(m.year, m.month, 1));

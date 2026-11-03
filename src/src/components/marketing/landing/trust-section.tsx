@@ -23,13 +23,18 @@ export function TrustSection({ section }: { section: MarketingSection }) {
           <SectionIntro
             id="trust-heading"
             heading={
-              pickLocalised(locale, section.heading_am, section.heading) ??
-              section.heading
+              pickLocalised(
+                locale,
+                section.heading_am,
+                section.heading,
+                section.heading_om,
+              ) ?? section.heading
             }
             subheading={pickLocalised(
               locale,
               section.subheading_am,
               section.subheading,
+              section.subheading_om,
             )}
             tone="inverse"
             className="lg:col-span-5"
@@ -49,12 +54,21 @@ export function TrustSection({ section }: { section: MarketingSection }) {
                   )}
                   <div>
                     <h3 className="text-base font-semibold text-sidebar-foreground">
-                      {pickLocalised(locale, item.title_am, item.title) ??
-                        item.title}
+                      {pickLocalised(
+                        locale,
+                        item.title_am,
+                        item.title,
+                        item.title_om,
+                      ) ?? item.title}
                     </h3>
-                    {(item.body || item.body_am) && (
+                    {(item.body || item.body_am || item.body_om) && (
                       <p className="mt-1.5 text-sm leading-relaxed text-sidebar-foreground/75">
-                        {pickLocalised(locale, item.body_am, item.body)}
+                        {pickLocalised(
+                          locale,
+                          item.body_am,
+                          item.body,
+                          item.body_om,
+                        )}
                       </p>
                     )}
                   </div>

@@ -26,12 +26,23 @@ export function CtaSection({ section }: { section: MarketingSection }) {
             id="cta-heading"
             className="text-3xl font-semibold leading-tight tracking-[-0.015em] text-primary-foreground sm:text-4xl"
           >
-            {pickLocalised(locale, section.heading_am, section.heading) ??
-              section.heading}
+            {pickLocalised(
+              locale,
+              section.heading_am,
+              section.heading,
+              section.heading_om,
+            ) ?? section.heading}
           </h2>
-          {(section.subheading || section.subheading_am) && (
+          {(section.subheading ||
+            section.subheading_am ||
+            section.subheading_om) && (
             <p className="mt-4 text-lg leading-relaxed text-primary-foreground/80">
-              {pickLocalised(locale, section.subheading_am, section.subheading)}
+              {pickLocalised(
+                locale,
+                section.subheading_am,
+                section.subheading,
+                section.subheading_om,
+              )}
             </p>
           )}
         </div>
@@ -63,7 +74,12 @@ export function CtaSection({ section }: { section: MarketingSection }) {
             {section.items.map((item) => (
               <li key={item.public_id} className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                {pickLocalised(locale, item.title_am, item.title) ?? item.title}
+                {pickLocalised(
+                  locale,
+                  item.title_am,
+                  item.title,
+                  item.title_om,
+                ) ?? item.title}
               </li>
             ))}
           </ul>

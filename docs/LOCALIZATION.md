@@ -12,14 +12,14 @@ ETHR is built for Ethiopian organizations. Localization is not an afterthought �
 
 | Language | Code | Status | Coverage |
 |---|---|---|---|
-| English | `en` | Complete | 15+ translation files |
-| አማርኛ (Amharic) | `am` | Complete | 15+ translation files (matching EN) |
+| English | `en` | Complete | 38 backend files, 6,600+ frontend keys |
+| አማርኛ (Amharic) | `am` | Complete | Matching EN |
+| Afaan Oromoo (Oromo) | `om` | Complete since 2026-11-02 | Matching EN |
 
 ### Architecture Supports (v2.0+)
 
 | Language | Code | Script |
 |---|---|---|
-| Afaan Oromoo | `om` | Latin |
 | ትግርኛ (Tigrinya) | `ti` | Ethiopic |
 | Soomaali (Somali) | `so` | Latin |
 | Sidama | `sid` | Latin |
@@ -27,7 +27,7 @@ ETHR is built for Ethiopian organizations. Localization is not an afterthought �
 
 ### Translation File Structure
 
-Every `en/*.php` file must have a corresponding `am/*.php` file with identical keys.
+Every `en/*.php` file must have a corresponding `am/*.php` and `om/*.php` file with identical keys. `tests/Feature/LangParityTest.php` holds each translation to that, to the English `:placeholders`, and to not shipping English text.
 
 ```
 /api/lang/
@@ -83,8 +83,8 @@ payroll.calculation.basic_salary → "መሰረታዊ ደመወዝ" (am)
 ### Translation Rules
 
 1. **No hardcoded strings.** Every user-facing text uses a translation key.
-2. **Both languages required.** A key without an Amharic translation is a build failure.
-3. **Validation script:** Compare all `en/*.php` keys against `am/*.php` — flag any missing.
+2. **Every shipped language required.** A key without an Amharic or an Oromo translation is a build failure — `scripts/i18n-check.js` on the frontend (its `TRANSLATIONS` table lists each language and the values rightly identical to English), `LangParityTest` on the backend.
+3. **One list of shipped languages.** `supportedLocales` in `src/src/lib/i18n/config.ts` (`status: "available"`) and `App\Support\Locales::SHIPPED`. Promoting a stub is its dictionary, its `lang/<code>/` files, and those two lists.
 4. **Context matters.** Some English words translate differently depending on context (e.g., "leave" as absence vs "leave" as depart).
 5. **Gender-aware.** Amharic has grammatical gender — use neutral forms where possible.
 
@@ -101,14 +101,14 @@ const { t } = useT();
 t('approvals.reject_description', 'This will be recorded and shown to :name.', { name: employee.name })
 ```
 
-The language switcher offers only locales marked `available` in `src/src/lib/i18n/config.ts` — today `en` and `am`. The others are listed as `coming_soon` and cannot be selected.
+The language switcher offers only locales marked `available` in `src/src/lib/i18n/config.ts` — today `en`, `am` and `om`. The others are listed as `coming_soon` and cannot be selected.
 
 Frontend translation files are one JSON dictionary per locale:
 ```
 /src/src/lib/i18n/locales/
   en.json
   am.json
-  om.json   (stub, coming soon)
+  om.json
   ti.json   (stub, coming soon)
   so.json   (stub, coming soon)
   sid.json  (stub, coming soon)
@@ -144,6 +144,43 @@ Ethiopia uses the Ge'ez calendar (Ethiopian calendar) alongside the Gregorian ca
 | 11 | ሐምሌ (Hamle) | Jul 8 – Aug 6 |
 | 12 | ነሐሴ (Nehase) | Aug 7 – Sep 5 |
 | 13 | ጳጉሜን (Pagumen) | Sep 6 – Sep 10 (or Sep 11) |
+
+### Afaan Oromoo (`om`) — shipped 2026-11-02
+
+Oromo names the Ethiopian months by season, mapped one-to-one onto Meskerem … Pagume:
+Fulbaana, Onkololeessa, Sadaasa, Muddee, Amajjii, Guraandhala, Bitootessa, Ebla, Caamsaa,
+Waxabajjii, Adoolessa, Hagayya, Qaammee. Both sides hold the list once:
+`ETHIOPIAN_MONTHS_OM` (`src/src/lib/calendar/ethiopian.ts`) and `ReaderDates::MONTHS['om']`.
+
+- **Clock.** `auto` is the Ethiopian clock for an Oromo reader on the Ethiopian calendar, as for
+  Amharic. Periods: *ganama* (morning), *waaree booda* (afternoon), *galgala* (evening), *halkan*
+  (night) — `1:30 ganama` is 07:30.
+- **Gregorian dates** use the runtime's `om-ET` locale data (`Wiixata`, `Sadaasa 2026`).
+  `intlLocale()` in `src/src/lib/i18n/config.ts` falls back to English where a browser's ICU lacks
+  `om`, rather than letting it format in the device's own language.
+- **E-mails** have built-in Oromo text (`subject_om`/`body_om` in `NotificationTemplates::DEFAULTS`).
+  Organisations customise only English and Amharic; an Oromo reader gets the built-in Oromo, as an
+  Amharic reader gets built-in Amharic when only English was edited.
+- **Employment letters** can be requested in Oromo.
+
+- **The public landing page** has Oromo twins (`heading_om`, `subheading_om`, `title_om`,
+  `body_om`, `detail_om`, `image_alt_om` on `marketing_sections`/`marketing_items`), edited at
+  `/admin/marketing` beside the Amharic. Built-in Oromo copy is in
+  `api/database/seeders/assets/marketing/oromo.php`. `ProductionSeeder` writes it into a field only
+  while that field is empty and the English beside it is still the seeded English, so a release
+  gives `/om` its Oromo without ever pairing a translation with an operator's rewritten English.
+  An empty Oromo field shows the English (`pickLocalised`).
+
+**Organisation data has no Oromo column, on purpose.** Departments, branches, positions, leave
+types, holidays and shifts carry `name` plus `name_am` because Amharic needs a second script. Oromo
+is written in the Latin script, so an Oromo-speaking organisation types Oromo into `name` itself,
+which is what every reader sees. A third column would only help an organisation that keeps the
+same name in English *and* Oromo *and* Amharic.
+
+**Not yet in Oromo:** the site-wide labels in `platform_settings` (product name, tagline, office
+address, testimonial, payment instructions), plan descriptions and selling points, and an
+organisation's portal page and FAQ. An Oromo reader sees their English. Each is a migration, a
+resource field and an editor field, as the landing page's was.
 
 ### Dual Calendar Display
 

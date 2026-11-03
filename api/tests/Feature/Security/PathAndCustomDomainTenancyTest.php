@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Support\FrontendUrl;
+use App\Support\Locales;
 
 /**
  * Tenancy without wildcard subdomains (owner decision, 2026-10-06).
@@ -347,8 +348,8 @@ it('reserves every top-level frontend route so no organisation can shadow one', 
     }
 
     expect($routes)->not->toBeEmpty();
-    // The marketing site's locale segment.
-    $routes = array_merge($routes, ['en', 'am']);
+    // The marketing site's locale segment: every language it is built in.
+    $routes = array_merge($routes, Locales::SHIPPED);
 
     $missing = array_values(array_diff(array_unique($routes), Tenant::RESERVED_SUBDOMAINS));
     expect($missing)->toBe([], 'top-level routes an organisation could claim: '.implode(', ', $missing));

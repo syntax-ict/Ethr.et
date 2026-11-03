@@ -55,9 +55,11 @@ class MissingPunchNotification extends Notification implements BulkMail
     public function toMail(object $notifiable): MailMessage
     {
         $checkOut = $this->type === 'missing_check_out';
-        $label = app()->getLocale() === 'am'
-            ? ($checkOut ? 'መውጫ' : 'መግቢያ')
-            : ($checkOut ? 'check-out' : 'check-in');
+        $label = match (app()->getLocale()) {
+            'am' => $checkOut ? 'መውጫ' : 'መግቢያ',
+            'om' => $checkOut ? 'bahiinsa' : 'seensa',
+            default => $checkOut ? 'check-out' : 'check-in',
+        };
 
         return NotificationTemplates::mail('missing_punch', $this->employee->tenant_id, [
             'employee_name' => $this->employee->name,

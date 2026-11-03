@@ -13,7 +13,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 
 /**
- * The landing page's first-run content, in English and Amharic.
+ * The landing page's first-run content, in English, Amharic and Afaan Oromoo.
  *
  * Every sentence here was on the public site as a translation key, checked
  * against the code by the capability audit of 2026-10-17, or was written
@@ -26,6 +26,13 @@ use Illuminate\Support\Facades\Log;
  * after a restore. A re-seed establishes rows that are missing and leaves
  * every existing one alone, text and picture alike. Pictures come from the
  * manifest beside this file, see loadImages().
+ *
+ * The Oromo copy lives in `assets/marketing/oromo.php` and is the one
+ * exception to "leaves every existing row alone": a row that predates it gets
+ * its Oromo, field by field, while that field is empty and the English beside
+ * it is still the seeded English. An operator who rewrote the English has a
+ * page the translation no longer describes, so that field stays empty and the
+ * page shows their English until they write the Oromo.
  */
 class MarketingContentSeeder extends Seeder
 {
@@ -33,23 +40,81 @@ class MarketingContentSeeder extends Seeder
 
     public function run(): void
     {
+        $oromo = $this->oromo();
+
         $order = 1;
         foreach ($this->sections() as $kind => $section) {
             $items = $section['items'] ?? [];
             unset($section['items']);
 
-            MarketingSection::query()->firstOrCreate(['kind' => $kind], [...$section, 'sort_order' => $order++]);
+            $sectionOromo = self::oromoFor($oromo, $kind);
+            $row = MarketingSection::query()->firstOrCreate(['kind' => $kind], [...$section, ...$sectionOromo, 'sort_order' => $order++]);
+            self::backfillOromo($row, $section, $sectionOromo);
 
             $position = 1;
             foreach ($items as $slug => $item) {
-                MarketingItem::query()->firstOrCreate(
+                $itemOromo = self::oromoFor($oromo, "{$kind}.items.{$slug}");
+                $row = MarketingItem::query()->firstOrCreate(
                     ['section_kind' => $kind, 'slug' => $slug],
-                    [...$item, 'sort_order' => $position++],
+                    [...$item, ...$itemOromo, 'sort_order' => $position++],
                 );
+                self::backfillOromo($row, $item, $itemOromo);
             }
         }
 
         $this->loadImages();
+    }
+
+    /**
+     * The built-in Oromo copy, keyed as `assets/marketing/oromo.php` keys it.
+     *
+     * @return array<string, string>
+     */
+    public function oromo(): array
+    {
+        /** @var array<string, string> $copy */
+        $copy = require self::ASSETS_DIR.'/oromo.php';
+
+        return $copy;
+    }
+
+    /**
+     * The `_om` columns for one section (`hero`) or row (`hero.items.slug`).
+     *
+     * @param  array<string, string>  $oromo
+     * @return array<string, string>
+     */
+    private static function oromoFor(array $oromo, string $prefix): array
+    {
+        $columns = [];
+        foreach (['heading', 'subheading', 'title', 'body', 'detail', 'image_alt'] as $field) {
+            if (isset($oromo["{$prefix}.{$field}"])) {
+                $columns["{$field}_om"] = $oromo["{$prefix}.{$field}"];
+            }
+        }
+
+        return $columns;
+    }
+
+    /**
+     * Give an existing row the Oromo it lacks, only where the English beside
+     * each field is still the seeded English.
+     *
+     * @param  array<string, mixed>  $seeded
+     * @param  array<string, string>  $oromo
+     */
+    private static function backfillOromo(MarketingSection|MarketingItem $row, array $seeded, array $oromo): void
+    {
+        foreach ($oromo as $column => $text) {
+            $english = substr($column, 0, -3);
+            if ($row->getAttribute($column) === null && isset($seeded[$english]) && $row->getAttribute($english) === $seeded[$english]) {
+                $row->setAttribute($column, $text);
+            }
+        }
+
+        if ($row->isDirty()) {
+            $row->save();
+        }
     }
 
     /**
@@ -101,6 +166,7 @@ class MarketingContentSeeder extends Seeder
                 ...MarketingImage::columns($stored),
                 'image_alt' => isset($entry['alt']) ? (string) $entry['alt'] : null,
                 'image_alt_am' => isset($entry['alt_am']) ? (string) $entry['alt_am'] : null,
+                'image_alt_om' => isset($entry['alt_om']) ? (string) $entry['alt_om'] : null,
             ])->save();
         }
     }

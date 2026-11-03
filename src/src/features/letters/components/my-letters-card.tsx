@@ -17,10 +17,14 @@ import {
 } from "@/components/ui/select";
 import {
   downloadMyLetter,
+  LETTER_LANGUAGES,
+  toLetterLanguage,
   useMyLetters,
   useRequestLetter,
+  type LetterLanguage,
   type LetterRequest,
 } from "@/features/letters/api";
+import { nativeLanguageName } from "@/lib/i18n/config";
 import { apiErrorDetail } from "@/lib/api/error-message";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
@@ -38,7 +42,7 @@ export function MyLettersCard() {
   const [purpose, setPurpose] = useState("");
   const [addressedTo, setAddressedTo] = useState("");
   const [includeSalary, setIncludeSalary] = useState(false);
-  const [language, setLanguage] = useState<"en" | "am">("en");
+  const [language, setLanguage] = useState<LetterLanguage>("en");
 
   function submit() {
     request.mutate(
@@ -106,14 +110,17 @@ export function MyLettersCard() {
             <Label htmlFor="letter_language">{t("letters.language")}</Label>
             <Select
               value={language}
-              onValueChange={(v) => setLanguage(v === "am" ? "am" : "en")}
+              onValueChange={(v) => setLanguage(toLetterLanguage(v))}
             >
               <SelectTrigger id="letter_language" className="mt-1">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="am">አማርኛ</SelectItem>
+                {LETTER_LANGUAGES.map((code) => (
+                  <SelectItem key={code} value={code}>
+                    {nativeLanguageName(code)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

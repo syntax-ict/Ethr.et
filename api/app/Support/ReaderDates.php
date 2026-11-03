@@ -26,18 +26,21 @@ use Carbon\CarbonInterface;
  * notification renders, and to the reader's while a request is served.
  *
  * Outputs match the frontend's for the same inputs: `Tikimt 22, 2019`,
- * `ጥቅምት 22, 2019`, `01 Nov 2026`; `1:30 ጠዋት`, `07:30`.
+ * `ጥቅምት 22, 2019`, `Onkololeessa 22, 2019`, `01 Nov 2026`; `1:30 ጠዋት`,
+ * `1:30 ganama`, `07:30`.
  */
 final class ReaderDates
 {
     private const MONTHS = [
         'en' => ['Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit', 'Miyazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'],
         'am' => ['መስከረም', 'ጥቅምት', 'ኅዳር', 'ታኅሣሥ', 'ጥር', 'የካቲት', 'መጋቢት', 'ሚያዝያ', 'ግንቦት', 'ሰኔ', 'ሐምሌ', 'ነሐሴ', 'ጳጉሜ'],
+        'om' => ['Fulbaana', 'Onkololeessa', 'Sadaasa', 'Muddee', 'Amajjii', 'Guraandhala', 'Bitootessa', 'Ebla', 'Caamsaa', 'Waxabajjii', 'Adoolessa', 'Hagayya', 'Qaammee'],
     ];
 
     private const PERIODS = [
         'en' => ['morning' => 'morning', 'day' => 'afternoon', 'evening' => 'evening', 'night' => 'night'],
         'am' => ['morning' => 'ጠዋት', 'day' => 'ቀን', 'evening' => 'ምሽት', 'night' => 'ሌሊት'],
+        'om' => ['morning' => 'ganama', 'day' => 'waaree booda', 'evening' => 'galgala', 'night' => 'halkan'],
     ];
 
     /**
@@ -87,7 +90,7 @@ final class ReaderDates
     private static function make(string $calendar, string $clockPreference, string $locale, ?Tenant $tenant): self
     {
         $calendar = $calendar === 'gregorian' ? 'gregorian' : 'ethiopian';
-        $locale = $locale === 'am' ? 'am' : 'en';
+        $locale = Locales::orDefault($locale);
 
         return new self(
             $calendar,
@@ -120,9 +123,9 @@ final class ReaderDates
             return $this->monthName($eth['month']).' '.$eth['day'].', '.$eth['year'];
         }
 
-        return $this->locale === 'am'
-            ? $day->locale('am')->translatedFormat('d M Y')
-            : $day->format('d M Y');
+        return $this->locale === 'en'
+            ? $day->format('d M Y')
+            : $day->locale($this->locale)->translatedFormat('d M Y');
     }
 
     /** The time of day an instant falls on in the organisation's zone. */
@@ -199,9 +202,9 @@ final class ReaderDates
             return $this->monthName($eth['month']).' '.$eth['year'];
         }
 
-        return $this->locale === 'am'
-            ? $midpoint->locale('am')->translatedFormat('F Y')
-            : $midpoint->format('F Y');
+        return $this->locale === 'en'
+            ? $midpoint->format('F Y')
+            : $midpoint->locale($this->locale)->translatedFormat('F Y');
     }
 
     /** A payroll run's month, or its stored label for a run without dates. */

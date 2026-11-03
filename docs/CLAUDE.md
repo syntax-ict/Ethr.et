@@ -126,7 +126,7 @@ These are hard constraints on every slice. No exceptions.
 | 6 | FormRequest validation | All validation in dedicated `FormRequest` classes. No inline `$request->validate()`. **Enforced 2026-09-25** by `tests/Feature/Security/ControllerValidationConventionTest.php`, which tokenises all 105 controllers. It found **one** violation — `ShiftRotationController::preview()`, out of 305 validation sites — now moved to `PreviewShiftRotationRequest`. A lone exception in an otherwise uniform codebase is invisible to review, which sees one file at a time. Be exact about what the gate buys: it asserts no controller validates inline. It does **not** assert every endpoint *has* a FormRequest — a controller that validates nothing passes cleanly — because that needs the route surface, which is a different test and is not written. |
 | 7 | Policy authorization | No unprotected endpoints. Use `$user->hasPermission()` not `$user->role ===`. **Corrected and enforced 2026-09-25** by `tests/Feature/Security/ControllerAuthorizationInventoryTest.php`. The old wording — *"every controller action authorized via `Policy` or `Gate`"* — described neither the codebase nor, for most of the exceptions, what it should be doing. Measured across all **313** controller actions reachable from `routes/api.php`: **228** call `Gate::authorize` / `$this->authorize` / `abort_unless` inline, **14** reach a guard through a same-class private helper that throws (`ExecutiveDashboardController`, `AlertThresholdController`, `DashboardDigestController`, `AdminTenantController::exitImpersonation`), **1** is authorized solely by a `FormRequest::authorize()` (`UserController::store`), and **70** contain no authorization construct at all — **35** inside the `auth:sanctum` group and **35** outside it. A sweep written from the literal wording would report all 70 as violations and be ignored, which is why none existed before. Every one of the 70 is pinned with a reason in `tests/Feature/Security/routes-without-authorization.php`; the 35 authenticated ones were read individually and each narrows to the caller's own rows via `$request->user()` or is tenant-wide on purpose (the staff directory, the announcement list), and the 35 public ones are pre-authentication surfaces whose presented secret or route middleware is the authority — stated, **not** individually audited, and the file says so. Same bargain as Convention #1: the pin makes an unguarded endpoint a deliberate act; it does not audit the ones already there. Two traps it encodes: `FormRequest::authorize()` returning `return true;` is **not** an authorization check, and **17** of them carry a trailing `// Gate::authorize(...) runs in the controller.` comment, so a text-matching triviality test excuses seventeen endpoints — detection is tokenised. The sweep found one real defect, fixed in the same pass: `AnnouncementController::show()` applied neither of the scopes its own `index()` applies, so any authenticated user holding a `public_id` could read an unpublished draft. |
 | 8 | RFC-7807 errors | All API errors return `{ type, title, status, detail, errors? }` as `application/problem+json`. |
-| 9 | i18n keys only | No hardcoded strings. Translation keys for all user-facing text. Ship `en` + `am`. Architecture supports `om`, `ti`, `so`, `sid`. |
+| 9 | i18n keys only | No hardcoded strings. Translation keys for all user-facing text. Ship `en` + `am` + `om` (Afaan Oromoo since 2026-11-02); `ti`, `so`, `sid` are stubs marked `coming_soon`. The shipped list is `supportedLocales` (`status: "available"`) on the frontend and `App\Support\Locales::SHIPPED` on the backend — never restate it as a literal. |
 | 10 | Idempotency keys | All write operations on attendance, payroll, and field data require `Idempotency-Key` header. Replay returns `was_duplicate: true`. |
 | 11 | Payroll audit trail | Every `PayrollEntry` must store a `calculation_log` JSON with the full pipeline trace: inputs, intermediate values, applied rules, and outputs at each step. Immutable after approval. |
 | 12 | Semantic color tokens | Never use Tailwind color values directly. Always reference semantic CSS variables (`--color-surface-primary`, `--color-text-secondary`). |
@@ -468,7 +468,7 @@ Rules for all forms:
 - Ethiopia does not observe DST. UTC+3 is constant year-round.
 - All date pickers: support dual calendar display (Gregorian + Ethiopian) when tenant enables it.
 - Leave day counting: must handle leave spanning Pagumen correctly.
-- Time of day: the Ethiopian clock (06:00 = 12:00 ጠዋት, 18:00 = 12:00 ምሽት) is for display and input only; store and transport UTC, 24-hour. The reader's clock is `auto` / `ethiopian` / `24h` (user, else `settings.clock`, else `auto`); `auto` is Ethiopian time for Amharic on the Ethiopian calendar. One rule each side: `ClockPreference::resolve()` and `resolveClock()`. Render times through `useDateFormatters()`, never `toLocaleTimeString`.
+- Time of day: the Ethiopian clock (06:00 = 12:00 ጠዋት, 18:00 = 12:00 ምሽት) is for display and input only; store and transport UTC, 24-hour. The reader's clock is `auto` / `ethiopian` / `24h` (user, else `settings.clock`, else `auto`); `auto` is Ethiopian time for Amharic or Oromo on the Ethiopian calendar (Oromo periods: ganama, waaree booda, galgala, halkan). One rule each side: `ClockPreference::resolve()` and `resolveClock()`. Render times through `useDateFormatters()`, never `toLocaleTimeString`.
 - Amharic line-height: use 1.6-1.8 (vs 1.5 for Latin text).
 
 ---
@@ -490,7 +490,7 @@ Per-slice review checklist — a few items are also enforced by a gate, most are
 - [ ] Every endpoint has a `Policy` using `hasPermission()`
 - [ ] Sensitive operations write to `audit_log`
 - [ ] Payroll operations store `calculation_log`
-- [ ] All user-facing strings use i18n keys (`en` + `am`)
+- [ ] All user-facing strings use i18n keys (`en` + `am` + `om`)
 - [ ] Responsive: mobile (375px), tablet (768px), desktop (1280px+)
 - [ ] Dark mode + light mode verified (semantic tokens only)
 - [ ] Error states, loading states, empty states handled via `QueryBoundary`
@@ -653,8 +653,9 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
     /Performance         ResponseTimeTest — outside the phpunit testsuites, run with `gates.sh performance`
   /config
   /lang
-    /en                  Full coverage (15+ files)
-    /am                  Full coverage (15+ files)
+    /en                  Full coverage (38 files)
+    /am                  Full coverage (38 files)
+    /om                  Full coverage (38 files), Afaan Oromoo
 
 /src                    Next.js 16 project root: config, e2e/, public/, scripts/
   /src                  The real frontend source — every path below is relative to src/src

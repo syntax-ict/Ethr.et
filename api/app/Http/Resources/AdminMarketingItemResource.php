@@ -34,13 +34,16 @@ class AdminMarketingItemResource extends JsonResource
             'body_am' => $this->body_am,
             'detail' => $this->detail,
             'detail_am' => $this->detail_am,
+            'title_om' => $this->title_om,
+            'body_om' => $this->body_om,
+            'detail_om' => $this->detail_om,
             'link_path' => $this->link_path,
             'image' => $this->image(),
         ];
     }
 
     /**
-     * @return array{url: string, srcset: string, width: int, height: int, alt: string|null, alt_am: string|null}|null
+     * @return array{url: string, srcset: string, width: int, height: int, alt: string|null, alt_am: string|null, alt_om: string|null}|null
      */
     private function image(): ?array
     {

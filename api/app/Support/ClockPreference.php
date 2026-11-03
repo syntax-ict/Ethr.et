@@ -70,7 +70,7 @@ final class ClockPreference
         return match ($preference) {
             self::ETHIOPIAN => self::ETHIOPIAN,
             self::TWENTY_FOUR_HOUR => self::TWENTY_FOUR_HOUR,
-            default => $calendar === 'ethiopian' && $locale === 'am'
+            default => $calendar === 'ethiopian' && in_array($locale, Locales::ETHIOPIAN_CLOCK, true)
                 ? self::ETHIOPIAN
                 : self::TWENTY_FOUR_HOUR,
         };

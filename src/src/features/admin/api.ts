@@ -832,9 +832,19 @@ function invalidateMarketingCaches(
 export type UpdateMarketingSectionPayload = Partial<
   Pick<
     AdminMarketingSection,
-    "heading" | "heading_am" | "subheading" | "subheading_am" | "is_published"
+    | "heading"
+    | "heading_am"
+    | "heading_om"
+    | "subheading"
+    | "subheading_am"
+    | "subheading_om"
+    | "is_published"
   >
-> & { image_alt?: string | null; image_alt_am?: string | null };
+> & {
+  image_alt?: string | null;
+  image_alt_am?: string | null;
+  image_alt_om?: string | null;
+};
 
 export function useUpdateMarketingSection() {
   const qc = useQueryClient();
@@ -862,11 +872,18 @@ export type MarketingItemPayload = Partial<
     | "body_am"
     | "detail"
     | "detail_am"
+    | "title_om"
+    | "body_om"
+    | "detail_om"
     | "icon"
     | "link_path"
     | "is_published"
   >
-> & { image_alt?: string | null; image_alt_am?: string | null };
+> & {
+  image_alt?: string | null;
+  image_alt_am?: string | null;
+  image_alt_om?: string | null;
+};
 
 export function useCreateMarketingItem() {
   const qc = useQueryClient();

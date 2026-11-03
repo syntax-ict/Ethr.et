@@ -12,7 +12,7 @@ export async function generateMetadata({
   return marketingMetadata(locale, "/features", "features", {
     title: "Features: Payroll, Attendance and Leave for Ethiopia",
     description:
-      "Payroll with Ethiopian income tax and pension, attendance by phone, QR code and kiosk, leave balances, the Ethiopian calendar, offline use and Amharic.",
+      "Payroll with Ethiopian income tax and pension, attendance by phone, QR code and kiosk, leave balances, the Ethiopian calendar, offline use, Amharic and Afaan Oromo.",
   });
 }
 
