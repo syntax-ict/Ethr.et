@@ -50269,7 +50269,7 @@
                                         "string",
                                         "null"
                                     ],
-                                    "maxLength": 50
+                                    "maxLength": 30
                                 },
                                 "hire_date": {
                                     "type": [
