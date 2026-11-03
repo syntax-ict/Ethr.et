@@ -38,6 +38,7 @@ class PlanResource extends JsonResource
             'slug' => (string) $this->slug,
             'description' => $this->description,
             'description_am' => $this->description_am,
+            'description_om' => $this->description_om,
             'price_cents' => (int) $this->price_cents,
             'currency' => (string) $this->currency,
             'billing_interval' => (string) $this->billing_interval,
@@ -47,6 +48,7 @@ class PlanResource extends JsonResource
             'features' => $this->features,
             'marketing_features' => $this->marketing_features,
             'marketing_features_am' => $this->marketing_features_am,
+            'marketing_features_om' => $this->marketing_features_om,
             'is_popular' => (bool) $this->is_popular,
             'sort_order' => (int) $this->sort_order,
         ];
