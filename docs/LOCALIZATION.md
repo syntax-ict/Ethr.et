@@ -197,10 +197,16 @@ is written in the Latin script, so an Oromo-speaking organisation types Oromo in
 which is what every reader sees. A third column would only help an organisation that keeps the
 same name in English *and* Oromo *and* Amharic.
 
-**Not yet in Oromo:** the site-wide labels in `platform_settings` (product name, tagline, office
-address, testimonial, payment instructions), plan descriptions and selling points, and an
-organisation's portal page and FAQ. An Oromo reader sees their English. Each is a migration, a
-resource field and an editor field, as the landing page's was.
+- **The platform's own labels and the plan catalogue** have Oromo twins too (since 2026-11-03):
+  `platform_name_om`, `tagline_om`, `office_address_om`, `metric_uptime_note_om`,
+  `testimonial_quote_om`, `testimonial_role_om`, `product_mark_label_om` and
+  `payment_instructions_om` on `platform_settings`; `description_om` and `marketing_features_om` on
+  `plans`. All are edited in the platform console beside the Amharic. `PlanSeeder` writes built-in
+  Oromo for the three plans on the same rule as the landing page: only into an empty field whose
+  English is still the seeded English.
+
+**Not yet in Oromo:** an organisation's own portal page and FAQ (`TenantLanding`), which the
+organisation writes in English and Amharic. An Oromo reader sees the English.
 
 ### Dual Calendar Display
 

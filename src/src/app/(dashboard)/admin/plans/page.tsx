@@ -165,12 +165,14 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
     name: useId(),
     description: useId(),
     descriptionAm: useId(),
+    descriptionOm: useId(),
     price: useId(),
     employees: useId(),
     branches: useId(),
     devices: useId(),
     bullets: useId(),
     bulletsAm: useId(),
+    bulletsOm: useId(),
     isPublic: useId(),
     isPopular: useId(),
   };
@@ -179,6 +181,7 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
     name: plan.name,
     description: plan.description ?? "",
     description_am: plan.description_am ?? "",
+    description_om: plan.description_om ?? "",
     price: toMajor(plan.price_cents),
     max_employees:
       plan.max_employees === null ? "" : String(plan.max_employees),
@@ -186,6 +189,7 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
     max_devices: plan.max_devices === null ? "" : String(plan.max_devices),
     marketing_features: toLines(plan.marketing_features),
     marketing_features_am: toLines(plan.marketing_features_am),
+    marketing_features_om: toLines(plan.marketing_features_om),
     is_public: plan.is_public,
     is_popular: plan.is_popular,
     features: plan.features ?? [],
@@ -215,12 +219,14 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
         name: form.name,
         description: form.description || null,
         description_am: form.description_am || null,
+        description_om: form.description_om || null,
         price_cents: priceCents,
         max_employees: toLimit(form.max_employees),
         max_branches: toLimit(form.max_branches),
         max_devices: toLimit(form.max_devices),
         marketing_features: fromLines(form.marketing_features),
         marketing_features_am: fromLines(form.marketing_features_am),
+        marketing_features_om: fromLines(form.marketing_features_om),
         is_public: form.is_public,
         is_popular: form.is_popular,
         features: form.features,
@@ -283,7 +289,7 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
           </Field>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field
             id={ids.description}
             label={t("admin_plans.summary", "One-line summary")}
@@ -302,6 +308,19 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
               id={ids.descriptionAm}
               value={form.description_am}
               onChange={(e) => set("description_am", e.target.value)}
+            />
+          </Field>
+          <Field
+            id={ids.descriptionOm}
+            label={t(
+              "admin_plans.summary_om",
+              "One-line summary (Afaan Oromo)",
+            )}
+          >
+            <Input
+              id={ids.descriptionOm}
+              value={form.description_om}
+              onChange={(e) => set("description_om", e.target.value)}
             />
           </Field>
         </div>
@@ -345,7 +364,7 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
           </Field>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field
             id={ids.bullets}
             label={t("admin_plans.bullets", "Selling points")}
@@ -368,6 +387,18 @@ function PlanCard({ plan }: { plan: AdminPlan }) {
               rows={4}
               value={form.marketing_features_am}
               onChange={(e) => set("marketing_features_am", e.target.value)}
+            />
+          </Field>
+          <Field
+            id={ids.bulletsOm}
+            label={t("admin_plans.bullets_om", "Selling points (Afaan Oromo)")}
+            hint={t("admin_plans.one_per_line", "One per line")}
+          >
+            <Textarea
+              id={ids.bulletsOm}
+              rows={4}
+              value={form.marketing_features_om}
+              onChange={(e) => set("marketing_features_om", e.target.value)}
             />
           </Field>
         </div>
