@@ -59,9 +59,9 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          # 8.2, like every other job: a revert-and-retest that runs on a newer
+          # 8.3, like every other job: a revert-and-retest that runs on a newer
           # PHP than CI can disagree with CI for reasons that are not the fix.
-          php-version: "8.2"
+          php-version: "8.3"
           extensions: gd, pdo, pdo_mysql, pdo_sqlite, mbstring, zip
           coverage: none
 
