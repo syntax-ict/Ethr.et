@@ -46219,8 +46219,6 @@
                 "required": [
                     "public_id",
                     "name",
-                    "min_salary_cents",
-                    "max_salary_cents",
                     "sort_order",
                     "created_at",
                     "updated_at"
@@ -46250,7 +46248,6 @@
                 "required": [
                     "public_id",
                     "step",
-                    "salary_cents",
                     "created_at"
                 ],
                 "title": "GradeSalaryStepResource"

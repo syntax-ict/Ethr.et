@@ -2,7 +2,8 @@ import { cn } from "@/lib/utils";
 import { formatETB, formatETBCompact } from "@/lib/utils/currency";
 
 interface CurrencyDisplayProps {
-  cents: number;
+  /** Absent when the reader may not see this pay: the empty-cell marker shows. */
+  cents: number | null | undefined;
   className?: string;
 }
 
@@ -12,6 +13,10 @@ interface CurrencyDisplayProps {
  * in a payroll run took two lines.
  */
 export function CurrencyDisplay({ cents, className }: CurrencyDisplayProps) {
+  if (cents === null || cents === undefined) {
+    return <span className={className}>—</span>;
+  }
+
   const formatted = new Intl.NumberFormat("en-ET", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
