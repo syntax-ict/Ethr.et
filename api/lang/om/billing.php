@@ -5,16 +5,16 @@ declare(strict_types=1);
 return [
     'plan_changed' => 'Karoorri maallaqa hirmaannaa gara :plan jijjiirameera.',
     'invoice_paid' => 'Nagaheen akka kaffalameetti mallattaa\'eera.',
-    'employee_limit_reached' => 'Daangaa hojjettootaa karoora keessaniif ga\'aniittu.',
-    'branch_limit_reached' => 'Daangaa dameelee karoora keessaniif ga\'aniittu.',
-    'device_limit_reached' => 'Daangaa meeshaalee karoora keessaniif ga\'aniittu.',
+    'employee_limit_reached' => 'Daangaa hojjettootaa karoora keessaniif geessaniittu.',
+    'branch_limit_reached' => 'Daangaa dameelee karoora keessaniif geessaniittu.',
+    'device_limit_reached' => 'Daangaa meeshaalee karoora keessaniif geessaniittu.',
 
     'feature_not_in_plan' => 'Karoorri keessan :feature hin qabatu. Fayyadamuuf karoora ol guddisaa.',
     'feature_unavailable' => 'Dhaabbanni keessan amma :feature fayyadamuu hin danda\'u.',
     'feature_paused' => 'ETHR yeroof :feature cufeera. Booda irra deebi\'aa yaalaa.',
 
-    'feature_not_overridable' => 'Amaloonni kun dhaabbilee hundaaf yeroo tokkotti murtaa\'a; dhaabbata tokkoof kennamuu ykn fudhatamuu hin danda\'u.',
-    'feature_no_rollout' => 'Amaloonni kun dhaabbilee itti babal\'atu hin qabu. Banameera ykn Cufameera filadhaa.',
+    'feature_not_overridable' => 'Amalli kun dhaabbilee hundaaf yeroo tokkotti murtaa\'a; dhaabbata tokkoof kennamuu ykn fudhatamuu hin danda\'u.',
+    'feature_no_rollout' => 'Amalli kun dhaabbilee itti babal\'atu hin qabu. Banameera ykn Cufameera filadhaa.',
     'features' => [
         'attendance' => 'hordoffii argamaa',
         'leave' => 'bulchiinsa boqonnaa',

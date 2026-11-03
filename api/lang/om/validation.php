@@ -119,7 +119,7 @@ return [
     'missing_unless' => ':other :value yoo ta\'e malee, :attribute jiraachuu hin qabu.',
     'missing_with' => ':values yeroo jiru, :attribute jiraachuu hin qabu.',
     'missing_with_all' => ':values yeroo jiran, :attribute jiraachuu hin qabu.',
-    'multiple_of' => ':attribute baay\'ifamaa :value ta\'uu qaba.',
+    'multiple_of' => ':attribute dachaa :value ta\'uu qaba.',
     'not_in' => ':attribute filatame sirrii miti.',
     'not_regex' => 'Akkaataan :attribute sirrii miti.',
     'numeric' => ':attribute lakkoofsa ta\'uu qaba.',
@@ -221,7 +221,7 @@ return [
     'landing_faq_question' => 'Gaaffii sana Afaan Ingiliffaa ykn Afaan Amaaraatiin barreessaa.',
     'landing_faq_answer' => 'Deebii sana Afaan Ingiliffaa ykn Afaan Amaaraatiin barreessaa.',
     'landing_service_title' => 'Tajaajilichaaf Afaan Ingiliffaa ykn Afaan Amaaraatiin maqaa kennaa.',
-    'announcement_files_max' => 'Oduun tokko yoo baay\'ate sanadoota :max qabachuu danda\'a.',
+    'announcement_files_max' => 'Oduun tokko yoo baay\'ate sanadoota :max qabaachuu danda\'a.',
     // AppRulesPermittedMarketingClaim: the public site may not make this claim.
     'marketing_claim' => 'Barreeffamni kun ibsa marsariitiin ummataa gochuu hin dandeenye qaba. Tarreeffama isaatiif qajeelfama qabiyyee gabaa ilaalaa.',
     'marketing_field_unused' => 'Kutaan :kind dirree kana hin fayyadamu.',
@@ -236,9 +236,9 @@ return [
     'custom_domain_cname_missing' => ':domain CNAME gara :target miti.',
     'custom_domain_none' => 'Dhaabbanni kun domeenii dhuunfaa mirkanaa\'u hin qabu.',
     // UpdateSubdomainRequest and TenantAddressService::changeSubdomain: renaming the address.
-    'subdomain_format' => 'Qubee xiqqaa, lakkoofsa fi sarara gabaabaa (-) fayyadamaa; qubee ykn lakkoofsaan jalqabee xumuramuu qaba.',
+    'subdomain_format' => 'Qubee xiqqaa, lakkoofsa fi sarara gabaabaa (-) fayyadamaa; maqaan qubee ykn lakkoofsaan jalqabee xumuramuu qaba.',
     'subdomain_reserved' => 'Maqaan sun ETHR\'n qabameera. Maaloo kan biraa filadhaa.',
-    'subdomain_taken' => 'Maqaan sun duraan itti fayyadamaa jira. Maaloo kan biraa filadhaa.',
+    'subdomain_taken' => 'Maqaan sun duraan itti fayyadamamaa jira. Maaloo kan biraa filadhaa.',
 
     'employee_minimum_age' => 'Hojjetaan guyyaa qacarrii irratti yoo xiqqaate umurii waggaa 15 qabaachuu qaba.',
     'holiday_duplicate' => 'Ayyaanni kun guyyaa sanaaf duraan dhaha irra jira.',
