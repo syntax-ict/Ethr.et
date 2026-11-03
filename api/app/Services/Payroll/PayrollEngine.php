@@ -662,7 +662,7 @@ final class PayrollEngine
             'limits' => $this->overtimeLimits($employee, $overtimeByDay, $periodStart, $periodEnd, $rules),
         ];
 
-        $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic);
+        $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic, $workedDays, $totalPeriodDays);
         $allowances = $allowanceResult['items'];
         $totalAllowances = $allowanceResult['total_cents'];
         $nonTaxableAllowances = $allowanceResult['non_taxable_cents'];

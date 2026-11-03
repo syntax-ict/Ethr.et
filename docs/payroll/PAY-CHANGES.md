@@ -17,6 +17,7 @@ by hand from the law and do not move at all.
 | Date | Change | Calculation log | Who is affected | Owner decision | Case |
 |---|---|---|---|---|---|
 | 2026-10-27 | Every amount is an exact fraction of cents, rounded once, half away from zero (`App\Support\Cents`), instead of a float passed to `round()` | 1.4 | Nobody measured: G1 to G7 and C1 to C6 are unchanged to the cent. A float could land a hair either side of a half, so a rare payslip may move by one cent | Payroll upgrade plan, upgrade 1 | none |
+| 2026-11-04 | A fixed allowance is paid for the days of the period the person was employed, as basic is: a hire on the 25th of a 31-day month gets 7/31 of it. It was paid in full. Percentage allowances already followed prorated basic; unpaid leave reduces neither | 1.5 (no new field: each allowance line's `amount_cents` is the prorated amount) | Anyone who joined or left during a period while a fixed allowance applied: that allowance falls to their share of the period. Everyone else is unchanged | Owner decision 2026-11-04 (A-Z review D-F3) | none moved; new test in `PayrollAllowanceTest` |
 
 ## Also in calculation log 1.4
 
