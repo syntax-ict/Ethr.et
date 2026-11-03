@@ -121,7 +121,7 @@ describe('configuration permissions', function () {
         $tenant = createTenant();
         $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
         $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
-        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $employee->id], $tenant);
+        actingAsRegional($tenant, $employee->id);
 
         $this->postJson('/api/v1/dashboard/alert-thresholds', [
             'metric' => 'turnover_rate',
@@ -202,7 +202,7 @@ describe('triggered endpoint', function () {
             'threshold_value' => 1.0,
         ]);
 
-        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $callerEmployee->id], $tenant);
+        actingAsRegional($tenant, $callerEmployee->id);
 
         // The caller's own branch has no resignations, so the tenant-wide
         // turnover spike from $otherBranch must not leak into their scope.

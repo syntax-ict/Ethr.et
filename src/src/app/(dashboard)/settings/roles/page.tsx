@@ -80,7 +80,7 @@ const SCOPE_FALLBACK: Record<(typeof ORG_SCOPES)[number], string> = {
   self: "Their own only",
   direct_reports: "Their direct reports",
   team: "Their team",
-  department: "Their department",
+  department: "Their department and the units under it",
   branch: "Their branch",
   all: "Everyone in the organisation",
 };
