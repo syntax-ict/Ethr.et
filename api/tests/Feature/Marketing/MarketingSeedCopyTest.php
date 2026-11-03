@@ -164,3 +164,24 @@ it('never replaces Oromo the operator wrote', function () {
 
     expect(MarketingSection::query()->where('kind', 'hero')->value('heading_om'))->toBe('Barreeffama hojii operaataraa');
 });
+
+it('replaces Oromo an earlier release seeded and a review corrected, but not the operator\'s', function () {
+    $superseded = (new MarketingContentSeeder)->oromoSuperseded();
+    $oromo = (new MarketingContentSeeder)->oromo();
+    expect($superseded)->not->toBeEmpty();
+    foreach ($superseded as $key => $earlier) {
+        expect($oromo)->toHaveKey($key)
+            ->and($earlier)->not->toContain($oromo[$key], "{$key} lists its current wording as superseded");
+    }
+
+    $this->seed(MarketingContentSeeder::class);
+    // As a release before the correction left it.
+    $earlier = $superseded['cta.subheading'][0];
+    MarketingSection::query()->where('kind', 'cta')->update(['subheading_om' => $earlier]);
+    MarketingSection::query()->where('kind', 'hero')->update(['heading_om' => 'Barreeffama operaataraa']);
+
+    $this->seed(MarketingContentSeeder::class);
+
+    expect(MarketingSection::query()->where('kind', 'cta')->value('subheading_om'))->toBe($oromo['cta.subheading'])
+        ->and(MarketingSection::query()->where('kind', 'hero')->value('heading_om'))->toBe('Barreeffama operaataraa');
+});

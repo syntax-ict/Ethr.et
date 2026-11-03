@@ -192,6 +192,8 @@ const TRANSLATIONS = {
     "audit_logs_page.ip", // IP
     "audit.subject.webhook", // Webhook — the technical term, kept
     "audit.entity.webhook", // Webhook
+    "roles_page.module_webhook", // Webhooks — the technical term, kept
+    "route.settings.webhooks.label", // Webhooks
     "employee.education.degree_placeholder", // BSc, MSc, MBA...
     "employee.education.gpa", // GPA
     "employee.tin", // TIN

@@ -171,6 +171,26 @@ Waxabajjii, Adoolessa, Hagayya, Qaammee. Both sides hold the list once:
   gives `/om` its Oromo without ever pairing a translation with an operator's rewritten English.
   An empty Oromo field shows the English (`pickLocalised`).
 
+**Writing Oromo strings (style rules, from the review of 2026-11-03).**
+
+- **Address.** Anything addressed to the reader (a sentence, hint, description, message,
+  e-mail) uses the polite plural, as the Amharic uses `-ዎ`: *isin*, *keessan*, verbs in
+  *-tan*, imperatives in *-aa* (*galmeessaa*, *filadhaa*, *irra deebi'aa yaalaa*). Never *ati*,
+  *kee*, *siif*. Short button, menu and column labels keep the bare form (*Olkaa'i*, *Haqi*).
+- **Terms.** *raggaasisuu* = approve, *mirkaneessuu* = confirm/verify;
+  *sakatta'iinsa* = review (examine), *ilaalcha waliigalaa* = overview; *liqii* = an employee
+  loan, *kireedii* = account credit; *Dhibbeentaa* for a rate; *damee* = branch,
+  *damee hojii* = sector; *gabatee herregaa* = spreadsheet; *biraawuzarii* = browser;
+  *ashaaraa quba* = fingerprint; status labels are passive (*Raggaasifame*, *Didame*).
+- **Spelling.** *icciitii*, *quunnamuu*/*quunnamtii* (but *walqunnamtii*, connection),
+  *mallatteeffame*.
+- **Clock times** in fixed text are written `06:00`, never "sa'aatii 6 ganama": on the
+  Ethiopian clock that hour is 12 ganama, and the reader cannot tell which was meant.
+- **Kept in English:** ETHR, plan names (Starter, Professional, Enterprise), Webhook(s),
+  acronyms (QR, SMS, PIN, TIN, SSO). *Finfinnee* for Addis Ababa.
+- **Changing shipped landing copy:** when a value in `oromo.php` changes after a release, add
+  its earlier wording to `oromo-superseded.php`, so the next seed replaces it in production.
+
 **Organisation data has no Oromo column, on purpose.** Departments, branches, positions, leave
 types, holidays and shifts carry `name` plus `name_am` because Amharic needs a second script. Oromo
 is written in the Latin script, so an Oromo-speaking organisation types Oromo into `name` itself,

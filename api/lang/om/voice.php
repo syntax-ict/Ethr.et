@@ -5,7 +5,7 @@ declare(strict_types=1);
 return [
     'pulse_already_answered' => 'Torban kana duraan deebiftaniirtu. Galatoomaa - gaaffiin torbanii itti aanu Wiixata banama.',
     'message_required' => 'Jalqaba ergaa barreessaa.',
-    'recognition_self' => 'Hiriyaa hojii beekamtii kennaa - ofii keessaniif beekamtii kennuu hin dandeessan.',
+    'recognition_self' => 'Hiriyaa hojiitiif beekamtii kennaa - ofii keessaniif beekamtii kennuu hin dandeessan.',
     'category' => [
         'safety' => 'Fayyaa fi nageenya',
         'harassment' => 'Dararaa ykn doorsisa',
