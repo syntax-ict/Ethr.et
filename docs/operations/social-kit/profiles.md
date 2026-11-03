@@ -4,7 +4,7 @@ What to put in each channel's profile. Bios are measured against each platform's
 
 ## Before you start
 
-- **One handle everywhere.** Reserve the same name on every platform on the same day, even ones you will not use yet, so nobody else takes it. Candidates in order of preference: `ethr.et`, `ethr_et`, `ethrhr`. Check each platform's availability; none is confirmed here.
+- **The handle is `ethr_et`**, reading as the domain, ethr.et. No single spelling is legal everywhere: X and Telegram refuse a dot, Facebook refuses an underscore, and LinkedIn takes only hyphens. So it is `ethr_et` on Telegram, X, Instagram, TikTok and YouTube, `ethr.et` on Facebook, and `ethr-et` in the LinkedIn page address. Reserve all of them on the same day, even on channels you will not use yet. On 3 November 2026 `t.me/ethr_et` was unclaimed; `ethret` already belonged to an unrelated Telegram account, which rules it out. The other platforms were not checked from here.
 - **Avatar:** [`assets/profile/avatar-dark.png`](assets/profile/avatar-dark.png) on light-themed platforms (LinkedIn, Facebook, X), [`avatar-light.png`](assets/profile/avatar-light.png) where the app is usually dark (Telegram, TikTok). Both are 800 × 800 and survive a circular crop.
 - **Link:** `https://www.ethr.et/en` for English profiles, `https://www.ethr.et/am` for Amharic ones. The site sets no tracking cookies and runs no web analytics (see the privacy page), so do not add tracking parameters to links; read each platform's own insights instead.
 - **Contact:** point to `https://www.ethr.et/en/contact` rather than publishing a personal number or address on a profile.
@@ -61,7 +61,7 @@ What to put in each channel's profile. Bios are measured against each platform's
 | Field | Text |
 |---|---|
 | Name | ETHR |
-| Link | `t.me/<handle>` |
+| Link | `t.me/ethr_et` |
 | Avatar | [`avatar-light.png`](assets/profile/avatar-light.png) |
 
 **Description (255):**
@@ -119,7 +119,7 @@ Highlights, each with a story cover from [`assets/stories/`](assets/stories/): *
 | Field | Text |
 |---|---|
 | Name | ETHR |
-| Handle | `@<handle>` |
+| Handle | `@ethr_et` |
 | Banner | [`banner-youtube-2560x1440.png`](assets/profile/banner-youtube-2560x1440.png). Only the central 1,546 × 423 shows on every device, and the text sits inside it |
 
 **Description:** the LinkedIn About text, then the same in Amharic once a native speaker has reviewed a translation. Organise uploads into three playlists: *How it works* (the scripts in [`video-scripts.md`](video-scripts.md)), *መመሪያዎች* (Amharic walkthroughs, which can follow [`docs/user-guides/`](../../user-guides/)), and *For HR teams*.

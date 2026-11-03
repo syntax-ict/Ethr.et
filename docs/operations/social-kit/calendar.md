@@ -36,7 +36,7 @@ On Facebook, post the Amharic image with the bilingual caption. On Telegram, pos
 
 Keep the trial post pinned. Repost the carousel once a quarter.
 
-**Example "what changed" posts**, from the kiosk work merged in late October 2026. Confirm each is live before posting:
+**Example "what changed" posts**, from the kiosk and calendar work merged in late October and early November 2026. All three were live on 3 November 2026: `www.ethr.et/release.json` reported commit `2c4b253` (#542). For later features, read that file and confirm the feature's commit is at or before the one it reports:
 
 > At the ETHR kiosk, staff now type only their number: 12 for EMP-0012. The kiosk finds the full code.
 
