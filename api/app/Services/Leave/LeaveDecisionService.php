@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Notifications\LeaveApprovedNotification;
 use App\Notifications\LeaveRejectedNotification;
 use App\Services\Approval\ApprovalEngine;
+use App\Services\Payroll\PayrollPeriodLock;
 use App\Support\ApprovalRefusal;
 use App\Traits\DispatchesWebhooks;
 use App\Traits\SendsNotifications;
@@ -49,6 +50,17 @@ class LeaveDecisionService
         // corrections.
         if ($approving && $this->engine->filedForBy($leaveRequest) === $by->id) {
             return ApprovalRefusal::selfApproval(__('leave.cannot_approve_filed'));
+        }
+
+        // Unpaid leave is a deduction. Approved for days already paid in an
+        // approved run, it changed no payslip and no later run picked it up,
+        // so the employee kept pay the decision said to deduct (A-Z review
+        // E-03). As for attendance, the run is voided and reprocessed first.
+        // Paid leave recorded late moves no pay and stays open.
+        if ($approving
+            && $leaveRequest->leaveType?->is_paid === false
+            && app(PayrollPeriodLock::class)->anyClosed($leaveRequest->employee_id, $leaveRequest->start_date, $leaveRequest->end_date)) {
+            return ApprovalRefusal::payrollPeriodClosed(__('leave.payroll_period_closed'));
         }
 
         if (! $this->engine->isCurrentApprover($leaveRequest, $by, $approving)) {
