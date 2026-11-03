@@ -34875,6 +34875,12 @@
                                                         "null"
                                                     ]
                                                 },
+                                                "headline_om": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "message": {
                                                     "type": [
                                                         "string",
@@ -34882,6 +34888,12 @@
                                                     ]
                                                 },
                                                 "message_am": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "message_om": {
                                                     "type": [
                                                         "string",
                                                         "null"
@@ -34910,6 +34922,12 @@
                                                     ]
                                                 },
                                                 "about_am": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "about_om": {
                                                     "type": [
                                                         "string",
                                                         "null"
@@ -34948,6 +34966,12 @@
                                                         "null"
                                                     ]
                                                 },
+                                                "address_om": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "hours": {
                                                     "type": [
                                                         "string",
@@ -34955,6 +34979,12 @@
                                                     ]
                                                 },
                                                 "hours_am": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "hours_om": {
                                                     "type": [
                                                         "string",
                                                         "null"
@@ -35001,6 +35031,12 @@
                                                                     "null"
                                                                 ]
                                                             },
+                                                            "question_om": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
                                                             "answer": {
                                                                 "type": [
                                                                     "string",
@@ -35012,13 +35048,21 @@
                                                                     "string",
                                                                     "null"
                                                                 ]
+                                                            },
+                                                            "answer_om": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
                                                             }
                                                         },
                                                         "required": [
                                                             "question",
                                                             "question_am",
+                                                            "question_om",
                                                             "answer",
-                                                            "answer_am"
+                                                            "answer_am",
+                                                            "answer_om"
                                                         ]
                                                     }
                                                 },
@@ -35039,6 +35083,12 @@
                                                                     "null"
                                                                 ]
                                                             },
+                                                            "title_om": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
                                                             "description": {
                                                                 "type": [
                                                                     "string",
@@ -35050,13 +35100,21 @@
                                                                     "string",
                                                                     "null"
                                                                 ]
+                                                            },
+                                                            "description_om": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
                                                             }
                                                         },
                                                         "required": [
                                                             "title",
                                                             "title_am",
+                                                            "title_om",
                                                             "description",
-                                                            "description_am"
+                                                            "description_am",
+                                                            "description_om"
                                                         ]
                                                     }
                                                 },
@@ -35079,21 +35137,26 @@
                                             "required": [
                                                 "headline",
                                                 "headline_am",
+                                                "headline_om",
                                                 "message",
                                                 "message_am",
+                                                "message_om",
                                                 "support_email",
                                                 "support_phone",
                                                 "background",
                                                 "about",
                                                 "about_am",
+                                                "about_om",
                                                 "founded_year",
                                                 "sector",
                                                 "staff_band",
                                                 "show_branch_count",
                                                 "address",
                                                 "address_am",
+                                                "address_om",
                                                 "hours",
                                                 "hours_am",
+                                                "hours_om",
                                                 "latitude",
                                                 "longitude",
                                                 "show_branches",
