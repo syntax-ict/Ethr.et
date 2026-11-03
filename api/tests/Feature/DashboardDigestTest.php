@@ -42,7 +42,7 @@ describe('scheduling permissions and scoping', function () {
         $ownBranch = Branch::factory()->create(['tenant_id' => $tenant->id]);
         $otherBranch = Branch::factory()->create(['tenant_id' => $tenant->id]);
         $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $ownBranch->id]);
-        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $employee->id], $tenant);
+        actingAsRegional($tenant, $employee->id);
 
         $this->postJson('/api/v1/dashboard/digests', [
             'frequency' => 'daily',
@@ -86,7 +86,7 @@ describe('scheduling permissions and scoping', function () {
 
     it('shows a regional holder only their own branch\'s digests, and lets them cancel only those', function () {
         // index() and destroy() checked only that the caller held a dashboard
-        // permission. Every supervisor holds dashboard.regional, so each listed
+        // permission. Every supervisor held dashboard.regional, so each listed
         // and could cancel every digest in the tenant, the executives'
         // tenant-wide ones included (audit N59).
         $tenant = createTenant();
@@ -101,7 +101,7 @@ describe('scheduling permissions and scoping', function () {
         $tenantWide = $digest(null);
 
         $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $ownBranch->id]);
-        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $employee->id], $tenant);
+        actingAsRegional($tenant, $employee->id);
 
         $this->getJson('/api/v1/dashboard/digests')
             ->assertOk()

@@ -7,15 +7,14 @@ namespace App\Http\Controllers\Api\V1\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dashboard\ScheduleDashboardDigestRequest;
 use App\Models\AuditLog;
-use App\Models\Branch;
 use App\Models\DashboardDigest;
 use App\Services\CurrentTenant;
+use App\Support\ExecutiveBranchScope;
 use App\Support\StringList;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Phase 6.6 — recurring email summaries of the executive/regional dashboard
@@ -90,8 +89,8 @@ class DashboardDigestController extends Controller
     }
 
     /**
-     * The digests a caller may see and cancel: all of them with
-     * `dashboard.executive`, otherwise only those on the caller's own branch.
+     * The digests a caller may see and cancel: all of them with tenant-wide
+     * executive reach, otherwise only those on the caller's own branch.
      *
      * The same rule store() applies, and that ExecutiveDashboardController
      * applies to every read. index() and destroy() checked only that the
@@ -107,11 +106,11 @@ class DashboardDigestController extends Controller
     {
         $user = $request->user();
 
-        if ($user?->hasPermission('dashboard.executive')) {
+        if (ExecutiveBranchScope::isFull($user)) {
             return $query;
         }
 
-        $branchId = $user?->employee?->branch_id;
+        $branchId = ExecutiveBranchScope::isRegional($user) ? $user->employee?->branch_id : null;
 
         return $branchId === null
             ? $query->whereRaw('0 = 1')
@@ -122,12 +121,8 @@ class DashboardDigestController extends Controller
     private function authorizeDashboardAccess(Request $request): void
     {
         $user = $request->user();
-        $allowed = ($user?->hasPermission('dashboard.executive') ?? false)
-            || ($user?->hasPermission('dashboard.regional') ?? false);
 
-        if (! $allowed) {
-            throw new HttpException(403, 'This action is unauthorized.');
-        }
+        abort_unless(ExecutiveBranchScope::isFull($user) || ExecutiveBranchScope::isRegional($user), 403);
     }
 
     /**
@@ -137,37 +132,9 @@ class DashboardDigestController extends Controller
      */
     private function resolveBranchId(ScheduleDashboardDigestRequest $request): ?int
     {
-        $user = $request->user();
-        $hasFull = $user?->hasPermission('dashboard.executive') ?? false;
-        $hasRegional = $user?->hasPermission('dashboard.regional') ?? false;
+        abort_unless(ExecutiveBranchScope::isFull($request->user()) || ExecutiveBranchScope::isRegional($request->user()), 403);
 
-        if (! $hasFull && ! $hasRegional) {
-            throw new HttpException(403, 'This action is unauthorized.');
-        }
-
-        if ($hasFull) {
-            $branchPublicId = $request->validated('branch_public_id');
-
-            if ($branchPublicId === null) {
-                return null;
-            }
-
-            $branch = Branch::where('public_id', $branchPublicId)->first();
-
-            if (! $branch) {
-                throw new HttpException(404, 'Branch not found.');
-            }
-
-            return $branch->id;
-        }
-
-        $branchId = $user->employee?->branch_id;
-
-        if ($branchId === null) {
-            throw new HttpException(403, 'No branch is assigned to your account.');
-        }
-
-        return $branchId;
+        return ExecutiveBranchScope::resolveFor($request->user(), $request->validated('branch_public_id'));
     }
 
     private function calculateNextRun(string $frequency): Carbon
