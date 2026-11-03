@@ -25,6 +25,8 @@ Before day one: profiles complete ([`profiles.md`](profiles.md)), the trial post
 
 On Facebook, post the Amharic image with the bilingual caption. On Telegram, post the link card for link posts (it previews better than a 4:5 image in a channel) and the 4:5 post otherwise.
 
+**Swap in the real screens.** Where a pillar has a screen post in [`assets/screens/`](assets/screens/), use it in place of the drawn post on Instagram and Facebook: week 1 Wednesday (`screens/checkin-*`), week 1 Friday (`screens/two-languages-*`), week 2 Wednesday (`screens/payslips-*`) and week 4 Monday (`screens/leave-*`). Keep the drawn post for LinkedIn, where the claim in the headline matters more than the screen.
+
 ## After launch: every month
 
 | Week of the month | Post |

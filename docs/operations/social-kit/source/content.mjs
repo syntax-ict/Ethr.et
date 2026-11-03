@@ -354,25 +354,6 @@ export const SCREEN_POSTS = [
     am: { over: "አማርኛና እንግሊዝኛ", h: "አንድ ሥርዓት፣ ሁለት ቋንቋ" },
   },
   {
-    id: "dashboard",
-    layout: "browser",
-    shots: ["dashboard-{lang}"],
-    path: "/",
-    en: {
-      over: "Workforce analytics",
-      h: "Headcount, attendance, payroll cost and overtime on one dashboard",
-    },
-    am: { over: "የሠራተኛ ኃይል ትንተና", h: "የሠራተኛ ብዛት፣ የሥራ መገኘት፣ የደመወዝ ወጪና የትርፍ ሰዓት በአንድ ዳሽቦርድ" },
-  },
-  {
-    id: "attendance",
-    layout: "browser",
-    shots: ["attendance-{lang}"],
-    path: "/attendance-system",
-    en: { over: "Attendance", h: "ETHR turns each punch into hours, lateness and overtime" },
-    am: { over: "መገኘት", h: "ETHR እያንዳንዱን ምዝገባ ወደ ሰዓት፣ ማርፈድና ትርፍ ሰዓት ይቀይራል" },
-  },
-  {
     id: "employees",
     layout: "browsers",
     shots: ["employees-en", "employees-am"],

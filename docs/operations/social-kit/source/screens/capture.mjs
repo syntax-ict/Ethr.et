@@ -32,15 +32,24 @@ const ACCOUNTS = {
   employee: "emp@demo.ethr.et",
 };
 const DESKTOP = { width: 1440, height: 900, deviceScaleFactor: 2 };
-const PHONE = { width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true };
+// A phone standing in Addis Ababa, with location allowed, so check-in is live.
+const PHONE = {
+  width: 390,
+  height: 844,
+  deviceScaleFactor: 3,
+  isMobile: true,
+  hasTouch: true,
+  geolocation: { latitude: 9.0108, longitude: 38.7613 },
+  permissions: ["geolocation"],
+};
 
 // name, who, viewport, path, languages
+// Left out after review: the admin dashboard (no one has checked in before
+// the working day, so it reads 0% present), the attendance list (its source
+// column says "Biometric", a claim brand.md rules out) and the payroll and
+// admin leave lists (empty or all blurred).
 export const SCREENS = [
-  ["dashboard", "admin", DESKTOP, "/dashboard", ["en", "am"]],
   ["employees", "admin", DESKTOP, "/employees", ["en", "am"]],
-  ["attendance", "admin", DESKTOP, "/attendance", ["en", "am"]],
-  ["payroll", "admin", DESKTOP, "/payroll", ["en", "am"]],
-  ["leave-admin", "admin", DESKTOP, "/leave", ["en", "am"]],
   ["phone-home", "employee", PHONE, "/dashboard", ["en", "am"]],
   ["phone-leave", "employee", PHONE, "/leave", ["en", "am"]],
   ["phone-payslips", "employee", PHONE, "/payroll/payslips", ["en", "am"]],
@@ -82,9 +91,23 @@ for (const [name, who, viewport, path, langs] of SCREENS) {
     // Charts and skeletons settle after the data arrives.
     await page.waitForTimeout(2500);
     await page.evaluate(() => document.fonts.ready);
+    // The development server's badge is not part of the product.
+    await page.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    // Blur every money amount. The figures are demo data, but a reader cannot
+    // tell, and a salary on a public post reads as someone's real pay.
+    const blurred = await page.evaluate(() => {
+      const money = /\d{1,3}(,\d{3})*\.\d{2}|ETB\s*\d|\d\s*(ETB|ብር)/;
+      const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const hits = new Set();
+      while (walk.nextNode()) {
+        if (money.test(walk.currentNode.textContent)) hits.add(walk.currentNode.parentElement);
+      }
+      hits.forEach((el) => (el.style.filter = "blur(8px)"));
+      return hits.size;
+    });
     const file = join(OUT, `${name}-${lang}.png`);
     await page.screenshot({ path: file });
-    console.log(file);
+    console.log(`${file}${blurred ? ` (${blurred} amounts blurred)` : ""}`);
     await page.close();
   }
 }

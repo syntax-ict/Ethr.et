@@ -63,11 +63,14 @@ foreach ($rows as $row) {
     DB::table('employees')->where('tenant_id', $tenantId)->where('id', $row->id)->update([
         'name' => "$given $father",
         'name_am' => "$givenAm $fatherAm",
+        // The seeder's Faker addresses do not match the new names.
+        'email' => strtolower("$given.$father").'@example.com',
     ]);
 }
 
-// The signed-in accounts show their own name in the header.
-DB::table('users')->where('tenant_id', $tenantId)->where('email', 'admin@demo.ethr.et')->update(['name' => 'Hirut Bekele']);
-DB::table('users')->where('tenant_id', $tenantId)->where('email', 'hr@demo.ethr.et')->update(['name' => 'Dawit Alemu']);
+// The admin accounts have no employee record; their display name is what the
+// header shows.
+DB::table('users')->where('tenant_id', $tenantId)->where('email', 'admin@demo.ethr.et')->update(['display_name' => 'Hirut Bekele']);
+DB::table('users')->where('tenant_id', $tenantId)->where('email', 'hr@demo.ethr.et')->update(['display_name' => 'Dawit Alemu']);
 
 echo count($rows)." demo employees renamed.\n";

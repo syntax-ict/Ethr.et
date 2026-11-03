@@ -464,13 +464,14 @@ const shot = (name) => {
 
 // A browser window: the screenshot under a plain title bar. The address shows
 // how a tenant is reached in production, ethr.et/{slug}.
-const browserFrame = (name, { width = 912, height = 600, style = "" } = {}) =>
+// `zoom` enlarges the screen inside the window; the top left stays in view.
+const browserFrame = (name, { width = 912, height = 600, zoom = 1, style = "" } = {}) =>
   `<div style="width:${width}px;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 30px 70px rgba(4,20,35,.45);border:1px solid rgba(255,255,255,.12);${style}">
     <div style="height:44px;background:#e9eef3;display:flex;align-items:center;gap:10px;padding:0 18px">
       <span style="width:13px;height:13px;border-radius:50%;background:#f87171"></span><span style="width:13px;height:13px;border-radius:50%;background:#fbbf24"></span><span style="width:13px;height:13px;border-radius:50%;background:#34d399"></span>
       <span style="margin-left:18px;flex:1;max-width:420px;height:26px;border-radius:999px;background:#fff;color:#64748b;font-size:15px;display:flex;align-items:center;padding:0 14px">ethr.et/demo</span>
     </div>
-    <div style="height:${height}px;background:url(${shot(name)}) top left/100% auto no-repeat"></div>
+    <div style="height:${height}px;background:url(${shot(name)}) top left/${zoom * 100}% auto no-repeat"></div>
   </div>`;
 
 // A phone: the screenshot inside a dark bezel with rounded corners.
@@ -486,12 +487,12 @@ const SCREEN_LAYOUT = {
   browser: (shots) => browserFrame(shots[0]),
   // English behind, Amharic in front.
   browsers: (shots) =>
-    `<div style="position:relative;width:960px;height:640px">${browserFrame(shots[0], { width: 800, height: 500, style: "position:absolute;left:0;top:0;opacity:.95" })}${browserFrame(shots[1], { width: 800, height: 500, style: "position:absolute;right:0;bottom:0" })}</div>`,
+    `<div style="position:relative;width:960px;height:640px">${browserFrame(shots[0], { width: 760, height: 470, zoom: 1.8, style: "position:absolute;left:0;top:0" })}${browserFrame(shots[1], { width: 760, height: 470, zoom: 1.8, style: "position:absolute;right:0;bottom:0" })}</div>`,
   // One phone, with the line beside it.
-  phone: (shots) => phoneFrame(shots[0], { width: 340 }),
+  phone: (shots) => phoneFrame(shots[0], { width: 350 }),
   // Two phones side by side.
   phones: (shots) =>
-    `<div style="display:flex;gap:40px;justify-content:center">${shots.map((n) => phoneFrame(n, { width: 300 })).join("")}</div>`,
+    `<div style="display:flex;gap:40px;justify-content:center">${shots.map((n) => phoneFrame(n, { width: 330 })).join("")}</div>`,
 };
 
 function screenPost(p, lang) {
