@@ -135,7 +135,7 @@ class LeaveDecisionService
         return LeaveBalance::query()
             ->where('employee_id', $leaveRequest->employee_id)
             ->where('leave_type_id', $leaveRequest->leave_type_id)
-            ->where('year', $leaveRequest->start_date->year)
+            ->where('year', LeaveYear::forTenantId($leaveRequest->tenant_id)->yearOf($leaveRequest->start_date))
             ->first();
     }
 }

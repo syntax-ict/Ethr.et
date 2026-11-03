@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Support\Locales;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use App\Traits\ScopesEmployeeAccess;
@@ -187,6 +188,12 @@ class User extends Authenticatable implements HasLocalePreference
      * channel, queued mail and the in-app record alike, inside this locale.
      * Until 2026-10-20 nothing implemented it, so a queued e-mail went out in
      * APP_LOCALE whatever the reader had chosen (blueprint assessment N11).
+     *
+     * `users.locale` defaults to `en`, so `en` alone does not say anyone chose
+     * it: an Amharic organisation's staff who never touched the switch got
+     * English e-mail. Their own language wins when they chose it (the
+     * `locale_chosen` marker) or when anything other than the default was
+     * saved for them; otherwise the organisation's.
      */
     public function preferredLocale(): ?string
     {
@@ -194,8 +201,11 @@ class User extends Authenticatable implements HasLocalePreference
             ? Tenant::query()->whereKey($this->tenant_id)->value('default_locale')
             : null;
 
-        foreach ([$this->locale, $tenantLocale] as $locale) {
-            if (in_array($locale, ['en', 'am'], true)) {
+        $chosen = (is_array($this->preferences) && ($this->preferences['locale_chosen'] ?? false) === true)
+            || $this->locale !== 'en';
+
+        foreach ($chosen ? [$this->locale, $tenantLocale] : [$tenantLocale, $this->locale] as $locale) {
+            if (Locales::isShipped($locale)) {
                 return $locale;
             }
         }

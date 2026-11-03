@@ -10,6 +10,7 @@ use App\Jobs\ScanMissingPunchesJob;
 use App\Jobs\SendApprovalRemindersJob;
 use App\Jobs\SendExpiryRemindersJob;
 use App\Models\Tenant;
+use Carbon\Carbon;
 use Illuminate\Console\Scheduling\CallbackEvent;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Queue;
@@ -38,6 +39,8 @@ function runTenantSweep(string $name): void
     $event->run(app());
 }
 
+afterEach(fn () => Carbon::setTestNow());
+
 dataset('tenant sweeps', [
     'scan-missing-punches' => ['scan-missing-punches', ScanMissingPunchesJob::class],
     'accrue-leave-balances' => ['accrue-leave-balances', AccrueLeaveBalancesJob::class],
@@ -49,6 +52,9 @@ dataset('tenant sweeps', [
 
 test('a tenant sweep reaches active tenants and live trials, and nothing else', function (string $name, string $job) {
     Queue::fake();
+    // The first week of a Gregorian leave year: the carry-forward sweep runs
+    // only then (EthiopianLeaveYearTest), and these tenants have no setting.
+    Carbon::setTestNow(Carbon::parse('2027-01-02 12:00'));
 
     $active = Tenant::factory()->create();
     $trial = Tenant::factory()->trial()->create();

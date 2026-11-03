@@ -9,17 +9,16 @@ use App\Exceptions\AttendanceRefused;
 use App\Exceptions\NoOpenCheckIn;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\KioskSyncRequest;
-use App\Models\AuditLog;
-use App\Models\Employee;
 use App\Models\KioskSession;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\AttendancePolicy;
+use App\Services\CurrentTenant;
+use App\Services\Kiosk\KioskEmployeeCode;
 use App\Services\Kiosk\KioskOfflineSeal;
+use App\Services\Kiosk\KioskPinGuard;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
 use Throwable;
 
 /**
@@ -38,6 +37,8 @@ class KioskSyncController extends Controller
     public function __construct(
         private readonly AttendanceEngine $engine,
         private readonly KioskOfflineSeal $seal,
+        private readonly KioskPinGuard $pins,
+        private readonly KioskEmployeeCode $codes,
     ) {}
 
     public function __invoke(KioskSyncRequest $request): JsonResponse
@@ -93,26 +94,23 @@ class KioskSyncController extends Controller
             ])];
         }
 
-        $employee = Employee::where('employee_code', $punch['c'])->first();
+        $match = $this->codes->find(app(CurrentTenant::class)->get(), (string) $punch['c']);
+        if ($match->ambiguous) {
+            return ['status' => 'error', 'detail' => __('kiosk.code_ambiguous')];
+        }
+        $employee = $match->employee;
         if (! $employee) {
             return ['status' => 'error', 'detail' => __('attendance.employee_not_found')];
         }
 
         if ($pinRequired) {
-            $lockKey = "kiosk-pin:{$session->id}:{$employee->id}";
-            if (RateLimiter::tooManyAttempts($lockKey, KioskCheckInController::PIN_ATTEMPTS)) {
+            $check = $this->pins->check($session, $employee, $punch['p'], ['offline' => true]);
+            if ($check === KioskPinGuard::LOCKED) {
                 return ['status' => 'error', 'detail' => __('kiosk.pin_locked')];
             }
-
-            if ($punch['p'] === null || ! $employee->kiosk_pin || ! Hash::check($punch['p'], $employee->kiosk_pin)) {
-                if (RateLimiter::hit($lockKey, KioskCheckInController::PIN_LOCK_SECONDS) >= KioskCheckInController::PIN_ATTEMPTS) {
-                    AuditLog::record('kiosk.pin_locked', $employee, ['kiosk_session_id' => $session->id, 'offline' => true]);
-                }
-
+            if ($check !== KioskPinGuard::OK) {
                 return ['status' => 'error', 'detail' => __('kiosk.invalid_pin')];
             }
-
-            RateLimiter::clear($lockKey);
         }
 
         try {

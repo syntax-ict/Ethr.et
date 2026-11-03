@@ -35,9 +35,9 @@ final class MarketingClaims
         '/hikvision|zkteco|suprema/i' => 'no device brand is verified on hardware',
         '/biometric/i' => 'biometric claims were removed by the 2026-10-17 audit',
         '/fingerprint/i' => 'fingerprint claims were removed by the 2026-10-17 audit',
-        // Import is CSV; approval is single-step; delegation does not exist.
+        // Import is CSV (pasted spreadsheet rows, no .xlsx file); delegation
+        // does not exist. Multi-step approval chains do, since #359-#367.
         '/\bexcel\b/i' => 'import is CSV, not Excel',
-        '/multi-?level/i' => 'approval is single-step',
         '/delegat/i' => 'delegation is not built',
         '/maker-?checker/i' => 'maker-checker is not built',
         // Legal conclusions the employer draws as data controller.

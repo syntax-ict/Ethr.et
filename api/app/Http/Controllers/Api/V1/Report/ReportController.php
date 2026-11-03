@@ -16,12 +16,14 @@ use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
 use App\Services\Report\ReportPresets;
 use App\Support\Csv;
+use App\Support\ReaderDates;
+use App\Support\ScheduleSlot;
 use App\Support\StringList;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 
 class ReportController extends Controller
@@ -68,12 +70,13 @@ class ReportController extends Controller
 
         $tenantId = app(CurrentTenant::class)->requireId();
         $format = $request->validated('format', 'csv');
-        $result = $this->engine->generate($tenantId, $request->validated(), $request->user());
+        $reader = ReaderDates::for($request->user());
+        $result = $this->engine->generate($tenantId, $request->validated(), $request->user(), $reader);
         $filename = 'report-'.now()->format('Y-m-d-His');
 
         return $format === 'pdf'
-            ? $this->exportPdf($result['data'], $filename)
-            : $this->exportCsv($result['data'], $filename);
+            ? $this->exportPdf($result['data'], $filename, $reader)
+            : $this->exportCsv($result['data'], $filename, $reader);
     }
 
     /**
@@ -89,20 +92,27 @@ class ReportController extends Controller
     }
 
     /** @param array<int, array<string, mixed>> $rows */
-    private function exportCsv(array $rows, string $filename): Response
+    private function exportCsv(array $rows, string $filename, ReaderDates $reader): Response
     {
-        return response(Csv::forSpreadsheet($this->engine->toCsv($rows)), 200, [
+        return response(Csv::forSpreadsheet($this->engine->toCsv($rows, $reader)), 200, [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}.csv\"",
         ]);
     }
 
     /** @param array<int, array<string, mixed>> $rows */
-    private function exportPdf(array $rows, string $filename): Response
+    private function exportPdf(array $rows, string $filename, ReaderDates $reader): Response
     {
-        $rows = $this->engine->presentable($rows);
+        $rows = $this->engine->presentable($rows, $reader);
         $columns = $rows === [] ? [] : array_keys($rows[0]);
-        $pdf = Pdf::loadView('reports.export', ['columns' => $columns, 'rows' => $rows]);
+        File::ensureDirectoryExists(storage_path('fonts'));
+        $pdf = Pdf::loadView('reports.export', [
+            'columns' => $columns,
+            'rows' => $rows,
+            'locale' => $reader->locale,
+            'generated_at' => $reader->dateTime(now()),
+        ]);
+        $pdf->setOption('isFontSubsettingEnabled', true);
         $pdf->setPaper('a4', 'landscape');
 
         return response($pdf->output(), 200, [
@@ -174,7 +184,7 @@ class ReportController extends Controller
             'saved_report_id' => $report->id,
             'frequency' => $request->input('frequency'),
             'recipients' => $request->input('recipients'),
-            'next_run_at' => $this->calculateNextRun($request->input('frequency')),
+            'next_run_at' => ScheduleSlot::next($request->input('frequency'), $tenant),
         ]);
 
         AuditLog::record('report.scheduled', $scheduled);
@@ -214,14 +224,5 @@ class ReportController extends Controller
         $scheduledReport->update(['is_active' => false]);
 
         return response()->json(null, 204);
-    }
-
-    private function calculateNextRun(string $frequency): Carbon
-    {
-        return match ($frequency) {
-            'daily' => now()->addDay()->startOfDay()->addHours(6),
-            'weekly' => now()->next('Monday')->startOfDay()->addHours(6),
-            'monthly' => now()->addMonth()->startOfMonth()->addHours(6),
-        };
     }
 }

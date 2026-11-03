@@ -2,10 +2,10 @@ import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 
 /**
- * The shared kiosk terminal's two calls. They authenticate with the kiosk's
+ * The shared kiosk terminal's calls. They authenticate with the kiosk's
  * session token, not a user login. Shapes come from the contract.
  *
- * Both opt out of the client's session refresh: the terminal has no session,
+ * All of them opt out of the client's session refresh: the terminal has no session,
  * and a 401 here is the API saying "invalid token" or "wrong PIN", which the
  * kiosk screen shows. Without the opt-out it redirected to /login (N48).
  */
@@ -41,8 +41,8 @@ export async function verifyKioskExit(
   );
 }
 
-/** The punched record, whether it was a replay, and whose punch it was. */
-export type KioskPunchResult = components["schemas"]["AttendancePunchResource"];
+/** The punch, whether it was a replay, and who it was for (name, title, face). */
+export type KioskPunchResult = components["schemas"]["KioskPunchResource"];
 
 export async function kioskPunch(
   token: string,
@@ -54,4 +54,82 @@ export async function kioskPunch(
       skipAuthRefresh: true,
     })
   ).data;
+}
+
+/**
+ * Put a punch just made at this kiosk in front of HR, because the person on
+ * the confirmation screen is not the one who punched. It never undoes the
+ * punch, and the server accepts it only for two minutes after.
+ */
+export async function reportKioskPunch(
+  token: string,
+  recordId: string,
+  punch: "check_in" | "check_out",
+): Promise<void> {
+  await apiClient.post(
+    `/kiosk/punches/${encodeURIComponent(recordId)}/not-me`,
+    { punch },
+    { headers: { "X-Kiosk-Token": token }, skipAuthRefresh: true },
+  );
+}
+
+export type KioskSelfServiceStart =
+  operations["kioskSelfService.start"]["responses"][200]["content"]["application/json"];
+
+export type KioskSelfServiceSummary =
+  operations["kioskSelfService.show"]["responses"][200]["content"]["application/json"];
+
+/**
+ * Self-service with a code and the person's own PIN. Resolves with a short
+ * pass bound to this kiosk; rejects with a 401 for a code and PIN that do
+ * not match, 422 for someone with no PIN yet, 429 while they are locked out.
+ */
+export async function startKioskSelfService(
+  token: string,
+  employeeCode: string,
+  pin: string,
+): Promise<KioskSelfServiceStart> {
+  return (
+    await apiClient.post<KioskSelfServiceStart>(
+      "/kiosk/self-service",
+      { employee_code: employeeCode, pin },
+      { headers: { "X-Kiosk-Token": token }, skipAuthRefresh: true },
+    )
+  ).data;
+}
+
+export async function kioskSelfService(
+  token: string,
+  pass: string,
+): Promise<KioskSelfServiceSummary> {
+  return (
+    await apiClient.get<KioskSelfServiceSummary>("/kiosk/self-service", {
+      headers: { "X-Kiosk-Token": token, "X-Kiosk-Pass": pass },
+      skipAuthRefresh: true,
+    })
+  ).data;
+}
+
+/** Ends the pass now. Failing to reach the server is harmless: it expires. */
+export async function endKioskSelfService(
+  token: string,
+  pass: string,
+): Promise<void> {
+  await apiClient
+    .delete("/kiosk/self-service", {
+      headers: { "X-Kiosk-Token": token, "X-Kiosk-Pass": pass },
+      skipAuthRefresh: true,
+    })
+    .catch(() => {});
+}
+
+export async function changeKioskPin(
+  token: string,
+  pass: string,
+  body: components["schemas"]["ChangeKioskPinRequest"],
+): Promise<void> {
+  await apiClient.put("/kiosk/self-service/pin", body, {
+    headers: { "X-Kiosk-Token": token, "X-Kiosk-Pass": pass },
+    skipAuthRefresh: true,
+  });
 }

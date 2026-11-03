@@ -47,6 +47,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { openKeyboardShortcuts } from "@/components/shared/keyboard-shortcuts";
+import {
+  CLOCK_CHOICES,
+  useClockLabels,
+} from "@/components/shared/clock-select";
 import { useUpdatePreferences } from "@/features/profile/api";
 import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +60,11 @@ import {
   useCalendar,
   type CalendarSystem,
 } from "@/lib/calendar/calendar-context";
+import {
+  formatClock,
+  resolveClock,
+  type ClockPreference,
+} from "@/lib/calendar/ethiopian-time";
 import { useShortcutLabel } from "@/lib/hooks/usePlatformShortcut";
 import { useTenantTimezone } from "@/lib/hooks/useTenantTimezone";
 import { formatCalendarDate } from "@/lib/utils/date";
@@ -92,14 +101,15 @@ const CALENDARS: readonly CalendarSystem[] = ["ethiopian", "gregorian"];
 const HEADER_ACTION =
   "h-9 text-muted-foreground hover:text-foreground [&_svg]:h-4 [&_svg]:w-4";
 
-import { getRouteMeta, routeI18nKey, routeI18nPath } from "@/lib/route-meta";
+import { getRouteMeta, routeText } from "@/lib/route-meta";
 
 function useCurrentPageLabel() {
   const pathname = usePathname();
   const { t } = useT();
+  const { can } = usePermissions();
   const meta = getRouteMeta(pathname);
   if (!meta) return t("common.page", "Page");
-  return t(routeI18nKey(routeI18nPath(pathname, meta), "label"), meta.label);
+  return routeText(pathname, meta, can, t).label;
 }
 
 export function AppHeader() {
@@ -365,24 +375,33 @@ export function AppHeader() {
 }
 
 /**
- * Language and calendar, in one menu.
+ * Language, calendar and time of day, in one menu.
  *
  * The calendar used to be a separate button that showed "ኢ.ቀ" or "GC" and
  * switched on a single click, explained only by a hover tooltip phones never
  * show. Here both choices are named in words, the current one is announced as
  * a checked radio item, and each calendar previews today's date before it is
- * chosen.
+ * chosen. The time of day sits with them because it was only on the
+ * Preferences page, where people who switched the calendar here never looked
+ * for it; each clock names 07:30 the way it writes it, as there, and
+ * Automatic names the clock it settles on for this reader right now, since the
+ * menu has no room for the Preferences page's hint.
  *
- * Both choices are applied at once and then stored on the user, as the
+ * Every choice is applied at once and then stored on the user, as the
  * Preferences page does through the same context: a localStorage-only switch
  * vanished on the next device and disagreed with the profile setting (N33). A
  * failed save is not worth interrupting the switch the user just made.
  */
 function LanguageCalendarMenu() {
   const { t, locale } = useT();
-  const { calendar, setCalendar } = useCalendar();
+  const { calendar, setCalendar, clockPreference, setClockPreference } =
+    useCalendar();
   const updatePreferences = useUpdatePreferences();
   const timeZone = useTenantTimezone();
+  const clockLabels = useClockLabels();
+  const automatic = t("clock.auto_example", "Automatic (:example)", {
+    example: formatClock(7, 30, resolveClock("auto", calendar, locale), locale),
+  });
 
   const languageName =
     HEADER_LANGUAGES.find((lang) => lang.code === locale)?.nativeName ?? locale;
@@ -402,7 +421,10 @@ function LanguageCalendarMenu() {
         >
           <Globe aria-hidden />
           <span className="sr-only">
-            {t("header.language_calendar", "Language and calendar")}
+            {t(
+              "header.language_calendar",
+              "Language, calendar and time of day",
+            )}
           </span>{" "}
           {/* Read on phones too, where only the globe shows. */}
           <span className="sr-only text-xs font-medium sm:not-sr-only">
@@ -461,6 +483,28 @@ function LanguageCalendarMenu() {
               <span className="text-xs tabular-nums text-muted-foreground">
                 {formatCalendarDate(today, timeZone, system, locale)}
               </span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+          {t("profile.time_display", "Time of day")}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={clockPreference}
+          onValueChange={(value) => {
+            const clock = value as ClockPreference;
+            setClockPreference(clock);
+            updatePreferences.mutate({ clock });
+          }}
+        >
+          {CLOCK_CHOICES.map((clock) => (
+            <DropdownMenuRadioItem
+              key={clock}
+              value={clock}
+              className="cursor-pointer"
+            >
+              {clock === "auto" ? automatic : clockLabels[clock]}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

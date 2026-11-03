@@ -40,16 +40,20 @@ export type PortalSection =
 export interface TenantLandingService {
   title: string | null;
   title_am: string | null;
+  title_om?: string | null;
   description: string | null;
   description_am: string | null;
+  description_om?: string | null;
 }
 
 /** One of the organisation's questions, each half in either language. */
 export interface TenantLandingFaq {
   question: string | null;
   question_am: string | null;
+  question_om?: string | null;
   answer: string | null;
   answer_am: string | null;
+  answer_om?: string | null;
 }
 
 /** The footer's links: https, and the networks on their own host (server-checked). */
@@ -66,28 +70,33 @@ export interface TenantLandingLinks {
 
 /**
  * The organisation's own words and look on its portal. Every text has an
- * Amharic twin (`*_am`); the page shows the viewer's language and falls back
- * to the other. The keys added for the portal's content (PR 3) are optional
+ * Amharic twin (`*_am`) and an Oromo one (`*_om`); the page shows the viewer's
+ * language and falls back as `pickText` does. The keys added for the portal's content (PR 3) are optional
  * here so a context served by an older API still renders.
  */
 export interface TenantLanding {
   headline: string | null;
   headline_am?: string | null;
+  headline_om?: string | null;
   message: string | null;
   message_am?: string | null;
+  message_om?: string | null;
   support_email: string | null;
   support_phone: string | null;
   background: "brand" | "gradient" | "pattern" | "image";
   about?: string | null;
   about_am?: string | null;
+  about_om?: string | null;
   founded_year?: number | null;
   sector?: string | null;
   staff_band?: string | null;
   show_branch_count?: boolean;
   address?: string | null;
   address_am?: string | null;
+  address_om?: string | null;
   hours?: string | null;
   hours_am?: string | null;
+  hours_om?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   show_branches?: boolean;

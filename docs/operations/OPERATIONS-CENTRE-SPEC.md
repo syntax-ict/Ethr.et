@@ -9,6 +9,12 @@
 - **Five areas, not six tiles:** background work, email delivery, release, failed jobs, services.
   Scheduled tasks, backups and organisations need data phase 2 records (G3, G4, G8), and a tile
   that could only ever say `unknown` would teach people to skip it.
+- **Backups became the sixth area on 2026-11-01** (`Support/BackupHealth`). It reads the last
+  backup and the last off-host copy from the backup manifests and records only failures, so
+  G4 is closed without a ledger; size and duration are not shown. The token-guarded
+  `GET /api/v1/cron/backup` answers 503 while it is red, which is G10 for backups only. The code
+  side of G14 is done: the nightly run copies an encrypted archive whenever storage and
+  `BACKUP_ENCRYPTION_KEY` are set. Choosing the destination is still the owner's.
 - The *System Health* card on `/admin` **stays** for now, beside the strip. Removing it touches
   the failed-jobs list it shares a card with; that belongs with G9.
 - G2 records caller ticks in the cache: `CronRunController` on arrival (a 409 still proves the
@@ -181,6 +187,10 @@ not configured** (amber, permanently, until it is), last restore rehearsal
 The off-host row stays amber on purpose. A backup that exists only on the host it protects is
 the most important known gap on this page, and the panel should keep saying so until it is
 closed.
+
+Disk use on the plan's quota is on this panel too (2026-11-02), measured by the nightly backup:
+amber at 70%, red at 85%. Backups are most of what fills the disk, and this panel already reaches
+the outside monitor through `/cron/backup`. See BACKUP-RESTORE.md, *Disk use on the plan's quota*.
 
 ### Panel 6: Organisations: work stuck for a customer
 

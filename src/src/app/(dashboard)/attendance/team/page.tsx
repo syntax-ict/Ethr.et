@@ -18,21 +18,21 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { useT } from "@/lib/i18n/useT";
+import { todayIn } from "@/lib/utils/date";
 
-function todayStr() {
-  return new Date().toISOString().split("T")[0];
-}
-
+/** `Y-m-d`, `days` after another, in date arithmetic with no zone in it. */
 function shiftDate(dateStr: string, days: number) {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
 export default function TeamAttendancePage() {
   const { t, locale } = useT();
-  const { formatTime } = useDateFormatters();
+  const { formatTime, timeZone } = useDateFormatters();
   const { formatDate } = useCalendar();
+  // Today where the organisation is: the UTC date is yesterday before 03:00
+  // in Addis.
+  const todayStr = () => todayIn(timeZone);
   const [date, setDateState] = useState(todayStr);
   const [page, setPage] = useState(1);
 

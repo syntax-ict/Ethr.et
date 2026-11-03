@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import MyPayslipsPage from "@/app/(dashboard)/payroll/payslips/page";
+import { CalendarProvider } from "@/lib/calendar/calendar-context";
 
 /**
  * `GET /payroll/payslips/my` — PayrollController::myPayslips loads `employee`,
@@ -46,18 +47,22 @@ const ME = {
   tenant: { public_id: "01HZTENANT0000000000000001", name: "Acme" },
 };
 
-function renderPage() {
+function renderPage({ calendar = false } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      {calendar ? <CalendarProvider>{children}</CalendarProvider> : children}
+    </QueryClientProvider>
   );
   return render(<MyPayslipsPage />, { wrapper });
 }
 
 afterEach(() => {
   vi.restoreAllMocks();
+  localStorage.removeItem("ethr.calendar");
+  localStorage.setItem("locale", "en");
 });
 
 describe("My Payslips — download", () => {
@@ -132,5 +137,48 @@ describe("My Payslips — telling payslips apart", () => {
     expect(
       screen.getByRole("button", { name: "Download payslip · Tikimt 2019" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("My Payslips: the period in the reader's calendar", () => {
+  /**
+   * The stored label is English and Gregorian ("October 2026",
+   * `PayrollEngine` format('F Y')), and the payslip carries no period dates,
+   * so an Amharic reader on the Ethiopian calendar read an English month.
+   */
+  it("names the month in Amharic on the Ethiopian calendar", async () => {
+    localStorage.setItem("locale", "am");
+    localStorage.setItem("ethr.calendar", "ethiopian");
+    server.use(
+      http.get("*/api/v1/payroll/payslips/my", () =>
+        HttpResponse.json({
+          ...PAYSLIPS,
+          data: [{ ...PAYSLIPS.data[0], period_label: "October 2026" }],
+        }),
+      ),
+      http.get("*/api/v1/auth/me", () => HttpResponse.json(ME)),
+    );
+
+    renderPage({ calendar: true });
+
+    expect(await screen.findByText("ጥቅምት 2019")).toBeInTheDocument();
+    expect(screen.queryByText("October 2026")).not.toBeInTheDocument();
+  });
+
+  it("keeps the stored label for an English Gregorian reader", async () => {
+    localStorage.setItem("ethr.calendar", "gregorian");
+    server.use(
+      http.get("*/api/v1/payroll/payslips/my", () =>
+        HttpResponse.json({
+          ...PAYSLIPS,
+          data: [{ ...PAYSLIPS.data[0], period_label: "October 2026" }],
+        }),
+      ),
+      http.get("*/api/v1/auth/me", () => HttpResponse.json(ME)),
+    );
+
+    renderPage({ calendar: true });
+
+    expect(await screen.findByText("October 2026")).toBeInTheDocument();
   });
 });

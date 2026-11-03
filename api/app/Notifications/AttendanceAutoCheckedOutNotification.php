@@ -6,8 +6,10 @@ namespace App\Notifications;
 
 use App\Models\AttendanceRecord;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Notifications\Contracts\BulkMail;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
+use App\Support\ReaderDates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -16,7 +18,7 @@ use Illuminate\Notifications\Notification;
  * Tells an employee their open check-in was closed for them at the end of
  * their shift, and how to correct it if they actually left at another time.
  */
-class AttendanceAutoCheckedOutNotification extends Notification
+class AttendanceAutoCheckedOutNotification extends Notification implements BulkMail
 {
     use Queueable, RespectsNotificationPreferences;
 
@@ -50,7 +52,7 @@ class AttendanceAutoCheckedOutNotification extends Notification
             ...NotificationMessage::make('attendance.auto_checkout.message', [
                 'date' => $this->record->date?->format('Y-m-d'),
                 'time' => $this->shiftEnd,
-            ]),
+            ], dates: ['date' => 'date', 'time' => 'time_of_day'], reader: ReaderDates::for($notifiable)),
             'url' => '/attendance/corrections',
         ];
     }
@@ -60,8 +62,8 @@ class AttendanceAutoCheckedOutNotification extends Notification
         return (new MailMessage)
             ->subject(__('attendance.auto_checkout.subject'))
             ->line(__('attendance.auto_checkout.message', [
-                'date' => $this->record->date?->format('Y-m-d'),
-                'time' => $this->shiftEnd,
+                'date' => ReaderDates::for($notifiable)->date($this->record->date?->format('Y-m-d')),
+                'time' => ReaderDates::for($notifiable)->timeOfDay($this->shiftEnd),
             ]))
             ->line(__('attendance.auto_checkout.correct_it'))
             ->action(

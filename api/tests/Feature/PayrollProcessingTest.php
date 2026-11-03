@@ -567,6 +567,7 @@ test('payslip pdf for a voided run still downloads successfully', function () {
 
 test('payslip view renders a VOIDED watermark only for voided runs', function () {
     $data = [
+        'locale' => 'en',
         'tenant_name' => 'Acme Corp',
         'period' => 'June 2026',
         'employee_name' => 'Abebe Kebede',

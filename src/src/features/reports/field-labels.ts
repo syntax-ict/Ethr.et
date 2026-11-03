@@ -106,17 +106,20 @@ export function reportFieldLabel(t: T, field: string): string {
 }
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 
 /**
  * A result cell as text. `*_cents` fields are money and shown in ETB
  * (convention 3) — the table printed "500000" under "salary (¢)". A date-only
  * value goes through `formatDate` when given, so a hire date reads in the
- * user's calendar like every other date in the app, not as raw ISO.
+ * user's calendar like every other date in the app, not as raw ISO. An
+ * instant (a check-in) goes through `formatInstant`: it showed raw UTC.
  */
 export function formatReportCell(
   field: string,
   value: unknown,
   formatDate?: (iso: string) => string,
+  formatInstant?: (iso: string) => string,
 ): string {
   if (value == null || value === "") return "—";
   if (field.endsWith("_cents")) {
@@ -125,6 +128,9 @@ export function formatReportCell(
   }
   if (formatDate && typeof value === "string" && DATE_ONLY.test(value)) {
     return formatDate(value);
+  }
+  if (formatInstant && typeof value === "string" && INSTANT.test(value)) {
+    return formatInstant(value);
   }
   return String(value);
 }

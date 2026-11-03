@@ -52,6 +52,9 @@ class OnboardingController extends Controller
                 'completed_at' => null,
             ]);
 
+        // Set in memory for this response only; nothing saves it.
+        $progress->setAttribute('completed_steps', OnboardingProgress::completedStepsFor($progress, (int) $this->currentTenant->id()));
+
         return response()->json($progress);
     }
 

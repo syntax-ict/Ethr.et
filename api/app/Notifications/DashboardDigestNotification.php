@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Notifications\Contracts\BulkMail;
 use App\Services\Analytics\AlertEvaluator;
 use App\Support\FrontendUrl;
+use App\Support\ReaderDates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -17,7 +19,7 @@ use Illuminate\Notifications\Notification;
  * currently breached, so a digest recipient sees both the routine summary
  * and anything that needs attention in one email.
  */
-class DashboardDigestNotification extends Notification
+class DashboardDigestNotification extends Notification implements BulkMail
 {
     use Queueable;
 
@@ -60,7 +62,7 @@ class DashboardDigestNotification extends Notification
             ->subject(__('dashboard.digest_subject', ['frequency' => $this->frequency]))
             ->line(__('dashboard.digest_greeting', [
                 'frequency' => $this->frequency,
-                'date' => now()->toFormattedDateString(),
+                'date' => ReaderDates::for($notifiable)->date(now()),
             ]));
 
         if ($this->branchName !== null) {

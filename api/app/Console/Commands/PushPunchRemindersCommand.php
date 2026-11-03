@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Services\Attendance\MyShiftService;
 use App\Services\CurrentTenant;
 use App\Services\Push\WebPushSender;
-use App\Support\TenantTime;
+use App\Support\ReaderDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -73,10 +73,13 @@ class PushPunchRemindersCommand extends Command
                             return;
                         }
 
-                        $time = Carbon::parse($at)->setTimezone(TenantTime::zone($tenant))->format('H:i');
+                        // The reader's language and clock: `1:30 ጠዋት` for an
+                        // Amharic reader on the Ethiopian calendar, `07:30` otherwise.
+                        $locale = $user->preferredLocale() ?? 'en';
+                        $time = ReaderDates::for($user, $locale, $tenant)->time(Carbon::parse($at));
                         $sent += $sender->toUser($user->id, [
                             'title' => 'ETHR',
-                            'body' => __("attendance.push_reminder_{$kind}", ['time' => $time], $user->locale ?: 'en'),
+                            'body' => __("attendance.push_reminder_{$kind}", ['time' => $time], $locale),
                             'url' => '/attendance/mobile',
                             'tag' => "punch-{$kind}",
                         ]);

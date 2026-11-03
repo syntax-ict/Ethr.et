@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Notifications\Contracts\BulkMail;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
+use App\Support\ReaderDates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -15,7 +17,7 @@ use Illuminate\Notifications\Notification;
  * One notice listing the contracts, probation periods and documents due for
  * this person today (SendExpiryRemindersJob).
  */
-class ExpiryReminderNotification extends Notification
+class ExpiryReminderNotification extends Notification implements BulkMail
 {
     use Queueable, RespectsNotificationPreferences;
 
@@ -56,7 +58,7 @@ class ExpiryReminderNotification extends Notification
         foreach (array_slice($this->lines, 0, self::MAIL_LINES) as $line) {
             $mail->line(__("reminders.expiry.line_{$line['kind']}", [
                 'name' => $line['name'],
-                'date' => $line['date'],
+                'date' => ReaderDates::for($notifiable)->date($line['date']),
                 'document' => $line['label'],
             ]));
         }

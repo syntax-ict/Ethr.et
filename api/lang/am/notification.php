@@ -8,6 +8,8 @@ return [
 
     // Payroll notifications
     'view_payslip' => 'ደመወዝ ሰነድ ይመልከቱ',
+    'view_attendance' => 'መገኘትን ይመልከቱ',
+    'upgrade_plan' => 'ዕቅድ ያሻሽሉ',
 
     // Attendance corrections
 

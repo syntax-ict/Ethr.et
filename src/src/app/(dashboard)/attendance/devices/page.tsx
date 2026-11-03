@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
@@ -499,11 +500,10 @@ function ExemptDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        <Input
-          type="date"
+        <DualCalendarDateInput
           aria-label={t("devices.exempt_until", "Until")}
           value={until}
-          onChange={(e) => setUntil(e.target.value)}
+          onChange={setUntil}
         />
         <DialogFooter>
           <Button

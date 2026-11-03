@@ -28,18 +28,18 @@ import {
 } from "@/features/profile/api";
 import { useCurrentTenant } from "@/features/auth/api";
 import { toCalendarSystem, useCalendar } from "@/lib/calendar/calendar-context";
+import { ClockSelect } from "@/components/shared/clock-select";
+import { toClockPreference } from "@/lib/calendar/ethiopian-time";
 import { useT } from "@/lib/i18n/useT";
-import { setLocale } from "@/lib/i18n/translations";
+import { setLocale, supportedLocales } from "@/lib/i18n/translations";
 import { toast } from "sonner";
 
-const LANGUAGES = [
-  { value: "en", label: "English" },
-  { value: "am", label: "አማርኛ" },
-  { value: "om", label: "Afaan Oromoo" },
-  { value: "ti", label: "ትግርኛ" },
-  { value: "so", label: "Soomaali" },
-  { value: "sid", label: "Sidaamu Afoo" },
-] as const;
+// Only languages with a full dictionary. This listed all six, so choosing
+// Tigrinya saved `ti` on the server while `setLocale` refused it and the page
+// stayed in the old language — the same split the header list once had.
+const LANGUAGES = supportedLocales
+  .filter((l) => l.status === "available")
+  .map((l) => ({ value: l.code, label: l.nativeName }));
 
 const THEMES = ["system", "light", "dark", "high-contrast"] as const;
 // No "dual": it promised both dates side by side and no display implements it
@@ -61,7 +61,7 @@ function Preferences({ profile }: { profile: ProfileResponse }) {
   const { t } = useT();
   const { theme, setTheme } = useTheme();
   const { data: tenant } = useCurrentTenant();
-  const { setCalendar } = useCalendar();
+  const { setCalendar, setClockPreference } = useCalendar();
   const save = useUpdatePreferences();
   const prefs = profile.preferences;
 
@@ -205,6 +205,18 @@ function Preferences({ profile }: { profile: ProfileResponse }) {
                 "Applies wherever you sign in. Until you choose, your organisation's default is used.",
               )}
             </p>
+            <div className="space-y-2 pt-2">
+              <Label htmlFor="clock">
+                {t("profile.time_display", "Time of day")}
+              </Label>
+              <ClockSelect
+                id="clock"
+                value={toClockPreference(prefs?.clock)}
+                onChange={(clock) =>
+                  void persist({ clock }, () => setClockPreference(clock))
+                }
+              />
+            </div>
           </CardContent>
         </Card>
       )}

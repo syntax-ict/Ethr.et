@@ -207,8 +207,11 @@ function PaymentInstructions({ details }: { details: PaymentDetails | null }) {
   }
 
   const instructions =
-    (locale === "am" ? details.instructions_am : details.instructions) ??
-    details.instructions;
+    (locale === "am"
+      ? details.instructions_am
+      : locale === "om"
+        ? details.instructions_om
+        : details.instructions) ?? details.instructions;
 
   return (
     <Card className="border-status-info/30 bg-status-info/5">

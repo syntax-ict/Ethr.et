@@ -401,6 +401,40 @@ it('makes pages and their payloads revalidate, so a release reaches browsers tha
         ->and($block)->toContain('</FilesMatch>');
 });
 
+it('serves the pre-compressed copy of a static script or stylesheet only to a browser that accepts brotli', function () {
+    // A .br copy served without its encoding is unreadable, and one the host's
+    // nginx compressed again would break every script it covered. The host was
+    // measured passing it through with a test file first (2026-11-02); the rule
+    // covers _next/static only, and widening it again must be a conscious
+    // change to this test.
+    $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
+
+    $rule = ethrHtaccessIndexOf($directives, 'RewriteRule ^(_next/static/.+\.(js|css))$ $1.br [L]');
+
+    expect($rule)->not->toBeNull('the pre-compressed copy rule is gone')
+        ->and($directives[$rule - 2])->toBe('RewriteCond %{HTTP:Accept-Encoding} \bbr\b')
+        ->and($directives[$rule - 1])->toBe('RewriteCond %{REQUEST_FILENAME}.br -f')
+        ->and(array_filter($directives, fn (string $line) => str_contains($line, '.br [')))->toHaveCount(1);
+
+    // It must answer before anything that could rewrite the request elsewhere.
+    $frontController = ethrHtaccessIndexOf($directives, 'RewriteRule ^ index.php [L]');
+    expect($rule)->toBeLessThan($frontController);
+
+    $encoding = ethrHtaccessIndexOf($directives, '<FilesMatch "\.(js|css)\.br$">');
+    expect($encoding)->not->toBeNull('the copy has no encoding')
+        ->and($directives[$encoding + 1])->toBe('AddEncoding br .br');
+
+    $vary = ethrHtaccessIndexOf($directives, '<FilesMatch "\.(js|css)(\.br)?$">');
+    expect($vary)->not->toBeNull('the answers do not name Accept-Encoding in Vary')
+        ->and($directives[$vary + 1])->toBe('Header append Vary Accept-Encoding');
+
+    // After the rewrite Apache matches NAME.js.br, so the year-long asset rule
+    // must cover the copy too, or every script would lose its caching.
+    $assets = ethrHtaccessIndexOf($directives, '<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot)(\.br)?$">');
+    expect($assets)->not->toBeNull('the pre-compressed copies are outside the asset caching rule')
+        ->and(array_slice($directives, $assets, 4))->toContain('Header set Cache-Control "public, immutable"');
+});
+
 it('promotes exactly the sentinel lines and no prose', function () {
     $root = dirname(base_path());
     $template = (string) file_get_contents($root.'/docs/deployment/shared-hosting/.htaccess');

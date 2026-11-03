@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { EthrLogoTile } from "@/components/shared/ethr-logo";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { pickLocalised } from "@/features/marketing/site-content";
 import { SITE_URL } from "@/lib/site-url";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -102,6 +103,7 @@ function PaymentForm({ settings }: { settings: PlatformSettings }) {
     bank_account_name: s.bank_account_name ?? "",
     payment_instructions: s.payment_instructions ?? "",
     payment_instructions_am: s.payment_instructions_am ?? "",
+    payment_instructions_om: s.payment_instructions_om ?? "",
   });
 
   const [form, setForm] = useSeededForm(settings, seed);
@@ -115,6 +117,7 @@ function PaymentForm({ settings }: { settings: PlatformSettings }) {
   // acts as a last-resort accessible name — see the Field helper below.
   const instructionsEnId = useId();
   const instructionsAmId = useId();
+  const instructionsOmId = useId();
 
   function save() {
     update.mutate(form, {
@@ -170,7 +173,7 @@ function PaymentForm({ settings }: { settings: PlatformSettings }) {
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-1.5">
             <Label className="text-xs" htmlFor={instructionsEnId}>
               {t("platform_settings.instructions_en", "Instructions (English)")}
@@ -191,6 +194,20 @@ function PaymentForm({ settings }: { settings: PlatformSettings }) {
               rows={3}
               value={form.payment_instructions_am}
               onChange={(e) => set("payment_instructions_am")(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor={instructionsOmId}>
+              {t(
+                "platform_settings.instructions_om",
+                "Instructions (Afaan Oromo)",
+              )}
+            </Label>
+            <Textarea
+              id={instructionsOmId}
+              rows={3}
+              value={form.payment_instructions_om}
+              onChange={(e) => set("payment_instructions_om")(e.target.value)}
             />
           </div>
         </div>
@@ -236,13 +253,16 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
   const seed = (s: PlatformSettings) => ({
     platform_name: s.platform_name ?? "",
     platform_name_am: s.platform_name_am ?? "",
+    platform_name_om: s.platform_name_om ?? "",
     tagline: s.tagline ?? "",
     tagline_am: s.tagline_am ?? "",
+    tagline_om: s.tagline_om ?? "",
     logo_url: s.logo_url ?? "",
     contact_email: s.contact_email ?? "",
     contact_phone: s.contact_phone ?? "",
     office_address: s.office_address ?? "",
     office_address_am: s.office_address_am ?? "",
+    office_address_om: s.office_address_om ?? "",
     social_linkedin: s.social_linkedin ?? "",
     social_x: s.social_x ?? "",
     social_facebook: s.social_facebook ?? "",
@@ -252,11 +272,14 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
       s.metric_employees === null ? "" : String(s.metric_employees),
     metric_uptime_note: s.metric_uptime_note ?? "",
     metric_uptime_note_am: s.metric_uptime_note_am ?? "",
+    metric_uptime_note_om: s.metric_uptime_note_om ?? "",
     testimonial_quote: s.testimonial_quote ?? "",
     testimonial_quote_am: s.testimonial_quote_am ?? "",
+    testimonial_quote_om: s.testimonial_quote_om ?? "",
     testimonial_author: s.testimonial_author ?? "",
     testimonial_role: s.testimonial_role ?? "",
     testimonial_role_am: s.testimonial_role_am ?? "",
+    testimonial_role_om: s.testimonial_role_om ?? "",
     testimonial_organisation: s.testimonial_organisation ?? "",
     testimonial_consented_on: s.testimonial_consented_on ?? "",
     google_maps_key: s.google_maps_key ?? "",
@@ -289,13 +312,16 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
         // stored as "".
         platform_name: form.platform_name || null,
         platform_name_am: form.platform_name_am || null,
+        platform_name_om: form.platform_name_om || null,
         tagline: form.tagline || null,
         tagline_am: form.tagline_am || null,
+        tagline_om: form.tagline_om || null,
         logo_url: form.logo_url || null,
         contact_email: form.contact_email || null,
         contact_phone: form.contact_phone || null,
         office_address: form.office_address || null,
         office_address_am: form.office_address_am || null,
+        office_address_om: form.office_address_om || null,
         social_linkedin: form.social_linkedin || null,
         social_x: form.social_x || null,
         social_facebook: form.social_facebook || null,
@@ -303,11 +329,14 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
         metric_employees: metric(form.metric_employees),
         metric_uptime_note: form.metric_uptime_note || null,
         metric_uptime_note_am: form.metric_uptime_note_am || null,
+        metric_uptime_note_om: form.metric_uptime_note_om || null,
         testimonial_quote: form.testimonial_quote || null,
         testimonial_quote_am: form.testimonial_quote_am || null,
+        testimonial_quote_om: form.testimonial_quote_om || null,
         testimonial_author: form.testimonial_author || null,
         testimonial_role: form.testimonial_role || null,
         testimonial_role_am: form.testimonial_role_am || null,
+        testimonial_role_om: form.testimonial_role_om || null,
         testimonial_organisation: form.testimonial_organisation || null,
         testimonial_consented_on: form.testimonial_consented_on || null,
         google_maps_key: form.google_maps_key || null,
@@ -341,7 +370,7 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field
             label={t("site_content.platform_name", "Name")}
             value={form.platform_name}
@@ -354,6 +383,11 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
             onChange={set("platform_name_am")}
           />
           <Field
+            label={t("site_content.platform_name_om", "Name (Afaan Oromo)")}
+            value={form.platform_name_om}
+            onChange={set("platform_name_om")}
+          />
+          <Field
             label={t("site_content.tagline", "Tagline")}
             value={form.tagline}
             onChange={set("tagline")}
@@ -362,6 +396,11 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
             label={t("site_content.tagline_am", "Tagline (Amharic)")}
             value={form.tagline_am}
             onChange={set("tagline_am")}
+          />
+          <Field
+            label={t("site_content.tagline_om", "Tagline (Afaan Oromo)")}
+            value={form.tagline_om}
+            onChange={set("tagline_om")}
           />
         </div>
 
@@ -382,6 +421,7 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
             label={t("site_content.contact_phone", "Contact phone")}
             value={form.contact_phone}
             onChange={set("contact_phone")}
+            placeholder="+251 920 273 166, +251 920 212 200"
           />
           <Field
             label={t("site_content.office_address", "Office address")}
@@ -395,6 +435,14 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
             )}
             value={form.office_address_am}
             onChange={set("office_address_am")}
+          />
+          <Field
+            label={t(
+              "site_content.office_address_om",
+              "Office address (Afaan Oromo)",
+            )}
+            value={form.office_address_om}
+            onChange={set("office_address_om")}
           />
         </div>
 
@@ -472,6 +520,14 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
               value={form.testimonial_quote_am}
               onChange={set("testimonial_quote_am")}
             />
+            <Field
+              label={t(
+                "site_content.testimonial_quote_om",
+                "Quote (Afaan Oromo)",
+              )}
+              value={form.testimonial_quote_om}
+              onChange={set("testimonial_quote_om")}
+            />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
                 label={t("site_content.testimonial_author", "Author")}
@@ -495,6 +551,14 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
                 label={t("site_content.testimonial_role_am", "Role (Amharic)")}
                 value={form.testimonial_role_am}
                 onChange={set("testimonial_role_am")}
+              />
+              <Field
+                label={t(
+                  "site_content.testimonial_role_om",
+                  "Role (Afaan Oromo)",
+                )}
+                value={form.testimonial_role_om}
+                onChange={set("testimonial_role_om")}
               />
             </div>
             <Field
@@ -549,6 +613,7 @@ function ProductMarkForm({ settings }: { settings: PlatformSettings }) {
     product_mark_enabled: s.product_mark_enabled === false ? "off" : "on",
     product_mark_label: s.product_mark_label ?? "",
     product_mark_label_am: s.product_mark_label_am ?? "",
+    product_mark_label_om: s.product_mark_label_om ?? "",
     product_mark_url: s.product_mark_url ?? "",
   });
 
@@ -564,6 +629,7 @@ function ProductMarkForm({ settings }: { settings: PlatformSettings }) {
       locale,
       form.product_mark_label_am.trim() || null,
       form.product_mark_label.trim() || null,
+      form.product_mark_label_om.trim() || null,
     ) ?? defaultLabel;
 
   function save() {
@@ -572,6 +638,7 @@ function ProductMarkForm({ settings }: { settings: PlatformSettings }) {
         product_mark_enabled: enabled,
         product_mark_label: form.product_mark_label.trim() || null,
         product_mark_label_am: form.product_mark_label_am.trim() || null,
+        product_mark_label_om: form.product_mark_label_om.trim() || null,
         product_mark_url: form.product_mark_url.trim() || null,
       },
       {
@@ -631,7 +698,7 @@ function ProductMarkForm({ settings }: { settings: PlatformSettings }) {
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field
             label={t("product_mark.label", "Wording")}
             value={form.product_mark_label}
@@ -643,6 +710,11 @@ function ProductMarkForm({ settings }: { settings: PlatformSettings }) {
             value={form.product_mark_label_am}
             onChange={set("product_mark_label_am")}
             placeholder="በETHR የሚሰራ"
+          />
+          <Field
+            label={t("product_mark.label_om", "Wording (Afaan Oromo)")}
+            value={form.product_mark_label_om}
+            onChange={set("product_mark_label_om")}
           />
         </div>
         <Field
@@ -734,14 +806,18 @@ function Field({
       <Label className="text-xs" htmlFor={id}>
         {label}
       </Label>
-      <Input
-        id={id}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={mono ? "font-mono" : undefined}
-      />
+      {type === "date" ? (
+        <DualCalendarDateInput id={id} value={value} onChange={onChange} />
+      ) : (
+        <Input
+          id={id}
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={mono ? "font-mono" : undefined}
+        />
+      )}
     </div>
   );
 }

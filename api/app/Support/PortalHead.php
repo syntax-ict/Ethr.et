@@ -64,6 +64,7 @@ final class PortalHead
             '<link rel="canonical" href="'.$e($url).'">',
             '<link rel="alternate" hreflang="en" href="'.$e($url.'?lang=en').'">',
             '<link rel="alternate" hreflang="am" href="'.$e($url.'?lang=am').'">',
+            '<link rel="alternate" hreflang="om" href="'.$e($url.'?lang=om').'">',
             '<link rel="alternate" hreflang="x-default" href="'.$e($url).'">',
             '<meta name="theme-color" content="'.$e($colour).'">',
         ];
@@ -84,6 +85,7 @@ final class PortalHead
             '<meta property="og:image:alt" content="'.$e($name).'">',
             '<meta property="og:locale" content="en_US">',
             '<meta property="og:locale:alternate" content="am_ET">',
+            '<meta property="og:locale:alternate" content="om_ET">',
             '<meta name="twitter:card" content="summary_large_image">',
             '<meta name="twitter:title" content="'.$e($name).'">',
             '<meta name="twitter:description" content="'.$e($description).'">',
@@ -223,6 +225,7 @@ final class PortalHead
             '<link rel="canonical" href="'.$e($url).'">',
             '<link rel="alternate" hreflang="en" href="'.$e($url.$joiner.'lang=en').'">',
             '<link rel="alternate" hreflang="am" href="'.$e($url.$joiner.'lang=am').'">',
+            '<link rel="alternate" hreflang="om" href="'.$e($url.$joiner.'lang=om').'">',
             '<link rel="alternate" hreflang="x-default" href="'.$e($url).'">',
             '<meta name="theme-color" content="'.$e($colour).'">',
         ];
@@ -243,6 +246,7 @@ final class PortalHead
             '<meta property="og:image:alt" content="'.$e($image['alt']).'">',
             '<meta property="og:locale" content="en_US">',
             '<meta property="og:locale:alternate" content="am_ET">',
+            '<meta property="og:locale:alternate" content="om_ET">',
         );
         if ($published !== null) {
             $tags[] = '<meta property="article:published_time" content="'.$e($published->toIso8601String()).'">';

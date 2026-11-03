@@ -86,6 +86,16 @@ test('an employee sees only payslips from approved runs', function (string $stat
     'voided' => ['voided', 0],
 ]);
 
+test("a payslip carries its run's dates, so the month can be shown in the reader's calendar", function () {
+    [$tenant, $staff, $run] = payslipFixture('approved');
+    test()->actingAs($staff);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/payslips/my")
+        ->assertOk()
+        ->assertJsonPath('data.0.period_start', $run->period_start->toDateString())
+        ->assertJsonPath('data.0.period_end', $run->period_end->toDateString());
+});
+
 test('an employee can download their own approved payslip', function () {
     [$tenant, $staff, , $entry] = payslipFixture('approved');
     test()->actingAs($staff);

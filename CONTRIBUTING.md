@@ -376,7 +376,7 @@ collection guard, which fails loudly on an undercount: any lossy filesystem
 produces the same silent green, so keep the checkout on a plain local disk.
 
 **A native PHP run on a local disk does not have this problem.** If you have PHP
-8.2+ with `pdo_sqlite`, `mbstring`, `gd`, `dom` and `fileinfo`, the full suite
+8.3+ with `pdo_sqlite`, `mbstring`, `gd`, `dom` and `fileinfo`, the full suite
 runs directly and collects every class:
 
 ```bash

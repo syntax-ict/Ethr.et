@@ -43,6 +43,7 @@ import { LifecycleTab } from "@/features/employees/components/lifecycle-tab";
 import { InfoRow } from "@/features/employees/components/info-row";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
@@ -90,6 +91,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   const [tab, setTab] = useQueryTab(EMPLOYEE_TABS, "info");
   const id = useRouteId(routeId) ?? "";
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const {
     data: employee,
     isLoading,
@@ -427,7 +429,11 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                     <InfoRow
                       icon={Calendar}
                       label={t("employee.detail.hire_date", "Hire Date")}
-                      value={employee.hire_date ?? "—"}
+                      value={
+                        employee.hire_date
+                          ? formatDate(employee.hire_date)
+                          : "—"
+                      }
                     />
                     <InfoRow
                       icon={Fingerprint}
@@ -526,7 +532,9 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                       {t("employee.detail.hired", "Hired")}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {employee.hire_date}
+                      {employee.hire_date
+                        ? formatDate(employee.hire_date)
+                        : "—"}
                     </p>
                   </div>
                 </div>

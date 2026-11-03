@@ -154,6 +154,8 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | [`operations/ORGANISATION-SERVICES.md`](operations/ORGANISATION-SERVICES.md) | **Organisation services**: what an organisation offers on its public page, the rules on save and serve, and where a section added later lands in a saved order |
 | [`operations/MARKETING-SITE.md`](operations/MARKETING-SITE.md) | **The landing page**: which sections and rows the platform console edits, the claims the server refuses, how pictures are stored and served, first-run seeding, and the snapshot step every release needs |
 | [`operations/MARKETING-VISUALS.md`](operations/MARKETING-VISUALS.md) | **Landing page illustrations**: the three production routes (drawn scenes ship regardless, the generator script with a provider key, a web UI export placed with `--import`), the rendered prompt pack, export settings, provider costs and the review checklist |
+| [`operations/marketing-deck/README.md`](operations/marketing-deck/README.md) | **Sales deck for HR buyers**: the 13 slides and their source, the claims it may make, where the prices come from, and what its live panels do |
+| [`operations/social-kit/README.md`](operations/social-kit/README.md) | **Social media kit**: profile images and bios, 62 posts, carousel slides, stories and link cards in English and Amharic, captions per platform, a launch calendar, video scripts, and the check that keeps every sentence inside the claims the site may make |
 | [`operations/COMMANDS-AND-SCHEDULE.md`](operations/COMMANDS-AND-SCHEDULE.md) | Every `ethr:*` Artisan command, the full schedule, and first checks when something looks wrong |
 | [`operations/SMS-DELIVERY.md`](operations/SMS-DELIVERY.md) | **SMS on subscription day.** Configured in the platform console, not `.env`; any HTTP gateway, both networks, test before switching on, daily cap. SMPP is out of scope on this host |
 | [`operations/IMPERSONATION.md`](operations/IMPERSONATION.md) | How a platform super admin acts as a tenant admin: MFA re-check, 30-minute token, cross-host handoff, audit tagging, what is blocked. **Ends with three findings on the production (hostname) path that no test covers** |
@@ -184,6 +186,8 @@ a measured figure is how figures drift.
 ## End-user guides
 
 [`user-guide.md`](user-guide.md) · [`admin-guide.md`](admin-guide.md) · [`manager-guide.md`](manager-guide.md)
+
+In Amharic, illustrated, as PDF: [`user-guides/am/`](user-guides/am/README.md), for employees, managers and administrators. Screenshots are taken from the running app, so the guides are rebuilt with a release rather than redrawn.
 
 ---
 

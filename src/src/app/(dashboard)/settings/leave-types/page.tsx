@@ -46,6 +46,7 @@ import { useT } from "@/lib/i18n/useT";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { LeaveYearCard } from "@/features/leave/components/leave-year-card";
 import { WorkingWeekCard } from "@/features/leave/components/working-week-card";
 
 const ACCRUAL_TYPES = [
@@ -235,6 +236,8 @@ export default function LeaveTypesPage() {
         />
 
         <WorkingWeekCard />
+
+        <LeaveYearCard />
 
         <QueryBoundary
           query={leaveTypesQuery}

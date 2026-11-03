@@ -66,6 +66,7 @@ it('publishes exactly the fields the contract promises, and no others', function
         'slug',
         'description',
         'description_am',
+        'description_om',
         'price_cents',
         'currency',
         'billing_interval',
@@ -75,6 +76,7 @@ it('publishes exactly the fields the contract promises, and no others', function
         'features',
         'marketing_features',
         'marketing_features_am',
+        'marketing_features_om',
         'is_popular',
         'sort_order',
     ]);

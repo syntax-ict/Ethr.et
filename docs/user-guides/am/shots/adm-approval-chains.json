@@ -1,0 +1,16 @@
+{
+  "device": "desktop",
+  "width": 2560,
+  "height": 1600,
+  "path": "/settings/approval-chains",
+  "markers": [
+    {
+      "n": 1,
+      "x": 2228,
+      "y": 228,
+      "w": 292,
+      "h": 88,
+      "pin": "below"
+    }
+  ]
+}

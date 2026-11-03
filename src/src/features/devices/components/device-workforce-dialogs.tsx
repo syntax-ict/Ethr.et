@@ -26,6 +26,7 @@ import { SimpleTable } from "@/components/shared/simple-table";
 import Link from "next/link";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { todayIn } from "@/lib/utils/date";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
 import {
@@ -256,6 +257,7 @@ export function ImportHistoryDialog({
   onClose: () => void;
 }) {
   const { t } = useT();
+  const { timeZone } = useDateFormatters();
   const importHistory = useImportDeviceHistory();
   const [window, setWindow] = useState<HistoryWindow>("last_90");
   const [fromDate, setFromDate] = useState("");
@@ -337,7 +339,7 @@ export function ImportHistoryDialog({
               <DualCalendarDateInput
                 id="from_date"
                 value={fromDate}
-                max={new Date().toISOString().slice(0, 10)}
+                max={todayIn(timeZone)}
                 onChange={setFromDate}
                 className="mt-1"
               />

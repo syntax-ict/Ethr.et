@@ -14,9 +14,10 @@
  *     vanish. This dropped the employee count on /employees. Use the third
  *     argument instead: t("a.b", ":count items", { count: n }).
  *
- *  3. LOCALE DRIFT — en.json and am.json disagree on which keys exist, or a
- *     :placeholder present in one locale is missing from the other (which would
- *     drop the value in that language only).
+ *  3. LOCALE DRIFT — en.json and a translation (am.json, om.json) disagree on
+ *     which keys exist, or a :placeholder present in one locale is missing from
+ *     the other (which would drop the value in that language only). Every
+ *     translation is held to the same rules: TRANSLATIONS below lists them.
  *
  *  4. PUBLIC KEY OUTSIDE THE SHIPPED SUBSET — a t() call on a public page whose
  *     key is not covered by PUBLIC_KEY_PREFIXES.
@@ -155,7 +156,68 @@ function importClosure(entries) {
 }
 
 const en = loadLocale("en");
-const am = loadLocale("am");
+
+/**
+ * Every locale that ships a full dictionary besides English. `ti`, `so` and
+ * `sid` are stubs (`lib/i18n/config.ts` marks them `coming_soon`) and are not
+ * held to this until they are promoted.
+ *
+ * `sameAsEnglish` lists the values that are rightly identical to English in
+ * that language — acronyms, the language's own name, example values — each one
+ * deliberately. Anything else identical to English is English shown to a reader
+ * who chose another language.
+ */
+const TRANSLATIONS = {
+  am: [
+    "admin_tenant_detail_page.custom_domain_placeholder", // hr.example.com
+    "attendance.source_qr", // QR
+    "audit_logs_page.ip", // IP
+    "nav.sso", // SSO / SAML
+    "settings.tab_sso", // SSO
+    "notification_prefs_page.channel_sms", // SMS
+    "settings.english", // a language is named in its own language
+    "password.strength_none", // empty
+    "employee.education.degree_placeholder", // BSc, MSc, MBA...
+    "webhooks_page.url", // URL
+    "shifts_page.name_english_placeholder", // the English-name field's example
+  ],
+  // Oromo is written in the Latin script, so it shares more with English
+  // than Amharic does: formats made only of placeholders, and loan words.
+  om: [
+    "admin_tenant_detail_page.custom_domain_placeholder", // hr.example.com
+    "admin_features.changed", // ":when: :reason" — a format
+    "admin_sms.test_status", // "HTTP :status"
+    "attendance.source_qr", // QR
+    "attendance.kiosks_page.lock_ipad_title", // iPad
+    "audit_logs_page.ip", // IP
+    "audit.subject.webhook", // Webhook — the technical term, kept
+    "audit.entity.webhook", // Webhook
+    "roles_page.module_webhook", // Webhooks — the technical term, kept
+    "route.settings.webhooks.label", // Webhooks
+    "employee.education.degree_placeholder", // BSc, MSc, MBA...
+    "employee.education.gpa", // GPA
+    "employee.tin", // TIN
+    "employees.missing.tin", // TIN
+    "leave_page.calendar_range", // ":from – :to" — a format
+    "recruitment.score_of", // ":score / 100" — a format
+    "settings.english", // a language is named in its own language
+    "settings.tab_sso", // SSO
+    "users_page.mfa_on", // 2FA
+    "password.strength_none", // empty
+    "profile.tin", // TIN
+    "nav.sso", // SSO / SAML
+    "notification_prefs_page.channel_sms", // SMS
+    "webhooks_page.url", // URL
+    "work_sites.radius_short", // ":m m" — metres
+    // Plan names are brands: billing and invoices print them as stored.
+    "marketing.pricing_page.starter", // Starter
+    "marketing.pricing_page.professional", // Professional
+    "marketing.pricing_page.enterprise", // Enterprise
+  ],
+};
+const translations = Object.fromEntries(
+  Object.keys(TRANSLATIONS).map((code) => [code, loadLocale(code)]),
+);
 const files = sourceFiles(SRC);
 
 const PUBLIC_ROOT = path.join(SRC, "app", "(marketing)");
@@ -192,7 +254,9 @@ for (const file of files) {
     const key = m[1];
     const gaps = [];
     if (en[key] === undefined) gaps.push("en");
-    if (am[key] === undefined) gaps.push("am");
+    for (const [code, dict] of Object.entries(translations)) {
+      if (dict[key] === undefined) gaps.push(code);
+    }
     if (gaps.length) {
       const line = src.slice(0, m.index).split("\n").length;
       missing.push(`${rel}:${line}  ${key}  (missing in ${gaps.join(", ")})`);
@@ -228,46 +292,41 @@ for (const file of files) {
   }
 }
 
-// Locale drift
+// Locale drift, and English left in a translation.
 const enKeys = Object.keys(en);
-const amKeys = new Set(Object.keys(am));
-const onlyEn = enKeys.filter((k) => !amKeys.has(k));
-const onlyAm = [...amKeys].filter((k) => en[k] === undefined);
-
 const placeholders = (s) =>
   (String(s).match(/:[a-z_]+/gi) || []).sort().join(",");
-const mismatched = enKeys
-  .filter((k) => amKeys.has(k))
-  .filter((k) => placeholders(en[k]) !== placeholders(am[k]));
 
-// An Amharic value identical to the English one is English shown to an
-// Amharic reader. The key checks above all pass on it, which is how 103 such
-// values accumulated unseen (measured 2026-10-14). The few that are rightly
-// the same in both — acronyms, the language's own name, example values — are
-// listed here, each one deliberately.
-const SAME_IN_BOTH = new Set([
-  "admin_tenant_detail_page.custom_domain_placeholder", // hr.example.com
-  "attendance.source_qr", // QR
-  "audit_logs_page.ip", // IP
-  "nav.sso", // SSO / SAML
-  "settings.tab_sso", // SSO
-  "notification_prefs_page.channel_sms", // SMS
-  "settings.english", // a language is named in its own language
-  "password.strength_none", // empty
-  "employee.education.degree_placeholder", // BSc, MSc, MBA...
-  "webhooks_page.url", // URL
-  "shifts_page.name_english_placeholder", // the English-name field's example
-]);
-const untranslated = enKeys.filter(
-  (k) => amKeys.has(k) && am[k] === en[k] && !SAME_IN_BOTH.has(k),
-);
+const drift = {};
+for (const [code, dict] of Object.entries(translations)) {
+  const keys = new Set(Object.keys(dict));
+  const same = new Set(TRANSLATIONS[code]);
+  drift[code] = {
+    onlyEn: enKeys.filter((k) => !keys.has(k)),
+    onlyHere: [...keys].filter((k) => en[k] === undefined),
+    mismatched: enKeys
+      .filter((k) => keys.has(k))
+      .filter((k) => placeholders(en[k]) !== placeholders(dict[k]))
+      .map(
+        (k) =>
+          `${k}  en(${placeholders(en[k])}) ${code}(${placeholders(dict[k])})`,
+      ),
+    // An identical value passes every key check above, which is how 103 of
+    // them accumulated unseen in am.json (measured 2026-10-14).
+    untranslated: enKeys.filter(
+      (k) => keys.has(k) && dict[k] === en[k] && !same.has(k),
+    ),
+  };
+}
 
 const problems = [];
-if (untranslated.length)
-  problems.push([
-    `${untranslated.length} am value(s) identical to en — translate, or add the key to SAME_IN_BOTH with a reason`,
-    untranslated,
-  ]);
+for (const [code, d] of Object.entries(drift)) {
+  if (d.untranslated.length)
+    problems.push([
+      `${d.untranslated.length} ${code} value(s) identical to en — translate, or add the key to TRANSLATIONS.${code} with a reason`,
+      d.untranslated,
+    ]);
+}
 if (missing.length)
   problems.push([`${missing.length} key(s) used but not defined`, missing]);
 if (interpolated.length)
@@ -288,22 +347,25 @@ if (fallbackDrift.length)
       `the prerendered English page would rewrite itself after hydration`,
     fallbackDrift,
   ]);
-if (onlyEn.length)
-  problems.push([`${onlyEn.length} key(s) in en but not am`, onlyEn]);
-if (onlyAm.length)
-  problems.push([`${onlyAm.length} key(s) in am but not en`, onlyAm]);
-if (mismatched.length)
-  problems.push([
-    `${mismatched.length} key(s) whose :placeholders differ between locales`,
-    mismatched.map(
-      (k) => `${k}  en(${placeholders(en[k])}) am(${placeholders(am[k])})`,
-    ),
-  ]);
+for (const [code, d] of Object.entries(drift)) {
+  if (d.onlyEn.length)
+    problems.push([`${d.onlyEn.length} key(s) in en but not ${code}`, d.onlyEn]);
+  if (d.onlyHere.length)
+    problems.push([
+      `${d.onlyHere.length} key(s) in ${code} but not en`,
+      d.onlyHere,
+    ]);
+  if (d.mismatched.length)
+    problems.push([
+      `${d.mismatched.length} key(s) whose :placeholders differ between en and ${code}`,
+      d.mismatched,
+    ]);
+}
 
 if (!problems.length) {
   console.log(
     `i18n OK — ${files.length} files (${publicFiles.size} reachable from a public page), ` +
-      `${enKeys.length} keys, en/am in sync, every am value translated, no interpolated fallbacks, ` +
+      `${enKeys.length} keys, en/${Object.keys(translations).join("/")} in sync, every translated value translated, no interpolated fallbacks, ` +
       `every public key inside the shipped subset, no public fallback drift.`,
   );
   process.exit(0);

@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import {
   Dialog,
   DialogContent,
@@ -880,14 +881,13 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
                 <Label htmlFor="paid-on">
                   {t("payroll_detail_page.paid_on", "Date paid")}
                 </Label>
-                <Input
+                <DualCalendarDateInput
                   id="paid-on"
-                  type="date"
                   className="mt-1"
                   required
                   max={new Date().toLocaleDateString("en-CA")}
                   value={paidOn}
-                  onChange={(e) => setPaidOn(e.target.value)}
+                  onChange={setPaidOn}
                 />
               </div>
               <div>

@@ -39,7 +39,7 @@ class UpdateUserRequest extends FormRequest
             'role' => ['sometimes', 'string', Rule::enum(UserRole::class)],
             'status' => ['sometimes', 'string', Rule::in(['active', 'inactive', 'suspended'])],
             'custom_role_id' => ['sometimes', 'nullable', 'string', 'exists:custom_roles,public_id'],
-            'locale' => ['sometimes', 'string', 'in:en,am'],
+            'locale' => ['sometimes', 'string', 'in:en,am,om'],
         ];
     }
 

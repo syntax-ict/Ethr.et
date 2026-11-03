@@ -7,12 +7,14 @@ import { Clock, CalendarDays, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * Charts are the heaviest thing on this page (recharts, ~435 KB uncompressed)
- * and they sit below the fold, so loading them in the initial bundle delays
- * the KPIs and approvals the user actually landed here for. Split out with a
- * skeleton that reserves the same height — deferring the import must not cost
- * a layout shift.
+ * Charts are the heaviest thing on this page (recharts, ~435 KB uncompressed,
+ * about 98 KB brotli) and they sit below the fold, so loading them in the
+ * initial bundle delays the KPIs and approvals the user actually landed here
+ * for. Split out with a skeleton that reserves the same height — deferring the
+ * import must not cost a layout shift.
  */
+const CHART_PLACEHOLDER = "h-[360px] w-full rounded-lg";
+
 const InteractiveCharts = dynamic(
   () =>
     import("@/features/dashboard/components/interactive-charts").then(
@@ -20,7 +22,7 @@ const InteractiveCharts = dynamic(
     ),
   {
     ssr: false,
-    loading: () => <Skeleton className="h-[360px] w-full rounded-lg" />,
+    loading: () => <Skeleton className={CHART_PLACEHOLDER} />,
   },
 );
 import { useEmployeeDashboard } from "@/features/dashboard/api";
@@ -28,6 +30,7 @@ import { useCurrentUser } from "@/features/auth/api";
 import { DashboardSection } from "@/components/dashboard";
 import { InstallAppBanner } from "@/components/shared/install-app";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useNearViewport } from "@/lib/hooks/useNearViewport";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { dateFromIso } from "@/lib/calendar/date-from-iso";
@@ -118,7 +121,7 @@ export default function DashboardPage() {
         <div className="min-w-0 space-y-6 xl:col-span-2">
           <NextStepsCard />
           <PendingApprovalsPanel />
-          <InteractiveCharts />
+          {(isSupervisor || can.viewExecutiveDashboard) && <DeferredCharts />}
         </div>
         <div className="min-w-0 space-y-6">
           {!hasNoEmployee && <PulsePrompt />}
@@ -242,6 +245,28 @@ function SelfServiceKpis() {
             : t("dashboard.no_upcoming", "No upcoming holidays")
         }
       />
+    </div>
+  );
+}
+
+/**
+ * Splitting the chunk was not enough: a split chunk still downloads as soon as
+ * its component renders. InteractiveCharts renders nothing for someone who is
+ * neither a supervisor nor allowed the executive view, yet every employee
+ * fetched recharts to learn that (measured 2026-11-01: 98 of the 470 KB brotli
+ * the signed-in dashboard loaded). The same test now runs here, before the
+ * import, and those who do see the charts fetch them on the way down the page.
+ */
+function DeferredCharts() {
+  const { ref, near } = useNearViewport<HTMLDivElement>();
+
+  return (
+    <div ref={ref}>
+      {near ? (
+        <InteractiveCharts />
+      ) : (
+        <Skeleton className={CHART_PLACEHOLDER} />
+      )}
     </div>
   );
 }

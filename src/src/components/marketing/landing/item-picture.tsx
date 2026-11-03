@@ -29,7 +29,8 @@ export function ItemPicture({
   className?: string;
 }) {
   if (image) {
-    const alt = pickLocalised(locale, image.alt_am, image.alt) ?? "";
+    const alt =
+      pickLocalised(locale, image.alt_am, image.alt, image.alt_om) ?? "";
     return (
       // Served by ETHR, re-encoded on upload, at an immutable URL; next/image
       // adds nothing to a static export.

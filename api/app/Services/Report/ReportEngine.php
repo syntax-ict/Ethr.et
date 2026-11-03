@@ -15,12 +15,15 @@ use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Attendance\ExpectedDays;
+use App\Services\Leave\LeaveYear;
 use App\Services\Payroll\RunRegisterService;
 use App\Support\Csv;
+use App\Support\ReaderDates;
 use App\Support\TenantTime;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Lang;
 
 final class ReportEngine
 {
@@ -32,6 +35,9 @@ final class ReportEngine
 
     /** Set by a query that hit ROW_LIMIT; reset by every generate(). */
     private bool $truncated = false;
+
+    /** Who the rows are written for; set by every generate(). */
+    private ?ReaderDates $reader = null;
 
     /**
      * Each source's columns and the `filters` keys it applies. `department`,
@@ -71,57 +77,11 @@ final class ReportEngine
         ],
     ];
 
-    /**
-     * Column headings for the files a person reads: the PDF, the CSV export
-     * and scheduled deliveries. Those printed the API keys, `salary_cents`
-     * over `1250000`; the Reports page has its own translated labels.
-     */
-    private const FIELD_LABELS = [
-        'name' => 'Name',
-        'email' => 'Email',
-        'phone' => 'Phone',
-        'employee_code' => 'Employee code',
-        'gender' => 'Gender',
-        'status' => 'Status',
-        'hire_date' => 'Hire date',
-        'salary_cents' => 'Salary (ETB)',
-        'department' => 'Department',
-        'branch' => 'Branch',
-        'position' => 'Position',
-        'grade' => 'Grade',
-        'cost_center' => 'Cost centre',
-        'employee_name' => 'Employee',
-        'date' => 'Date',
-        'check_in' => 'Check-in',
-        'check_out' => 'Check-out',
-        'source' => 'Source',
-        'worked_minutes' => 'Worked (minutes)',
-        'overtime_minutes' => 'Overtime (minutes)',
-        'work_days' => 'Workdays',
-        'present_days' => 'Present',
-        'late_days' => 'Late',
-        'absent_days' => 'Absent',
-        'leave_days' => 'On leave',
-        'holiday_days' => 'Holidays',
-        'worked_hours' => 'Worked hours',
-        'overtime_hours' => 'Overtime hours',
-        'leave_type' => 'Leave type',
-        'year' => 'Year',
-        'entitled_days' => 'Entitled days',
-        'used_days' => 'Used days',
-        'remaining_days' => 'Remaining days',
-        'period' => 'Period',
-        'basic_salary_cents' => 'Basic salary (ETB)',
-        'overtime_cents' => 'Overtime (ETB)',
-        'allowances_cents' => 'Allowances (ETB)',
-        'gross_cents' => 'Gross pay (ETB)',
-        'income_tax_cents' => 'Income tax (ETB)',
-        'employee_pension_cents' => 'Employee pension (ETB)',
-        'employer_pension_cents' => 'Employer pension (ETB)',
-        'loan_cents' => 'Loan (ETB)',
-        'cost_sharing_cents' => 'Cost sharing (ETB)',
-        'net_cents' => 'Net pay (ETB)',
-    ];
+    /** Date-only fields, written in the reader's calendar in files. */
+    private const DATE_FIELDS = ['hire_date', 'date'];
+
+    /** Instants, written in the organisation's zone in files. */
+    private const TIME_FIELDS = ['check_in', 'check_out'];
 
     /** Columns summed per group: money, day counts and durations. */
     private const SUMMED_SUFFIXES = ['_cents', '_days', '_hours', '_minutes'];
@@ -161,8 +121,9 @@ final class ReportEngine
      *
      * @scramble-return array{source: string, total: int, truncated: bool, data: list<array<string, mixed>>, summary: array{grouped_by?: string, groups?: array<string, int>, group_sums?: array<string, array<string, int|float>>}}
      */
-    public function generate(int $tenantId, array $config, User $viewer): array
+    public function generate(int $tenantId, array $config, User $viewer, ?ReaderDates $reader = null): array
     {
+        $this->reader = $reader ?? ReaderDates::for($viewer);
         $source = $config['source'] ?? 'employees';
         $columns = $config['columns'] ?? [];
         $filters = $config['filters'] ?? [];
@@ -249,13 +210,13 @@ final class ReportEngine
      *
      * @param  array<int, array<string, mixed>>  $rows
      */
-    public function toCsv(array $rows): string
+    public function toCsv(array $rows, ?ReaderDates $reader = null): string
     {
         if ($rows === []) {
             return '';
         }
 
-        $rows = $this->presentable($rows);
+        $rows = $this->presentable($rows, $reader, spreadsheet: true);
         $lines = [Csv::row(array_keys($rows[0]))];
         foreach ($rows as $row) {
             $lines[] = Csv::row($row);
@@ -265,26 +226,60 @@ final class ReportEngine
     }
 
     /**
-     * Rows as a person reads them: headings for keys and birr for cents, as
-     * the Reports page shows them. For files only; the JSON keeps raw values.
+     * Rows as a person reads them: headings in their language for keys and
+     * birr for cents, as the Reports page shows them. For files only; the
+     * JSON keeps raw values.
+     *
+     * Dates follow the reader's calendar and times their clock, in the
+     * organisation's zone. A spreadsheet keeps what sorts: an ISO date, with
+     * the Ethiopian one in the next column for a reader on that calendar, and
+     * a local 24-hour time. Check-in and check-out were raw UTC instants.
      *
      * @param  array<int, array<string, mixed>>  $rows
      * @return list<array<string, mixed>>
      */
-    public function presentable(array $rows): array
+    public function presentable(array $rows, ?ReaderDates $reader = null, bool $spreadsheet = false): array
     {
-        return array_values(array_map(function (array $row): array {
+        $reader ??= ReaderDates::forTenant(null);
+
+        return array_values(array_map(function (array $row) use ($reader, $spreadsheet): array {
+            $day = is_string($row['date'] ?? null) ? $row['date'] : null;
             $out = [];
             foreach ($row as $field => $value) {
                 $field = (string) $field;
-                $label = self::FIELD_LABELS[$field] ?? ucfirst(str_replace('_', ' ', $field));
-                $out[$label] = str_ends_with($field, '_cents') && is_numeric($value)
-                    ? number_format(((int) $value) / 100, 2)
-                    : $value;
+                $label = self::label($field, $reader->locale);
+                $text = is_string($value) && $value !== '' ? $value : null;
+
+                if (str_ends_with($field, '_cents') && is_numeric($value)) {
+                    $out[$label] = number_format(((int) $value) / 100, 2);
+                } elseif (in_array($field, self::DATE_FIELDS, true)) {
+                    $out[$label] = $spreadsheet ? ($text ?? '') : ($text === null ? '' : $reader->date($text));
+                    if ($spreadsheet && $reader->calendar === 'ethiopian') {
+                        $out[(string) __('report.ethiopian_column', ['label' => $label], $reader->locale)] = $text === null ? '' : $reader->date($text);
+                    }
+                } elseif (in_array($field, self::TIME_FIELDS, true)) {
+                    $local = $text === null ? '' : $reader->localStamp($text);
+                    $out[$label] = match (true) {
+                        $text === null => '',
+                        $spreadsheet => $local,
+                        // A check-out after midnight says which day it fell on.
+                        $day !== null && str_starts_with($local, $day) => $reader->time($text),
+                        default => $reader->dateTime($text),
+                    };
+                } else {
+                    $out[$label] = $value;
+                }
             }
 
             return $out;
         }, $rows));
+    }
+
+    private static function label(string $field, string $locale): string
+    {
+        $key = 'report.fields.'.$field;
+
+        return Lang::has($key, $locale) ? (string) __($key, [], $locale) : ucfirst(str_replace('_', ' ', $field));
     }
 
     private function summed(string $field): bool
@@ -369,8 +364,8 @@ final class ReportEngine
             'department' => $r->employee?->department->name ?? '',
             'branch' => $r->employee?->branch->name ?? '',
             'date' => $r->date instanceof Carbon ? $r->date->format('Y-m-d') : $r->date,
-            'check_in' => $r->check_in,
-            'check_out' => $r->check_out,
+            'check_in' => $r->check_in?->toIso8601String(),
+            'check_out' => $r->check_out?->toIso8601String(),
             'status' => $r->status->value,
             'source' => $r->source->value,
             // From the punches and the shift's break. This read a
@@ -608,7 +603,7 @@ final class ReportEngine
         $this->limitToReach($query, $tenantId, $viewer);
         $this->limitToUnits($query, $tenantId, $filters);
 
-        $year = $filters['year'] ?? Carbon::now()->year;
+        $year = $filters['year'] ?? LeaveYear::forTenantId($tenantId)->current();
         $query->where('year', $year);
 
         return $query->get()->map(fn ($b) => [
@@ -663,7 +658,7 @@ final class ReportEngine
                 'employee.department:id,name',
                 'employee.branch:id,name',
                 'employee.costCenter:id,name',
-                'payrollRun:id,period_label',
+                'payrollRun:id,period_label,period_start,period_end',
             ]);
         $this->limitToReach($query, $tenantId, $viewer);
         $this->limitToUnits($query, $tenantId, $filters);
@@ -679,7 +674,9 @@ final class ReportEngine
                 'department' => $e->employee?->department->name ?? '',
                 'branch' => $e->employee?->branch->name ?? '',
                 'cost_center' => $e->employee?->costCenter->name ?? '',
-                'period' => $e->payrollRun?->period_label ?? '',
+                // The month the run means, in the reader's calendar: the stored
+                // label is English and Gregorian.
+                'period' => $this->reader?->periodOf($e->payrollRun) ?? (string) $e->payrollRun?->period_label,
                 'basic_salary_cents' => $e->basic_salary_cents,
                 'overtime_cents' => $line['overtime_cents'],
                 'allowances_cents' => $line['allowances_cents'],

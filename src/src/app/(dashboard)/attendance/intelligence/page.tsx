@@ -24,14 +24,16 @@ import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useAttendanceIntelligence } from "@/features/attendance/api";
 import { useT } from "@/lib/i18n/useT";
+import { todayIn } from "@/lib/utils/date";
 
 export default function AttendanceIntelligencePage() {
   // Punch times render in the tenant's timezone, not the browser's — see
   // BASELINE §12g.
-  const { formatTime } = useDateFormatters();
+  const { formatTime, formatTimeOfDay, timeZone } = useDateFormatters();
   const { t, locale } = useT();
   const { formatDate } = useCalendar();
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  // Today where the organisation is, not in UTC.
+  const [date, setDate] = useState(() => todayIn(timeZone));
 
   const query = useAttendanceIntelligence(date);
 
@@ -223,7 +225,9 @@ export default function AttendanceIntelligencePage() {
                             {r.check_in ? formatTime(r.check_in) : "—"}
                           </span>,
                           <span key="ss" className="text-muted-foreground">
-                            {r.shift_start ?? "—"}
+                            {r.shift_start
+                              ? formatTimeOfDay(r.shift_start)
+                              : "—"}
                           </span>,
                           <Badge
                             key="m"

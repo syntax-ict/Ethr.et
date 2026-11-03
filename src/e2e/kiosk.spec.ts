@@ -9,6 +9,8 @@ import { api } from './helpers';
  *     arrives with one;
  *   - exit: the lock screen accepted any four digits until 2026-10-09 (audit
  *     R1). The admin PIN set at registration is now checked by the server.
+ *     The way to that screen is a three-second hold on the organisation name,
+ *     not an Exit button anyone in the queue could tap.
  */
 test.describe('Kiosk', () => {
   test('a fresh tablet activates, and leaves kiosk mode only with the admin PIN', async ({ browser }) => {
@@ -37,10 +39,23 @@ test.describe('Kiosk', () => {
 
       await tablet.getByPlaceholder('Paste kiosk token here').fill(token);
       await tablet.getByRole('button', { name: 'Activate Kiosk' }).click();
-      await expect(tablet.getByRole('button', { name: 'Exit' })).toBeVisible({ timeout: 15000 });
+      const exit = tablet.getByRole('button', { name: 'Press and hold for 3 seconds to exit kiosk mode' });
+      await expect(exit).toBeVisible({ timeout: 15000 });
+
+      // Out of full screen, a resting cover sits over the kiosk until tapped.
+      const cover = tablet.getByRole('button', { name: 'Tap to start' });
+      if (await cover.isVisible()) await cover.click();
+      await expect(cover).toHaveCount(0);
+
+      // A tap does nothing; only a held press reaches the admin PIN.
+      await exit.click();
+      await expect(tablet.getByText('Admin PIN Required')).toHaveCount(0);
+      await exit.hover();
+      await tablet.mouse.down();
+      await tablet.waitForTimeout(3300);
+      await tablet.mouse.up();
 
       // Any four digits used to be enough.
-      await tablet.getByRole('button', { name: 'Exit' }).click();
       await expect(tablet.getByText('Admin PIN Required')).toBeVisible();
       await tablet.getByPlaceholder('Admin PIN').fill('0000');
       await tablet.getByRole('button', { name: 'Exit Kiosk' }).click();

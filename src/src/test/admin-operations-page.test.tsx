@@ -48,6 +48,25 @@ function status(overrides: Partial<OperationsStatus> = {}): OperationsStatus {
       ],
     },
     failed_jobs: { state: "ok", reasons: [], count: 0, last_failed_at: null },
+    backups: {
+      state: "ok",
+      reasons: [],
+      last_backup_at: NOW,
+      age_seconds: 3600,
+      last_failed_at: null,
+      last_failed_stage: null,
+      off_host: { configured: true, disk: "s3", last_copied_at: NOW },
+      disk: {
+        measured_at: NOW,
+        quota_bytes: 5 * 1024 ** 3,
+        total_bytes: 2 * 1024 ** 3,
+        database_bytes: 300 * 1024 ** 2,
+        documents_bytes: 600 * 1024 ** 2,
+        backups_bytes: 1024 ** 3,
+        logs_bytes: 20 * 1024 ** 2,
+        other_bytes: 104 * 1024 ** 2,
+      },
+    },
     delivery: {
       state: "ok",
       reasons: [],
@@ -56,6 +75,9 @@ function status(overrides: Partial<OperationsStatus> = {}): OperationsStatus {
         last_sent_at: NOW,
         last_failed_at: null,
         tls: "pinned",
+        sent_today: 12,
+        held_today: 0,
+        daily_cap: 500,
       },
     },
     release: {
@@ -163,6 +185,58 @@ describe("Operations page", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(/the scheduler has never run/i),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the day's email against the cap, and why some was held", async () => {
+    const healthy = status();
+    respondWith(
+      status({
+        status: "warning",
+        delivery: {
+          ...healthy.delivery,
+          state: "warning",
+          reasons: ["mail_held"],
+          mail: { ...healthy.delivery.mail, sent_today: 300, held_today: 4 },
+        },
+      }),
+    );
+
+    renderWithClient(<OperationsPage />);
+
+    expect(await screen.findByText("300 of 500 a day")).toBeInTheDocument();
+    expect(
+      screen.getByText(/some emails were held back today/i),
+    ).toBeInTheDocument();
+  });
+
+  it("shows how much of the plan's disk is used, and why it is red", async () => {
+    const healthy = status();
+    respondWith(
+      status({
+        status: "critical",
+        backups: {
+          ...healthy.backups,
+          state: "critical",
+          reasons: ["disk_critical"],
+          disk: {
+            ...healthy.backups.disk!,
+            total_bytes: 4.5 * 1024 ** 3,
+          },
+        },
+      }),
+    );
+
+    renderWithClient(<OperationsPage />);
+
+    expect(
+      await screen.findByText("4.5 GB of 5.0 GB (90%)"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/database 300 MB, documents 600 MB/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/more than 85% of the plan's disk is in use/i),
     ).toBeInTheDocument();
   });
 

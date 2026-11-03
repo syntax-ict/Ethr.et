@@ -26,7 +26,13 @@
  * tenant timezone is configurable and other zones do; an offset would be wrong
  * twice a year for them and would need changing if Ethiopia ever adopted one.
  */
-import { formatEthiopian, toEthiopian } from "@/lib/calendar/ethiopian";
+import {
+  ethiopianMonthName,
+  formatEthiopian,
+  toEthiopian,
+} from "@/lib/calendar/ethiopian";
+import { formatClock, type ClockSystem } from "@/lib/calendar/ethiopian-time";
+import { intlLocale as intlTag } from "@/lib/i18n/config";
 
 export const DEFAULT_TIMEZONE = "Africa/Addis_Ababa";
 
@@ -47,6 +53,20 @@ export function resolveTimeZone(timeZone?: string | null): string {
   } catch {
     return DEFAULT_TIMEZONE;
   }
+}
+
+/**
+ * Today's date where the organisation is, as `Y-m-d`. The browser's own date
+ * is a day out for anyone viewing from another zone near midnight, and
+ * `toISOString()` is the UTC date, a day behind Addis Ababa until 03:00.
+ */
+export function todayIn(timeZone: string, now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: resolveTimeZone(timeZone),
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
 }
 
 /**
@@ -230,7 +250,7 @@ export function calendarDayParts(
  * `useCalendar().formatDate` honoured it, so one screen could show both
  * calendars side by side (FRONTEND_REDESIGN_PLAN.md, problem 3). Gregorian
  * in English keeps the old `formatDate` output exactly; Gregorian in Amharic
- * uses Amharic month names; Ethiopian uses the app's own month names, as the
+ * or Oromo uses that language's month names; Ethiopian uses the app's own month names, as the
  * calendar screens already do.
  */
 export function formatCalendarDate(
@@ -244,10 +264,10 @@ export function formatCalendarDate(
   if (calendar === "ethiopian") {
     return formatEthiopian(toEthiopian(day.year, day.month, day.day), locale);
   }
-  if (locale === "am") {
+  if (locale !== "en") {
     return new Date(
       Date.UTC(day.year, day.month - 1, day.day),
-    ).toLocaleDateString("am-ET", {
+    ).toLocaleDateString(intlLocale(locale), {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -257,17 +277,102 @@ export function formatCalendarDate(
   return formatDate(dateStr, timeZone);
 }
 
-/** `formatCalendarDate` with the time of day in the tenant's zone, 24-hour. */
-export function formatCalendarDateTime(
+/**
+ * The time of day an instant falls on in the tenant's zone, in the reader's
+ * clock: `07:30`, or `1:30 ጠዋት` on the Ethiopian clock. 24-hour is exactly
+ * `formatTime`.
+ */
+export function formatClockTime(
+  dateStr: string,
+  timeZone: string,
+  clock: ClockSystem,
+  locale: string,
+  options: { seconds?: boolean } = {},
+): string {
+  if (clock === "24h" && !options.seconds) return formatTime(dateStr, timeZone);
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return formatTime(dateStr, timeZone);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hourCycle: "h23",
+    timeZone: resolveTimeZone(timeZone),
+  }).formatToParts(date);
+  const pick = (type: string) =>
+    Number(parts.find((p) => p.type === type)?.value);
+  return formatClock(
+    pick("hour"),
+    pick("minute"),
+    clock,
+    locale,
+    options.seconds ? pick("second") : undefined,
+  );
+}
+
+/** The `Intl` locale for the app's language: `am-ET`/`om-ET`, else British English. */
+function intlLocale(locale: string): string {
+  return intlTag(locale, "en-GB");
+}
+
+/**
+ * The weekday a date or instant falls on, in the reader's language. The
+ * weekday is the same in both calendars; only its name changes.
+ */
+export function formatCalendarWeekday(
+  dateStr: string,
+  timeZone: string,
+  locale: string,
+  style: "long" | "short" = "short",
+): string {
+  const day = calendarDayParts(dateStr, timeZone);
+  if (!day) return "";
+  return new Date(
+    Date.UTC(day.year, day.month - 1, day.day),
+  ).toLocaleDateString(intlLocale(locale), { weekday: style, timeZone: "UTC" });
+}
+
+/**
+ * Day and month without the year, for a heading or a compact cell:
+ * `Tikimt 22` / `ጥቅምት 22` on the Ethiopian calendar, `22 Oct` on the
+ * Gregorian one.
+ */
+export function formatCalendarDayMonth(
   dateStr: string,
   timeZone: string,
   calendar: DisplayCalendar,
   locale: string,
 ): string {
-  if (calendar === "gregorian" && locale !== "am") {
+  const day = calendarDayParts(dateStr, timeZone);
+  if (!day) return dateStr;
+  if (calendar === "ethiopian") {
+    const eth = toEthiopian(day.year, day.month, day.day);
+    return `${ethiopianMonthName(eth.month, locale)} ${eth.day}`;
+  }
+  return new Date(
+    Date.UTC(day.year, day.month - 1, day.day),
+  ).toLocaleDateString(intlLocale(locale), {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+/**
+ * `formatCalendarDate` with the time of day in the tenant's zone, in the
+ * reader's clock (24-hour unless told otherwise).
+ */
+export function formatCalendarDateTime(
+  dateStr: string,
+  timeZone: string,
+  calendar: DisplayCalendar,
+  locale: string,
+  clock: ClockSystem = "24h",
+): string {
+  if (calendar === "gregorian" && locale === "en" && clock === "24h") {
     return formatDateTime(dateStr, timeZone);
   }
   if (!calendarDayParts(dateStr, timeZone))
     return formatDateTime(dateStr, timeZone);
-  return `${formatCalendarDate(dateStr, timeZone, calendar, locale)}, ${formatTime(dateStr, timeZone)}`;
+  return `${formatCalendarDate(dateStr, timeZone, calendar, locale)}, ${formatClockTime(dateStr, timeZone, clock, locale)}`;
 }

@@ -53,6 +53,11 @@ export interface User {
     locale_chosen?: boolean;
     theme: string;
     calendar: string;
+    /**
+     * `auto`, `ethiopian` or `24h`: the user's choice, else the organisation's.
+     * `auto` is Ethiopian time for Amharic on the Ethiopian calendar.
+     */
+    clock?: string;
     /** The employee's own switches for the punching assistant. */
     punch_reminders?: boolean;
     auto_check_in?: boolean;

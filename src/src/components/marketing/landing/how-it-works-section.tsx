@@ -21,13 +21,18 @@ export function HowItWorksSection({ section }: { section: MarketingSection }) {
         <SectionIntro
           id="how-it-works-heading"
           heading={
-            pickLocalised(locale, section.heading_am, section.heading) ??
-            section.heading
+            pickLocalised(
+              locale,
+              section.heading_am,
+              section.heading,
+              section.heading_om,
+            ) ?? section.heading
           }
           subheading={pickLocalised(
             locale,
             section.subheading_am,
             section.subheading,
+            section.subheading_om,
           )}
         />
 
@@ -50,12 +55,21 @@ export function HowItWorksSection({ section }: { section: MarketingSection }) {
               )}
               <div className="sm:mt-5">
                 <h3 className="text-lg font-semibold text-foreground">
-                  {pickLocalised(locale, item.title_am, item.title) ??
-                    item.title}
+                  {pickLocalised(
+                    locale,
+                    item.title_am,
+                    item.title,
+                    item.title_om,
+                  ) ?? item.title}
                 </h3>
-                {(item.body || item.body_am) && (
+                {(item.body || item.body_am || item.body_om) && (
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {pickLocalised(locale, item.body_am, item.body)}
+                    {pickLocalised(
+                      locale,
+                      item.body_am,
+                      item.body,
+                      item.body_om,
+                    )}
                   </p>
                 )}
               </div>

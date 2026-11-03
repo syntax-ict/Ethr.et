@@ -31,6 +31,8 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { todayIn } from "@/lib/utils/date";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   useEmployeeRetirementCases,
@@ -156,6 +158,7 @@ function CaseCard({
   case: RetirementCase;
 }) {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const { can } = usePermissions();
   const [noteText, setNoteText] = useState("");
   const [decisionOpen, setDecisionOpen] = useState(false);
@@ -213,7 +216,7 @@ function CaseCard({
           {c.eligible_retirement_date && (
             <span className="text-sm text-muted-foreground">
               {t("employee.retirement.field.eligible_date", "Eligible")}:{" "}
-              {c.eligible_retirement_date}
+              {formatDate(c.eligible_retirement_date)}
             </span>
           )}
         </div>
@@ -243,7 +246,7 @@ function CaseCard({
         {c.finalized_at && (
           <p className="text-sm text-muted-foreground">
             {t("employee.retirement.finalized_on", "Finalized")}:{" "}
-            {c.finalized_at}
+            {formatDate(c.finalized_at)}
           </p>
         )}
 
@@ -594,6 +597,7 @@ function FinalizeDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { t } = useT();
+  const { timeZone } = useDateFormatters();
   const finalize = useFinalizeRetirementCase(employeeId);
 
   const {
@@ -664,7 +668,7 @@ function FinalizeDialog({
                 render={({ field }) => (
                   <DualCalendarDateInput
                     {...control_}
-                    min={new Date().toISOString().slice(0, 10)}
+                    min={todayIn(timeZone)}
                     value={field.value}
                     onChange={field.onChange}
                     className="mt-1"

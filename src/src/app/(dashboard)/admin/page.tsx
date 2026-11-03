@@ -52,8 +52,11 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { ethiopianMonthName, toEthiopian } from "@/lib/calendar/ethiopian";
+import { todayIn } from "@/lib/utils/date";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { auditActionLabel } from "@/lib/audit/labels";
+import { intlLocale } from "@/lib/i18n/config";
 
 export default function AdminConsolePage() {
   const { t } = useT();
@@ -1047,16 +1050,33 @@ function RevenueBars({
   data: Array<{ month: string; revenue_cents: number }>;
 }) {
   const { t, locale } = useT();
+  const { calendar, timeZone } = useDateFormatters();
   const recent = data.slice(-6);
   const max = Math.max(...recent.map((m) => m.revenue_cents), 1);
+  const currentMonth = todayIn(timeZone).slice(0, 7);
   // `2026-06` read as "06" under the bar; name the month instead.
+  const gregorianName = (y: number, mo: number, width: "short" | "long") =>
+    new Intl.DateTimeFormat(intlLocale(locale, "en"), {
+      month: width,
+      ...(width === "long" ? { year: "numeric" } : {}),
+      timeZone: "UTC",
+    }).format(new Date(Date.UTC(y, mo - 1, 1)));
+  // The buckets are Gregorian months. On the Ethiopian calendar a bar is
+  // named by the Ethiopian month that covers most of it, the one holding its
+  // 15th, as payroll periods are (`localizedPeriodLabel`); the exact
+  // Gregorian month stays in the bar's title.
   const monthName = (key: string) => {
     const [y, mo] = key.split("-").map(Number);
+    if (!Number.isFinite(y) || !Number.isFinite(mo)) return key;
+    if (calendar === "ethiopian") {
+      return ethiopianMonthName(toEthiopian(y, mo, 15).month, locale);
+    }
+    return gregorianName(y, mo, "short");
+  };
+  const monthTitle = (key: string) => {
+    const [y, mo] = key.split("-").map(Number);
     return Number.isFinite(y) && Number.isFinite(mo)
-      ? new Intl.DateTimeFormat(locale, {
-          month: "short",
-          timeZone: "UTC",
-        }).format(new Date(Date.UTC(y, mo - 1, 1)))
+      ? gregorianName(y, mo, "long")
       : key;
   };
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
@@ -1080,8 +1100,7 @@ function RevenueBars({
       <div className="flex items-end gap-2" style={{ height: 160 }}>
         {recent.map((m, idx) => {
           const pct = (m.revenue_cents / max) * 100;
-          const isCurrentMonth =
-            m.month === new Date().toISOString().slice(0, 7);
+          const isCurrentMonth = m.month === currentMonth;
           const isHovered = hoveredIdx === idx;
           return (
             <div
@@ -1116,10 +1135,13 @@ function RevenueBars({
       <div className="flex gap-2">
         {recent.map((m) => {
           const label = monthName(m.month);
-          const isCurrentMonth =
-            m.month === new Date().toISOString().slice(0, 7);
+          const isCurrentMonth = m.month === currentMonth;
           return (
-            <div key={m.month} className="flex-1 text-center">
+            <div
+              key={m.month}
+              className="flex-1 text-center"
+              title={monthTitle(m.month)}
+            >
               <p
                 className={cn(
                   "text-xs",

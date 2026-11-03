@@ -79,11 +79,14 @@ class UpdatePlatformSettingsRequest extends FormRequest
             'bank_account_name' => ['nullable', 'string', 'max:255'],
             'payment_instructions' => ['nullable', 'string', 'max:2000'],
             'payment_instructions_am' => ['nullable', 'string', 'max:2000'],
+            'payment_instructions_om' => ['nullable', 'string', 'max:2000'],
 
             'platform_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'platform_name_am' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'platform_name_om' => ['sometimes', 'nullable', 'string', 'max:255'],
             'tagline' => ['sometimes', 'nullable', 'string', 'max:300'],
             'tagline_am' => ['sometimes', 'nullable', 'string', 'max:300'],
+            'tagline_om' => ['sometimes', 'nullable', 'string', 'max:300'],
 
             'logo_url' => ['sometimes', 'nullable', 'url:https', 'max:500'],
 
@@ -91,6 +94,7 @@ class UpdatePlatformSettingsRequest extends FormRequest
             'contact_phone' => ['sometimes', 'nullable', 'string', 'max:50'],
             'office_address' => ['sometimes', 'nullable', 'string', 'max:500'],
             'office_address_am' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'office_address_om' => ['sometimes', 'nullable', 'string', 'max:500'],
 
             'social_linkedin' => ['sometimes', 'nullable', 'url:https', 'max:500'],
             'social_x' => ['sometimes', 'nullable', 'url:https', 'max:500'],
@@ -100,12 +104,15 @@ class UpdatePlatformSettingsRequest extends FormRequest
             'metric_employees' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:1000000000'],
             'metric_uptime_note' => ['sometimes', 'nullable', 'string', 'max:200'],
             'metric_uptime_note_am' => ['sometimes', 'nullable', 'string', 'max:200'],
+            'metric_uptime_note_om' => ['sometimes', 'nullable', 'string', 'max:200'],
 
             'testimonial_quote' => ['sometimes', 'nullable', 'string', 'max:500'],
             'testimonial_quote_am' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'testimonial_quote_om' => ['sometimes', 'nullable', 'string', 'max:500'],
             'testimonial_author' => ['nullable', 'required_with:testimonial_quote', 'string', 'max:120'],
             'testimonial_role' => ['sometimes', 'nullable', 'string', 'max:150'],
             'testimonial_role_am' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'testimonial_role_om' => ['sometimes', 'nullable', 'string', 'max:150'],
             'testimonial_organisation' => ['sometimes', 'nullable', 'string', 'max:150'],
             'testimonial_consented_on' => ['nullable', 'required_with:testimonial_quote', 'date', 'before_or_equal:today'],
             'google_maps_key' => ['sometimes', 'nullable', 'string', 'max:120', 'regex:/^AIza[0-9A-Za-z_\-]{30,}$/'],
@@ -113,6 +120,7 @@ class UpdatePlatformSettingsRequest extends FormRequest
             'product_mark_enabled' => ['sometimes', 'boolean'],
             'product_mark_label' => ['sometimes', 'nullable', 'string', 'max:60'],
             'product_mark_label_am' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'product_mark_label_om' => ['sometimes', 'nullable', 'string', 'max:60'],
             'product_mark_url' => ['sometimes', 'nullable', 'url:https', 'max:500'],
         ];
     }

@@ -65,6 +65,9 @@ function templateMailText(MailMessage $mail): string
 }
 
 // ── A saved template is what is sent ───────────────────────────────────────
+//
+// Dates are written in the reader's calendar: Ethiopian, every organisation's
+// default, so 2026-11-02 is Tikimt 23, 2019.
 
 it('sends the subject and body a tenant admin saved in settings', function () {
     $tenant = createTenant();
@@ -79,7 +82,7 @@ it('sends the subject and body a tenant admin saved in settings', function () {
     $mail = (new LeaveApprovedNotification($leave))->toMail($user);
 
     expect($mail->subject)->toBe('Enjoy your Annual Leave, Abebe Kebede')
-        ->and(templateMailText($mail))->toBe("Approved: 2026-11-02 to 2026-11-04 (3 days) at {$tenant->name}.");
+        ->and(templateMailText($mail))->toBe("Approved: Tikimt 23, 2019 to Tikimt 25, 2019 (3 days) at {$tenant->name}.");
 });
 
 it('sends the built-in text the settings page shows when nothing is customised', function () {
@@ -94,7 +97,7 @@ it('sends the built-in text the settings page shows when nothing is customised',
     $mail = (new LeaveApprovedNotification($leave))->toMail($user);
 
     expect($mail->subject)->toBe($listed['subject_en'])
-        ->and(templateMailText($mail))->toBe('Your Annual Leave request from 2026-11-02 to 2026-11-04 has been approved.');
+        ->and(templateMailText($mail))->toBe('Your Annual Leave request from Tikimt 23, 2019 to Tikimt 25, 2019 has been approved.');
 });
 
 it('falls back field by field: a custom subject keeps the built-in body', function () {
@@ -105,7 +108,7 @@ it('falls back field by field: a custom subject keeps the built-in body', functi
     $mail = (new LeaveApprovedNotification($leave))->toMail($user);
 
     expect($mail->subject)->toBe('Approved!')
-        ->and(templateMailText($mail))->toBe('Your Annual Leave request from 2026-11-02 to 2026-11-04 has been approved.');
+        ->and(templateMailText($mail))->toBe('Your Annual Leave request from Tikimt 23, 2019 to Tikimt 25, 2019 has been approved.');
 });
 
 it('uses the Amharic fields when the mail is rendered in Amharic', function () {
@@ -120,7 +123,7 @@ it('uses the Amharic fields when the mail is rendered in Amharic', function () {
     expect($mail->subject)->toBe('ፈቃድ ፀድቋል — Abebe Kebede')
         ->and(templateMailText($mail))->toBe(str_replace(
             ['{start_date}', '{end_date}', '{leave_type}'],
-            ['2026-11-02', '2026-11-04', 'Annual Leave'],
+            ['ጥቅምት 23, 2019', 'ጥቅምት 25, 2019', 'Annual Leave'],
             NotificationTemplates::DEFAULTS['leave_approved']['body_am'],
         ));
 });
@@ -159,7 +162,7 @@ it('finds the template with no tenant resolved, as in a queue worker', function 
     $mail = (new MissingPunchNotification($employee, '2026-10-05', 'missing_check_out'))->toMail($user);
 
     expect($mail->subject)->toBe('Punch missing: Sara Tesfaye')
-        ->and(templateMailText($mail))->toBe('No check-out on 2026-10-05.');
+        ->and(templateMailText($mail))->toBe('No check-out on Meskerem 25, 2019.');
 });
 
 // ── Escaping ───────────────────────────────────────────────────────────────
@@ -196,7 +199,7 @@ it('does not substitute a placeholder that arrives inside a value', function () 
     ['leave' => $leave, 'user' => $user] = templateLeave($tenant, ['name' => 'Eve {start_date}']);
 
     expect(templateMailText((new LeaveApprovedNotification($leave))->toMail($user)))
-        ->toBe('Eve {start_date} / 2026-11-02');
+        ->toBe('Eve {start_date} / Tikimt 23, 2019');
 });
 
 // ── Placeholders ───────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ use App\Models\KioskSession;
 use App\Models\Tenant;
 use App\Services\Attendance\AttendancePolicy;
 use App\Services\CurrentTenant;
+use App\Services\EmployeeNumbering;
 use App\Services\Kiosk\KioskOfflineSeal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -124,7 +125,7 @@ class KioskSessionController extends Controller
         return response()->json(null, 204);
     }
 
-    public function authenticate(AuthenticateKioskRequest $request, KioskOfflineSeal $seal): JsonResponse
+    public function authenticate(AuthenticateKioskRequest $request, KioskOfflineSeal $seal, EmployeeNumbering $numbering): JsonResponse
     {
         // From the body only: input() also reads the query string, and a token
         // in the address reaches access logs.
@@ -149,6 +150,9 @@ class KioskSessionController extends Controller
         /** @var Tenant $tenant */
         $tenant = $session->tenant;
         $settings = app(AttendancePolicy::class)->forBranch($session->branch_id, $tenant->attendanceSetting);
+        // The pad types only digits; the screen shows the full code this
+        // organisation's format makes of them (KioskEmployeeCode).
+        $codeFormat = $numbering->shape($tenant);
 
         return response()->json([
             'session' => new KioskSessionResource($session),
@@ -160,6 +164,12 @@ class KioskSessionController extends Controller
             'settings' => [
                 'pin_required' => (bool) $settings->kiosk_pin_required,
                 'auto_reset_seconds' => (int) $settings->kiosk_auto_reset_seconds,
+                'sound' => match ($settings->kiosk_sound) {
+                    'off' => 'off',
+                    'voice' => 'voice',
+                    default => 'tones',
+                },
+                'code_format' => $codeFormat,
             ],
             // For punching through a power cut or a dropped connection: the
             // key the terminal seals offline punches with, and the grant that

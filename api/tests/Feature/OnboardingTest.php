@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Enums\EmployeeStatus;
+use App\Enums\OnboardingStep;
 use App\Enums\UserRole;
+use App\Models\Employee;
+use App\Models\OnboardingProgress;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -49,6 +53,29 @@ describe('onboarding progress', function () {
         $response->assertOk()
             ->assertJsonPath('current_step', 1)
             ->assertJsonPath('completed_steps', []);
+    });
+
+    it('counts People as done once the organisation has a current employee, however it was added', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $url = 'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/progress';
+
+        Employee::factory()->create(['tenant_id' => $tenant->id, 'status' => EmployeeStatus::TERMINATED]);
+        $this->getJson($url)->assertOk()->assertJsonPath('completed_steps', []);
+
+        // Added on the Employees page, not through the wizard's commit.
+        Employee::factory()->create(['tenant_id' => $tenant->id, 'status' => EmployeeStatus::CONFIRMED]);
+        $this->getJson($url)->assertOk()
+            ->assertJsonPath('completed_steps', [OnboardingStep::WORKFORCE_MIGRATION->value]);
+
+        // A read stores nothing.
+        expect(OnboardingProgress::withoutGlobalScopes()->where('tenant_id', $tenant->id)->exists())->toBeFalse();
+
+        // Another organisation's staff do not count there.
+        $other = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $other);
+        $this->getJson('http://'.$other->subdomain.'.ethr.test/api/v1/onboarding/progress')
+            ->assertOk()->assertJsonPath('completed_steps', []);
     });
 
     it('denies onboarding progress to non-admin roles', function () {

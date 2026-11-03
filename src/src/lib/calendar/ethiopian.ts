@@ -36,6 +36,34 @@ const ETHIOPIAN_MONTHS_AM = [
   "ጳጉሜ",
 ] as const;
 
+/**
+ * The Ethiopian months as Oromo writes them. Oromo names its months by season,
+ * and Ethiopian-calendar publications in Oromia map them one-to-one onto
+ * Meskerem … Pagume; `Qaammee` is the thirteenth, Pagume's five or six days.
+ */
+const ETHIOPIAN_MONTHS_OM = [
+  "Fulbaana",
+  "Onkololeessa",
+  "Sadaasa",
+  "Muddee",
+  "Amajjii",
+  "Guraandhala",
+  "Bitootessa",
+  "Ebla",
+  "Caamsaa",
+  "Waxabajjii",
+  "Adoolessa",
+  "Hagayya",
+  "Qaammee",
+] as const;
+
+/** The month names for an app locale; English transliteration otherwise. */
+export function ethiopianMonths(locale: string): readonly string[] {
+  if (locale === "am") return ETHIOPIAN_MONTHS_AM;
+  if (locale === "om") return ETHIOPIAN_MONTHS_OM;
+  return ETHIOPIAN_MONTHS;
+}
+
 const JD_EPOCH_OFFSET_AMETE_MIHRET = 1723856;
 
 function isEthiopianLeapYear(year: number): boolean {
@@ -149,7 +177,7 @@ export function ethiopianMonthName(
   month: number,
   locale: string = "en",
 ): string {
-  const months = locale === "am" ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
+  const months = ethiopianMonths(locale);
   return months[month - 1] ?? `Month ${month}`;
 }
 
@@ -157,7 +185,7 @@ export function formatEthiopian(
   date: EthiopianDate,
   locale: string = "en",
 ): string {
-  const months = locale === "am" ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
+  const months = ethiopianMonths(locale);
   const monthName = months[date.month - 1] ?? `Month ${date.month}`;
   return `${monthName} ${date.day}, ${date.year}`;
 }
@@ -167,7 +195,7 @@ export function formatEthiopianMonthYear(
   month: number,
   locale: string = "en",
 ): string {
-  const months = locale === "am" ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
+  const months = ethiopianMonths(locale);
   const monthName = months[month - 1] ?? `Month ${month}`;
   return `${monthName} ${year}`;
 }
@@ -180,6 +208,7 @@ export function todayEthiopian(): EthiopianDate {
 export {
   ETHIOPIAN_MONTHS,
   ETHIOPIAN_MONTHS_AM,
+  ETHIOPIAN_MONTHS_OM,
   isEthiopianLeapYear,
   isGregorianLeapYear,
 };

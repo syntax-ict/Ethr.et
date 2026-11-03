@@ -112,6 +112,31 @@ it('lets HR close and delete a vacancy, keeping the first publish date on reopen
     $this->assertDatabaseHas('audit_log', ['action' => 'vacancy.deleted']);
 });
 
+it('puts a vacancy HR chose to make public on the public page, and keeps it there through an edit', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $feed = "http://{$tenant->subdomain}.ethr.test/api/v1/auth/tenant-landing/feed";
+    $post = fn (array $body) => test()->postJson(vacancyUrl($tenant), [
+        'employment_type' => 'full_time',
+        'description' => 'Run the line.',
+        'status' => 'open',
+        ...$body,
+    ])->assertCreated()->json('public_id');
+
+    $public = $post(['title' => 'Machine operator', 'visibility' => 'public']);
+    $post(['title' => 'Shift lead']);
+
+    expect(collect(test()->getJson($feed)->assertOk()->json('vacancies'))->pluck('title')->all())
+        ->toBe(['Machine operator']);
+
+    // An edit that leaves visibility out must not quietly take the vacancy
+    // off the public page.
+    test()->putJson(vacancyUrl($tenant, "/{$public}"), ['title' => 'Senior machine operator'])
+        ->assertOk()->assertJsonPath('visibility', 'public');
+    expect(collect(test()->getJson($feed)->assertOk()->json('vacancies'))->pluck('title')->all())
+        ->toBe(['Senior machine operator']);
+});
+
 it('puts only a whole-organisation announcement on the sign-in page', function () {
     $tenant = createTenant();
     $department = Department::factory()->create(['tenant_id' => $tenant->id]);

@@ -13,8 +13,15 @@ import { QuickActions } from "./quick-actions";
 
 // quiet-on-error: a greeting; a failed /auth/me is a sign-out handled by the API client, and the time line is decoration.
 
-function getGreetingKey(): string {
-  const hour = new Date().getHours();
+/** The greeting for the hour where the organisation is, not where the browser is. */
+function getGreetingKey(timeZone: string): string {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      hour: "numeric",
+      hourCycle: "h23",
+      timeZone,
+    }).format(new Date()),
+  );
   if (hour < 12) return "dashboard.good_morning";
   if (hour < 17) return "dashboard.good_afternoon";
   return "dashboard.good_evening";
@@ -34,9 +41,9 @@ export function WelcomeSection() {
   const { data: tenant } = useCurrentTenant();
   const { data: dashData } = useEmployeeDashboard();
   const { formatDate } = useCalendar();
-  const { formatTime } = useDateFormatters();
+  const { formatTime, timeZone } = useDateFormatters();
 
-  const greeting = t(getGreetingKey(), "Welcome back");
+  const greeting = t(getGreetingKey(timeZone), "Welcome back");
   const displayName =
     locale === "am" && user?.name_am ? user.name_am : user?.name;
   const firstName = displayName?.split(" ")[0];

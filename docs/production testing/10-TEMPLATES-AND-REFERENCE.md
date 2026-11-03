@@ -170,9 +170,9 @@ Times are UTC (EAT is +3).
 | Auto check-out | every 5 min | Closes open records at shift end once end + N min passed (when on) |
 | Photo retention | hourly | Starts reviews and deletes expired selfies |
 | Scheduled reports, dashboard digests | hourly | Sends due reports and digests |
-| Leave accrual | 1st of the month, 00:30 | Raises annual balances |
+| Leave accrual | Daily, 00:30 | Raises annual balances when a new month of the leave year starts |
 | Holiday roll-forward | 1st of the month, 01:30 | Copies recurring holidays to next year |
-| Leave carry-forward | 1 January, 01:00 | Sets carried days |
+| Leave carry-forward | Daily 01:00 in the first week of the leave year (1 January, or Meskerem 1) | Sets carried days |
 | Backup | daily 01:00 | `ethr:backup` |
 | Data clean-up | daily 02:00 | Notifications over 90 days, webhook deliveries over 30 days, import staging over 7 days removed |
 | Monthly invoices | 1st of the month, 03:00 | Raises invoices for paid plans |

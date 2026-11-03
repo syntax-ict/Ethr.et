@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Backup;
 
+use App\Models\BackupStorageSetting;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -38,7 +40,12 @@ use Throwable;
  * backup. `copyOffHost()` pushes an archive to the configured `s3` disk, which
  * is already wired through league/flysystem-aws-s3 and needs no new dependency.
  * It is optional because credentials may not exist yet; it is not optional
- * before go-live.
+ * before go-live. The archive is encrypted first (BackupCipher), and the
+ * nightly run copies whenever a disk and a key are configured; `unpack()`
+ * turns a copy back into a directory `restore()` can read.
+ *
+ * Since 2026-11-02 the storage and the key can come from the platform console
+ * (BackupStorageSetting) instead of `.env`; offHostTarget() decides which.
  */
 class BackupService
 {
@@ -175,15 +182,283 @@ class BackupService
         return ['statements' => $statements, 'files' => $files];
     }
 
-    /** Push an archive of the backup to the configured off-host disk. */
-    public function copyOffHost(string $path, string $disk = 's3'): string
+    /**
+     * Where an off-host copy goes, and with which key.
+     *
+     * Storage saved in the platform console wins; without it, the `.env` disk
+     * and BACKUP_ENCRYPTION_KEY. Naming a disk (`--disk`) asks for that `.env`
+     * disk whatever the console says.
+     *
+     * `blocker` says why no copy can be made right now, or null when one can.
+     * Codes, not sentences: the operations centre translates them.
+     *
+     * @return array{source: 'console'|'env', name: string, blocker: string|null, cipher: BackupCipher|null, settings: BackupStorageSetting|null}
+     */
+    public function offHostTarget(?string $disk = null): array
     {
+        $console = $disk === null ? BackupStorageSetting::current() : null;
+
+        if ($console instanceof BackupStorageSetting) {
+            $cipher = $console->cipher();
+
+            return [
+                'source' => 'console',
+                'name' => $console->bucket,
+                'blocker' => match (true) {
+                    ! $console->enabled => 'off_host_switched_off',
+                    $cipher === null => 'off_host_key_missing',
+                    default => null,
+                },
+                'cipher' => $cipher,
+                'settings' => $console,
+            ];
+        }
+
+        $disk ??= (string) config('backup.off_host_disk');
+        $config = config("filesystems.disks.{$disk}");
+        $cipher = BackupCipher::fromConfig();
+
+        return [
+            'source' => 'env',
+            'name' => $disk,
+            'blocker' => match (true) {
+                ! is_array($config) => 'off_host_disk_missing',
+                // The s3 disk is always defined; it is configured only once it
+                // has a bucket and credentials. Any other driver is taken as
+                // configured.
+                ($config['driver'] ?? null) === 's3'
+                    && (empty($config['bucket']) || empty($config['key']) || empty($config['secret'])) => 'off_host_not_configured',
+                $cipher === null => 'off_host_key_missing',
+                default => null,
+            },
+            'cipher' => $cipher,
+            'settings' => null,
+        ];
+    }
+
+    public function offHostBlocker(?string $disk = null): ?string
+    {
+        return $this->offHostTarget($disk)['blocker'];
+    }
+
+    /**
+     * @param  array{source: 'console'|'env', name: string, blocker: string|null, cipher: BackupCipher|null, settings: BackupStorageSetting|null}  $target
+     */
+    private function offHostFilesystem(array $target): Filesystem
+    {
+        return $target['settings'] instanceof BackupStorageSetting
+            ? app(BackupStorageDisk::class)->build($target['settings'])
+            : Storage::disk($target['name']);
+    }
+
+    /**
+     * Push an encrypted archive of the backup to the off-host disk, and record
+     * the copy in the backup's manifest.
+     *
+     * Streamed, so a large document store never has to fit in memory, and
+     * checked by size afterwards: the s3 disk is `throw => false`, so a failed
+     * put() returns false rather than throwing, and was ignored here until
+     * 2026-11-01. The local archive is removed either way; prune() only
+     * removes backup directories, so an archive left beside them would sit on
+     * the 5 GB account forever.
+     *
+     * @return array{disk: string, key: string, bytes: int, copied_at: string}
+     */
+    public function copyOffHost(string $path, ?string $disk = null): array
+    {
+        $target = $this->offHostTarget($disk);
+        $blocker = $target['blocker'];
+
+        if ($blocker !== null) {
+            throw new RuntimeException("No off-host copy was made ({$blocker}). See docs/deployment/BACKUP-RESTORE.md.");
+        }
+
+        /** @var BackupCipher $cipher */
+        $cipher = $target['cipher'];
+        $disk = $target['name'];
         $archive = $this->archive($path);
-        $key = 'backups/'.basename($archive);
+        $encrypted = $archive.BackupCipher::EXTENSION;
 
-        Storage::disk($disk)->put($key, File::get($archive));
+        try {
+            $cipher->encryptFile($archive, $encrypted);
+            // At once, not in `finally`: on a 5 GB account the plain archive
+            // and the encrypted one should not both sit there for the upload.
+            @unlink($archive);
+            $bytes = (int) filesize($encrypted);
+            $key = 'backups/'.basename($encrypted);
+            $storage = $this->offHostFilesystem($target);
 
-        return $key;
+            $stream = fopen($encrypted, 'rb');
+            try {
+                $written = $storage->writeStream($key, $stream);
+            } finally {
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+            }
+
+            if ($written === false || ! $storage->exists($key) || $storage->size($key) !== $bytes) {
+                throw new RuntimeException("The off-host copy to {$disk}:{$key} did not arrive whole.");
+            }
+        } finally {
+            @unlink($archive);
+            @unlink($encrypted);
+        }
+
+        $copy = ['disk' => $disk, 'key' => $key, 'bytes' => $bytes, 'copied_at' => now()->toIso8601String()];
+        $this->recordInManifest($path, ['off_host' => $copy]);
+
+        return $copy;
+    }
+
+    /**
+     * Keep the newest $keep archives on the off-host disk; delete the rest.
+     * Only names this class writes are touched, so a bucket shared with
+     * anything else keeps its other files.
+     *
+     * @return list<string>
+     */
+    public function pruneOffHost(int $keep, ?string $disk = null): array
+    {
+        $storage = $this->offHostFilesystem($this->offHostTarget($disk));
+
+        $archives = collect($storage->files('backups'))
+            ->filter(fn (string $key): bool => (bool) preg_match('/^backups\/ethr-\d{8}-\d{6}[A-Za-z0-9_-]*\.(tar\.gz|zip)'.preg_quote(BackupCipher::EXTENSION, '/').'$/', $key))
+            ->sortDesc()
+            ->values();
+
+        $removed = [];
+
+        foreach ($archives->slice(max(1, $keep)) as $key) {
+            $storage->delete($key);
+            $removed[] = $key;
+        }
+
+        return $removed;
+    }
+
+    /**
+     * Turn an off-host archive back into a backup directory that `ethr:restore`
+     * can read. `$source` is a local file, or with `$fromOffHost` a key on the
+     * off-host storage (`$disk` names an `.env` disk instead of the default).
+     *
+     * @return string the backup's name
+     */
+    public function unpack(string $source, ?BackupCipher $cipher = null, bool $fromOffHost = false, ?string $disk = null): string
+    {
+        $target = $this->offHostTarget($disk);
+        $cipher ??= $target['cipher'];
+
+        if ($cipher === null) {
+            throw new RuntimeException('No backup encryption key is configured, so the archive cannot be decrypted. Pass --key.');
+        }
+
+        $root = $this->backupRoot();
+        File::ensureDirectoryExists($root, 0700);
+
+        $previousUmask = umask(0077);
+        $base = basename($source, BackupCipher::EXTENSION);
+        $encrypted = $root.DIRECTORY_SEPARATOR.basename($source);
+        // A name of its own: phar caches an archive's index by path for the
+        // life of the process, so reusing the name archive() just wrote read
+        // the new bytes through the old index and extracted garbage.
+        $archive = $root.DIRECTORY_SEPARATOR.'unpack-'.bin2hex(random_bytes(6)).(str_ends_with($base, '.zip') ? '.zip' : '.tar.gz');
+        $fetched = false;
+
+        try {
+            if ($fromOffHost) {
+                $stream = $this->offHostFilesystem($target)->readStream($source);
+
+                if (! is_resource($stream)) {
+                    throw new RuntimeException("{$target['name']}:{$source} does not exist.");
+                }
+
+                $out = fopen($encrypted, 'wb');
+                stream_copy_to_stream($stream, $out);
+                fclose($out);
+                fclose($stream);
+                $fetched = true;
+            } else {
+                $encrypted = $source;
+            }
+
+            $cipher->decryptFile($encrypted, $archive);
+
+            $name = (string) preg_replace('/\.(tar\.gz|zip)$/', '', $base);
+            $dir = $root.DIRECTORY_SEPARATOR.$name;
+
+            if (File::isDirectory($dir)) {
+                throw new RuntimeException("A backup named {$name} is already on this host. Restore that one, or remove it first.");
+            }
+
+            $this->extract($archive, $dir);
+
+            if (! File::exists($dir.DIRECTORY_SEPARATOR.'manifest.json')) {
+                File::deleteDirectory($dir);
+
+                throw new RuntimeException('The archive holds no manifest.json, so it is not an ETHR backup.');
+            }
+
+            return $name;
+        } finally {
+            umask($previousUmask);
+            @unlink($archive);
+            if ($fetched) {
+                @unlink($encrypted);
+            }
+        }
+    }
+
+    /**
+     * The newest backup on this host, and the newest off-host copy any of
+     * them records, read from their manifests: what the operations centre and
+     * the backup check report. The two can differ: a manual backup taken
+     * before a release is local only, and is the newest until the next night.
+     *
+     * @return array{name: string, created_at: string|null, off_host: array<string, mixed>|null}|null
+     */
+    public function latest(): ?array
+    {
+        $root = $this->backupRoot();
+
+        if (! File::isDirectory($root)) {
+            return null;
+        }
+
+        $manifests = collect(File::directories($root))
+            ->filter(fn ($d) => File::exists($d.DIRECTORY_SEPARATOR.'manifest.json'))
+            ->sortByDesc(fn ($d) => basename($d))
+            ->map(function (string $dir): array {
+                $manifest = json_decode((string) File::get($dir.DIRECTORY_SEPARATOR.'manifest.json'), true);
+
+                return ['name' => basename($dir)] + (is_array($manifest) ? $manifest : []);
+            })
+            ->values();
+
+        if ($manifests->isEmpty()) {
+            return null;
+        }
+
+        $newest = $manifests->first();
+        $copied = $manifests->first(fn (array $m): bool => is_array($m['off_host'] ?? null));
+
+        return [
+            'name' => $newest['name'],
+            'created_at' => is_string($newest['created_at'] ?? null) ? $newest['created_at'] : null,
+            'off_host' => $copied === null ? null : $copied['off_host'],
+        ];
+    }
+
+    /** @param  array<string, mixed>  $fields */
+    private function recordInManifest(string $path, array $fields): void
+    {
+        $manifestPath = $path.DIRECTORY_SEPARATOR.'manifest.json';
+        $manifest = json_decode((string) File::get($manifestPath), true);
+
+        File::put(
+            $manifestPath,
+            json_encode(array_merge(is_array($manifest) ? $manifest : [], $fields), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+        );
     }
 
     /** Keep the newest $keep backups; delete the rest. Returns what was removed. */
@@ -337,5 +612,25 @@ class BackupService
             'Neither phar nor zip is available, so the backup cannot be archived for off-host copy. '
             .'Copy the directory manually, or enable one of those extensions.'
         );
+    }
+
+    /** The reverse of archive(). */
+    private function extract(string $archive, string $dir): void
+    {
+        File::ensureDirectoryExists($dir, 0700);
+
+        if (str_ends_with($archive, '.zip')) {
+            $zip = new \ZipArchive;
+
+            if ($zip->open($archive) !== true || ! $zip->extractTo($dir)) {
+                throw new RuntimeException('The decrypted archive is not a readable zip.');
+            }
+
+            $zip->close();
+
+            return;
+        }
+
+        (new \PharData($archive))->extractTo($dir, null, true);
     }
 }

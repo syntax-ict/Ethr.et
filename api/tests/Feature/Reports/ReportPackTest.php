@@ -159,7 +159,7 @@ test('the payroll report leaves out voided runs and filters by period and cost c
     // Two employees in each of two live runs; the voided October run counted
     // each October payslip twice.
     expect($all->json('total'))->toBe(4)
-        ->and($all->json('summary.group_sums.October 2026.gross_cents'))->toBe(2_000_000);
+        ->and($all->json('summary.group_sums.Tikimt 2019.gross_cents'))->toBe(2_000_000);
 
     $filtered = test()->postJson(rpUrl($tenant, 'generate'), [
         'source' => 'payroll',
@@ -168,7 +168,7 @@ test('the payroll report leaves out voided runs and filters by period and cost c
 
     expect($filtered->json('total'))->toBe(1)
         ->and($filtered->json('data.0.cost_center'))->toBe('Project Alpha')
-        ->and($filtered->json('data.0.period'))->toBe('October 2026')
+        ->and($filtered->json('data.0.period'))->toBe('Tikimt 2019')
         ->and($filtered->json('data.0'))->toHaveKeys(['overtime_cents', 'allowances_cents', 'employer_pension_cents', 'loan_cents', 'cost_sharing_cents']);
 });
 
@@ -281,5 +281,5 @@ test('a payroll month finds the run meant for it in either calendar', function (
         'filters' => ['from' => '2026-10-11', 'to' => '2026-11-09'],
     ])->assertOk()
         ->assertJsonPath('total', 1)
-        ->assertJsonPath('data.0.period', 'October 2026');
+        ->assertJsonPath('data.0.period', 'Tikimt 2019');
 });

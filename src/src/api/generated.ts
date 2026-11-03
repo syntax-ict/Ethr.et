@@ -303,6 +303,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kiosk/punches/{publicId}/not-me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Not me punches */
+        post: operations["kiosk.kioskReportPunch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kiosk/self-service": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The pass holder's own attendance for the last seven days, and their
+         *     leave balances this year
+         */
+        get: operations["kioskSelfService.show"];
+        put?: never;
+        /** Start self-service with an employee code and that person's kiosk PIN */
+        post: operations["kioskSelfService.start"];
+        /** End self-service now, rather than when the pass runs out */
+        delete: operations["kioskSelfService.end"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kiosk/self-service/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change the pass holder's own kiosk PIN. The current PIN is asked again:
+         *     a pass left open on the screen must not let the next person in the
+         *     queue choose someone else's PIN
+         */
+        put: operations["kioskSelfService.changePin"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/check-in": {
         parameters: {
             query?: never;
@@ -1631,6 +1691,95 @@ export interface paths {
         put?: never;
         /** Verify mfa */
         post: operations["auth.mfaVerify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List backups */
+        get: operations["backupStorage.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Storage backups */
+        put: operations["backupStorage.saveStorage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update setting */
+        put: operations["backupStorage.updateSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/storage/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test storage */
+        post: operations["backupStorage.testStorage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The archive key, for the admin to keep away from the host. The console
+         *     already demands MFA; this is audited and rate limited on top, because
+         *     with the key and a copy anyone can read every tenant's data
+         */
+        post: operations["backupStorage.revealKey"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8217,6 +8366,9 @@ export interface components {
             body_am: string | null;
             detail: string | null;
             detail_am: string | null;
+            title_om: string | null;
+            body_om: string | null;
+            detail_om: string | null;
             link_path: string | null;
             image: {
                 url: string;
@@ -8225,6 +8377,7 @@ export interface components {
                 height: number;
                 alt: string | null;
                 alt_am: string | null;
+                alt_om: string | null;
             } | null;
         };
         /** AdminMarketingSectionResource */
@@ -8237,6 +8390,8 @@ export interface components {
             heading_am: string | null;
             subheading: string | null;
             subheading_am: string | null;
+            heading_om: string | null;
+            subheading_om: string | null;
             image: {
                 url: string;
                 srcset: string;
@@ -8244,6 +8399,7 @@ export interface components {
                 height: number;
                 alt: string | null;
                 alt_am: string | null;
+                alt_om: string | null;
             } | null;
             spec: {
                 fields: string[];
@@ -8618,9 +8774,9 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
             was_duplicate: boolean;
-            /** @enum {string} */
-            punch: "check_in" | "check_out";
-            employee_name?: string;
+            /** @constant */
+            punch: "check_in";
+            employee_name?: null;
         };
         /** AttendanceRecordResource */
         AttendanceRecordResource: {
@@ -8665,6 +8821,8 @@ export interface components {
             mobile_accuracy_threshold_meters: number;
             offline_sync_enabled: boolean;
             kiosk_auto_reset_seconds: number;
+            /** @enum {string} */
+            kiosk_sound: "off" | "voice" | "tones";
             ot_daily_cap_minutes: number;
             overtime_requires_approval: boolean;
             lateness_deduction_enabled: boolean;
@@ -8792,6 +8950,12 @@ export interface components {
         /** CancelRetirementCaseRequest */
         CancelRetirementCaseRequest: {
             notes?: string | null;
+        };
+        /** ChangeKioskPinRequest */
+        ChangeKioskPinRequest: {
+            current_pin: string;
+            pin: string;
+            pin_confirmation: string;
         };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
@@ -9614,6 +9778,14 @@ export interface components {
             possible_duplicates?: string;
             created_at: string | null;
         };
+        /** KioskAttendanceDayResource */
+        KioskAttendanceDayResource: {
+            date: string | null;
+            check_in: string | null;
+            check_out: string | null;
+            status: string;
+            worked_minutes: number;
+        };
         /** KioskAttendanceRequest */
         KioskAttendanceRequest: {
             idempotency_key: string;
@@ -9628,6 +9800,36 @@ export interface components {
             /** @enum {string} */
             type: "check_in" | "check_out" | "auto";
             pin?: string | null;
+        };
+        /** KioskLeaveBalanceResource */
+        KioskLeaveBalanceResource: {
+            leave_type: string | null;
+            leave_type_am: string | null;
+            entitled_days: string;
+            used_days: number;
+            pending_days: number;
+            remaining_days: number;
+        };
+        /** KioskPersonResource */
+        KioskPersonResource: {
+            name: string;
+            name_am: string | null;
+            position: string | null;
+            photo_url: string | null;
+        };
+        /** KioskPunchResource */
+        KioskPunchResource: {
+            public_id: string;
+            date: string | null;
+            check_in: string | null;
+            check_out: string | null;
+            source: string;
+            status: string;
+            /** @enum {string} */
+            punch: "check_in" | "check_out";
+            was_duplicate: boolean;
+            employee_name: string;
+            employee: components["schemas"]["KioskPersonResource"] | null;
         };
         /** KioskSessionResource */
         KioskSessionResource: {
@@ -9787,6 +9989,9 @@ export interface components {
             body_am: string | null;
             detail: string | null;
             detail_am: string | null;
+            title_om: string | null;
+            body_om: string | null;
+            detail_om: string | null;
             link_path: string | null;
             image: {
                 url: string;
@@ -9795,6 +10000,7 @@ export interface components {
                 height: number;
                 alt: string | null;
                 alt_am: string | null;
+                alt_om: string | null;
             } | null;
         };
         /** MarketingSectionResource */
@@ -9804,6 +10010,8 @@ export interface components {
             heading_am: string | null;
             subheading: string | null;
             subheading_am: string | null;
+            heading_om: string | null;
+            subheading_om: string | null;
             image: {
                 url: string;
                 srcset: string;
@@ -9811,6 +10019,7 @@ export interface components {
                 height: number;
                 alt: string | null;
                 alt_am: string | null;
+                alt_om: string | null;
             } | null;
             items: components["schemas"]["MarketingItemResource"][];
         };
@@ -10044,6 +10253,8 @@ export interface components {
         PayrollEntryResource: {
             public_id: string;
             period_label?: string;
+            period_start?: string | null;
+            period_end?: string | null;
             employee?: components["schemas"]["EmployeeResource"] | null;
             employee_public_id: string | null;
             basic_salary_cents: number;
@@ -10166,6 +10377,8 @@ export interface components {
             is_popular: boolean;
             marketing_features: string[] | null;
             marketing_features_am: string[] | null;
+            description_om: string | null;
+            marketing_features_om: string[] | null;
         };
         /**
          * PlanFeature
@@ -10193,6 +10406,7 @@ export interface components {
             slug: string;
             description: string | null;
             description_am: string | null;
+            description_om: string | null;
             price_cents: number;
             currency: string;
             billing_interval: string;
@@ -10202,6 +10416,7 @@ export interface components {
             features: string[] | null;
             marketing_features: string[] | null;
             marketing_features_am: string[] | null;
+            marketing_features_om: string[] | null;
             is_popular: boolean;
             sort_order: number;
         };
@@ -10213,16 +10428,20 @@ export interface components {
             bank_account_name: string | null;
             payment_instructions: string | null;
             payment_instructions_am: string | null;
+            payment_instructions_om: string | null;
             is_configured: boolean;
             platform_name: string | null;
             platform_name_am: string | null;
+            platform_name_om: string | null;
             tagline: string | null;
             tagline_am: string | null;
+            tagline_om: string | null;
             logo_url: string | null;
             contact_email: string | null;
             contact_phone: string | null;
             office_address: string | null;
             office_address_am: string | null;
+            office_address_om: string | null;
             social_linkedin: string | null;
             social_x: string | null;
             social_facebook: string | null;
@@ -10230,11 +10449,14 @@ export interface components {
             metric_employees: number | null;
             metric_uptime_note: string | null;
             metric_uptime_note_am: string | null;
+            metric_uptime_note_om: string | null;
             testimonial_quote: string | null;
             testimonial_quote_am: string | null;
+            testimonial_quote_om: string | null;
             testimonial_author: string | null;
             testimonial_role: string | null;
             testimonial_role_am: string | null;
+            testimonial_role_om: string | null;
             testimonial_organisation: string | null;
             /**
              * @description Published here and not by SiteContentResource: the operator has to
@@ -10247,6 +10469,7 @@ export interface components {
             product_mark_enabled: boolean;
             product_mark_label: string | null;
             product_mark_label_am: string | null;
+            product_mark_label_om: string | null;
             product_mark_url: string | null;
             /** Format: date-time */
             updated_at: string | null;
@@ -10509,6 +10732,11 @@ export interface components {
                 deduction_cents: number;
             }[];
         };
+        /** ReportKioskPunchRequest */
+        ReportKioskPunchRequest: {
+            /** @enum {string} */
+            punch: "check_in" | "check_out";
+        };
         /** ReprocessPayrollRunRequest */
         ReprocessPayrollRunRequest: {
             idempotency_key: string;
@@ -10613,6 +10841,16 @@ export interface components {
             is_active?: boolean;
             employee_public_ids?: string[];
             department_public_ids?: string[];
+        };
+        /** SaveBackupStorageRequest */
+        SaveBackupStorageRequest: {
+            /** Format: uri */
+            endpoint: string;
+            region: string;
+            bucket: string;
+            access_key_id: string;
+            secret_access_key?: string | null;
+            path_style: boolean;
         };
         /** SaveReportRequest */
         SaveReportRequest: {
@@ -10735,13 +10973,16 @@ export interface components {
         SiteContentResource: {
             platform_name: string | null;
             platform_name_am: string | null;
+            platform_name_om: string | null;
             tagline: string | null;
             tagline_am: string | null;
+            tagline_om: string | null;
             logo_url: string | null;
             contact_email: string | null;
             contact_phone: string | null;
             office_address: string | null;
             office_address_am: string | null;
+            office_address_om: string | null;
             social_linkedin: string | null;
             social_x: string | null;
             social_facebook: string | null;
@@ -10749,15 +10990,19 @@ export interface components {
             metric_employees: number | null;
             metric_uptime_note: string | null;
             metric_uptime_note_am: string | null;
+            metric_uptime_note_om: string | null;
             testimonial_quote: string | null;
             testimonial_quote_am: string | null;
+            testimonial_quote_om: string | null;
             testimonial_author: string | null;
             testimonial_role: string | null;
             testimonial_role_am: string | null;
+            testimonial_role_om: string | null;
             testimonial_organisation: string | null;
             product_mark_enabled: boolean;
             product_mark_label: string | null;
             product_mark_label_am: string | null;
+            product_mark_label_om: string | null;
             product_mark_url: string | null;
         };
         /** StageRowsRequest */
@@ -10775,6 +11020,11 @@ export interface components {
                 hire_date?: string | null;
                 department?: string | null;
             }[];
+        };
+        /** StartKioskSelfServiceRequest */
+        StartKioskSelfServiceRequest: {
+            employee_code: string;
+            pin: string;
         };
         /** StatutoryLayoutResource */
         StatutoryLayoutResource: {
@@ -11165,7 +11415,7 @@ export interface components {
             addressed_to?: string | null;
             include_salary?: boolean;
             /** @enum {string} */
-            language?: "en" | "am";
+            language?: "en" | "am" | "om";
         };
         /** StoreLoanRequest */
         StoreLoanRequest: {
@@ -11209,6 +11459,10 @@ export interface components {
             link_path?: string | null;
             image_alt?: string | null;
             image_alt_am?: string | null;
+            title_om?: string | null;
+            body_om?: string | null;
+            detail_om?: string | null;
+            image_alt_om?: string | null;
             is_published?: boolean;
         };
         /**
@@ -11302,6 +11556,7 @@ export interface components {
             slug: string;
             description?: string | null;
             description_am?: string | null;
+            description_om?: string | null;
             price_cents: number;
             currency?: string;
             /** @enum {string} */
@@ -11312,6 +11567,7 @@ export interface components {
             features?: components["schemas"]["PlanFeature"][];
             marketing_features?: string[] | null;
             marketing_features_am?: string[] | null;
+            marketing_features_om?: string[] | null;
             is_active?: boolean;
             is_public?: boolean;
             is_popular?: boolean;
@@ -11665,6 +11921,8 @@ export interface components {
             mobile_accuracy_threshold_meters?: number;
             offline_sync_enabled?: boolean;
             kiosk_auto_reset_seconds?: number;
+            /** @enum {string} */
+            kiosk_sound?: "off" | "tones" | "voice";
             ot_daily_cap_minutes?: number;
             overtime_requires_approval?: boolean;
             lateness_deduction_enabled?: boolean;
@@ -11684,6 +11942,11 @@ export interface components {
             /** @enum {string} */
             device_binding?: "off" | "flag" | "enforce";
             office_networks?: string[] | null;
+        };
+        /** UpdateBackupSettingsRequest */
+        UpdateBackupSettingsRequest: {
+            enabled?: boolean;
+            key_saved?: boolean;
         };
         /**
          * UpdateBranchAttendanceRequest
@@ -11920,8 +12183,10 @@ export interface components {
         UpdateLandingRequest: {
             headline?: string | null;
             headline_am?: string | null;
+            headline_om?: string | null;
             message?: string | null;
             message_am?: string | null;
+            message_om?: string | null;
             /** Format: email */
             support_email?: string | null;
             support_phone?: string | null;
@@ -11929,6 +12194,7 @@ export interface components {
             background: "brand" | "gradient" | "pattern" | "image";
             about?: string | null;
             about_am?: string | null;
+            about_om?: string | null;
             founded_year?: number | null;
             /** @enum {string|null} */
             sector?: "agriculture" | "construction" | "education" | "finance" | "government" | "health" | "hospitality" | "logistics" | "manufacturing" | "media" | "mining" | "ngo" | "retail" | "services" | "technology" | "telecom" | "utilities" | "other" | null;
@@ -11937,8 +12203,10 @@ export interface components {
             show_branch_count?: boolean;
             address?: string | null;
             address_am?: string | null;
+            address_om?: string | null;
             hours?: string | null;
             hours_am?: string | null;
+            hours_om?: string | null;
             latitude?: number | null;
             longitude?: number | null;
             show_branches?: boolean;
@@ -11973,14 +12241,18 @@ export interface components {
             faqs?: {
                 question: string | null;
                 question_am: string | null;
+                question_om: string | null;
                 answer: string | null;
                 answer_am: string | null;
+                answer_om: string | null;
             }[];
             services?: {
                 title: string | null;
                 title_am: string | null;
+                title_om: string | null;
                 description: string | null;
                 description_am: string | null;
+                description_om: string | null;
             }[];
             listed?: boolean;
         };
@@ -12024,7 +12296,7 @@ export interface components {
          *
          *     The rules carry no inline comments: Scramble publishes a comment beside
          *     a rule as that field's description. Every text field takes
-         *     PermittedMarketingClaim, in both languages. The image alt fields are
+         *     PermittedMarketingClaim, in every language. The image alt fields are
          *     accepted only for a kind whose registry entry allows a section image,
          *     checked in withValidator(), which Scramble does not read.
          */
@@ -12036,6 +12308,9 @@ export interface components {
             is_published?: boolean;
             image_alt?: string | null;
             image_alt_am?: string | null;
+            heading_om?: string | null;
+            subheading_om?: string | null;
+            image_alt_om?: string | null;
         };
         /** UpdateNotificationTemplateRequest */
         UpdateNotificationTemplateRequest: {
@@ -12097,10 +12372,13 @@ export interface components {
             bank_account_name?: string | null;
             payment_instructions?: string | null;
             payment_instructions_am?: string | null;
+            payment_instructions_om?: string | null;
             platform_name?: string | null;
             platform_name_am?: string | null;
+            platform_name_om?: string | null;
             tagline?: string | null;
             tagline_am?: string | null;
+            tagline_om?: string | null;
             /** Format: uri */
             logo_url?: string | null;
             /** Format: email */
@@ -12108,6 +12386,7 @@ export interface components {
             contact_phone?: string | null;
             office_address?: string | null;
             office_address_am?: string | null;
+            office_address_om?: string | null;
             /** Format: uri */
             social_linkedin?: string | null;
             /** Format: uri */
@@ -12118,11 +12397,14 @@ export interface components {
             metric_employees?: number | null;
             metric_uptime_note?: string | null;
             metric_uptime_note_am?: string | null;
+            metric_uptime_note_om?: string | null;
             testimonial_quote?: string | null;
             testimonial_quote_am?: string | null;
+            testimonial_quote_om?: string | null;
             testimonial_author?: string | null;
             testimonial_role?: string | null;
             testimonial_role_am?: string | null;
+            testimonial_role_om?: string | null;
             testimonial_organisation?: string | null;
             /** Format: date-time */
             testimonial_consented_on?: string | null;
@@ -12130,6 +12412,7 @@ export interface components {
             product_mark_enabled?: boolean;
             product_mark_label?: string | null;
             product_mark_label_am?: string | null;
+            product_mark_label_om?: string | null;
             /** Format: uri */
             product_mark_url?: string | null;
         };
@@ -12160,6 +12443,8 @@ export interface components {
             theme?: "light" | "dark" | "system" | "high-contrast" | null;
             /** @enum {string|null} */
             calendar?: "gregorian" | "ethiopian" | "dual" | null;
+            /** @enum {string|null} */
+            clock?: "auto" | "ethiopian" | "24h" | null;
             punch_reminders?: boolean | null;
             auto_check_in?: boolean | null;
         };
@@ -12208,10 +12493,14 @@ export interface components {
                 pension_scheme?: string;
                 working_days?: number[];
                 /** @enum {string} */
+                leave_year?: "gregorian" | "ethiopian";
+                /** @enum {string} */
                 mfa_policy?: "disabled" | "optional" | "required";
                 session_timeout_minutes?: number;
                 /** @enum {string} */
                 calendar?: "ethiopian" | "gregorian";
+                /** @enum {string} */
+                clock?: "auto" | "ethiopian" | "24h";
                 employee_number_format?: string;
                 invitation_reminders?: boolean;
             };
@@ -12340,7 +12629,7 @@ export interface components {
             status?: "active" | "inactive" | "suspended";
             custom_role_id?: string | null;
             /** @enum {string} */
-            locale?: "en" | "am";
+            locale?: "en" | "am" | "om";
         };
         /** UpdateWebhookRequest */
         UpdateWebhookRequest: {
@@ -13205,6 +13494,13 @@ export interface operations {
                         settings: {
                             pin_required: boolean;
                             auto_reset_seconds: number;
+                            /** @enum {string} */
+                            sound: "off" | "voice" | "tones";
+                            code_format: {
+                                prefix: string;
+                                width: number;
+                                suffix: string;
+                            };
                         };
                         /**
                          * @description For punching through a power cut or a dropped connection: the
@@ -13253,22 +13549,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description `AttendancePunchResource` */
+            /** @description `KioskPunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendancePunchResource"];
+                    "application/json": components["schemas"]["KioskPunchResource"];
                 };
             };
-            /** @description `AttendancePunchResource` */
+            /** @description `KioskPunchResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendancePunchResource"];
+                    "application/json": components["schemas"]["KioskPunchResource"];
                 };
             };
             401: {
@@ -13425,6 +13721,11 @@ export interface operations {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
+                                detail: "This number matches more than one person. Type your full code with the ABC key.";
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
                                 detail: "This offline punch could not be read. Punch again.";
                             };
                         }[];
@@ -13489,6 +13790,287 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "kiosk.kioskReportPunch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportKioskPunchRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        status: "reported";
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/unauthorized";
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "This punch can no longer be reported here. Tell HR.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "kioskSelfService.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        employee: components["schemas"]["KioskPersonResource"];
+                        today: string;
+                        days: components["schemas"]["KioskAttendanceDayResource"][];
+                        leave_balances: components["schemas"]["KioskLeaveBalanceResource"][];
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        type: string;
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Your session at this kiosk has ended. Enter your code and PIN again.";
+                    } | {
+                        type: string;
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+        };
+    };
+    "kioskSelfService.start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartKioskSelfServiceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        pass: string;
+                        expires_at: string;
+                        employee: components["schemas"]["KioskPersonResource"];
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        type: string;
+                        /** @constant */
+                        title: "Invalid PIN";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "That code and PIN do not match. Check both and try again.";
+                    } | {
+                        type: string;
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/feature-unavailable";
+                        /** @constant */
+                        title: "Feature Unavailable";
+                        /** @constant */
+                        status: 403;
+                        detail: string;
+                        /** @constant */
+                        code: "feature-unavailable";
+                        reason: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        type: string;
+                        /** @constant */
+                        title: "PIN Locked";
+                        /** @constant */
+                        status: 429;
+                        /** @constant */
+                        detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                    };
+                };
+            };
+        };
+    };
+    "kioskSelfService.end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "kioskSelfService.changePin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeKioskPinRequest"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        type: string;
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Your session at this kiosk has ended. Enter your code and PIN again.";
+                    } | {
+                        type: string;
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        type: string;
+                        /** @constant */
+                        title: "PIN Locked";
+                        /** @constant */
+                        status: 429;
+                        /** @constant */
+                        detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                    };
+                };
+            };
         };
     };
     "attendance.checkIn": {
@@ -16689,6 +17271,7 @@ export interface operations {
                                 locale_chosen: boolean;
                                 theme: string | "system";
                                 calendar: string;
+                                clock: string;
                                 punch_reminders: boolean;
                                 auto_check_in: boolean;
                             };
@@ -16977,6 +17560,318 @@ export interface operations {
             };
         };
     };
+    "backupStorage.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "backupStorage.saveStorage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveBackupStorageRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "backupStorage.updateSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateBackupSettingsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "backupStorage.testStorage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "backupStorage.revealKey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        key: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "balanceImport.template": {
         parameters: {
             query?: never;
@@ -17161,6 +18056,7 @@ export interface operations {
                             account_name: string;
                             instructions: string | null;
                             instructions_am: string | null;
+                            instructions_om: string | null;
                         } | null;
                     };
                 };
@@ -28024,6 +28920,8 @@ export interface operations {
                     "application/json": {
                         data: (components["schemas"]["PayrollEntryResource"] & {
                             period_label: string;
+                            period_start: string | null;
+                            period_end: string | null;
                             employee: components["schemas"]["EmployeeResource"] | null;
                         })[];
                         links: {
@@ -28080,6 +28978,8 @@ export interface operations {
                     "application/json": {
                         data: (components["schemas"]["PayrollEntryResource"] & {
                             period_label: string;
+                            period_start: string | null;
+                            period_end: string | null;
                             employee: components["schemas"]["EmployeeResource"] | null;
                         })[];
                         links: {
@@ -29862,6 +30762,9 @@ export interface operations {
                                 last_sent_at: string | null;
                                 last_failed_at: string | null;
                                 tls: string | null;
+                                sent_today: number;
+                                held_today: number;
+                                daily_cap: number;
                             };
                         };
                         release: {
@@ -29897,6 +30800,30 @@ export interface operations {
                                 response_ms: number | null;
                             }[];
                             disk_free_gb: number | null;
+                        };
+                        backups: {
+                            /** @enum {string} */
+                            state: "ok" | "warning" | "critical" | "unknown";
+                            reasons: string[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: string | null;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
                         };
                     };
                 };
@@ -31422,22 +32349,27 @@ export interface operations {
                         landing: {
                             headline: string | null;
                             headline_am: string | null;
+                            headline_om: string | null;
                             message: string | null;
                             message_am: string | null;
+                            message_om: string | null;
                             support_email: string | null;
                             support_phone: string | null;
                             /** @description A photo background with no cover uploaded is the brand colour. */
                             background: string;
                             about: string | null;
                             about_am: string | null;
+                            about_om: string | null;
                             founded_year: number | null;
                             sector: string | null;
                             staff_band: string | null;
                             show_branch_count: boolean;
                             address: string | null;
                             address_am: string | null;
+                            address_om: string | null;
                             hours: string | null;
                             hours_am: string | null;
+                            hours_om: string | null;
                             latitude: number | null;
                             longitude: number | null;
                             show_branches: boolean;
@@ -31447,14 +32379,18 @@ export interface operations {
                             faqs: {
                                 question: string | null;
                                 question_am: string | null;
+                                question_om: string | null;
                                 answer: string | null;
                                 answer_am: string | null;
+                                answer_om: string | null;
                             }[];
                             services: {
                                 title: string | null;
                                 title_am: string | null;
+                                title_om: string | null;
                                 description: string | null;
                                 description_am: string | null;
+                                description_om: string | null;
                             }[];
                             sections: {
                                 [key: string]: boolean;
@@ -31470,6 +32406,9 @@ export interface operations {
                          */
                         leave: {
                             working_days: number[];
+                            /** @enum {string} */
+                            leave_year: "ethiopian" | "gregorian";
+                            leave_year_changeable: boolean;
                         };
                         payroll: {
                             pay_period: string;
@@ -31497,6 +32436,7 @@ export interface operations {
                         display: {
                             /** @enum {string} */
                             calendar: "gregorian" | "ethiopian";
+                            clock: string;
                         };
                         employees: {
                             number_format: string;
@@ -31823,22 +32763,27 @@ export interface operations {
                     "application/json": {
                         headline: string | null;
                         headline_am: string | null;
+                        headline_om: string | null;
                         message: string | null;
                         message_am: string | null;
+                        message_om: string | null;
                         support_email: string | null;
                         support_phone: string | null;
                         /** @description A photo background with no cover uploaded is the brand colour. */
                         background: string;
                         about: string | null;
                         about_am: string | null;
+                        about_om: string | null;
                         founded_year: number | null;
                         sector: string | null;
                         staff_band: string | null;
                         show_branch_count: boolean;
                         address: string | null;
                         address_am: string | null;
+                        address_om: string | null;
                         hours: string | null;
                         hours_am: string | null;
+                        hours_om: string | null;
                         latitude: number | null;
                         longitude: number | null;
                         show_branches: boolean;
@@ -31848,14 +32793,18 @@ export interface operations {
                         faqs: {
                             question: string | null;
                             question_am: string | null;
+                            question_om: string | null;
                             answer: string | null;
                             answer_am: string | null;
+                            answer_om: string | null;
                         }[];
                         services: {
                             title: string | null;
                             title_am: string | null;
+                            title_om: string | null;
                             description: string | null;
                             description_am: string | null;
+                            description_om: string | null;
                         }[];
                         sections: {
                             [key: string]: boolean;
@@ -33980,22 +34929,27 @@ export interface operations {
                             landing: {
                                 headline: string | null;
                                 headline_am: string | null;
+                                headline_om: string | null;
                                 message: string | null;
                                 message_am: string | null;
+                                message_om: string | null;
                                 support_email: string | null;
                                 support_phone: string | null;
                                 /** @description A photo background with no cover uploaded is the brand colour. */
                                 background: string;
                                 about: string | null;
                                 about_am: string | null;
+                                about_om: string | null;
                                 founded_year: number | null;
                                 sector: string | null;
                                 staff_band: string | null;
                                 show_branch_count: boolean;
                                 address: string | null;
                                 address_am: string | null;
+                                address_om: string | null;
                                 hours: string | null;
                                 hours_am: string | null;
+                                hours_om: string | null;
                                 latitude: number | null;
                                 longitude: number | null;
                                 show_branches: boolean;
@@ -34005,14 +34959,18 @@ export interface operations {
                                 faqs: {
                                     question: string | null;
                                     question_am: string | null;
+                                    question_om: string | null;
                                     answer: string | null;
                                     answer_am: string | null;
+                                    answer_om: string | null;
                                 }[];
                                 services: {
                                     title: string | null;
                                     title_am: string | null;
+                                    title_om: string | null;
                                     description: string | null;
                                     description_am: string | null;
+                                    description_om: string | null;
                                 }[];
                                 sections: {
                                     [key: string]: boolean;
@@ -34687,6 +35645,7 @@ export interface operations {
                             locale_chosen: boolean;
                             theme: string | "system";
                             calendar: string;
+                            clock: string;
                             punch_reminders: boolean;
                             auto_check_in: boolean;
                         };
@@ -34831,6 +35790,7 @@ export interface operations {
                         locale_chosen: boolean;
                         theme: string | "system";
                         calendar: string;
+                        clock: string;
                         punch_reminders: boolean;
                         auto_check_in: boolean;
                     };

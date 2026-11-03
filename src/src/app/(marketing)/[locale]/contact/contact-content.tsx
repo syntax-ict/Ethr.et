@@ -12,6 +12,16 @@ import { fieldErrors, type FieldErrors } from "@/lib/errors";
 import { useT } from "@/lib/i18n/useT";
 import { pickLocalised, useSiteContent } from "@/features/marketing/api";
 
+// The console has one Contact phone field. Several numbers go in it separated
+// by a comma, a semicolon or a slash, and each becomes its own call link: a
+// single `tel:` holding two numbers dials neither.
+export function phoneNumbers(value: string): string[] {
+  return value
+    .split(/[,;/]/)
+    .map((number) => number.trim())
+    .filter(Boolean);
+}
+
 export function ContactContent() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -35,7 +45,12 @@ export function ContactContent() {
     {
       icon: MapPin,
       key: "office" as const,
-      value: pickLocalised(locale, site.office_address_am, site.office_address),
+      value: pickLocalised(
+        locale,
+        site.office_address_am,
+        site.office_address,
+        site.office_address_om,
+      ),
     },
   ].filter((channel) => channel.value);
 
@@ -115,46 +130,77 @@ export function ContactContent() {
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-5">
-            {/* Contact info */}
-            <div className="lg:col-span-2">
-              <h2 className="text-lg font-semibold text-foreground">
-                {t("marketing.contact.get_in_touch", "Get in Touch")}
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {t(
-                  "marketing.contact.response_time",
-                  "We typically respond within 24 hours.",
-                )}
-              </p>
+            {/* Contact info. With no channel entered in the console the column
+                was a "Get in Touch" heading over nothing, so it goes and the
+                form takes the width. */}
+            {contactChannels.length > 0 && (
+              <div className="lg:col-span-2">
+                <h2 className="text-lg font-semibold text-foreground">
+                  {t("marketing.contact.get_in_touch", "Get in Touch")}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {t(
+                    "marketing.contact.response_time",
+                    "We typically respond within 24 hours.",
+                  )}
+                </p>
 
-              <div className="mt-8 space-y-6">
-                {contactChannels.map((channel) => {
-                  const Icon = channel.icon;
-                  return (
-                    <div key={channel.key} className="flex items-start gap-4">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                        <Icon className="h-5 w-5 text-primary" />
+                <div className="mt-8 space-y-6">
+                  {contactChannels.map((channel) => {
+                    const Icon = channel.icon;
+                    return (
+                      <div key={channel.key} className="flex items-start gap-4">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                          <Icon className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-foreground">
+                            {channel.key === "office"
+                              ? t("marketing.contact.office", "Office")
+                              : channel.key === "email"
+                                ? t("common.email", "Email")
+                                : t("common.phone", "Phone")}
+                          </h3>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {channel.key === "office" ? (
+                              channel.value
+                            ) : channel.key === "email" ? (
+                              <a
+                                href={`mailto:${channel.value}`}
+                                className="hover:text-foreground hover:underline"
+                              >
+                                {channel.value}
+                              </a>
+                            ) : (
+                              phoneNumbers(channel.value ?? "").map(
+                                (number) => (
+                                  <a
+                                    key={number}
+                                    href={`tel:${number.replace(/\s+/g, "")}`}
+                                    className="block hover:text-foreground hover:underline"
+                                  >
+                                    {number}
+                                  </a>
+                                ),
+                              )
+                            )}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-sm font-medium text-foreground">
-                          {channel.key === "office"
-                            ? t("marketing.contact.office", "Office")
-                            : channel.key === "email"
-                              ? t("common.email", "Email")
-                              : t("common.phone", "Phone")}
-                        </h3>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {channel.value}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Form */}
-            <div className="lg:col-span-3">
+            <div
+              className={
+                contactChannels.length > 0
+                  ? "lg:col-span-3"
+                  : "mx-auto w-full max-w-2xl lg:col-span-5"
+              }
+            >
               <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm sm:p-8">
                 <h2 className="text-lg font-semibold text-foreground">
                   {t("marketing.contact.form_title", "Send us a message")}

@@ -100,6 +100,48 @@ describe("contact form", () => {
     );
     renderContact(false);
 
-    expect(await screen.findByText("hello@ethr.et")).toBeInTheDocument();
+    expect(await screen.findByText("hello@ethr.et")).toHaveAttribute(
+      "href",
+      "mailto:hello@ethr.et",
+    );
+  });
+
+  it("gives each published phone number its own call link", async () => {
+    server.use(
+      http.get("*/api/v1/site-content", () =>
+        HttpResponse.json({
+          data: {
+            ...EMPTY_SITE_CONTENT,
+            contact_phone: "+251 920 273 166, +251 920 212 200",
+          },
+        }),
+      ),
+    );
+    renderContact(false);
+
+    expect(await screen.findByText("+251 920 273 166")).toHaveAttribute(
+      "href",
+      "tel:+251920273166",
+    );
+    expect(screen.getByText("+251 920 212 200")).toHaveAttribute(
+      "href",
+      "tel:+251920212200",
+    );
+  });
+
+  it("draws no Get in Touch column when no contact detail is published", async () => {
+    server.use(
+      http.get("*/api/v1/site-content", () =>
+        HttpResponse.json({ data: EMPTY_SITE_CONTENT }),
+      ),
+    );
+    renderContact(false);
+
+    expect(
+      await screen.findByRole("heading", { name: /send us a message/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /get in touch/i }),
+    ).not.toBeInTheDocument();
   });
 });

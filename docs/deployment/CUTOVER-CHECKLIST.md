@@ -245,10 +245,10 @@ Five states, and they are not interchangeable:
 | **G0-B.6** | `AllowOverride Options` | 🔶 **HOST ACTION REQUIRED** | None. The Apache harness ran under `AllowOverride All` — the permissive case | Deploy and fetch a page. Without `DirectorySlash Off`, `mod_dir` 301s `/admin` before the SPA rules and **20+ routes are dead**. **No workaround exists** | Plesk owner |
 | **M6** | Restore rehearsal on the host | 🔶 **HOST ACTION REQUIRED** — **hard blocker** | **NOT PERFORMED.** CI rehearses on MariaDB in a container only | The nine steps in [`M6-RESTORE-REHEARSAL.md`](M6-RESTORE-REHEARSAL.md), ending with a real write through the application. **`3db9904` removed the VPS, so this is the only recovery evidence this deployment will ever have** | Plesk owner |
 | **M3** | Wildcard vhost + certificate + routing | 🔶 **HOST ACTION REQUIRED** | DNS **VERIFIED**; a valid `*.ethr.et` certificate **exists** (LE, 2026-09-16 → **2026-12-15**); **no vhost** — every tenant host 303s to the Plesk login | All four: wildcard DNS, vhost routing, the **served** certificate, and a tenant subdomain reaching the application. DNS alone is not it, and the certificate existing is not it | Owner (payment) → Plesk owner |
-| **G0-H** | SMTP 587/465 + mailbox send cap | 🔶 **HOST ACTION REQUIRED** | **Ports half measured 2026-09-29:** outbound 443, 587 and 465 all open. The send cap is unread | M2 for the ports; panel for the cap. Nothing in the code respects a send cap, and two jobs fan out | Plesk owner |
+| **G0-H** | SMTP 587/465 + mailbox send cap | 🔶 **HOST ACTION REQUIRED** | **Ports half measured 2026-09-29:** outbound 443, 587 and 465 all open. The send cap is unread | M2 for the ports; panel for the cap. Since 2026-11-02 the code holds bulk mail under `MAIL_DAILY_CAP` (default 500, a guess): set it to the cap the panel shows | Plesk owner |
 | **G0-I** | MySQL version, `DB_CONNECTION`, charset | 🔶 **HOST ACTION REQUIRED** | None measured. The panel *labels* the server MySQL v8.0.32 — a label, not `DB1` | M2, probes `DB1`/`DB1b`/`DB1c`/`DB10`. The `devices` VIRTUAL generated column needs 5.7.6+ / 10.2.1+ | Plesk owner |
 | **G0-J** | CPU + database performance / hosting limits | 🔶 **HOST ACTION REQUIRED** | **CPU half measured 2026-09-29:** P1 56 ms, P2 2 ms, P3 70 ms; `pm.max_children` 5. Database half (`P4`–`P6`) did not run. **Added as its own row 2026-09-27** — it was previously reachable only through M2's *"closes … most of G0-J"*, which is not a row, so nothing reported it outstanding. Same gap G0-B.6 had | The probe's Performance section (`P1`–`P6`). Then the product question behind the number: payroll runs inside the 50-second `queue:work` window against a budget of *500 employees < 30s* measured on **dedicated** hardware, and `ProcessPayrollJob` has `tries = 1`, so a crossed boundary is a **failed run**, not a retried one | Plesk owner |
-| **Quotas** | 5 GB disk · 50 GB bandwidth | 🔶 **HOST ACTION REQUIRED** | Published figures only. Nothing measured, nothing capped in code | Read the panel. Then check the deployment's own footprint against it — see §*Quota arithmetic* below | Plesk owner |
+| **Quotas** | Linux Gold: 50 GB disk · unlimited bandwidth | ✅ **PASS** | **Read on the host 2026-11-02:** hosting portal Resource Usage 643 MB of 51,200 MB disk, bandwidth unlimited; Plesk shows ethr.et at 681 MB. The account is **Linux Gold, not Bronze**. The nightly backup now measures disk against `DISK_QUOTA_MB` (51200 in production) and alarms at 85% through `/cron/backup` (#532) | Keep `DISK_QUOTA_MB` equal to the plan if it changes | Plesk owner |
 | **Secrets** | Secret / artifact audit | ✅ **PASS**, with one rotation requirement | Audited 2026-09-27: no `.env` tracked (`src/.env.production` is `NEXT_PUBLIC_*` only, deliberately tracked); no key literal in the tree; every example env has **empty** credential values; no workflow prints a secret; release archive no longer carries `api/.env` — **verified by test, after the first patch silently failed** | Done, **except**: see *Rotation* below. It is not a blocker but it must not be forgotten | — |
 
 ---
@@ -291,11 +291,16 @@ reached a deployed environment.
 
 ## Quota arithmetic — check before cutover, not after
 
-**5 GB total**, shared by the application, `vendor/`, the exported frontend, logs, every
-uploaded employee document **and every retained backup.**
+**Measured 2026-11-02: Linux Gold, 51,200 MB (50 GB) total, 643 MB used.** One quota is
+shared by the application, `vendor/`, the exported frontend, logs, every uploaded
+employee document **and every retained backup.** The figures below were written for the
+5 GB Bronze plan this account turned out not to be on; the arithmetic still holds.
 
-- `BACKUP_KEEP=2`, and `prune()` runs **after** `create()` — so at peak **four** copies
-  of the document store exist simultaneously.
+- `prune()` runs **after** `create()`, so at peak `BACKUP_KEEP + 2` copies of the
+  document store exist simultaneously. Production keeps `BACKUP_KEEP=7` since
+  2026-11-02, which 50 GB allows.
+- The nightly backup measures disk use against `DISK_QUOTA_MB` and refuses a backup
+  that would pass 95% of it, pruning the oldest first (#532).
 - The static export is ~689 files; `vendor/` is 163 packages.
 - **A full quota presents as data corruption, not as an outage:** writes fail while reads
   succeed, logs fail first so the evidence goes missing, and `/api/v1/health` still

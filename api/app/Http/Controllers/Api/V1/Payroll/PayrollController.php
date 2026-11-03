@@ -31,6 +31,7 @@ use App\Services\Payroll\PayslipPdfService;
 use App\Services\Payroll\RunRegisterService;
 use App\Services\Payroll\StatutorySchedules;
 use App\Support\Csv;
+use App\Support\ReaderDates;
 use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -346,7 +347,7 @@ class PayrollController extends Controller
             $this->authorize('viewAny', PayrollRun::class);
         }
 
-        $pdf = $pdfService->generate($payrollEntry);
+        $pdf = $pdfService->generate($payrollEntry, ReaderDates::for($user));
 
         $filename = "payslip-{$payrollEntry->public_id}.pdf";
 

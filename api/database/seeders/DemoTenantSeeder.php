@@ -22,6 +22,7 @@ use App\Models\Shift;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\Leave\LeaveYear;
 use App\Services\Onboarding\OrganizationProvisioner;
 use App\Services\Payroll\PayrollEngine;
 use Carbon\Carbon;
@@ -178,13 +179,14 @@ class DemoTenantSeeder extends Seeder
         // Unpaid, excused and business trip, as every organisation gets them.
         app(OrganizationProvisioner::class)->ensureSettlingLeaveTypes($tenant);
 
+        $leaveYear = LeaveYear::forTenant($tenant)->current();
         foreach ($employees as $employee) {
             foreach ($leaveTypes as $lt) {
                 LeaveBalance::create([
                     'tenant_id' => $tenant->id,
                     'employee_id' => $employee->id,
                     'leave_type_id' => $lt->id,
-                    'year' => now()->year,
+                    'year' => $leaveYear,
                     'entitled_days' => $lt->default_days,
                     'used_days' => fake()->numberBetween(0, 5),
                     'carried_days' => 0,
@@ -213,11 +215,20 @@ class DemoTenantSeeder extends Seeder
             );
         }
 
+        // The six months end with the last weekday before today. Counted from
+        // today's month, seeding on the first days of a month (1 November 2026
+        // was a Sunday) left that month with no workday up to yesterday, so
+        // the demo held five months of attendance, not six.
+        $lastWorkday = Carbon::yesterday();
+        while (! $lastWorkday->isWeekday()) {
+            $lastWorkday->subDay();
+        }
+
         for ($month = 5; $month >= 0; $month--) {
-            // Anchor to the first of the current month BEFORE subtracting, so
+            // Anchor to the first of the month BEFORE subtracting, so
             // short months (e.g. Feb) don't day-overflow and collapse two
             // iterations into the same month when seeding late in a 31-day month.
-            $monthStart = Carbon::now()->startOfMonth()->subMonths($month);
+            $monthStart = $lastWorkday->copy()->startOfMonth()->subMonths($month);
             $monthEnd = $monthStart->copy()->endOfMonth();
 
             // Up to yesterday: a demo with punches dated next week looked

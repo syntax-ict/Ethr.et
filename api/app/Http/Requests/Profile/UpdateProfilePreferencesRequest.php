@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Profile;
 
+use App\Support\ClockPreference;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateProfilePreferencesRequest extends FormRequest
 {
@@ -23,6 +25,7 @@ class UpdateProfilePreferencesRequest extends FormRequest
             // Mirrors the header theme menu, high-contrast included.
             'theme' => ['nullable', 'string', 'in:light,dark,system,high-contrast'],
             'calendar' => ['nullable', 'string', 'in:gregorian,ethiopian,dual'],
+            'clock' => ['nullable', 'string', Rule::in(ClockPreference::CHOICES)],
             'punch_reminders' => ['nullable', 'boolean'],
             'auto_check_in' => ['nullable', 'boolean'],
         ];

@@ -75,6 +75,7 @@ class StorePlanRequest extends FormRequest
 
             'description' => ['sometimes', 'nullable', 'string', 'max:500'],
             'description_am' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'description_om' => ['sometimes', 'nullable', 'string', 'max:500'],
 
             'price_cents' => [$required, 'integer', 'min:0', 'max:9999999999'],
             'currency' => ['sometimes', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
@@ -91,7 +92,9 @@ class StorePlanRequest extends FormRequest
             'marketing_features' => ['sometimes', 'nullable', 'array', 'max:20'],
             'marketing_features.*' => ['string', 'max:120'],
             'marketing_features_am' => ['sometimes', 'nullable', 'array', 'max:20'],
+            'marketing_features_om' => ['sometimes', 'nullable', 'array', 'max:20'],
             'marketing_features_am.*' => ['string', 'max:120'],
+            'marketing_features_om.*' => ['string', 'max:120'],
 
             'is_active' => ['sometimes', 'boolean'],
             'is_public' => ['sometimes', 'boolean'],

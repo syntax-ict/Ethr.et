@@ -11,6 +11,8 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\LetterDecidedNotification;
 use App\Notifications\LetterRequestedNotification;
+use App\Support\Locales;
+use App\Support\ReaderDates;
 use App\Traits\SendsNotifications;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -40,7 +42,7 @@ final class EmploymentLetters
             'purpose' => $data['purpose'],
             'addressed_to' => $data['addressed_to'] ?? null,
             'include_salary' => (bool) ($data['include_salary'] ?? false),
-            'language' => ($data['language'] ?? 'en') === 'am' ? 'am' : 'en',
+            'language' => Locales::orDefault($data['language'] ?? null),
             'status' => EmploymentLetterRequest::PENDING,
         ]);
 
@@ -98,30 +100,7 @@ final class EmploymentLetters
     /** The issued letter as a PDF, in the language it was asked for. */
     public function pdf(EmploymentLetterRequest $letter): string
     {
-        $employee = Employee::query()
-            ->with(['position:id,title', 'department:id,name'])
-            ->findOrFail($letter->employee_id);
-        $tenant = Tenant::query()->findOrFail($letter->tenant_id);
-        $letter->loadMissing('decider');
-        $locale = $letter->language === 'am' ? 'am' : 'en';
-        $date = fn (?Carbon $d): string => $d === null ? '' : $d->locale($locale)->translatedFormat('j F Y');
-
-        $data = [
-            'locale' => $locale,
-            'organisation' => (string) $tenant->name,
-            'reference' => (string) $letter->reference,
-            'issued_on' => $date($letter->decided_at),
-            'addressed_to' => $letter->addressed_to,
-            'name' => (string) $employee->name,
-            'code' => (string) $employee->employee_code,
-            'hired_on' => $date($employee->hire_date),
-            'left_on' => $employee->termination_date !== null && $employee->termination_date->isPast() ? $date($employee->termination_date) : null,
-            'position' => (string) data_get($employee, 'position.title', ''),
-            'department' => (string) data_get($employee, 'department.name', ''),
-            'salary' => $letter->include_salary && $employee->salary_cents > 0 ? number_format($employee->salary_cents / 100, 2) : null,
-            'purpose' => $letter->purpose,
-            'issuer' => (string) data_get($letter, 'decider.name', ''),
-        ];
+        $data = $this->data($letter);
 
         File::ensureDirectoryExists(storage_path('fonts'));
         $pdf = Pdf::loadView('letters.employment', $data);
@@ -129,6 +108,45 @@ final class EmploymentLetters
         $pdf->setOption('isFontSubsettingEnabled', true);
 
         return $pdf->output();
+    }
+
+    /**
+     * What the letter prints.
+     *
+     * @return array<string, mixed>
+     */
+    public function data(EmploymentLetterRequest $letter): array
+    {
+        $employee = Employee::query()
+            ->with(['position:id,title', 'department:id,name'])
+            ->findOrFail($letter->employee_id);
+        $tenant = Tenant::query()->findOrFail($letter->tenant_id);
+        $letter->loadMissing('decider');
+        $locale = Locales::orDefault($letter->language);
+        // Dates in the organisation's calendar. An Ethiopian date is followed
+        // by the Gregorian one, since a bank or an embassy reads the letter.
+        $reader = ReaderDates::forTenant($tenant, $locale);
+        $gregorian = $reader->withCalendar('gregorian');
+        $date = fn (Carbon|string|null $d): string => $d === null ? '' : ($reader->calendar === 'ethiopian'
+            ? $reader->date($d).' ('.$gregorian->date($d).')'
+            : $reader->date($d));
+
+        return [
+            'locale' => $locale,
+            'organisation' => (string) $tenant->name,
+            'reference' => (string) $letter->reference,
+            'issued_on' => $date($letter->decided_at),
+            'addressed_to' => $letter->addressed_to,
+            'name' => (string) $employee->name,
+            'code' => (string) $employee->employee_code,
+            'hired_on' => $date($employee->hire_date?->toDateString()),
+            'left_on' => $employee->termination_date !== null && $employee->termination_date->isPast() ? $date($employee->termination_date->toDateString()) : null,
+            'position' => (string) data_get($employee, 'position.title', ''),
+            'department' => (string) data_get($employee, 'department.name', ''),
+            'salary' => $letter->include_salary && $employee->salary_cents > 0 ? number_format($employee->salary_cents / 100, 2) : null,
+            'purpose' => $letter->purpose,
+            'issuer' => (string) data_get($letter, 'decider.name', ''),
+        ];
     }
 
     /** @return array<string, mixed> */

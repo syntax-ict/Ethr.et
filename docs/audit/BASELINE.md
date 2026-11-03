@@ -4028,6 +4028,51 @@ PW_CHANNEL=chrome scripts/lighthouse-authenticated.sh
 `PW_CHANNEL=chrome` uses the installed Chrome where Playwright's own browser is not
 downloaded. Phase 5 compares against this table; budgets are added only then.
 
+### The host compresses less than a build could — measured 2026-11-02
+
+Live release `f0bb8f25f`. A local build of the same commit has byte-identical
+chunk names, and the signed-in dashboard loads the same 33 scripts locally and
+on syntaxtech.ethr.et. Locally, at brotli quality 11, they weigh 475 KB; as the
+host sends them they weigh 519 KB. The host's nginx compresses as it sends: a
+compressed answer arrives chunked with a weak ETag, while one that is not
+compressed carries a Content-Length and a strong one. Its level leaves a file
+about 10% larger (`2brrxhmqtcz0t.js`: 82,051 bytes at quality 11, 91,866
+served). Every local brotli figure in this document therefore understates the
+live download by about that much.
+
+Two side facts from the same headers: the compressed answer carries no
+`Vary: Accept-Encoding`, and a client that does not accept brotli gets no
+compression at all (gzip is not applied; the same file is 392,166 bytes).
+
+Apache does serve these files: they carry the `Cache-Control`, `Expires` and
+security headers our `.htaccess` sets. So the release can ship a quality-11
+copy and `.htaccess` can send it. Whether nginx passes an already-encoded
+answer through untouched is the one thing that cannot be measured anywhere but
+on the host, and if it encoded it again every script would break. Hence one
+test file first, `br-probe.js` (`scripts/shared-hosting/precompress.mjs`, and
+the "Pre-compressed copies" rules). Under the local Apache, with its own
+brotli filter on, the copy went out byte for byte with `Content-Encoding: br`
+and `Vary`, decoded to the original, and a client without brotli got the plain
+file.
+
+**On the live host, release `15e5de350` (#537), the same day:** `www.ethr.et` and
+`syntaxtech.ethr.et` both answered `/br-probe.js` with brotli accepted as 200,
+`Content-Length: 1264` rather than chunked, a strong ETag,
+`Content-Encoding: br` and `Vary`, a body byte-identical to the build's `.br`
+that decoded to the file. nginx passes an answer that is already encoded
+through untouched. One difference from the local run: the answer without
+brotli carried no `Vary`, though Apache adds one, so something in front drops
+it there. The compressed answer, the one a cache must not hand on, keeps its
+`Vary`.
+
+The rule then covered every script and stylesheet under `_next/static`
+(226 files, 7.6 MB to 1.9 MB, about 19 s in the release build), and the probe
+file was removed. `NAME.js.br` is what Apache matches after the rewrite, so the
+year-long asset rule now reads `(\.br)?$`; without it every copy would have
+lost its caching. Under the local Apache, with the real export, `/login`, `/`
+and `/dashboard` loaded in Chrome with no failed request and no page error,
+the static scripts arriving as the build's copies.
+
 ---
 
 ## 25. History moved out of the root `CLAUDE.md` — **2026-10-28**
@@ -4368,3 +4413,23 @@ Backend suite on MySQL, Frontend, Documentation integrity and API contract all
 passing together, 51 runs after the first push. Treat that as a starting line,
 not a finish: five separate structural defects had to be fixed before a single
 gate executed, and every one of them was invisible from the working tree.
+
+### 25e. CI runs the host's PHP, locks stay installable locally — 2026-11-03
+
+Until 2026-11-03 every CI job ran PHP 8.2 while the host runs 8.3.35, so the
+suite never ran on the PHP that serves production. Only `release.yml`, which
+builds `vendor/`, used 8.3. Every job now uses 8.3.
+
+The local XAMPP is PHP 8.2.12, and nothing stopped a lock built on 8.3 (by CI,
+by Dependabot, or by a developer on a newer PHP) from requiring 8.3. It
+happened: Dependabot's laravel/pint 1.32.1 (#545) needs `^8.3.0`, and every
+PHP check failed on 8.2. `composer.json` now sets `config.platform.php` to
+`8.2.12`, so Composer resolves for the oldest PHP the project runs on. Raise
+it when the local PHP moves to 8.3, which Laravel 13 (#522) needs anyway.
+
+**The local PHP moved to 8.3 on 2026-11-03.** XAMPP's `C:\xampp\php` is now the
+official PHP 8.3.36 build (thread-safe, x64), with XAMPP's own `php.ini` and the
+same 46 extensions; 8.2.12 is kept in `C:\xampp\php82` for rollback. The full
+backend sweep passed on it first: 394 of 394 test classes collected, 4,622
+tests. Every environment now runs 8.3, so `composer.json` requires `^8.3` and
+pins the platform to `8.3.35`, the host's, the oldest of the three.

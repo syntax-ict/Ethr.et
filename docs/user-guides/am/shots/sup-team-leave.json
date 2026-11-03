@@ -1,0 +1,16 @@
+{
+  "device": "desktop",
+  "width": 2560,
+  "height": 1600,
+  "path": "/leave",
+  "markers": [
+    {
+      "n": 1,
+      "x": 716,
+      "y": 398,
+      "w": 196,
+      "h": 80,
+      "pin": "below"
+    }
+  ]
+}

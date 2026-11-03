@@ -4,7 +4,15 @@
 const ORIGINAL_TZ = process.env.TZ;
 process.env.TZ = "Africa/Addis_Ababa";
 
-import { describe, it, expect, vi, afterEach, afterAll } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  afterEach,
+  afterAll,
+  beforeEach,
+} from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -168,6 +176,10 @@ describe("date helpers", () => {
 });
 
 describe("Shift roster in Addis Ababa", () => {
+  // These pin Gregorian months; the Ethiopian month view has its own test.
+  beforeEach(() => localStorage.setItem("ethr.calendar", "gregorian"));
+  afterEach(() => localStorage.removeItem("ethr.calendar"));
+
   it("draws a Monday–Friday shift on Monday through Friday", async () => {
     setToday("2026-10-07");
     serve([assignment()]);
@@ -206,9 +218,23 @@ describe("Shift roster in Addis Ababa", () => {
     await user.click(await screen.findByRole("combobox", { name: "View" }));
     await user.click(await screen.findByRole("option", { name: /Week/ }));
 
-    expect(
-      await screen.findByText("2026-10-05 – 2026-10-11"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("5 Oct – 11 Oct 2026")).toBeInTheDocument();
+  });
+
+  it("shows an Ethiopian month on the Ethiopian calendar", async () => {
+    localStorage.setItem("ethr.calendar", "ethiopian");
+    setToday("2026-10-07"); // Meskerem 27, 2019
+    const log = serve([assignment()]);
+    renderPage(<RosterPage />);
+
+    expect(await screen.findByText("Meskerem 2019")).toBeInTheDocument();
+    await waitFor(() => expect(log.length).toBeGreaterThanOrEqual(1));
+    // Meskerem runs 30 days from 11 September, not 1 to 31 October.
+    expect(log[0].get("filter[date_from]")).toBe("2026-09-11");
+    expect(log[0].get("filter[date_to]")).toBe("2026-10-10");
+    // 5 October, a Monday, is Meskerem 25; the shift is drawn there.
+    await screen.findAllByText("Morning", { selector: "div" });
+    expect(within(monthCell(25)).queryByText("Morning")).toBeInTheDocument();
   });
 });
 

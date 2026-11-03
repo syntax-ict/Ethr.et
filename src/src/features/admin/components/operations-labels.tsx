@@ -54,6 +54,8 @@ export function areaLabel(t: Translate, area: OperationsArea): string {
       return t("operations_page.area.failed_jobs", "Failed jobs");
     case "services":
       return t("operations_page.area.services", "Services");
+    case "backups":
+      return t("operations_page.area.backups", "Backups");
   }
 }
 
@@ -108,6 +110,16 @@ export function reasonLabel(t: Translate, code: string): string {
       return t(
         "operations_page.reason.mail_no_record",
         "No email has been sent or has failed since this was last recorded.",
+      );
+    case "mail_held":
+      return t(
+        "operations_page.reason.mail_held",
+        "Some emails were held back today because the daily send cap is nearly used. Their in-app notices were delivered. Sign-in and password emails are never held.",
+      );
+    case "mail_cap_near":
+      return t(
+        "operations_page.reason.mail_cap_near",
+        "More than 80% of today's email cap is used. Bulk emails stop first, and sign-in emails keep the rest.",
       );
     case "mail_failing":
       return t(
@@ -173,6 +185,66 @@ export function reasonLabel(t: Translate, code: string): string {
       return t(
         "operations_page.reason.service_unhealthy",
         "A service check failed.",
+      );
+    case "backup_never_run":
+      return t(
+        "operations_page.reason.backup_never_run",
+        "No backup has been taken on this host.",
+      );
+    case "backup_stale":
+      return t(
+        "operations_page.reason.backup_stale",
+        "The last backup is more than a day old, so the nightly backup is not running.",
+      );
+    case "backup_failing":
+      return t(
+        "operations_page.reason.backup_failing",
+        "The last backup failed. Run ethr:backup and read its error.",
+      );
+    case "off_host_disk_missing":
+      return t(
+        "operations_page.reason.off_host_disk_missing",
+        "The storage named in BACKUP_OFF_HOST_DISK does not exist.",
+      );
+    case "off_host_not_configured":
+      return t(
+        "operations_page.reason.off_host_not_configured",
+        "Backups are kept only on this host. Set up off-host storage on the Backups page so a copy survives losing the host.",
+      );
+    case "off_host_key_missing":
+      return t(
+        "operations_page.reason.off_host_key_missing",
+        "BACKUP_ENCRYPTION_KEY is not set, so no copy leaves this host. Make one with ethr:backup:key.",
+      );
+    case "off_host_copy_missing":
+      return t(
+        "operations_page.reason.off_host_copy_missing",
+        "Off-host storage is set up and has no copy yet. The next nightly backup sends one.",
+      );
+    case "off_host_stale":
+      return t(
+        "operations_page.reason.off_host_stale",
+        "The last off-host copy is more than a day old.",
+      );
+    case "off_host_switched_off":
+      return t(
+        "operations_page.reason.off_host_switched_off",
+        "Off-host storage is saved on the Backups page but switched off, so copies stay on this host.",
+      );
+    case "disk_high":
+      return t(
+        "operations_page.reason.disk_high",
+        "More than 70% of the plan's disk is in use. Clear space or raise the plan before it fills.",
+      );
+    case "disk_critical":
+      return t(
+        "operations_page.reason.disk_critical",
+        "More than 85% of the plan's disk is in use. Uploads and the database stop when it fills, and the next backup may not fit.",
+      );
+    case "off_host_failing":
+      return t(
+        "operations_page.reason.off_host_failing",
+        "The last copy to off-host storage failed. Check the storage settings and credentials.",
       );
     default:
       return code;

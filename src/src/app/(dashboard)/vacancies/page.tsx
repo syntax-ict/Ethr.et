@@ -5,6 +5,7 @@ import {
   Briefcase,
   CalendarClock,
   ExternalLink,
+  Globe,
   Loader2,
   Mail,
   MapPin,
@@ -22,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -107,7 +109,7 @@ const statusStyles: Record<string, string> = {
  * Open positions. Employees see what is advertised now - a place to look for
  * the next role inside the organisation before it is filled from outside.
  * Whoever holds `vacancy.manage` posts, edits, closes and reopens them, and
- * chooses which also appear on the public sign-in page.
+ * chooses which also appear on the organisation's public website.
  */
 export default function VacanciesPage() {
   const { t } = useT();
@@ -279,6 +281,12 @@ export default function VacanciesPage() {
                         {t(`vacancies.status_${v.status}`, v.status)}
                       </Badge>
                     )}
+                    {can.manageVacancies && v.visibility === "public" && (
+                      <Badge variant="outline" className="gap-1 text-[10px]">
+                        <Globe className="h-3 w-3" aria-hidden="true" />
+                        {t("vacancies.visibility_public", "On website")}
+                      </Badge>
+                    )}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {[
@@ -394,7 +402,7 @@ export default function VacanciesPage() {
         title={t("vacancies.confirm_delete_title", "Delete vacancy?")}
         description={t(
           "vacancies.confirm_delete_desc",
-          "It disappears for employees and from your sign-in page. Close it instead to keep a record.",
+          "It disappears for employees and from your public website. Close it instead to keep a record.",
         )}
         confirmLabel={t("common.delete", "Delete")}
         variant="destructive"
@@ -553,6 +561,7 @@ function VacancyForm({
       requirements: blank(form.requirements),
       location: blank(form.location),
       positions: Math.max(1, Number.parseInt(form.positions, 10) || 1),
+      visibility: form.visibility,
       status: form.status,
       closes_on: blank(form.closes_on),
       apply_email: blank(form.apply_email),
@@ -760,11 +769,10 @@ function VacancyForm({
               <Label htmlFor="vacancy-closes">
                 {t("vacancies.closes_label", "Applications close")}
               </Label>
-              <Input
+              <DualCalendarDateInput
                 id="vacancy-closes"
-                type="date"
                 value={form.closes_on}
-                onChange={(e) => set("closes_on", e.target.value)}
+                onChange={(iso) => set("closes_on", iso)}
                 className="mt-1"
               />
               {fieldError("closes_on")}
@@ -803,6 +811,38 @@ function VacancyForm({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="vacancy-visibility">
+                {t("vacancies.visibility", "Who can see it")}
+              </Label>
+              <Select
+                value={form.visibility}
+                onValueChange={(v) => set("visibility", v as VacancyVisibility)}
+              >
+                <SelectTrigger id="vacancy-visibility" className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">
+                    {t("vacancies.visibility_internal_long", "Employees only")}
+                  </SelectItem>
+                  <SelectItem value="public">
+                    {t(
+                      "vacancies.visibility_public_long",
+                      "Employees and the organisation's public website",
+                    )}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {form.visibility === "public" && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    "vacancies.visibility_public_hint",
+                    "Anyone can read it under Open positions on your public website while it is open.",
+                  )}
+                </p>
+              )}
+            </div>
             <div>
               <Label htmlFor="vacancy-status">
                 {t("common.status", "Status")}

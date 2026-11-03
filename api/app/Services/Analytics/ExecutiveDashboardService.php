@@ -15,6 +15,7 @@ use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Services\Attendance\ExpectedDays;
+use App\Services\Leave\LeaveYear;
 use App\Support\TenantTime;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -442,7 +443,7 @@ final class ExecutiveDashboardService
 
     private function leaveUtilization(int $tenantId, ?int $branchId): array
     {
-        $year = Carbon::now()->year;
+        $year = LeaveYear::forTenantId($tenantId)->current();
 
         $balances = LeaveBalance::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
@@ -918,11 +919,12 @@ final class ExecutiveDashboardService
 
     private function unusedLeave(int $tenantId, ?int $branchId): array
     {
-        $year = Carbon::now()->year;
+        $leaveYear = LeaveYear::forTenantId($tenantId);
+        $year = $leaveYear->current();
 
-        // Only meaningful once most of the year has elapsed — flagging it in
-        // January would just be "nobody has taken leave yet".
-        if (Carbon::now()->dayOfYear < 270) {
+        // Only meaningful once most of the leave year has elapsed — flagging
+        // it in its first month would just be "nobody has taken leave yet".
+        if ($leaveYear->dayOfYear($leaveYear->today()) < 270) {
             return ['count' => 0, 'applicable' => false];
         }
 

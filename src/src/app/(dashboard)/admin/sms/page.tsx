@@ -32,6 +32,7 @@ import {
   type SmsSlot,
 } from "@/features/admin/sms";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 
 /**
  * SMS delivery for the whole platform: the gateway a provider's documentation
@@ -589,6 +590,7 @@ function TestPanel({
   gateway: SmsGatewayState;
 }) {
   const { t } = useT();
+  const { formatDateTime } = useDateFormatters();
   const test = useTestSmsGateway();
   const phoneId = useId();
   const [phone, setPhone] = useState("");
@@ -668,7 +670,7 @@ function TestPanel({
                 status: gateway.last_test_status ?? "—",
               })}
               {" · "}
-              {new Date(gateway.last_test_at).toLocaleString()}
+              {formatDateTime(gateway.last_test_at)}
             </span>
           </p>
           {gateway.last_test_response && (

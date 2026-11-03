@@ -199,7 +199,7 @@ test('grouping a payroll report sums cents columns per group, not just counts', 
     // Finance, not HR: the payroll source needs payroll.viewAll (blueprint D6).
     actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
 
-    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'period_label' => 'August 2026']);
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'period_label' => 'August 2026', 'period_start' => '2026-08-01', 'period_end' => '2026-08-31']);
     $employeeA = Employee::factory()->create(['tenant_id' => $tenant->id]);
     $employeeB = Employee::factory()->create(['tenant_id' => $tenant->id]);
     PayrollEntry::factory()->create([
@@ -227,8 +227,8 @@ test('grouping a payroll report sums cents columns per group, not just counts', 
     ]);
 
     $response->assertOk();
-    expect($response->json('summary.group_sums.August 2026.income_tax_cents'))->toBe(40000);
-    expect($response->json('summary.group_sums.August 2026.employee_pension_cents'))->toBe(12000);
+    expect($response->json('summary.group_sums.Nehase 2018.income_tax_cents'))->toBe(40000);
+    expect($response->json('summary.group_sums.Nehase 2018.employee_pension_cents'))->toBe(12000);
 });
 
 // ── Save & Load Reports ──

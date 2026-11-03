@@ -209,6 +209,8 @@ describe('a failed run reaches the people who can act on it', function () {
             'tenant_id' => $tenant->id,
             'status' => 'processing',
             'period_label' => 'March 2026',
+            'period_start' => '2026-03-01',
+            'period_end' => '2026-03-31',
         ]);
 
         (new NotifyPayrollRunFailed)->handle(
@@ -225,7 +227,8 @@ describe('a failed run reaches the people who can act on it', function () {
                 // finance_admin and tenant_admin users of the run's own tenant,
                 // already entitled to the run's detail.
                 expect($rendered)->toContain('tax table missing for 2026');
-                expect($rendered)->toContain('March 2026');
+                // March 2026 in the admins' calendar, the organisation's Ethiopian.
+                expect($rendered)->toContain('Megabit 2018');
                 expect($mail->subject)->not->toStartWith('payroll.');
 
                 return true;

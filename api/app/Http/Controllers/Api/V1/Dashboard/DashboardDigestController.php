@@ -10,8 +10,8 @@ use App\Models\AuditLog;
 use App\Models\DashboardDigest;
 use App\Services\CurrentTenant;
 use App\Support\ExecutiveBranchScope;
+use App\Support\ScheduleSlot;
 use App\Support\StringList;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -36,7 +36,7 @@ class DashboardDigestController extends Controller
             'created_by' => $request->user()?->id,
             'frequency' => $request->validated('frequency'),
             'recipients' => $request->validated('recipients'),
-            'next_run_at' => $this->calculateNextRun($request->validated('frequency')),
+            'next_run_at' => ScheduleSlot::next($request->validated('frequency'), $tenant),
         ]);
 
         AuditLog::record('dashboard_digest.scheduled', $digest);
@@ -135,14 +135,5 @@ class DashboardDigestController extends Controller
         abort_unless(ExecutiveBranchScope::isFull($request->user()) || ExecutiveBranchScope::isRegional($request->user()), 403);
 
         return ExecutiveBranchScope::resolveFor($request->user(), $request->validated('branch_public_id'));
-    }
-
-    private function calculateNextRun(string $frequency): Carbon
-    {
-        return match ($frequency) {
-            'daily' => now()->addDay()->startOfDay()->addHours(6),
-            'weekly' => now()->next('Monday')->startOfDay()->addHours(6),
-            default => now()->addMonth()->startOfMonth()->addHours(6), // monthly
-        };
     }
 }

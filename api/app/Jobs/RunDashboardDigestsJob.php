@@ -12,13 +12,14 @@ use App\Notifications\DashboardDigestNotification;
 use App\Services\Analytics\AlertEvaluator;
 use App\Services\Analytics\ExecutiveDashboardService;
 use App\Services\CurrentTenant;
+use App\Support\Locales;
+use App\Support\ScheduleSlot;
 use App\Traits\SendsNotifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -74,7 +75,7 @@ class RunDashboardDigestsJob implements ShouldQueue
                 $digest->forceFill([
                     'last_run_at' => now(),
                     'last_error' => Str::limit($e->getMessage(), self::MAX_ERROR, ''),
-                    'next_run_at' => $this->nextRun($digest->frequency),
+                    'next_run_at' => ScheduleSlot::forTenantId($digest->frequency, $digest->tenant_id),
                 ])->save();
 
                 $this->notifyRecipientsOfFailure($digest);
@@ -121,7 +122,7 @@ class RunDashboardDigestsJob implements ShouldQueue
             // choice RunScheduledReportsJob makes for the identical reason.
             $this->notify(
                 Notification::route('mail', $email),
-                new DashboardDigestNotification($digest->frequency, $overview, $compliance, $branchName, $alerts),
+                (new DashboardDigestNotification($digest->frequency, $overview, $compliance, $branchName, $alerts))->locale(self::organisationLocale($digest->tenant_id)),
             );
         }
 
@@ -131,7 +132,7 @@ class RunDashboardDigestsJob implements ShouldQueue
         $digest->forceFill([
             'last_run_at' => now(),
             'last_error' => null,
-            'next_run_at' => $this->nextRun($digest->frequency),
+            'next_run_at' => ScheduleSlot::forTenantId($digest->frequency, $digest->tenant_id),
         ])->save();
 
         Log::info('Dashboard digest delivered', [
@@ -161,7 +162,7 @@ class RunDashboardDigestsJob implements ShouldQueue
 
             $this->notify(
                 Notification::route('mail', $email),
-                new DashboardDigestFailedNotification((string) $digest->frequency),
+                (new DashboardDigestFailedNotification((string) $digest->frequency))->locale(self::organisationLocale($digest->tenant_id)),
             );
         }
     }
@@ -184,13 +185,15 @@ class RunDashboardDigestsJob implements ShouldQueue
         ]);
     }
 
-    private function nextRun(?string $frequency): Carbon
+    /**
+     * The language a free-text address is written to: the organisation's.
+     * An anonymous recipient has no preference of its own, so these went out
+     * in APP_LOCALE, English, to an Amharic organisation.
+     */
+    private static function organisationLocale(int|string|null $tenantId): string
     {
-        return match ($frequency) {
-            'daily' => now()->addDay(),
-            'weekly' => now()->addWeek(),
-            'monthly' => now()->addMonth(),
-            default => now()->addDay(),
-        };
+        $locale = $tenantId === null ? null : Tenant::query()->whereKey($tenantId)->value('default_locale');
+
+        return Locales::orDefault($locale);
     }
 }

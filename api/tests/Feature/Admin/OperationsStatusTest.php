@@ -25,6 +25,7 @@ const OPS_CRON_TOKEN = 'a-token-that-is-at-least-thirty-two-chars-long';
 
 beforeEach(function () {
     Cache::flush();
+    config(['backup.path' => storage_path('framework/testing/backups-'.uniqid())]);
 });
 
 afterEach(function () {
@@ -57,9 +58,9 @@ function insertJob(string $queue, int $waitedSeconds): void
 test('a super admin sees every area with a state', function () {
     $status = operationsAsSuperAdmin();
 
-    expect($status)->toHaveKeys(['status', 'checked_at', 'background', 'failed_jobs', 'delivery', 'release', 'services']);
+    expect($status)->toHaveKeys(['status', 'checked_at', 'background', 'failed_jobs', 'delivery', 'release', 'services', 'backups']);
 
-    foreach (['background', 'failed_jobs', 'delivery', 'release', 'services'] as $area) {
+    foreach (['background', 'failed_jobs', 'delivery', 'release', 'services', 'backups'] as $area) {
         expect($status[$area]['state'])->toBeIn(['ok', 'warning', 'critical', 'unknown'])
             ->and($status[$area]['reasons'])->toBeArray();
     }
@@ -80,6 +81,7 @@ test('a fresh install reads unknown, never as an alarm', function () {
     expect($status['background']['state'])->toBe('unknown')
         ->and($status['background']['reasons'])->toContain('scheduler_never_run', 'external_caller_never_seen')
         ->and($status['background']['scheduler']['state'])->toBe('unknown')
+        ->and($status['backups']['state'])->toBe('unknown')
         ->and($status['status'])->not->toBeIn(['warning', 'critical']);
 });
 

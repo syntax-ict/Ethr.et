@@ -36,7 +36,7 @@ import {
  * What that changes, and the rule it follows:
  *
  *  - Descriptions and bullets come from the row, in the reader's language,
- *    because the columns are paired (`description`/`description_am`) on the
+ *    because the columns are twinned (`description`/`description_am`/`_om`) on the
  *    convention `platform_settings` already set. When the Amharic column is
  *    empty the English is shown rather than a blank — an operator who has not
  *    translated yet should not silently lose the sentence.
@@ -58,9 +58,15 @@ import {
  * locale the server actually renders by default, so an empty-string fallback
  * would blank the field for most visitors.
  */
-function localised<T>(locale: string, am: T | null, en: T | null): T | null {
-  if (locale === "am" && am !== null) {
-    if (!Array.isArray(am) || am.length > 0) return am;
+function localised<T>(
+  locale: string,
+  am: T | null,
+  en: T | null,
+  om?: T | null,
+): T | null {
+  const own = locale === "am" ? am : locale === "om" ? om : null;
+  if (own !== null && own !== undefined) {
+    if (!Array.isArray(own) || own.length > 0) return own;
   }
   return en;
 }
@@ -102,10 +108,12 @@ export function PricingContent() {
   );
 
   function priceParts(plan: Plan): { amount: string; period: string } {
+    // A zero-price plan is free for as long as it is chosen, not a trial: the
+    // trial is the same six months on every plan, uncapped (PlanLimitService).
     if (plan.price_cents === 0) {
       return {
         amount: t("marketing.pricing_page.free", "Free"),
-        period: t("marketing.pricing_page.starter_period", "6-month trial"),
+        period: t("marketing.pricing_page.starter_period", "No monthly fee"),
       };
     }
     return {
@@ -174,6 +182,7 @@ export function PricingContent() {
       locale,
       plan.marketing_features_am,
       plan.marketing_features,
+      plan.marketing_features_om,
     );
 
     if (written && written.length > 0) {
@@ -244,6 +253,7 @@ export function PricingContent() {
                           locale,
                           plan.description_am,
                           plan.description,
+                          plan.description_om,
                         ) ?? ""}
                       </p>
                       <div className="mt-6 flex items-baseline gap-1">
