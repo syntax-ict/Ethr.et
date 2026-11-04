@@ -25,7 +25,10 @@ const InteractiveCharts = dynamic(
     loading: () => <Skeleton className={CHART_PLACEHOLDER} />,
   },
 );
-import { useEmployeeDashboard } from "@/features/dashboard/api";
+import {
+  useEmployeeDashboard,
+  useManagerDashboard,
+} from "@/features/dashboard/api";
 import { useCurrentUser } from "@/features/auth/api";
 import { DashboardSection } from "@/components/dashboard";
 import { InstallAppBanner } from "@/components/shared/install-app";
@@ -95,6 +98,17 @@ export default function DashboardPage() {
   // or from an older payload without the field, the tiles show as before.
   const hasNoEmployee = user?.employee_public_id === null;
   const unitScoped = orgScope === "department" || orgScope === "team";
+  // A supervisor-level role with no direct reports (a department head, say)
+  // met a chart card that could only say the team recorded nothing
+  // (dashboard review, 2026-11-03, PR 8). TeamOverview already asks for this
+  // figure; the query is shared. The card is kept while the answer is on its
+  // way, so it does not appear late and push the page down.
+  const { data: manager } = useManagerDashboard(
+    isSupervisor && !can.viewExecutiveDashboard,
+  );
+  const showCharts =
+    Boolean(can.viewExecutiveDashboard) ||
+    (isSupervisor && manager?.team_size !== 0);
 
   if (isSuperAdmin) return null;
 
@@ -133,7 +147,7 @@ export default function DashboardPage() {
         <div className="min-w-0 space-y-6 xl:col-span-2">
           <NextStepsCard />
           <PendingApprovalsPanel />
-          {(isSupervisor || can.viewExecutiveDashboard) && <DeferredCharts />}
+          {showCharts && <DeferredCharts />}
         </div>
         <div className="min-w-0 space-y-6">
           {!hasNoEmployee && <PulsePrompt />}
