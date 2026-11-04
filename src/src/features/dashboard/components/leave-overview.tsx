@@ -116,7 +116,7 @@ export function LeaveOverview() {
                     </span>
                     <div className="flex items-center gap-2">
                       {isLow && (
-                        <span className="rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning-on-soft">
+                        <span className="rounded-full bg-warning-soft px-1.5 py-0.5 text-caption font-semibold text-warning-on-soft">
                           {t("dashboard.low", "Low")}
                         </span>
                       )}
@@ -140,7 +140,7 @@ export function LeaveOverview() {
                       { type, pct },
                     )}
                   />
-                  <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground">
+                  <div className="mt-1.5 flex justify-between text-caption text-muted-foreground">
                     <span>
                       {t("dashboard.used_count", ":count used", {
                         count: used,

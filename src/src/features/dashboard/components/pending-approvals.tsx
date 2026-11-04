@@ -83,7 +83,7 @@ export function PendingApprovalsPanel() {
           {total > 0 && (
             <Badge
               variant="destructive"
-              className="h-5 min-w-5 justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums"
+              className="h-5 min-w-5 justify-center rounded-full px-1.5 text-caption font-bold tabular-nums"
             >
               {total}
             </Badge>

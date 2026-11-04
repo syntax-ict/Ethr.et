@@ -146,7 +146,7 @@ export function AnnouncementsWidget() {
                         {ann.title}
                       </p>
                       {ann.priority !== "normal" && (
-                        <Badge variant={config.badge} className="text-[10px]">
+                        <Badge variant={config.badge} className="text-caption">
                           {t(`common.${ann.priority}`, ann.priority)}
                         </Badge>
                       )}
@@ -156,7 +156,7 @@ export function AnnouncementsWidget() {
                     </p>
                   </div>
                 </div>
-                <p className="mt-2 text-[11px] text-muted-foreground/70">
+                <p className="mt-2 text-caption text-muted-foreground/70">
                   {postedAt ? timeAgo(postedAt) : null}
                 </p>
               </Link>
