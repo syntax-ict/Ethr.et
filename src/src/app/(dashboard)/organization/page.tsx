@@ -22,6 +22,8 @@ import { GradesSection } from "@/features/organization/components/sections/grade
 import { CostCentersSection } from "@/features/organization/components/sections/cost-centers-section";
 import { useT } from "@/lib/i18n/useT";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
+import { PageActions } from "@/components/shared/page-actions";
+import { PrintAction } from "@/components/shared/print-action";
 
 const ORG_TABS = [
   "structure",
@@ -46,6 +48,7 @@ export default function OrganizationPage() {
   return (
     <RoleGate anyPermission={["manageOrg"]}>
       <div className="space-y-6">
+        <PageActions actions={<PrintAction />} />
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList variant="underline">
             <TabsTrigger value="structure">

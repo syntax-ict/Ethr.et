@@ -30,6 +30,7 @@ import {
   todayIn,
   type PeriodPreset,
 } from "./period";
+import { PrintAction } from "@/components/shared/print-action";
 
 const LazyOverviewTab = dynamic(
   () => import("./overview-tab").then((m) => ({ default: m.OverviewTab })),
@@ -196,6 +197,7 @@ export default function AnalyticsPage() {
                 <Mail className="mr-2 h-4 w-4" />
                 {t("digest_dialog.trigger", "Email digest")}
               </Button>
+              <PrintAction />
             </div>
           }
         />
