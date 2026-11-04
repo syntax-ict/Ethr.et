@@ -6,13 +6,17 @@ use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Jobs\BackupTenantJob;
+use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Invoice;
 use App\Models\Plan;
+use App\Models\PlatformSetting;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Models\TenantSubdomainAlias;
 use App\Notifications\SystemAlertNotification;
 use App\Services\Admin\SystemHealthService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -652,4 +656,35 @@ test('settings require authentication', function () {
     $tenant = createTenant(['subdomain' => 'authtest']);
     test()->getJson('http://authtest.ethr.test/api/v1/settings')
         ->assertUnauthorized();
+});
+
+// ── A-Z review console batch (2026-11-04): H-08, H-10, H-13, H-14 ──
+
+test('a status change stops the organisation\'s retired addresses resolving from cache too', function () {
+    $tenant = Tenant::factory()->create(['status' => TenantStatus::ACTIVE]);
+    TenantSubdomainAlias::withoutGlobalScopes()->create(['tenant_id' => $tenant->id, 'subdomain' => 'old-name']);
+    Cache::put('tenant:old-name', $tenant, 300);
+
+    $tenant->update(['status' => TenantStatus::SUSPENDED]);
+
+    expect(Cache::has('tenant:old-name'))->toBeFalse();
+});
+
+test('a change to the platform settings is audited with what changed', function () {
+    $home = createTenant();
+    test()->actingAs(createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $home));
+    PlatformSetting::current()->update(['bank_account_number' => '1000111122223']);
+
+    test()->putJson("http://{$home->subdomain}.ethr.test/api/v1/admin/platform-settings", ['bank_account_number' => '1000999988887'])
+        ->assertOk();
+
+    $entry = AuditLog::withoutGlobalScopes()->where('action', 'platform.settings.updated')->latest('id')->firstOrFail();
+    expect($entry->payload['changes']['bank_account_number'] ?? null)->toBe(['from' => '1000111122223', 'to' => '1000999988887']);
+});
+
+test('the tenant list ignores a sort it does not offer', function () {
+    $home = createTenant();
+    test()->actingAs(createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $home));
+
+    test()->getJson("http://{$home->subdomain}.ethr.test/api/v1/admin/tenants?sort=password")->assertOk();
 });

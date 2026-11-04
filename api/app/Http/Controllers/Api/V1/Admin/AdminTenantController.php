@@ -89,6 +89,13 @@ class AdminTenantController extends Controller
         $sort = $request->input('sort', '-created_at');
         $dir = str_starts_with($sort, '-') ? 'desc' : 'asc';
         $field = ltrim($sort, '-');
+
+        // Only columns the list offers: anything else reached orderBy() and
+        // answered 500 (A-Z review H-14).
+        if (! in_array($field, ['created_at', 'name', 'subdomain', 'status', 'trial_ends_at'], true)) {
+            $field = 'created_at';
+            $dir = 'desc';
+        }
         $query->orderBy($field, $dir);
 
         return AdminTenantResource::collection(
@@ -555,9 +562,14 @@ class AdminTenantController extends Controller
             ->whereNull('deleted_at')
             ->firstOrFail();
 
+        // An active admin, the same one every time: an unordered first() could
+        // pick a deactivated one, whose session is revoked at once (A-Z
+        // review H-13).
         $adminUser = User::withoutGlobalScopes()
             ->where('tenant_id', $tenant->id)
             ->where('role', UserRole::TENANT_ADMIN)
+            ->where('status', 'active')
+            ->orderBy('id')
             ->first();
 
         if (! $adminUser) {
