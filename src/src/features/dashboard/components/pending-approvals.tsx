@@ -7,6 +7,7 @@ import {
   type PendingApproval,
 } from "@/features/approvals/api";
 import { useDecideApprovals } from "@/features/approvals/use-decide";
+import { approvalSummary } from "@/features/approvals/summary";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
@@ -34,7 +35,7 @@ const SHOWN = 3;
  * queue page, so a decision made here is recorded exactly as one made there.
  */
 export function PendingApprovalsPanel() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { formatDate } = useDateFormatters();
   const { isSupervisor } = usePermissions();
   // Kept current while the tab is open, like the Approvals badge: a request
@@ -134,7 +135,7 @@ export function PendingApprovalsPanel() {
                       <StatusBadge status={item.type} />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {item.summary}
+                      {approvalSummary(item, t, formatDate, locale)}
                       <span aria-hidden="true"> · </span>
                       {formatDate(item.submitted_at)}
                     </p>

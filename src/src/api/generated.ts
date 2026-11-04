@@ -24887,6 +24887,12 @@ export interface operations {
                             employee_name: string | null;
                             employee_public_id: string | null;
                             summary: string;
+                            leave_type: {
+                                name: string;
+                                name_am: string;
+                            } | null;
+                            from: string;
+                            to: string;
                             submitted_at: string;
                             step: number;
                             steps: number;
@@ -24897,6 +24903,7 @@ export interface operations {
                             employee_name: string | null;
                             employee_public_id: string | null;
                             summary: string;
+                            date: string | null;
                             submitted_at: string;
                             step: number;
                             steps: number;
@@ -24907,6 +24914,8 @@ export interface operations {
                             employee_name: string | null;
                             employee_public_id: string | null;
                             summary: string;
+                            date: string;
+                            hours: number;
                             submitted_at: string;
                             step: number;
                             steps: number;

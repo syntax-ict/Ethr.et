@@ -1337,6 +1337,30 @@
                                                             "summary": {
                                                                 "type": "string"
                                                             },
+                                                            "leave_type": {
+                                                                "type": [
+                                                                    "object",
+                                                                    "null"
+                                                                ],
+                                                                "properties": {
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "name_am": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "name",
+                                                                    "name_am"
+                                                                ]
+                                                            },
+                                                            "from": {
+                                                                "type": "string"
+                                                            },
+                                                            "to": {
+                                                                "type": "string"
+                                                            },
                                                             "submitted_at": {
                                                                 "type": "string"
                                                             },
@@ -1353,6 +1377,9 @@
                                                             "employee_name",
                                                             "employee_public_id",
                                                             "summary",
+                                                            "leave_type",
+                                                            "from",
+                                                            "to",
                                                             "submitted_at",
                                                             "step",
                                                             "steps"
@@ -1383,6 +1410,12 @@
                                                             "summary": {
                                                                 "type": "string"
                                                             },
+                                                            "date": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
                                                             "submitted_at": {
                                                                 "type": "string"
                                                             },
@@ -1399,6 +1432,7 @@
                                                             "employee_name",
                                                             "employee_public_id",
                                                             "summary",
+                                                            "date",
                                                             "submitted_at",
                                                             "step",
                                                             "steps"
@@ -1429,6 +1463,12 @@
                                                             "summary": {
                                                                 "type": "string"
                                                             },
+                                                            "date": {
+                                                                "type": "string"
+                                                            },
+                                                            "hours": {
+                                                                "type": "number"
+                                                            },
                                                             "submitted_at": {
                                                                 "type": "string"
                                                             },
@@ -1445,6 +1485,8 @@
                                                             "employee_name",
                                                             "employee_public_id",
                                                             "summary",
+                                                            "date",
+                                                            "hours",
                                                             "submitted_at",
                                                             "step",
                                                             "steps"
