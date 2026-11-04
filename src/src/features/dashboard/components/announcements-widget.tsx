@@ -68,14 +68,16 @@ export function AnnouncementsWidget() {
   // GET /announcements already returns only published, unexpired ones.
   const announcements = (data?.data ?? []).slice(0, 3);
 
-  // One line when there is nothing: an empty-state illustration on every
+  // One line when there is nothing (two when the column is narrow; the
+  // status wraps under the title rather than being cut off, which the
+  // Amharic layout gate flags): an empty-state illustration on every
   // dashboard made the card as tall as a full one (dashboard review,
   // 2026-11-03, PR 7). The link stays, for whoever posts the first one.
   if (announcements.length === 0) {
     return (
       <Card>
         <CardContent className="flex items-center justify-between gap-3 py-3">
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
             <Megaphone
               className="h-4 w-4 shrink-0 text-muted-foreground"
               aria-hidden="true"
@@ -83,7 +85,7 @@ export function AnnouncementsWidget() {
             <span className="text-sm font-semibold text-foreground">
               {t("nav.announcements", "Announcements")}
             </span>
-            <span className="truncate text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {t("dashboard.no_announcements", "No announcements")}
             </span>
           </div>
