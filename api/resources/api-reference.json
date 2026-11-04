@@ -11229,6 +11229,18 @@
                                                 "period": {
                                                     "type": "string"
                                                 },
+                                                "period_start": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "period_end": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "net_cents": {
                                                     "type": "integer"
                                                 },
@@ -11238,6 +11250,8 @@
                                             },
                                             "required": [
                                                 "period",
+                                                "period_start",
+                                                "period_end",
                                                 "net_cents",
                                                 "gross_cents"
                                             ]

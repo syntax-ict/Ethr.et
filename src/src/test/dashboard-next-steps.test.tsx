@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { NextStepsCard } from "@/features/next-steps/components/next-steps-card";
+import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import type { NextStep, NextStepsResponse } from "@/features/next-steps/api";
 
 /**
@@ -65,16 +66,27 @@ function serve(steps: NextStep[], setup: NextStepsResponse["setup"] = null) {
   return { dismissed, restored: () => restored };
 }
 
-function renderCard() {
+function renderCard({ calendar = false } = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <NextStepsCard />
+      {calendar ? (
+        <CalendarProvider>
+          <NextStepsCard />
+        </CalendarProvider>
+      ) : (
+        <NextStepsCard />
+      )}
     </QueryClientProvider>,
   );
 }
+
+afterEach(() => {
+  localStorage.removeItem("ethr.calendar");
+  localStorage.setItem("locale", "en");
+});
 
 /** The rows of the main list, not the checklist links inside one. */
 function rows() {
@@ -229,7 +241,7 @@ describe("<NextStepsCard>", () => {
     serve([
       step({
         id: "payroll_approve",
-        subject: "Tikimt 2019",
+        subject: "October 2026",
         href: "/payroll/01HZRUN",
         signature: "01HZRUN:completed",
       }),
@@ -238,13 +250,37 @@ describe("<NextStepsCard>", () => {
 
     expect(
       await screen.findByText(
-        "The Tikimt 2019 payroll run is waiting for approval",
+        "The October 2026 payroll run is waiting for approval",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open run/i })).toHaveAttribute(
       "href",
       "/payroll/01HZRUN",
     );
+  });
+
+  /**
+   * The subject is the run's stored `period_label`, English Gregorian, so an
+   * Amharic reader on the Ethiopian calendar read "October 2026" in a row
+   * beside a /payroll page that named the same run ጥቅምት 2019 (dashboard
+   * review, 2026-11-03).
+   */
+  it("names the payroll period in the reader's calendar and language", async () => {
+    localStorage.setItem("locale", "am");
+    localStorage.setItem("ethr.calendar", "ethiopian");
+    me("finance_admin");
+    serve([
+      step({
+        id: "payroll_approve",
+        subject: "October 2026",
+        href: "/payroll/01HZRUN",
+        signature: "01HZRUN:completed",
+      }),
+    ]);
+    renderCard({ calendar: true });
+
+    expect(await screen.findByText(/ጥቅምት 2019/)).toBeInTheDocument();
+    expect(screen.queryByText(/October 2026/)).not.toBeInTheDocument();
   });
 
   it("shows three rows, then the rest when asked, then three again", async () => {

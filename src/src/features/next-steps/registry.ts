@@ -39,18 +39,24 @@ export interface StepDef {
   icon: LucideIcon;
   /** The title has a `_one` form, used when the count is 1. */
   plural?: boolean;
+  /**
+   * The subject is a payroll run's stored `period_label`, English Gregorian
+   * ("October 2026"); the row names that month in the reader's calendar and
+   * language instead, as /payroll does.
+   */
+  subject?: "payroll_period";
 }
 
 export const STEP_DEFS: Record<NextStepId, StepDef> = {
   // Blockers.
   attendance_blockers: { icon: ShieldAlert, plural: true },
-  payroll_failed: { icon: Wallet },
+  payroll_failed: { icon: Wallet, subject: "payroll_period" },
   setup_admin_present: { icon: ShieldCheck },
   setup_admin_active: { icon: ShieldCheck },
 
   // Work waiting for a decision, and setup that is unfinished.
   integrity: { icon: ShieldAlert, plural: true },
-  payroll_approve: { icon: Wallet },
+  payroll_approve: { icon: Wallet, subject: "payroll_period" },
   approvals: { icon: CheckSquare, plural: true },
   contracts_ending: { icon: CalendarClock, plural: true },
   setup_wizard: { icon: Rocket },

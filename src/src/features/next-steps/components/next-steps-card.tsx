@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useCurrentUser } from "@/features/auth/api";
+import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
+import { storedPeriodLabel } from "@/lib/calendar/stored-period-label";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
@@ -157,7 +159,8 @@ function NextStepRow({
   step: NextStep;
   onPutAway: () => void;
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const calendar = useOptionalCalendar()?.calendar ?? "gregorian";
   const def = STEP_DEFS[step.id];
   const Icon = def.icon;
   const blocker = step.severity === "blocker";
@@ -165,9 +168,15 @@ function NextStepRow({
   // A step with a total is a checklist: how much is done, out of how many.
   const total = step.total ?? 0;
   const done = Math.max(total - step.count, 0);
+  // A payroll row's subject is the run's stored English month; the reader
+  // sees it as /payroll names it (ጥቅምት 2019 on the Ethiopian calendar).
+  const period =
+    step.subject && def.subject === "payroll_period"
+      ? storedPeriodLabel(step.subject, calendar, locale)
+      : (step.subject ?? "");
   const replacements = {
     count: step.count,
-    period: step.subject ?? "",
+    period,
     done,
     total,
   };

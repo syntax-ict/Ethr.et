@@ -18772,6 +18772,8 @@ export interface operations {
                         }[];
                         latest_payslip: {
                             period: string;
+                            period_start: string | null;
+                            period_end: string | null;
                             net_cents: number;
                             gross_cents: number;
                         } | null;
