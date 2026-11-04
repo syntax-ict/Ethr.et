@@ -69,6 +69,7 @@ import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
 import { intlLocale } from "@/lib/i18n/config";
+import { PrintAction } from "@/components/shared/print-action";
 
 function leaveTypeName(
   lt: LeaveBalance["leave_type"],
@@ -120,9 +121,12 @@ export default function LeavePage() {
     <div className="space-y-6">
       <PageActions
         actions={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> {t("common.apply_leave")}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <PrintAction />
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> {t("common.apply_leave")}
+            </Button>
+          </div>
         }
       />
 

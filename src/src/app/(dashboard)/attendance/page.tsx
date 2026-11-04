@@ -76,6 +76,7 @@ import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { MyExceptionsCard } from "@/features/attendance/components/my-exceptions-card";
+import { PrintAction } from "@/components/shared/print-action";
 
 // The values the address may carry; anything else falls back to "all".
 const SOURCES = [
@@ -278,6 +279,7 @@ export default function AttendancePage() {
                 {t("attendance.manual_entry", "Manual Entry")}
               </Button>
             )}
+            <PrintAction />
           </div>
         }
       />

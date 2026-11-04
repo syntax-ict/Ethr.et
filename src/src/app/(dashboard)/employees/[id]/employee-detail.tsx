@@ -58,6 +58,7 @@ import { costCentersApi, teamsApi } from "@/features/organization/api";
 import { RelationPicker } from "@/features/employees/components/relation-picker";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
+import { PrintAction } from "@/components/shared/print-action";
 
 /** A 404 means the record is gone; anything else means the request failed. */
 function isNotFound(error: unknown): boolean {
@@ -223,6 +224,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
             />
           )}
           {!editing && <EnrolOnDevicesButton employeeId={employee.public_id} />}
+          {!editing && <PrintAction size="sm" />}
           {!editing && (
             <Button variant="outline" size="sm" onClick={startEdit}>
               <Pencil className="mr-2 h-3 w-3" />
