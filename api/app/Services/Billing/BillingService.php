@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Billing;
 
 use App\Enums\SubscriptionStatus;
+use App\Enums\TenantStatus;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
@@ -145,6 +146,14 @@ final class BillingService
 
     public function generateMonthlyInvoice(Tenant $tenant): ?Invoice
     {
+        // Only an organisation in use as a paying customer is billed. The
+        // console's cancel and suspend change the organisation's status and
+        // leave its subscription active, and the monthly run went on billing
+        // it, dunning included (A-Z review H-01).
+        if ($tenant->status !== TenantStatus::ACTIVE) {
+            return null;
+        }
+
         $subscription = Subscription::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenant->id)
             ->where('status', SubscriptionStatus::ACTIVE)
