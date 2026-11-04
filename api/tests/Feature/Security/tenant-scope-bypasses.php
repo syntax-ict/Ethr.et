@@ -11,6 +11,11 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-04, A-Z review D-06: one more, in `AttendanceEngine::processBreak()`.
+ * A resent break is found by its key among the person's records for the day
+ * before any open record is looked for, from device ingestion where no
+ * tenant may be resolved. The query states `tenant_id` and `employee_id` from
+ * the punch's own input, as `findOpenRecord()` beside it does. 182/72.)
  * (2026-10-30, onboarding review: two more, both in `Models/Tenant.php`. A
  * trial organisation is named in public (Trusted by, the portals sitemap,
  * `index` on its portal) only once it holds `PUBLIC_MIN_EMPLOYEES` people, and
@@ -299,7 +304,7 @@ return [
     'Services/Analytics/BranchAnalyticsService.php' => 5,
     'Services/Analytics/DepartmentAnalyticsService.php' => 5,
     'Services/Analytics/ExecutiveDashboardService.php' => 17,
-    'Services/Attendance/AttendanceEngine.php' => 2,
+    'Services/Attendance/AttendanceEngine.php' => 3,
     // Retention sweep: deletes expired passkey challenges across every
     // organisation from the scheduler; selects and returns nothing.
     'Services/Attendance/Device/DeviceChallenges.php' => 1,

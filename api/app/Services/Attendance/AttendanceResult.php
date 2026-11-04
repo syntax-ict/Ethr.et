@@ -15,7 +15,7 @@ use App\Models\AttendanceRecord;
 final readonly class AttendanceResult
 {
     /**
-     * @param  'check_in'|'check_out'  $punch
+     * @param  'check_in'|'check_out'|'break_out'|'break_in'  $punch
      */
     public function __construct(
         public AttendanceRecord $record,
