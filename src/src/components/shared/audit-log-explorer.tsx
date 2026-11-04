@@ -26,6 +26,7 @@ import { csvFromRows, saveCsv } from "@/lib/utils/csv-export";
 import { toast } from "sonner";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { auditActionLabel, auditEntityLabel } from "@/lib/audit/labels";
+import { AuditLogCharts } from "@/components/shared/audit-log-charts";
 
 // Actions are not statuses, so they ask for a tone by name rather than
 // borrowing a status that happens to be the right colour today: "updated"
@@ -62,12 +63,15 @@ export function AuditLogExplorer({
   title,
   exportPrefix = "audit-log",
   showOrganisation = false,
+  charts = false,
 }: {
   endpoint: AuditLogEndpoint;
   queryKey: string;
   title: string;
   exportPrefix?: string;
   showOrganisation?: boolean;
+  /** Entries per day and per action above the list; the tenant trail only. */
+  charts?: boolean;
 }) {
   const { t } = useT();
   const { formatDateTime } = useDateFormatters();
@@ -200,6 +204,10 @@ export function AuditLogExplorer({
           </div>
         </CardContent>
       </Card>
+
+      {charts && (
+        <AuditLogCharts filters={{ ...filters, action: debouncedAction }} />
+      )}
 
       <QueryBoundary
         query={query}
