@@ -8,6 +8,7 @@ use App\Enums\EmployeeStatus;
 use App\Enums\OrgScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Shift\AssignShiftRequest;
+use App\Http\Requests\Shift\ShiftCoverageRequest;
 use App\Http\Requests\Shift\StoreShiftRequest;
 use App\Http\Requests\Shift\UpdateShiftRequest;
 use App\Http\Resources\ShiftAssignmentResource;
@@ -20,8 +21,11 @@ use App\Models\Employee;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
 use App\Models\ShiftRotation;
+use App\Services\CurrentTenant;
+use App\Services\Shift\ShiftCoverage;
 use App\Support\CopyName;
 use App\Support\ShiftAssignables;
+use App\Support\TenantTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -338,6 +342,28 @@ class ShiftController extends Controller
         return (new ShiftAssignmentResource($assignment))
             ->response()
             ->setStatusCode(201);
+    }
+
+    /**
+     * Each shift's staffing over a range of days, this week by default: the
+     * people scheduled and attending per day, and the hours planned against
+     * the hours covered. Over the employees the caller reaches, as the
+     * employee screens are (charts upgrade, 2026-11-04).
+     */
+    public function coverage(ShiftCoverageRequest $request, ShiftCoverage $coverage): JsonResponse
+    {
+        Gate::authorize('shift.viewAny');
+
+        [$from, $to] = $request->range();
+        $current = app(CurrentTenant::class);
+        $tenantId = $current->requireId();
+
+        $employees = $request->user()
+            ->scopeAccessibleEmployees(Employee::query())
+            ->whereNotIn('status', EmployeeStatus::leaving())
+            ->get();
+
+        return response()->json($coverage->between($tenantId, $employees, $from, $to, TenantTime::zone($current->get())));
     }
 
     public function schedule(Request $request): AnonymousResourceCollection

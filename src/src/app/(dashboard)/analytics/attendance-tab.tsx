@@ -31,6 +31,20 @@ import {
   tooltipProps,
 } from "@/components/dashboard/chart-theme";
 import { ChartCard, ChartTable } from "@/components/dashboard/chart-card";
+import { Heatmap, HeatmapTable } from "@/components/dashboard/heatmap";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
+
+/** A date on each ISO weekday, Monday first, for naming the heatmap rows. */
+const WEEKDAY_DATES = [
+  "2024-01-01",
+  "2024-01-02",
+  "2024-01-03",
+  "2024-01-04",
+  "2024-01-05",
+  "2024-01-06",
+  "2024-01-07",
+];
 
 export function AttendanceTab({
   branchPublicId,
@@ -41,6 +55,9 @@ export function AttendanceTab({
 }) {
   const { t, locale } = useT();
   const { calendar } = useCalendar();
+  const { formatWeekday } = useDateFormatters();
+  // Under 480 px only every fourth hour is labelled over the heatmap.
+  const narrow = useMediaQuery("(max-width: 479px)");
   const query = useExecutiveAttendance({ branchPublicId, ...range });
 
   // Every section below hides itself when it has no rows, so with no
@@ -61,6 +78,7 @@ export function AttendanceTab({
       isEmpty={(data) =>
         !data.daily_trend?.length &&
         !data.by_source?.length &&
+        !data.by_hour?.length &&
         !data.top_late?.length
       }
       empty={
@@ -82,6 +100,35 @@ export function AttendanceTab({
         const sourceTotal = sources.reduce((sum, s) => sum + s.count, 0);
         const late = (data.top_late ?? []).slice(0, 8);
         const lateMax = Math.max(1, ...late.map((e) => e.late_count));
+
+        // Day by hour: the hours between the first and last punch of the
+        // period, so a day organisation is not drawn against an empty night.
+        const punches = data.by_hour ?? [];
+        const hourLow = Math.min(24, ...punches.map((p) => p.hour));
+        const hourHigh = Math.max(-1, ...punches.map((p) => p.hour));
+        const hourColumns = Array.from(
+          { length: Math.max(0, hourHigh - hourLow + 1) },
+          (_, i) => {
+            const hour = hourLow + i;
+            return { key: String(hour), label: String(hour).padStart(2, "0") };
+          },
+        );
+        const weekdayRows = WEEKDAY_DATES.map((date, i) => ({
+          key: String(i + 1),
+          label: formatWeekday(date),
+          name: formatWeekday(date, "long"),
+        }));
+        const punchCounts = new Map(
+          punches.map((p) => [`${p.weekday}|${p.hour}`, p.count]),
+        );
+        const punchesAt = (weekday: string, hour: string) =>
+          punchCounts.get(`${weekday}|${hour}`);
+        const sayPunches = (value: number) =>
+          `${value} ${t("analytics_page.punches", "punches")}`;
+        const punchesTitle = t(
+          "analytics_page.punches_by_hour",
+          "Punches by day and hour",
+        );
 
         return (
           <div className="space-y-6">
@@ -161,6 +208,39 @@ export function AttendanceTab({
                         />
                       </AreaChart>
                     </ResponsiveContainer>
+                  )
+                }
+              </ChartCard>
+            )}
+
+            {punches.length > 0 && (
+              <ChartCard
+                title={punchesTitle}
+                description={t(
+                  "analytics_page.punches_by_hour_desc",
+                  "When people check in and out, over the period.",
+                )}
+              >
+                {(view) =>
+                  view === "table" ? (
+                    <HeatmapTable
+                      caption={punchesTitle}
+                      rowHeading={t("common.day", "Day")}
+                      rows={weekdayRows}
+                      columns={hourColumns}
+                      value={punchesAt}
+                    />
+                  ) : (
+                    <Heatmap
+                      rows={weekdayRows}
+                      columns={hourColumns}
+                      value={punchesAt}
+                      format={sayPunches}
+                      color={STATUS_SERIES.present}
+                      columnLabelEvery={
+                        narrow ? 4 : hourColumns.length > 12 ? 2 : 1
+                      }
+                    />
                   )
                 }
               </ChartCard>

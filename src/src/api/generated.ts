@@ -7365,6 +7365,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/shifts/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Each shift's staffing over a range of days, this week by default: the
+         *     people scheduled and attending per day, and the hours planned against
+         *     the hours covered. Over the employees the caller reaches, as the
+         *     employee screens are (charts upgrade, 2026-11-04)
+         */
+        get: operations["shift.coverage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/shifts/assignments/{assignment}": {
         parameters: {
             query?: never;
@@ -18982,6 +19004,11 @@ export interface operations {
                         }[];
                         by_source: {
                             source: string;
+                            count: number;
+                        }[];
+                        by_hour: {
+                            weekday: number;
+                            hour: number;
                             count: number;
                         }[];
                         top_late: {
@@ -33199,6 +33226,51 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "shift.coverage": {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        from: string;
+                        to: string;
+                        days: string[];
+                        shifts: {
+                            public_id: string;
+                            name: string;
+                            name_am: string;
+                            start_time: string;
+                            end_time: string;
+                            planned_minutes: number;
+                            covered_minutes: number;
+                            scheduled_people: number;
+                            attended_people: number;
+                            by_day: {
+                                date: string;
+                                scheduled: number;
+                                attended: number;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "shiftAssignment.destroy": {

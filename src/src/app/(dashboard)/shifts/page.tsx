@@ -61,6 +61,7 @@ import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { FilterBar } from "@/components/shared/filter-bar";
+import { ShiftCoverageCharts } from "@/features/shifts/components/shift-coverage-charts";
 
 /** A date on each ISO weekday (1 = Monday), for naming it in the reader's language. */
 const WEEKDAY_DATE = (d: number) => `2024-01-0${d}`;
@@ -270,6 +271,8 @@ export default function ShiftsPage() {
             className="max-w-xs"
           />
         </FilterBar>
+
+        <ShiftCoverageCharts />
 
         {/* Shift list */}
         {isLoading ? (

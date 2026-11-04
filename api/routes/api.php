@@ -529,6 +529,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('shifts')->group(function () {
         Route::post('/assign', [ShiftController::class, 'assign']);
         Route::get('/schedule', [ShiftController::class, 'schedule']);
+        Route::get('/coverage', [ShiftController::class, 'coverage']);
         Route::patch('/assignments/{assignment}', [ShiftAssignmentController::class, 'update']);
         Route::delete('/assignments/{assignment}', [ShiftAssignmentController::class, 'destroy']);
         Route::post('/{shift}/duplicate', [ShiftController::class, 'duplicate']);
