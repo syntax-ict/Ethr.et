@@ -95,6 +95,9 @@ export default function DashboardPage() {
   // or from an older payload without the field, the tiles show as before.
   const hasNoEmployee = user?.employee_public_id === null;
   const unitScoped = orgScope === "department" || orgScope === "team";
+  // Someone with no organisation, department or team section: their
+  // dashboard is only their own day.
+  const personalOnly = !isSupervisor && !can.viewExecutiveDashboard;
 
   if (isSuperAdmin) return null;
 
@@ -134,13 +137,23 @@ export default function DashboardPage() {
           <NextStepsCard />
           <PendingApprovalsPanel />
           {(isSupervisor || can.viewExecutiveDashboard) && <DeferredCharts />}
+          {/* An employee has no queue and no charts, so the wide column held
+              Next steps and then nothing while the side column ran four cards
+              long (dashboard review, 2026-11-03, PR 7). Their balances and
+              the calendar sit here, side by side, instead. */}
+          {personalOnly && (
+            <div className="grid gap-6 md:grid-cols-2">
+              {!hasNoEmployee && <LeaveOverview />}
+              <CalendarWidget />
+            </div>
+          )}
         </div>
         <div className="min-w-0 space-y-6">
           {!hasNoEmployee && <PulsePrompt />}
           {/* Personal balances; an account with no employee record has none,
               and "My Day" already says how to get one. */}
-          {!hasNoEmployee && <LeaveOverview />}
-          <CalendarWidget />
+          {!personalOnly && !hasNoEmployee && <LeaveOverview />}
+          {!personalOnly && <CalendarWidget />}
           <AnnouncementsWidget />
           {/* The standalone unread-count tile that used to sit here restated
               what the header bell already shows and what Recent Activity
