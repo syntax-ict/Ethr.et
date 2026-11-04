@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Enums\Feature;
+use App\Enums\FeatureOverrideMode;
 use App\Enums\UserRole;
 use App\Jobs\RunScheduledReportsJob;
 use App\Models\Employee;
 use App\Models\SavedReport;
 use App\Models\ScheduledReport;
+use App\Models\TenantFeatureOverride;
 use App\Notifications\ScheduledReportFailedNotification;
 use App\Notifications\ScheduledReportNotification;
 use App\Services\CurrentTenant;
@@ -204,4 +207,36 @@ test('a later success clears the previous failure', function () {
     // can answer. A schedule that failed yesterday and succeeded today must not
     // still read as failing.
     expect($schedule->refresh()->last_error)->toBeNull();
+});
+
+// A-Z review H-03 (2026-11-04). Creating a schedule needed `custom_reports` and
+// an organisation in use; running one checked neither, so a suspended or
+// cancelled organisation, or one whose feature was switched off, went on
+// receiving its reports. A schedule that may not run now is skipped to its
+// next slot, quietly: nothing failed, and it resumes when allowed again.
+test('a schedule does not run while its organisation is not in use', function () {
+    Notification::fake();
+    [$tenant, $schedule] = scheduleReportFixture();
+    $tenant->update(['status' => 'suspended']);
+
+    (new RunScheduledReportsJob)->handle(app(ReportEngine::class), app(CurrentTenant::class));
+
+    Notification::assertNothingSent();
+    $schedule->refresh();
+    expect($schedule->next_run_at->isFuture())->toBeTrue()
+        ->and($schedule->last_error)->toBeNull();
+});
+
+test('a schedule does not run while scheduled reports are switched off for the organisation', function () {
+    Notification::fake();
+    [$tenant, $schedule] = scheduleReportFixture();
+    TenantFeatureOverride::query()->withoutGlobalScope('tenant')->create([
+        'tenant_id' => $tenant->id, 'key' => Feature::CustomReports->value, 'mode' => FeatureOverrideMode::Revoke, 'reason' => 'test',
+    ]);
+    app()->forgetScopedInstances();
+
+    (new RunScheduledReportsJob)->handle(app(ReportEngine::class), app(CurrentTenant::class));
+
+    Notification::assertNothingSent();
+    expect($schedule->fresh()->next_run_at->isFuture())->toBeTrue();
 });
