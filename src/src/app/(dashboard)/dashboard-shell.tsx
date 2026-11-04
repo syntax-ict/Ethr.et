@@ -126,13 +126,18 @@ function useReaderDictionary(): boolean {
 export function DashboardShell({
   children,
   loadingLabel,
+  loadingLabels,
 }: {
   children: React.ReactNode;
   loadingLabel: string;
+  /** The same label in every available language, for the stored preference. */
+  loadingLabels?: Record<string, string>;
 }) {
   const ready = useReaderDictionary();
 
-  if (!ready) return <AppLoadingScreen label={loadingLabel} />;
+  if (!ready) {
+    return <AppLoadingScreen label={loadingLabel} labels={loadingLabels} />;
+  }
 
   return (
     <AuthGuard>

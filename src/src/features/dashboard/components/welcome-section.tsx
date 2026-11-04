@@ -2,6 +2,7 @@
 
 import { useCurrentUser, useCurrentTenant } from "@/features/auth/api";
 import { useT } from "@/lib/i18n/useT";
+import { givenName } from "@/lib/given-name";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { useCalendar } from "@/lib/calendar/calendar-context";
@@ -42,7 +43,7 @@ export function WelcomeSection() {
   const greeting = t(getGreetingKey(timeZone), "Welcome back");
   const displayName =
     locale === "am" && user?.name_am ? user.name_am : user?.name;
-  const firstName = displayName?.split(" ")[0];
+  const firstName = givenName(displayName);
   const dateStr = formatDate(new Date(), locale);
 
   if (isLoading) {
