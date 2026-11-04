@@ -70,14 +70,15 @@ export function RecentActivity() {
 
   const items = data?.data?.slice(0, 6) ?? [];
 
-  // One line when there is nothing, as with Announcements: the illustration
+  // One line when there is nothing, as with Announcements (the status
+  // wraps under the title in a narrow column rather than being cut off): the illustration
   // made an empty card as tall as a full one (dashboard review, 2026-11-03,
   // PR 7).
   if (items.length === 0) {
     return (
       <Card>
         <CardContent className="flex items-center justify-between gap-3 py-3">
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
             <Bell
               className="h-4 w-4 shrink-0 text-muted-foreground"
               aria-hidden="true"
@@ -85,7 +86,7 @@ export function RecentActivity() {
             <span className="text-sm font-semibold text-foreground">
               {t("dashboard.recent_activity", "Recent Activity")}
             </span>
-            <span className="truncate text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {t("dashboard.no_activity", "No recent activity")}
             </span>
           </div>
