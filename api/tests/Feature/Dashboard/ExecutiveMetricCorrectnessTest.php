@@ -36,7 +36,8 @@ function metricFixAttend(Employee $employee, string $date, array $state = []): A
 }
 
 test('payroll figures count neither a voided nor an unfinished run', function () {
-    $tenant = createTenant();
+    // Gregorian: the runs below cover the Gregorian month, and so must the default period.
+    $tenant = createTenant(['settings' => ['calendar' => 'gregorian']]);
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
     $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
@@ -78,7 +79,7 @@ test('payroll figures count neither a voided nor an unfinished run', function ()
 });
 
 test('the hires chart names six different months on the 31st', function () {
-    $tenant = createTenant();
+    $tenant = createTenant(['settings' => ['calendar' => 'gregorian']]);
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
     $this->travelTo(Carbon::parse('2026-10-31 10:00'));
@@ -88,6 +89,56 @@ test('the hires chart names six different months on the 31st', function () {
         ->all();
 
     expect($months)->toBe(['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10']);
+});
+
+test('the hires chart counts Ethiopian months for an organisation on the Ethiopian calendar', function () {
+    // ProvisionTenant's default; the factory states no calendar.
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    // 31 October 2026 is Tikimt 20, 2019. Pagume 2018 (6 to 10 September) is
+    // a month of its own, as the Analytics page counts months.
+    $this->travelTo(Carbon::parse('2026-10-31 10:00'));
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2026-10-11']); // Tikimt 1
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2026-10-10']); // Meskerem 30
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2026-09-08']); // Pagume 3
+
+    $growth = test()->getJson(metricFixUrl($tenant->subdomain))->assertOk()->json('workforce_growth');
+
+    expect(collect($growth)->pluck('month')->all())
+        ->toBe(['2018-10-EC', '2018-11-EC', '2018-12-EC', '2018-13-EC', '2019-01-EC', '2019-02-EC'])
+        ->and(collect($growth)->pluck('hires')->all())->toBe([0, 0, 0, 1, 1, 1]);
+});
+
+test('the default period is the current month of the organisation calendar', function () {
+    // 3 November 2026 is Tikimt 23, 2019: Tikimt runs 11 October to 9 November.
+    $this->travelTo(Carbon::parse('2026-11-03 12:00', 'Africa/Addis_Ababa'));
+
+    $ethiopian = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $ethiopian);
+    $person = Employee::factory()->create(['tenant_id' => $ethiopian->id]);
+    foreach (['2026-10-10', '2026-10-11', '2026-10-31', '2026-11-03'] as $day) {
+        metricFixAttend($person, $day);
+    }
+
+    expect(collect(test()->getJson(metricFixUrl($ethiopian->subdomain, '/attendance'))->assertOk()->json('daily_trend'))->pluck('date')->all())
+        ->toBe(['2026-10-11', '2026-10-31', '2026-11-03']);
+
+    app('auth')->forgetGuards();
+
+    $gregorian = createTenant(['settings' => ['calendar' => 'gregorian']]);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $gregorian);
+    $person = Employee::factory()->create(['tenant_id' => $gregorian->id]);
+    foreach (['2026-10-31', '2026-11-01', '2026-11-03'] as $day) {
+        metricFixAttend($person, $day);
+    }
+
+    expect(collect(test()->getJson(metricFixUrl($gregorian->subdomain, '/attendance'))->assertOk()->json('daily_trend'))->pluck('date')->all())
+        ->toBe(['2026-11-01', '2026-11-03']);
+
+    // An explicit period is taken as given in either calendar.
+    expect(collect(test()->getJson(metricFixUrl($gregorian->subdomain, '/attendance?from=2026-10-11&to=2026-11-09'))->assertOk()->json('daily_trend'))->pluck('date')->all())
+        ->toBe(['2026-10-31', '2026-11-01', '2026-11-03']);
 });
 
 test('the attendance charts leave out voided records', function () {

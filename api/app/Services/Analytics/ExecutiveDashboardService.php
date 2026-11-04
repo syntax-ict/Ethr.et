@@ -15,6 +15,7 @@ use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Services\Attendance\ExpectedDays;
+use App\Services\Calendar\OrganisationMonth;
 use App\Services\Leave\LeaveYear;
 use App\Support\TenantTime;
 use Carbon\Carbon;
@@ -420,20 +421,28 @@ final class ExecutiveDashboardService
         ];
     }
 
+    /**
+     * Hires in each of the last six months of the organisation's calendar,
+     * this month last. The buckets were Gregorian months whatever calendar
+     * the organisation kept, so the dashboard's "hired this month" counted
+     * October while its other tiles meant Tikimt; an Ethiopian bucket's key
+     * names its calendar (`2019-02-EC`) so the chart labels it as Tikimt.
+     */
     private function workforceGrowth(int $tenantId, ?int $branchId): array
     {
+        $calendar = OrganisationMonth::forTenant(Tenant::query()->find($tenantId));
+        ['year' => $year, 'month' => $month] = $calendar->monthOf($calendar->today());
+
         $months = [];
         for ($i = 5; $i >= 0; $i--) {
-            // From the 1st: on the 31st, now() minus one month is the 1st of
-            // this month, and the chart showed it twice and skipped the last.
-            $month = Carbon::now()->startOfMonth()->subMonths($i);
+            ['year' => $y, 'month' => $m] = $calendar->shift($year, $month, -$i);
             $hires = $this->scopedEmployees($tenantId, $branchId)
-                ->whereYear('hire_date', $month->year)
-                ->whereMonth('hire_date', $month->month)
+                ->whereDate('hire_date', '>=', $calendar->start($y, $m)->toDateString())
+                ->whereDate('hire_date', '<=', $calendar->end($y, $m)->toDateString())
                 ->count();
 
             $months[] = [
-                'month' => $month->format('Y-m'),
+                'month' => $calendar->key($y, $m),
                 'hires' => $hires,
             ];
         }
