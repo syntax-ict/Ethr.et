@@ -301,11 +301,12 @@ export function CalendarWidget() {
             )}
           </div>
         </div>
+        {/* 44 px on a phone (WCAG 2.5.8), the tighter header size from `sm`. */}
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-touch w-touch sm:h-7 sm:w-7"
             onClick={handlePrev}
             aria-label={t("calendar.previous_month", "Previous month")}
           >
@@ -315,7 +316,7 @@ export function CalendarWidget() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-xs"
+              className="h-touch px-2 text-xs sm:h-7"
               onClick={handleToday}
             >
               {t("calendar.today", "Today")}
@@ -324,7 +325,7 @@ export function CalendarWidget() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-touch w-touch sm:h-7 sm:w-7"
             onClick={handleNext}
             aria-label={t("calendar.next_month", "Next month")}
           >
