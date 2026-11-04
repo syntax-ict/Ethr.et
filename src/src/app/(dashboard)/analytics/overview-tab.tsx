@@ -22,7 +22,8 @@ import {
   seriesColor,
   tooltipProps,
 } from "@/components/dashboard/chart-theme";
-import { ChartCard } from "@/components/dashboard/chart-card";
+import { ChartCard, ChartTable } from "@/components/dashboard/chart-card";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { CompactCurrency } from "@/components/shared/currency-display";
 import { useExecutiveOverview } from "@/features/dashboard/executive-api";
@@ -53,6 +54,10 @@ export function OverviewTab({
     ...period.previous,
   }).data;
   const [drilldownDept, setDrilldownDept] = useState<string | null>(null);
+  // Under 480 px the department bars are drawn sideways, with the names on
+  // the left: upright, every name was forced onto the axis (`interval={0}`)
+  // and they overlapped at 375 px (dashboard review, 2026-11-03, PR 8).
+  const narrow = useMediaQuery("(max-width: 479px)");
   const versus = t("analytics_page.vs_previous_period", "vs previous period");
   const points = ` ${t("analytics_page.points", "pts")}`;
 
@@ -174,69 +179,163 @@ export function OverviewTab({
                   "Click a bar for department detail",
                 )}
               >
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart
-                    data={data.headcount.by_department.map((d) => ({
-                      name: d.department,
-                      value: d.count,
-                      publicId: d.department_public_id,
-                    }))}
-                  >
-                    <CartesianGrid {...gridProps} />
-                    <XAxis dataKey="name" {...axisProps} interval={0} />
-                    <YAxis {...axisProps} allowDecimals={false} width={36} />
-                    <Tooltip {...tooltipProps} />
-                    <Bar
-                      dataKey="value"
-                      name={t("analytics_page.headcount")}
-                      fill={seriesColor(0)}
-                      radius={[6, 6, 0, 0]}
-                      maxBarSize={48}
-                      cursor="pointer"
-                      onClick={(bar: {
-                        payload?: { publicId?: string | null };
-                      }) => {
-                        const publicId = bar.payload?.publicId;
-                        if (publicId) setDrilldownDept(publicId);
-                      }}
+                {(view) =>
+                  view === "table" ? (
+                    <ChartTable
+                      caption={t("analytics_page.headcount_by_department")}
+                      columns={[
+                        {
+                          key: "department",
+                          label: t("common.department", "Department"),
+                        },
+                        {
+                          key: "count",
+                          label: t("analytics_page.headcount"),
+                          numeric: true,
+                        },
+                      ]}
+                      rows={data.headcount.by_department.map((d) => ({
+                        department: d.department,
+                        count: d.count,
+                      }))}
                     />
-                  </BarChart>
-                </ResponsiveContainer>
+                  ) : (
+                    <ResponsiveContainer
+                      width="100%"
+                      height={
+                        narrow
+                          ? Math.max(
+                              260,
+                              data.headcount.by_department.length * 32,
+                            )
+                          : 260
+                      }
+                    >
+                      <BarChart
+                        data={data.headcount.by_department.map((d) => ({
+                          name: d.department,
+                          value: d.count,
+                          publicId: d.department_public_id,
+                        }))}
+                        layout={narrow ? "vertical" : "horizontal"}
+                        margin={
+                          narrow
+                            ? { top: 0, right: 16, left: 0, bottom: 0 }
+                            : undefined
+                        }
+                      >
+                        <CartesianGrid
+                          {...gridProps}
+                          horizontal={!narrow}
+                          vertical={narrow}
+                        />
+                        {narrow ? (
+                          <>
+                            <XAxis
+                              type="number"
+                              {...axisProps}
+                              allowDecimals={false}
+                            />
+                            <YAxis
+                              type="category"
+                              dataKey="name"
+                              {...axisProps}
+                              width={104}
+                              tickFormatter={(v: string) =>
+                                v.length > 14 ? `${v.slice(0, 13)}…` : v
+                              }
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <XAxis dataKey="name" {...axisProps} interval={0} />
+                            <YAxis
+                              {...axisProps}
+                              allowDecimals={false}
+                              width={36}
+                            />
+                          </>
+                        )}
+                        <Tooltip {...tooltipProps} />
+                        <Bar
+                          dataKey="value"
+                          name={t("analytics_page.headcount")}
+                          fill={seriesColor(0)}
+                          radius={narrow ? [0, 6, 6, 0] : [6, 6, 0, 0]}
+                          maxBarSize={narrow ? 22 : 48}
+                          cursor="pointer"
+                          onClick={(bar: {
+                            payload?: { publicId?: string | null };
+                          }) => {
+                            const publicId = bar.payload?.publicId;
+                            if (publicId) setDrilldownDept(publicId);
+                          }}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )
+                }
               </ChartCard>
             )}
 
             {data.workforce_growth && (
               <ChartCard title={t("analytics_page.hires_over_time")}>
-                <ResponsiveContainer width="100%" height={260}>
-                  {/* Hires are whole numbers per month: bars. As an area
+                {(view) =>
+                  view === "table" ? (
+                    <ChartTable
+                      caption={t("analytics_page.hires_over_time")}
+                      columns={[
+                        { key: "month", label: t("common.month", "Month") },
+                        {
+                          key: "hires",
+                          label: t("analytics_page.hires", "Hires"),
+                          numeric: true,
+                        },
+                      ]}
+                      rows={data.workforce_growth.map((m) => ({
+                        month: monthKeyLabel(m.month, locale),
+                        hires: m.hires,
+                      }))}
+                    />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={260}>
+                      {/* Hires are whole numbers per month: bars. As an area
                       chart a month with no figure broke the line, and the
                       chart read as scattered dots (QA 2026-10-13). */}
-                  <BarChart
-                    data={data.workforce_growth}
-                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                  >
-                    <CartesianGrid {...gridProps} />
-                    <XAxis
-                      dataKey="month"
-                      {...axisProps}
-                      tickFormatter={(value) =>
-                        monthKeyLabel(value, locale, "short")
-                      }
-                    />
-                    <YAxis {...axisProps} allowDecimals={false} width={36} />
-                    <Tooltip
-                      {...lineTooltipProps}
-                      labelFormatter={(label) => monthKeyLabel(label, locale)}
-                    />
-                    <Bar
-                      dataKey="hires"
-                      name={t("analytics_page.hires", "Hires")}
-                      fill={seriesColor(1)}
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={36}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                      <BarChart
+                        data={data.workforce_growth}
+                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                      >
+                        <CartesianGrid {...gridProps} />
+                        <XAxis
+                          dataKey="month"
+                          {...axisProps}
+                          tickFormatter={(value) =>
+                            monthKeyLabel(value, locale, "short")
+                          }
+                        />
+                        <YAxis
+                          {...axisProps}
+                          allowDecimals={false}
+                          width={36}
+                        />
+                        <Tooltip
+                          {...lineTooltipProps}
+                          labelFormatter={(label) =>
+                            monthKeyLabel(label, locale)
+                          }
+                        />
+                        <Bar
+                          dataKey="hires"
+                          name={t("analytics_page.hires", "Hires")}
+                          fill={seriesColor(1)}
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={36}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )
+                }
               </ChartCard>
             )}
           </div>
