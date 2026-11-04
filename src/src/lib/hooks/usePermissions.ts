@@ -118,6 +118,10 @@ export function usePermissions() {
     isFinanceAdmin: hasRole("finance_admin", "tenant_admin", "super_admin"),
     isSupervisor: isAtLeast("supervisor"),
     isEmployee: role === "employee",
+    // How far the role reaches (`ScopesEmployeeAccess::orgScope()`): "all",
+    // "branch", "department", "team", "direct_reports" or "self". A custom
+    // role sets its own, so the role name alone cannot say.
+    orgScope: user?.org_scope ?? null,
     can,
   };
 }

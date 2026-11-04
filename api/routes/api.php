@@ -752,6 +752,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('dashboard')->middleware('throttle:dashboard')->group(function () {
         Route::get('/employee', [DashboardController::class, 'employee']);
         Route::get('/manager', [DashboardController::class, 'manager']);
+        Route::get('/department', [DashboardController::class, 'department']);
         Route::get('/executive', [ExecutiveDashboardController::class, 'overview']);
         Route::get('/executive/attendance', [ExecutiveDashboardController::class, 'attendance']);
         Route::get('/executive/payroll', [ExecutiveDashboardController::class, 'payroll']);
