@@ -56,4 +56,5 @@ return [
     'device_wrong_host' => 'Open the ETHR address of your own organisation to punch with your registered phone.',
     'device_not_active' => 'This phone is not registered now.',
     'device_not_pending' => 'This phone is not waiting for approval.',
+    'retry_key_taken' => 'This punch could not be recorded. Try again.',
 ];

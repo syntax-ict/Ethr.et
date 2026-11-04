@@ -56,4 +56,5 @@ return [
     'device_wrong_host' => 'Bilbila keessan galmaa\'een galmeessuuf teessoo ETHR dhaabbata keessanii banaa.',
     'device_not_active' => 'Bilbilli kun amma galmaa\'aa miti.',
     'device_not_pending' => 'Bilbilli kun raggaasisa hin eegu.',
+    'retry_key_taken' => 'Galmeen kun hin galmoofne. Irra deebi\'ii yaali.',
 ];

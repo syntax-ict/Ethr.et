@@ -56,4 +56,5 @@ return [
     'device_wrong_host' => 'በተመዘገበው ስልክዎ ለመመዝገብ የድርጅትዎን የራሱን የETHR አድራሻ ይክፈቱ።',
     'device_not_active' => 'ይህ ስልክ አሁን የተመዘገበ አይደለም።',
     'device_not_pending' => 'ይህ ስልክ ማጽደቅ እየጠበቀ አይደለም።',
+    'retry_key_taken' => 'ምዝገባው ሊመዘገብ አልቻለም። እንደገና ይሞክሩ።',
 ];
