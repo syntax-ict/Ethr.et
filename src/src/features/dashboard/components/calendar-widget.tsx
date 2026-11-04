@@ -251,8 +251,10 @@ export function CalendarWidget() {
   if (isEthMode) {
     monthName = formatEthiopianMonthYear(ethView.year, ethView.month, locale);
     const gregStart = toGregorian(ethView.year, ethView.month, 1);
+    // The full month name: abbreviated, Amharic read "ኦክቶ 2026" under
+    // ጥቅምት 2019 (dashboard review, 2026-11-03, PR 10).
     monthSubtitle = new Intl.DateTimeFormat(intlLocale(locale), {
-      month: "short",
+      month: "long",
       year: "numeric",
     }).format(gregStart);
   } else {
