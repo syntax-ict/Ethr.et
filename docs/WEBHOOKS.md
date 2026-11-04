@@ -177,6 +177,7 @@ What happens to one delivery (`DispatchWebhookJob.php`):
 | Connection error, DNS failure, or no answer in 10 s | Records the error | **Yes** |
 | Any other `4xx`, or a `3xx` | Records the status and body; counts one failed delivery | No — the same request gets the same answer |
 | Webhook switched off while the delivery waited | Records *"Webhook disabled before delivery"* | No |
+| Webhook delivery switched off for the organisation (console feature control) | Held and queued again every 10 minutes; after a day held, records *"Not sent: expired after a day held…"* and is never sent (2026-11-04) | No |
 | URL now resolves to an internal address | Records *"Refused: …internal address"*; not counted | No |
 
 **Redirects are not followed.** The URL's host is checked against internal ranges before the
