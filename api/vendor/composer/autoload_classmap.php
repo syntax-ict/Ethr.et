@@ -517,6 +517,7 @@ return array(
     'App\\Http\\Requests\\Role\\StoreCustomRoleRequest' => $baseDir . '/app/Http/Requests/Role/StoreCustomRoleRequest.php',
     'App\\Http\\Requests\\Role\\UpdateCustomRoleRequest' => $baseDir . '/app/Http/Requests/Role/UpdateCustomRoleRequest.php',
     'App\\Http\\Requests\\Search\\GlobalSearchRequest' => $baseDir . '/app/Http/Requests/Search/GlobalSearchRequest.php',
+    'App\\Http\\Requests\\Settings\\AuditLogStatsRequest' => $baseDir . '/app/Http/Requests/Settings/AuditLogStatsRequest.php',
     'App\\Http\\Requests\\Settings\\GenerateScimTokenRequest' => $baseDir . '/app/Http/Requests/Settings/GenerateScimTokenRequest.php',
     'App\\Http\\Requests\\Settings\\UpdateAddressRequest' => $baseDir . '/app/Http/Requests/Settings/UpdateAddressRequest.php',
     'App\\Http\\Requests\\Settings\\UpdateBrandingRequest' => $baseDir . '/app/Http/Requests/Settings/UpdateBrandingRequest.php',

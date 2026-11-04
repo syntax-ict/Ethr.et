@@ -1251,6 +1251,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Http\\Requests\\Role\\StoreCustomRoleRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Role/StoreCustomRoleRequest.php',
         'App\\Http\\Requests\\Role\\UpdateCustomRoleRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Role/UpdateCustomRoleRequest.php',
         'App\\Http\\Requests\\Search\\GlobalSearchRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Search/GlobalSearchRequest.php',
+        'App\\Http\\Requests\\Settings\\AuditLogStatsRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Settings/AuditLogStatsRequest.php',
         'App\\Http\\Requests\\Settings\\GenerateScimTokenRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Settings/GenerateScimTokenRequest.php',
         'App\\Http\\Requests\\Settings\\UpdateAddressRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Settings/UpdateAddressRequest.php',
         'App\\Http\\Requests\\Settings\\UpdateBrandingRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Settings/UpdateBrandingRequest.php',
