@@ -191,7 +191,7 @@ final class AttendanceEngine
                 ->get()
                 ->first(fn (AttendanceRecord $r) => collect((array) ($r->metadata['breaks'] ?? []))->contains('key', $input->idempotencyKey));
             if ($noted !== null) {
-                return new AttendanceResult($noted, wasDuplicate: true, punch: $input->type);
+                return new AttendanceResult($noted, wasDuplicate: true, punch: $input->type === 'break_out' ? 'check_out' : 'check_in');
             }
         }
 
@@ -201,6 +201,10 @@ final class AttendanceEngine
             return $this->processAuto($input, $employee, $zone, $settings);
         }
 
+        // The published punch stays in or out: only devices send breaks, and
+        // they read nothing back.
+        $punch = $input->type === 'break_out' ? 'check_out' : 'check_in';
+
         $breaks = (array) ($open->metadata['breaks'] ?? []);
         $breaks[] = array_filter([
             'type' => $input->type === 'break_out' ? 'out' : 'in',
@@ -209,7 +213,7 @@ final class AttendanceEngine
         ], fn ($value) => $value !== null);
         $open->update(['metadata' => array_merge($open->metadata ?? [], ['breaks' => $breaks])]);
 
-        return new AttendanceResult($open, punch: $input->type);
+        return new AttendanceResult($open, punch: $punch);
     }
 
     /**
