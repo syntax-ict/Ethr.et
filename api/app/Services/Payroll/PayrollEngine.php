@@ -854,7 +854,7 @@ final class PayrollEngine
                 $days += (float) $request->days;
             } else {
                 $days += $this->leaveDayCalculator->calculateDays(
-                    $clipStart, $clipEnd, $employee->tenant_id, $employee->branch_id,
+                    $clipStart, $clipEnd, $employee->tenant_id, $employee->branch_id, $employee,
                 );
             }
         }

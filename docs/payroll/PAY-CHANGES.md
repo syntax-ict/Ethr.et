@@ -17,6 +17,7 @@ by hand from the law and do not move at all.
 | Date | Change | Calculation log | Who is affected | Owner decision | Case |
 |---|---|---|---|---|---|
 | 2026-10-27 | Every amount is an exact fraction of cents, rounded once, half away from zero (`App\Support\Cents`), instead of a float passed to `round()` | 1.4 | Nobody measured: G1 to G7 and C1 to C6 are unchanged to the cent. A float could land a hair either side of a half, so a rare payslip may move by one cent | Payroll upgrade plan, upgrade 1 | none |
+| 2026-11-04 | Unpaid leave that runs past the period edge counts the person's own scheduled working days (rotation, then shift, then the organisation's week) instead of the organisation's week | unchanged | People whose schedule differs from the organisation's week, with unpaid leave crossing the period start or end: a Saturday shift is now deducted for Saturdays, a four-day shift no longer for its rest day. Leave inside the period was already deducted by the request's own day count, which now uses the same rule when filed | A-Z review E-06, decided 2026-11-04 | none: G1 to G8 and C1 to C6 have no such leave |
 
 ## Also in calculation log 1.4
 

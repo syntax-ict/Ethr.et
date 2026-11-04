@@ -74,6 +74,7 @@ class LeaveRequestController extends Controller
             $endDate,
             $employee->tenant_id,
             $employee->branch_id,
+            $employee,
         );
 
         if ($days <= 0) {
