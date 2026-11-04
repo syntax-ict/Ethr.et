@@ -50567,7 +50567,8 @@
                         "maxLength": 255
                     },
                     "body": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 10000
                     },
                     "priority": {
                         "type": "string",
@@ -53001,7 +53002,8 @@
                         "maxLength": 255
                     },
                     "body": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 10000
                     },
                     "priority": {
                         "type": "string",
