@@ -110,16 +110,21 @@ function renderWith(ui: ReactNode, dashboard: object = DASHBOARD) {
 }
 
 /**
- * Both places printed `attendance_today.check_in` as it arrived, so an
- * employee read "2026-10-02T05:30:00.000000Z" — a raw UTC instant, three hours
- * off the clock on the wall — instead of their check-in time.
+ * The tile printed `attendance_today.check_in` as it arrived, so an employee
+ * read "2026-10-02T05:30:00.000000Z" — a raw UTC instant, three hours off the
+ * clock on the wall — instead of their check-in time.
  */
 describe("Dashboard — today's check-in time", () => {
-  it("shows the check-in as a local time in the welcome header", async () => {
+  // The header said the attendance state a third time, beside the tile and
+  // the Check In verb (dashboard review, 2026-11-03, PR 7). It greets only.
+  it("is not repeated in the welcome header", async () => {
     renderWith(<WelcomeSection />);
 
-    expect(await screen.findByText("08:30")).toBeInTheDocument();
-    expect(screen.queryByText(/05:30:00/)).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /Abebe/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/checked in/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("08:30")).not.toBeInTheDocument();
   });
 
   it("shows the check-in as a local time on the attendance tile", async () => {
