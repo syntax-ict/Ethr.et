@@ -41,6 +41,7 @@ use App\Support\FrontendUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -485,7 +486,10 @@ class AdminTenantController extends Controller
             ->whereNull('deleted_at')
             ->firstOrFail();
 
-        $newEnd = ($tenant->trial_ends_at ?? now())->addDays($request->integer('days'));
+        // From today when the trial has already ended: added to an end date
+        // 60 days gone, 30 more days left it still over (A-Z review H-05).
+        $ends = $tenant->trial_ends_at !== null ? Carbon::parse($tenant->trial_ends_at) : null;
+        $newEnd = ($ends !== null && $ends->isFuture() ? $ends : Carbon::now())->addDays($request->integer('days'));
         $tenant->update(['trial_ends_at' => $newEnd]);
 
         // A trialing subscription's period is the trial: registration sets both

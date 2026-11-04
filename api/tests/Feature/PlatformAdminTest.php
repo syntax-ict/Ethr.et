@@ -653,3 +653,31 @@ test('settings require authentication', function () {
     test()->getJson('http://authtest.ethr.test/api/v1/settings')
         ->assertUnauthorized();
 });
+
+// A-Z review H-05 (2026-11-04). Extending added the days to the old end date,
+// so a trial that ended 60 days ago "extended" by 30 was still over, and the
+// console said it was done. It also rewrote the trial date of an organisation
+// that was not on a trial at all.
+test('extending a trial that has ended counts the days from today', function () {
+    $tenant = createTenant();
+    test()->actingAs(createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant));
+    $target = Tenant::factory()->create(['status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->subDays(60)]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/tenants/{$target->public_id}/extend-trial", ['days' => 30])
+        ->assertOk();
+
+    expect($target->fresh()->trial_ends_at->toDateString())->toBe(now()->addDays(30)->toDateString())
+        ->and($target->fresh()->isTrialExpired())->toBeFalse();
+});
+
+test('a trial is extended only for an organisation on a trial', function () {
+    $tenant = createTenant();
+    test()->actingAs(createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant));
+    $target = Tenant::factory()->create(['status' => TenantStatus::ACTIVE, 'trial_ends_at' => now()->subYear()]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/tenants/{$target->public_id}/extend-trial", ['days' => 30])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['days' => __('billing.trial_not_running')]);
+
+    expect($target->fresh()->trial_ends_at->isPast())->toBeTrue();
+});
