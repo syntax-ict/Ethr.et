@@ -134,7 +134,11 @@ class DispatchWebhookJob implements ShouldQueue
         // The signed bytes are the bytes sent. Handing the client the array
         // let it encode the payload a second time; the signature held only
         // because both encodings happened to use the same flags.
-        $payloadJson = (string) json_encode($this->payload);
+        //
+        // The delivery id receivers de-duplicate on travels in the body too,
+        // so it is signed: in the header alone a captured delivery could be
+        // replayed under a new id and handled twice (A-Z review G-07).
+        $payloadJson = (string) json_encode([...$this->payload, 'delivery_id' => (string) $delivery->public_id]);
         $signature = 'sha256='.$webhook->sign($payloadJson);
         // The body's own `timestamp` is when the delivery was queued, and a
         // retry carries it unchanged up to a day later, so a receiver could not
