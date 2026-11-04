@@ -924,6 +924,7 @@ return array(
     'App\\Services\\Backup\\DatabaseDumper' => $baseDir . '/app/Services/Backup/DatabaseDumper.php',
     'App\\Services\\Billing\\BillingService' => $baseDir . '/app/Services/Billing/BillingService.php',
     'App\\Services\\Calendar\\EthiopianCalendar' => $baseDir . '/app/Services/Calendar/EthiopianCalendar.php',
+    'App\\Services\\Calendar\\OrganisationMonth' => $baseDir . '/app/Services/Calendar/OrganisationMonth.php',
     'App\\Services\\CurrentTenant' => $baseDir . '/app/Services/CurrentTenant.php',
     'App\\Services\\CustomDomainVerifier' => $baseDir . '/app/Services/CustomDomainVerifier.php',
     'App\\Services\\Dashboard\\DashboardCacheVersion' => $baseDir . '/app/Services/Dashboard/DashboardCacheVersion.php',

@@ -1658,6 +1658,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Services\\Backup\\DatabaseDumper' => __DIR__ . '/../..' . '/app/Services/Backup/DatabaseDumper.php',
         'App\\Services\\Billing\\BillingService' => __DIR__ . '/../..' . '/app/Services/Billing/BillingService.php',
         'App\\Services\\Calendar\\EthiopianCalendar' => __DIR__ . '/../..' . '/app/Services/Calendar/EthiopianCalendar.php',
+        'App\\Services\\Calendar\\OrganisationMonth' => __DIR__ . '/../..' . '/app/Services/Calendar/OrganisationMonth.php',
         'App\\Services\\CurrentTenant' => __DIR__ . '/../..' . '/app/Services/CurrentTenant.php',
         'App\\Services\\CustomDomainVerifier' => __DIR__ . '/../..' . '/app/Services/CustomDomainVerifier.php',
         'App\\Services\\Dashboard\\DashboardCacheVersion' => __DIR__ . '/../..' . '/app/Services/Dashboard/DashboardCacheVersion.php',
