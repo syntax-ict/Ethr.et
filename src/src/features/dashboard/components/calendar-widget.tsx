@@ -65,7 +65,7 @@ function GregorianGrid({
         {weekdays.map((d) => (
           <span
             key={d}
-            className="py-1.5 text-[11px] font-medium text-muted-foreground"
+            className="py-1.5 text-caption font-medium text-muted-foreground"
           >
             {d}
           </span>
@@ -133,7 +133,7 @@ function EthiopianGrid({
         {weekdays.map((d) => (
           <span
             key={d}
-            className="py-1.5 text-[11px] font-medium text-muted-foreground"
+            className="py-1.5 text-caption font-medium text-muted-foreground"
           >
             {d}
           </span>
@@ -295,7 +295,7 @@ export function CalendarWidget() {
           <div>
             <CardTitle className="text-sm font-semibold">{monthName}</CardTitle>
             {monthSubtitle && (
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 {monthSubtitle}
               </p>
             )}
@@ -352,7 +352,7 @@ export function CalendarWidget() {
 
         {(data?.upcoming_holidays ?? []).length > 0 && (
           <div className="mt-3 border-t border-border/60 pt-3">
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="mb-2 text-caption font-medium uppercase tracking-wider text-muted-foreground">
               {t("dashboard.upcoming_holidays", "Upcoming Holidays")}
             </p>
             <div className="space-y-1.5">

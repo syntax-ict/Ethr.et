@@ -182,7 +182,7 @@ export function TeamOverview({ emptyState = true }: { emptyState?: boolean }) {
                     </div>
                     <Badge
                       variant="outline"
-                      className="text-[11px] tabular-nums"
+                      className="text-caption tabular-nums"
                     >
                       {formatDate(dateFromIso(member.start_date), locale)}
                       {" – "}

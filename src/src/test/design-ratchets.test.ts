@@ -49,7 +49,7 @@ const GLUED_SENTENCE =
 const ACCESSIBLE_NAME = /aria-label|placeholder=|sr-only/;
 
 const CEILINGS = {
-  sub12pxText: 96,
+  sub12pxText: 82,
   nativeConfirm: 0,
   discardedErrors: 0,
   silentLoadFailures: 0,

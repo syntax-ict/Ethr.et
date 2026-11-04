@@ -137,7 +137,7 @@ export function RecentActivity() {
                     >
                       {message}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+                    <p className="mt-0.5 text-caption text-muted-foreground/80">
                       {timeAgo(notification.created_at)}
                     </p>
                   </div>

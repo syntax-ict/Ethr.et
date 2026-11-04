@@ -57,9 +57,15 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             <AppSidebar />
             <div className="flex min-w-0 flex-1 flex-col">
               <AppHeader />
+              {/* tabIndex -1 so the skip link above lands focus here in every
+                  browser, not only the ones that move the sequential focus
+                  start to a fragment target; the next Tab is then the page's
+                  first control, not the sidebar's (dashboard review,
+                  2026-11-03, PR 9). */}
               <main
                 id="main-content"
-                className="flex-1 overflow-y-auto"
+                tabIndex={-1}
+                className="flex-1 overflow-y-auto focus:outline-none"
                 role="main"
               >
                 <PageActionsSlotProvider>
