@@ -448,7 +448,32 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         // Uploaded to the bank, whose importer may refuse a byte-order mark.
         { byteOrderMark: false },
       );
-      toast.success(t("payroll_detail_page.bank_file_downloaded"));
+      // The file keeps every row so its total ties to the run, but a row
+      // with no account number pays nobody: finance has to hear who before
+      // uploading it (A-Z review F-02).
+      const missing = file.rows.filter((r) => !r.account_number?.trim());
+      if (missing.length === 0) {
+        toast.success(t("payroll_detail_page.bank_file_downloaded"));
+        return;
+      }
+      const names = missing
+        .slice(0, 5)
+        .map((r) => `${r.employee_name} (${r.employee_code})`)
+        .join(", ");
+      const more =
+        missing.length > 5
+          ? ` ${t("payroll_detail_page.bank_file_and_more", "and :count more", { count: missing.length - 5 })}`
+          : "";
+      toast.warning(
+        t(
+          missing.length === 1
+            ? "payroll_detail_page.bank_file_missing_account_one"
+            : "payroll_detail_page.bank_file_missing_accounts",
+          undefined,
+          { count: missing.length, names: names + more },
+        ),
+        { duration: 20000 },
+      );
     } catch {
       toast.error(t("payroll_detail_page.bank_file_failed"));
     }
