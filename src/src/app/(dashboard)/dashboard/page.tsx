@@ -33,7 +33,7 @@ import { useCurrentUser } from "@/features/auth/api";
 import { DashboardSection } from "@/components/dashboard";
 import { InstallAppBanner } from "@/components/shared/install-app";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import { useNearViewport } from "@/lib/hooks/useNearViewport";
+import { Deferred } from "@/components/shared/deferred";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import {
   type CalendarSystem,
@@ -163,16 +163,27 @@ export default function DashboardPage() {
           )}
         </div>
         <div className="min-w-0 space-y-6">
-          {!hasNoEmployee && <PulsePrompt />}
+          {/* Each side widget makes a request on mount; on a phone they sit
+              well below the first screen, so they wait until the reader
+              comes near (dashboard review, 2026-11-03, PR 11). */}
+          {!hasNoEmployee && (
+            <Deferred placeholder={<Skeleton className="h-24 rounded-xl" />}>
+              <PulsePrompt />
+            </Deferred>
+          )}
           {/* Personal balances; an account with no employee record has none,
               and "My Day" already says how to get one. */}
           {!personalOnly && !hasNoEmployee && <LeaveOverview />}
           {!personalOnly && <CalendarWidget />}
-          <AnnouncementsWidget />
+          <Deferred placeholder={<Skeleton className="h-40 rounded-xl" />}>
+            <AnnouncementsWidget />
+          </Deferred>
           {/* The standalone unread-count tile that used to sit here restated
               what the header bell already shows and what Recent Activity
               already lists — three renderings of one number. */}
-          <RecentActivity />
+          <Deferred placeholder={<Skeleton className="h-40 rounded-xl" />}>
+            <RecentActivity />
+          </Deferred>
         </div>
       </div>
     </div>
@@ -328,15 +339,12 @@ function SelfServiceKpis() {
  * import, and those who do see the charts fetch them on the way down the page.
  */
 function DeferredCharts() {
-  const { ref, near } = useNearViewport<HTMLDivElement>();
-
   return (
-    <div ref={ref}>
-      {near ? (
-        <InteractiveCharts />
-      ) : (
-        <Skeleton className={CHART_PLACEHOLDER} />
-      )}
-    </div>
+    <Deferred
+      margin="600px"
+      placeholder={<Skeleton className={CHART_PLACEHOLDER} />}
+    >
+      <InteractiveCharts />
+    </Deferred>
   );
 }

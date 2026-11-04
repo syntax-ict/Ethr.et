@@ -75,8 +75,17 @@ vi.mock("@/features/dashboard/components", async (importOriginal) => {
 const observers: Array<{
   callback: IntersectionObserverCallback;
   root: Element | Document | null | undefined;
+  margin: string | undefined;
   disconnected: boolean;
 }> = [];
+
+/**
+ * The charts' own observer: the side column's light widgets wait too, with a
+ * 200 px margin (PR 11), and the charts keep their 600 px one.
+ */
+function chartObservers() {
+  return observers.filter((o) => o.margin === "600px");
+}
 
 class FakeIntersectionObserver {
   private entry: (typeof observers)[number];
@@ -84,7 +93,12 @@ class FakeIntersectionObserver {
     callback: IntersectionObserverCallback,
     options?: IntersectionObserverInit,
   ) {
-    this.entry = { callback, root: options?.root, disconnected: false };
+    this.entry = {
+      callback,
+      root: options?.root,
+      margin: options?.rootMargin,
+      disconnected: false,
+    };
     observers.push(this.entry);
   }
   observe() {}
@@ -166,7 +180,7 @@ describe("Dashboard charts", () => {
     scrollChartsNear();
 
     expect(session.chartsMounted).toBe(0);
-    expect(observers).toHaveLength(0);
+    expect(chartObservers()).toHaveLength(0);
   });
 
   it("wait for a supervisor to come near them, keeping their height", () => {
@@ -179,7 +193,7 @@ describe("Dashboard charts", () => {
     scrollChartsNear();
 
     expect(screen.getByTestId("charts")).toBeInTheDocument();
-    expect(observers.every((o) => o.disconnected)).toBe(true);
+    expect(chartObservers().every((o) => o.disconnected)).toBe(true);
   });
 
   /**
@@ -191,8 +205,8 @@ describe("Dashboard charts", () => {
     session.isSupervisor = true;
     renderPage();
 
-    expect(observers).toHaveLength(1);
-    expect(observers[0].root).toBe(screen.getByTestId("scroller"));
+    expect(chartObservers()).toHaveLength(1);
+    expect(chartObservers()[0].root).toBe(screen.getByTestId("scroller"));
   });
 
   it("wait the same way for the executive view", () => {

@@ -40,13 +40,20 @@ export function notificationLink(n: Notification): string | undefined {
 type UnreadCount =
   operations["notification.unreadCount"]["responses"][200]["content"]["application/json"];
 
-export function useNotifications(params?: { page?: number }) {
+/**
+ * @param enabled The bell passes whether its popover is open: the first page
+ * was fetched on every page load for a list nobody had asked to see, beside
+ * the unread count that already drew the badge (dashboard review,
+ * 2026-11-03, PR 11).
+ */
+export function useNotifications(params?: { page?: number }, enabled = true) {
   return useQuery<PaginatedResponse<Notification>>({
     queryKey: ["notifications", params],
     queryFn: async () => {
       const { data } = await apiClient.get("/notifications", { params });
       return data;
     },
+    enabled,
   });
 }
 
