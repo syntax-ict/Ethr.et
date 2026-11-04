@@ -1,4 +1,8 @@
-import { ethiopianMonths, toEthiopian } from "@/lib/calendar/ethiopian";
+import {
+  ethiopianMonths,
+  formatEthiopianMonthYear,
+  toEthiopian,
+} from "@/lib/calendar/ethiopian";
 import type { CalendarSystem } from "@/lib/calendar/calendar-context";
 import { formatETB } from "@/lib/utils/currency";
 
@@ -11,6 +15,7 @@ import { formatETB } from "@/lib/utils/currency";
  */
 
 const MONTH_KEY = /^(\d{4})-(\d{2})$/;
+const ETHIOPIAN_MONTH_KEY = /^(\d{4})-(\d{2})-EC$/;
 const DAY_KEY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 const compact = new Intl.NumberFormat("en", {
@@ -31,12 +36,15 @@ export function birrTooltip(value: unknown): string {
 }
 
 /**
- * A `YYYY-MM` bucket as its month name: `June 2026`.
+ * A month bucket as its month name: `2026-06` is `June 2026`, and `2019-02-EC`
+ * is `Tikimt 2019`.
  *
- * The buckets are Gregorian months, so the name is Gregorian in either
- * calendar — one Gregorian month spans two Ethiopian ones, and naming either
- * would misstate the bucket. Payroll periods read the same way ("July 2026").
- * Anything else, such as a payroll period label, passes through unchanged.
+ * Each bucket is named in its own calendar, whichever the reader chose: one
+ * Gregorian month spans two Ethiopian ones and the other way round, so naming
+ * a bucket in the other calendar would misstate it. The hires buckets follow
+ * the organisation's calendar (`OrganisationMonth`, since 2026-11-03), the
+ * headcount buckets are Gregorian, and payroll periods are already names
+ * ("July 2026"). Anything else passes through unchanged.
  *
  * `short` is for axis ticks: six "September 2026"s do not fit under a half-
  * width chart, so Recharts silently dropped some, and a month with no hires
@@ -48,6 +56,15 @@ export function monthKeyLabel(
   locale = "en",
   width: "long" | "short" = "long",
 ): string {
+  const ethiopian = ETHIOPIAN_MONTH_KEY.exec(String(value));
+  if (ethiopian) {
+    return formatEthiopianMonthYear(
+      Number(ethiopian[1]),
+      Number(ethiopian[2]),
+      locale,
+    );
+  }
+
   const match = MONTH_KEY.exec(String(value));
   if (!match) return String(value);
 

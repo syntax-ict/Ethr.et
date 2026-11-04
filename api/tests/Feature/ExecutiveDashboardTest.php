@@ -269,7 +269,8 @@ test('overtime trend excludes draft payroll runs', function () {
 });
 
 test('payroll by cost center sums gross pay per center and buckets unassigned employees', function () {
-    $tenant = createTenant();
+    // Gregorian: the factory's run covers the Gregorian month, and so must the default period.
+    $tenant = createTenant(['settings' => ['calendar' => 'gregorian']]);
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
     // Completed, not the factory's draft: a draft run counts in no payroll figure.

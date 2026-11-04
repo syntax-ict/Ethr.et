@@ -6,8 +6,8 @@ import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { toast } from "sonner";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
+import { DEFAULT_TIMEZONE, todayIn } from "@/lib/utils/date";
 import { BulkActionsBar } from "@/features/employees/components/bulk-actions-bar";
-import { todayIn } from "@/lib/utils/date";
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -128,9 +128,9 @@ describe("<BulkActionsBar>", () => {
     expect(requestBody).toEqual({
       employee_ids: ["emp-1", "emp-2"],
       status: "retired",
-      // Today in Addis Ababa, as the bar computes it: the UTC date is a day
-      // behind from 21:00 to 24:00 UTC, when CI failed.
-      effective_date: todayIn("Africa/Addis_Ababa"),
+      // Today where the organisation is: the bar dates the change in the
+      // tenant zone, and the UTC date is a day behind Addis Ababa until 03:00.
+      effective_date: todayIn(DEFAULT_TIMEZONE),
       reason: "Reached retirement age",
     });
     expect(toast.success).toHaveBeenCalledWith("Updated 2 employees");

@@ -17,6 +17,7 @@ import {
   useExecutiveAttendance,
   useExecutiveOverview,
 } from "@/features/dashboard/executive-api";
+import { useThisMonth } from "@/features/dashboard/use-this-month";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -129,7 +130,9 @@ function ChartEmpty({ children }: { children: React.ReactNode }) {
 }
 
 function OrganisationAttendance() {
-  const { data, isLoading, isError, refetch } = useExecutiveAttendance();
+  // The reader's month, as the Organisation today tiles and Analytics ask.
+  const { data, isLoading, isError, refetch } =
+    useExecutiveAttendance(useThisMonth());
   const { t, locale } = useT();
   const { calendar } = useCalendar();
 
@@ -203,7 +206,9 @@ function OrganisationAttendance() {
 }
 
 function HeadcountByDepartment() {
-  const { data, isLoading, isError, refetch } = useExecutiveOverview();
+  // Headcount has no period; the same one as the tiles shares their request.
+  const { data, isLoading, isError, refetch } =
+    useExecutiveOverview(useThisMonth());
   const { t } = useT();
 
   if (isLoading) return <Skeleton className={cn(CHART_HEIGHT, "rounded-lg")} />;
