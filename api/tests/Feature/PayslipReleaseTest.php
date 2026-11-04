@@ -139,6 +139,21 @@ test("an employee's payslip names its period", function () {
     expect($run->period_label)->toBeString()->not->toBe('');
 });
 
+test("the employee dashboard's latest payslip carries the run's dates", function () {
+    // The tile printed the stored `period_label` ("September 2026"), English
+    // Gregorian, while /payroll named the same run Meskerem 2019 for an
+    // Ethiopian-calendar reader (dashboard review, 2026-11-03). The dates let
+    // the tile derive the month the way /payroll does.
+    [$tenant, $staff, $run] = payslipFixture('approved');
+    test()->actingAs($staff);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/employee")
+        ->assertOk()
+        ->assertJsonPath('latest_payslip.period', $run->period_label)
+        ->assertJsonPath('latest_payslip.period_start', $run->period_start->toDateString())
+        ->assertJsonPath('latest_payslip.period_end', $run->period_end->toDateString());
+});
+
 test("the employee dashboard's latest payslip is the latest approved one", function (string $status, bool $shown) {
     // Found browser-testing N13: /payslips/my lists approved runs only (N8),
     // but the dashboard tile took the newest entry with no status check, so
