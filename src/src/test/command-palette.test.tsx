@@ -10,6 +10,7 @@ import {
 } from "@/components/shared/command-palette";
 import { act } from "react";
 import type { GlobalSearchResult } from "@/features/search/api";
+import { DEFAULT_TIMEZONE, todayIn } from "@/lib/utils/date";
 
 const pushMock = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -305,7 +306,9 @@ describe("CommandPalette tasks and pages", () => {
     expect(option).toHaveTextContent(/filtered to the people marked absent/i);
     await user.click(option);
 
-    const today = new Date().toISOString().slice(0, 10);
+    // The link names today where the organisation is (no tenant here, so the
+    // Addis Ababa default), not the UTC date, which lags it until 03:00.
+    const today = todayIn(DEFAULT_TIMEZONE);
     expect(pushMock).toHaveBeenLastCalledWith(
       `/attendance?status=absent&from=${today}&to=${today}`,
     );
