@@ -92,6 +92,9 @@ export function PayrollTab({
             </div>
           )}
 
+          {/* Net and deductions stack to the gross, so one bar per month
+              reads as the cost and its split; two bars side by side read
+              as two costs (charts upgrade, 2026-11-04). */}
           {data.monthly_trend && data.monthly_trend.length > 0 && (
             <ChartCard
               title={t("analytics_page.monthly_payroll_cost")}
@@ -121,6 +124,11 @@ export function PayrollTab({
                         numeric: true,
                       },
                       {
+                        key: "deductions",
+                        label: t("analytics_page.deductions", "Deductions"),
+                        numeric: true,
+                      },
+                      {
                         key: "projected",
                         label: t(
                           "executive_dashboard.projected_gross",
@@ -134,6 +142,9 @@ export function PayrollTab({
                         period: periodName(m.period),
                         gross: birrTick(m.gross_cents / 100),
                         net: birrTick(m.net_cents / 100),
+                        deductions: birrTick(
+                          (m.gross_cents - m.net_cents) / 100,
+                        ),
                         projected: "",
                       })),
                       ...(forecast.data?.payroll_gross.projected ?? []).map(
@@ -141,6 +152,7 @@ export function PayrollTab({
                           period: periodName(p.label),
                           gross: "",
                           net: "",
+                          deductions: "",
                           projected: birrTick(p.value / 100),
                         }),
                       ),
@@ -152,12 +164,12 @@ export function PayrollTab({
                       className="mb-3"
                       items={[
                         {
-                          label: t("analytics_page.gross", "Gross"),
-                          color: seriesColor(0),
-                        },
-                        {
                           label: t("analytics_page.net", "Net"),
                           color: seriesColor(1),
+                        },
+                        {
+                          label: t("analytics_page.deductions", "Deductions"),
+                          color: seriesColor(0),
                         },
                         ...((forecast.data?.payroll_gross.projected.length ??
                           0) > 0
@@ -180,7 +192,7 @@ export function PayrollTab({
                           ...data.monthly_trend.map((m) => ({
                             period: periodName(m.period),
                             Net: m.net_cents / 100,
-                            Gross: m.gross_cents / 100,
+                            Deductions: (m.gross_cents - m.net_cents) / 100,
                           })),
                           ...(forecast.data?.payroll_gross.projected ?? []).map(
                             (p) => ({
@@ -199,16 +211,17 @@ export function PayrollTab({
                         />
                         <Tooltip {...tooltipProps} formatter={birrTooltip} />
                         <Bar
-                          dataKey="Gross"
-                          name={t("analytics_page.gross", "Gross")}
-                          fill={seriesColor(0)}
-                          radius={[4, 4, 0, 0]}
+                          dataKey="Net"
+                          name={t("analytics_page.net", "Net")}
+                          stackId="cost"
+                          fill={seriesColor(1)}
                           maxBarSize={28}
                         />
                         <Bar
-                          dataKey="Net"
-                          name={t("analytics_page.net", "Net")}
-                          fill={seriesColor(1)}
+                          dataKey="Deductions"
+                          name={t("analytics_page.deductions", "Deductions")}
+                          stackId="cost"
+                          fill={seriesColor(0)}
                           radius={[4, 4, 0, 0]}
                           maxBarSize={28}
                         />
