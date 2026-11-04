@@ -105,6 +105,7 @@ final class EmployeeDashboardService
             ->get()
             ->map(fn ($b) => [
                 'type' => $b->leaveType?->name,
+                'type_am' => $b->leaveType?->name_am,
                 'entitled' => (float) $b->entitled_days,
                 'used' => (float) $b->used_days,
                 'remaining' => $b->remainingDays(),

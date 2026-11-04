@@ -123,15 +123,43 @@ describe("the dashboard shell", () => {
 
   it("renders first exactly the loading screen the prerendered HTML holds", () => {
     // The server render, which hydration must match: nothing past the gate.
+    const labels = { am: am["common.loading"], en: "Loading..." };
     const html = renderToString(
-      <DashboardShell loadingLabel={am["common.loading"]}>
+      <DashboardShell
+        loadingLabel={am["common.loading"]}
+        loadingLabels={labels}
+      >
         <p>a page</p>
       </DashboardShell>,
     );
 
     expect(html).toBe(
-      renderToString(<AppLoadingScreen label={am["common.loading"]} />),
+      renderToString(
+        <AppLoadingScreen label={am["common.loading"]} labels={labels} />,
+      ),
     );
+  });
+
+  // The prerendered screen is Amharic for everyone; an English reader saw it
+  // on every cold load (dashboard review, 2026-11-03, PR 10). The server
+  // puts every language's label on the element and an inline script swaps
+  // in the stored one before hydration; React then reads the same preference.
+  it("shows the loading label in the stored language", () => {
+    const labels = { am: am["common.loading"], en: "Loading..." };
+    const html = renderToString(
+      <AppLoadingScreen label={am["common.loading"]} labels={labels} />,
+    );
+    expect(html).toContain(am["common.loading"]);
+    expect(html).toContain('localStorage.getItem("locale")');
+
+    localStorage.setItem("locale", "en");
+    try {
+      render(<AppLoadingScreen label={am["common.loading"]} labels={labels} />);
+      expect(screen.getByText("Loading...")).toBeInTheDocument();
+      expect(screen.queryByText(am["common.loading"])).toBeNull();
+    } finally {
+      localStorage.removeItem("locale");
+    }
   });
 
   it("opens once the reader's dictionary is in memory", async () => {
