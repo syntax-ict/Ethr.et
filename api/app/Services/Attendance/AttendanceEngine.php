@@ -17,6 +17,7 @@ use App\Models\Employee;
 use App\Models\Tenant;
 use App\Services\Attendance\Device\AttendanceDeviceGate;
 use App\Services\Attendance\Device\DeviceVerdict;
+use App\Services\FileStorageService;
 use App\Support\AttendanceRules;
 use App\Support\AttendanceWebhookPayload;
 use App\Support\TenantTime;
@@ -35,9 +36,46 @@ final class AttendanceEngine
         private readonly AttendancePolicy $policy,
         private readonly AttendancePlaces $places,
         private readonly AttendanceRiskScorer $risk,
+        private readonly FileStorageService $storage,
     ) {}
 
+    /**
+     * The phone's selfie is stored before the punch is decided. When the
+     * punch is refused, or a retry is answered with the record that already
+     * has its own photo, the new one belongs to no record: no retention
+     * schedule would ever find it, so it is deleted here (A-Z review D-02).
+     */
     public function record(AttendanceInput $input): AttendanceResult
+    {
+        try {
+            $result = $this->decide($input);
+        } catch (\Throwable $e) {
+            $this->discardPhoto($input->photoPath);
+
+            throw $e;
+        }
+
+        if ($input->photoPath !== null && ! in_array($input->photoPath, $result->record->photoPaths(), true)) {
+            $this->discardPhoto($input->photoPath);
+        }
+
+        return $result;
+    }
+
+    private function discardPhoto(?string $path): void
+    {
+        if ($path === null) {
+            return;
+        }
+
+        try {
+            $this->storage->delete($path);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    private function decide(AttendanceInput $input): AttendanceResult
     {
         if ($input->idempotencyKey) {
             $existing = AttendanceRecord::query()
