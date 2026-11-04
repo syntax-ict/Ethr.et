@@ -145,11 +145,11 @@ final class AttendanceEngine
         $now = $this->resolveMoment($input);
         $open = $this->findOpenRecord($input, $now, $zone);
 
-        // A punch older than the open record's check-in (an offline kiosk
-        // syncing late, a device backlog) cannot be its check-out: it would
-        // end the day before it began. It is a check-in, and the conflict
-        // resolver decides whether it joins the open record.
-        if ($open === null || $now->lt($open->check_in)) {
+        // A punch older than every open record's check-in (an offline kiosk
+        // syncing late, a device backlog) finds none, since it cannot end a
+        // day before it began. It is a check-in, and the conflict resolver
+        // decides whether it joins the open record.
+        if ($open === null) {
             return $this->processCheckIn($input, $employee, $zone, $settings);
         }
 
@@ -181,6 +181,10 @@ final class AttendanceEngine
             ->whereDate('date', '>=', $local->copy()->subDay()->format('Y-m-d'))
             ->whereDate('date', '<=', $today)
             ->whereNotNull('check_in')
+            // A check-out that arrives late (an offline phone, a device
+            // backlog) closes the record it belongs to, never one that began
+            // after it: that record would end before it started (A-Z review D-05).
+            ->where('check_in', '<=', $now)
             ->whereNull('check_out')
             // A voided duplicate keeps its check-in; closing it would put the
             // check-out on a record nothing counts.
