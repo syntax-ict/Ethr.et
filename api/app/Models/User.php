@@ -94,6 +94,7 @@ class User extends Authenticatable implements HasLocalePreference
             'invited_at' => 'datetime',
             'activated_at' => 'datetime',
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
         ];
     }
 

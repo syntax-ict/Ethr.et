@@ -23,6 +23,7 @@ enum NextStepId: string
     case PayrollFailed = 'payroll_failed';
     case SetupAdminPresent = 'setup_admin_present';
     case SetupAdminActive = 'setup_admin_active';
+    case OwnerPhone = 'owner_phone';
 
     // Warnings: work waiting for a decision, or setup that is genuinely unfinished.
     case Integrity = 'integrity';
@@ -73,7 +74,8 @@ enum NextStepId: string
             self::SetupEmployeeDepartments,
             self::SetupAttendanceSource,
             self::SetupAdminPresent,
-            self::SetupAdminActive => NextStepGroup::Setup,
+            self::SetupAdminActive,
+            self::OwnerPhone => NextStepGroup::Setup,
             self::PayrollFailed,
             self::PayrollApprove,
             self::Integrity,
@@ -88,7 +90,8 @@ enum NextStepId: string
             self::AttendanceBlockers,
             self::PayrollFailed,
             self::SetupAdminPresent,
-            self::SetupAdminActive => NextStepSeverity::Blocker,
+            self::SetupAdminActive,
+            self::OwnerPhone => NextStepSeverity::Blocker,
             self::CompleteProfile,
             self::RecordsMissingEmergencyContact,
             self::RecordsMissingPhone,

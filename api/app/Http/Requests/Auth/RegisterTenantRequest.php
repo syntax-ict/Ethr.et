@@ -61,7 +61,7 @@ class RegisterTenantRequest extends FormRequest
             ],
             'admin_name' => ['required', 'string', 'min:2', 'max:255'],
             'admin_email' => ['required', 'string', 'email', 'max:255'],
-            'admin_phone' => ['nullable', 'string', 'regex:/^\+251\d{9}$/'],
+            'admin_phone' => ['required', 'string', 'regex:/^\+251\d{9}$/'],
             // The tenant does not exist yet, so this falls through to
             // PasswordPolicy::DEFAULTS — identical to the previous `min:8`. What
             // it buys is drift protection: raising the platform floor in

@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\V1\Auth\MeController;
 use App\Http\Controllers\Api\V1\Auth\MfaSetupController;
 use App\Http\Controllers\Api\V1\Auth\MfaVerifyController;
 use App\Http\Controllers\Api\V1\Auth\OtpController;
+use App\Http\Controllers\Api\V1\Auth\OwnPhoneController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Auth\RefreshController;
 use App\Http\Controllers\Api\V1\Auth\RegisterController;
@@ -361,6 +362,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/logout', LogoutController::class);
         Route::post('/refresh', RefreshController::class);
         Route::get('/me', MeController::class);
+        Route::put('/me/phone', OwnPhoneController::class);
         Route::post('/password/change', [PasswordResetController::class, 'change']);
 
         // MFA

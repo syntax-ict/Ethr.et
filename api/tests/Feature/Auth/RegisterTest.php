@@ -45,6 +45,7 @@ describe('POST /api/v1/auth/register', function () {
             'subdomain' => 'taken-domain',
             'admin_name' => 'Admin',
             'admin_email' => 'admin@another.com',
+            'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
         ];
@@ -72,6 +73,7 @@ describe('POST /api/v1/auth/register', function () {
             'subdomain' => 'test-corp',
             'admin_name' => 'Admin',
             'admin_email' => 'admin@test.com',
+            'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'DifferentPass!',
         ];
@@ -87,6 +89,7 @@ describe('POST /api/v1/auth/register', function () {
             'subdomain' => 'INVALID SUB',
             'admin_name' => 'Admin',
             'admin_email' => 'admin@test.com',
+            'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
         ];
@@ -161,6 +164,7 @@ describe('POST /api/v1/auth/register', function () {
             'subdomain' => 'policy-corp',
             'admin_name' => 'Admin',
             'admin_email' => 'admin@policy.com',
+            'admin_phone' => '0912345678',
             'password' => 'short',
             'password_confirmation' => 'short',
         ];
@@ -176,6 +180,7 @@ describe('POST /api/v1/auth/register', function () {
             'subdomain' => 'id-test',
             'admin_name' => 'Admin',
             'admin_email' => 'admin@idtest.com',
+            'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
         ];

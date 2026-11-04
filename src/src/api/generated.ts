@@ -5468,6 +5468,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/me/phone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Phone me */
+        put: operations["auth.ownPhone"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/process": {
         parameters: {
             query?: never;
@@ -10146,7 +10163,7 @@ export interface components {
          * @description Every step `GET /next-steps` can return. The case order is the tie-break order inside one severity: the steps that hold up other people's work come before configuration, and configuration before housekeeping. The frontend registry is keyed by this enum, which Scramble publishes as a union type, so a case added here without copy there fails the TypeScript build rather than rendering a blank row.  Severity is a property of the step, not of a moment, so a step that cannot be dismissed for good (a blocker) is known from its id alone.
          * @enum {string}
          */
-        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent";
+        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "owner_phone" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent";
         /** NextStepResource */
         NextStepResource: {
             id: components["schemas"]["NextStepId"];
@@ -10683,7 +10700,7 @@ export interface components {
             admin_name: string;
             /** Format: email */
             admin_email: string;
-            admin_phone?: string | null;
+            admin_phone: string;
             /**
              * @description The tenant does not exist yet, so this falls through to
              *     PasswordPolicy::DEFAULTS — identical to the previous `min:8`. What
@@ -12362,6 +12379,10 @@ export interface components {
             rest_day?: number;
             holiday: number;
             holiday_night: number;
+        };
+        /** UpdateOwnPhoneRequest */
+        UpdateOwnPhoneRequest: {
+            phone: string;
         };
         /**
          * UpdatePayrollRuleRequest
@@ -28384,6 +28405,34 @@ export interface operations {
             };
         };
     };
+    "auth.ownPhone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOwnPhoneRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        phone: string | null;
+                        phone_verified: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "payroll.process": {
         parameters: {
             query?: never;
@@ -30133,6 +30182,13 @@ export interface operations {
                             /** Format: date-time */
                             created_at: string;
                         }[];
+                        owner: {
+                            name: string;
+                            email: string | null;
+                            phone: string | null;
+                            phone_verified: boolean;
+                            last_login_at: string | null;
+                        } | null;
                     };
                 };
             };

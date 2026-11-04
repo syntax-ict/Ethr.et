@@ -22,6 +22,7 @@ function provisionTenantRegistrationPayload(string $subdomain): array
         'subdomain' => $subdomain,
         'admin_name' => 'Provision Admin',
         'admin_email' => "admin@{$subdomain}.test",
+        'admin_phone' => '0912345678',
         'password' => 'SecurePass123!',
         'password_confirmation' => 'SecurePass123!',
         'organization_type' => 'general',

@@ -48061,6 +48061,7 @@
                     "payroll_failed",
                     "setup_admin_present",
                     "setup_admin_active",
+                    "owner_phone",
                     "integrity",
                     "payroll_approve",
                     "approvals",
