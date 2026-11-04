@@ -1148,6 +1148,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // through the API is tiered.
     Route::get('/audit-logs', [AuditLogController::class, 'index'])
         ->middleware(RequiresFeature::class.':audit_log');
+    Route::get('/audit-logs/stats', [AuditLogController::class, 'stats'])
+        ->middleware(RequiresFeature::class.':audit_log');
 
     // Custom roles
     Route::get('/permissions', [CustomRoleController::class, 'permissions']);
