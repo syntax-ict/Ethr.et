@@ -101,6 +101,35 @@ export const EMPTY_SITE_CONTENT: SiteContent = {
   product_mark_url: null,
 };
 
+/**
+ * The last payload, kept across page loads. The backend caches it for five
+ * minutes, so a copy younger than that is what the server would send; a
+ * fresh copy means no request on this load (dashboard review, 2026-11-03,
+ * PR 11). Storage can be absent or full; either way the fetch still runs.
+ */
+const STORAGE_KEY = "ethr.site-content";
+const FRESH_FOR_MS = 5 * 60_000;
+
+function storedSiteContent(): { data: SiteContent; at: number } | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { data?: SiteContent; at?: number };
+    if (!parsed.data || typeof parsed.at !== "number") return null;
+    return { data: parsed.data, at: parsed.at };
+  } catch {
+    return null;
+  }
+}
+
+function storeSiteContent(data: SiteContent): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, at: Date.now() }));
+  } catch {
+    // Private mode or a full store: the next load fetches, as before.
+  }
+}
+
 const siteContentQuery = {
   queryKey: ["site-content"],
   // A plain GET: public, unauthenticated, not CSRF-checked, and the same for
@@ -113,12 +142,23 @@ const siteContentQuery = {
       throw new Error(`site-content answered ${response.status}`);
     }
     const body = (await response.json()) as { data: SiteContent };
+    storeSiteContent(body.data);
     return body.data;
   },
-  // The backend caches for five minutes and invalidates on write, so a short
-  // client stale time costs little and means an operator's correction reaches
-  // a tab that is already open.
-  staleTime: 60_000,
+  // The backend caches for five minutes and invalidates on write, so the
+  // client keeps an answer for the same five minutes: an operator's
+  // correction reaches an open tab when the backend's own cache would have
+  // served it anyway.
+  staleTime: FRESH_FOR_MS,
+  // A stored copy younger than that stands in for the first answer, dated so
+  // React Query knows when it was fetched and refetches once it is stale.
+  initialData: () => {
+    const stored = storedSiteContent();
+    return stored && Date.now() - stored.at < FRESH_FOR_MS
+      ? stored.data
+      : undefined;
+  },
+  initialDataUpdatedAt: () => storedSiteContent()?.at,
 } as const;
 
 export function useSiteContent(): SiteContent {
