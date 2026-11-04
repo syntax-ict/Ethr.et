@@ -30,7 +30,7 @@ import {
   seriesColor,
   tooltipProps,
 } from "@/components/dashboard/chart-theme";
-import { ChartCard } from "@/components/dashboard/chart-card";
+import { ChartCard, ChartTable } from "@/components/dashboard/chart-card";
 
 export function AttendanceTab({
   branchPublicId,
@@ -87,106 +87,162 @@ export function AttendanceTab({
           <div className="space-y-6">
             {data.daily_trend && data.daily_trend.length > 0 && (
               <ChartCard title={t("analytics_page.daily_attendance_trend")}>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart
-                    data={data.daily_trend}
-                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="analytics-present"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
+                {(view) =>
+                  view === "table" ? (
+                    <ChartTable
+                      caption={t("analytics_page.daily_attendance_trend")}
+                      columns={[
+                        { key: "date", label: t("common.date", "Date") },
+                        {
+                          key: "present",
+                          label: t("dashboard.present", "Present"),
+                          numeric: true,
+                        },
+                      ]}
+                      rows={data.daily_trend.map((d) => ({
+                        date: dayKeyLabel(d.date, calendar, locale),
+                        present: d.present,
+                      }))}
+                    />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <AreaChart
+                        data={data.daily_trend}
+                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
                       >
-                        <stop
-                          offset="0%"
-                          stopColor={STATUS_SERIES.present}
-                          stopOpacity={0.28}
+                        <defs>
+                          <linearGradient
+                            id="analytics-present"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="0%"
+                              stopColor={STATUS_SERIES.present}
+                              stopOpacity={0.28}
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor={STATUS_SERIES.present}
+                              stopOpacity={0}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid {...gridProps} />
+                        <XAxis
+                          dataKey="date"
+                          {...axisProps}
+                          minTickGap={16}
+                          tickFormatter={(value) =>
+                            dayKeyLabel(value, calendar, locale)
+                          }
                         />
-                        <stop
-                          offset="100%"
-                          stopColor={STATUS_SERIES.present}
-                          stopOpacity={0}
+                        <YAxis
+                          {...axisProps}
+                          allowDecimals={false}
+                          width={44}
                         />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid {...gridProps} />
-                    <XAxis
-                      dataKey="date"
-                      {...axisProps}
-                      minTickGap={16}
-                      tickFormatter={(value) =>
-                        dayKeyLabel(value, calendar, locale)
-                      }
-                    />
-                    <YAxis {...axisProps} allowDecimals={false} width={44} />
-                    <Tooltip
-                      {...lineTooltipProps}
-                      labelFormatter={(label) =>
-                        dayKeyLabel(label, calendar, locale)
-                      }
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="present"
-                      name={t("dashboard.present", "Present")}
-                      stroke={STATUS_SERIES.present}
-                      strokeWidth={2}
-                      fill="url(#analytics-present)"
-                      activeDot={{ r: 4, strokeWidth: 0 }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                        <Tooltip
+                          {...lineTooltipProps}
+                          labelFormatter={(label) =>
+                            dayKeyLabel(label, calendar, locale)
+                          }
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="present"
+                          name={t("dashboard.present", "Present")}
+                          stroke={STATUS_SERIES.present}
+                          strokeWidth={2}
+                          fill="url(#analytics-present)"
+                          activeDot={{ r: 4, strokeWidth: 0 }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )
+                }
               </ChartCard>
             )}
 
             <div className="grid gap-6 lg:grid-cols-2">
               {sources.length > 0 && (
                 <ChartCard title={t("analytics_page.by_source")}>
-                  <div className="flex flex-col items-center gap-6 sm:flex-row">
-                    <div className="relative h-52 w-52 shrink-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={sources}
-                            dataKey="count"
-                            nameKey="source"
-                            innerRadius={62}
-                            outerRadius={90}
-                            paddingAngle={2}
-                            strokeWidth={0}
-                          >
-                            {sources.map((_, i) => (
-                              <Cell key={i} fill={seriesColor(i)} />
-                            ))}
-                          </Pie>
-                          <Tooltip {...tooltipProps} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-semibold tabular-nums text-foreground">
-                          {sourceTotal}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {t("analytics_page.punches", "punches")}
-                        </span>
+                  {(view) =>
+                    view === "table" ? (
+                      <ChartTable
+                        caption={t("analytics_page.by_source")}
+                        columns={[
+                          {
+                            key: "source",
+                            label: t("analytics_page.by_source"),
+                          },
+                          {
+                            key: "count",
+                            label: t("analytics_page.punches", "punches"),
+                            numeric: true,
+                          },
+                          { key: "share", label: "%", numeric: true },
+                        ]}
+                        rows={sources.map((s) => ({
+                          source: (
+                            <span className="capitalize">
+                              {t(`attendance.source_${s.source}`, s.source)}
+                            </span>
+                          ),
+                          count: s.count,
+                          share:
+                            sourceTotal > 0
+                              ? Math.round((s.count / sourceTotal) * 100)
+                              : 0,
+                        }))}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-6 sm:flex-row">
+                        <div className="relative h-52 w-52 shrink-0">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={sources}
+                                dataKey="count"
+                                nameKey="source"
+                                innerRadius={62}
+                                outerRadius={90}
+                                paddingAngle={2}
+                                strokeWidth={0}
+                              >
+                                {sources.map((_, i) => (
+                                  <Cell key={i} fill={seriesColor(i)} />
+                                ))}
+                              </Pie>
+                              <Tooltip {...tooltipProps} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-2xl font-semibold tabular-nums text-foreground">
+                              {sourceTotal}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {t("analytics_page.punches", "punches")}
+                            </span>
+                          </div>
+                        </div>
+                        <ChartLegend
+                          stacked
+                          items={sources.map((s, i) => ({
+                            label: (
+                              <span className="capitalize">
+                                {t(`attendance.source_${s.source}`, s.source)}
+                              </span>
+                            ),
+                            color: seriesColor(i),
+                            value: `${sourceTotal > 0 ? Math.round((s.count / sourceTotal) * 100) : 0}%`,
+                          }))}
+                        />
                       </div>
-                    </div>
-                    <ChartLegend
-                      stacked
-                      items={sources.map((s, i) => ({
-                        label: (
-                          <span className="capitalize">
-                            {t(`attendance.source_${s.source}`, s.source)}
-                          </span>
-                        ),
-                        color: seriesColor(i),
-                        value: `${sourceTotal > 0 ? Math.round((s.count / sourceTotal) * 100) : 0}%`,
-                      }))}
-                    />
-                  </div>
+                    )
+                  }
                 </ChartCard>
               )}
 

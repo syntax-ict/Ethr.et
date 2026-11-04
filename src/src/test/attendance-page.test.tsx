@@ -337,4 +337,67 @@ describe("<AttendancePage> punch buttons", () => {
       screen.getByRole("button", { name: /^\s*check in$/i }),
     ).toBeInTheDocument();
   });
+  // An administrator without an employee record has no phone to ask about:
+  // the page asked anyway, and the API answered 404 on every visit
+  // (dashboard review, 2026-11-03, PR 12).
+  describe("the registered phone", () => {
+    function meWith(employeePublicId: string | null) {
+      return http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          user: {
+            public_id: "U1",
+            name: "Test User",
+            role: "employee",
+            employee_public_id: employeePublicId,
+          },
+          tenant: {
+            public_id: "T1",
+            name: "Demo",
+            timezone: "Africa/Addis_Ababa",
+          },
+          permissions: ["attendance.viewOwn", "attendance.checkIn"],
+        }),
+      );
+    }
+
+    function serveRecords() {
+      server.use(
+        http.get("*/api/v1/attendance", forbidden),
+        http.get("*/api/v1/attendance/my", () =>
+          HttpResponse.json(page([RECORD])),
+        ),
+      );
+    }
+
+    function countDeviceRequests() {
+      const hits: string[] = [];
+      server.use(
+        http.get("*/api/v1/attendance/device", ({ request }) => {
+          hits.push(request.url);
+          return HttpResponse.json({ registered: false });
+        }),
+      );
+      return hits;
+    }
+
+    it("is not asked about for a reader with no employee record", async () => {
+      server.use(meWith(null));
+      serveRecords();
+      const hits = countDeviceRequests();
+      renderPage();
+
+      await screen.findByText("September 29, 2026");
+      await new Promise((r) => setTimeout(r, 200));
+      expect(hits).toEqual([]);
+    });
+
+    it("is asked about for a reader with one", async () => {
+      server.use(meWith("01HZEMP0000000000000000001"));
+      serveRecords();
+      const hits = countDeviceRequests();
+      renderPage();
+
+      await waitFor(() => expect(hits).toHaveLength(1));
+    });
+  });
 });

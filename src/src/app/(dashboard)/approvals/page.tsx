@@ -25,6 +25,7 @@ import {
   type PendingApproval,
 } from "@/features/approvals/api";
 import { useDecideApprovals } from "@/features/approvals/use-decide";
+import { approvalSummary } from "@/features/approvals/summary";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 
@@ -32,7 +33,7 @@ import { useT } from "@/lib/i18n/useT";
 const TYPES = ["leave", "correction", "profile_update", "overtime"] as const;
 
 export default function ApprovalsPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { formatDate } = useDateFormatters();
 
   // The queue mixed every kind of request with no way to narrow it, and each
@@ -280,7 +281,7 @@ export default function ApprovalsPage() {
                         )}
                       </div>
                       <p className="mt-0.5 text-sm text-muted-foreground">
-                        {item.summary}
+                        {approvalSummary(item, t, formatDate, locale)}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {formatDate(item.submitted_at)}
