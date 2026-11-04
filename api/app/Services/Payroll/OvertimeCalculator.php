@@ -6,6 +6,7 @@ namespace App\Services\Payroll;
 
 use App\Models\PayrollRule;
 use App\Models\Tenant;
+use App\Services\CurrentTenant;
 use App\Support\Cents;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -70,7 +71,7 @@ final class OvertimeCalculator
     public function minimumRates(?int $tenantId, ?CarbonInterface $asOf = null): array
     {
         $asOf ??= Carbon::today();
-        $tenant = $tenantId === null ? null : Tenant::query()->find($tenantId);
+        $tenant = $tenantId === null ? null : app(CurrentTenant::class)->tenantFor($tenantId);
         $set = $tenant === null ? $this->rules->platform($asOf) : $this->rules->for($tenant, $asOf);
 
         return array_map(floatval(...), $set->list('overtime.minimum_rates'));

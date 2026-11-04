@@ -34,6 +34,9 @@ use Illuminate\Support\Collection;
  */
 final class ShiftMatcher
 {
+    /** @var array<int, array{rotation: ?ShiftRotation, shift: ?Shift}> */
+    private array $defaultsByTenant = [];
+
     private const LEVELS = [Employee::class, Department::class, Branch::class];
 
     public function __construct(
@@ -320,6 +323,14 @@ final class ShiftMatcher
      * @return array{rotation: ?ShiftRotation, shift: ?Shift}
      */
     private function defaults(Employee $employee): array
+    {
+        // The organisation's defaults, read once per instance (one payroll
+        // job, one request): a run of 500 read them 1,000 times.
+        return $this->defaultsByTenant[$employee->tenant_id] ??= $this->readDefaults($employee);
+    }
+
+    /** @return array{rotation: ?ShiftRotation, shift: ?Shift} */
+    private function readDefaults(Employee $employee): array
     {
         $rotation = ShiftRotation::query()
             ->where('tenant_id', $employee->tenant_id)

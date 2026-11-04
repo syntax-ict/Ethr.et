@@ -7,6 +7,7 @@ namespace App\Services\Payroll;
 use App\Models\Employee;
 use App\Models\PayrollRule;
 use App\Support\Cents;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Resolves tenant-configured allowance rules into concrete per-employee
@@ -15,6 +16,9 @@ use App\Support\Cents;
  */
 final class AllowanceService
 {
+    /** @var array<int, Collection<int, PayrollRule>> */
+    private array $rulesByTenant = [];
+
     /**
      * Compute the active allowances for an employee against a basic salary.
      *
@@ -31,7 +35,9 @@ final class AllowanceService
      */
     public function resolve(Employee $employee, int $basicSalaryCents): array
     {
-        $rules = PayrollRule::query()
+        // The organisation's allowance rules, read once per instance (one
+        // payroll job): a run of 500 read them 500 times (A-Z review I).
+        $rules = $this->rulesByTenant[$employee->tenant_id] ??= PayrollRule::query()
             ->withoutGlobalScope('tenant')
             ->where('tenant_id', $employee->tenant_id)
             ->where('category', 'allowance')

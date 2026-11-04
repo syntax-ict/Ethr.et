@@ -10,6 +10,7 @@ use App\Enums\LeaveStatus;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\Tenant;
+use App\Services\CurrentTenant;
 use App\Services\Holiday\HolidayService;
 use App\Support\WorkingWeek;
 use Carbon\Carbon;
@@ -216,7 +217,7 @@ final class ExpectedDays
     private function workingWeek(Employee $employee): array
     {
         // `Tenant` is global (no tenant scope), so this needs no bypass.
-        return WorkingWeek::of(Tenant::query()->find($employee->tenant_id));
+        return WorkingWeek::of(app(CurrentTenant::class)->tenantFor($employee->tenant_id));
     }
 
     /**
