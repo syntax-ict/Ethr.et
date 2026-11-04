@@ -653,3 +653,47 @@ test('settings require authentication', function () {
     test()->getJson('http://authtest.ethr.test/api/v1/settings')
         ->assertUnauthorized();
 });
+
+// A-Z review H-02 (2026-11-04). An invoice 30 days overdue moves the
+// subscription to past_due, and nothing moved it back: once the organisation
+// paid and the console marked it, the monthly run, which bills active
+// subscriptions only, never invoiced it again.
+function overdueSubscriber(): array
+{
+    $home = createTenant();
+    test()->actingAs(createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $home));
+    $target = Tenant::factory()->create(['status' => TenantStatus::ACTIVE]);
+    $subscription = Subscription::factory()->create([
+        'tenant_id' => $target->id,
+        'plan_id' => Plan::factory()->create()->id,
+        'status' => SubscriptionStatus::PAST_DUE,
+    ]);
+    $invoice = Invoice::factory()->create([
+        'tenant_id' => $target->id, 'subscription_id' => $subscription->id,
+        'status' => 'past_due', 'due_date' => now()->subDays(45),
+    ]);
+
+    return [$home, $target, $subscription, $invoice];
+}
+
+test('marking the overdue invoice paid puts the subscription back into billing', function () {
+    [$home, $target, $subscription, $invoice] = overdueSubscriber();
+
+    test()->putJson("http://{$home->subdomain}.ethr.test/api/v1/admin/tenants/{$target->public_id}/invoices/{$invoice->public_id}/mark-paid")
+        ->assertOk();
+
+    expect($subscription->fresh()->status)->toBe(SubscriptionStatus::ACTIVE);
+});
+
+test('the subscription stays past due while another invoice is still 30 days overdue', function () {
+    [$home, $target, $subscription, $invoice] = overdueSubscriber();
+    Invoice::factory()->create([
+        'tenant_id' => $target->id, 'subscription_id' => $subscription->id,
+        'status' => 'overdue', 'due_date' => now()->subDays(35),
+    ]);
+
+    test()->putJson("http://{$home->subdomain}.ethr.test/api/v1/admin/tenants/{$target->public_id}/invoices/{$invoice->public_id}/mark-paid")
+        ->assertOk();
+
+    expect($subscription->fresh()->status)->toBe(SubscriptionStatus::PAST_DUE);
+});
