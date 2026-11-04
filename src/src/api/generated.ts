@@ -18766,6 +18766,7 @@ export interface operations {
                         } | null;
                         leave_balances: {
                             type: string | null;
+                            type_am: string | null;
                             entitled: number;
                             used: number;
                             remaining: number;
