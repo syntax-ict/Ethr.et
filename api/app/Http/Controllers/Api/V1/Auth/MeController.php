@@ -29,6 +29,8 @@ class MeController extends Controller
         $employee = $user->employee;
         // An account with no employee record shows the name it gave (the
         // administrator who registered the organisation), not nothing.
+        // `org_scope` is how far the role reaches (ScopesEmployeeAccess); the
+        // dashboard shows a department or team section from it.
         $name = $employee->name ?? $user->display_name;
 
         return response()->json([
@@ -39,6 +41,7 @@ class MeController extends Controller
                 'email' => $user->email,
                 'phone' => $user->phone,
                 'role' => $user->role,
+                'org_scope' => $user->orgScope()->value,
                 'status' => $user->status,
                 'mfa_enabled' => $user->mfa_enabled,
                 'locale' => $user->locale,

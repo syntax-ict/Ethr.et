@@ -21,7 +21,12 @@ import {
 import { KpiCard } from "./kpi-card";
 import { WidgetError } from "./widget-error";
 
-export function TeamOverview() {
+/**
+ * @param emptyState Whether "No direct reports" is worth a card. A reader
+ * with a department or team section above already has their people counted
+ * there, so the card is skipped for them.
+ */
+export function TeamOverview({ emptyState = true }: { emptyState?: boolean }) {
   const { t, locale } = useT();
   const { formatDate } = useCalendar();
   const { isSupervisor, can } = usePermissions();
@@ -62,7 +67,7 @@ export function TeamOverview() {
   if (data.team_size === 0) {
     // Someone who sees the whole organisation already has its attendance in
     // "Organisation today" directly above; "no direct reports" adds nothing.
-    if (can.viewExecutiveDashboard) return null;
+    if (can.viewExecutiveDashboard || !emptyState) return null;
 
     return (
       <Card>

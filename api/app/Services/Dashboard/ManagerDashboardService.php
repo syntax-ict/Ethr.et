@@ -25,7 +25,7 @@ final class ManagerDashboardService
         $teamIds = $this->getTeamEmployeeIds($employee);
 
         return [
-            'team_attendance' => $this->teamAttendanceToday($teamIds),
+            'team_attendance' => $this->attendanceToday($teamIds),
             'pending_approvals' => $this->pendingApprovalsCount($user),
             'team_on_leave' => $this->teamOnLeaveThisWeek($teamIds),
             'team_size' => count($teamIds),
@@ -44,7 +44,15 @@ final class ManagerDashboardService
             ->toArray();
     }
 
-    private function teamAttendanceToday(array $teamIds): array
+    /**
+     * Present, absent and late today among the given employees. Shared with
+     * the department view, so a department head and a supervisor count a day
+     * the same way.
+     *
+     * @param  list<int>  $teamIds
+     * @return array{present: int, absent: int, late: int}
+     */
+    public function attendanceToday(array $teamIds): array
     {
         if (empty($teamIds)) {
             return ['present' => 0, 'absent' => 0, 'late' => 0];

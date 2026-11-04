@@ -10385,6 +10385,9 @@
                                                 "role": {
                                                     "$ref": "#/components/schemas/UserRole"
                                                 },
+                                                "org_scope": {
+                                                    "type": "string"
+                                                },
                                                 "status": {
                                                     "type": "string"
                                                 },
@@ -10473,6 +10476,7 @@
                                                 "email",
                                                 "phone",
                                                 "role",
+                                                "org_scope",
                                                 "status",
                                                 "mfa_enabled",
                                                 "locale",
@@ -10775,6 +10779,142 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/dashboard/department": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "dashboard.department",
+                "summary": "The section exists for a reader whose role reaches one department or\nteam. Everyone else has a view already: the organisation one, or the\ndirect-reports one",
+                "tags": [
+                    "Dashboards & Reporting"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "scope": {
+                                            "type": "string"
+                                        },
+                                        "unit": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "name_am": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "name_am"
+                                            ]
+                                        },
+                                        "headcount": {
+                                            "type": "integer"
+                                        },
+                                        "attendance": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "present": {
+                                                            "type": "integer",
+                                                            "minimum": 0
+                                                        },
+                                                        "absent": {
+                                                            "type": "integer"
+                                                        },
+                                                        "late": {
+                                                            "type": "integer",
+                                                            "minimum": 0
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "present",
+                                                        "absent",
+                                                        "late"
+                                                    ]
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "present": {
+                                                            "type": "integer"
+                                                        },
+                                                        "absent": {
+                                                            "type": "integer"
+                                                        },
+                                                        "late": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "present",
+                                                        "absent",
+                                                        "late"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "on_leave_today": {
+                                            "type": "integer"
+                                        },
+                                        "pending_approvals": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "scope",
+                                        "unit",
+                                        "headcount",
+                                        "attendance",
+                                        "on_leave_today",
+                                        "pending_approvals"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
