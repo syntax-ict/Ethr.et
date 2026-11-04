@@ -928,6 +928,7 @@ return array(
     'App\\Services\\CurrentTenant' => $baseDir . '/app/Services/CurrentTenant.php',
     'App\\Services\\CustomDomainVerifier' => $baseDir . '/app/Services/CustomDomainVerifier.php',
     'App\\Services\\Dashboard\\DashboardCacheVersion' => $baseDir . '/app/Services/Dashboard/DashboardCacheVersion.php',
+    'App\\Services\\Dashboard\\DepartmentDashboardService' => $baseDir . '/app/Services/Dashboard/DepartmentDashboardService.php',
     'App\\Services\\Dashboard\\EmployeeDashboardService' => $baseDir . '/app/Services/Dashboard/EmployeeDashboardService.php',
     'App\\Services\\Dashboard\\ManagerDashboardService' => $baseDir . '/app/Services/Dashboard/ManagerDashboardService.php',
     'App\\Services\\Device\\AdmsDeviceResolver' => $baseDir . '/app/Services/Device/AdmsDeviceResolver.php',

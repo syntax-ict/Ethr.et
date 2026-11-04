@@ -1662,6 +1662,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Services\\CurrentTenant' => __DIR__ . '/../..' . '/app/Services/CurrentTenant.php',
         'App\\Services\\CustomDomainVerifier' => __DIR__ . '/../..' . '/app/Services/CustomDomainVerifier.php',
         'App\\Services\\Dashboard\\DashboardCacheVersion' => __DIR__ . '/../..' . '/app/Services/Dashboard/DashboardCacheVersion.php',
+        'App\\Services\\Dashboard\\DepartmentDashboardService' => __DIR__ . '/../..' . '/app/Services/Dashboard/DepartmentDashboardService.php',
         'App\\Services\\Dashboard\\EmployeeDashboardService' => __DIR__ . '/../..' . '/app/Services/Dashboard/EmployeeDashboardService.php',
         'App\\Services\\Dashboard\\ManagerDashboardService' => __DIR__ . '/../..' . '/app/Services/Dashboard/ManagerDashboardService.php',
         'App\\Services\\Device\\AdmsDeviceResolver' => __DIR__ . '/../..' . '/app/Services/Device/AdmsDeviceResolver.php',
